@@ -1,0 +1,16 @@
+image: golang:1.13
+
+stages:
+  - test
+  - build
+
+unit_tests:
+  stage: test
+  script:
+    - make test
+
+build:
+  stage: build
+  script:
+    - make build
+
