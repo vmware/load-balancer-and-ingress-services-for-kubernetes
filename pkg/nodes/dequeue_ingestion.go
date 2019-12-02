@@ -19,6 +19,7 @@ import (
 
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 func DequeueIngestion(key string) {
@@ -26,10 +27,31 @@ func DequeueIngestion(key string) {
 	utils.AviLog.Info.Printf("%s: Starting graph Sync", key)
 	objType, namespace, name := extractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	if objType == "Service" {
-		// Check if this Service is of type Loadbalancer.
-		if isServiceLBType(name, namespace) {
+	if objType == "LBService" {
+		// L4 type of services need special handling. We create a dedicated VS in Avi for these.
+		if !isServiceDelete(name, namespace) {
 			utils.AviLog.Warning.Printf("%s service is of type Loadbalancer. Will create dedicated VS nodes", name)
+			aviModelGraph := NewAviObjectGraph()
+			aviModelGraph.BuildL4LBGraph(namespace, name)
+			if len(aviModelGraph.GetOrderedNodes()) != 0 {
+				publishKeyToRestLayer(aviModelGraph, namespace, name, sharedQueue)
+			}
+		} else {
+			// This is a DELETE event. The avi graph is set to nil.
+			utils.AviLog.Info.Printf("Received DELETE event for service :%s", name)
+			model_name := namespace + "/" + name
+			objects.SharedAviGraphLister().Save(model_name, nil)
+			bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
+			sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
+		}
+	} else if objType == "Endpoints" {
+		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
+		if err != nil {
+			utils.AviLog.Info.Printf("There was an error in retrieving the service for endpoint :%s", err)
+			return
+		}
+		if svcObj.Spec.Type == "LoadBalancer" {
+			// This endpoint update affects a LB service.
 			aviModelGraph := NewAviObjectGraph()
 			aviModelGraph.BuildL4LBGraph(namespace, name)
 			if len(aviModelGraph.GetOrderedNodes()) != 0 {
@@ -37,7 +59,6 @@ func DequeueIngestion(key string) {
 			}
 		}
 	}
-
 }
 
 func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name string, sharedQueue *utils.WorkerQueue) {
@@ -60,18 +81,14 @@ func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name stri
 	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
 }
 
-func BuildAviGraph(gws []string) {
-	return
-}
-
-func isServiceLBType(svcName string, namespace string) bool {
-	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+func isServiceDelete(svcName string, namespace string) bool {
+	// If the service is not found we return true.
+	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Could not retrieve the object for service: %s", svcName)
-		return false
-	}
-	if svcObj.Spec.Type == "LoadBalancer" {
-		return true
+		utils.AviLog.Warning.Printf("Could not retrieve the object for service: %s", err)
+		if errors.IsNotFound(err) {
+			return true
+		}
 	}
 	return false
 }

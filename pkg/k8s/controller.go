@@ -116,7 +116,13 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		AddFunc: func(obj interface{}) {
 			svc := obj.(*corev1.Service)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
-			key := "Service/" + utils.ObjKey(svc)
+			isSvcLb := isServiceLBType(svc)
+			var key string
+			if isSvcLb {
+				key = "LBService/" + utils.ObjKey(svc)
+			} else {
+				key = "Service/" + utils.ObjKey(svc)
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Info.Printf("ADD Service key: %s", key)
@@ -137,11 +143,17 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			}
 			svc = obj.(*corev1.Service)
+			isSvcLb := isServiceLBType(svc)
+			var key string
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
-			key := "Service/" + utils.ObjKey(svc)
+			if isSvcLb {
+				key = "LBService/" + utils.ObjKey(svc)
+			} else {
+				key = "Service/" + utils.ObjKey(svc)
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("DELETE Service key: %s", key)
+			utils.AviLog.Info.Printf("DELETE Service key: %s", svc)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oldobj := old.(*corev1.Service)
@@ -149,7 +161,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if oldobj.ResourceVersion != svc.ResourceVersion {
 				// Only add the key if the resource versions have changed.
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
-				key := "Service/" + utils.ObjKey(svc)
+				isSvcLb := isServiceLBType(svc)
+				var key string
+				if isSvcLb {
+					key = "LBService/" + utils.ObjKey(svc)
+				} else {
+					key = "Service/" + utils.ObjKey(svc)
+				}
+
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Info.Printf("UPDATE service key: %s", key)
@@ -222,6 +241,14 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	} else {
 		utils.AviLog.Info.Print("Caches synced")
 	}
+}
+
+func isServiceLBType(svcObj *corev1.Service) bool {
+	// If we don't find a service or it is not of type loadbalancer - return false.
+	if svcObj.Spec.Type == "LoadBalancer" {
+		return true
+	}
+	return false
 }
 
 // // Run will set up the event handlers for types we are interested in, as well
