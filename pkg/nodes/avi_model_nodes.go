@@ -64,9 +64,10 @@ type AviVsNode struct {
 	CloudConfigCksum   uint32
 	DefaultPoolGroup   string
 	// This field will detect if the HTTP policy set rules have changed.
-	HTTPChecksum     uint32
-	SNIParent        bool
-	PoolGroupRefs    []*AviPoolGroupNode
+	HTTPChecksum  uint32
+	SNIParent     bool
+	PoolGroupRefs []*AviPoolGroupNode
+	// TODO(sudswas): Can this be a part of the PG object itself?
 	PoolRefs         []*AviPoolNode
 	TCPPoolGroupRefs []*AviPoolGroupNode
 }
@@ -107,7 +108,6 @@ type AviPoolGroupNode struct {
 	Name             string
 	Tenant           string
 	CloudConfigCksum uint32
-	RuleChecksum     uint32
 	Members          []*avimodels.PoolGroupMember
 	Port             string
 }

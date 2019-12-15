@@ -37,7 +37,6 @@ func InitController(informers K8sinformers) {
 	c := SharedAviController()
 
 	c.SetupEventHandlers(informers)
-	c.Start(stopCh)
 
 	// start the go routines draining the queues in various layers
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
@@ -46,6 +45,7 @@ func InitController(informers K8sinformers) {
 	graphQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh)
+	c.Start(stopCh)
 	// TODO (sudswas): Remove hard coding.
 	worker := utils.NewFullSyncThread(50000 * time.Second)
 	worker.SyncFunction = FullSync

@@ -16,7 +16,6 @@ package nodes
 
 import (
 	"fmt"
-	"strings"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
@@ -25,13 +24,17 @@ import (
 )
 
 const (
-	HTTP            = "HTTP"
-	HeaderMethod    = ":method"
-	HeaderAuthority = ":authority"
-	HeaderScheme    = ":scheme"
-	TLS             = "TLS"
-	HTTPS           = "HTTPS"
-	TCP             = "TCP"
+	HTTP                   = "HTTP"
+	HeaderMethod           = ":method"
+	HeaderAuthority        = ":authority"
+	HeaderScheme           = ":scheme"
+	TLS                    = "TLS"
+	HTTPS                  = "HTTPS"
+	TCP                    = "TCP"
+	UDP                    = "UDP"
+	SYSTEM_UDP_FAST_PATH   = "System-UDP-Fast-Path"
+	DEFAULT_TCP_NW_PROFILE = "System-TCP-Proxy"
+	DEFAULT_L4_APP_PROFILE = "System-L4-Application"
 )
 
 func contains(s []int32, e int32) bool {
@@ -49,23 +52,29 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service) *AviVsNode
 	// FQDN should come from the cloud. Modify
 	avi_vs_meta = &AviVsNode{Name: svcObj.ObjectMeta.Name, Tenant: svcObj.ObjectMeta.Namespace,
 		EastWest: false}
+	isTCP := false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
-		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: TCP}
+		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol)}
 		portProtocols = append(portProtocols, pp)
+		if port.Protocol == "" || port.Protocol == TCP {
+			isTCP = true
+		}
 	}
 	avi_vs_meta.PortProto = portProtocols
 	// Default case.
-	avi_vs_meta.ApplicationProfile = "System-TCP"
-	// For HTTP it's always System-TCP-Proxy.
-	avi_vs_meta.NetworkProfile = "System-TCP-Proxy"
+	avi_vs_meta.ApplicationProfile = DEFAULT_L4_APP_PROFILE
+	if !isTCP {
+		avi_vs_meta.NetworkProfile = SYSTEM_UDP_FAST_PATH
+	} else {
+		avi_vs_meta.NetworkProfile = DEFAULT_TCP_NW_PROFILE
+	}
 
 	return avi_vs_meta
 }
 
 func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode) {
 	var prevTCPModelPoolGroupNodes []*AviPoolGroupNode
-	var prevTCPPoolGroupNodesInCache []utils.NamespaceName
 	model_name := svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
@@ -74,42 +83,13 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 			utils.AviLog.Info.Printf("Evaluating TCP Pool Groups. The prevModel PGs are: %v", prevTCPModelPoolGroupNodes)
 		}
 	}
-	cache := utils.SharedAviObjCache()
-	vsKey := utils.NamespaceName{Namespace: svcObj.ObjectMeta.Namespace, Name: svcObj.ObjectMeta.Name}
-	vs_cache, ok := cache.VsCache.AviCacheGet(vsKey)
-	vs_cache_obj, ok := vs_cache.(*utils.AviVsCache)
-	if ok {
-		// There's a VS Cache - let's check the PGs
-		if vs_cache_obj.PGKeyCollection != nil {
-			prevTCPPoolGroupNodesInCache = vs_cache_obj.PGKeyCollection
-		}
-	}
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
-		pgNamePrefix := "tcp-" + fmt.Sprint(filterPort) + "-"
+		pgName := vsNode.Name + "-l4-" + fmt.Sprint(filterPort)
 
-		var pgName string
-		// Check if the NamePrefix exists or not
-		for _, pgNodeNsName := range prevTCPPoolGroupNodesInCache {
-			if strings.HasPrefix(pgNodeNsName.Name, pgNamePrefix) {
-				pgName = pgNodeNsName.Name
-			}
-		}
-		// Check if the PG name is present in the model cache.
-		if pgName == "" {
-			for _, pgNode := range prevTCPModelPoolGroupNodes {
-				if strings.HasPrefix(pgNode.Name, pgNamePrefix) {
-					pgName = pgNode.Name
-				}
-			}
-		}
-		// If the PGName was not found in the cache, generate the name
-		if pgName == "" {
-			pgName = o.generateRandomStringName(pgNamePrefix)
-		}
 		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: svcObj.ObjectMeta.Namespace, Port: fmt.Sprint(filterPort)}
 		// For TCP - the PG to Pool relationship is 1x1
-		poolNode := &AviPoolNode{Name: "pool-" + pgName, Tenant: svcObj.ObjectMeta.Namespace, Port: filterPort, Protocol: "TCP"}
+		poolNode := &AviPoolNode{Name: "pool-" + pgName, Tenant: svcObj.ObjectMeta.Namespace, Port: filterPort, Protocol: portProto.Protocol}
 
 		if servers := o.populateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name); servers != nil {
 			poolNode.Servers = servers
@@ -118,8 +98,8 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
 
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
-		utils.AviLog.Info.Printf("Evaluated TCP pool group values :%v", utils.Stringify(pgNode))
-		utils.AviLog.Info.Printf("Evaluated TCP pool values :%v", utils.Stringify(poolNode))
+		utils.AviLog.Info.Printf("Evaluated L4 pool group values :%v", utils.Stringify(pgNode))
+		utils.AviLog.Info.Printf("Evaluated L4 pool values :%v", utils.Stringify(poolNode))
 		vsNode.TCPPoolGroupRefs = append(vsNode.TCPPoolGroupRefs, pgNode)
 		pgNode.CalculateCheckSum()
 		poolNode.CalculateCheckSum()
@@ -158,6 +138,8 @@ func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, servi
 				} else {
 					atype = "V6"
 				}
+				// Append the port to the IP
+				ip = ip + ":" + fmt.Sprint(poolNode.Port)
 				a := avimodels.IPAddr{Type: &atype, Addr: &ip}
 				server := AviPoolMetaServer{Ip: a}
 				if addr.NodeName != nil {
