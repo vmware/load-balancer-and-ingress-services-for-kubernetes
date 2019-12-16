@@ -15,6 +15,9 @@
 package nodes
 
 import (
+	"fmt"
+
+	avimodels "github.com/avinetworks/sdk/go/models"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
@@ -61,8 +64,12 @@ type AviVsNode struct {
 	CloudConfigCksum   uint32
 	DefaultPoolGroup   string
 	// This field will detect if the HTTP policy set rules have changed.
-	HTTPChecksum uint32
-	SNIParent    bool
+	HTTPChecksum  uint32
+	SNIParent     bool
+	PoolGroupRefs []*AviPoolGroupNode
+	// TODO(sudswas): Can this be a part of the PG object itself?
+	PoolRefs         []*AviPoolNode
+	TCPPoolGroupRefs []*AviPoolGroupNode
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -95,4 +102,64 @@ type AviPortHostProtocol struct {
 	Secret      string
 	Passthrough bool
 	Redirect    bool
+}
+
+type AviPoolGroupNode struct {
+	Name             string
+	Tenant           string
+	CloudConfigCksum uint32
+	Members          []*avimodels.PoolGroupMember
+	Port             string
+}
+
+func (v *AviPoolGroupNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	return v.CloudConfigCksum
+}
+
+func (v *AviPoolGroupNode) CalculateCheckSum() {
+	// A sum of fields for this VS.
+	checksum := utils.Hash(utils.Stringify(v.Members))
+	v.CloudConfigCksum = checksum
+}
+
+type AviPoolNode struct {
+	Name             string
+	Tenant           string
+	CloudConfigCksum uint32
+	Port             int32
+	PortName         string
+	Servers          []AviPoolMetaServer
+	Protocol         string
+	LbAlgorithm      string
+	ServerClientCert string
+	PkiProfile       string
+	SSLProfileRef    string
+}
+
+func (v *AviPoolNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	return v.CloudConfigCksum
+}
+
+func (v *AviPoolNode) CalculateCheckSum() {
+	// A sum of fields for this VS.
+	checksum := utils.Hash(v.Protocol) + utils.Hash(fmt.Sprint(v.Port)) + utils.Hash(v.PortName) + utils.Hash(utils.Stringify(v.Servers)) + utils.Hash(utils.Stringify(v.LbAlgorithm)) + utils.Hash(utils.Stringify(v.SSLProfileRef)) + utils.Hash(utils.Stringify(v.ServerClientCert)) + utils.Hash(utils.Stringify(v.PkiProfile))
+	v.CloudConfigCksum = checksum
+}
+
+func (o *AviObjectGraph) GetAviPoolNodes() []*AviPoolNode {
+	var aviPool []*AviPoolNode
+	for _, model := range o.modelNodes {
+		pool, ok := model.(*AviPoolNode)
+		if ok {
+			aviPool = append(aviPool, pool)
+		}
+	}
+	return aviPool
+}
+
+type AviPoolMetaServer struct {
+	Ip         avimodels.IPAddr
+	ServerNode string
 }

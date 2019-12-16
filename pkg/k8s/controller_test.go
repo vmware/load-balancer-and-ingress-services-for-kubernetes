@@ -75,7 +75,7 @@ func TestSvc(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 	time.Sleep(2 * time.Second)
-	if globalKey != "Service/red-ns/testsvc" {
+	if globalKey != "LBService/red-ns/testsvc" {
 		t.Fatalf("error in adding Service: %v", globalKey)
 	}
 }
@@ -90,11 +90,11 @@ func TestEndpoint(t *testing.T) {
 	}
 	_, err := kubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
 	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
+		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 	time.Sleep(2 * time.Second)
 	if globalKey != "Endpoints/red-ns/testep" {
-		t.Fatalf("error in adding Service: %v", globalKey)
+		t.Fatalf("Couldn't retrieve endpoint: %v", globalKey)
 	}
 }
 
