@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: akc--deployment
+  namespace: avi-system
+  labels:
+    app: akc-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: akc-controller
+  template:
+    metadata:
+      labels:
+        app: akc-controller
+    spec:
+      containers:
+      - name: akc-controller
+        image: avi-k8s-controller:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: CTRL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: avi-secret
+              key: username
+        - name: CTRL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: avi-secret
+              key: password
+        - name: CTRL_IP
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: controller_ip
+        - name: CTRL_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: controller_version
+        - name: SHARD_VS_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: shard_vs_size
+        - name: SHARD_VS_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: shard_vs_name_prefix
