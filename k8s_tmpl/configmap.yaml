@@ -5,7 +5,7 @@ metadata:
   name: avi-k8s-config
   namespace: avi-system
 data:
-  controller_ip: "localhost"
-  controller_version: "18.2.7"
-  shard_vs_size: "LARGE" # SHARD VS size - ENUM: LARGE, MEDIUM, SMALL
-  shard_vs_name_prefix: "Shard-VS-"
+  controllerIP: "localhost"
+  controllerVersion: "18.2.7"
+  shardVSSize: "LARGE" # SHARD VS size - ENUM: LARGE, MEDIUM, SMALL
+  shardVSNamePrefix: "Shard-VS-"

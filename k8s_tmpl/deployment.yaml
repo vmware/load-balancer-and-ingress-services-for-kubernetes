@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: akc--deployment
+  name: akc-deployment
   namespace: avi-system
   labels:
     app: akc-controller
@@ -34,19 +34,19 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: avi-k8s-config
-              key: controller_ip
+              key: controllerIP
         - name: CTRL_VERSION
           valueFrom:
             configMapKeyRef:
               name: avi-k8s-config
-              key: controller_version
+              key: controllerVersion
         - name: SHARD_VS_SIZE
           valueFrom:
             configMapKeyRef:
               name: avi-k8s-config
-              key: shard_vs_size
+              key: shardVSSize
         - name: SHARD_VS_PREFIX
           valueFrom:
             configMapKeyRef:
               name: avi-k8s-config
-              key: shard_vs_name_prefix
+              key: shardVSNamePrefix
