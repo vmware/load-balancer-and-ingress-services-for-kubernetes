@@ -1,0 +1,11 @@
+# Config map to store Avi related configurations.
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: avi-k8s-config
+  namespace: avi-system
+data:
+  controllerIP: "localhost"
+  controllerVersion: "18.2.7"
+  shardVSSize: "LARGE" # SHARD VS size - ENUM: LARGE, MEDIUM, SMALL
+  shardVSNamePrefix: "Shard-VS-"
