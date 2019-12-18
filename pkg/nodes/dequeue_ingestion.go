@@ -24,54 +24,76 @@ import (
 
 func DequeueIngestion(key string) {
 	// The key format expected here is: objectType/Namespace/ObjKey
-	utils.AviLog.Info.Printf("%s: Starting graph Sync", key)
-	objType, namespace, name := extractTypeNameNamespace(key)
+	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
+	ingressFound := false
+	var ingressNames []string
+	utils.AviLog.Info.Printf("key: %s msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	if objType == "LBService" {
-		// L4 type of services need special handling. We create a dedicated VS in Avi for these.
-		if !isServiceDelete(name, namespace) {
-			utils.AviLog.Warning.Printf("%s service is of type Loadbalancer. Will create dedicated VS nodes", name)
-			aviModelGraph := NewAviObjectGraph()
-			aviModelGraph.BuildL4LBGraph(namespace, name)
-			if len(aviModelGraph.GetOrderedNodes()) != 0 {
-				publishKeyToRestLayer(aviModelGraph, namespace, name, sharedQueue)
+
+	objType, namespace, name := extractTypeNameNamespace(key)
+	schema, valid := ConfigDescriptor().GetByType(objType)
+	if valid {
+		// If it's an ingress related change, let's process that.
+		ingressNames, ingressFound = schema.GetParentIngresses(name, namespace, key)
+	}
+	if !ingressFound {
+		// If ingress is not found, let's do the other checks.
+		if objType == utils.L4LBService {
+			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
+			if !isServiceDelete(name, namespace, key) {
+				utils.AviLog.Warning.Printf("key: %s msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
+				aviModelGraph := NewAviObjectGraph()
+				aviModelGraph.BuildL4LBGraph(namespace, name, key)
+				if len(aviModelGraph.GetOrderedNodes()) != 0 {
+					publishKeyToRestLayer(aviModelGraph, namespace, name, key, sharedQueue)
+				}
+			} else {
+				// This is a DELETE event. The avi graph is set to nil.
+				utils.AviLog.Info.Printf("key: %s msg: received DELETE event for service", key)
+				model_name := namespace + "/" + name
+				objects.SharedAviGraphLister().Save(model_name, nil)
+				bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
+				sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
 			}
-		} else {
-			// This is a DELETE event. The avi graph is set to nil.
-			utils.AviLog.Info.Printf("Received DELETE event for service :%s", name)
-			model_name := namespace + "/" + name
-			objects.SharedAviGraphLister().Save(model_name, nil)
-			bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
-			sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
+		} else if objType == utils.Endpoints {
+			svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
+			if err != nil {
+				utils.AviLog.Info.Printf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
+				return
+			}
+			if svcObj.Spec.Type == utils.LoadBalancer {
+				// This endpoint update affects a LB service.
+				aviModelGraph := NewAviObjectGraph()
+				aviModelGraph.BuildL4LBGraph(namespace, name, key)
+				if len(aviModelGraph.GetOrderedNodes()) != 0 {
+					publishKeyToRestLayer(aviModelGraph, namespace, name, key, sharedQueue)
+				}
+			}
 		}
-	} else if objType == "Endpoints" {
-		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
-		if err != nil {
-			utils.AviLog.Info.Printf("There was an error in retrieving the service for endpoint :%s", err)
-			return
-		}
-		if svcObj.Spec.Type == "LoadBalancer" {
-			// This endpoint update affects a LB service.
+	} else {
+		for _, ingress := range ingressNames {
+			// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
+			// does not allow cross tenant ingress references.
 			aviModelGraph := NewAviObjectGraph()
-			aviModelGraph.BuildL4LBGraph(namespace, name)
+			aviModelGraph.BuildL7VSGraph(namespace, ingress, key)
 			if len(aviModelGraph.GetOrderedNodes()) != 0 {
-				publishKeyToRestLayer(aviModelGraph, namespace, name, sharedQueue)
+				publishKeyToRestLayer(aviModelGraph, namespace, ingress, key, sharedQueue)
 			}
 		}
 	}
 }
 
-func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name string, sharedQueue *utils.WorkerQueue) {
+func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name string, key string, sharedQueue *utils.WorkerQueue) {
 	// First see if there's another instance of the same model in the store
 	model_name := namespace + "/" + name
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
 		prevChecksum := aviModel.(*AviObjectGraph).GetCheckSum()
-		utils.AviLog.Info.Printf("The model: %s has a previous checksum: %v", model_name, prevChecksum)
+		utils.AviLog.Info.Printf("key :%s msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
-		utils.AviLog.Info.Printf("The model: %s has a present checksum: %v", model_name, presentChecksum)
+		utils.AviLog.Info.Printf("key: %s msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
 		if prevChecksum == presentChecksum {
-			utils.AviLog.Info.Printf("The model: %s has identical checksums, hence not processing. Checksum value: %v", model_name, presentChecksum)
+			utils.AviLog.Info.Printf("key: %s msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
 			return
 		}
 	}
@@ -81,11 +103,11 @@ func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name stri
 	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
 }
 
-func isServiceDelete(svcName string, namespace string) bool {
+func isServiceDelete(svcName string, namespace string, key string) bool {
 	// If the service is not found we return true.
 	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Could not retrieve the object for service: %s", err)
+		utils.AviLog.Warning.Printf("key: %s msg: could not retrieve the object for service: %s", key, err)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -99,4 +121,17 @@ func extractTypeNameNamespace(key string) (string, string, string) {
 		return segments[0], segments[1], segments[2]
 	}
 	return "", "", segments[0]
+}
+
+func ConfigDescriptor() GraphDescriptor {
+	return SupportedGraphTypes
+}
+
+func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
+	for _, schema := range descriptor {
+		if schema.Type == name {
+			return schema, true
+		}
+	}
+	return GraphSchema{}, false
 }

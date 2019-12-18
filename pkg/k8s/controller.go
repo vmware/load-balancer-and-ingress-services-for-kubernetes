@@ -62,7 +62,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(utils.AviLog.Info.Printf)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
-	//recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "avi-k8s-controller"})
 
 	mcpQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	c.workqueue = mcpQueue.Workqueue
@@ -72,10 +71,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		AddFunc: func(obj interface{}) {
 			ep := obj.(*corev1.Endpoints)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-			key := "Endpoints/" + utils.ObjKey(ep)
+			key := utils.Endpoints + "/" + utils.ObjKey(ep)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("ADD Endpoint key: %s", key)
+			utils.AviLog.Info.Printf("key: %s msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			ep, ok := obj.(*corev1.Endpoints)
@@ -94,20 +93,20 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			ep = obj.(*corev1.Endpoints)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-			key := "Endpoints/" + utils.ObjKey(ep)
+			key := utils.Endpoints + "/" + utils.ObjKey(ep)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("DELETE Endpoint key: %s", key)
+			utils.AviLog.Info.Printf("key: %s msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oep := old.(*corev1.Endpoints)
 			cep := cur.(*corev1.Endpoints)
 			if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
-				key := "Endpoints/" + utils.ObjKey(cep)
+				key := utils.Endpoints + "/" + utils.ObjKey(cep)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Info.Printf("UPDATE Endpoint key: %s", key)
+				utils.AviLog.Info.Printf("key :%s msg: UPDATE", key)
 			}
 		},
 	}
@@ -119,13 +118,13 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			isSvcLb := isServiceLBType(svc)
 			var key string
 			if isSvcLb {
-				key = "LBService/" + utils.ObjKey(svc)
+				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
-				key = "Service/" + utils.ObjKey(svc)
+				key = utils.Service + "/" + utils.ObjKey(svc)
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("ADD Service key: %s", key)
+			utils.AviLog.Info.Printf("key: %s msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			svc, ok := obj.(*corev1.Service)
@@ -147,13 +146,13 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			var key string
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			if isSvcLb {
-				key = "LBService/" + utils.ObjKey(svc)
+				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
-				key = "Service/" + utils.ObjKey(svc)
+				key = utils.Service + "/" + utils.ObjKey(svc)
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("DELETE Service key: %s", svc)
+			utils.AviLog.Info.Printf("key: %s msg: DELETE", svc)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oldobj := old.(*corev1.Service)
@@ -164,14 +163,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				isSvcLb := isServiceLBType(svc)
 				var key string
 				if isSvcLb {
-					key = "LBService/" + utils.ObjKey(svc)
+					key = utils.L4LBService + "/" + utils.ObjKey(svc)
 				} else {
-					key = "Service/" + utils.ObjKey(svc)
+					key = utils.Service + "/" + utils.ObjKey(svc)
 				}
 
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Info.Printf("UPDATE service key: %s", key)
+				utils.AviLog.Info.Printf("key: %s msg: UPDATE", key)
 			}
 		},
 	}
@@ -180,10 +179,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		AddFunc: func(obj interface{}) {
 			ingress := obj.(*extensionv1beta1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			key := "Ingress/" + utils.ObjKey(ingress)
+			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("ADD Ingress key: %s", key)
+			utils.AviLog.Info.Printf("key: %s msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			ingress, ok := obj.(*extensionv1beta1.Ingress)
@@ -202,10 +201,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			ingress = obj.(*extensionv1beta1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			key := "Ingress/" + utils.ObjKey(ingress)
+			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("DELETE ingress key: %s", key)
+			utils.AviLog.Info.Printf("key: %s msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oldobj := old.(*extensionv1beta1.Ingress)
@@ -213,10 +212,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if oldobj.ResourceVersion != ingress.ResourceVersion {
 				// Only add the key if the resource versions have changed.
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-				key := "Ingress/" + utils.ObjKey(ingress)
+				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Info.Printf("UPDATE ingress key: %s", key)
+				utils.AviLog.Info.Printf("key: %s msg: UPDATE", key)
 			}
 		},
 	}

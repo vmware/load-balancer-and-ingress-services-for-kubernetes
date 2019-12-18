@@ -1,6 +1,6 @@
 # github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792
-github.com/avinetworks/sdk/go/clients
 github.com/avinetworks/sdk/go/models
+github.com/avinetworks/sdk/go/clients
 github.com/avinetworks/sdk/go/session
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
@@ -42,6 +42,19 @@ github.com/json-iterator/go
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
+# github.com/onsi/gomega v0.0.0-20190113212917-5533ce8a0da3
+github.com/onsi/gomega
+github.com/onsi/gomega/internal/assertion
+github.com/onsi/gomega/internal/asyncassertion
+github.com/onsi/gomega/internal/testingtsupport
+github.com/onsi/gomega/matchers
+github.com/onsi/gomega/types
+github.com/onsi/gomega/internal/oraclematcher
+github.com/onsi/gomega/format
+github.com/onsi/gomega/matchers/support/goraph/bipartitegraph
+github.com/onsi/gomega/matchers/support/goraph/edge
+github.com/onsi/gomega/matchers/support/goraph/node
+github.com/onsi/gomega/matchers/support/goraph/util
 # github.com/openshift/api v3.9.0+incompatible
 github.com/openshift/api/route/v1
 # github.com/openshift/client-go v3.9.0+incompatible
@@ -57,7 +70,7 @@ github.com/openshift/client-go/route/clientset/versioned/scheme
 github.com/pkg/errors
 # github.com/spf13/pflag v1.0.3
 github.com/spf13/pflag
-# gitlab.eng.vmware.com/orion/container-lib v0.0.0-20191127072232-e3e1546a3dab
+# gitlab.eng.vmware.com/orion/container-lib v0.0.0-20191203062150-1d60b0aef6ee
 gitlab.eng.vmware.com/orion/container-lib/utils
 # golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 golang.org/x/crypto/ssh/terminal
@@ -66,8 +79,11 @@ golang.org/x/net/http2
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
+golang.org/x/net/html/charset
 golang.org/x/net/context/ctxhttp
+golang.org/x/net/html
 golang.org/x/net/context
+golang.org/x/net/html/atom
 # golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
@@ -79,6 +95,22 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 golang.org/x/text/transform
+golang.org/x/text/encoding
+golang.org/x/text/encoding/charmap
+golang.org/x/text/encoding/htmlindex
+golang.org/x/text/encoding/internal/identifier
+golang.org/x/text/encoding/internal
+golang.org/x/text/encoding/japanese
+golang.org/x/text/encoding/korean
+golang.org/x/text/encoding/simplifiedchinese
+golang.org/x/text/encoding/traditionalchinese
+golang.org/x/text/encoding/unicode
+golang.org/x/text/language
+golang.org/x/text/internal/utf8internal
+golang.org/x/text/runes
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/internal/tag
 # golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
 golang.org/x/time/rate
 # google.golang.org/appengine v1.5.0
@@ -133,8 +165,8 @@ k8s.io/api/authorization/v1beta1
 # k8s.io/apimachinery v0.0.0-20190807091453-5477731e3db2
 k8s.io/apimachinery/pkg/labels
 k8s.io/apimachinery/pkg/util/runtime
-k8s.io/apimachinery/pkg/util/wait
 k8s.io/apimachinery/pkg/api/errors
+k8s.io/apimachinery/pkg/util/wait
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/runtime
 k8s.io/apimachinery/pkg/runtime/schema
@@ -145,8 +177,8 @@ k8s.io/apimachinery/pkg/util/sets
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/pkg/util/errors
 k8s.io/apimachinery/pkg/util/validation
-k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/util/intstr
+k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/selection
 k8s.io/apimachinery/pkg/fields
 k8s.io/apimachinery/pkg/api/meta
@@ -155,9 +187,9 @@ k8s.io/apimachinery/pkg/util/clock
 k8s.io/apimachinery/pkg/util/diff
 k8s.io/apimachinery/pkg/util/naming
 k8s.io/apimachinery/pkg/util/strategicpatch
+k8s.io/apimachinery/pkg/util/validation/field
 k8s.io/apimachinery/pkg/runtime/serializer
 k8s.io/apimachinery/pkg/version
-k8s.io/apimachinery/pkg/util/validation/field
 k8s.io/apimachinery/pkg/conversion
 k8s.io/apimachinery/pkg/conversion/queryparams
 k8s.io/apimachinery/pkg/util/json

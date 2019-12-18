@@ -32,7 +32,6 @@ import (
 )
 
 var kubeClient *k8sfake.Clientset
-var keyChan chan string
 
 func pollForCompletion(t *testing.T, key string, counter int) interface{} {
 	count := 0
@@ -45,7 +44,6 @@ func pollForCompletion(t *testing.T, key string, counter int) interface{} {
 			return aviModel
 		}
 	}
-	t.Fatalf("timed out waiting for %v", key)
 	return nil
 }
 func TestMain(m *testing.M) {

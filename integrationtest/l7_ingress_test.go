@@ -1,0 +1,204 @@
+/*
+* [2013] - [2019] Avi Networks Incorporated
+* All Rights Reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*   http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+ */
+
+package integrationtest
+
+import (
+	"os"
+	"testing"
+
+	"github.com/onsi/gomega"
+	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
+	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+)
+
+func TestNoModel(t *testing.T) {
+	//g := gomega.NewGomegaWithT(t)
+	model_name := "red-ns/testl7"
+	objects.SharedAviGraphLister().Delete(model_name)
+	svcExample := &corev1.Service{
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Ports: []corev1.ServicePort{
+				{Name: "foo", Port: 8080, Protocol: "TCP", TargetPort: intstr.FromInt(8080)},
+			},
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "red-ns",
+			Name:      "testl7",
+		},
+	}
+	_, err := kubeClient.CoreV1().Services("red-ns").Create(svcExample)
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	epExample := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "red-ns",
+			Name:      "testl7",
+		},
+		Subsets: []corev1.EndpointSubset{{
+			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
+		}},
+	}
+	_, err = kubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
+	if err != nil {
+		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+	pollForCompletion(t, model_name, 5)
+	found, _ := objects.SharedAviGraphLister().Get(model_name)
+	if found {
+		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
+		t.Fatalf("Model found for an unrelated update %v", model_name)
+	}
+	err = kubeClient.CoreV1().Endpoints("red-ns").Delete("testl7", nil)
+
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
+	}
+	err = kubeClient.CoreV1().Services("red-ns").Delete("testl7", nil)
+}
+
+func TestL7Model(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	os.Setenv("shard_vs_size", "LARGE")
+	model_name := "default/testl7"
+	objects.SharedAviGraphLister().Delete(model_name)
+	svcExample := &corev1.Service{
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Ports: []corev1.ServicePort{
+				{Name: "foo", Port: 8080, Protocol: "TCP", TargetPort: intstr.FromInt(8080)},
+			},
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "testl7",
+		},
+	}
+	_, err := kubeClient.CoreV1().Services("default").Create(svcExample)
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	epExample := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "testl7",
+		},
+		Subsets: []corev1.EndpointSubset{{
+			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
+		}},
+	}
+	_, err = kubeClient.CoreV1().Endpoints("default").Create(epExample)
+	if err != nil {
+		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+	pollForCompletion(t, model_name, 5)
+	found, _ := objects.SharedAviGraphLister().Get(model_name)
+	if found {
+		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
+		t.Fatalf("Couldn't find model for DELETE event %v", model_name)
+	}
+	ingrFake := (fakeIngress{
+		name:      "foo-with-targets",
+		namespace: "default",
+		dnsnames:  []string{"foo.com"},
+		ips:       []string{"8.8.8.8"},
+		hostnames: []string{"v1"},
+	}).Ingress()
+
+	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	pollForCompletion(t, model_name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	}
+	err = kubeClient.CoreV1().Endpoints("default").Delete("testl7", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
+	}
+
+}
+
+// ingress specific helper functions
+type fakeIngress struct {
+	dnsnames    []string
+	tlsdnsnames [][]string
+	ips         []string
+	hostnames   []string
+	namespace   string
+	name        string
+	annotations map[string]string
+}
+
+func (ing fakeIngress) Ingress() *extensionv1beta1.Ingress {
+	ingress := &extensionv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   ing.namespace,
+			Name:        ing.name,
+			Annotations: ing.annotations,
+		},
+		Spec: extensionv1beta1.IngressSpec{
+			Rules: []extensionv1beta1.IngressRule{},
+		},
+		Status: extensionv1beta1.IngressStatus{
+			LoadBalancer: v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{},
+			},
+		},
+	}
+	for _, dnsname := range ing.dnsnames {
+		ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+			Host: dnsname,
+			IngressRuleValue: extensionv1beta1.IngressRuleValue{
+				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
+					Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+						Path:    "foo",
+						Backend: extensionv1beta1.IngressBackend{ServiceName: "avisvc"},
+					},
+					},
+				},
+			},
+		})
+	}
+	for _, hosts := range ing.tlsdnsnames {
+		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
+			Hosts: hosts,
+		})
+	}
+	for _, ip := range ing.ips {
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+			IP: ip,
+		})
+	}
+	for _, hostname := range ing.hostnames {
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+			Hostname: hostname,
+		})
+	}
+	return ingress
+}
