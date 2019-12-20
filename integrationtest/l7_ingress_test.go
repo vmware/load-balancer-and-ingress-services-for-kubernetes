@@ -79,7 +79,7 @@ func TestNoModel(t *testing.T) {
 func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("shard_vs_size", "LARGE")
-	model_name := "default/testl7"
+	model_name := "default/Shard-VS-6"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
@@ -90,7 +90,7 @@ func TestL7Model(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
-			Name:      "testl7",
+			Name:      "avisvc",
 		},
 	}
 	_, err := kubeClient.CoreV1().Services("default").Create(svcExample)
@@ -100,7 +100,7 @@ func TestL7Model(t *testing.T) {
 	epExample := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
-			Name:      "testl7",
+			Name:      "avisvc",
 		},
 		Subsets: []corev1.EndpointSubset{{
 			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
@@ -118,11 +118,12 @@ func TestL7Model(t *testing.T) {
 		t.Fatalf("Couldn't find model for DELETE event %v", model_name)
 	}
 	ingrFake := (fakeIngress{
-		name:      "foo-with-targets",
-		namespace: "default",
-		dnsnames:  []string{"foo.com"},
-		ips:       []string{"8.8.8.8"},
-		hostnames: []string{"v1"},
+		name:        "foo-with-targets",
+		namespace:   "default",
+		dnsnames:    []string{"foo.com"},
+		ips:         []string{"8.8.8.8"},
+		hostnames:   []string{"v1"},
+		serviceName: "avisvc",
 	}).Ingress()
 
 	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
@@ -136,15 +137,170 @@ func TestL7Model(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	} else {
+		t.Fatalf("Could not find model: %v", err)
 	}
-	err = kubeClient.CoreV1().Endpoints("default").Delete("testl7", nil)
+	err = kubeClient.CoreV1().Endpoints("default").Delete("avisvc", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
+	}
+	err = kubeClient.CoreV1().Services("default").Delete("avisvc", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Service %v", err)
+	}
+	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 
 }
 
-// ingress specific helper functions
+func TestMultiIngressToSameSvc(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	os.Setenv("shard_vs_size", "LARGE")
+	model_name := "default/Shard-VS-6"
+	objects.SharedAviGraphLister().Delete(model_name)
+	svcExample := &corev1.Service{
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Ports: []corev1.ServicePort{
+				{Name: "foo", Port: 8080, Protocol: "TCP", TargetPort: intstr.FromInt(8080)},
+			},
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "avisvc",
+		},
+	}
+	_, err := kubeClient.CoreV1().Services("default").Create(svcExample)
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	epExample := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "avisvc",
+		},
+		Subsets: []corev1.EndpointSubset{{
+			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
+		}},
+	}
+	_, err = kubeClient.CoreV1().Endpoints("default").Create(epExample)
+	if err != nil {
+		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+	ingrFake1 := (fakeIngress{
+		name:        "foo-with-targets1",
+		namespace:   "default",
+		dnsnames:    []string{"foo.com"},
+		ips:         []string{"8.8.8.8"},
+		hostnames:   []string{"v1"},
+		serviceName: "avisvc",
+	}).Ingress()
+
+	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	ingrFake2 := (fakeIngress{
+		name:        "foo-with-targets2",
+		namespace:   "default",
+		dnsnames:    []string{"foo.com"},
+		ips:         []string{"8.8.8.8"},
+		hostnames:   []string{"v1"},
+		serviceName: "avisvc",
+	}).Ingress()
+
+	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake2)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	pollForCompletion(t, model_name, 5)
+	found, _ := objects.SharedAviGraphLister().Get(model_name)
+	if found {
+		// Delete the model.
+		objects.SharedAviGraphLister().Delete(model_name)
+	} else {
+		t.Fatalf("Could not find model on ingress delete: %v", err)
+	}
+	//====== VERIFICATION OF SERVICE DELETE
+	// Now we have cleared the layer 2 queue for both the models. Let's delete the service.
+	err = kubeClient.CoreV1().Services("default").Delete("avisvc", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Service %v", err)
+	}
+	// We should be able to get one model now in the queue
+	pollForCompletion(t, model_name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		// Delete the model.
+		objects.SharedAviGraphLister().Delete(model_name)
+	} else {
+		t.Fatalf("Could not find model on service delete: %v", err)
+	}
+	//====== VERIFICATION OF ONE INGRESS DELETE
+	// Now let's delete one ingress and expect the update for that.
+	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets1", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	pollForCompletion(t, model_name, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		// Delete the model.
+		objects.SharedAviGraphLister().Delete(model_name)
+	} else {
+		t.Fatalf("Could not find model on ingress delete: %v", err)
+	}
+	//====== VERIFICATION OF SERVICE ADD
+	// Let's add the service back now - the ingress's associated with this service should be returned
+	_, err = kubeClient.CoreV1().Services("default").Create(svcExample)
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	pollForCompletion(t, model_name, 5)
+	// We should be able to get one model now in the queue
+	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		// Delete the model.
+		objects.SharedAviGraphLister().Delete(model_name)
+	} else {
+		t.Fatalf("Could not find model on service ADD: %v", err)
+	}
+	//====== VERIFICATION OF ONE ENDPOINT DELETE
+	err = kubeClient.CoreV1().Endpoints("default").Delete("avisvc", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
+	}
+	pollForCompletion(t, model_name, 5)
+	// Deletion should also give us the affected ingress objects
+	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		// Delete the model.
+		objects.SharedAviGraphLister().Delete(model_name)
+	} else {
+		t.Fatalf("Could not find model on service ADD: %v", err)
+	}
+}
+
+// Fake ingress
 type fakeIngress struct {
 	dnsnames    []string
 	tlsdnsnames [][]string
@@ -153,6 +309,7 @@ type fakeIngress struct {
 	namespace   string
 	name        string
 	annotations map[string]string
+	serviceName string
 }
 
 func (ing fakeIngress) Ingress() *extensionv1beta1.Ingress {
@@ -178,7 +335,7 @@ func (ing fakeIngress) Ingress() *extensionv1beta1.Ingress {
 				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
 					Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
 						Path:    "foo",
-						Backend: extensionv1beta1.IngressBackend{ServiceName: "avisvc"},
+						Backend: extensionv1beta1.IngressBackend{ServiceName: ing.serviceName},
 					},
 					},
 				},

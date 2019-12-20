@@ -18,6 +18,7 @@ import (
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -53,19 +54,23 @@ func DetectIngChanges(ingName string, namespace string, key string) ([]string, b
 	ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(ingName)
 	if err != nil {
 		// Detect a delete condition here.
+		if errors.IsNotFound(err) {
+			// Remove all the Ingress to Services mapping.
+			// Remove the references of this ingress from the Services
+			objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
+		}
 	} else {
 		services := parseServicesForIngress(ingObj.Spec, key)
 		for _, svc := range services {
-			_, ingresses := objects.SharedSvcLister().Service(namespace).GetSvcToIng(svc)
-			ingresses = append(ingresses, ingName)
-			objects.SharedSvcLister().Service(namespace).UpdateSvcToIngMapping(svc, ingresses)
+			utils.AviLog.Info.Printf("key: %s msg: updating ingress relationship for service:  %s", key, svc)
+			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
 		}
 	}
 	return ingresses, true
 }
 
 func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
-	_, ingresses := objects.SharedSvcLister().Service(namespace).GetSvcToIng(svcName)
+	_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
 	utils.AviLog.Info.Printf("key: %s msg: total ingresses retrieved:  %s", key, ingresses)
 	if len(ingresses) == 0 {
 		return nil, false

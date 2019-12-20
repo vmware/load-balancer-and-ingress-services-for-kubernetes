@@ -71,7 +71,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	} else {
 		avi_vs_meta.NetworkProfile = DEFAULT_TCP_NW_PROFILE
 	}
-
+	utils.AviLog.Info.Printf("key: %s msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta
 }
 

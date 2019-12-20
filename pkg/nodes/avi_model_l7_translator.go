@@ -14,13 +14,6 @@
 
 package nodes
 
-import (
-	"fmt"
-	"os"
-
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
-)
-
 var shardSizeMap = map[string]uint32{
 	"LARGE":  8,
 	"MEDIUM": 4,
@@ -28,40 +21,11 @@ var shardSizeMap = map[string]uint32{
 }
 
 func (o *AviObjectGraph) BuildL7VSGraph(namespace string, ingName string, key string) {
-
-	var VsNode *AviVsNode
-
-	// The VS node is decided based on the namespace for now.
-	VsNode = o.ConstructAviL7VsNode(namespace, key)
-	//o.ConstructAviTCPPGPoolNodes(svcObj, VsNode)
-	if VsNode != nil {
-		o.AddModelNode(VsNode)
-		VsNode.CalculateCheckSum()
-		o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
-		utils.AviLog.Info.Printf("key: %s msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
-		utils.AviLog.Info.Printf("key: %s msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
-	}
+	return
 }
 
-func (o *AviObjectGraph) ConstructAviL7VsNode(namespace string, key string) *AviVsNode {
-	// Read the value of the num_shards from the environment variable.
-	var vsNum uint32
-	shardVsSize := os.Getenv("shard_vs_size")
-	shardVsPrefix := os.Getenv("shard_vs_name_prefix")
-	if shardVsPrefix == "" {
-		shardVsPrefix = DEFAULT_SHARD_VS_PREFIX
-	}
-	shardSize, ok := shardSizeMap[shardVsSize]
-	if ok {
-		vsNum = utils.Bkt(namespace, shardSize)
-	} else {
-		utils.AviLog.Warning.Printf("key: %s msg: the value for shard_vs_size does not match the ENUM values", key)
-		return nil
-	}
-	// Derive the right VS for this update.
-	vsName := shardVsPrefix + fmt.Sprint(vsNum)
+func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsNode {
 	var avi_vs_meta *AviVsNode
-
 	// This is a shared VS - always created in the admin namespace for now.
 	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: "admin",
 		EastWest: false}
@@ -74,8 +38,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(namespace string, key string) *Avi
 	avi_vs_meta.PortProto = portProtocols
 	// Default case.
 	avi_vs_meta.ApplicationProfile = DEFAULT_L7_APP_PROFILE
-
 	avi_vs_meta.NetworkProfile = DEFAULT_TCP_NW_PROFILE
-
+	o.AddModelNode(avi_vs_meta)
 	return avi_vs_meta
 }

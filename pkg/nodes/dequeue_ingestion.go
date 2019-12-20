@@ -15,6 +15,8 @@
 package nodes
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
@@ -71,13 +73,24 @@ func DequeueIngestion(key string) {
 			}
 		}
 	} else {
+		shardVsName := DeriveNamespacedShardVS(namespace, key)
+		if shardVsName == "" {
+			// If we aren't able to derive the ShardVS name, we should return
+			return
+		}
+		model_name := namespace + "/" + shardVsName
 		for _, ingress := range ingressNames {
 			// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 			// does not allow cross tenant ingress references.
-			aviModelGraph := NewAviObjectGraph()
-			aviModelGraph.BuildL7VSGraph(namespace, ingress, key)
-			if len(aviModelGraph.GetOrderedNodes()) != 0 {
-				publishKeyToRestLayer(aviModelGraph, namespace, ingress, key, sharedQueue)
+			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+			if !found {
+				utils.AviLog.Info.Printf("key :%s msg: model not found, generating new model with name: %s", key, model_name)
+				aviModel = NewAviObjectGraph()
+				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
+			}
+			aviModel.(*AviObjectGraph).BuildL7VSGraph(namespace, ingress, key)
+			if len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 {
+				publishKeyToRestLayer(aviModel.(*AviObjectGraph), namespace, shardVsName, key, sharedQueue)
 			}
 		}
 	}
@@ -101,6 +114,7 @@ func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name stri
 	objects.SharedAviGraphLister().Save(model_name, aviGraph)
 	bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
 	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
+	utils.AviLog.Info.Printf("key: %s msg: Published key with model_name: %s", key, model_name)
 }
 
 func isServiceDelete(svcName string, namespace string, key string) bool {
@@ -134,4 +148,24 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 		}
 	}
 	return GraphSchema{}, false
+}
+
+func DeriveNamespacedShardVS(namespace string, key string) string {
+	// Read the value of the num_shards from the environment variable.
+	var vsNum uint32
+	shardVsSize := os.Getenv("shard_vs_size")
+	shardVsPrefix := os.Getenv("shard_vs_name_prefix")
+	if shardVsPrefix == "" {
+		shardVsPrefix = DEFAULT_SHARD_VS_PREFIX
+	}
+	shardSize, ok := shardSizeMap[shardVsSize]
+	if ok {
+		vsNum = utils.Bkt(namespace, shardSize)
+	} else {
+		utils.AviLog.Warning.Printf("key: %s msg: the value for shard_vs_size does not match the ENUM values", key)
+		return ""
+	}
+	// Derive the right VS for this update.
+	vsName := shardVsPrefix + fmt.Sprint(vsNum)
+	return vsName
 }
