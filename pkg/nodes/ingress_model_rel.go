@@ -62,7 +62,7 @@ func DetectIngChanges(ingName string, namespace string, key string) ([]string, b
 	} else {
 		services := parseServicesForIngress(ingObj.Spec, key)
 		for _, svc := range services {
-			utils.AviLog.Info.Printf("key: %s msg: updating ingress relationship for service:  %s", key, svc)
+			utils.AviLog.Info.Printf("key: %s, msg: updating ingress relationship for service:  %s", key, svc)
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
 		}
 	}
@@ -71,7 +71,7 @@ func DetectIngChanges(ingName string, namespace string, key string) ([]string, b
 
 func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 	_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
-	utils.AviLog.Info.Printf("key: %s msg: total ingresses retrieved:  %s", key, ingresses)
+	utils.AviLog.Info.Printf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	if len(ingresses) == 0 {
 		return nil, false
 	}
@@ -80,7 +80,7 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 
 func EPToIng(epName string, namespace string, key string) ([]string, bool) {
 	ingresses, found := SvcToIng(epName, namespace, key)
-	utils.AviLog.Info.Printf("key: %s msg: total ingresses retrieved:  %s", key, ingresses)
+	utils.AviLog.Info.Printf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	return ingresses, found
 }
 
@@ -92,6 +92,6 @@ func parseServicesForIngress(ingSpec extensionv1beta1.IngressSpec, key string) [
 			services = append(services, path.Backend.ServiceName)
 		}
 	}
-	utils.AviLog.Info.Printf("key: %s msg: total services retrieved:  %s", key, services)
+	utils.AviLog.Info.Printf("key: %s, msg: total services retrieved:  %s", key, services)
 	return services
 }

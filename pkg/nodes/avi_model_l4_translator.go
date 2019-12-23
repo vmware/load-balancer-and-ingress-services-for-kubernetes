@@ -71,7 +71,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	} else {
 		avi_vs_meta.NetworkProfile = DEFAULT_TCP_NW_PROFILE
 	}
-	utils.AviLog.Info.Printf("key: %s msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
+	utils.AviLog.Info.Printf("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta
 }
 
@@ -82,7 +82,7 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 	if found && aviModel != nil {
 		if len(aviModel.(*AviObjectGraph).GetAviVS()) == 1 {
 			prevTCPModelPoolGroupNodes = aviModel.(*AviObjectGraph).GetAviVS()[0].TCPPoolGroupRefs
-			utils.AviLog.Info.Printf("key: %s msg: evaluating TCP pool groups. the prevmodel PGs are: %v", key, prevTCPModelPoolGroupNodes)
+			utils.AviLog.Info.Printf("key: %s, msg: evaluating TCP pool groups. the prevmodel PGs are: %v", key, prevTCPModelPoolGroupNodes)
 		}
 	}
 	for _, portProto := range vsNode.PortProto {
@@ -100,8 +100,8 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
 
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
-		utils.AviLog.Info.Printf("key: %s msg: evaluated L4 pool group values :%v", key, utils.Stringify(pgNode))
-		utils.AviLog.Info.Printf("key: %s msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
+		utils.AviLog.Info.Printf("key: %s, msg: evaluated L4 pool group values :%v", key, utils.Stringify(pgNode))
+		utils.AviLog.Info.Printf("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 		vsNode.TCPPoolGroupRefs = append(vsNode.TCPPoolGroupRefs, pgNode)
 		pgNode.CalculateCheckSum()
 		poolNode.CalculateCheckSum()
@@ -114,7 +114,7 @@ func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, servi
 	// Find the servers that match the port.
 	epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
 	if err != nil {
-		utils.AviLog.Info.Printf("key: %s msg: error while retrieving endpoints", key, serviceName, ns)
+		utils.AviLog.Info.Printf("key: %s, msg: error while retrieving endpoints", key)
 		return nil
 	}
 	//TODO: The POD based subsets will be handled subsequently.
@@ -131,7 +131,7 @@ func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, servi
 		}
 		if port_match {
 			var atype string
-			utils.AviLog.Info.Printf("key: %s msg: found port match for port %v", key, poolNode.Port)
+			utils.AviLog.Info.Printf("key: %s, msg: found port match for port %v", key, poolNode.Port)
 			for _, addr := range ss.Addresses {
 
 				ip := addr.IP
@@ -151,7 +151,7 @@ func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, servi
 			}
 		}
 	}
-	utils.AviLog.Info.Printf("key: %s msg: servers for port: %v, are: %v", key, poolNode.Port, utils.Stringify(pool_meta))
+	utils.AviLog.Info.Printf("key: %s, msg: servers for port: %v, are: %v", key, poolNode.Port, utils.Stringify(pool_meta))
 	return pool_meta
 }
 
@@ -159,7 +159,7 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 	var VsNode *AviVsNode
 	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
-		utils.AviLog.Warning.Printf("key: %s msg: error in obtaining the object for service: %s", key, svcName)
+		utils.AviLog.Warning.Printf("key: %s, msg: error in obtaining the object for service: %s", key, svcName)
 		return
 	}
 	VsNode = o.ConstructAviL4VsNode(svcObj, key)
@@ -167,6 +167,6 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 	o.AddModelNode(VsNode)
 	VsNode.CalculateCheckSum()
 	o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
-	utils.AviLog.Info.Printf("key: %s msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
-	utils.AviLog.Info.Printf("key: %s msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
+	utils.AviLog.Info.Printf("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
+	utils.AviLog.Info.Printf("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 }

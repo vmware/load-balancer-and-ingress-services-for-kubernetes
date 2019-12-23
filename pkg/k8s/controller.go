@@ -74,7 +74,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			key := utils.Endpoints + "/" + utils.ObjKey(ep)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("key: %s msg: ADD", key)
+			utils.AviLog.Info.Printf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			ep, ok := obj.(*corev1.Endpoints)
@@ -96,7 +96,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			key := utils.Endpoints + "/" + utils.ObjKey(ep)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("key: %s msg: DELETE", key)
+			utils.AviLog.Info.Printf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oep := old.(*corev1.Endpoints)
@@ -106,7 +106,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.Endpoints + "/" + utils.ObjKey(cep)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Info.Printf("key :%s msg: UPDATE", key)
+				utils.AviLog.Info.Printf("key :%s, msg: UPDATE", key)
 			}
 		},
 	}
@@ -124,7 +124,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("key: %s msg: ADD", key)
+			utils.AviLog.Info.Printf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			svc, ok := obj.(*corev1.Service)
@@ -152,7 +152,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("key: %s msg: DELETE", svc)
+			utils.AviLog.Info.Printf("key: %s, msg: DELETE", svc)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oldobj := old.(*corev1.Service)
@@ -170,7 +170,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Info.Printf("key: %s msg: UPDATE", key)
+				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
 			}
 		},
 	}
@@ -182,7 +182,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("key: %s msg: ADD", key)
+			utils.AviLog.Info.Printf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			ingress, ok := obj.(*extensionv1beta1.Ingress)
@@ -204,7 +204,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("key: %s msg: DELETE", key)
+			utils.AviLog.Info.Printf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oldobj := old.(*extensionv1beta1.Ingress)
@@ -215,7 +215,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Info.Printf("key: %s msg: UPDATE", key)
+				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
 			}
 		},
 	}

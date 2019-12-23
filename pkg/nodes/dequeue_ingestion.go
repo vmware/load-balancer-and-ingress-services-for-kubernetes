@@ -29,7 +29,7 @@ func DequeueIngestion(key string) {
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
 	ingressFound := false
 	var ingressNames []string
-	utils.AviLog.Info.Printf("key: %s msg: starting graph Sync", key)
+	utils.AviLog.Info.Printf("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
@@ -43,7 +43,7 @@ func DequeueIngestion(key string) {
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
 			if !isServiceDelete(name, namespace, key) {
-				utils.AviLog.Warning.Printf("key: %s msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
+				utils.AviLog.Warning.Printf("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
 				if len(aviModelGraph.GetOrderedNodes()) != 0 {
@@ -51,7 +51,7 @@ func DequeueIngestion(key string) {
 				}
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
-				utils.AviLog.Info.Printf("key: %s msg: received DELETE event for service", key)
+				utils.AviLog.Info.Printf("key: %s, msg: received DELETE event for service", key)
 				model_name := namespace + "/" + name
 				objects.SharedAviGraphLister().Save(model_name, nil)
 				bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
@@ -84,7 +84,7 @@ func DequeueIngestion(key string) {
 			// does not allow cross tenant ingress references.
 			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 			if !found {
-				utils.AviLog.Info.Printf("key :%s msg: model not found, generating new model with name: %s", key, model_name)
+				utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
 				aviModel = NewAviObjectGraph()
 				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 			}
@@ -102,11 +102,11 @@ func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name stri
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
 		prevChecksum := aviModel.(*AviObjectGraph).GetCheckSum()
-		utils.AviLog.Info.Printf("key :%s msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
+		utils.AviLog.Info.Printf("key :%s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
-		utils.AviLog.Info.Printf("key: %s msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
+		utils.AviLog.Info.Printf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
 		if prevChecksum == presentChecksum {
-			utils.AviLog.Info.Printf("key: %s msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
+			utils.AviLog.Info.Printf("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
 			return
 		}
 	}
@@ -114,14 +114,14 @@ func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name stri
 	objects.SharedAviGraphLister().Save(model_name, aviGraph)
 	bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
 	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
-	utils.AviLog.Info.Printf("key: %s msg: Published key with model_name: %s", key, model_name)
+	utils.AviLog.Info.Printf("key: %s, msg: Published key with model_name: %s", key, model_name)
 }
 
 func isServiceDelete(svcName string, namespace string, key string) bool {
 	// If the service is not found we return true.
 	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
-		utils.AviLog.Warning.Printf("key: %s msg: could not retrieve the object for service: %s", key, err)
+		utils.AviLog.Warning.Printf("key: %s, msg: could not retrieve the object for service: %s", key, err)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -162,7 +162,7 @@ func DeriveNamespacedShardVS(namespace string, key string) string {
 	if ok {
 		vsNum = utils.Bkt(namespace, shardSize)
 	} else {
-		utils.AviLog.Warning.Printf("key: %s msg: the value for shard_vs_size does not match the ENUM values", key)
+		utils.AviLog.Warning.Printf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
 		return ""
 	}
 	// Derive the right VS for this update.
