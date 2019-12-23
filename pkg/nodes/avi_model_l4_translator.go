@@ -24,17 +24,19 @@ import (
 )
 
 const (
-	HTTP                   = "HTTP"
-	HeaderMethod           = ":method"
-	HeaderAuthority        = ":authority"
-	HeaderScheme           = ":scheme"
-	TLS                    = "TLS"
-	HTTPS                  = "HTTPS"
-	TCP                    = "TCP"
-	UDP                    = "UDP"
-	SYSTEM_UDP_FAST_PATH   = "System-UDP-Fast-Path"
-	DEFAULT_TCP_NW_PROFILE = "System-TCP-Proxy"
-	DEFAULT_L4_APP_PROFILE = "System-L4-Application"
+	HTTP                    = "HTTP"
+	HeaderMethod            = ":method"
+	HeaderAuthority         = ":authority"
+	HeaderScheme            = ":scheme"
+	TLS                     = "TLS"
+	HTTPS                   = "HTTPS"
+	TCP                     = "TCP"
+	UDP                     = "UDP"
+	SYSTEM_UDP_FAST_PATH    = "System-UDP-Fast-Path"
+	DEFAULT_TCP_NW_PROFILE  = "System-TCP-Proxy"
+	DEFAULT_L4_APP_PROFILE  = "System-L4-Application"
+	DEFAULT_L7_APP_PROFILE  = "System-HTTP"
+	DEFAULT_SHARD_VS_PREFIX = "Shard-VS-"
 )
 
 func contains(s []int32, e int32) bool {
@@ -46,7 +48,7 @@ func contains(s []int32, e int32) bool {
 	return false
 }
 
-func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service) *AviVsNode {
+func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
 	var avi_vs_meta *AviVsNode
 
 	// FQDN should come from the cloud. Modify
@@ -69,18 +71,18 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service) *AviVsNode
 	} else {
 		avi_vs_meta.NetworkProfile = DEFAULT_TCP_NW_PROFILE
 	}
-
+	utils.AviLog.Info.Printf("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta
 }
 
-func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode) {
+func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode, key string) {
 	var prevTCPModelPoolGroupNodes []*AviPoolGroupNode
 	model_name := svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
 		if len(aviModel.(*AviObjectGraph).GetAviVS()) == 1 {
 			prevTCPModelPoolGroupNodes = aviModel.(*AviObjectGraph).GetAviVS()[0].TCPPoolGroupRefs
-			utils.AviLog.Info.Printf("Evaluating TCP Pool Groups. The prevModel PGs are: %v", prevTCPModelPoolGroupNodes)
+			utils.AviLog.Info.Printf("key: %s, msg: evaluating TCP pool groups. the prevmodel PGs are: %v", key, prevTCPModelPoolGroupNodes)
 		}
 	}
 	for _, portProto := range vsNode.PortProto {
@@ -91,15 +93,15 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		// For TCP - the PG to Pool relationship is 1x1
 		poolNode := &AviPoolNode{Name: "pool-" + pgName, Tenant: svcObj.ObjectMeta.Namespace, Port: filterPort, Protocol: portProto.Protocol}
 
-		if servers := o.populateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name); servers != nil {
+		if servers := o.populateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {
 			poolNode.Servers = servers
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
 
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
-		utils.AviLog.Info.Printf("Evaluated L4 pool group values :%v", utils.Stringify(pgNode))
-		utils.AviLog.Info.Printf("Evaluated L4 pool values :%v", utils.Stringify(poolNode))
+		utils.AviLog.Info.Printf("key: %s, msg: evaluated L4 pool group values :%v", key, utils.Stringify(pgNode))
+		utils.AviLog.Info.Printf("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 		vsNode.TCPPoolGroupRefs = append(vsNode.TCPPoolGroupRefs, pgNode)
 		pgNode.CalculateCheckSum()
 		poolNode.CalculateCheckSum()
@@ -108,11 +110,11 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 	}
 }
 
-func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, serviceName string) []AviPoolMetaServer {
+func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, serviceName string, key string) []AviPoolMetaServer {
 	// Find the servers that match the port.
 	epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
 	if err != nil {
-		utils.AviLog.Info.Printf("Error while retrieving endpoints for Svc :%v in namespace :%s", serviceName, ns)
+		utils.AviLog.Info.Printf("key: %s, msg: error while retrieving endpoints", key)
 		return nil
 	}
 	//TODO: The POD based subsets will be handled subsequently.
@@ -129,7 +131,7 @@ func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, servi
 		}
 		if port_match {
 			var atype string
-			utils.AviLog.Info.Printf("Found Port Match for port %v, for service: %v", poolNode.Port, serviceName)
+			utils.AviLog.Info.Printf("key: %s, msg: found port match for port %v", key, poolNode.Port)
 			for _, addr := range ss.Addresses {
 
 				ip := addr.IP
@@ -149,33 +151,22 @@ func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, servi
 			}
 		}
 	}
-	utils.AviLog.Info.Printf("Servers for port: %v, for service: %v are: %v", poolNode.Port, serviceName, utils.Stringify(pool_meta))
+	utils.AviLog.Info.Printf("key: %s, msg: servers for port: %v, are: %v", key, poolNode.Port, utils.Stringify(pool_meta))
 	return pool_meta
 }
 
-// Move this method to utils
-func (o *AviObjectGraph) generateRandomStringName(name string) string {
-	// TODO: Watch out for collisions, if need we can increase 10 below.
-	random_string := utils.RandomSeq(5)
-	// TODO: Find a way to avoid collisions
-	utils.AviLog.Info.Printf("Random string generated :%s", random_string)
-	name = name + "-" + random_string
-	return name
-}
-
-func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string) {
-	// We use the gateway fields to arrive at various AVI VS Node object.
+func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key string) {
 	var VsNode *AviVsNode
 	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Error in obtaining the object for service: %s", svcName)
+		utils.AviLog.Warning.Printf("key: %s, msg: error in obtaining the object for service: %s", key, svcName)
 		return
 	}
-	VsNode = o.ConstructAviL4VsNode(svcObj)
-	o.ConstructAviTCPPGPoolNodes(svcObj, VsNode)
+	VsNode = o.ConstructAviL4VsNode(svcObj, key)
+	o.ConstructAviTCPPGPoolNodes(svcObj, VsNode, key)
 	o.AddModelNode(VsNode)
 	VsNode.CalculateCheckSum()
 	o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
-	utils.AviLog.Info.Printf("Checksum  for AVI VS object %v", VsNode.GetCheckSum())
-	utils.AviLog.Info.Printf("Computed Graph Checksum for VS is: %v", o.GraphChecksum)
+	utils.AviLog.Info.Printf("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
+	utils.AviLog.Info.Printf("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 }

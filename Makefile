@@ -10,7 +10,7 @@ all: build docker
 
 .PHONY: build
 build: 
-		$(GOBUILD) -o bin/$(BINARY_NAME_AMC) -mod=vendor $(REL_PATH_AMC) 
+		$(GOBUILD) -o bin/$(BINARY_NAME_AMC)  -mod=vendor $(REL_PATH_AMC)
 
 .PHONY: clean
 clean: 
@@ -28,7 +28,6 @@ docker:
 .PHONY: test
 test:
 	/usr/local/go/bin/go test -v ./pkg/k8s
-
 .PHONY: int_test
 int_test:
 	/usr/local/go/bin/go test -v ./integrationtest

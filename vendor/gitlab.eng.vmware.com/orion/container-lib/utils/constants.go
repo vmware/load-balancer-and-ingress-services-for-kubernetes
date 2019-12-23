@@ -30,4 +30,9 @@ const (
 	IstioMutualRootCA     = "root-cert.pem"
 	IngressInformer       = "IngressInformer"
 	RouteInformer         = "RouteInformer"
+	L4LBService           = "L4LBService"
+	LoadBalancer          = "LoadBalancer"
+	Endpoints             = "Endpoints"
+	Ingress               = "Ingress"
+	Service               = "Service"
 )

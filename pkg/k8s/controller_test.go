@@ -75,7 +75,7 @@ func TestSvc(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 	time.Sleep(2 * time.Second)
-	if globalKey != "LBService/red-ns/testsvc" {
+	if globalKey != "L4LBService/red-ns/testsvc" {
 		t.Fatalf("error in adding Service: %v", globalKey)
 	}
 }
