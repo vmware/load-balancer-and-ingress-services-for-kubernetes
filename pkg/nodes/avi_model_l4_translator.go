@@ -37,6 +37,7 @@ const (
 	DEFAULT_L4_APP_PROFILE  = "System-L4-Application"
 	DEFAULT_L7_APP_PROFILE  = "System-HTTP"
 	DEFAULT_SHARD_VS_PREFIX = "Shard-VS-"
+	L7_PG_PREFIX            = "-PG-l7"
 )
 
 func contains(s []int32, e int32) bool {
@@ -93,7 +94,7 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		// For TCP - the PG to Pool relationship is 1x1
 		poolNode := &AviPoolNode{Name: "pool-" + pgName, Tenant: svcObj.ObjectMeta.Namespace, Port: filterPort, Protocol: portProto.Protocol}
 
-		if servers := o.populateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {
+		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {
 			poolNode.Servers = servers
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
@@ -110,14 +111,13 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 	}
 }
 
-func (o *AviObjectGraph) populateServers(poolNode *AviPoolNode, ns string, serviceName string, key string) []AviPoolMetaServer {
+func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, key string) []AviPoolMetaServer {
 	// Find the servers that match the port.
 	epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
 	if err != nil {
 		utils.AviLog.Info.Printf("key: %s, msg: error while retrieving endpoints", key)
 		return nil
 	}
-	//TODO: The POD based subsets will be handled subsequently.
 	var pool_meta []AviPoolMetaServer
 	for _, ss := range epObj.Subsets {
 		//var epp_port int32

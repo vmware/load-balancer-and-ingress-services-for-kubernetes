@@ -88,7 +88,7 @@ func DequeueIngestion(key string) {
 				aviModel = NewAviObjectGraph()
 				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 			}
-			aviModel.(*AviObjectGraph).BuildL7VSGraph(namespace, ingress, key)
+			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
 			if len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 {
 				publishKeyToRestLayer(aviModel.(*AviObjectGraph), namespace, shardVsName, key, sharedQueue)
 			}

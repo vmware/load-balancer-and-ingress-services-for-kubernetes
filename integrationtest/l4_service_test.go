@@ -46,6 +46,7 @@ func pollForCompletion(t *testing.T, key string, counter int) interface{} {
 	}
 	return nil
 }
+
 func TestMain(m *testing.M) {
 	setUp()
 	ret := m.Run()
