@@ -59,13 +59,18 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		if pgNode != nil {
 			hostPathSvcList := parseHostPathForIngress(ingName, ingObj.Spec, key)
 			for _, obj := range hostPathSvcList {
-				priorityLabel := obj.Host + "/" + obj.Path
+				var priorityLabel string
+				if obj.Path != "" {
+					priorityLabel = obj.Host + "/" + obj.Path
+				} else {
+					priorityLabel = obj.Host
+				}
 				poolNode := &AviPoolNode{Name: "pool-" + priorityLabel, IngressName: ingName, Tenant: namespace, PriorityLabel: priorityLabel, Port: obj.Port}
 				if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 					poolNode.Servers = servers
 				}
 				pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-				pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
+				pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &priorityLabel})
 				o.AddModelNode(poolNode)
 			}
 		}
@@ -117,27 +122,29 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	avi_vs_meta.ApplicationProfile = DEFAULT_L7_APP_PROFILE
 	avi_vs_meta.NetworkProfile = DEFAULT_TCP_NW_PROFILE
 	o.AddModelNode(avi_vs_meta)
-	o.ConstructShardVsPGNode(vsName, key)
-	o.ConstructHTTPDataScript(vsName, key)
+	o.ConstructShardVsPGNode(vsName, key, avi_vs_meta)
+	o.ConstructHTTPDataScript(vsName, key, avi_vs_meta)
 	return avi_vs_meta
 }
 
-func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string) *AviPoolGroupNode {
+func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNode *AviVsNode) *AviPoolGroupNode {
 	pgName := vsName + L7_PG_PREFIX
 	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: "admin"}
+	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
 	o.AddModelNode(pgNode)
 	return pgNode
 }
 
-func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string) *AviHTTPDataScriptNode {
-	scriptStr := "host = avi.http.get_host_tokens(1)\npath = avi.http.get_path_tokens(1)\nif host and path then\nlbl = host..\"/\"..path\nelse\nlbl = host..\"/\"\nend\navi.poolgroup.select(\"POOLGROUP\", string.lower(lbl) )"
-	evt := "VS_DATASCRIPT_EVT_HTTP_REQ"
+func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
+	scriptStr := HTTP_DS_SCRIPT
+	evt := VS_DATASCRIPT_EVT_HTTP_REQ
 	var poolGroupRefs []string
 	pgName := "/api/poolgroup?name=" + vsName + "-pg-l7"
 	poolGroupRefs = append(poolGroupRefs, pgName)
 	dsName := vsName + "-http-datascript"
 	script := &DataScript{Script: scriptStr, Evt: evt}
 	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, DataScript: script, PoolGroupRefs: poolGroupRefs}
+	vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
 	o.AddModelNode(dsScriptNode)
 	return dsScriptNode
 }

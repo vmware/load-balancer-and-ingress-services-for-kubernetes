@@ -84,13 +84,12 @@ type AviVsNode struct {
 	EastWest           bool
 	CloudConfigCksum   uint32
 	DefaultPoolGroup   string
-	// This field will detect if the HTTP policy set rules have changed.
-	HTTPChecksum  uint32
-	SNIParent     bool
-	PoolGroupRefs []*AviPoolGroupNode
-	// TODO(sudswas): Can this be a part of the PG object itself?
-	PoolRefs         []*AviPoolNode
-	TCPPoolGroupRefs []*AviPoolGroupNode
+	HTTPChecksum       uint32
+	SNIParent          bool
+	PoolGroupRefs      []*AviPoolGroupNode
+	PoolRefs           []*AviPoolNode
+	TCPPoolGroupRefs   []*AviPoolGroupNode
+	HTTPDSrefs         []*AviHTTPDataScriptNode
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -117,7 +116,7 @@ func (v *AviVsNode) GetNodeType() string {
 
 func (v *AviVsNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
-	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto))
+	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto)) + utils.Hash(utils.Stringify(v.HTTPDSrefs))
 	v.CloudConfigCksum = checksum
 }
 
@@ -232,7 +231,7 @@ func (v *AviPoolNode) GetCheckSum() uint32 {
 
 func (v *AviPoolNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
-	checksum := utils.Hash(v.Protocol) + utils.Hash(fmt.Sprint(v.Port)) + utils.Hash(v.PortName) + utils.Hash(utils.Stringify(v.Servers)) + utils.Hash(utils.Stringify(v.LbAlgorithm)) + utils.Hash(utils.Stringify(v.SSLProfileRef)) + utils.Hash(utils.Stringify(v.ServerClientCert)) + utils.Hash(utils.Stringify(v.PkiProfile))
+	checksum := utils.Hash(v.Protocol) + utils.Hash(fmt.Sprint(v.Port)) + utils.Hash(v.PortName) + utils.Hash(utils.Stringify(v.Servers)) + utils.Hash(utils.Stringify(v.LbAlgorithm)) + utils.Hash(utils.Stringify(v.SSLProfileRef)) + utils.Hash(utils.Stringify(v.ServerClientCert)) + utils.Hash(utils.Stringify(v.PkiProfile)) + utils.Hash(utils.Stringify(v.PriorityLabel))
 	v.CloudConfigCksum = checksum
 }
 
