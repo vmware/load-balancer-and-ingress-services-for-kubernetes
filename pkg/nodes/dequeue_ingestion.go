@@ -78,7 +78,7 @@ func DequeueIngestion(key string) {
 			// If we aren't able to derive the ShardVS name, we should return
 			return
 		}
-		model_name := namespace + "/" + shardVsName
+		model_name := ADMIN_NS + "/" + shardVsName
 		for _, ingress := range ingressNames {
 			// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 			// does not allow cross tenant ingress references.
@@ -88,9 +88,9 @@ func DequeueIngestion(key string) {
 				aviModel = NewAviObjectGraph()
 				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 			}
-			aviModel.(*AviObjectGraph).BuildL7VSGraph(namespace, ingress, key)
+			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
 			if len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 {
-				publishKeyToRestLayer(aviModel.(*AviObjectGraph), namespace, shardVsName, key, sharedQueue)
+				publishKeyToRestLayer(aviModel.(*AviObjectGraph), ADMIN_NS, shardVsName, key, sharedQueue)
 			}
 		}
 	}

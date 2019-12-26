@@ -16,7 +16,11 @@
 
 package objects
 
-import "sync"
+import (
+	"sync"
+
+	"gitlab.eng.vmware.com/orion/container-lib/utils"
+)
 
 var aviGraphinstance *AviGraphLister
 var avionce sync.Once
@@ -35,6 +39,7 @@ type AviGraphLister struct {
 }
 
 func (a *AviGraphLister) Save(vsName string, aviGraph interface{}) {
+	utils.AviLog.Info.Printf("Saving Model :%s", vsName)
 	a.AviGraphStore.AddOrUpdate(vsName, aviGraph)
 }
 

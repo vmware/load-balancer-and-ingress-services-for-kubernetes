@@ -17,7 +17,6 @@ package integrationtest
 import (
 	"os"
 	"testing"
-	"time"
 
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
@@ -33,19 +32,6 @@ import (
 
 var kubeClient *k8sfake.Clientset
 
-func pollForCompletion(t *testing.T, key string, counter int) interface{} {
-	count := 0
-	for count < counter {
-		found, aviModel := objects.SharedAviGraphLister().Get(key)
-		if !found {
-			time.Sleep(1 * time.Second)
-			count = count + 1
-		} else {
-			return aviModel
-		}
-	}
-	return nil
-}
 func TestMain(m *testing.M) {
 	setUp()
 	ret := m.Run()
@@ -75,7 +61,6 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 			Name:      "testsvc",
 		},
 	}
-	//pollForCompletion(t, model_name, 5)
 	_, err := kubeClient.CoreV1().Services("red-ns").Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)

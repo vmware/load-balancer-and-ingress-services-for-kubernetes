@@ -28,7 +28,7 @@ var (
 	}
 	Ingress = GraphSchema{
 		Type:               "Ingress",
-		GetParentIngresses: DetectIngChanges,
+		GetParentIngresses: IngressChanges,
 	}
 	Endpoint = GraphSchema{
 		Type:               "Endpoints",
@@ -48,7 +48,7 @@ type GraphSchema struct {
 
 type GraphDescriptor []GraphSchema
 
-func DetectIngChanges(ingName string, namespace string, key string) ([]string, bool) {
+func IngressChanges(ingName string, namespace string, key string) ([]string, bool) {
 	var ingresses []string
 	ingresses = append(ingresses, ingName)
 	ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(ingName)
