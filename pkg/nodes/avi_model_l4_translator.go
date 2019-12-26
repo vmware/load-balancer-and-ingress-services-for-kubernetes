@@ -23,26 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	HTTP                       = "HTTP"
-	HeaderMethod               = ":method"
-	HeaderAuthority            = ":authority"
-	HeaderScheme               = ":scheme"
-	TLS                        = "TLS"
-	HTTPS                      = "HTTPS"
-	TCP                        = "TCP"
-	UDP                        = "UDP"
-	SYSTEM_UDP_FAST_PATH       = "System-UDP-Fast-Path"
-	DEFAULT_TCP_NW_PROFILE     = "System-TCP-Proxy"
-	DEFAULT_L4_APP_PROFILE     = "System-L4-Application"
-	DEFAULT_L7_APP_PROFILE     = "System-HTTP"
-	DEFAULT_SHARD_VS_PREFIX    = "Shard-VS-"
-	L7_PG_PREFIX               = "-PG-l7"
-	VS_DATASCRIPT_EVT_HTTP_REQ = "VS_DATASCRIPT_EVT_HTTP_REQ"
-	HTTP_DS_SCRIPT             = "host = avi.http.get_host_tokens(1)\npath = avi.http.get_path_tokens(1)\nif host and path then\nlbl = host..\"/\"..path\nelse\nlbl = host..\"/\"\nend\navi.poolgroup.select(\"POOLGROUP\", string.lower(lbl) )"
-	ADMIN_NS                   = "admin"
-)
-
 func contains(s []int32, e int32) bool {
 	for _, a := range s {
 		if a == e {
@@ -63,17 +43,17 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	for _, port := range svcObj.Spec.Ports {
 		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol)}
 		portProtocols = append(portProtocols, pp)
-		if port.Protocol == "" || port.Protocol == TCP {
+		if port.Protocol == "" || port.Protocol == utils.TCP {
 			isTCP = true
 		}
 	}
 	avi_vs_meta.PortProto = portProtocols
 	// Default case.
-	avi_vs_meta.ApplicationProfile = DEFAULT_L4_APP_PROFILE
+	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 	if !isTCP {
-		avi_vs_meta.NetworkProfile = SYSTEM_UDP_FAST_PATH
+		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
-		avi_vs_meta.NetworkProfile = DEFAULT_TCP_NW_PROFILE
+		avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta

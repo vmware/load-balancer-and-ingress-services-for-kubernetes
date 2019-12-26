@@ -2,7 +2,6 @@ module gitlab.eng.vmware.com/orion/akc
 
 require (
 	github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792
-	github.com/davecgh/go-spew v1.1.1
 	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
 	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
@@ -11,11 +10,11 @@ require (
 	github.com/json-iterator/go v1.1.5 // indirect
 	github.com/onsi/gomega v0.0.0-20190113212917-5533ce8a0da3
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openshift/client-go v3.9.0+incompatible
+	github.com/openshift/client-go v3.9.0+incompatible // indirect
 	github.com/pkg/errors v0.8.1 // indirect
-	github.com/ryanuber/go-glob v1.0.0
+	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
-	gitlab.eng.vmware.com/orion/container-lib v0.0.0-20191203062150-1d60b0aef6ee
+	gitlab.eng.vmware.com/orion/container-lib v0.0.0-20191226164329-2b07d7dc1af8
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/genproto v0.0.0-20180831171423-11092d34479b // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

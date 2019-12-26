@@ -60,6 +60,7 @@ type Informers struct {
 	SecretInformer  coreinformers.SecretInformer
 	IngressInformer extensioninformers.IngressInformer
 	RouteInformer   oshiftinformers.RouteInformer
+	NodeInformer    coreinformers.NodeInformer
 }
 
 type AviRestObjMacro struct {
