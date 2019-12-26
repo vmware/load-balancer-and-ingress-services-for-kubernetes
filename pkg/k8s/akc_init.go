@@ -17,6 +17,7 @@ package k8s
 import (
 	"time"
 
+	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	v1 "k8s.io/api/core/v1"
@@ -25,10 +26,13 @@ import (
 )
 
 func PopulateCache() {
-	avi_rest_client_pool := utils.SharedAVIClients()
-	avi_obj_cache := utils.SharedAviObjCache()
-	avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
-		utils.CtrlVersion, utils.CloudName)
+	avi_rest_client_pool := avicache.SharedAVIClients()
+	avi_obj_cache := avicache.SharedAviObjCache()
+	// Randomly pickup a client.
+	if len(avi_rest_client_pool.AviClient) > 0 {
+		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
+			utils.CtrlVersion, utils.CloudName)
+	}
 }
 
 func InitController(informers K8sinformers) {
