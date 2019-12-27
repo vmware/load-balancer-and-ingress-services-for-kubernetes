@@ -53,7 +53,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			o.RemoveModelNode(pool.Name)
 		}
 		// Create fresh pools
-		pgName := vsName + L7_PG_PREFIX
+		pgName := vsName + utils.L7_PG_PREFIX
 		// PGs are in 'admin' namespace right now.
 		pgNode := o.GetPoolGroupByName(pgName)
 		if pgNode != nil {
@@ -109,18 +109,18 @@ func parseHostPathForIngress(ingName string, ingSpec extensionv1beta1.IngressSpe
 func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsNode {
 	var avi_vs_meta *AviVsNode
 	// This is a shared VS - always created in the admin namespace for now.
-	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: "admin",
+	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: utils.ADMIN_NS,
 		EastWest: false}
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
-	httpPort := AviPortHostProtocol{Port: 80, Protocol: HTTP}
-	httpsPort := AviPortHostProtocol{Port: 443, Protocol: HTTP}
+	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
+	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP}
 	portProtocols = append(portProtocols, httpPort)
 	portProtocols = append(portProtocols, httpsPort)
 	avi_vs_meta.PortProto = portProtocols
 	// Default case.
-	avi_vs_meta.ApplicationProfile = DEFAULT_L7_APP_PROFILE
-	avi_vs_meta.NetworkProfile = DEFAULT_TCP_NW_PROFILE
+	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
+	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	o.AddModelNode(avi_vs_meta)
 	o.ConstructShardVsPGNode(vsName, key, avi_vs_meta)
 	o.ConstructHTTPDataScript(vsName, key, avi_vs_meta)
@@ -128,16 +128,16 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 }
 
 func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNode *AviVsNode) *AviPoolGroupNode {
-	pgName := vsName + L7_PG_PREFIX
-	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: "admin"}
+	pgName := vsName + utils.L7_PG_PREFIX
+	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS}
 	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
 	o.AddModelNode(pgNode)
 	return pgNode
 }
 
 func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
-	scriptStr := HTTP_DS_SCRIPT
-	evt := VS_DATASCRIPT_EVT_HTTP_REQ
+	scriptStr := utils.HTTP_DS_SCRIPT
+	evt := utils.VS_DATASCRIPT_EVT_HTTP_REQ
 	var poolGroupRefs []string
 	pgName := "/api/poolgroup?name=" + vsName + "-pg-l7"
 	poolGroupRefs = append(poolGroupRefs, pgName)

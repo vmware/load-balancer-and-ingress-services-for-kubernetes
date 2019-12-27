@@ -34,8 +34,8 @@ var (
 func main() {
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
-	InitializeAKC()
 	k8s.PopulateCache()
+	InitializeAKC()
 }
 
 func InitializeAKC() {
