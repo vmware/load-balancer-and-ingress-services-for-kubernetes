@@ -116,7 +116,7 @@
         "uuid": "virtualservice-cf0ea99a-3a72-4043-bad1-30241db467e3",
         "east_west_placement": false,
         "limit_doser": false,
-        "name": "container-dns-vs",
+        "name": "Shard-VS-5",
         "close_client_conn_on_config_update": false,
         "type": "VS_TYPE_NORMAL",
         "enable_autogw": true,

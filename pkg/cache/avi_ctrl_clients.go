@@ -33,12 +33,12 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	if ctrlUsername == "" || ctrlPassword == "" || ctrlIpAddress == "" {
 		utils.AviLog.Error.Panic("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
 	}
-	clientonce.Do(func() {
-		AviClientInstance, err = utils.NewAviRestClientPool(utils.NumWorkersGraph,
-			ctrlIpAddress, ctrlUsername, ctrlPassword)
-		if err != nil {
-			utils.AviLog.Error.Panic("AVI controller initilization failed")
-		}
-	})
+
+	AviClientInstance, err = utils.NewAviRestClientPool(utils.NumWorkersGraph,
+		ctrlIpAddress, ctrlUsername, ctrlPassword)
+	if err != nil {
+		utils.AviLog.Error.Panic("AVI controller initilization failed")
+	}
+
 	return AviClientInstance
 }

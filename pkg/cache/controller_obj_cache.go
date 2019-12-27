@@ -91,10 +91,6 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 				utils.AviLog.Warning.Printf("vs_intf not of type map[string] interface{}. Instead of type %T", vs_intf)
 				continue
 			}
-			pg_key_collection := c.AviPGCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS)
-			pool_key_collection := c.AviPoolCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS)
-			ds_key_collection := c.AviDataScriptPopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS)
-
 			var sni_child_collection []string
 			vh_child, found := vs["vh_child_vs_uuid"]
 			if found {
@@ -104,17 +100,53 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 
 			}
 			if vs["cloud_config_cksum"] != nil {
-				vs_cache_obj := AviVsCache{Name: vs["name"].(string),
-					Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: nil,
-					CloudConfigCksum: vs["cloud_config_cksum"].(string),
-					PGKeyCollection:  pg_key_collection, PoolKeyCollection: pool_key_collection, DSKeyCollection: ds_key_collection,
-					SNIChildCollection: sni_child_collection}
 				k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vs["name"].(string)}
-				c.VsCache.AviCacheAdd(k, &vs_cache_obj)
+				vs_cache, found := c.VsCache.AviCacheGet(k)
+				if found {
+					vs_cache_obj, ok := vs_cache.(*AviVsCache)
+					if ok {
+						if vs_cache_obj.Uuid == vs["uuid"].(string) {
+							// Same object - let's just refresh the values.
+							vs_cache_obj.CloudConfigCksum = vs["cloud_config_cksum"].(string)
+							vs_cache_obj.SNIChildCollection = sni_child_collection
+							utils.AviLog.Info.Printf("Updated Vs cache k %v val %v",
+								k, vs_cache_obj)
+						} else {
+							// New object
+							vs_cache_obj := AviVsCache{Name: vs["name"].(string),
+								Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: nil,
+								CloudConfigCksum:   vs["cloud_config_cksum"].(string),
+								SNIChildCollection: sni_child_collection}
 
-				utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
-					k, vs_cache_obj)
+							c.VsCache.AviCacheAdd(k, &vs_cache_obj)
+							utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
+								k, vs_cache_obj)
+						}
+					} else {
+						// New object
+						vs_cache_obj := AviVsCache{Name: vs["name"].(string),
+							Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: nil,
+							CloudConfigCksum:   vs["cloud_config_cksum"].(string),
+							SNIChildCollection: sni_child_collection}
 
+						c.VsCache.AviCacheAdd(k, &vs_cache_obj)
+						utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
+							k, vs_cache_obj)
+					}
+				} else {
+					vs_cache_obj := AviVsCache{Name: vs["name"].(string),
+						Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: nil,
+						CloudConfigCksum:   vs["cloud_config_cksum"].(string),
+						SNIChildCollection: sni_child_collection}
+
+					c.VsCache.AviCacheAdd(k, &vs_cache_obj)
+					utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
+						k, vs_cache_obj)
+				}
+
+				c.AviPGCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
+				c.AviPoolCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
+				c.AviDataScriptPopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 			}
 		}
 	}
@@ -122,7 +154,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 
 //Design library methods to remove repeatation of code.
 func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
-	cloud string, vs_uuid string, tenant string) []NamespaceName {
+	cloud string, vs_uuid string, tenant string, vsKey NamespaceName) {
 	var rest_response interface{}
 
 	var pg_key_collection []NamespaceName
@@ -130,19 +162,20 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
 		utils.AviLog.Warning.Printf("PG Get uri %v returned err %v", uri, err)
+		return
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
 			utils.AviLog.Warning.Printf("PG Get uri %v returned %v type %T", uri,
 				rest_response, rest_response)
-			return nil
+			return
 		}
 		utils.AviLog.Info.Printf("PG Get uri %v returned %v PGs", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {
 			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T for PGs", resp["results"])
-			return nil
+			return
 		}
 		for _, pg_intf := range results {
 			pg, ok := pg_intf.(map[string]interface{})
@@ -162,12 +195,22 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 			}
 
 		}
+		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
+		if found {
+			vs_cache_obj, ok := vs_cache.(*AviVsCache)
+			if !ok {
+				utils.AviLog.Warning.Printf("Unable to cast to VS object: %v", vsKey)
+				return
+			}
+			vs_cache_obj.PGKeyCollection = pg_key_collection
+		} else {
+			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update PG collection", vsKey)
+		}
 	}
-	return pg_key_collection
 }
 
 func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
-	cloud string, vs_uuid string, tenant string) []NamespaceName {
+	cloud string, vs_uuid string, tenant string, vsKey NamespaceName) {
 	var rest_response interface{}
 	var err error
 	var pool_key_collection []NamespaceName
@@ -182,14 +225,14 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 		if !ok {
 			utils.AviLog.Warning.Printf("Pool Get uri %v returned %v type %T", uri,
 				rest_response, rest_response)
-			return nil
+			return
 		}
 		utils.AviLog.Info.Printf("Pool Get uri %v returned %v pools", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {
 			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T", resp["results"])
-			return nil
+			return
 		}
 		for _, pool_intf := range results {
 			pool, ok := pool_intf.(map[string]interface{})
@@ -210,12 +253,23 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 				k, pool_cache_obj)
 
 		}
+		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
+		if found {
+			vs_cache_obj, ok := vs_cache.(*AviVsCache)
+			if !ok {
+				utils.AviLog.Warning.Printf("Unable to cast to VS object: %v", vsKey)
+				return
+			}
+			vs_cache_obj.PoolKeyCollection = pool_key_collection
+		} else {
+			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update Pool collection", vsKey)
+		}
 	}
-	return pool_key_collection
+	return
 }
 
 func (c *AviObjCache) AviDataScriptPopulate(client *clients.AviClient,
-	cloud string, vs_uuid string, tenant string) []NamespaceName {
+	cloud string, vs_uuid string, tenant string, vsKey NamespaceName) {
 	var rest_response interface{}
 	var err error
 	var ds_key_collection []NamespaceName
@@ -230,14 +284,14 @@ func (c *AviObjCache) AviDataScriptPopulate(client *clients.AviClient,
 		if !ok {
 			utils.AviLog.Warning.Printf("DS Get uri %v returned %v type %T", uri,
 				rest_response, rest_response)
-			return nil
+			return
 		}
 		utils.AviLog.Info.Printf("DS Get uri %v returned %v pools", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {
 			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T", resp["results"])
-			return nil
+			return
 		}
 		for _, ds_intf := range results {
 			ds, ok := ds_intf.(map[string]interface{})
@@ -257,6 +311,17 @@ func (c *AviObjCache) AviDataScriptPopulate(client *clients.AviClient,
 				k, ds_cache_obj)
 
 		}
+		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
+		if found {
+			vs_cache_obj, ok := vs_cache.(*AviVsCache)
+			if !ok {
+				utils.AviLog.Warning.Printf("Unable to cast to VS object: %v", vsKey)
+				return
+			}
+			vs_cache_obj.DSKeyCollection = ds_key_collection
+		} else {
+			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update DS collection", vsKey)
+		}
 	}
-	return ds_key_collection
+	return
 }
