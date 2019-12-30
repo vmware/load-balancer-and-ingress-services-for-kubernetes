@@ -16,8 +16,6 @@ package cache
 
 import (
 	"sync"
-
-	avimodels "github.com/avinetworks/sdk/go/models"
 )
 
 type NamespaceName struct {
@@ -42,11 +40,18 @@ type AviDSCache struct {
 	Uuid   string
 }
 
+type AviCloudPropertyCache struct {
+	Name      string
+	VType     string
+	NSIpam    string
+	NSIpamDNS string
+}
+
 type AviVsCache struct {
 	Name               string
 	Tenant             string
 	Uuid               string
-	Vip                []*avimodels.Vip
+	Vip                string
 	CloudConfigCksum   string
 	PGKeyCollection    []NamespaceName
 	PoolKeyCollection  []NamespaceName

@@ -5,7 +5,8 @@ metadata:
   name: avi-k8s-config
   namespace: avi-system
 data:
-  controllerIP: "localhost"
+  controllerIP: "10.52.3.116:9443"
   controllerVersion: "18.2.7"
+  cloudVtype: "CLOUD_VCENTER"
   shardVSSize: "LARGE" # SHARD VS size - ENUM: LARGE, MEDIUM, SMALL
   shardVSNamePrefix: "Shard-VS-"

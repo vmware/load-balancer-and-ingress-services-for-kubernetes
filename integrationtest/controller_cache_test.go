@@ -49,6 +49,12 @@ func TestCacheGETOKStatus(t *testing.T) {
 		} else if strings.Contains(r.URL.EscapedPath(), "vsdatascript") {
 			data, _ := ioutil.ReadFile("avimockobjects/datascript_http_mock.json")
 			fmt.Fprintln(w, string(data))
+		} else if strings.Contains(r.URL.EscapedPath(), "cloud") {
+			data, _ := ioutil.ReadFile("avimockobjects/cloud_mock.json")
+			fmt.Fprintln(w, string(data))
+		} else if strings.Contains(r.URL.EscapedPath(), "ipamdnsproviderprofile") {
+			data, _ := ioutil.ReadFile("avimockobjects/ipamdns_mock.json")
+			fmt.Fprintln(w, string(data))
 		} else {
 			// This is used for /login --> first request to controller
 			fmt.Fprintln(w, string(`{"dummy" :"data"}`))
@@ -143,6 +149,12 @@ func TestCacheGETDependentObjectUnavailable(t *testing.T) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		} else if strings.Contains(r.URL.EscapedPath(), "vsdatascript") {
 			data, _ := ioutil.ReadFile("avimockobjects/datascript_http_mock.json")
+			fmt.Fprintln(w, string(data))
+		} else if strings.Contains(r.URL.EscapedPath(), "cloud") {
+			data, _ := ioutil.ReadFile("avimockobjects/cloud_mock.json")
+			fmt.Fprintln(w, string(data))
+		} else if strings.Contains(r.URL.EscapedPath(), "ipamdnsproviderprofile") {
+			data, _ := ioutil.ReadFile("avimockobjects/ipamdns_mock.json")
 			fmt.Fprintln(w, string(data))
 		} else {
 			// This is used for /login --> first request to controller

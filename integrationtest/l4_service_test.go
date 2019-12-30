@@ -93,7 +93,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 		// Check for the pools
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
-		address := "1.2.3.4:8080"
+		address := "1.2.3.4"
 		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 		g.Expect(len(nodes[0].TCPPoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
@@ -179,15 +179,15 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 
 		for _, node := range nodes[0].PoolRefs {
 			if node.Port == 9080 {
-				address := "1.2.3.6:9080"
+				address := "1.2.3.6"
 				g.Expect(len(node.Servers)).To(gomega.Equal(2))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			} else if node.Port == 8080 {
-				address := "1.2.3.5:8080"
+				address := "1.2.3.5"
 				g.Expect(len(node.Servers)).To(gomega.Equal(1))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			} else {
-				address := "1.2.3.7:7080"
+				address := "1.2.3.7"
 				g.Expect(len(node.Servers)).To(gomega.Equal(3))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			}
@@ -260,21 +260,22 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 
 		for _, node := range nodes[0].PoolRefs {
 			if node.Port == 9080 {
-				address := "1.2.3.6:9080"
+				address := "1.2.3.6"
 				g.Expect(len(node.Servers)).To(gomega.Equal(2))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			} else if node.Port == 8080 {
-				address := "1.2.3.5:8080"
+				address := "1.2.3.5"
 				g.Expect(len(node.Servers)).To(gomega.Equal(1))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			} else {
-				address := "1.2.3.7:7080"
+				address := "1.2.3.7"
 				g.Expect(len(node.Servers)).To(gomega.Equal(3))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			}
 		}
 		g.Expect(len(nodes[0].TCPPoolGroupRefs)).To(gomega.Equal(3))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
+		g.Expect(nodes[0].SharedVS).To(gomega.Equal(false))
 		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(meshutils.DEFAULT_L4_APP_PROFILE))
 		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(meshutils.SYSTEM_UDP_FAST_PATH))
 

@@ -19,6 +19,7 @@ import (
 
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
+	"gitlab.eng.vmware.com/orion/akc/pkg/rest"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -120,7 +121,9 @@ func SyncFromIngestionLayer(key string) error {
 }
 
 func SyncFromNodesLayer(key string) error {
-	// TBU
-	//avirest.DeQueueNodes(key)
+	cache := avicache.SharedAviObjCache()
+	aviclient := avicache.SharedAVIClients()
+	restlayer := rest.NewRestOperations(cache, aviclient)
+	restlayer.DeQueueNodes(key)
 	return nil
 }

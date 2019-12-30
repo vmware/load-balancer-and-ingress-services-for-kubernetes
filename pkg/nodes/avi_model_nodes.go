@@ -59,13 +59,18 @@ func (o *AviObjectGraph) AddModelNode(node AviModelNode) {
 	o.modelNodes = append(o.modelNodes, node)
 }
 
-func (o *AviObjectGraph) RemoveModelNode(nodeName string) {
-	for i, node := range o.modelNodes {
-		if node.GetNodeType() == "PoolNode" {
-			if node.(*AviPoolNode).Name == nodeName {
-				utils.AviLog.Info.Printf("Removed PoolNode: %s", nodeName)
-				o.modelNodes = append(o.modelNodes[:i], o.modelNodes[i+1:]...)
+func (o *AviObjectGraph) RemovePoolNodeRefs(poolName string) {
+	for _, node := range o.modelNodes {
+		if node.GetNodeType() == "VirtualServiceNode" {
+			for i, pool := range node.(*AviVsNode).PoolRefs {
+				if pool.Name == poolName {
+					utils.AviLog.Info.Printf("Removing poolref: %s", poolName)
+					utils.AviLog.Info.Printf("Before removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
+					node.(*AviVsNode).PoolRefs = append(node.(*AviVsNode).PoolRefs[:i], node.(*AviVsNode).PoolRefs[i+1:]...)
+					break
+				}
 			}
+			utils.AviLog.Info.Printf("After removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
 		}
 	}
 }
@@ -90,6 +95,7 @@ type AviVsNode struct {
 	PoolRefs           []*AviPoolNode
 	TCPPoolGroupRefs   []*AviPoolGroupNode
 	HTTPDSrefs         []*AviHTTPDataScriptNode
+	SharedVS           bool
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -253,11 +259,12 @@ func (o *AviObjectGraph) GetAviPoolNodes() []*AviPoolNode {
 func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string) []*AviPoolNode {
 	var aviPool []*AviPoolNode
 	for _, model := range o.modelNodes {
-		pool, ok := model.(*AviPoolNode)
-		if ok {
-			if pool.IngressName == ingName && tenant == pool.Tenant {
-				utils.AviLog.Info.Printf("Found Pool with name: %s Adding...", pool.IngressName)
-				aviPool = append(aviPool, pool)
+		if model.GetNodeType() == "VirtualServiceNode" {
+			for _, pool := range model.(*AviVsNode).PoolRefs {
+				if pool.IngressName == ingName && tenant == pool.Tenant {
+					utils.AviLog.Info.Printf("Found Pool with name: %s Adding...", pool.IngressName)
+					aviPool = append(aviPool, pool)
+				}
 			}
 		}
 	}

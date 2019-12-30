@@ -37,7 +37,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	AviClientInstance, err = utils.NewAviRestClientPool(utils.NumWorkersGraph,
 		ctrlIpAddress, ctrlUsername, ctrlPassword)
 	if err != nil {
-		utils.AviLog.Error.Panic("AVI controller initilization failed")
+		utils.AviLog.Error.Print("AVI controller initilization failed")
 	}
 
 	return AviClientInstance

@@ -2,6 +2,7 @@ module gitlab.eng.vmware.com/orion/akc
 
 require (
 	github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792
+	github.com/davecgh/go-spew v1.1.1
 	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
 	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef // indirect
 	github.com/google/go-cmp v0.3.1 // indirect

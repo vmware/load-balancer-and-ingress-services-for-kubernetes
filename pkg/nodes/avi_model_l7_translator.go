@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"strings"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
@@ -32,47 +33,70 @@ var shardSizeMap = map[string]uint32{
 
 func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName string, key string) {
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
+	utils.AviLog.Info.Printf("key: %s, msg: Building the L7 pools for namespace: %s, ingName: %s", key, namespace, ingName)
 	ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(ingName)
+	pgName := vsName + utils.L7_PG_PREFIX
+	pgNode := o.GetPoolGroupByName(pgName)
 	if err != nil {
 		// A case, where we detected in Layer 2 that the ingress has been deleted.
 		if errors.IsNotFound(err) {
 			utils.AviLog.Info.Printf("key: %s, msg: ingress not found:  %s", key, ingName)
 
 			// Fetch the ingress pools that are present in the model and delete them.
-			poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
+			poolNodes := o.GetAviPoolNodesByIngress(utils.ADMIN_NS, ingName)
 			utils.AviLog.Info.Printf("key: %s, msg: Pool Nodes to delete for ingress:  %s", key, utils.Stringify(poolNodes))
 
 			for _, pool := range poolNodes {
-				o.RemoveModelNode(pool.Name)
+				o.RemovePoolNodeRefs(pool.Name)
 			}
 		}
 	} else {
 		// First check if there are pools related to this ingress present in the model already
-		poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
+		poolNodes := o.GetAviPoolNodesByIngress(utils.ADMIN_NS, ingName)
+		utils.AviLog.Info.Printf("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
 		for _, pool := range poolNodes {
-			o.RemoveModelNode(pool.Name)
+			o.RemovePoolNodeRefs(pool.Name)
 		}
-		// Create fresh pools
-		pgName := vsName + utils.L7_PG_PREFIX
+
 		// PGs are in 'admin' namespace right now.
-		pgNode := o.GetPoolGroupByName(pgName)
 		if pgNode != nil {
 			hostPathSvcList := parseHostPathForIngress(ingName, ingObj.Spec, key)
+			utils.AviLog.Warning.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(hostPathSvcList))
 			for _, obj := range hostPathSvcList {
 				var priorityLabel string
 				if obj.Path != "" {
-					priorityLabel = obj.Host + "/" + obj.Path
+					if !strings.HasSuffix(obj.Host, "/") {
+						// Add a / suffix if we don't have it before appending the path.
+						obj.Host = obj.Host + "/"
+					}
+					priorityLabel = obj.Host + obj.Path
 				} else {
 					priorityLabel = obj.Host
 				}
-				poolNode := &AviPoolNode{Name: "pool-" + priorityLabel, IngressName: ingName, Tenant: namespace, PriorityLabel: priorityLabel, Port: obj.Port}
+				poolNode := &AviPoolNode{Name: "pool--" + priorityLabel + "--" + namespace + "--" + ingName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port}
 				if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 					poolNode.Servers = servers
 				}
-				pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-				pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &priorityLabel})
-				o.AddModelNode(poolNode)
+				vsNode := o.GetAviVS()
+				if len(vsNode) == 1 {
+					utils.AviLog.Info.Printf("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
+					vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
+				} else {
+					// We should never hit this line, if we do - something is logically wrong.
+					utils.AviLog.Warning.Printf("key: %s, msg: the vsnodes in the model is not equal to 1 : %s. unable to process pools", key, utils.Stringify(vsNode))
+				}
 			}
+
+		}
+	}
+	vsNode := o.GetAviVS()
+	if len(vsNode) == 1 {
+		utils.AviLog.Info.Printf("key: %s, msg: the pool nodes are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
+		// Reset the PG Node members and rebuild them
+		pgNode.Members = nil
+		for _, poolNode := range vsNode[0].PoolRefs {
+			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
+			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
 		}
 	}
 }
@@ -110,7 +134,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	var avi_vs_meta *AviVsNode
 	// This is a shared VS - always created in the admin namespace for now.
 	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: utils.ADMIN_NS,
-		EastWest: false}
+		EastWest: false, SharedVS: true}
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
 	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
@@ -139,11 +163,11 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	scriptStr := utils.HTTP_DS_SCRIPT
 	evt := utils.VS_DATASCRIPT_EVT_HTTP_REQ
 	var poolGroupRefs []string
-	pgName := "/api/poolgroup?name=" + vsName + "-pg-l7"
+	pgName := vsName + utils.L7_PG_PREFIX
 	poolGroupRefs = append(poolGroupRefs, pgName)
 	dsName := vsName + "-http-datascript"
 	script := &DataScript{Script: scriptStr, Evt: evt}
-	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, DataScript: script, PoolGroupRefs: poolGroupRefs}
+	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: utils.ADMIN_NS, DataScript: script, PoolGroupRefs: poolGroupRefs}
 	vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
 	o.AddModelNode(dsScriptNode)
 	return dsScriptNode

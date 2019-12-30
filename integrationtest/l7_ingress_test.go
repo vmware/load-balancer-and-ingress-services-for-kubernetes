@@ -15,6 +15,7 @@
 package integrationtest
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -68,7 +69,7 @@ func TestNoModel(t *testing.T) {
 
 func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	os.Setenv("shard_vs_size", "LARGE")
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	model_name := "admin/Shard-VS-6"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := (fakeService{
@@ -141,7 +142,7 @@ func TestL7Model(t *testing.T) {
 
 func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	os.Setenv("shard_vs_size", "LARGE")
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	model_name := "admin/Shard-VS-6"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := (fakeService{
@@ -201,13 +202,14 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].SharedVS).To(gomega.Equal(true))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
-		poolNodes := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		g.Expect(len(poolNodes)).To(gomega.Equal(2))
-		for _, pool := range poolNodes {
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolRefs {
+			fmt.Printf("HOLAA :%s", pool.Name)
 			// We should get two pools.
-			if pool.Name == "pool-foo.com/foo" {
+			if pool.Name == "pool--foo.com/foo--default--foo-with-targets1" {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 				// The servers should be empty
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
@@ -241,19 +243,8 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
-		poolNodes := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		g.Expect(len(poolNodes)).To(gomega.Equal(2))
-		for _, pool := range poolNodes {
-			// We should get two pools.
-			if pool.Name == "pool-foo.com/foo" {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-				// The servers should be empty
-				g.Expect(len(pool.Servers)).To(gomega.Equal(0))
-			} else {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com/foo"))
-				g.Expect(len(pool.Servers)).To(gomega.Equal(0))
-			}
-		}
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
+
 	} else {
 		t.Fatalf("Could not find model on service delete: %v", err)
 	}
@@ -274,15 +265,8 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		poolNodes := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		g.Expect(len(poolNodes)).To(gomega.Equal(1))
-		for _, pool := range poolNodes {
-			// We should get two pools.
-			if pool.Name == "pool-bar.com/foo" {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com/foo"))
-				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			}
-		}
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+
 		// Delete the model.
 		objects.SharedAviGraphLister().Delete(model_name)
 	} else {
@@ -302,16 +286,8 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		// Delete the model.
-		poolNodes := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		g.Expect(len(poolNodes)).To(gomega.Equal(1))
-		for _, pool := range poolNodes {
-			// We should get two pools.
-			if pool.Name == "pool-bar.com/foo" {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com/foo"))
-				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			}
-		}
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+
 		objects.SharedAviGraphLister().Delete(model_name)
 	} else {
 		t.Fatalf("Could not find model on service ADD: %v", err)
@@ -329,15 +305,6 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-
-		poolNodes := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		g.Expect(len(poolNodes)).To(gomega.Equal(1))
-		for _, pool := range poolNodes {
-			if pool.Name == "pool-bar.com/foo" {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com/foo"))
-				g.Expect(len(pool.Servers)).To(gomega.Equal(0))
-			}
-		}
 		// Delete the model.
 		objects.SharedAviGraphLister().Delete(model_name)
 	} else {
@@ -355,7 +322,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 
 func TestMultiVSIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	os.Setenv("shard_vs_size", "LARGE")
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	model_name := "admin/Shard-VS-6"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := (fakeService{
@@ -405,9 +372,8 @@ func TestMultiVSIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
-		poolNodes := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		g.Expect(len(poolNodes)).To(gomega.Equal(1))
-		for _, pool := range poolNodes {
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+		for _, pool := range nodes[0].PoolRefs {
 			// We should get two pools.
 			if pool.Name == "pool-foo.com/foo" {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
@@ -436,9 +402,8 @@ func TestMultiVSIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
-		poolNodes := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		g.Expect(len(poolNodes)).To(gomega.Equal(1))
-		g.Expect(len(poolNodes[0].Servers)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(0))
 	} else {
 		t.Fatalf("Could not find model: %v", err)
 	}
@@ -461,5 +426,4 @@ func TestMultiVSIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-
 }
