@@ -100,7 +100,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 
 	for _, pp := range vs_meta.PortProto {
 		port := pp.Port
-		svc := avimodels.Service{Port: &port}
+		svc := avimodels.Service{Port: &port, EnableSsl: &pp.EnableSSL}
 		if pp.Protocol == utils.TCP {
 			utils.AviLog.Info.Printf("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
 			onw_profile := "/api/networkprofile/?name=System-TCP-Proxy"
@@ -179,8 +179,8 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "virtualservice", key)
 	if ok != nil || resp_elems == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: unable to find pool obj in resp %v", key, rest_op.Response)
-		return errors.New("pool not found")
+		utils.AviLog.Warning.Printf("key: %s, msg: unable to find vs obj in resp %v", key, rest_op.Response)
+		return errors.New("vs not found")
 	}
 
 	for _, resp := range resp_elems {
@@ -220,11 +220,17 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					vs_cache_obj))
 			}
 		}
+		vsvip, vipExists := resp["vip"].([]interface{})
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		vs_cache, ok := rest.cache.VsCache.AviCacheGet(k)
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
+				if vipExists && len(vsvip) > 0 {
+					vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
+					vs_cache_obj.Vip = vip
+					utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated vsvip to the cache: %s", key, vip))
+				}
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
 				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
@@ -233,6 +239,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		} else {
 			vs_cache_obj := avicache.AviVsCache{Name: name, Tenant: rest_op.Tenant,
 				Uuid: uuid, CloudConfigCksum: cksum}
+			if vipExists && len(vsvip) > 0 {
+				vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
+				vs_cache_obj.Vip = vip
+				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
+			}
 			rest.cache.VsCache.AviCacheAdd(k, &vs_cache_obj)
 			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key %v val %v\n", key, k,
 				vs_cache_obj))

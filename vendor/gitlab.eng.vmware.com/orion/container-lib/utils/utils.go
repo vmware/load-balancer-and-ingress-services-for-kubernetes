@@ -26,11 +26,11 @@ import (
 	"sync"
 	"time"
 
+	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
+	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	kubeinformers "k8s.io/client-go/informers"
-	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions"
-	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -149,6 +149,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 	cs := kubeClient.ClientSet
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(cs, time.Second*30)
 	informers := &Informers{}
+	informers.KubeClientIntf = kubeClient
 	for _, informer := range registeredInformers {
 		switch informer {
 		case ServiceInformer:

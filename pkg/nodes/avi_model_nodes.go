@@ -134,6 +134,7 @@ type AviPortHostProtocol struct {
 	Secret      string
 	Passthrough bool
 	Redirect    bool
+	EnableSSL   bool
 }
 
 type AviPoolGroupNode struct {
@@ -227,6 +228,12 @@ type AviPoolNode struct {
 	SSLProfileRef    string
 	IngressName      string
 	PriorityLabel    string
+	ServiceMetadata  ServiceMetadataObj
+}
+
+type ServiceMetadataObj struct {
+	IngressName string `json:"ingress_name"`
+	Namespace   string `json:"namespace"`
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {

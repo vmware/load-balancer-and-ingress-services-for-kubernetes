@@ -73,7 +73,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				} else {
 					priorityLabel = obj.Host
 				}
-				poolNode := &AviPoolNode{Name: "pool--" + priorityLabel + "--" + namespace + "--" + ingName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port}
+				poolNode := &AviPoolNode{Name: "pool--" + priorityLabel + "--" + namespace + "--" + ingName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: ServiceMetadataObj{IngressName: ingName, Namespace: namespace}}
 				if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 					poolNode.Servers = servers
 				}
@@ -138,7 +138,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
 	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
-	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP}
+	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true}
 	portProtocols = append(portProtocols, httpPort)
 	portProtocols = append(portProtocols, httpsPort)
 	avi_vs_meta.PortProto = portProtocols

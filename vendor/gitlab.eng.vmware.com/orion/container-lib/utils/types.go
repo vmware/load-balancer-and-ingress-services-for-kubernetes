@@ -19,9 +19,9 @@ import (
 	"os"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
+	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	extensioninformers "k8s.io/client-go/informers/extensions/v1beta1"
-	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -60,7 +60,7 @@ type Informers struct {
 	SecretInformer  coreinformers.SecretInformer
 	IngressInformer extensioninformers.IngressInformer
 	RouteInformer   oshiftinformers.RouteInformer
-	NodeInformer    coreinformers.NodeInformer
+	KubeClientIntf
 }
 
 type AviRestObjMacro struct {

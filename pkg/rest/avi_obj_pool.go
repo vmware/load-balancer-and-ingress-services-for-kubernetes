@@ -15,14 +15,19 @@
 package rest
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+
+	core "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
@@ -31,10 +36,11 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	cksumString := fmt.Sprint(cksum)
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pool_meta.Tenant)
 	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-
+	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)
+	svc_mdata := string(svc_mdata_json)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	pool := avimodels.Pool{Name: &name, CloudConfigCksum: &cksumString,
-		CreatedBy: &cr, TenantRef: &tenant, CloudRef: &cloudRef}
+		CreatedBy: &cr, TenantRef: &tenant, CloudRef: &cloudRef, ServiceMetadata: &svc_mdata}
 
 	for _, server := range pool_meta.Servers {
 		sip := server.Ip
@@ -111,7 +117,19 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			continue
 		}
 		cksum := resp["cloud_config_cksum"].(string)
+		var svc_mdata interface{}
+		var svc_mdata_map map[string]interface{}
+		var svc_mdata_obj nodes.ServiceMetadataObj
 
+		if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
+			&svc_mdata); err == nil {
+			svc_mdata_map, ok = svc_mdata.(map[string]interface{})
+			if !ok {
+				utils.AviLog.Warning.Printf("resp %v svc_mdata %T has invalid service_metadata type", resp, svc_mdata)
+			} else {
+				SvcMdataMapToObj(&svc_mdata_map, &svc_mdata_obj)
+			}
+		}
 		pool_cache_obj := avicache.AviPoolCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			CloudConfigCksum: cksum}
@@ -132,6 +150,24 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 					}
 				}
 				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
+				mClient := utils.GetInformers().ClientSet
+				mIngress, err := mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName, metav1.GetOptions{})
+				// Once the vsvip object is available - we should be able to update the hostname, for now just updating the vip
+				lbIngress := core.LoadBalancerIngress{
+					IP:       vs_cache_obj.Vip,
+					Hostname: "ToBeUpdated",
+				}
+				mIngress.Status = extensions.IngressStatus{
+					LoadBalancer: core.LoadBalancerStatus{
+						Ingress: []core.LoadBalancerIngress{lbIngress},
+					},
+				}
+				response, err := mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).UpdateStatus(mIngress)
+				if err != nil {
+					utils.AviLog.Error.Printf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
+					return err
+				}
+				utils.AviLog.Info.Printf("key:%s, msg: Successfully updated the ingress status: %v", key, utils.Stringify(response))
 			}
 		} else {
 			vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
@@ -145,6 +181,27 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 	}
 
 	return nil
+}
+
+func SvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *nodes.ServiceMetadataObj) {
+	for k, val := range *svc_mdata_map {
+		switch k {
+		case "ingress_name":
+			ingName, ok := val.(string)
+			if ok {
+				svc_mdata.IngressName = ingName
+			} else {
+				utils.AviLog.Warning.Printf("Incorrect type %T in svc_mdata_map %v", val, *svc_mdata_map)
+			}
+		case "namespace":
+			namespace, ok := val.(string)
+			if ok {
+				svc_mdata.Namespace = namespace
+			} else {
+				utils.AviLog.Warning.Printf("Incorrect type %T in svc_mdata_map %v", val, *svc_mdata_map)
+			}
+		}
+	}
 }
 
 func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
