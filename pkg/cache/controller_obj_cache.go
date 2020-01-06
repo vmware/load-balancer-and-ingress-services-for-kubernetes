@@ -15,6 +15,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
@@ -26,11 +27,13 @@ import (
 )
 
 type AviObjCache struct {
-	VsCache       *AviCache
-	PgCache       *AviCache
-	DSCache       *AviCache
-	PoolCache     *AviCache
-	CloudKeyCache *AviCache
+	VsCache         *AviCache
+	PgCache         *AviCache
+	DSCache         *AviCache
+	PoolCache       *AviCache
+	CloudKeyCache   *AviCache
+	HTTPPolicyCache *AviCache
+	SSLKeyCache     *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -39,7 +42,9 @@ func NewAviObjCache() *AviObjCache {
 	c.PgCache = NewAviCache()
 	c.DSCache = NewAviCache()
 	c.PoolCache = NewAviCache()
+	c.SSLKeyCache = NewAviCache()
 	c.CloudKeyCache = NewAviCache()
+	c.HTTPPolicyCache = NewAviCache()
 	return &c
 }
 
@@ -112,7 +117,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 			if vs["cloud_config_cksum"] != nil {
 				k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vs["name"].(string)}
 				var vip string
-				if len(vs["vip"].([]interface{})) > 0 {
+				if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
 					vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
 				}
 				vs_cache, found := c.VsCache.AviCacheGet(k)
@@ -287,10 +292,43 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 				utils.AviLog.Warning.Printf("pool_intf not of type map[string] interface{}. Instead of type %T", pool_intf)
 				continue
 			}
-
+			svc_mdata_intf, ok := pool["service_metadata"]
+			var svc_mdata_obj ServiceMetadataObj
+			var svc_mdata interface{}
+			var svc_mdata_map map[string]interface{}
+			if ok {
+				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
+					&svc_mdata); err == nil {
+					svc_mdata_map, ok = svc_mdata.(map[string]interface{})
+					if !ok {
+						utils.AviLog.Warning.Printf(`resp %v svc_mdata %T has invalid
+								 service_metadata type`, pool, svc_mdata)
+					} else {
+						ingressName, ok := svc_mdata_map["ingress_name"]
+						if ok {
+							svc_mdata_obj.IngressName = ingressName.(string)
+						} else {
+							utils.AviLog.Warning.Printf(`service_metadata %v 
+									  malformed`, svc_mdata_map)
+						}
+						namespace, ok := svc_mdata_map["namespace"]
+						if ok {
+							svc_mdata_obj.Namespace = namespace.(string)
+						} else {
+							utils.AviLog.Warning.Printf(`service_metadata %v 
+									  malformed`, svc_mdata_map)
+						}
+					}
+				}
+			} else {
+				utils.AviLog.Warning.Printf("service_metadata %v malformed", pool)
+				// Not caching a pool with malformed metadata?
+				continue
+			}
 			pool_cache_obj := AviPoolCache{Name: pool["name"].(string),
 				Tenant: tenant, Uuid: pool["uuid"].(string),
-				CloudConfigCksum: pool["cloud_config_cksum"].(string)}
+				CloudConfigCksum:   pool["cloud_config_cksum"].(string),
+				ServiceMetadataObj: svc_mdata_obj}
 
 			k := NamespaceName{Namespace: tenant, Name: pool["name"].(string)}
 
@@ -480,11 +518,6 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
 		}
 	}
 	return ""
-}
-
-type NextPage struct {
-	Next_uri   string
-	Collection []NamespaceName
 }
 
 func ExtractPattern(word string, pattern string) string {

@@ -93,7 +93,7 @@ func (rest *RestOperations) AviPoolDel(uuid string, tenant string, key string) *
 
 func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, msg: rest_op has err or no reponse", key)
+		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for POOL, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
@@ -155,7 +155,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				// Once the vsvip object is available - we should be able to update the hostname, for now just updating the vip
 				lbIngress := core.LoadBalancerIngress{
 					IP:       vs_cache_obj.Vip,
-					Hostname: "ToBeUpdated",
+					Hostname: "tobeupdated.com",
 				}
 				mIngress.Status = extensions.IngressStatus{
 					LoadBalancer: core.LoadBalancerStatus{
@@ -207,7 +207,7 @@ func SvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *nodes.Se
 func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	poolKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	utils.AviLog.Info.Printf("key: %s, msg: deleting pool with key :%s", key, poolKey)
-	rest.cache.PoolCache.AviCacheDelete(key)
+	rest.cache.PoolCache.AviCacheDelete(poolKey)
 	// Delete the pool from the vs cache as well.
 	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
 	if ok {

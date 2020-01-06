@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 
 func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer}
+	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer, meshutils.SecretInformer}
 	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: kubeClient}
 	go k8s.InitController(informers)

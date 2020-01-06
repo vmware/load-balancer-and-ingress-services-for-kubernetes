@@ -70,7 +70,7 @@ github.com/openshift/client-go/route/clientset/versioned/scheme
 github.com/pkg/errors
 # github.com/spf13/pflag v1.0.3
 github.com/spf13/pflag
-# gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200102011151-9d215180ea4a
+# gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200106090728-5b0ad80ac483
 gitlab.eng.vmware.com/orion/container-lib/utils
 # golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 golang.org/x/crypto/ssh/terminal

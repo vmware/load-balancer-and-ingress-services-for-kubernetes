@@ -25,7 +25,8 @@ import (
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
-func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, cache_obj *avicache.AviPGCache, key string) *utils.RestOp {
+func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, cache_obj *avicache.AviPGCache, implicity_priority_label bool, key string) *utils.RestOp {
+	var implicitPriority bool
 	name := pg_meta.Name
 	cksum := pg_meta.CloudConfigCksum
 	cksumString := fmt.Sprint(cksum)
@@ -33,7 +34,9 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	members := pg_meta.Members
 	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	cloudRef := "/api/cloud?name=" + utils.CloudName
-	implicitPriority := true
+	if implicity_priority_label {
+		implicitPriority = true
+	}
 	pg := avimodels.PoolGroup{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &implicitPriority}
 
@@ -65,7 +68,7 @@ func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *ut
 
 func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, msg: rest_op has err or no reponse for PG", key)
+		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for PG err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 

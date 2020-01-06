@@ -59,18 +59,18 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	return &rest_op
 }
 
-func (rest *RestOperations) AviDSDel(uuid string, tenant string) *utils.RestOp {
+func (rest *RestOperations) AviDSDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/vsdatascriptset/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
-	utils.AviLog.Info.Print(spew.Sprintf("DS DELETE Restop %v \n",
+	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: DS DELETE Restop %v \n", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
 
 func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("rest_op has err or no reponse for datascriptset")
+		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for datascriptset err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 

@@ -62,7 +62,7 @@ func InitializeAKC() {
 		utils.AviLog.Error.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	registeredInformers := []string{utils.ServiceInformer, utils.EndpointInformer, utils.IngressInformer}
+	registeredInformers := []string{utils.ServiceInformer, utils.EndpointInformer, utils.IngressInformer, utils.SecretInformer}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
 
 	informers := k8s.K8sinformers{Cs: kubeClient}

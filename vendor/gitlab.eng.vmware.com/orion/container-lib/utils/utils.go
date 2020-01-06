@@ -222,7 +222,7 @@ func Stringify(serialize interface{}) string {
 	return string(json_marshalled)
 }
 
-func ExtractGatewayNamespace(key string) (string, string) {
+func ExtractNamespaceObjectName(key string) (string, string) {
 	segments := strings.Split(key, "/")
 	if len(segments) == 2 {
 		return segments[0], segments[1]

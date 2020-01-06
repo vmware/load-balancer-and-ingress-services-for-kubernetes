@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 
 func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer}
+	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer, meshutils.SecretInformer}
 	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
 	ctrl := SharedAviController()
 	stopCh := meshutils.SetupSignalHandler()
