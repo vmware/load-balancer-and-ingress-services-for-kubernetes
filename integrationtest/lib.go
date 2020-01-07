@@ -63,7 +63,7 @@ func (ing fakeIngress) Ingress() *extensionv1beta1.Ingress {
 			IngressRuleValue: extensionv1beta1.IngressRuleValue{
 				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
 					Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
-						Path: "foo",
+						Path: "/foo",
 						Backend: extensionv1beta1.IngressBackend{ServiceName: ing.serviceName, ServicePort: intstr.IntOrString{
 							Type:   intstr.Int,
 							IntVal: 8080,

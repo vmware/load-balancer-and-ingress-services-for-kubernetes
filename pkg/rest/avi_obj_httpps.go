@@ -195,7 +195,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 	return nil
 }
 
-func (rest *RestOperations) AviHTTPCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
+func (rest *RestOperations) AviHTTPPolicyCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	httpkey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	rest.cache.HTTPPolicyCache.AviCacheDelete(httpkey)
 	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)

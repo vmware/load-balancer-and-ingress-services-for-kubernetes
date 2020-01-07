@@ -232,7 +232,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		DeleteFunc: func(obj interface{}) {
 			secret, ok := obj.(*corev1.Secret)
 			if !ok {
-				// endpoints was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 				if !ok {
 					utils.AviLog.Error.Printf("couldn't get object from tombstone %#v", obj)

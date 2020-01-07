@@ -16,7 +16,6 @@ package nodes
 
 import (
 	"fmt"
-	"strings"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
@@ -32,6 +31,9 @@ var shardSizeMap = map[string]uint32{
 	"SMALL":  2,
 }
 
+// TODO: Move to utils
+const tlsCert = "tls.crt"
+
 func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName string, key string) {
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
 	utils.AviLog.Info.Printf("key: %s, msg: Building the L7 pools for namespace: %s, ingName: %s", key, namespace, ingName)
@@ -39,6 +41,10 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	pgName := vsName + utils.L7_PG_PREFIX
 	pgNode := o.GetPoolGroupByName(pgName)
 	vsNode := o.GetAviVS()
+	if len(vsNode) != 1 {
+		utils.AviLog.Warning.Printf("key: %s, msg: more than one vs in model.", key)
+		return
+	}
 	if err != nil {
 		// A case, where we detected in Layer 2 that the ingress has been deleted.
 		if errors.IsNotFound(err) {
@@ -68,14 +74,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				for _, obj := range val {
 					var priorityLabel string
 					if obj.Path != "" {
-						if !strings.HasSuffix(host, "/") {
-							// Add a / suffix if we don't have it before appending the path.
-							host = host + "/"
-							priorityLabel = host + obj.Path
-						} else {
-							priorityLabel = host + obj.Path
-						}
-
+						priorityLabel = host + obj.Path
 					} else {
 						priorityLabel = host
 					}
@@ -83,14 +82,10 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 						poolNode.Servers = servers
 					}
-					vsNode := o.GetAviVS()
-					if len(vsNode) == 1 {
-						utils.AviLog.Info.Printf("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
-						vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
-					} else {
-						// We should never hit this line, if we do - something is logically wrong.
-						utils.AviLog.Warning.Printf("key: %s, msg: the vsnodes in the model is not equal to 1 : %s. unable to process pools", key, utils.Stringify(vsNode))
-					}
+
+					utils.AviLog.Info.Printf("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
+					vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
+
 				}
 			}
 			// Processing the TLS nodes
@@ -98,21 +93,21 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				// For each host, create a SNI node with the secret giving us the key and cert.
 				// construct a SNI VS node per tls setting which corresponds to one secret
 				sniNode := &AviVsNode{Name: "tls--" + ingName + "--" + tlssetting.SecretName, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
-				o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
-				o.BuildPolicyPGPoolsForSNI(sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
-				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
+				certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
+				if certsBuilt {
+					o.BuildPolicyPGPoolsForSNI(sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
+					vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
+				}
 			}
 
 		}
 	}
-	if len(vsNode) == 1 {
-		utils.AviLog.Info.Printf("key: %s, msg: the pool nodes are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
-		// Reset the PG Node members and rebuild them
-		pgNode.Members = nil
-		for _, poolNode := range vsNode[0].PoolRefs {
-			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
-		}
+	utils.AviLog.Info.Printf("key: %s, msg: the pool nodes are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
+	// Reset the PG Node members and rebuild them
+	pgNode.Members = nil
+	for _, poolNode := range vsNode[0].PoolRefs {
+		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
+		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
 	}
 }
 
@@ -209,33 +204,34 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	return dsScriptNode
 }
 
-func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, secretName string, key string) {
+func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, secretName string, key string) bool {
 	mClient := utils.GetInformers().ClientSet
 	secretObj, err := mClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil || secretObj == nil {
 		// This secret has been deleted.
 		utils.AviLog.Info.Printf("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
-		return
+		return false
 	}
 	certNode := &AviTLSKeyCertNode{Name: "tls--cert--" + namespace + "-" + secretName, Tenant: utils.ADMIN_NS}
 	keycertMap := secretObj.Data
-	cert, ok := keycertMap["tls.crt"]
+	cert, ok := keycertMap[tlsCert]
 	if ok {
 		certNode.Cert = cert
 	} else {
 		utils.AviLog.Info.Printf("key: %s, msg: certificate not found for secret: %s", key, secretObj.Name)
-		return
+		return false
 	}
 	tlsKey, keyfound := keycertMap[utils.K8S_TLS_SECRET_KEY]
 	if keyfound {
 		certNode.Key = tlsKey
 	} else {
 		utils.AviLog.Info.Printf("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
-		return
+		return false
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: Added the scret object to tlsnode: %s", key, secretObj.Name)
 
 	tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
+	return true
 }
 
 func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string) {

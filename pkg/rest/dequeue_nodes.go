@@ -247,7 +247,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					} else if rest_op.Model == "PoolGroup" {
 						rest.AviPGCacheDel(rest_op, vsKey, key)
 					} else if rest_op.Model == "HTTPPolicySet" {
-						rest.AviHTTPCacheDel(rest_op, vsKey, key)
+						rest.AviHTTPPolicyCacheDel(rest_op, vsKey, key)
 					} else if rest_op.Model == "SSLKeyAndCertificate" {
 						rest.AviSSLCacheDel(rest_op, vsKey, key)
 					}
