@@ -129,6 +129,7 @@ func isServiceDelete(svcName string, namespace string, key string) bool {
 	return false
 }
 
+// Candidate for utils.
 func extractTypeNameNamespace(key string) (string, string, string) {
 	segments := strings.Split(key, "/")
 	if len(segments) == 3 {
@@ -153,8 +154,8 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 func DeriveNamespacedShardVS(namespace string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	var vsNum uint32
-	shardVsSize := os.Getenv("shard_vs_size")
-	shardVsPrefix := os.Getenv("shard_vs_name_prefix")
+	shardVsSize := os.Getenv("SHARD_VS_SIZE")
+	shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")
 	if shardVsPrefix == "" {
 		shardVsPrefix = utils.DEFAULT_SHARD_VS_PREFIX
 	}

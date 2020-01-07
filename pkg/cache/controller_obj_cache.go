@@ -15,6 +15,10 @@
 package cache
 
 import (
+	"encoding/json"
+	"os"
+	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/avinetworks/sdk/go/clients"
@@ -23,10 +27,13 @@ import (
 )
 
 type AviObjCache struct {
-	VsCache   *AviCache
-	PgCache   *AviCache
-	DSCache   *AviCache
-	PoolCache *AviCache
+	VsCache         *AviCache
+	PgCache         *AviCache
+	DSCache         *AviCache
+	PoolCache       *AviCache
+	CloudKeyCache   *AviCache
+	HTTPPolicyCache *AviCache
+	SSLKeyCache     *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -35,6 +42,9 @@ func NewAviObjCache() *AviObjCache {
 	c.PgCache = NewAviCache()
 	c.DSCache = NewAviCache()
 	c.PoolCache = NewAviCache()
+	c.SSLKeyCache = NewAviCache()
+	c.CloudKeyCache = NewAviCache()
+	c.HTTPPolicyCache = NewAviCache()
 	return &c
 }
 
@@ -57,16 +67,21 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 
 	// Populate the VS cache
 	c.AviObjVSCachePopulate(client, cloud)
+	c.AviCloudPropertiesPopulate(client, cloud)
 
 }
 
 // TODO (sudswas): Should this be run inside a go routine for parallel population
 // to reduce bootup time when the system is loaded. Variable duplication expected.
 func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
-	cloud string) {
+	cloud string, override_uri ...NextPage) {
 	var rest_response interface{}
-	// TODO Retrieve just fields we care about
-	uri := "/api/virtualservice?include_name=true&cloud_ref.name=" + cloud
+	var uri string
+	if len(override_uri) == 1 {
+		uri = override_uri[0].Next_uri
+	} else {
+		uri = "/api/virtualservice?include_name=true&cloud_ref.name=" + cloud
+	}
 	err := client.AviSession.Get(uri, &rest_response)
 
 	if err != nil {
@@ -101,6 +116,10 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 			}
 			if vs["cloud_config_cksum"] != nil {
 				k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vs["name"].(string)}
+				var vip string
+				if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
+					vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
+				}
 				vs_cache, found := c.VsCache.AviCacheGet(k)
 				if found {
 					vs_cache_obj, ok := vs_cache.(*AviVsCache)
@@ -114,7 +133,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 						} else {
 							// New object
 							vs_cache_obj := AviVsCache{Name: vs["name"].(string),
-								Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: nil,
+								Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 								CloudConfigCksum:   vs["cloud_config_cksum"].(string),
 								SNIChildCollection: sni_child_collection}
 
@@ -125,7 +144,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 					} else {
 						// New object
 						vs_cache_obj := AviVsCache{Name: vs["name"].(string),
-							Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: nil,
+							Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 							CloudConfigCksum:   vs["cloud_config_cksum"].(string),
 							SNIChildCollection: sni_child_collection}
 
@@ -135,7 +154,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 					}
 				} else {
 					vs_cache_obj := AviVsCache{Name: vs["name"].(string),
-						Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: nil,
+						Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 						CloudConfigCksum:   vs["cloud_config_cksum"].(string),
 						SNIChildCollection: sni_child_collection}
 
@@ -149,16 +168,33 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 				c.AviDataScriptPopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 			}
 		}
+		if resp["next"] != nil {
+			// It has a next page, let's recursively call the same method.
+			next_uri := strings.Split(resp["next"].(string), "/api/virtualservice")
+			utils.AviLog.Info.Printf("Found next page for vs, uri: %s", next_uri)
+			if len(next_uri) > 1 {
+				override_uri := "/api/virtualservice" + next_uri[1]
+				utils.AviLog.Info.Printf("Next page uri for vs: %s", override_uri)
+				nextPage := NextPage{Next_uri: override_uri}
+				c.AviObjVSCachePopulate(client, cloud, nextPage)
+			}
+		}
 	}
 }
 
 //Design library methods to remove repeatation of code.
 func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
-	cloud string, vs_uuid string, tenant string, vsKey NamespaceName) {
+	cloud string, vs_uuid string, tenant string, vsKey NamespaceName, nextPage ...NextPage) {
 	var rest_response interface{}
 
 	var pg_key_collection []NamespaceName
-	uri := "/api/poolgroup?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+	var uri string
+	if len(nextPage) == 1 {
+		uri = nextPage[0].Next_uri
+		pg_key_collection = nextPage[0].Collection
+	} else {
+		uri = "/api/poolgroup?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+	}
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
 		utils.AviLog.Warning.Printf("PG Get uri %v returned err %v", uri, err)
@@ -206,16 +242,32 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 		} else {
 			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update PG collection", vsKey)
 		}
+		if resp["next"] != nil {
+			// It has a next page, let's recursively call the same method.
+			next_uri := strings.Split(resp["next"].(string), "/api/poolgroup")
+			utils.AviLog.Info.Printf("Found next page for pg, uri: %s", next_uri)
+			if len(next_uri) > 1 {
+				override_uri := "/api/poolgroup" + next_uri[1]
+				utils.AviLog.Info.Printf("Next page uri for pg: %s", override_uri)
+				nextPage := NextPage{Next_uri: override_uri}
+				c.AviPGCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
+			}
+		}
 	}
 }
 
 func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
-	cloud string, vs_uuid string, tenant string, vsKey NamespaceName) {
+	cloud string, vs_uuid string, tenant string, vsKey NamespaceName, nextPage ...NextPage) {
 	var rest_response interface{}
 	var err error
 	var pool_key_collection []NamespaceName
-	// TODO Retrieve just fields we care about
-	uri := "/api/pool?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+	var uri string
+	if len(nextPage) == 1 {
+		uri = nextPage[0].Next_uri
+		pool_key_collection = nextPage[0].Collection
+	} else {
+		uri = "/api/pool?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+	}
 	err = client.AviSession.Get(uri, &rest_response)
 
 	if err != nil {
@@ -240,10 +292,43 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 				utils.AviLog.Warning.Printf("pool_intf not of type map[string] interface{}. Instead of type %T", pool_intf)
 				continue
 			}
-
+			svc_mdata_intf, ok := pool["service_metadata"]
+			var svc_mdata_obj ServiceMetadataObj
+			var svc_mdata interface{}
+			var svc_mdata_map map[string]interface{}
+			if ok {
+				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
+					&svc_mdata); err == nil {
+					svc_mdata_map, ok = svc_mdata.(map[string]interface{})
+					if !ok {
+						utils.AviLog.Warning.Printf(`resp %v svc_mdata %T has invalid
+								 service_metadata type`, pool, svc_mdata)
+					} else {
+						ingressName, ok := svc_mdata_map["ingress_name"]
+						if ok {
+							svc_mdata_obj.IngressName = ingressName.(string)
+						} else {
+							utils.AviLog.Warning.Printf(`service_metadata %v 
+									  malformed`, svc_mdata_map)
+						}
+						namespace, ok := svc_mdata_map["namespace"]
+						if ok {
+							svc_mdata_obj.Namespace = namespace.(string)
+						} else {
+							utils.AviLog.Warning.Printf(`service_metadata %v 
+									  malformed`, svc_mdata_map)
+						}
+					}
+				}
+			} else {
+				utils.AviLog.Warning.Printf("service_metadata %v malformed", pool)
+				// Not caching a pool with malformed metadata?
+				continue
+			}
 			pool_cache_obj := AviPoolCache{Name: pool["name"].(string),
 				Tenant: tenant, Uuid: pool["uuid"].(string),
-				CloudConfigCksum: pool["cloud_config_cksum"].(string)}
+				CloudConfigCksum:   pool["cloud_config_cksum"].(string),
+				ServiceMetadataObj: svc_mdata_obj}
 
 			k := NamespaceName{Namespace: tenant, Name: pool["name"].(string)}
 
@@ -264,6 +349,17 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 		} else {
 			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update Pool collection", vsKey)
 		}
+		if resp["next"] != nil {
+			// It has a next page, let's recursively call the same method.
+			next_uri := strings.Split(resp["next"].(string), "/api/pool")
+			utils.AviLog.Info.Printf("Found next page, uri for pool: %s", next_uri)
+			if len(next_uri) > 1 {
+				override_uri := "/api/pool" + next_uri[1]
+				utils.AviLog.Info.Printf("Next page uri for pool: %s", override_uri)
+				nextPage := NextPage{Next_uri: override_uri, Collection: pool_key_collection}
+				c.AviPoolCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
+			}
+		}
 	}
 	return
 }
@@ -274,7 +370,7 @@ func (c *AviObjCache) AviDataScriptPopulate(client *clients.AviClient,
 	var err error
 	var ds_key_collection []NamespaceName
 	// TODO Retrieve just fields we care about
-	uri := "/api/vsdatascriptset?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+	uri := "/api/vsdatascriptset?referred_by=virtualservice:" + vs_uuid
 	err = client.AviSession.Get(uri, &rest_response)
 
 	if err != nil {
@@ -286,7 +382,7 @@ func (c *AviObjCache) AviDataScriptPopulate(client *clients.AviClient,
 				rest_response, rest_response)
 			return
 		}
-		utils.AviLog.Info.Printf("DS Get uri %v returned %v pools", uri,
+		utils.AviLog.Info.Printf("DS Get uri %v returned %v DSes", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {
@@ -324,4 +420,111 @@ func (c *AviObjCache) AviDataScriptPopulate(client *clients.AviClient,
 		}
 	}
 	return
+}
+
+func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient,
+	cloud string) {
+	vtype := os.Getenv("CLOUD_VTYPE")
+	if vtype == "" {
+		// Default to vcenter.
+		vtype = "CLOUD_VCENTER"
+	}
+	var rest_response interface{}
+	uri := "/api/cloud"
+	err := client.AviSession.Get(uri, &rest_response)
+	if err != nil {
+		utils.AviLog.Warning.Printf("CloudProperties Get uri %v returned err %v", uri, err)
+	} else {
+		resp, ok := rest_response.(map[string]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("CloudProperties Get uri %v returned %v type %T", uri,
+				rest_response, rest_response)
+			return
+		}
+		utils.AviLog.Info.Printf("CloudProperties Get uri %v returned %v ", uri,
+			resp["count"])
+		results, ok := resp["results"].([]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T ", resp["results"])
+			return
+		}
+		for _, cloud_intf := range results {
+			cloud_pol, ok := cloud_intf.(map[string]interface{})
+			if !ok {
+				utils.AviLog.Warning.Printf("cloud_intf not of type map[string] interface{}. Instead of type %T", cloud_intf)
+				continue
+			}
+
+			if cloud == cloud_pol["name"] {
+
+				cloud_obj := &AviCloudPropertyCache{Name: cloud, VType: vtype}
+				if cloud_pol["dns_provider_ref"] != nil {
+					dns_uuid := ExtractPattern(cloud_pol["dns_provider_ref"].(string), "ipamdnsproviderprofile-.*")
+					cloud_obj.NSIpamDNS = c.AviDNSPropertyPopulate(client, dns_uuid)
+
+				} else {
+					utils.AviLog.Warning.Printf("Cloud does not have a dns_provider_ref configured %v", cloud)
+				}
+				c.CloudKeyCache.AviCacheAdd(cloud, cloud_obj)
+				utils.AviLog.Info.Printf("Added CloudKeyCache cache key %v val %v",
+					cloud, cloud_obj)
+			}
+
+		}
+	}
+}
+
+func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
+	nsDNSIpam string) string {
+	var rest_response interface{}
+	uri := "/api/ipamdnsproviderprofile/"
+	err := client.AviSession.Get(uri, &rest_response)
+	if err != nil {
+		utils.AviLog.Warning.Printf("DNSProperty Get uri %v returned err %v", uri, err)
+		return ""
+	} else {
+		resp, ok := rest_response.(map[string]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("DNSProperty Get uri %v returned %v type %T", uri,
+				rest_response, rest_response)
+			return ""
+		}
+		utils.AviLog.Info.Printf("DNSProperty Get uri %v returned %v ", uri,
+			resp["count"])
+		results, ok := resp["results"].([]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T ", resp["results"])
+			return ""
+		}
+		for _, dns_intf := range results {
+			dns_pol, ok := dns_intf.(map[string]interface{})
+			if !ok {
+				utils.AviLog.Warning.Printf("dns_intf not of type map[string] interface{}. Instead of type %T", dns_intf)
+				continue
+			}
+			if dns_pol["uuid"] == nsDNSIpam {
+
+				dns_profile := dns_pol["internal_profile"]
+				dns_profile_pol, dns_found := dns_profile.(map[string]interface{})
+				if dns_found {
+					dns_ipam := dns_profile_pol["dns_service_domain"].([]interface{})[0].(map[string]interface{})
+					// Pick the first dns profile
+					utils.AviLog.Info.Printf("Found DNS_IPAM: %v", dns_ipam["domain_name"])
+					return dns_ipam["domain_name"].(string)
+				}
+
+			}
+
+		}
+	}
+	return ""
+}
+
+func ExtractPattern(word string, pattern string) string {
+	r, _ := regexp.Compile(pattern)
+	result := r.FindAllString(word, -1)
+	if len(result) == 1 {
+		return result[0][:len(result[0])]
+	}
+	return ""
 }

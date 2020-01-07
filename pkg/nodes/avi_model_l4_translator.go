@@ -123,8 +123,6 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, key s
 				} else {
 					atype = "V6"
 				}
-				// Append the port to the IP
-				ip = ip + ":" + fmt.Sprint(poolNode.Port)
 				a := avimodels.IPAddr{Type: &atype, Addr: &ip}
 				server := AviPoolMetaServer{Ip: a}
 				if addr.NodeName != nil {

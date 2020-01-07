@@ -16,8 +16,6 @@ package cache
 
 import (
 	"sync"
-
-	avimodels "github.com/avinetworks/sdk/go/models"
 )
 
 type NamespaceName struct {
@@ -30,10 +28,16 @@ type NamespaceName struct {
  */
 
 type AviPoolCache struct {
-	Name             string
-	Tenant           string
-	Uuid             string
-	CloudConfigCksum string
+	Name               string
+	Tenant             string
+	Uuid               string
+	CloudConfigCksum   string
+	ServiceMetadataObj ServiceMetadataObj
+}
+
+type ServiceMetadataObj struct {
+	IngressName string `json:"ingress_name"`
+	Namespace   string `json:"namespace"`
 }
 
 type AviDSCache struct {
@@ -42,19 +46,47 @@ type AviDSCache struct {
 	Uuid   string
 }
 
+type AviCloudPropertyCache struct {
+	Name      string
+	VType     string
+	NSIpam    string
+	NSIpamDNS string
+}
+
 type AviVsCache struct {
-	Name               string
-	Tenant             string
-	Uuid               string
-	Vip                []*avimodels.Vip
-	CloudConfigCksum   string
-	PGKeyCollection    []NamespaceName
-	PoolKeyCollection  []NamespaceName
-	DSKeyCollection    []NamespaceName
-	SNIChildCollection []string
+	Name                 string
+	Tenant               string
+	Uuid                 string
+	Vip                  string
+	CloudConfigCksum     string
+	PGKeyCollection      []NamespaceName
+	PoolKeyCollection    []NamespaceName
+	DSKeyCollection      []NamespaceName
+	HTTPKeyCollection    []NamespaceName
+	SSLKeyCertCollection []NamespaceName
+	SNIChildCollection   []string
+}
+
+type AviSSLCache struct {
+	Name   string
+	Tenant string
+	Uuid   string
+	//CloudConfigCksum string
+}
+
+type NextPage struct {
+	Next_uri   string
+	Collection []NamespaceName
 }
 
 type AviPGCache struct {
+	Name             string
+	Tenant           string
+	Uuid             string
+	CloudConfigCksum string
+}
+
+type AviHTTPPolicyCache struct {
 	Name             string
 	Tenant           string
 	Uuid             string

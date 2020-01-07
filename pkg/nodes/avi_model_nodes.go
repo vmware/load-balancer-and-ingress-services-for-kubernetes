@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"sort"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
@@ -59,13 +60,18 @@ func (o *AviObjectGraph) AddModelNode(node AviModelNode) {
 	o.modelNodes = append(o.modelNodes, node)
 }
 
-func (o *AviObjectGraph) RemoveModelNode(nodeName string) {
-	for i, node := range o.modelNodes {
-		if node.GetNodeType() == "PoolNode" {
-			if node.(*AviPoolNode).Name == nodeName {
-				utils.AviLog.Info.Printf("Removed PoolNode: %s", nodeName)
-				o.modelNodes = append(o.modelNodes[:i], o.modelNodes[i+1:]...)
+func (o *AviObjectGraph) RemovePoolNodeRefs(poolName string) {
+	for _, node := range o.modelNodes {
+		if node.GetNodeType() == "VirtualServiceNode" {
+			for i, pool := range node.(*AviVsNode).PoolRefs {
+				if pool.Name == poolName {
+					utils.AviLog.Info.Printf("Removing poolref: %s", poolName)
+					utils.AviLog.Info.Printf("Before removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
+					node.(*AviVsNode).PoolRefs = append(node.(*AviVsNode).PoolRefs[:i], node.(*AviVsNode).PoolRefs[i+1:]...)
+					break
+				}
 			}
+			utils.AviLog.Info.Printf("After removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
 		}
 	}
 }
@@ -90,6 +96,14 @@ type AviVsNode struct {
 	PoolRefs           []*AviPoolNode
 	TCPPoolGroupRefs   []*AviPoolGroupNode
 	HTTPDSrefs         []*AviHTTPDataScriptNode
+	SniNodes           []*AviVsNode
+	SharedVS           bool
+	SSLKeyCertRefs     []*AviTLSKeyCertNode
+	HttpPolicyRefs     []*AviHttpPolicySetNode
+	VHParentName       string
+	VHDomainNames      []string
+	TLSType            string
+	IsSNIChild         bool
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -116,8 +130,84 @@ func (v *AviVsNode) GetNodeType() string {
 
 func (v *AviVsNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
-	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto)) + utils.Hash(utils.Stringify(v.HTTPDSrefs))
+	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto)) + utils.Hash(utils.Stringify(v.HTTPDSrefs)) + utils.Hash(utils.Stringify(v.SniNodes))
 	v.CloudConfigCksum = checksum
+}
+
+type AviHttpPolicySetNode struct {
+	Name             string
+	Tenant           string
+	CloudConfigCksum uint32
+	HppMap           []AviHostPathPortPoolPG
+	RedirectPorts    []AviRedirectPort
+}
+
+func (v *AviHttpPolicySetNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviHttpPolicySetNode) CalculateCheckSum() {
+	// A sum of fields for this VS.
+	var checksum uint32
+	for _, hpp := range v.HppMap {
+		sort.Strings(hpp.Host)
+		sort.Strings(hpp.Path)
+		checksum = checksum + utils.Hash(utils.Stringify(hpp))
+	}
+	for _, redir := range v.RedirectPorts {
+		sort.Strings(redir.Hosts)
+		checksum = checksum + utils.Hash(utils.Stringify(redir.Hosts))
+	}
+	utils.AviLog.Info.Printf("The HTTP rules during checksum calculation is: %s with checksum: %v", utils.Stringify(v.HppMap), checksum)
+	v.CloudConfigCksum = checksum
+}
+
+func (v *AviHttpPolicySetNode) GetNodeType() string {
+	// Calculate checksum and return
+	return "HTTPPolicyNode"
+}
+
+type AviHostPathPortPoolPG struct {
+	Host          []string
+	Path          []string
+	Port          uint32
+	Pool          string
+	PoolGroup     string
+	MatchCriteria string
+}
+
+type AviRedirectPort struct {
+	Hosts        []string
+	RedirectPort int32
+	StatusCode   string
+	VsPort       int32
+}
+
+type AviTLSKeyCertNode struct {
+	Name             string
+	Tenant           string
+	CloudConfigCksum uint32
+	Key              []byte
+	Cert             []byte
+	Port             int32
+}
+
+func (v *AviTLSKeyCertNode) CalculateCheckSum() {
+	// A sum of fields for this SSL cert.
+	checksum := utils.Hash(string(v.Key)) + utils.Hash(string(v.Cert))
+	v.CloudConfigCksum = checksum
+}
+
+func (v *AviTLSKeyCertNode) GetCheckSum() uint32 {
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviTLSKeyCertNode) GetNodeType() string {
+	// Calculate checksum and return
+	return "TLSCertNode"
 }
 
 type AviPortHostProtocol struct {
@@ -128,6 +218,7 @@ type AviPortHostProtocol struct {
 	Secret      string
 	Passthrough bool
 	Redirect    bool
+	EnableSSL   bool
 }
 
 type AviPoolGroupNode struct {
@@ -221,6 +312,12 @@ type AviPoolNode struct {
 	SSLProfileRef    string
 	IngressName      string
 	PriorityLabel    string
+	ServiceMetadata  ServiceMetadataObj
+}
+
+type ServiceMetadataObj struct {
+	IngressName string `json:"ingress_name"`
+	Namespace   string `json:"namespace"`
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -253,11 +350,12 @@ func (o *AviObjectGraph) GetAviPoolNodes() []*AviPoolNode {
 func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string) []*AviPoolNode {
 	var aviPool []*AviPoolNode
 	for _, model := range o.modelNodes {
-		pool, ok := model.(*AviPoolNode)
-		if ok {
-			if pool.IngressName == ingName && tenant == pool.Tenant {
-				utils.AviLog.Info.Printf("Found Pool with name: %s Adding...", pool.IngressName)
-				aviPool = append(aviPool, pool)
+		if model.GetNodeType() == "VirtualServiceNode" {
+			for _, pool := range model.(*AviVsNode).PoolRefs {
+				if pool.IngressName == ingName && tenant == pool.Tenant {
+					utils.AviLog.Info.Printf("Found Pool with name: %s Adding...", pool.IngressName)
+					aviPool = append(aviPool, pool)
+				}
 			}
 		}
 	}
@@ -270,8 +368,19 @@ type AviPoolMetaServer struct {
 }
 
 type IngressHostPathSvc struct {
-	Host        string
 	ServiceName string
 	Path        string
 	Port        int32
+}
+
+type IngressHostMap map[string][]IngressHostPathSvc
+
+type TlsSettings struct {
+	Hosts      map[string][]IngressHostPathSvc
+	SecretName string
+}
+
+type IngressConfig struct {
+	TlsCollection []TlsSettings
+	IngressHostMap
 }

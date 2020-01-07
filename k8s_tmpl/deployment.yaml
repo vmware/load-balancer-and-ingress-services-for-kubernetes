@@ -30,7 +30,7 @@ spec:
             secretKeyRef:
               name: avi-secret
               key: password
-        - name: CTRL_IP
+        - name: CTRL_IPADDRESS
           valueFrom:
             configMapKeyRef:
               name: avi-k8s-config
@@ -50,3 +50,8 @@ spec:
             configMapKeyRef:
               name: avi-k8s-config
               key: shardVSNamePrefix
+        - name: CLOUD_VTYPE
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: cloudVtype

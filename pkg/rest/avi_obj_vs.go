@@ -1,0 +1,357 @@
+/*
+ * [2013] - [2018] Avi Networks Incorporated
+ * All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package rest
+
+import (
+	"errors"
+	"fmt"
+
+	avimodels "github.com/avinetworks/sdk/go/models"
+	"github.com/davecgh/go-spew/spew"
+	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
+	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
+	"gitlab.eng.vmware.com/orion/container-lib/utils"
+)
+
+func FindPoolGroupForPort(pgList []*nodes.AviPoolGroupNode, portToSearch int32) string {
+	for _, pg := range pgList {
+		if pg.Port == fmt.Sprint(portToSearch) {
+			return pg.Name
+		}
+	}
+	return ""
+}
+
+func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
+	if vs_meta.IsSNIChild {
+		rest_ops := rest.AviVsSniBuild(vs_meta, rest_method, cache_obj, key)
+		return rest_ops
+	} else {
+		var vip avimodels.Vip
+		if rest_method == utils.RestPost {
+			auto_alloc := true
+			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
+		} else {
+			auto_alloc_put := true
+			auto_allocate_floating_ip := false
+			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc_put, AutoAllocateFloatingIP: &auto_allocate_floating_ip}
+		}
+		// E/W placement subnet is don't care, just needs to be a valid subnet
+		mask := int32(24)
+		addr := "172.18.0.0"
+		atype := "V4"
+		sip := avimodels.IPAddr{Type: &atype, Addr: &addr}
+		ew_subnet := avimodels.IPAddrPrefix{IPAddr: &sip, Mask: &mask}
+		var east_west bool
+		if vs_meta.EastWest == true {
+			vip.Subnet = &ew_subnet
+			east_west = true
+		} else {
+			east_west = false
+		}
+		network_prof := "/api/networkprofile/?name=" + vs_meta.NetworkProfile
+		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
+		// TODO use PoolGroup and use policies if there are > 1 pool, etc.
+		name := vs_meta.Name
+		var dns_info_arr []*avimodels.DNSInfo
+		// Form the DNS_Info name_of_vs.namespace.<dns_ipam>
+		cloud, _ := rest.cache.CloudKeyCache.AviCacheGet(utils.CloudName)
+		utils.AviLog.Info.Printf("key: %s, msg: build vs objs | name: %v \n| vs_meta %v \n| cloud %v", key, name, vs_meta, cloud)
+		fqdn := name + "." + vs_meta.Tenant + "." + cloud.(*avicache.AviCloudPropertyCache).NSIpamDNS
+		dns_info := avimodels.DNSInfo{Fqdn: &fqdn}
+		dns_info_arr = append(dns_info_arr, &dns_info)
+		cksum := vs_meta.CloudConfigCksum
+		checksumstr := fmt.Sprint(cksum)
+		cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+		cloudRef := "/api/cloud?name=" + utils.CloudName
+		vs := avimodels.VirtualService{Name: &name,
+			NetworkProfileRef:     &network_prof,
+			ApplicationProfileRef: &app_prof,
+			CloudConfigCksum:      &checksumstr,
+			CreatedBy:             &cr,
+			DNSInfo:               dns_info_arr,
+			EastWestPlacement:     &east_west,
+			CloudRef:              &cloudRef}
+
+		if vs_meta.DefaultPoolGroup != "" {
+			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
+			vs.PoolGroupRef = &pool_ref
+		}
+		vs.Vip = append(vs.Vip, &vip)
+		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
+		vs.TenantRef = &tenant
+
+		if vs_meta.SNIParent {
+			// This is a SNI parent
+			utils.AviLog.Info.Printf("key: %s, msg: vs %s is a SNI Parent", key, vs_meta.Name)
+			vh_parent := utils.VS_TYPE_VH_PARENT
+			vs.Type = &vh_parent
+		}
+		// TODO other fields like cloud_ref, mix of TCP & UDP protocols, etc.
+
+		for _, pp := range vs_meta.PortProto {
+			port := pp.Port
+			svc := avimodels.Service{Port: &port, EnableSsl: &pp.EnableSSL}
+			if pp.Protocol == utils.TCP {
+				utils.AviLog.Info.Printf("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
+				onw_profile := "/api/networkprofile/?name=System-TCP-Proxy"
+				svc.OverrideNetworkProfileRef = &onw_profile
+				port := pp.Port
+				var sproto string
+				sproto = "PROTOCOL_TYPE_TCP_PROXY"
+				pg_name := FindPoolGroupForPort(vs_meta.TCPPoolGroupRefs, port)
+				if pg_name != "" {
+					utils.AviLog.Info.Printf("key: %s, msg: TCP ports for VS creation returned PG: %s", key, pg_name)
+					oapp_profile := "/api/applicationprofile/?name=System-L4-Application"
+					pg_ref := "/api/poolgroup/?name=" + pg_name
+					sps := avimodels.ServicePoolSelector{ServicePoolGroupRef: &pg_ref,
+						ServicePort: &port, ServiceProtocol: &sproto}
+					vs.ServicePoolSelect = append(vs.ServicePoolSelect, &sps)
+					svc.OverrideApplicationProfileRef = &oapp_profile
+				} else {
+					utils.AviLog.Info.Printf("key: %s, msg: TCP ports for VS creation returned no matching PGs", key)
+				}
+
+			} else if pp.Protocol == utils.UDP && vs_meta.NetworkProfile == "System-TCP-Proxy" {
+				onw_profile := "/api/networkprofile/?name=System-UDP-Fast-Path"
+				svc.OverrideNetworkProfileRef = &onw_profile
+			}
+			if pp.Secret != "" || pp.Passthrough {
+				ssl_enabled := true
+				svc.EnableSsl = &ssl_enabled
+			}
+			vs.Services = append(vs.Services, &svc)
+		}
+
+		if vs_meta.SharedVS {
+			// This is a shared VS - which should have a datascript
+			var i int32
+			var vsdatascripts []*avimodels.VSDataScripts
+			for _, ds := range vs_meta.HTTPDSrefs {
+				var j int32
+				j = i
+				dsRef := "/api/vsdatascriptset/?name=" + ds.Name
+				vsdatascript := &avimodels.VSDataScripts{Index: &j, VsDatascriptSetRef: &dsRef}
+				vsdatascripts = append(vsdatascripts, vsdatascript)
+				i = i + 1
+			}
+			vs.VsDatascripts = vsdatascripts
+		}
+
+		var rest_ops []*utils.RestOp
+
+		var rest_op utils.RestOp
+		var path string
+		if rest_method == utils.RestPut {
+			path = "/api/virtualservice/" + cache_obj.Uuid
+			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: vs,
+				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+			rest_ops = append(rest_ops, &rest_op)
+
+		} else {
+			macro := utils.AviRestObjMacro{ModelName: "VirtualService", Data: vs}
+			path = "/api/macro"
+			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: macro,
+				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+			rest_ops = append(rest_ops, &rest_op)
+
+		}
+
+		utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: VS Restop %v K8sAviVsMeta %v\n", key, utils.Stringify(rest_op),
+			*vs_meta))
+		return rest_ops
+	}
+}
+
+func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
+	name := vs_meta.Name
+	cksum := vs_meta.CloudConfigCksum
+	checksumstr := fmt.Sprint(cksum)
+	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+
+	east_west := false
+	var app_prof string
+	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
+		app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_APP_PROFILE
+	} else {
+		app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE
+	}
+	cloudRef := "/api/cloud?name=" + utils.CloudName
+	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
+	sniChild := &avimodels.VirtualService{Name: &name, CloudConfigCksum: &checksumstr,
+		CreatedBy:             &cr,
+		NetworkProfileRef:     &network_prof,
+		ApplicationProfileRef: &app_prof,
+		EastWestPlacement:     &east_west,
+		CloudRef:              &cloudRef}
+
+	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
+	vh_type := utils.VS_TYPE_VH_CHILD
+	sniChild.Type = &vh_type
+	vhParentUuid := "/api/virtualservice/?name=" + vs_meta.VHParentName
+	sniChild.VhParentVsUUID = &vhParentUuid
+	sniChild.VhDomainName = vs_meta.VHDomainNames
+	ignPool := true
+	sniChild.IgnPoolNetReach = &ignPool
+
+	if vs_meta.DefaultPool != "" {
+		pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool
+		sniChild.PoolRef = &pool_ref
+	}
+	var rest_ops []*utils.RestOp
+	// No need of HTTP rules for TLS passthrough.
+	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
+		for _, sslkeycert := range vs_meta.SniNodes {
+			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
+			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, certName)
+		}
+		var i int32
+		i = 0
+		var httpPolicyCollection []*avimodels.HTTPPolicies
+		for _, http := range vs_meta.HttpPolicyRefs {
+			// Update them on the VS object
+			var j int32
+			j = i + 11
+			i = i + 1
+			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
+			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
+			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
+		}
+		sniChild.HTTPPolicies = httpPolicyCollection
+	}
+	var rest_op utils.RestOp
+	var path string
+	if rest_method == utils.RestPut {
+
+		path = "/api/virtualservice/" + cache_obj.Uuid
+		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: sniChild,
+			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+		rest_ops = append(rest_ops, &rest_op)
+
+	} else {
+
+		macro := utils.AviRestObjMacro{ModelName: "VirtualService", Data: sniChild}
+		path = "/api/macro"
+		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: macro,
+			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+		rest_ops = append(rest_ops, &rest_op)
+
+	}
+
+	utils.AviLog.Info.Print(spew.Sprintf("TLS VS Restop %v K8sAviVsMeta %v\n", utils.Stringify(rest_op),
+		*vs_meta))
+	return rest_ops
+}
+
+func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) error {
+	if (rest_op.Err != nil) || (rest_op.Response == nil) {
+		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for VS, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		return errors.New("Errored rest_op")
+	}
+
+	resp_elems, ok := RestRespArrToObjByType(rest_op, "virtualservice", key)
+	if ok != nil || resp_elems == nil {
+		utils.AviLog.Warning.Printf("key: %s, msg: unable to find vs obj in resp %v", key, rest_op.Response)
+		return errors.New("vs not found")
+	}
+
+	for _, resp := range resp_elems {
+		name, ok := resp["name"].(string)
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: name not present in response %v", key, resp)
+			return errors.New("Name not present in response")
+		}
+
+		uuid, ok := resp["uuid"].(string)
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: Uuid not present in response %v", key, resp)
+			return errors.New("Uuid not present in response")
+		}
+
+		cksum := resp["cloud_config_cksum"].(string)
+		utils.AviLog.Info.Printf("key: %s, msg: vs information %s", key, utils.Stringify(resp))
+
+		vh_parent_uuid, found_parent := resp["vh_parent_vs_ref"]
+		if found_parent {
+			// the uuid is expected to be in the format: "https://IP:PORT/api/virtualservice/virtualservice-88fd9718-f4f9-4e2b-9552-d31336330e0e#mygateway"
+			vs_uuid := ExtractVsUuid(vh_parent_uuid.(string))
+			utils.AviLog.Info.Printf("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
+			// Now let's get the VS key from this uuid
+			vsKey, foundvscache := rest.cache.VsCache.AviCacheGetKeyByUuid(vs_uuid)
+			utils.AviLog.Info.Printf("key: %s, msg: extracted the VS key from the uuid :%s", key, vsKey)
+			if foundvscache {
+				vs_obj := rest.getVsCacheObj(vsKey.(avicache.NamespaceName), key)
+				if !utils.HasElem(vs_obj.SNIChildCollection, uuid) {
+					vs_obj.SNIChildCollection = append(vs_obj.SNIChildCollection, uuid)
+				}
+			} else {
+				vs_cache_obj := avicache.AviVsCache{Name: ExtractVsName(vh_parent_uuid.(string)), Tenant: rest_op.Tenant,
+					SNIChildCollection: []string{uuid}}
+				rest.cache.VsCache.AviCacheAdd(vsKey, &vs_cache_obj)
+				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v\n", key, vsKey,
+					vs_cache_obj))
+			}
+		}
+		vsvip, vipExists := resp["vip"].([]interface{})
+		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
+		vs_cache, ok := rest.cache.VsCache.AviCacheGet(k)
+		if ok {
+			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
+			if found {
+				if vipExists && len(vsvip) > 0 {
+					vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
+					vs_cache_obj.Vip = vip
+					utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated vsvip to the cache: %s", key, vip))
+				}
+				vs_cache_obj.Uuid = uuid
+				vs_cache_obj.CloudConfigCksum = cksum
+				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
+					utils.Stringify(vs_cache_obj)))
+			}
+		} else {
+			vs_cache_obj := avicache.AviVsCache{Name: name, Tenant: rest_op.Tenant,
+				Uuid: uuid, CloudConfigCksum: cksum}
+			if vipExists && len(vsvip) > 0 {
+				vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
+				vs_cache_obj.Vip = vip
+				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
+			}
+			rest.cache.VsCache.AviCacheAdd(k, &vs_cache_obj)
+			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key %v val %v\n", key, k,
+				vs_cache_obj))
+		}
+
+	}
+
+	return nil
+}
+
+func (rest *RestOperations) AviVsCacheDel(vs_cache *avicache.AviCache, rest_op *utils.RestOp, key string) error {
+
+	vsKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
+	utils.AviLog.Info.Printf("key: %s, msg: deleting vs cache for key: %s", key, vsKey)
+	vs_cache.AviCacheDelete(vsKey)
+
+	return nil
+}
+
+func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) *utils.RestOp {
+	path := "/api/virtualservice/" + uuid
+	rest_op := utils.RestOp{Path: path, Method: "DELETE",
+		Tenant: tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+	utils.AviLog.Info.Print(spew.Sprintf("VirtualService DELETE Restop %v \n",
+		utils.Stringify(rest_op)))
+	return &rest_op
+}
