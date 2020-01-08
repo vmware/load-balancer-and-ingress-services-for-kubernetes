@@ -106,20 +106,16 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			svc := avimodels.Service{Port: &port, EnableSsl: &pp.EnableSSL}
 			if pp.Protocol == utils.TCP {
 				utils.AviLog.Info.Printf("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
-				onw_profile := "/api/networkprofile/?name=System-TCP-Proxy"
-				svc.OverrideNetworkProfileRef = &onw_profile
 				port := pp.Port
 				var sproto string
 				sproto = "PROTOCOL_TYPE_TCP_PROXY"
 				pg_name := FindPoolGroupForPort(vs_meta.TCPPoolGroupRefs, port)
 				if pg_name != "" {
 					utils.AviLog.Info.Printf("key: %s, msg: TCP ports for VS creation returned PG: %s", key, pg_name)
-					oapp_profile := "/api/applicationprofile/?name=System-L4-Application"
 					pg_ref := "/api/poolgroup/?name=" + pg_name
 					sps := avimodels.ServicePoolSelector{ServicePoolGroupRef: &pg_ref,
 						ServicePort: &port, ServiceProtocol: &sproto}
 					vs.ServicePoolSelect = append(vs.ServicePoolSelect, &sps)
-					svc.OverrideApplicationProfileRef = &oapp_profile
 				} else {
 					utils.AviLog.Info.Printf("key: %s, msg: TCP ports for VS creation returned no matching PGs", key)
 				}

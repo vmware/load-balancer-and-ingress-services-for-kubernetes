@@ -222,11 +222,12 @@ type AviPortHostProtocol struct {
 }
 
 type AviPoolGroupNode struct {
-	Name             string
-	Tenant           string
-	CloudConfigCksum uint32
-	Members          []*avimodels.PoolGroupMember
-	Port             string
+	Name                  string
+	Tenant                string
+	CloudConfigCksum      uint32
+	Members               []*avimodels.PoolGroupMember
+	Port                  string
+	ImplicitPriorityLabel bool
 }
 
 func (v *AviPoolGroupNode) GetCheckSum() uint32 {

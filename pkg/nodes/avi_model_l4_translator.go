@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
-	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -60,22 +59,13 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 }
 
 func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode, key string) {
-	var prevTCPModelPoolGroupNodes []*AviPoolGroupNode
-	model_name := svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
-	if found && aviModel != nil {
-		if len(aviModel.(*AviObjectGraph).GetAviVS()) == 1 {
-			prevTCPModelPoolGroupNodes = aviModel.(*AviObjectGraph).GetAviVS()[0].TCPPoolGroupRefs
-			utils.AviLog.Info.Printf("key: %s, msg: evaluating TCP pool groups. the prevmodel PGs are: %v", key, prevTCPModelPoolGroupNodes)
-		}
-	}
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
 		pgName := vsNode.Name + "-l4-" + fmt.Sprint(filterPort)
 
 		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: svcObj.ObjectMeta.Namespace, Port: fmt.Sprint(filterPort)}
 		// For TCP - the PG to Pool relationship is 1x1
-		poolNode := &AviPoolNode{Name: "pool-" + pgName, Tenant: svcObj.ObjectMeta.Namespace, Port: filterPort, Protocol: portProto.Protocol}
+		poolNode := &AviPoolNode{Name: "l4-" + pgName, Tenant: svcObj.ObjectMeta.Namespace, Port: filterPort, Protocol: portProto.Protocol}
 
 		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {
 			poolNode.Servers = servers
@@ -89,6 +79,7 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		vsNode.TCPPoolGroupRefs = append(vsNode.TCPPoolGroupRefs, pgNode)
 		pgNode.CalculateCheckSum()
 		poolNode.CalculateCheckSum()
+		vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
 		o.GraphChecksum = o.GraphChecksum + pgNode.GetCheckSum()
 		o.GraphChecksum = o.GraphChecksum + poolNode.GetCheckSum()
 	}

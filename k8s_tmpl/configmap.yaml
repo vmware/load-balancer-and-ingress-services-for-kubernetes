@@ -10,3 +10,4 @@ data:
   cloudVtype: "CLOUD_VCENTER"
   shardVSSize: "LARGE" # SHARD VS size - ENUM: LARGE, MEDIUM, SMALL
   shardVSNamePrefix: "Shard-VS-"
+  shardVSNum: 8  # The shardVSSize is ignored if this value is set

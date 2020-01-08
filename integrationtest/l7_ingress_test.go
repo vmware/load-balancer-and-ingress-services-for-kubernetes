@@ -209,7 +209,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		for _, pool := range nodes[0].PoolRefs {
 			fmt.Printf("HOLAA :%s", pool.Name)
 			// We should get two pools.
-			if pool.Name == "pool--foo.com/foo--default--foo-with-targets1" {
+			if pool.Name == "foo.com/foo--default--foo-with-targets1" {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 				// The servers should be empty
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
@@ -375,7 +375,7 @@ func TestMultiVSIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		for _, pool := range nodes[0].PoolRefs {
 			// We should get two pools.
-			if pool.Name == "pool-foo.com/foo" {
+			if pool.Name == "foo.com/foo" {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			}
