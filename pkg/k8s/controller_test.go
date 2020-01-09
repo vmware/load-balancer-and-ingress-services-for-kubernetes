@@ -58,6 +58,7 @@ func waitAndverify(t *testing.T, key string) {
 func setupQueue(stopCh <-chan struct{}) {
 	ingestionQueue := meshutils.SharedWorkQueue().GetQueueByName(meshutils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = syncFuncForTest
+	//ingestionQueue.SyncFunc = SyncFromIngestionLayer
 	ingestionQueue.Run(stopCh)
 }
 
@@ -167,4 +168,52 @@ func TestNode(t *testing.T) {
 		t.Fatalf("error in Deleting Node: %v", err)
 	}
 	waitAndverify(t, "Node/testnode")
+}
+
+func TestNode(t *testing.T) {
+	nodeExample := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "testnode",
+			ResourceVersion: "1",
+		},
+		Spec: corev1.NodeSpec{
+			PodCIDR: "10.244.0.0/24",
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{
+					Type:    "InternalIP",
+					Address: "10.1.1.2",
+				},
+			},
+		},
+	}
+	_, err := kubeClient.CoreV1().Nodes().Create(nodeExample)
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+	if globalKey != "Node/testnode" {
+		t.Fatalf("error in adding Node: %v", globalKey)
+	}
+
+	nodeExample.ObjectMeta.ResourceVersion = "2"
+	nodeExample.Spec.PodCIDR = "10.230.0.0/24"
+	_, err = kubeClient.CoreV1().Nodes().Update(nodeExample)
+	if err != nil {
+		t.Fatalf("error in updating Node: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+	if globalKey != "Node/testnode" {
+		t.Fatalf("error in updating Node: %v", globalKey)
+	}
+
+	err = kubeClient.CoreV1().Nodes().Delete("testnode", nil)
+	if err != nil {
+		t.Fatalf("error in Deleting Node: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+	if globalKey != "Node/testnode" {
+		t.Fatalf("error in deleting Node: %v", globalKey)
+	}
 }
