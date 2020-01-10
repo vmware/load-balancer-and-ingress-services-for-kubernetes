@@ -160,6 +160,8 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
 		case SecretInformer:
 			informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
+		case NodeInformer:
+			informers.NodeInformer = kubeInformerFactory.Core().V1().Nodes()
 		case IngressInformer:
 			informers.IngressInformer = kubeInformerFactory.Extensions().V1beta1().Ingresses()
 		case RouteInformer:

@@ -31,7 +31,7 @@ const (
 	CreateEv            EvType = "CREATE"
 	UpdateEv            EvType = "UPDATE"
 	DeleteEv            EvType = "DELETE"
-	NumWorkersIngestion uint32 = 1
+	NumWorkersIngestion uint32 = 2
 	NumWorkersGraph     uint32 = 2
 )
 
@@ -60,6 +60,7 @@ type Informers struct {
 	SecretInformer  coreinformers.SecretInformer
 	IngressInformer extensioninformers.IngressInformer
 	RouteInformer   oshiftinformers.RouteInformer
+	NodeInformer    coreinformers.NodeInformer
 	KubeClientIntf
 }
 

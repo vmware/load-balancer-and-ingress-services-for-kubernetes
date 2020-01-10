@@ -30,11 +30,29 @@ import (
 )
 
 var kubeClient *k8sfake.Clientset
-var globalKey string
+
+var keyChan chan string
 
 func syncFuncForTest(key string) error {
-	globalKey = key
+	keyChan <- key
 	return nil
+}
+
+func waitAndverify(t *testing.T, key string) {
+	waitChan := make(chan int)
+	go func() {
+		time.Sleep(5 * time.Second)
+		waitChan <- 1
+	}()
+
+	select {
+	case data := <-keyChan:
+		if data != key {
+			t.Fatalf("error in match expected: %v, got: %v", key, data)
+		}
+	case _ = <-waitChan:
+		t.Fatalf("timed out waitig for %v", key)
+	}
 }
 
 func setupQueue(stopCh <-chan struct{}) {
@@ -51,11 +69,12 @@ func TestMain(m *testing.M) {
 
 func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer, meshutils.SecretInformer}
+	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer, meshutils.SecretInformer, meshutils.NodeInformer}
 	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
 	ctrl := SharedAviController()
 	stopCh := meshutils.SetupSignalHandler()
 	ctrl.Start(stopCh)
+	keyChan = make(chan string)
 	ctrl.SetupEventHandlers(K8sinformers{kubeClient})
 	setupQueue(stopCh)
 }
@@ -74,10 +93,7 @@ func TestSvc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	time.Sleep(2 * time.Second)
-	if globalKey != "L4LBService/red-ns/testsvc" {
-		t.Fatalf("error in adding Service: %v", globalKey)
-	}
+	waitAndverify(t, "L4LBService/red-ns/testsvc")
 }
 
 func TestEndpoint(t *testing.T) {
@@ -92,10 +108,7 @@ func TestEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
-	time.Sleep(2 * time.Second)
-	if globalKey != "Endpoints/red-ns/testep" {
-		t.Fatalf("Couldn't retrieve endpoint: %v", globalKey)
-	}
+	waitAndverify(t, "Endpoints/red-ns/testep")
 }
 
 func TestIngress(t *testing.T) {
@@ -114,8 +127,44 @@ func TestIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	time.Sleep(2 * time.Second)
-	if globalKey != "Ingress/red-ns/testingr" {
-		t.Fatalf("error in adding Ingress: %v", globalKey)
+	waitAndverify(t, "Ingress/red-ns/testingr")
+}
+
+func TestNode(t *testing.T) {
+	nodeExample := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "testnode",
+			ResourceVersion: "1",
+		},
+		Spec: corev1.NodeSpec{
+			PodCIDR: "10.244.0.0/24",
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{
+					Type:    "InternalIP",
+					Address: "10.1.1.2",
+				},
+			},
+		},
 	}
+	_, err := kubeClient.CoreV1().Nodes().Create(nodeExample)
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+	waitAndverify(t, "Node/testnode")
+
+	nodeExample.ObjectMeta.ResourceVersion = "2"
+	nodeExample.Spec.PodCIDR = "10.230.0.0/24"
+	_, err = kubeClient.CoreV1().Nodes().Update(nodeExample)
+	if err != nil {
+		t.Fatalf("error in updating Node: %v", err)
+	}
+	waitAndverify(t, "Node/testnode")
+
+	err = kubeClient.CoreV1().Nodes().Delete("testnode", nil)
+	if err != nil {
+		t.Fatalf("error in Deleting Node: %v", err)
+	}
+	waitAndverify(t, "Node/testnode")
 }

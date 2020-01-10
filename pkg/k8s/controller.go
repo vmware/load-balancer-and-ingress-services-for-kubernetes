@@ -264,11 +264,52 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 	}
 
+	node_event_handler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			node := obj.(*corev1.Node)
+			key := "Node" + "/" + node.Name
+			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Info.Printf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			node, ok := obj.(*corev1.Node)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Error.Printf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				node, ok = tombstone.Obj.(*corev1.Node)
+				if !ok {
+					utils.AviLog.Error.Printf("Tombstone contained object that is not an Node: %#v", obj)
+					return
+				}
+			}
+			node = obj.(*corev1.Node)
+			key := "Node" + "/" + node.Name
+			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Info.Printf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			oldobj := old.(*corev1.Node)
+			node := cur.(*corev1.Node)
+			if oldobj.ResourceVersion != node.ResourceVersion {
+				// Only add the key if the resource versions have changed.
+				key := "Node" + "/" + node.Name
+				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
+			}
+		},
+	}
+
 	c.informers.EpInformer.Informer().AddEventHandler(ep_event_handler)
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
 	c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
 	c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
-
+	c.informers.NodeInformer.Informer().AddEventHandler(node_event_handler)
 }
 
 func (c *AviController) Start(stopCh <-chan struct{}) {
@@ -276,12 +317,14 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.EpInformer.Informer().Run(stopCh)
 	go c.informers.IngressInformer.Informer().Run(stopCh)
 	go c.informers.SecretInformer.Informer().Run(stopCh)
+	go c.informers.NodeInformer.Informer().Run(stopCh)
 
 	if !cache.WaitForCacheSync(stopCh,
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
 		c.informers.IngressInformer.Informer().HasSynced,
 		c.informers.SecretInformer.Informer().HasSynced,
+		c.informers.NodeInformer.Informer().HasSynced,
 	) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
