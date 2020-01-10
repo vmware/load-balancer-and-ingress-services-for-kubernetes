@@ -24,6 +24,7 @@ const (
 	ServiceInformer               = "ServiceInformer"
 	PodInformer                   = "PodInformer"
 	SecretInformer                = "SecretInformer"
+	NodeInformer                  = "NodeInformer"
 	EndpointInformer              = "EndpointInformer"
 	K8S_TLS_SECRET_CERT           = "tls.cert"
 	K8S_TLS_SECRET_KEY            = "tls.key"

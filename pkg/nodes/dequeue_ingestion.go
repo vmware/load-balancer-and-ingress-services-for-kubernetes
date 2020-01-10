@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
+const nodeObj = "Node"
+
 func DequeueIngestion(key string) {
 	// The key format expected here is: objectType/Namespace/ObjKey
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
@@ -33,6 +35,10 @@ func DequeueIngestion(key string) {
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
+	if objType == nodeObj {
+		processNodeObj(key, name)
+		return
+	}
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if valid {
 		// If it's an ingress related change, let's process that.
@@ -96,6 +102,17 @@ func DequeueIngestion(key string) {
 	}
 }
 
+func processNodeObj(key, nodename string) {
+	utils.AviLog.Info.Printf("key: %s, Got node Object %s\n", key, nodename)
+	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
+	if err != nil {
+		utils.AviLog.Info.Printf("key %s, Error feting object for node %s: %v\n", key, nodename, err)
+		return
+	}
+	utils.AviLog.Info.Printf("key %s, Node Object %v\n", key, nodeObj)
+	// TO Do : generate model for adding static route
+}
+
 func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name string, key string, sharedQueue *utils.WorkerQueue) {
 	// First see if there's another instance of the same model in the store
 	model_name := namespace + "/" + name
@@ -134,6 +151,9 @@ func extractTypeNameNamespace(key string) (string, string, string) {
 	segments := strings.Split(key, "/")
 	if len(segments) == 3 {
 		return segments[0], segments[1], segments[2]
+	}
+	if len(segments) == 2 {
+		return segments[0], "", segments[1]
 	}
 	return "", "", segments[0]
 }
