@@ -19,6 +19,7 @@ import (
 	"sort"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
+	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
@@ -104,6 +105,7 @@ type AviVsNode struct {
 	VHDomainNames      []string
 	TLSType            string
 	IsSNIChild         bool
+	ServiceMetadata    avicache.LBServiceMetadataObj
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -130,7 +132,7 @@ func (v *AviVsNode) GetNodeType() string {
 
 func (v *AviVsNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
-	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto)) + utils.Hash(utils.Stringify(v.HTTPDSrefs)) + utils.Hash(utils.Stringify(v.SniNodes))
+	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto)) + utils.Hash(utils.Stringify(v.HTTPDSrefs)) + utils.Hash(utils.Stringify(v.SniNodes)) + utils.Hash(utils.Stringify(v.ServiceMetadata))
 	v.CloudConfigCksum = checksum
 }
 
@@ -313,12 +315,7 @@ type AviPoolNode struct {
 	SSLProfileRef    string
 	IngressName      string
 	PriorityLabel    string
-	ServiceMetadata  ServiceMetadataObj
-}
-
-type ServiceMetadataObj struct {
-	IngressName string `json:"ingress_name"`
-	Namespace   string `json:"namespace"`
+	ServiceMetadata  avicache.ServiceMetadataObj
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {

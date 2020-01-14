@@ -48,7 +48,7 @@ func setUp() {
 
 func TestAviNodeCreationSinglePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "red-ns/testsvc"
+	model_name := "admin/testsvc"
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeLoadBalancer,
@@ -88,7 +88,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("red-ns"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 		// Check for the pools
@@ -121,7 +121,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 
 func TestAviNodeCreationMultiPort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "red-ns/testsvc"
+	model_name := "admin/testsvc"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
@@ -171,7 +171,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("red-ns"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 		// Check for the pools
@@ -202,7 +202,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 
 func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "red-ns/testsvc1"
+	model_name := "admin/testsvc1"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
@@ -252,7 +252,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc1"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("red-ns"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 		// Check for the pools
@@ -284,7 +284,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 
 func TestAviNodeUpdateEndpoint(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "red-ns/testsvc"
+	model_name := "admin/testsvc"
 	objects.SharedAviGraphLister().Delete(model_name)
 	epExample := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{

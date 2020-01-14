@@ -40,6 +40,11 @@ type ServiceMetadataObj struct {
 	Namespace   string `json:"namespace"`
 }
 
+type LBServiceMetadataObj struct {
+	ServiceName string `json:"svc_name"`
+	Namespace   string `json:"namespace"`
+}
+
 type AviDSCache struct {
 	Name   string
 	Tenant string
@@ -65,6 +70,7 @@ type AviVsCache struct {
 	HTTPKeyCollection    []NamespaceName
 	SSLKeyCertCollection []NamespaceName
 	SNIChildCollection   []string
+	ServiceMetadataObj   LBServiceMetadataObj
 }
 
 type AviSSLCache struct {

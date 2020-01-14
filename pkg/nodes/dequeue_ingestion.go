@@ -47,12 +47,12 @@ func DequeueIngestion(key string) {
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
 				if len(aviModelGraph.GetOrderedNodes()) != 0 {
-					publishKeyToRestLayer(aviModelGraph, namespace, name, key, sharedQueue)
+					publishKeyToRestLayer(aviModelGraph, utils.ADMIN_NS, name, key, sharedQueue)
 				}
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
 				utils.AviLog.Info.Printf("key: %s, msg: received DELETE event for service", key)
-				model_name := namespace + "/" + name
+				model_name := utils.ADMIN_NS + "/" + name
 				objects.SharedAviGraphLister().Save(model_name, nil)
 				bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
 				sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
@@ -68,7 +68,7 @@ func DequeueIngestion(key string) {
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
 				if len(aviModelGraph.GetOrderedNodes()) != 0 {
-					publishKeyToRestLayer(aviModelGraph, namespace, name, key, sharedQueue)
+					publishKeyToRestLayer(aviModelGraph, utils.ADMIN_NS, name, key, sharedQueue)
 				}
 			}
 		}

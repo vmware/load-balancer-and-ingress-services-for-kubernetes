@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
+	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -78,7 +79,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					} else {
 						priorityLabel = host
 					}
-					poolNode := &AviPoolNode{Name: priorityLabel + "--" + namespace + "--" + ingName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: ServiceMetadataObj{IngressName: ingName, Namespace: namespace}}
+					poolNode := &AviPoolNode{Name: priorityLabel + "--" + namespace + "--" + ingName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace}}
 					if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 						poolNode.Servers = servers
 					}

@@ -19,15 +19,11 @@ import (
 	"errors"
 	"fmt"
 
-	core "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
-
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
@@ -119,7 +115,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 		cksum := resp["cloud_config_cksum"].(string)
 		var svc_mdata interface{}
 		var svc_mdata_map map[string]interface{}
-		var svc_mdata_obj nodes.ServiceMetadataObj
+		var svc_mdata_obj avicache.ServiceMetadataObj
 
 		if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
 			&svc_mdata); err == nil {
@@ -131,8 +127,10 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			}
 		}
 		pool_cache_obj := avicache.AviPoolCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid:             uuid,
-			CloudConfigCksum: cksum}
+			Uuid:               uuid,
+			CloudConfigCksum:   cksum,
+			ServiceMetadataObj: svc_mdata_obj,
+		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.PoolCache.AviCacheAdd(k, &pool_cache_obj)
@@ -150,24 +148,9 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 					}
 				}
 				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
-				mClient := utils.GetInformers().ClientSet
-				mIngress, err := mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName, metav1.GetOptions{})
-				// Once the vsvip object is available - we should be able to update the hostname, for now just updating the vip
-				lbIngress := core.LoadBalancerIngress{
-					IP:       vs_cache_obj.Vip,
-					Hostname: "tobeupdated.com",
+				if svc_mdata_obj.Namespace != "" {
+					UpdateIngressStatus(vs_cache_obj, svc_mdata_obj, key)
 				}
-				mIngress.Status = extensions.IngressStatus{
-					LoadBalancer: core.LoadBalancerStatus{
-						Ingress: []core.LoadBalancerIngress{lbIngress},
-					},
-				}
-				response, err := mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).UpdateStatus(mIngress)
-				if err != nil {
-					utils.AviLog.Error.Printf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
-					return err
-				}
-				utils.AviLog.Info.Printf("key:%s, msg: Successfully updated the ingress status: %v", key, utils.Stringify(response))
 			}
 		} else {
 			vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
@@ -183,7 +166,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 	return nil
 }
 
-func SvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *nodes.ServiceMetadataObj) {
+func SvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *avicache.ServiceMetadataObj) {
 	for k, val := range *svc_mdata_map {
 		switch k {
 		case "ingress_name":
