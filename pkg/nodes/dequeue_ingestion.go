@@ -24,7 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-const nodeObj = "Node"
+const NodeObj = "Node"
+const GlobalVRF = "global"
 
 func DequeueIngestion(key string) {
 	// The key format expected here is: objectType/Namespace/ObjKey
@@ -35,8 +36,11 @@ func DequeueIngestion(key string) {
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
-	if objType == nodeObj {
-		processNodeObj(key, name)
+
+	// if we get update for object of tyoe k8s node, create vrf graph
+	if objType == NodeObj {
+		utils.AviLog.Info.Printf("key: %s, msg: processing node obj", key)
+		processNodeObj(key, name, sharedQueue)
 		return
 	}
 	schema, valid := ConfigDescriptor().GetByType(objType)
@@ -102,15 +106,31 @@ func DequeueIngestion(key string) {
 	}
 }
 
-func processNodeObj(key, nodename string) {
+func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue) {
 	utils.AviLog.Info.Printf("key: %s, Got node Object %s\n", key, nodename)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
-	if err != nil {
-		utils.AviLog.Info.Printf("key %s, Error feting object for node %s: %v\n", key, nodename, err)
+	if err == nil {
+		utils.AviLog.Info.Printf("key: %s, Node Object %v\n", key, nodeObj)
+		objects.SharedNodeLister().AddOrUpdate(nodename, nodeObj)
+	} else if errors.IsNotFound(err) {
+		utils.AviLog.Info.Printf("key: %s, msg: Node Deleted\n", key)
+		objects.SharedNodeLister().Delete(nodename)
+	} else {
+		utils.AviLog.Error.Printf("key: %s, msg: Error getting node: %v\n", key, err)
 		return
 	}
-	utils.AviLog.Info.Printf("key %s, Node Object %v\n", key, nodeObj)
-	// TO Do : generate model for adding static route
+	aviModel := NewAviObjectGraph()
+	aviModel.IsVrf = true
+	vrfcontext := os.Getenv("VRF_CONTEXT")
+	if vrfcontext == "" {
+		vrfcontext = GlobalVRF
+	}
+	err = aviModel.BuildVRFGraph(key, vrfcontext)
+	if err != nil {
+		utils.AviLog.Error.Printf("key: %s, msg: Error creating vrf graph: %v\n", key, err)
+		return
+	}
+	publishKeyToRestLayer(aviModel, utils.ADMIN_NS, vrfcontext, key, sharedQueue)
 }
 
 func publishKeyToRestLayer(aviGraph *AviObjectGraph, namespace string, name string, key string, sharedQueue *utils.WorkerQueue) {

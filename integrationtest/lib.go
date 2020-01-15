@@ -159,3 +159,31 @@ func (svc fakeService) Service() *corev1.Service {
 	}
 	return svcExample
 }
+
+type fakeNode struct {
+	name    string
+	podCIDR string
+	nodeIP  string
+	version string
+}
+
+func (node fakeNode) Node() *corev1.Node {
+	nodeExample := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            node.name,
+			ResourceVersion: node.version,
+		},
+		Spec: corev1.NodeSpec{
+			PodCIDR: node.podCIDR,
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{
+					Type:    "Internal",
+					Address: node.nodeIP,
+				},
+			},
+		},
+	}
+	return nodeExample
+}

@@ -19,6 +19,7 @@ import (
 
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
+	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/akc/pkg/rest"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	v1 "k8s.io/api/core/v1"
@@ -36,13 +37,18 @@ func PopulateCache() {
 	}
 }
 
+func PopulateObjectStore() {
+	nodeCache := objects.SharedNodeLister()
+	nodeCache.PopulateAllNodes()
+}
+
 func InitController(informers K8sinformers) {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := utils.SetupSignalHandler()
 	c := SharedAviController()
 
 	c.SetupEventHandlers(informers)
-
+	PopulateObjectStore()
 	// start the go routines draining the queues in various layers
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer

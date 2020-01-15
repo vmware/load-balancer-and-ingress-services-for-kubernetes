@@ -38,6 +38,7 @@ type AviObjectGraph struct {
 	modelNodes    []AviModelNode
 	Name          string
 	GraphChecksum uint32
+	IsVrf         bool
 }
 
 func (v *AviObjectGraph) GetCheckSum() uint32 {
@@ -79,6 +80,39 @@ func (o *AviObjectGraph) RemovePoolNodeRefs(poolName string) {
 
 func (o *AviObjectGraph) GetOrderedNodes() []AviModelNode {
 	return o.modelNodes
+}
+
+type AviVrfNode struct {
+	Name             string
+	StaticRoutes     []*avimodels.StaticRoute
+	CloudConfigCksum uint32
+}
+
+func (v *AviVrfNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviVrfNode) GetNodeType() string {
+	return "VrfNode"
+}
+
+func (v *AviVrfNode) CalculateCheckSum() {
+	// A sum of fields for this vrf.
+	checksum := utils.Hash(v.Name) + utils.Hash(utils.Stringify(v.StaticRoutes))
+	v.CloudConfigCksum = checksum
+}
+
+func (o *AviObjectGraph) GetAviVRF() []*AviVrfNode {
+	var aviVrf []*AviVrfNode
+	for _, model := range o.modelNodes {
+		vrf, ok := model.(*AviVrfNode)
+		if ok {
+			aviVrf = append(aviVrf, vrf)
+		}
+	}
+	return aviVrf
 }
 
 type AviVsNode struct {

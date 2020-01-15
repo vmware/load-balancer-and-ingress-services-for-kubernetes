@@ -99,6 +99,12 @@ type AviHTTPPolicyCache struct {
 	CloudConfigCksum string
 }
 
+type AviVrfCache struct {
+	Name             string
+	Uuid             string
+	CloudConfigCksum string
+}
+
 /*
  * AviCache provides a one to one cache
  * AviCache for storing objects such as:
