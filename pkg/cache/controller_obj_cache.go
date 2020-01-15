@@ -101,10 +101,40 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 			return
 		}
 		for _, vs_intf := range results {
+
 			vs, ok := vs_intf.(map[string]interface{})
 			if !ok {
 				utils.AviLog.Warning.Printf("vs_intf not of type map[string] interface{}. Instead of type %T", vs_intf)
 				continue
+			}
+			svc_mdata_intf, ok := vs["service_metadata"]
+			var svc_mdata_obj LBServiceMetadataObj
+			var svc_mdata interface{}
+			var svc_mdata_map map[string]interface{}
+			if ok {
+				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
+					&svc_mdata); err == nil {
+					svc_mdata_map, ok = svc_mdata.(map[string]interface{})
+					if !ok {
+						utils.AviLog.Warning.Printf(`resp %v svc_mdata %T has invalid
+								 service_metadata type for vs`, vs, svc_mdata)
+					} else {
+						svcName, ok := svc_mdata_map["svc_name"]
+						if ok {
+							svc_mdata_obj.ServiceName = svcName.(string)
+						} else {
+							utils.AviLog.Warning.Printf(`service_metadata %v 
+									  malformed for vs`, svc_mdata_map)
+						}
+						namespace, ok := svc_mdata_map["namespace"]
+						if ok {
+							svc_mdata_obj.Namespace = namespace.(string)
+						} else {
+							utils.AviLog.Warning.Printf(`service_metadata %v 
+									  malformed for vs`, svc_mdata_map)
+						}
+					}
+				}
 			}
 			var sni_child_collection []string
 			vh_child, found := vs["vh_child_vs_uuid"]
@@ -135,7 +165,8 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 							vs_cache_obj := AviVsCache{Name: vs["name"].(string),
 								Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 								CloudConfigCksum:   vs["cloud_config_cksum"].(string),
-								SNIChildCollection: sni_child_collection}
+								SNIChildCollection: sni_child_collection,
+								ServiceMetadataObj: svc_mdata_obj}
 
 							c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 							utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
@@ -146,7 +177,8 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 						vs_cache_obj := AviVsCache{Name: vs["name"].(string),
 							Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 							CloudConfigCksum:   vs["cloud_config_cksum"].(string),
-							SNIChildCollection: sni_child_collection}
+							SNIChildCollection: sni_child_collection,
+							ServiceMetadataObj: svc_mdata_obj}
 
 						c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 						utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
@@ -156,7 +188,8 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 					vs_cache_obj := AviVsCache{Name: vs["name"].(string),
 						Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 						CloudConfigCksum:   vs["cloud_config_cksum"].(string),
-						SNIChildCollection: sni_child_collection}
+						SNIChildCollection: sni_child_collection,
+						ServiceMetadataObj: svc_mdata_obj}
 
 					c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 					utils.AviLog.Info.Printf("Added Vs cache k %v val %v",

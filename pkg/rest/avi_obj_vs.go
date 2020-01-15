@@ -15,6 +15,7 @@
 package rest
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -76,6 +77,8 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		checksumstr := fmt.Sprint(cksum)
 		cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 		cloudRef := "/api/cloud?name=" + utils.CloudName
+		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
+		svc_mdata := string(svc_mdata_json)
 		vs := avimodels.VirtualService{Name: &name,
 			NetworkProfileRef:     &network_prof,
 			ApplicationProfileRef: &app_prof,
@@ -83,7 +86,8 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			CreatedBy:             &cr,
 			DNSInfo:               dns_info_arr,
 			EastWestPlacement:     &east_west,
-			CloudRef:              &cloudRef}
+			CloudRef:              &cloudRef,
+			ServiceMetadata:       &svc_mdata}
 
 		if vs_meta.DefaultPoolGroup != "" {
 			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
@@ -106,20 +110,16 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			svc := avimodels.Service{Port: &port, EnableSsl: &pp.EnableSSL}
 			if pp.Protocol == utils.TCP {
 				utils.AviLog.Info.Printf("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
-				onw_profile := "/api/networkprofile/?name=System-TCP-Proxy"
-				svc.OverrideNetworkProfileRef = &onw_profile
 				port := pp.Port
 				var sproto string
 				sproto = "PROTOCOL_TYPE_TCP_PROXY"
 				pg_name := FindPoolGroupForPort(vs_meta.TCPPoolGroupRefs, port)
 				if pg_name != "" {
 					utils.AviLog.Info.Printf("key: %s, msg: TCP ports for VS creation returned PG: %s", key, pg_name)
-					oapp_profile := "/api/applicationprofile/?name=System-L4-Application"
 					pg_ref := "/api/poolgroup/?name=" + pg_name
 					sps := avimodels.ServicePoolSelector{ServicePoolGroupRef: &pg_ref,
 						ServicePort: &port, ServiceProtocol: &sproto}
 					vs.ServicePoolSelect = append(vs.ServicePoolSelect, &sps)
-					svc.OverrideApplicationProfileRef = &oapp_profile
 				} else {
 					utils.AviLog.Info.Printf("key: %s, msg: TCP ports for VS creation returned no matching PGs", key)
 				}
@@ -307,6 +307,19 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		vsvip, vipExists := resp["vip"].([]interface{})
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		vs_cache, ok := rest.cache.VsCache.AviCacheGet(k)
+		var svc_mdata interface{}
+		var svc_mdata_map map[string]interface{}
+		var svc_mdata_obj avicache.LBServiceMetadataObj
+
+		if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
+			&svc_mdata); err == nil {
+			svc_mdata_map, ok = svc_mdata.(map[string]interface{})
+			if !ok {
+				utils.AviLog.Warning.Printf("resp %v svc_mdata %T has invalid service_metadata type", resp, svc_mdata)
+			} else {
+				LBSvcMdataMapToObj(&svc_mdata_map, &svc_mdata_obj)
+			}
+		}
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
@@ -317,16 +330,40 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
+				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
 				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
+				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
+					// This service needs an update of the status
+					UpdateL4LBStatus(vs_cache_obj, svc_mdata_obj, key)
+				}
+				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
+				// But before this a pool may have got created as a part of the macro operation, so update the ingress status here.
+				for _, poolkey := range vs_cache_obj.PoolKeyCollection {
+					// Fetch the pool object from cache and check the service metadata
+					pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
+					if ok {
+						utils.AviLog.Info.Printf("key :%s, msg: found pool :%s, will update status", key, poolkey.Name)
+						pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
+						if found {
+							if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
+								UpdateIngressStatus(vs_cache_obj, pool_cache_obj.ServiceMetadataObj, key)
+							}
+						}
+					}
+				}
 			}
 		} else {
 			vs_cache_obj := avicache.AviVsCache{Name: name, Tenant: rest_op.Tenant,
-				Uuid: uuid, CloudConfigCksum: cksum}
+				Uuid: uuid, CloudConfigCksum: cksum, ServiceMetadataObj: svc_mdata_obj}
 			if vipExists && len(vsvip) > 0 {
 				vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
 				vs_cache_obj.Vip = vip
 				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
+			}
+			if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
+				// This service needs an update of the status
+				UpdateL4LBStatus(&vs_cache_obj, svc_mdata_obj, key)
 			}
 			rest.cache.VsCache.AviCacheAdd(k, &vs_cache_obj)
 			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key %v val %v\n", key, k,
@@ -336,6 +373,27 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 	}
 
 	return nil
+}
+
+func LBSvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *avicache.LBServiceMetadataObj) {
+	for k, val := range *svc_mdata_map {
+		switch k {
+		case "svc_name":
+			svcName, ok := val.(string)
+			if ok {
+				svc_mdata.ServiceName = svcName
+			} else {
+				utils.AviLog.Warning.Printf("Incorrect type %T in lb_svc_mdata_map %v", val, *svc_mdata_map)
+			}
+		case "namespace":
+			namespace, ok := val.(string)
+			if ok {
+				svc_mdata.Namespace = namespace
+			} else {
+				utils.AviLog.Warning.Printf("Incorrect type %T in lb_svc_mdata_map %v", val, *svc_mdata_map)
+			}
+		}
+	}
 }
 
 func (rest *RestOperations) AviVsCacheDel(vs_cache *avicache.AviCache, rest_op *utils.RestOp, key string) error {

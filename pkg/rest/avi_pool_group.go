@@ -25,8 +25,7 @@ import (
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
-func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, cache_obj *avicache.AviPGCache, implicity_priority_label bool, key string) *utils.RestOp {
-	var implicitPriority bool
+func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, cache_obj *avicache.AviPGCache, key string) *utils.RestOp {
 	name := pg_meta.Name
 	cksum := pg_meta.CloudConfigCksum
 	cksumString := fmt.Sprint(cksum)
@@ -34,11 +33,9 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	members := pg_meta.Members
 	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	cloudRef := "/api/cloud?name=" + utils.CloudName
-	if implicity_priority_label {
-		implicitPriority = true
-	}
+
 	pg := avimodels.PoolGroup{Name: &name, CloudConfigCksum: &cksumString,
-		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &implicitPriority}
+		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &pg_meta.ImplicitPriorityLabel}
 
 	macro := utils.AviRestObjMacro{ModelName: "PoolGroup", Data: pg}
 

@@ -73,7 +73,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
 		pools_to_delete, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, vs_cache_obj, namespace, rest_ops, key)
-		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, true, key)
+		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
 		utils.AviLog.Info.Printf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, fmt.Sprint(aviVsNode.GetCheckSum()))
 		if vs_cache_obj.CloudConfigCksum == fmt.Sprint(aviVsNode.GetCheckSum()) {
@@ -89,7 +89,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 	} else {
 		var rest_ops []*utils.RestOp
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
-		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, true, key)
+		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
 		// The cache was not found - it's a POST call.
 		restOp := rest.AviVsBuild(aviVsNode, utils.RestPost, nil, key)
@@ -386,7 +386,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 					utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for sni child %s, not doing anything", key, sni_node.Name)
 				} else {
 					sni_pools_to_delete, rest_ops = rest.PoolCU(sni_node.PoolRefs, sni_cache_obj, namespace, rest_ops, key)
-					sni_pgs_to_delete, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, sni_cache_obj, namespace, rest_ops, false, key)
+					sni_pgs_to_delete, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, sni_cache_obj, namespace, rest_ops, key)
 					http_policies_to_delete, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, sni_cache_obj, namespace, rest_ops, key)
 					sslkey_cert_delete, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, sni_cache_obj, namespace, rest_ops, key)
 					utils.AviLog.Info.Printf("key: %s, msg: the checksums are different for sni child %s, operation: PUT", key, sni_node.Name)
@@ -398,7 +398,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 		} else {
 			utils.AviLog.Info.Printf("key: %s, msg: sni child %s not found in cache, operation: POST", key, sni_node.Name)
 			_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
-			_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, false, key)
+			_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 
@@ -417,7 +417,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 	return cache_sni_nodes, rest_ops
 }
 
-func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, implicit_priority_label bool, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	var cache_pg_nodes []avicache.NamespaceName
 	if vs_cache_obj != nil {
 		cache_pg_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.PGKeyCollection))
@@ -438,13 +438,13 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for PG %s, not doing anything", key, pg_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.
-							restOp := rest.AviPoolGroupBuild(pg, pg_cache_obj, implicit_priority_label, key)
+							restOp := rest.AviPoolGroupBuild(pg, pg_cache_obj, key)
 							rest_ops = append(rest_ops, restOp)
 						}
 					}
 				} else {
 					// Not found - it should be a POST call.
-					restOp := rest.AviPoolGroupBuild(pg, nil, implicit_priority_label, key)
+					restOp := rest.AviPoolGroupBuild(pg, nil, key)
 					rest_ops = append(rest_ops, restOp)
 				}
 
@@ -453,7 +453,7 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 	} else {
 		// Everything is a POST call
 		for _, pg := range pg_nodes {
-			restOp := rest.AviPoolGroupBuild(pg, nil, implicit_priority_label, key)
+			restOp := rest.AviPoolGroupBuild(pg, nil, key)
 			rest_ops = append(rest_ops, restOp)
 		}
 
