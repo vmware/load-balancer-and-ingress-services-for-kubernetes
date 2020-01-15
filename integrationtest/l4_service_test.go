@@ -87,7 +87,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc"))
+		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc--red-ns"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
@@ -170,7 +170,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc"))
+		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc--red-ns"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
@@ -251,7 +251,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc1"))
+		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc1--red-ns"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))

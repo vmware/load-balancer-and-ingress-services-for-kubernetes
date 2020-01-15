@@ -26,6 +26,10 @@ import (
 func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
 	mClient := utils.GetInformers().ClientSet
 	mIngress, err := mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warning.Printf("key :%s, msg: there was a problem in updating the ingress status :%s", key, err)
+		return err
+	}
 	// Once the vsvip object is available - we should be able to update the hostname, for now just updating the vip
 	lbIngress := core.LoadBalancerIngress{
 		IP:       vs_cache_obj.Vip,
@@ -48,6 +52,10 @@ func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicac
 func UpdateL4LBStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicache.LBServiceMetadataObj, key string) error {
 	mClient := utils.GetInformers().ClientSet
 	mLb, err := mClient.CoreV1().Services(svc_mdata_obj.Namespace).Get(svc_mdata_obj.ServiceName, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warning.Printf("key :%s, msg: there was a problem in updating the service status :%s", key, err)
+		return err
+	}
 	// Once the vsvip object is available - we should be able to update the hostname, for now just updating the vip
 	lbIngress := core.LoadBalancerIngress{
 		IP:       vs_cache_obj.Vip,

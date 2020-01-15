@@ -36,7 +36,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	var avi_vs_meta *AviVsNode
 
 	// FQDN should come from the cloud. Modify
-	avi_vs_meta = &AviVsNode{Name: svcObj.ObjectMeta.Name, Tenant: utils.ADMIN_NS,
+	avi_vs_meta = &AviVsNode{Name: svcObj.ObjectMeta.Name + "--" + svcObj.ObjectMeta.Namespace, Tenant: utils.ADMIN_NS,
 		EastWest: false, ServiceMetadata: avicache.LBServiceMetadataObj{ServiceName: svcObj.ObjectMeta.Name, Namespace: svcObj.ObjectMeta.Namespace}}
 	isTCP := false
 	var portProtocols []AviPortHostProtocol
