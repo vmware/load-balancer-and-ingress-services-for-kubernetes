@@ -57,6 +57,7 @@ type Informers struct {
 	ServiceInformer coreinformers.ServiceInformer
 	EpInformer      coreinformers.EndpointsInformer
 	PodInformer     coreinformers.PodInformer
+	NSInformer      coreinformers.NamespaceInformer
 	SecretInformer  coreinformers.SecretInformer
 	IngressInformer extensioninformers.IngressInformer
 	RouteInformer   oshiftinformers.RouteInformer

@@ -38,7 +38,7 @@ func DequeueIngestion(key string) {
 	objType, namespace, name := extractTypeNameNamespace(key)
 
 	// if we get update for object of tyoe k8s node, create vrf graph
-	if objType == NodeObj {
+	if objType == utils.NodeObj {
 		utils.AviLog.Info.Printf("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue)
 		return
@@ -121,9 +121,9 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue) {
 	}
 	aviModel := NewAviObjectGraph()
 	aviModel.IsVrf = true
-	vrfcontext := os.Getenv("VRF_CONTEXT")
+	vrfcontext := os.Getenv(utils.VRF_CONTEXT)
 	if vrfcontext == "" {
-		vrfcontext = GlobalVRF
+		vrfcontext = utils.GlobalVRF
 	}
 	err = aviModel.BuildVRFGraph(key, vrfcontext)
 	if err != nil {

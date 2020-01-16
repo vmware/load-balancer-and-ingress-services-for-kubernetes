@@ -41,11 +41,3 @@ func (o *K8sNodeStore) PopulateAllNodes() {
 		o.AddOrUpdate(node.Name, node)
 	}
 }
-
-type NodesCache struct {
-	ingSvcobjects *ObjectMapStore
-}
-
-func (o *NodesCache) GetAllObjectNames() {
-
-}

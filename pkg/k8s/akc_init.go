@@ -35,9 +35,6 @@ func PopulateCache() {
 		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
 			utils.CtrlVersion, utils.CloudName)
 	}
-}
-
-func PopulateObjectStore() {
 	nodeCache := objects.SharedNodeLister()
 	nodeCache.PopulateAllNodes()
 }
@@ -48,7 +45,7 @@ func InitController(informers K8sinformers) {
 	c := SharedAviController()
 
 	c.SetupEventHandlers(informers)
-	PopulateObjectStore()
+	PopulateCache()
 	// start the go routines draining the queues in various layers
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer

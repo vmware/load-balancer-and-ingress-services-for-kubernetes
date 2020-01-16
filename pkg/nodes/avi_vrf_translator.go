@@ -60,12 +60,12 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string) (*models
 	}
 	if nodeIP == "" {
 		utils.AviLog.Error.Printf("Error in fetching nodeIP for %v", node.ObjectMeta.Name)
-		return &nodeRoute, errors.New("nodeip not found")
+		return nil, errors.New("nodeip not found")
 	}
 	podCIDR := node.Spec.PodCIDR
 	if podCIDR == "" {
 		utils.AviLog.Error.Printf("Error in fetching Pod CIDR for %v", node.ObjectMeta.Name)
-		return &nodeRoute, errors.New("podcidr not found")
+		return nil, errors.New("podcidr not found")
 	}
 	nodeRoute.NextHop = &models.IPAddr{
 		Addr: &nodeIP,
@@ -73,12 +73,12 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string) (*models
 	s := strings.Split(podCIDR, "/")
 	if len(s) != 2 {
 		utils.AviLog.Error.Printf("Error in splitting Pod CIDR for %v", node.ObjectMeta.Name)
-		return &nodeRoute, errors.New("wrong podcidr")
+		return nil, errors.New("wrong podcidr")
 	}
 	m, err := strconv.Atoi(s[1])
 	if err != nil {
 		utils.AviLog.Error.Printf("Error in getting mask %v", err)
-		return &nodeRoute, err
+		return nil, err
 	}
 	mask := int32(m)
 	nodeRoute.Prefix = &models.IPAddrPrefix{
