@@ -30,6 +30,7 @@ const (
 	K8S_TLS_SECRET_KEY            = "tls.key"
 	IngressInformer               = "IngressInformer"
 	RouteInformer                 = "RouteInformer"
+	NSInformer                    = "NamespaceInformer"
 	L4LBService                   = "L4LBService"
 	LoadBalancer                  = "LoadBalancer"
 	Endpoints                     = "Endpoints"
@@ -56,4 +57,7 @@ const (
 	TLS_PASSTHROUGH               = "TLS_PASSTHROUGH"
 	VS_TYPE_VH_PARENT             = "VS_TYPE_VH_PARENT"
 	VS_TYPE_VH_CHILD              = "VS_TYPE_VH_CHILD"
+	NodeObj                       = "node"
+	GlobalVRF                     = "global"
+	VRF_CONTEXT                   = "VRF_CONTEXT"
 )

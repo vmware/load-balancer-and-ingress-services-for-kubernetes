@@ -43,6 +43,9 @@ func setUp() {
 	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer, meshutils.SecretInformer, meshutils.NodeInformer}
 	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: kubeClient}
+	os.Setenv("CTRL_USERNAME", "admin")
+	os.Setenv("CTRL_PASSWORD", "admin")
+	os.Setenv("CTRL_IPADDRESS", "localhost")
 	go k8s.InitController(informers)
 }
 

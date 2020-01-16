@@ -34,6 +34,7 @@ type AviObjCache struct {
 	CloudKeyCache   *AviCache
 	HTTPPolicyCache *AviCache
 	SSLKeyCache     *AviCache
+	VrfCache        *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -45,6 +46,7 @@ func NewAviObjCache() *AviObjCache {
 	c.SSLKeyCache = NewAviCache()
 	c.CloudKeyCache = NewAviCache()
 	c.HTTPPolicyCache = NewAviCache()
+	c.VrfCache = NewAviCache()
 	return &c
 }
 

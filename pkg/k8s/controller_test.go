@@ -23,6 +23,7 @@ import (
 	// To Do: add test for openshift route
 	//oshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
 
+	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	meshutils "gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -152,7 +153,7 @@ func TestNode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
-	waitAndverify(t, "Node/testnode")
+	waitAndverify(t, utils.NodeObj+"/testnode")
 
 	nodeExample.ObjectMeta.ResourceVersion = "2"
 	nodeExample.Spec.PodCIDR = "10.230.0.0/24"
@@ -160,11 +161,11 @@ func TestNode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in updating Node: %v", err)
 	}
-	waitAndverify(t, "Node/testnode")
+	waitAndverify(t, utils.NodeObj+"/testnode")
 
 	err = kubeClient.CoreV1().Nodes().Delete("testnode", nil)
 	if err != nil {
 		t.Fatalf("error in Deleting Node: %v", err)
 	}
-	waitAndverify(t, "Node/testnode")
+	waitAndverify(t, utils.NodeObj+"/testnode")
 }

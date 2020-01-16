@@ -154,6 +154,8 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		switch informer {
 		case ServiceInformer:
 			informers.ServiceInformer = kubeInformerFactory.Core().V1().Services()
+		case NSInformer:
+			informers.NSInformer = kubeInformerFactory.Core().V1().Namespaces()
 		case PodInformer:
 			informers.PodInformer = kubeInformerFactory.Core().V1().Pods()
 		case EndpointInformer:

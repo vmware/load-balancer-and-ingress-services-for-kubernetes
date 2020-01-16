@@ -19,6 +19,7 @@ import (
 
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
+	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/akc/pkg/rest"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	v1 "k8s.io/api/core/v1"
@@ -34,6 +35,8 @@ func PopulateCache() {
 		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
 			utils.CtrlVersion, utils.CloudName)
 	}
+	nodeCache := objects.SharedNodeLister()
+	nodeCache.PopulateAllNodes()
 }
 
 func InitController(informers K8sinformers) {
@@ -42,7 +45,7 @@ func InitController(informers K8sinformers) {
 	c := SharedAviController()
 
 	c.SetupEventHandlers(informers)
-
+	PopulateCache()
 	// start the go routines draining the queues in various layers
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer

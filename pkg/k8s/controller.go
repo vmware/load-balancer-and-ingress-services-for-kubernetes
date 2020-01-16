@@ -267,7 +267,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	node_event_handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			node := obj.(*corev1.Node)
-			key := "Node" + "/" + node.Name
+			key := utils.NodeObj + "/" + node.Name
 			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Info.Printf("key: %s, msg: ADD", key)
@@ -287,7 +287,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			}
 			node = obj.(*corev1.Node)
-			key := "Node" + "/" + node.Name
+			key := utils.NodeObj + "/" + node.Name
 			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Info.Printf("key: %s, msg: DELETE", key)
@@ -297,7 +297,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			node := cur.(*corev1.Node)
 			if oldobj.ResourceVersion != node.ResourceVersion {
 				// Only add the key if the resource versions have changed.
-				key := "Node" + "/" + node.Name
+				key := utils.NodeObj + "/" + node.Name
 				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
