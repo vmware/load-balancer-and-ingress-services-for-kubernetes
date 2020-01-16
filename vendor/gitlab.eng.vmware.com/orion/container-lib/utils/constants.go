@@ -60,4 +60,5 @@ const (
 	NodeObj                       = "node"
 	GlobalVRF                     = "global"
 	VRF_CONTEXT                   = "VRF_CONTEXT"
+	FULL_SYNC_INTERVAL            = "FULL_SYNC_INTERVAL"
 )

@@ -345,7 +345,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 	} else {
 		// Everything is a POST call
 		for _, pool := range pool_nodes {
-			utils.AviLog.Info.Printf("key: %s, msg: vs cache does not exist %s, operation: POST", key, pool.Name)
+			utils.AviLog.Info.Printf("key: %s, msg: pool cache does not exist %s, operation: POST", key, pool.Name)
 			restOp := rest.AviPoolBuild(pool, nil, key)
 			rest_ops = append(rest_ops, restOp)
 		}

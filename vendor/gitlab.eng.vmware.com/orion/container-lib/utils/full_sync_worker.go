@@ -22,8 +22,7 @@ type FullSyncThread struct {
 	Stopped      bool
 	ShutdownChan chan string
 	Interval     time.Duration
-	SyncFunction func(string)
-	IstioEnabled bool
+	SyncFunction func()
 }
 
 func NewFullSyncThread(interval time.Duration) *FullSyncThread {
@@ -31,7 +30,6 @@ func NewFullSyncThread(interval time.Duration) *FullSyncThread {
 		Stopped:      false,
 		ShutdownChan: make(chan string),
 		Interval:     interval,
-		IstioEnabled: true,
 	}
 }
 
@@ -47,9 +45,7 @@ func (w *FullSyncThread) Run() {
 		case <-time.After(w.Interval):
 			break
 		}
-		if w.IstioEnabled {
-			w.SyncFunction("True")
-		}
+		w.SyncFunction()
 	}
 }
 

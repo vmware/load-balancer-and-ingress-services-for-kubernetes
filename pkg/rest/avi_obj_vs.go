@@ -313,8 +313,9 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 		if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
 			&svc_mdata); err == nil {
-			svc_mdata_map, ok = svc_mdata.(map[string]interface{})
-			if !ok {
+			var svcOk bool
+			svc_mdata_map, svcOk = svc_mdata.(map[string]interface{})
+			if !svcOk {
 				utils.AviLog.Warning.Printf("resp %v svc_mdata %T has invalid service_metadata type", resp, svc_mdata)
 			} else {
 				LBSvcMdataMapToObj(&svc_mdata_map, &svc_mdata_obj)
