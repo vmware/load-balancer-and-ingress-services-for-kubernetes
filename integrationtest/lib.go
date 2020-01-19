@@ -25,6 +25,7 @@ import (
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/avinetworks/sdk/go/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -179,11 +180,34 @@ func (node fakeNode) Node() *corev1.Node {
 		Status: corev1.NodeStatus{
 			Addresses: []corev1.NodeAddress{
 				{
-					Type:    "Internal",
+					Type:    "InternalIP",
 					Address: node.nodeIP,
 				},
 			},
 		},
 	}
 	return nodeExample
+}
+
+func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.StaticRoute {
+	nodeAddrType := "V4"
+	nexthop := models.IPAddr{
+		Addr: &nodeAddr,
+		Type: &nodeAddrType,
+	}
+	prefixAddrType := "V4"
+	prefixIP := models.IPAddr{
+		Addr: &prefixAddr,
+		Type: &prefixAddrType,
+	}
+	prefix := models.IPAddrPrefix{
+		IPAddr: &prefixIP,
+		Mask:   &mask,
+	}
+	staticRoute := models.StaticRoute{
+		NextHop: &nexthop,
+		Prefix:  &prefix,
+		RouteID: &routeID,
+	}
+	return &staticRoute
 }

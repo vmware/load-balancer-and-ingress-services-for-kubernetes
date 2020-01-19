@@ -31,14 +31,16 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 		Name: vrfName,
 	}
 	allNodes := objects.SharedNodeLister().GetAllObjectNames()
-	utils.AviLog.Info.Printf("key: %s, All Nodes %v\n", key, allNodes)
+	utils.AviLog.Trace.Printf("key: %s, All Nodes %v\n", key, allNodes)
+	routeid := 1
 	for _, n := range allNodes {
 		node := n.(*v1.Node)
-		nodeRoute, err := o.addRouteForNode(node, vrfName)
+		nodeRoute, err := o.addRouteForNode(node, vrfName, strconv.Itoa(routeid))
 		if err != nil {
 			utils.AviLog.Error.Printf("key: %s, Error Adding vrf for node %s: %v\n", key, node.Name, err)
 			continue
 		}
+		routeid += 1
 		aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoute)
 	}
 	o.AddModelNode(aviVrfNode)
@@ -47,13 +49,15 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 	return nil
 }
 
-func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string) (*models.StaticRoute, error) {
+func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName, routeid string) (*models.StaticRoute, error) {
 	var nodeIP string
 	var nodeRoute models.StaticRoute
-	nodeRoute = models.StaticRoute{}
+	nodeRoute = models.StaticRoute{
+		RouteID: &routeid,
+	}
 	nodeAddrs := node.Status.Addresses
 	for _, addr := range nodeAddrs {
-		if addr.Type == "Internal" {
+		if addr.Type == "InternalIP" {
 			nodeIP = addr.Address
 			break
 		}
@@ -67,8 +71,10 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string) (*models
 		utils.AviLog.Error.Printf("Error in fetching Pod CIDR for %v", node.ObjectMeta.Name)
 		return nil, errors.New("podcidr not found")
 	}
+	nodeipType := "V4"
 	nodeRoute.NextHop = &models.IPAddr{
 		Addr: &nodeIP,
+		Type: &nodeipType,
 	}
 	s := strings.Split(podCIDR, "/")
 	if len(s) != 2 {
@@ -80,10 +86,12 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string) (*models
 		utils.AviLog.Error.Printf("Error in getting mask %v", err)
 		return nil, err
 	}
+	prefixipType := "V4"
 	mask := int32(m)
 	nodeRoute.Prefix = &models.IPAddrPrefix{
 		IPAddr: &models.IPAddr{
 			Addr: &s[0],
+			Type: &prefixipType,
 		},
 		Mask: &mask,
 	}

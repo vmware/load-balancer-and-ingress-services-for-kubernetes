@@ -43,8 +43,8 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 		return
 	}
 
-	namespace, vsName := utils.ExtractNamespaceObjectName(key)
-	vsKey := avicache.NamespaceName{Namespace: namespace, Name: vsName}
+	namespace, name := utils.ExtractNamespaceObjectName(key)
+	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
 	if avimodelIntf == nil {
 		if vs_cache_obj != nil {
@@ -53,14 +53,47 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
+		if avimodel.IsVrf {
+			utils.AviLog.Warning.Printf("key: %s, msg: processing vrf object\n", key)
+			vrfNode := avimodel.GetAviVRF()
+			if len(vrfNode) != 1 {
+				utils.AviLog.Warning.Printf("key: %s, msg: Number of vrf nodes is not one\n", key)
+				return
+			}
+			rest.vrfCU(key, name, vrfNode[0])
+			return
+		}
 		utils.AviLog.Info.Printf("key: %s, msg: VS create/update.", key)
 		if len(avimodel.GetAviVS()) != 1 {
 			utils.AviLog.Warning.Printf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviVS())
 			return
 		}
-		rest.RestOperation(vsName, namespace, avimodel.GetAviVS()[0], false, vs_cache_obj, key)
+		rest.RestOperation(name, namespace, avimodel.GetAviVS()[0], false, vs_cache_obj, key)
 	}
 
+}
+
+func (rest *RestOperations) vrfCU(key, vrfName string, aviVrfNode *nodes.AviVrfNode) {
+	vrfCacheObj := rest.getVrfCacheObj(vrfName)
+	if vrfCacheObj == nil {
+		utils.AviLog.Warning.Printf("key: %s, vrf %s not found in cache, exiting\n", key, vrfName)
+		return
+	}
+	if vrfCacheObj.CloudConfigCksum == aviVrfNode.CloudConfigCksum {
+		utils.AviLog.Info.Printf("key: %s, msg: checksum for vrf %s has not changed, skipping\n", key, vrfName)
+		return
+	}
+	var restOps []*utils.RestOp
+	restOp := rest.AviVrfBuild(key, aviVrfNode, vrfCacheObj.Uuid)
+	if restOp == nil {
+		utils.AviLog.Info.Printf("key: %s, no rest operation for vrf %s\n", key, vrfName)
+		return
+	}
+	restOps = append(restOps, restOp)
+	vrfKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: vrfName}
+	utils.AviLog.Info.Printf("key: %s, msg: Executing rest for vrf %s\n", key, vrfName)
+	utils.AviLog.Trace.Printf("key: %s, msg: restops %v\n", key, *restOp)
+	rest.ExecuteRestAndPopulateCache(restOps, vrfKey, key)
 }
 
 func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVsNode *nodes.AviVsNode, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
@@ -178,7 +211,7 @@ func (rest *RestOperations) deleteVSOper(vs_cache_obj *avicache.AviVsCache, name
 	return false
 }
 
-func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, vsKey avicache.NamespaceName, key string, sslKey ...utils.NamespaceName) {
+func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, key string, sslKey ...utils.NamespaceName) {
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
 	bkt := utils.Bkt(key, utils.NumWorkersGraph)
 	utils.AviLog.Warning.Printf("key: %s, msg: processing in rest queue number: %v", key, bkt)
@@ -186,7 +219,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 		aviclient := rest.aviRestPoolClient.AviClient[bkt]
 		err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
 		if err != nil {
-			utils.AviLog.Warning.Printf("key: %s, msg: there was an error sending the macro %s", key, err)
+			utils.AviLog.Warning.Printf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
 
 			// Iterate over rest_ops in reverse and delete created objs
 			for i := len(rest_ops) - 1; i >= 0; i-- {
@@ -225,31 +258,33 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			for _, rest_op := range rest_ops {
 				if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
 					if rest_op.Model == "Pool" {
-						rest.AviPoolCacheAdd(rest_op, vsKey, key)
+						rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "VirtualService" {
 						rest.AviVsCacheAdd(rest_op, key)
 					} else if rest_op.Model == "PoolGroup" {
-						rest.AviPGCacheAdd(rest_op, vsKey, key)
+						rest.AviPGCacheAdd(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "VSDataScriptSet" {
-						rest.AviDSCacheAdd(rest_op, vsKey, key)
+						rest.AviDSCacheAdd(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "HTTPPolicySet" {
-						rest.AviHTTPPolicyCacheAdd(rest_op, vsKey, key)
+						rest.AviHTTPPolicyCacheAdd(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "SSLKeyAndCertificate" {
-						rest.AviSSLKeyCertAdd(rest_op, vsKey, key)
+						rest.AviSSLKeyCertAdd(rest_op, aviObjKey, key)
+					} else if rest_op.Model == "VrfContext" {
+						rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
 					}
 
 				} else {
 					if rest_op.Model == "Pool" {
 						utils.AviLog.Info.Printf("key: %s, msg: deleting pool cache", key)
-						rest.AviPoolCacheDel(rest_op, vsKey, key)
+						rest.AviPoolCacheDel(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "VirtualService" {
 						rest.AviVsCacheDel(rest.cache.VsCache, rest_op, key)
 					} else if rest_op.Model == "PoolGroup" {
-						rest.AviPGCacheDel(rest_op, vsKey, key)
+						rest.AviPGCacheDel(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "HTTPPolicySet" {
-						rest.AviHTTPPolicyCacheDel(rest_op, vsKey, key)
+						rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "SSLKeyAndCertificate" {
-						rest.AviSSLCacheDel(rest_op, vsKey, key)
+						rest.AviSSLCacheDel(rest_op, aviObjKey, key)
 					}
 				}
 			}

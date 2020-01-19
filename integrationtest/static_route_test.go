@@ -176,12 +176,21 @@ func TestMultiNodeAdd(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 
+	nodeIPMap := make(map[string]bool)
+	nodeIPMap[nodeip1] = true
+	nodeIPMap[nodeip2] = true
 	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(2))
-	g.Expect(*(nodes[0].StaticRoutes[0].NextHop.Addr)).To(gomega.Equal(nodeip1))
-	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.IPAddr.Addr)).To(gomega.Equal("10.244.1.0"))
-	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.Mask)).To(gomega.Equal(int32(24)))
-
-	g.Expect(*(nodes[0].StaticRoutes[1].NextHop.Addr)).To(gomega.Equal(nodeip2))
-	g.Expect(*(nodes[0].StaticRoutes[1].Prefix.IPAddr.Addr)).To(gomega.Equal("10.244.2.0"))
-	g.Expect(*(nodes[0].StaticRoutes[1].Prefix.Mask)).To(gomega.Equal(int32(24)))
+	for _, staticRoute := range nodes[0].StaticRoutes {
+		g.Expect(*(nodes[0].StaticRoutes[0].Prefix.Mask)).To(gomega.Equal(int32(24)))
+		if *(staticRoute.NextHop.Addr) == nodeip1 {
+			delete(nodeIPMap, nodeip1)
+			g.Expect(*(staticRoute.Prefix.IPAddr.Addr)).To(gomega.Equal("10.244.1.0"))
+		} else if *(staticRoute.NextHop.Addr) == nodeip2 {
+			delete(nodeIPMap, nodeip2)
+			g.Expect(*(staticRoute.Prefix.IPAddr.Addr)).To(gomega.Equal("10.244.2.0"))
+		} else {
+			t.Fatalf("nodeIP %v did not match with expected IPs", staticRoute.NextHop.Addr)
+		}
+	}
+	g.Expect(len(nodeIPMap)).To(gomega.Equal(0))
 }
