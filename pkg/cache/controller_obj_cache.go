@@ -29,6 +29,7 @@ import (
 type AviObjCache struct {
 	VsCache         *AviCache
 	PgCache         *AviCache
+	HTTPPolCache    *AviCache
 	DSCache         *AviCache
 	PoolCache       *AviCache
 	CloudKeyCache   *AviCache
@@ -146,6 +147,18 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 				}
 
 			}
+			vs_parent_ref, foundParent := vs["vh_parent_vs_ref"]
+			var parentVSKey NamespaceName
+			if foundParent {
+				vs_uuid := ExtractVsUuid(vs_parent_ref.(string))
+				utils.AviLog.Info.Printf("extracted the vs uuid from parent ref during cache population: %s", vs_uuid)
+				// Now let's get the VS key from this uuid
+				vsKey, gotVS := c.VsCache.AviCacheGetKeyByUuid(vs_uuid)
+				if gotVS {
+					parentVSKey = vsKey.(NamespaceName)
+				}
+
+			}
 			if vs["cloud_config_cksum"] != nil {
 				k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vs["name"].(string)}
 				var vip string
@@ -160,6 +173,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 							// Same object - let's just refresh the values.
 							vs_cache_obj.CloudConfigCksum = vs["cloud_config_cksum"].(string)
 							vs_cache_obj.SNIChildCollection = sni_child_collection
+							vs_cache_obj.ParentVSRef = parentVSKey
 							utils.AviLog.Info.Printf("Updated Vs cache k %v val %v",
 								k, vs_cache_obj)
 						} else {
@@ -168,6 +182,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 								Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 								CloudConfigCksum:   vs["cloud_config_cksum"].(string),
 								SNIChildCollection: sni_child_collection,
+								ParentVSRef:        parentVSKey,
 								ServiceMetadataObj: svc_mdata_obj}
 
 							c.VsCache.AviCacheAdd(k, &vs_cache_obj)
@@ -180,6 +195,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 							Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 							CloudConfigCksum:   vs["cloud_config_cksum"].(string),
 							SNIChildCollection: sni_child_collection,
+							ParentVSRef:        parentVSKey,
 							ServiceMetadataObj: svc_mdata_obj}
 
 						c.VsCache.AviCacheAdd(k, &vs_cache_obj)
@@ -191,16 +207,18 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 						Tenant: utils.ADMIN_NS, Uuid: vs["uuid"].(string), Vip: vip,
 						CloudConfigCksum:   vs["cloud_config_cksum"].(string),
 						SNIChildCollection: sni_child_collection,
+						ParentVSRef:        parentVSKey,
 						ServiceMetadataObj: svc_mdata_obj}
 
 					c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 					utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
 						k, vs_cache_obj)
 				}
-
+				c.AviHTTPolicyCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 				c.AviPGCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 				c.AviPoolCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 				c.AviDataScriptPopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
+				c.AviSSLKeyCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 			}
 		}
 		if resp["next"] != nil {
@@ -286,6 +304,150 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 				utils.AviLog.Info.Printf("Next page uri for pg: %s", override_uri)
 				nextPage := NextPage{Next_uri: override_uri}
 				c.AviPGCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
+			}
+		}
+	}
+}
+
+func (c *AviObjCache) AviHTTPolicyCachePopulate(client *clients.AviClient,
+	cloud string, vs_uuid string, tenant string, vsKey NamespaceName, nextPage ...NextPage) {
+	var rest_response interface{}
+
+	var http_pol_key_collection []NamespaceName
+	var uri string
+	if len(nextPage) == 1 {
+		uri = nextPage[0].Next_uri
+		http_pol_key_collection = nextPage[0].Collection
+	} else {
+		uri = "/api/httppolicyset?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+	}
+	err := client.AviSession.Get(uri, &rest_response)
+	if err != nil {
+		utils.AviLog.Warning.Printf("HTTP Policy Get uri %v returned err %v", uri, err)
+		return
+	} else {
+		resp, ok := rest_response.(map[string]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("HTTP Policy Get uri %v returned %v type %T", uri,
+				rest_response, rest_response)
+			return
+		}
+		utils.AviLog.Info.Printf("HTTP Policy Get uri %v returned %v PGs", uri,
+			resp["count"])
+		results, ok := resp["results"].([]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T for HTTP Policy", resp["results"])
+			return
+		}
+		for _, pol_intf := range results {
+			pol, ok := pol_intf.(map[string]interface{})
+			if !ok {
+				utils.AviLog.Warning.Printf("http_intf not of type map[string] interface{}. Instead of type %T", pol_intf)
+				continue
+			}
+			if pol["cloud_config_cksum"] != nil {
+				pol_cache_obj := AviHTTPPolicyCache{Name: pol["name"].(string),
+					Tenant: tenant, Uuid: pol["uuid"].(string),
+					CloudConfigCksum: pol["cloud_config_cksum"].(string)}
+				k := NamespaceName{Namespace: tenant, Name: pol["name"].(string)}
+				c.HTTPPolCache.AviCacheAdd(k, &pol_cache_obj)
+				utils.AviLog.Info.Printf("Added HTTP Policy cache key %v val %v",
+					k, pol_cache_obj)
+				http_pol_key_collection = append(http_pol_key_collection, k)
+			}
+
+		}
+		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
+		if found {
+			vs_cache_obj, ok := vs_cache.(*AviVsCache)
+			if !ok {
+				utils.AviLog.Warning.Printf("Unable to cast to VS object: %v", vsKey)
+				return
+			}
+			vs_cache_obj.HTTPKeyCollection = http_pol_key_collection
+		} else {
+			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update HTTP Policy collection", vsKey)
+		}
+		if resp["next"] != nil {
+			// It has a next page, let's recursively call the same method.
+			next_uri := strings.Split(resp["next"].(string), "/api/httppolicyset")
+			utils.AviLog.Info.Printf("Found next page for http policyset objs, uri: %s", next_uri)
+			if len(next_uri) > 1 {
+				override_uri := "/api/httppolicyset" + next_uri[1]
+				utils.AviLog.Info.Printf("Next page uri for http policyset objs: %s", override_uri)
+				nextPage := NextPage{Next_uri: override_uri}
+				c.AviHTTPolicyCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
+			}
+		}
+	}
+}
+
+func (c *AviObjCache) AviSSLKeyCachePopulate(client *clients.AviClient,
+	cloud string, vs_uuid string, tenant string, vsKey NamespaceName, nextPage ...NextPage) {
+	var rest_response interface{}
+
+	var ssl_key_collection []NamespaceName
+	var uri string
+	if len(nextPage) == 1 {
+		uri = nextPage[0].Next_uri
+		ssl_key_collection = nextPage[0].Collection
+	} else {
+		uri = "/api/sslkeyandcertificate?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+	}
+	err := client.AviSession.Get(uri, &rest_response)
+	if err != nil {
+		utils.AviLog.Warning.Printf("SSL Keys Get uri %v returned err %v", uri, err)
+		return
+	} else {
+		resp, ok := rest_response.(map[string]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("SSL Keys Get uri %v returned %v type %T", uri,
+				rest_response, rest_response)
+			return
+		}
+		utils.AviLog.Info.Printf("SSL Keys Get uri %v returned %v PGs", uri,
+			resp["count"])
+		results, ok := resp["results"].([]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T for SSL Keys", resp["results"])
+			return
+		}
+		for _, ssl_intf := range results {
+			ssl, ok := ssl_intf.(map[string]interface{})
+			if !ok {
+				utils.AviLog.Warning.Printf("ssl_intf not of type map[string] interface{}. Instead of type %T", ssl_intf)
+				continue
+			}
+
+			sslkey_cache_obj := AviSSLCache{Name: ssl["name"].(string),
+				Tenant: tenant, Uuid: ssl["uuid"].(string)}
+			k := NamespaceName{Namespace: tenant, Name: ssl["name"].(string)}
+			c.HTTPPolCache.AviCacheAdd(k, &sslkey_cache_obj)
+			utils.AviLog.Info.Printf("Added SSL Key cache key %v val %v",
+				k, sslkey_cache_obj)
+			ssl_key_collection = append(ssl_key_collection, k)
+
+		}
+		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
+		if found {
+			vs_cache_obj, ok := vs_cache.(*AviVsCache)
+			if !ok {
+				utils.AviLog.Warning.Printf("Unable to cast to VS object: %v", vsKey)
+				return
+			}
+			vs_cache_obj.SSLKeyCertCollection = ssl_key_collection
+		} else {
+			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update HTTP Policy collection", vsKey)
+		}
+		if resp["next"] != nil {
+			// It has a next page, let's recursively call the same method.
+			next_uri := strings.Split(resp["next"].(string), "/api/sslkeyandcertificate")
+			utils.AviLog.Info.Printf("Found next page for ssl key objs, uri: %s", next_uri)
+			if len(next_uri) > 1 {
+				override_uri := "/api/sslkeyandcertificate" + next_uri[1]
+				utils.AviLog.Info.Printf("Next page uri for ssl key objs: %s", override_uri)
+				nextPage := NextPage{Next_uri: override_uri}
+				c.AviHTTPolicyCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
 			}
 		}
 	}
@@ -560,6 +722,15 @@ func ExtractPattern(word string, pattern string) string {
 	result := r.FindAllString(word, -1)
 	if len(result) == 1 {
 		return result[0][:len(result[0])]
+	}
+	return ""
+}
+
+func ExtractVsUuid(word string) string {
+	r, _ := regexp.Compile("virtualservice-.*.#")
+	result := r.FindAllString(word, -1)
+	if len(result) == 1 {
+		return result[0][:len(result[0])-1]
 	}
 	return ""
 }

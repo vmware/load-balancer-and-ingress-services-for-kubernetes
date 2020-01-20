@@ -19,6 +19,7 @@ import (
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
+	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -58,6 +59,19 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			for _, pool := range poolNodes {
 				o.RemovePoolNodeRefs(pool.Name)
 			}
+			// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
+			// Fetch all the secrets for this ingress
+			found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
+			utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
+			if found {
+				for _, secret := range secrets {
+					sniNodeName := ingName + "--" + namespace + "--" + secret
+					utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
+					RemoveSniInModel(sniNodeName, vsNode, key)
+				}
+			}
+			// Now remove the secret relationship
+			objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressSecretMappings(ingName)
 		}
 	} else {
 		// First check if there are pools related to this ingress present in the model already
@@ -93,22 +107,56 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			for _, tlssetting := range ingressConfig.TlsCollection {
 				// For each host, create a SNI node with the secret giving us the key and cert.
 				// construct a SNI VS node per tls setting which corresponds to one secret
-				sniNode := &AviVsNode{Name: ingName + "--" + tlssetting.SecretName, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
+				sniNode := &AviVsNode{Name: ingName + "--" + namespace + "--" + tlssetting.SecretName, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
 				certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 				if certsBuilt {
 					o.BuildPolicyPGPoolsForSNI(sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
-					vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
+					foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
+					if !foundSniModel {
+						vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
+					}
+
 				}
 			}
 
 		}
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: the pool nodes are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
 	// Reset the PG Node members and rebuild them
 	pgNode.Members = nil
 	for _, poolNode := range vsNode[0].PoolRefs {
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
+	}
+}
+
+func FindAndReplaceSniInModel(currentSniNode *AviVsNode, modelSniNodes []*AviVsNode, key string) bool {
+	if len(modelSniNodes[0].SniNodes) > 0 {
+		for i, modelSniNode := range modelSniNodes[0].SniNodes {
+			if currentSniNode.Name == modelSniNode.Name {
+				// Check if the checksums are same
+				if !(modelSniNode.GetCheckSum() == currentSniNode.GetCheckSum()) {
+					// The checksums are not same. Replace this sni node
+					modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes[:i], modelSniNodes[0].SniNodes[i+1:]...)
+					modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes, currentSniNode)
+					utils.AviLog.Info.Printf("key: %s, msg: replaced sni node in model: %s", key, currentSniNode.Name)
+				}
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key string) {
+	if len(modelSniNodes[0].SniNodes) > 0 {
+		for i, modelSniNode := range modelSniNodes[0].SniNodes {
+			if currentSniNodeName == modelSniNode.Name {
+				// Check if the checksums are same
+				// The checksums are not same. Replace this sni node
+				modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes[:i], modelSniNodes[0].SniNodes[i+1:]...)
+				utils.AviLog.Info.Printf("key: %s, msg: replaced sni node in model: %s", key, currentSniNodeName)
+			}
+		}
 	}
 }
 
@@ -229,7 +277,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 		utils.AviLog.Info.Printf("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
 		return false
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: Added the scret object to tlsnode: %s", key, secretObj.Name)
+	utils.AviLog.Info.Printf("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 
 	tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
 	return true
@@ -267,6 +315,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(tlsNode *AviVsNode, namespace 
 	httppolname := ingName + "--" + namespace + "--" + secretName
 	policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: utils.ADMIN_NS}
 	tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
-	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, utils.Stringify(tlsNode))
+	utils.AviLog.Trace.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
 
 }

@@ -250,8 +250,6 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 	}
 
-	utils.AviLog.Info.Print(spew.Sprintf("TLS VS Restop %v K8sAviVsMeta %v\n", utils.Stringify(rest_op),
-		*vs_meta))
 	return rest_ops
 }
 
@@ -286,7 +284,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		vh_parent_uuid, found_parent := resp["vh_parent_vs_ref"]
 		if found_parent {
 			// the uuid is expected to be in the format: "https://IP:PORT/api/virtualservice/virtualservice-88fd9718-f4f9-4e2b-9552-d31336330e0e#mygateway"
-			vs_uuid := ExtractVsUuid(vh_parent_uuid.(string))
+			vs_uuid := avicache.ExtractVsUuid(vh_parent_uuid.(string))
 			utils.AviLog.Info.Printf("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
 			// Now let's get the VS key from this uuid
 			vsKey, foundvscache := rest.cache.VsCache.AviCacheGetKeyByUuid(vs_uuid)
@@ -310,15 +308,16 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		var svc_mdata interface{}
 		var svc_mdata_map map[string]interface{}
 		var svc_mdata_obj avicache.LBServiceMetadataObj
-
-		if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
-			&svc_mdata); err == nil {
-			var svcOk bool
-			svc_mdata_map, svcOk = svc_mdata.(map[string]interface{})
-			if !svcOk {
-				utils.AviLog.Warning.Printf("resp %v svc_mdata %T has invalid service_metadata type", resp, svc_mdata)
-			} else {
-				LBSvcMdataMapToObj(&svc_mdata_map, &svc_mdata_obj)
+		if resp["service_metadata"] != nil {
+			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
+				&svc_mdata); err == nil {
+				var svcOk bool
+				svc_mdata_map, svcOk = svc_mdata.(map[string]interface{})
+				if !svcOk {
+					utils.AviLog.Warning.Printf("resp %v svc_mdata %T has invalid service_metadata type", resp, svc_mdata)
+				} else {
+					LBSvcMdataMapToObj(&svc_mdata_map, &svc_mdata_obj)
+				}
 			}
 		}
 		if ok {
@@ -397,11 +396,24 @@ func LBSvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *avicac
 	}
 }
 
-func (rest *RestOperations) AviVsCacheDel(vs_cache *avicache.AviCache, rest_op *utils.RestOp, key string) error {
-
-	vsKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
+func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op *utils.RestOp, key string) error {
+	// Delete the SNI Child ref
+	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+	if ok {
+		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
+		if found {
+			parent_vs_cache, parent_ok := rest.cache.VsCache.AviCacheGet(vs_cache_obj.ParentVSRef)
+			if parent_ok {
+				parent_vs_cache_obj, parent_found := parent_vs_cache.(*avicache.AviVsCache)
+				if parent_found {
+					// Find the SNI child and then remove
+					rest.findSNIRefAndRemove(vsKey, parent_vs_cache_obj, key)
+				}
+			}
+		}
+	}
 	utils.AviLog.Info.Printf("key: %s, msg: deleting vs cache for key: %s", key, vsKey)
-	vs_cache.AviCacheDelete(vsKey)
+	rest.cache.VsCache.AviCacheDelete(vsKey)
 
 	return nil
 }
@@ -413,4 +425,17 @@ func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) *ut
 	utils.AviLog.Info.Print(spew.Sprintf("VirtualService DELETE Restop %v \n",
 		utils.Stringify(rest_op)))
 	return &rest_op
+}
+
+func (rest *RestOperations) findSNIRefAndRemove(snichildkey avicache.NamespaceName, parentVsObj *avicache.AviVsCache, key string) {
+	for i, sni_uuid := range parentVsObj.SNIChildCollection {
+		sni_vs_key, ok := rest.cache.VsCache.AviCacheGetKeyByUuid(sni_uuid)
+		if ok {
+			if sni_vs_key.(avicache.NamespaceName).Name == snichildkey.Name {
+				parentVsObj.SNIChildCollection = append(parentVsObj.SNIChildCollection[:i], parentVsObj.SNIChildCollection[i+1:]...)
+				utils.AviLog.Info.Printf("key: %s, msg: removed sni key :%s", key, snichildkey.Name)
+				break
+			}
+		}
+	}
 }

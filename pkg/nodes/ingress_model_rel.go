@@ -65,6 +65,12 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			utils.AviLog.Info.Printf("key: %s, msg: updating ingress relationship for service:  %s", key, svc)
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
 		}
+		secrets := parseSecretsForIngress(ingObj.Spec, key)
+		if len(secrets) > 0 {
+			for _, secret := range secrets {
+				objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(ingName, secret)
+			}
+		}
 	}
 	return ingresses, true
 }
@@ -94,4 +100,14 @@ func parseServicesForIngress(ingSpec extensionv1beta1.IngressSpec, key string) [
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: total services retrieved:  %s", key, services)
 	return services
+}
+
+func parseSecretsForIngress(ingSpec extensionv1beta1.IngressSpec, key string) []string {
+	// Figure out the service names that are part of this ingress
+	var secrets []string
+	for _, tlsSettings := range ingSpec.TLS {
+		secrets = append(secrets, tlsSettings.SecretName)
+	}
+	utils.AviLog.Info.Printf("key: %s, msg: total secrets retrieved:  %s", key, secrets)
+	return secrets
 }
