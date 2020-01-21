@@ -267,7 +267,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						utils.AviLog.Info.Printf("key: %s, msg: deleting pool cache", key)
 						rest.AviPoolCacheDel(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "VirtualService" {
-						rest.AviVsCacheDel(vsKey, rest_op, key)
+						rest.AviVsCacheDel(aviObjKey, rest_op, key)
 					} else if rest_op.Model == "PoolGroup" {
 						rest.AviPGCacheDel(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "HTTPPolicySet" {
