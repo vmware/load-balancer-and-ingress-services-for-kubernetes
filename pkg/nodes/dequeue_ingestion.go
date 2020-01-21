@@ -114,7 +114,7 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue) {
 	utils.AviLog.Info.Printf("key: %s, Got node Object %s\n", key, nodename)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
 	if err == nil {
-		utils.AviLog.Info.Printf("key: %s, Node Object %v\n", key, nodeObj)
+		utils.AviLog.Trace.Printf("key: %s, Node Object %v\n", key, nodeObj)
 		objects.SharedNodeLister().AddOrUpdate(nodename, nodeObj)
 	} else if errors.IsNotFound(err) {
 		utils.AviLog.Info.Printf("key: %s, msg: Node Deleted\n", key)

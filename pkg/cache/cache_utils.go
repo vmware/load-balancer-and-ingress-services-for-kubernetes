@@ -103,7 +103,7 @@ type AviHTTPPolicyCache struct {
 type AviVrfCache struct {
 	Name             string
 	Uuid             string
-	CloudConfigCksum string
+	CloudConfigCksum uint32
 }
 
 /*

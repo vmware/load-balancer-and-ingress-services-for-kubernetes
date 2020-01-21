@@ -56,6 +56,30 @@ func SharedAviController() *AviController {
 	return controllerInstance
 }
 
+func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
+	if oldNode.ResourceVersion == newNode.ResourceVersion {
+		return false
+	}
+
+	oldAddrs := oldNode.Status.Addresses
+	newAddrs := newNode.Status.Addresses
+	if len(oldAddrs) != len(newAddrs) {
+		return true
+	}
+	if len(oldAddrs) == 1 && len(newAddrs) == 1 {
+		if oldAddrs[0].Address != newAddrs[0].Address {
+			return true
+		}
+		if oldAddrs[0].Type != newAddrs[0].Type {
+			return true
+		}
+		if oldNode.Spec.PodCIDR != newNode.Spec.PodCIDR {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	cs := k8sinfo.Cs
 	utils.AviLog.Info.Printf("Creating event broadcaster")
@@ -295,12 +319,13 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		UpdateFunc: func(old, cur interface{}) {
 			oldobj := old.(*corev1.Node)
 			node := cur.(*corev1.Node)
-			if oldobj.ResourceVersion != node.ResourceVersion {
-				// Only add the key if the resource versions have changed.
-				key := utils.NodeObj + "/" + node.Name
+			key := utils.NodeObj + "/" + node.Name
+			if isNodeUpdated(oldobj, node) {
 				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
+			} else {
+				utils.AviLog.Trace.Printf("key: %s, msg: node object did not change\n", key)
 			}
 		},
 	}

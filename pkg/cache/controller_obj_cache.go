@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/avinetworks/sdk/go/clients"
+	"github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
@@ -61,6 +62,10 @@ func SharedAviObjCache() *AviObjCache {
 	return cacheInstance
 }
 
+func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
+	return (utils.Hash(vrfName) + utils.Hash(utils.Stringify(staticRoutes)))
+}
+
 func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	version string, cloud string) {
 	SetTenant := session.SetTenant("*")
@@ -71,7 +76,43 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	// Populate the VS cache
 	c.AviObjVSCachePopulate(client, cloud)
 	c.AviCloudPropertiesPopulate(client, cloud)
+	c.AviObjVrfCachePopulate(client)
+}
 
+func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient) {
+	uri := "/api/vrfcontext"
+
+	vrfList := []*models.VrfContext{}
+	result, err := client.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Get uri %v returned err %v", uri, err)
+		return
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Failed to unmarshal data, err: %v", err)
+		return
+	}
+	for i := 0; i < result.Count; i++ {
+		vrf := models.VrfContext{}
+		err = json.Unmarshal(elems[i], &vrf)
+		if err != nil {
+			utils.AviLog.Warning.Printf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
+		vrfList = append(vrfList, &vrf)
+
+		vrfName := *vrf.Name
+		checksum := VrfChecksum(vrfName, vrf.StaticRoutes)
+		vrfCacheObj := AviVrfCache{
+			Name:             vrfName,
+			Uuid:             *vrf.UUID,
+			CloudConfigCksum: checksum,
+		}
+		utils.AviLog.Info.Printf("Adding vrf to Cache %s\n", vrfName)
+		c.VrfCache.AviCacheAdd(vrfName, &vrfCacheObj)
+	}
 }
 
 // TODO (sudswas): Should this be run inside a go routine for parallel population

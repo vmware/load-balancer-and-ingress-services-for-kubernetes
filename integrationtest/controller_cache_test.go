@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
 	"gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
@@ -55,6 +56,9 @@ func TestCacheGETOKStatus(t *testing.T) {
 		} else if strings.Contains(r.URL.EscapedPath(), "ipamdnsproviderprofile") {
 			data, _ := ioutil.ReadFile("avimockobjects/ipamdns_mock.json")
 			fmt.Fprintln(w, string(data))
+		} else if strings.Contains(r.URL.EscapedPath(), "vrfcontext") {
+			data, _ := ioutil.ReadFile("avimockobjects/vrf_mock.json")
+			fmt.Fprintln(w, string(data))
 		} else {
 			// This is used for /login --> first request to controller
 			fmt.Fprintln(w, string(`{"dummy" :"data"}`))
@@ -83,6 +87,27 @@ func TestCacheGETOKStatus(t *testing.T) {
 		g.Expect(len(vs_cache_obj.PGKeyCollection)).To(gomega.Equal(1))
 		g.Expect(len(vs_cache_obj.DSKeyCollection)).To(gomega.Equal(1))
 	}
+
+	vrfName := "global"
+	vrfCache, found := cacheobj.VrfCache.AviCacheGet(vrfName)
+	if !found {
+		t.Fatalf("Cache not found for Vrf: %v", vrfName)
+	}
+	vrfCacheObj, ok := vrfCache.(*cache.AviVrfCache)
+	if !ok {
+		t.Fatalf("Invalid VS object. Cannot cast.")
+	}
+
+	var staticRoutes []*models.StaticRoute
+	nodeAddr := "10.52.2.23"
+	prefixAddr := "10.244.0.0"
+	mask := int32(24)
+	routeID := "1"
+	staticRoute := GetStaticRoute(nodeAddr, prefixAddr, routeID, mask)
+	staticRoutes = append(staticRoutes, staticRoute)
+
+	chksum := cache.VrfChecksum("global", staticRoutes)
+	g.Expect(vrfCacheObj.CloudConfigCksum).To(gomega.Equal(chksum))
 }
 
 func TestCacheGETControllerUnavailable(t *testing.T) {
@@ -115,6 +140,12 @@ func TestCacheGETControllerUnavailable(t *testing.T) {
 	if found {
 		// The older cache member should be available.
 		t.Fatalf("Cache found for VS: %v", vsKey)
+	}
+
+	vrfName := "global"
+	_, found = cacheobj.VrfCache.AviCacheGet(vrfName)
+	if !found {
+		t.Fatalf("Cache not found for Vrf: %v", vrfName)
 	}
 }
 
