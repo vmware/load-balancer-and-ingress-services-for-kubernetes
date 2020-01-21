@@ -57,7 +57,6 @@ func SharedAviController() *AviController {
 }
 
 func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
-	//utils.AviLog.Info.Printf("old %v, \n new %v\n", oldNode, newNode)
 	if oldNode.ResourceVersion == newNode.ResourceVersion {
 		return false
 	}
@@ -74,9 +73,9 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 		if oldAddrs[0].Type != newAddrs[0].Type {
 			return true
 		}
-	}
-	if oldNode.Spec.PodCIDR != newNode.Spec.PodCIDR {
-		return true
+		if oldNode.Spec.PodCIDR != newNode.Spec.PodCIDR {
+			return true
+		}
 	}
 	return false
 }
@@ -326,7 +325,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
 			} else {
-				utils.AviLog.Info.Printf("key: %s, msg: node object did not change\n", key)
+				utils.AviLog.Trace.Printf("key: %s, msg: node object did not change\n", key)
 			}
 		},
 	}

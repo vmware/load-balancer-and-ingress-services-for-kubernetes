@@ -24,7 +24,6 @@ import (
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"
-	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
@@ -80,65 +79,37 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient) {
-	var rest_response interface{}
 	uri := "/api/vrfcontext"
-	err := client.AviSession.Get(uri, &rest_response)
+
+	vrfList := []*models.VrfContext{}
+	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Get uri %v returned err %v", uri, err)
 		return
 	}
-
-	resp, ok := rest_response.(map[string]interface{})
-	if !ok {
-		utils.AviLog.Warning.Printf("Vrfcontext Get uri %v returned %v type %T", uri,
-			rest_response, rest_response)
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Failed to unmarshal data, err: %v", err)
 		return
 	}
-	utils.AviLog.Info.Printf("Vrfcontext Get uri %v returned %v vrfs", uri, resp["count"])
-	results, ok := resp["results"].([]interface{})
-	if !ok {
-		utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T", resp["results"])
-		return
-	}
-	for _, vrfIntf := range results {
-		vrfmap, ok := vrfIntf.(map[string]interface{})
-		if !ok {
-			utils.AviLog.Warning.Printf("vrfIintf not of type map[string] interface{}. Instead of type %T", vrfIntf)
+	for i := 0; i < result.Count; i++ {
+		vrf := models.VrfContext{}
+		err = json.Unmarshal(elems[i], &vrf)
+		if err != nil {
+			utils.AviLog.Warning.Printf("Failed to unmarshal data, err: %v", err)
 			continue
 		}
-		var staticRoutes []*models.StaticRoute
-		var vrfName, vrfUuid string
-		for key, val := range vrfmap {
-			switch key {
-			case "name":
-				vrfName, ok = val.(string)
-				if !ok {
-					utils.AviLog.Trace.Printf("vrf name is of incorrect type %T", val)
-					continue
-				}
-			case "uuid":
-				vrfUuid, ok = val.(string)
-				if !ok {
-					utils.AviLog.Trace.Printf("vrf name is of incorrect type %T", val)
-					continue
-				}
-			case "static_routes":
-				staticRoutesIntf, ok := val.([]interface{})
-				if !ok {
-					utils.AviLog.Warning.Printf("vrfIintf not of type []interface{}. Instead of type %T", staticRoutesIntf)
-					continue
-				}
-				staticRoutes = lib.StaticRoutesIntfToObj(staticRoutesIntf)
-				utils.AviLog.Info.Printf("Number of static routes %v\n", len(staticRoutes))
-			}
-		}
-		checksum := VrfChecksum(vrfName, staticRoutes)
+		vrfList = append(vrfList, &vrf)
+
+		vrfName := *vrf.Name
+		checksum := VrfChecksum(vrfName, vrf.StaticRoutes)
 		vrfCacheObj := AviVrfCache{
 			Name:             vrfName,
-			Uuid:             vrfUuid,
+			Uuid:             *vrf.UUID,
 			CloudConfigCksum: checksum,
 		}
-		utils.AviLog.Info.Printf("Adding vrf in cache %s\n", vrfName)
+		utils.AviLog.Info.Printf("Adding vrf to Cache %s\n", vrfName)
 		c.VrfCache.AviCacheAdd(vrfName, &vrfCacheObj)
 	}
 }

@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -31,10 +32,18 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 		Name: vrfName,
 	}
 	allNodes := objects.SharedNodeLister().GetAllObjectNames()
+
+	// We need to sort the node list so that the staticroutes are in same order always
+	var nodeKeys []string
+	for k := range allNodes {
+		nodeKeys = append(nodeKeys, k)
+	}
+	sort.Strings(nodeKeys)
+
 	utils.AviLog.Trace.Printf("key: %s, All Nodes %v\n", key, allNodes)
 	routeid := 1
-	for _, n := range allNodes {
-		node := n.(*v1.Node)
+	for _, k := range nodeKeys {
+		node := allNodes[k].(*v1.Node)
 		nodeRoute, err := o.addRouteForNode(node, vrfName, strconv.Itoa(routeid))
 		if err != nil {
 			utils.AviLog.Error.Printf("key: %s, Error Adding vrf for node %s: %v\n", key, node.Name, err)
