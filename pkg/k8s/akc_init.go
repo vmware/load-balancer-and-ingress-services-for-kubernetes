@@ -15,6 +15,8 @@
 package k8s
 
 import (
+	"os"
+	"strconv"
 	"time"
 
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
@@ -22,9 +24,7 @@ import (
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/akc/pkg/rest"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
 )
 
 func PopulateCache() {
@@ -41,76 +41,93 @@ func PopulateCache() {
 
 func InitController(informers K8sinformers) {
 	// set up signals so we handle the first shutdown signal gracefully
+	var worker *utils.FullSyncThread
 	stopCh := utils.SetupSignalHandler()
 	c := SharedAviController()
 
 	c.SetupEventHandlers(informers)
 	PopulateCache()
+	c.Start(stopCh)
+	/** Sequence:
+	  1. Initialize the graph layer queue.
+	  2. Do a full sync from main thread and publish all the models.
+	  3. Initialize the ingestion layer queue for partial sync.
+	  **/
 	// start the go routines draining the queues in various layers
-	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
-	ingestionQueue.SyncFunc = SyncFromIngestionLayer
-	ingestionQueue.Run(stopCh)
 	graphQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh)
-	c.Start(stopCh)
-	// TODO (sudswas): Remove hard coding.
-	worker := utils.NewFullSyncThread(50000 * time.Second)
-	worker.SyncFunction = FullSync
-	go worker.Run()
+	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
+	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
+	if err != nil {
+		utils.AviLog.Error.Printf("Cannot convert full sync interval value to integer, pls correct the value and restart AKC. Error: %s", err)
+	} else {
+		// First boot sync
+		FullSyncK8s()
+		worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
+		worker.SyncFunction = FullSync
+		go worker.Run()
+	}
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = SyncFromIngestionLayer
+	ingestionQueue.Run(stopCh)
 	<-stopCh
-	worker.Shutdown()
+	if worker != nil {
+		worker.Shutdown()
+	}
 	ingestionQueue.StopWorkers(stopCh)
 	graphQueue.StopWorkers(stopCh)
 }
 
-func FullSync(istioEnabled string) {
-	avi_obj_cache := utils.SharedAviObjCache()
-	avi_rest_client_pool := utils.SharedAVIClients()
-	avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
-		utils.CtrlVersion, utils.CloudName)
+func FullSync() {
+	avi_rest_client_pool := avicache.SharedAVIClients()
+	avi_obj_cache := avicache.SharedAviObjCache()
+	// Randomly pickup a client.
+	if len(avi_rest_client_pool.AviClient) > 0 {
+		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
+			utils.CtrlVersion, utils.CloudName)
+	}
+	// Not handling any full sync error right now.
 	FullSyncK8s()
 }
 
-func FullSyncK8s() {
+func FullSyncK8s() error {
 	// List all the kubernetes resources
-	epObjs, err := utils.GetInformers().EpInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err == nil {
-		utils.AviLog.Trace.Printf("Obtained all the endpoints :%s", utils.Stringify(epObjs))
-	} else {
-		utils.AviLog.Warning.Printf("Unable to fetch the endpoints, will not process them as a part of full sync")
+	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Error.Printf("Unable to list the namespaces")
+		return err
 	}
-	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err == nil {
-		utils.AviLog.Trace.Printf("Obtained all the Services :%s", utils.Stringify(svcObjs))
-	} else {
-		utils.AviLog.Info.Printf("Unable to fetch Services, will not process them as a part of full sync")
+	for _, nsObj := range namespaces {
+		utils.AviLog.Info.Printf("")
+		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Error.Printf("Unable to retrieve the services during full sync: %s", err)
+			continue
+		}
+		for _, svcObj := range svcObjs {
+			key := utils.Service + "/" + utils.ObjKey(svcObj)
+			nodes.DequeueIngestion(key, true)
+		}
+		ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Error.Printf("Unable to retrieve the ingresses during full sync: %s", err)
+			continue
+		}
+		for _, ingObj := range ingObjs {
+			key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+			nodes.DequeueIngestion(key, true)
+		}
 	}
-	secretObjs, err := utils.GetInformers().SecretInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err == nil {
-		utils.AviLog.Trace.Printf("Obtained all the Secrets :%s", utils.Stringify(secretObjs))
-	} else {
-		utils.AviLog.Warning.Printf("Unable to fetch Secrets, will not process them as a part of full sync")
+	// Publish all the models to REST layer.
+	allModels := objects.SharedAviGraphLister().GetAll()
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	if allModels != nil {
+		for modelName, aviModel := range allModels.(map[string]interface{}) {
+			nodes.PublishKeyToRestLayer(aviModel.(*nodes.AviObjectGraph), modelName, "fullsync", sharedQueue, false)
+		}
 	}
-	PublishK8sKeys(svcObjs, epObjs, secretObjs)
-}
-
-func PublishK8sKeys(svcObjs []*v1.Service, epObjs []*v1.Endpoints, secretObjs []*v1.Secret) {
-	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
-	for _, svcObj := range svcObjs {
-		namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svcObj))
-		key := "Service/" + utils.ObjKey(svcObj)
-		bkt := utils.Bkt(namespace, ingestionQueue.NumWorkers)
-		ingestionQueue.Workqueue[bkt].AddRateLimited(key)
-	}
-
-	for _, epObj := range epObjs {
-		namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(epObj))
-		key := "Endpoints/" + utils.ObjKey(epObj)
-		bkt := utils.Bkt(namespace, ingestionQueue.NumWorkers)
-		ingestionQueue.Workqueue[bkt].AddRateLimited(key)
-	}
-
+	return nil
 }
 
 func SyncFromIngestionLayer(key string) error {
@@ -119,7 +136,7 @@ func SyncFromIngestionLayer(key string) error {
 	// NOTE: There's no error propagation from the graph layer back to the workerqueue. We will evaluate
 	// This condition in the future and visit as needed. But right now, there's no necessity for it.
 	//sharedQueue := SharedWorkQueueWrappers().GetQueueByName(queue.GraphLayer)
-	nodes.DequeueIngestion(key)
+	nodes.DequeueIngestion(key, false)
 	return nil
 }
 

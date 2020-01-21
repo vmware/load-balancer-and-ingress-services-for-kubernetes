@@ -49,7 +49,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 	if avimodelIntf == nil {
 		if vs_cache_obj != nil {
 			utils.AviLog.Info.Printf("key: %s, msg: nil model found, this is a vs deletion case", key)
-			rest.deleteVSOper(vs_cache_obj, namespace, key)
+			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key)
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
@@ -150,29 +150,18 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 	return nil
 }
 
-func (rest *RestOperations) deleteVSOper(vs_cache_obj *avicache.AviVsCache, namespace string, key string) bool {
+func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string) bool {
 	var rest_ops []*utils.RestOp
-	bkt := utils.Bkt(key, utils.NumWorkersGraph)
-	aviclient := rest.aviRestPoolClient.AviClient[bkt]
+
 	if vs_cache_obj != nil {
+		// VS delete should delete everything together.
 		rest_op := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
 		rest_ops = append(rest_ops, rest_op)
-		err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
-		if err != nil {
-			// Just log it for now. TODO (sudswas): Should perform a retry
-			utils.AviLog.Info.Printf("key :%s, msg: failed to delete virtualservice :%s", key, vs_cache_obj.Uuid)
-			return false
-		} else {
-			// Clear all the cache objects assuming they are deleted?
-			// Clear it from the model as well.
-			for _, pool := range vs_cache_obj.PoolKeyCollection {
-				rest.cache.PoolCache.AviCacheDelete(pool)
-			}
-			for _, PG := range vs_cache_obj.PGKeyCollection {
-				rest.cache.PgCache.AviCacheDelete(PG)
-			}
-			rest.AviVsCacheDel(rest.cache.VsCache, rest_op, key)
-		}
+		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
+		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
 		return true
 	}
 	return false
@@ -243,7 +232,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						utils.AviLog.Info.Printf("key: %s, msg: deleting pool cache", key)
 						rest.AviPoolCacheDel(rest_op, vsKey, key)
 					} else if rest_op.Model == "VirtualService" {
-						rest.AviVsCacheDel(rest.cache.VsCache, rest_op, key)
+						rest.AviVsCacheDel(vsKey, rest_op, key)
 					} else if rest_op.Model == "PoolGroup" {
 						rest.AviPGCacheDel(rest_op, vsKey, key)
 					} else if rest_op.Model == "HTTPPolicySet" {
@@ -345,7 +334,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 	} else {
 		// Everything is a POST call
 		for _, pool := range pool_nodes {
-			utils.AviLog.Info.Printf("key: %s, msg: vs cache does not exist %s, operation: POST", key, pool.Name)
+			utils.AviLog.Info.Printf("key: %s, msg: pool cache does not exist %s, operation: POST", key, pool.Name)
 			restOp := rest.AviPoolBuild(pool, nil, key)
 			rest_ops = append(rest_ops, restOp)
 		}
@@ -361,7 +350,7 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 	sni_key := avicache.NamespaceName{Namespace: namespace, Name: del_sni.Name}
 	sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 	if sni_cache_obj != nil {
-		rest.deleteVSOper(sni_cache_obj, namespace, key)
+		rest.deleteVSOper(sni_key, sni_cache_obj, namespace, key)
 	}
 
 }
@@ -378,7 +367,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 		utils.AviLog.Info.Printf("key: %s, msg: processing node key: %v", key, sni_key)
 		if found && cache_sni_nodes != nil {
 			cache_sni_nodes = Remove(cache_sni_nodes, sni_key)
-			utils.AviLog.Info.Printf("key: %s, key: the cache sni nodes are: %v", key, cache_sni_nodes)
+			utils.AviLog.Info.Printf("key: %s, msg: the cache sni nodes are: %v", key, cache_sni_nodes)
 			sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 			if sni_cache_obj != nil {
 				// Cache found. Let's compare the checksums
@@ -406,14 +395,12 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 			restOp := rest.AviVsBuild(sni_node, utils.RestPost, nil, key)
 			rest_ops = append(rest_ops, restOp...)
 		}
-
+		rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
+		rest_ops = rest.HTTPPolicyDelete(http_policies_to_delete, namespace, rest_ops, key)
+		rest_ops = rest.PoolGroupDelete(sni_pgs_to_delete, namespace, rest_ops, key)
+		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, key)
+		utils.AviLog.Info.Printf("key: %s, msg: the SNI VSes to be deleted are: %s", key, cache_sni_nodes)
 	}
-	rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
-	rest_ops = rest.HTTPPolicyDelete(http_policies_to_delete, namespace, rest_ops, key)
-	rest_ops = rest.PoolGroupDelete(sni_pgs_to_delete, namespace, rest_ops, key)
-	rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, key)
-	utils.AviLog.Info.Printf("key: %s, msg: the SNI VS rest_op is %s", key, utils.Stringify(rest_ops))
-	utils.AviLog.Info.Printf("key: %s, msg: the SNI VSes to be deleted are: %s", key, cache_sni_nodes)
 	return cache_sni_nodes, rest_ops
 }
 
@@ -543,11 +530,11 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 
 func (rest *RestOperations) HTTPPolicyDelete(https_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
 	for _, del_http := range https_to_delete {
-		// fetch trhe pool uuid from cache
-		http_key := utils.NamespaceName{Namespace: namespace, Name: del_http.Name}
+		// fetch trhe http policyset uuid from cache
+		http_key := avicache.NamespaceName{Namespace: namespace, Name: del_http.Name}
 		http_cache, ok := rest.cache.HTTPPolicyCache.AviCacheGet(http_key)
 		if ok {
-			http_cache_obj, _ := http_cache.(*utils.AviHTTPCache)
+			http_cache_obj, _ := http_cache.(*avicache.AviHTTPPolicyCache)
 			restOp := rest.AviHttpPolicyDel(http_cache_obj.Uuid, namespace, key)
 			restOp.ObjName = del_http.Name
 			rest_ops = append(rest_ops, restOp)

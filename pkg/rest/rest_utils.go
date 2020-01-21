@@ -58,15 +58,6 @@ func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) 
 	return resp_elems, nil
 }
 
-func ExtractVsUuid(word string) string {
-	r, _ := regexp.Compile("virtualservice-.*.#")
-	result := r.FindAllString(word, -1)
-	if len(result) == 1 {
-		return result[0][:len(result[0])-1]
-	}
-	return ""
-}
-
 func ExtractVsName(word string) string {
 	r, _ := regexp.Compile("#.*")
 	result := r.FindAllString(word, -1)

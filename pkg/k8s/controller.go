@@ -318,6 +318,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.IngressInformer.Informer().Run(stopCh)
 	go c.informers.SecretInformer.Informer().Run(stopCh)
 	go c.informers.NodeInformer.Informer().Run(stopCh)
+	go c.informers.NSInformer.Informer().Run(stopCh)
 
 	if !cache.WaitForCacheSync(stopCh,
 		c.informers.EpInformer.Informer().HasSynced,
@@ -325,6 +326,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		c.informers.IngressInformer.Informer().HasSynced,
 		c.informers.SecretInformer.Informer().HasSynced,
 		c.informers.NodeInformer.Informer().HasSynced,
+		c.informers.NSInformer.Informer().HasSynced,
 	) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {

@@ -55,3 +55,8 @@ spec:
             configMapKeyRef:
               name: avi-k8s-config
               key: cloudVtype
+        - name: FULL_SYNC_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: fullSyncFrequency

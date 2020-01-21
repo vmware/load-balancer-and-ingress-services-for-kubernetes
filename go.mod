@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
-	gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200116061816-75a6f0d69556
+	gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200116063400-a163d3d401ae
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/genproto v0.0.0-20180831171423-11092d34479b // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

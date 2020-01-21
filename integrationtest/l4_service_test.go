@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 
 func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer, meshutils.SecretInformer, meshutils.NodeInformer}
+	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer}
 	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: kubeClient}
 	os.Setenv("CTRL_USERNAME", "admin")
@@ -51,7 +51,7 @@ func setUp() {
 
 func TestAviNodeCreationSinglePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/testsvc"
+	model_name := "admin/testsvc--red-ns"
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeLoadBalancer,
@@ -124,7 +124,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 
 func TestAviNodeCreationMultiPort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/testsvc"
+	model_name := "admin/testsvc--red-ns"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
@@ -205,7 +205,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 
 func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/testsvc1"
+	model_name := "admin/testsvc1--red-ns"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
@@ -287,7 +287,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 
 func TestAviNodeUpdateEndpoint(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/testsvc"
+	model_name := "admin/testsvc--red-ns"
 	objects.SharedAviGraphLister().Delete(model_name)
 	epExample := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{

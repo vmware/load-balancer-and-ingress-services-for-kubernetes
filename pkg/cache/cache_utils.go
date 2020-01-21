@@ -70,6 +70,7 @@ type AviVsCache struct {
 	HTTPKeyCollection    []NamespaceName
 	SSLKeyCertCollection []NamespaceName
 	SNIChildCollection   []string
+	ParentVSRef          NamespaceName
 	ServiceMetadataObj   LBServiceMetadataObj
 }
 
