@@ -36,6 +36,8 @@ func SharedSvcLister() *SvcLister {
 		svclisterinstance.secretIngStore = secretIngStore
 		ingSecretStore := NewObjectStore()
 		svclisterinstance.ingSecretStore = ingSecretStore
+		ingHostStore := NewObjectStore()
+		svclisterinstance.ingHostStore = ingHostStore
 	})
 	return svclisterinstance
 }
@@ -45,6 +47,7 @@ type SvcLister struct {
 	secretIngStore *ObjectStore
 	ingSvcStore    *ObjectStore
 	ingSecretStore *ObjectStore
+	ingHostStore   *ObjectStore
 }
 
 type SvcNSCache struct {
@@ -54,6 +57,7 @@ type SvcNSCache struct {
 	IngressLock     sync.RWMutex
 	IngNSCache
 	SecretIngNSCache
+	IngHostCache
 }
 
 type IngNSCache struct {
@@ -64,13 +68,19 @@ type SecretIngNSCache struct {
 	secretIngobjects *ObjectMapStore
 }
 
+type IngHostCache struct {
+	ingHostobjects *ObjectMapStore
+}
+
 func (v *SvcLister) IngressMappings(ns string) *SvcNSCache {
 	namespacedsvcIngObjs := v.svcIngStore.GetNSStore(ns)
 	namespacedIngSvcObjs := v.ingSvcStore.GetNSStore(ns)
 	namespacedSecretIngObjs := v.secretIngStore.GetNSStore(ns)
 	namespacedIngSecretObjs := v.ingSecretStore.GetNSStore(ns)
+	namespacedIngHostObjs := v.ingHostStore.GetNSStore(ns)
 	return &SvcNSCache{namespace: ns, svcIngobjects: namespacedsvcIngObjs,
-		secretIngObject: namespacedSecretIngObjs, IngNSCache: IngNSCache{ingSvcobjects: namespacedIngSvcObjs}, SecretIngNSCache: SecretIngNSCache{secretIngobjects: namespacedIngSecretObjs}}
+		secretIngObject: namespacedSecretIngObjs, IngNSCache: IngNSCache{ingSvcobjects: namespacedIngSvcObjs},
+		SecretIngNSCache: SecretIngNSCache{secretIngobjects: namespacedIngSecretObjs}, IngHostCache: IngHostCache{ingHostobjects: namespacedIngHostObjs}}
 }
 
 //=====All service to ingress mapping methods are here.
@@ -165,6 +175,28 @@ func (v *SecretIngNSCache) DeleteIngToSecretMapping(ingName string) bool {
 func (v *SecretIngNSCache) UpdateIngToSecretMapping(ingName string, secretList []string) {
 	utils.AviLog.Info.Printf("Updated the ingress mappings with ingress: %s, secrets: %s", ingName, secretList)
 	v.secretIngobjects.AddOrUpdate(ingName, secretList)
+}
+
+//=====All ingress to host mapping methods are here.
+
+func (v *IngHostCache) GetIngToHost(ingName string) (bool, []string) {
+	// Need checks if it's found or not?
+	found, hosts := v.ingHostobjects.Get(ingName)
+	if !found {
+		return false, make([]string, 0)
+	}
+	return true, hosts.([]string)
+}
+
+func (v *IngHostCache) DeleteIngToHostMapping(ingName string) bool {
+	// Need checks if it's found or not?
+	success := v.ingHostobjects.Delete(ingName)
+	return success
+}
+
+func (v *IngHostCache) UpdateIngToHostMapping(ingName string, hostList []string) {
+	utils.AviLog.Info.Printf("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostList)
+	v.ingHostobjects.AddOrUpdate(ingName, hostList)
 }
 
 //===All cross mapping update methods are here.

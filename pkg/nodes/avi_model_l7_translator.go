@@ -70,8 +70,30 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					RemoveSniInModel(sniNodeName, vsNode, key)
 				}
 			}
+			ok, hosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+			if ok {
+				// Remove these hosts from the overall FQDN list
+				newFQDNs := make([]string, len(vsNode[0].VSVIPRefs[0].FQDNs))
+				utils.AviLog.Info.Printf("key: %s, msg: found fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
+				for _, host := range hosts {
+					var i int
+					for _, fqdn := range vsNode[0].VSVIPRefs[0].FQDNs {
+						if fqdn != host {
+							// Gather this entry in the new list
+							newFQDNs[i] = fqdn
+							i++
+						}
+					}
+					// Empty unsed bytes.
+					newFQDNs = newFQDNs[:i]
+				}
+				vsNode[0].VSVIPRefs[0].FQDNs = newFQDNs
+			}
+			utils.AviLog.Info.Printf("key: %s, msg: after removing fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
 			// Now remove the secret relationship
 			objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressSecretMappings(ingName)
+			// Remove the hosts mapping for this ingress
+			objects.SharedSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(ingName)
 		}
 	} else {
 		// First check if there are pools related to this ingress present in the model already
@@ -86,6 +108,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(ingressConfig))
 			// Processsing insecure ingress
 			for host, val := range ingressConfig.IngressHostMap {
+				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 				for _, obj := range val {
 					var priorityLabel string
 					if obj.Path != "" {
@@ -228,6 +251,16 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	o.AddModelNode(avi_vs_meta)
 	o.ConstructShardVsPGNode(vsName, key, avi_vs_meta)
 	o.ConstructHTTPDataScript(vsName, key, avi_vs_meta)
+	var fqdns []string
+	// Fetch the sub-domain and generate the default fqdn.
+	cache := avicache.SharedAviObjCache()
+	cloud, _ := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
+	if cloud != nil {
+		fqdn := vsName + "." + utils.ADMIN_NS + "." + cloud.(*avicache.AviCloudPropertyCache).NSIpamDNS
+		fqdns = append(fqdns, fqdn)
+	}
+	vsVipNode := &AviVSVIPNode{Name: vsName + "-vsvip", Tenant: utils.ADMIN_NS, FQDNs: fqdns}
+	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	return avi_vs_meta
 }
 

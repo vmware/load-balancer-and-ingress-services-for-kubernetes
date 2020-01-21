@@ -71,6 +71,13 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 				objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(ingName, secret)
 			}
 		}
+		// Update the host mappings for this ingress
+		parsedIng := parseHostPathForIngress(ingName, ingObj.Spec, key)
+		var hosts []string
+		for host, _ := range parsedIng.IngressHostMap {
+			hosts = append(hosts, host)
+		}
+		objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, hosts)
 	}
 	return ingresses, true
 }

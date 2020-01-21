@@ -65,6 +65,7 @@ type AviVsCache struct {
 	Vip                  string
 	CloudConfigCksum     string
 	PGKeyCollection      []NamespaceName
+	VSVipKeyCollection   []NamespaceName
 	PoolKeyCollection    []NamespaceName
 	DSKeyCollection      []NamespaceName
 	HTTPKeyCollection    []NamespaceName
@@ -90,6 +91,14 @@ type AviPGCache struct {
 	Name             string
 	Tenant           string
 	Uuid             string
+	CloudConfigCksum string
+}
+
+type AviVSVIPCache struct {
+	Name             string
+	Tenant           string
+	Uuid             string
+	FQDNs            []string
 	CloudConfigCksum string
 }
 
