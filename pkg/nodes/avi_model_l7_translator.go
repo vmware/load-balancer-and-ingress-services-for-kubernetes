@@ -73,21 +73,23 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			ok, hosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
 			if ok {
 				// Remove these hosts from the overall FQDN list
-				newFQDNs := make([]string, len(vsNode[0].VSVIPRefs[0].FQDNs))
-				utils.AviLog.Info.Printf("key: %s, msg: found fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
-				for _, host := range hosts {
-					var i int
-					for _, fqdn := range vsNode[0].VSVIPRefs[0].FQDNs {
-						if fqdn != host {
-							// Gather this entry in the new list
-							newFQDNs[i] = fqdn
-							i++
+				if len(vsNode[0].VSVIPRefs) > 0 {
+					newFQDNs := make([]string, len(vsNode[0].VSVIPRefs[0].FQDNs))
+					utils.AviLog.Info.Printf("key: %s, msg: found fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
+					for _, host := range hosts {
+						var i int
+						for _, fqdn := range vsNode[0].VSVIPRefs[0].FQDNs {
+							if fqdn != host {
+								// Gather this entry in the new list
+								newFQDNs[i] = fqdn
+								i++
+							}
 						}
+						// Empty unsed bytes.
+						newFQDNs = newFQDNs[:i]
 					}
-					// Empty unsed bytes.
-					newFQDNs = newFQDNs[:i]
+					vsNode[0].VSVIPRefs[0].FQDNs = newFQDNs
 				}
-				vsNode[0].VSVIPRefs[0].FQDNs = newFQDNs
 			}
 			utils.AviLog.Info.Printf("key: %s, msg: after removing fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
 			// Now remove the secret relationship
@@ -258,6 +260,8 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	if cloud != nil {
 		fqdn := vsName + "." + utils.ADMIN_NS + "." + cloud.(*avicache.AviCloudPropertyCache).NSIpamDNS
 		fqdns = append(fqdns, fqdn)
+	} else {
+		utils.AviLog.Warning.Printf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn")
 	}
 	vsVipNode := &AviVSVIPNode{Name: vsName + "-vsvip", Tenant: utils.ADMIN_NS, FQDNs: fqdns}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)

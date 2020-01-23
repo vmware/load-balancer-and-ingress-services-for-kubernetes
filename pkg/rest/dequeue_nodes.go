@@ -349,6 +349,8 @@ func (rest *RestOperations) DSDelete(ds_to_delete []avicache.NamespaceName, name
 			restOp := rest.AviDSDel(ds_cache_obj.Uuid, namespace, key)
 			restOp.ObjName = del_ds.Name
 			rest_ops = append(rest_ops, restOp)
+		} else {
+			utils.AviLog.Info.Printf("key: %s, msg: ds not found in cache during delete %s", key, ds_to_delete)
 		}
 	}
 	return rest_ops

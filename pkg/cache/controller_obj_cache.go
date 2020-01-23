@@ -421,6 +421,7 @@ func (c *AviObjCache) AviVSVIPCachePopulate(client *clients.AviClient,
 			vs_cache_obj.VSVipKeyCollection = vsvip_key_collection
 		} else {
 			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update VSVIP collection", vsKey)
+			return
 		}
 		if resp["next"] != nil {
 			// It has a next page, let's recursively call the same method.

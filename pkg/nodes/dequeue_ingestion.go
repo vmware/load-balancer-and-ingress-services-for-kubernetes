@@ -103,7 +103,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 			}
 			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
-			if len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 {
+			if len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
 				PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue, fullsync)
 			}
 		}
@@ -134,12 +134,13 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue) {
 		utils.AviLog.Error.Printf("key: %s, msg: Error creating vrf graph: %v\n", key, err)
 		return
 	}
-        model_name := utils.ADMIN_NS + "/" + vrfcontext
+	model_name := utils.ADMIN_NS + "/" + vrfcontext
 	PublishKeyToRestLayer(aviModel, model_name, key, sharedQueue, false)
 }
 
 func PublishKeyToRestLayer(aviGraph *AviObjectGraph, model_name string, key string, sharedQueue *utils.WorkerQueue, fullsync bool) {
 	// First see if there's another instance of the same model in the store
+	utils.AviLog.Info.Printf("key: %s, msg: Evaluating model :%s", model_name)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
 		prevChecksum := aviModel.(*AviObjectGraph).GetCheckSum()

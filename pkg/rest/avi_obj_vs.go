@@ -85,7 +85,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
 			vs.PoolGroupRef = &pool_ref
 		}
-		//vs.Vip = append(vs.Vip, &vip)
 		if len(vs_meta.VSVIPRefs) > 0 {
 			vipref := "/api/vsvip/?name=" + vs_meta.VSVIPRefs[0].Name
 			vs.VsvipRef = &vipref
@@ -126,7 +125,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 				onw_profile := "/api/networkprofile/?name=System-UDP-Fast-Path"
 				svc.OverrideNetworkProfileRef = &onw_profile
 			}
-			if pp.Secret != "" || pp.Passthrough {
+			if pp.EnableSSL {
 				ssl_enabled := true
 				svc.EnableSsl = &ssl_enabled
 			}
