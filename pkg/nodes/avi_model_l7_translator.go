@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"strings"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
@@ -97,10 +98,9 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 						poolNode.Servers = servers
 					}
-
+					poolNode.CalculateCheckSum()
 					utils.AviLog.Info.Printf("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
 					vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
-
 				}
 			}
 			// Processing the TLS nodes
@@ -248,6 +248,9 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	dsName := vsName + "-http-datascript"
 	script := &DataScript{Script: scriptStr, Evt: evt}
 	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: utils.ADMIN_NS, DataScript: script, PoolGroupRefs: poolGroupRefs}
+	if len(dsScriptNode.PoolGroupRefs) > 0 {
+		dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "POOLGROUP", dsScriptNode.PoolGroupRefs[0], 1)
+	}
 	vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
 	o.AddModelNode(dsScriptNode)
 	return dsScriptNode
