@@ -66,13 +66,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
 		// TODO use PoolGroup and use policies if there are > 1 pool, etc.
 		name := vs_meta.Name
-		var dns_info_arr []*avimodels.DNSInfo
-		// Form the DNS_Info name_of_vs.namespace.<dns_ipam>
-		cloud, _ := rest.cache.CloudKeyCache.AviCacheGet(utils.CloudName)
-		utils.AviLog.Info.Printf("key: %s, msg: build vs objs | name: %v \n| vs_meta %v \n| cloud %v", key, name, vs_meta, cloud)
-		fqdn := name + "." + vs_meta.Tenant + "." + cloud.(*avicache.AviCloudPropertyCache).NSIpamDNS
-		dns_info := avimodels.DNSInfo{Fqdn: &fqdn}
-		dns_info_arr = append(dns_info_arr, &dns_info)
 		cksum := vs_meta.CloudConfigCksum
 		checksumstr := fmt.Sprint(cksum)
 		cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
@@ -84,7 +77,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			ApplicationProfileRef: &app_prof,
 			CloudConfigCksum:      &checksumstr,
 			CreatedBy:             &cr,
-			DNSInfo:               dns_info_arr,
 			EastWestPlacement:     &east_west,
 			CloudRef:              &cloudRef,
 			ServiceMetadata:       &svc_mdata}
@@ -93,7 +85,12 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
 			vs.PoolGroupRef = &pool_ref
 		}
-		vs.Vip = append(vs.Vip, &vip)
+		if len(vs_meta.VSVIPRefs) > 0 {
+			vipref := "/api/vsvip/?name=" + vs_meta.VSVIPRefs[0].Name
+			vs.VsvipRef = &vipref
+		} else {
+			utils.AviLog.Warning.Printf("key: %s, msg: unable to set the vsvip reference")
+		}
 		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
 		vs.TenantRef = &tenant
 
@@ -128,7 +125,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 				onw_profile := "/api/networkprofile/?name=System-UDP-Fast-Path"
 				svc.OverrideNetworkProfileRef = &onw_profile
 			}
-			if pp.Secret != "" || pp.Passthrough {
+			if pp.EnableSSL {
 				ssl_enabled := true
 				svc.EnableSsl = &ssl_enabled
 			}
@@ -438,4 +435,157 @@ func (rest *RestOperations) findSNIRefAndRemove(snichildkey avicache.NamespaceNa
 			}
 		}
 	}
+}
+
+func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, key string) *utils.RestOp {
+	name := vsvip_meta.Name
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
+	cloudRef := "/api/cloud?name=" + utils.CloudName
+	var dns_info_arr []*avimodels.DNSInfo
+	var path string
+	var rest_op utils.RestOp
+	if cache_obj != nil {
+
+		vsvip := rest.AviVsVipGet(key, cache_obj.Uuid, name)
+		if vsvip == nil {
+			return nil
+		}
+		for _, fqdn := range vsvip_meta.FQDNs {
+			dns_info := avimodels.DNSInfo{Fqdn: &fqdn}
+			dns_info_arr = append(dns_info_arr, &dns_info)
+		}
+		vsvip.DNSInfo = dns_info_arr
+		path = "/api/vsvip/" + cache_obj.Uuid
+		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsvip,
+			Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
+	} else {
+		vsvip := avimodels.VsVip{Name: &name,
+			TenantRef: &tenant, CloudRef: &cloudRef}
+		auto_alloc := true
+		var vips []*avimodels.Vip
+		vip := avimodels.Vip{AutoAllocateIP: &auto_alloc}
+		for _, fqdn := range vsvip_meta.FQDNs {
+			dns_info := avimodels.DNSInfo{Fqdn: &fqdn}
+			dns_info_arr = append(dns_info_arr, &dns_info)
+		}
+		vsvip.DNSInfo = dns_info_arr
+		vips = append(vips, &vip)
+		vsvip.Vip = vips
+		macro := utils.AviRestObjMacro{ModelName: "VsVip", Data: vsvip}
+		path = "/api/macro"
+
+		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+			Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
+	}
+
+	return &rest_op
+}
+
+func (rest *RestOperations) AviVsVipGet(key, uuid, name string) *avimodels.VsVip {
+	if rest.aviRestPoolClient == nil {
+		utils.AviLog.Warning.Printf("key: %s, msg: aviRestPoolClient during vsvip not initialized\n", key)
+		return nil
+	}
+	if len(rest.aviRestPoolClient.AviClient) < 1 {
+		utils.AviLog.Warning.Printf("key: %s, msg: client in aviRestPoolClient during vsvip not initialized\n", key)
+		return nil
+	}
+	client := rest.aviRestPoolClient.AviClient[0]
+	uri := "/api/vsvip/" + uuid
+
+	rawData, err := client.AviSession.GetRaw(uri)
+	if err != nil {
+		utils.AviLog.Warning.Printf("VsVip Get uri %v returned err %v", uri, err)
+		return nil
+	}
+	vsvip := avimodels.VsVip{}
+	json.Unmarshal(rawData, &vsvip)
+
+	return &vsvip
+}
+
+func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) *utils.RestOp {
+	path := "/api/vsvip/" + uuid
+	rest_op := utils.RestOp{Path: path, Method: "DELETE",
+		Tenant: tenant, Model: "VsVip", Version: utils.CtrlVersion}
+	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v \n", key,
+		utils.Stringify(rest_op)))
+	return &rest_op
+}
+
+func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
+	if (rest_op.Err != nil) || (rest_op.Response == nil) {
+		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for vsvip err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		return errors.New("Errored vsvip rest_op")
+	}
+
+	resp_elems, ok := RestRespArrToObjByType(rest_op, "vsvip", key)
+	if ok != nil || resp_elems == nil {
+		utils.AviLog.Warning.Printf("key: %s, msg: unable to find vsvip obj in resp %v", key, rest_op.Response)
+		return errors.New("vsvip not found")
+	}
+
+	for _, resp := range resp_elems {
+		name, ok := resp["name"].(string)
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: vsvip name not present in response %v", key, resp)
+			continue
+		}
+
+		uuid, ok := resp["uuid"].(string)
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: vsvip Uuid not present in response %v", key, resp)
+			continue
+		}
+
+		vsvip_cache_obj := avicache.AviVSVIPCache{Name: name, Tenant: rest_op.Tenant,
+			Uuid: uuid}
+
+		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
+		rest.cache.VSVIPCache.AviCacheAdd(k, &vsvip_cache_obj)
+		// Update the VS object
+		vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+		if ok {
+			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
+			if found {
+				utils.AviLog.Info.Printf("key: %s, msg: the VS cache before modification by VSVIP creation is :%v", key, utils.Stringify(vs_cache_obj))
+				if vs_cache_obj.VSVipKeyCollection == nil {
+					vs_cache_obj.VSVipKeyCollection = []avicache.NamespaceName{k}
+				} else {
+					if !utils.HasElem(vs_cache_obj.VSVipKeyCollection, k) {
+						vs_cache_obj.VSVipKeyCollection = append(vs_cache_obj.VSVipKeyCollection, k)
+					}
+				}
+				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
+			}
+
+		} else {
+			vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
+				VSVipKeyCollection: []avicache.NamespaceName{k}}
+			rest.cache.VSVIPCache.AviCacheAdd(vsKey, &vs_cache_obj)
+			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v\n", key, vsKey,
+				vs_cache_obj))
+		}
+		utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v\n", key, k,
+			vsvip_cache_obj))
+	}
+
+	return nil
+}
+
+func (rest *RestOperations) AviVsVipCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
+	vsvipkey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
+	rest.cache.VSVIPCache.AviCacheDelete(vsvipkey)
+	if vsKey != (avicache.NamespaceName{}) {
+		vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+		if ok {
+			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
+			if found {
+				vs_cache_obj.VSVipKeyCollection = Remove(vs_cache_obj.VSVipKeyCollection, vsvipkey)
+			}
+		}
+	}
+
+	return nil
+
 }

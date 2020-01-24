@@ -36,6 +36,7 @@ type AviObjCache struct {
 	CloudKeyCache   *AviCache
 	HTTPPolicyCache *AviCache
 	SSLKeyCache     *AviCache
+	VSVIPCache      *AviCache
 	VrfCache        *AviCache
 }
 
@@ -48,6 +49,7 @@ func NewAviObjCache() *AviObjCache {
 	c.SSLKeyCache = NewAviCache()
 	c.CloudKeyCache = NewAviCache()
 	c.HTTPPolicyCache = NewAviCache()
+	c.VSVIPCache = NewAviCache()
 	c.VrfCache = NewAviCache()
 	return &c
 }
@@ -260,6 +262,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 				c.AviPoolCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 				c.AviDataScriptPopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 				c.AviSSLKeyCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
+				c.AviVSVIPCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 			}
 		}
 		if resp["next"] != nil {
@@ -345,6 +348,90 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 				utils.AviLog.Info.Printf("Next page uri for pg: %s", override_uri)
 				nextPage := NextPage{Next_uri: override_uri}
 				c.AviPGCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
+			}
+		}
+	}
+}
+
+func (c *AviObjCache) AviVSVIPCachePopulate(client *clients.AviClient,
+	cloud string, vs_uuid string, tenant string, vsKey NamespaceName, nextPage ...NextPage) {
+	var rest_response interface{}
+
+	var vsvip_key_collection []NamespaceName
+	var uri string
+	if len(nextPage) == 1 {
+		uri = nextPage[0].Next_uri
+		vsvip_key_collection = nextPage[0].Collection
+	} else {
+		uri = "/api/vsvip?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+	}
+	err := client.AviSession.Get(uri, &rest_response)
+	if err != nil {
+		utils.AviLog.Warning.Printf("VSVIP Get uri %v returned err %v", uri, err)
+		return
+	} else {
+		resp, ok := rest_response.(map[string]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("VSVIP Get uri %v returned %v type %T", uri,
+				rest_response, rest_response)
+			return
+		}
+		utils.AviLog.Info.Printf("VSVIP Get uri %v returned %v PGs", uri,
+			resp["count"])
+		results, ok := resp["results"].([]interface{})
+		if !ok {
+			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T for VSVIP", resp["results"])
+			return
+		}
+		for _, vsvip_intf := range results {
+			vsvip, ok := vsvip_intf.(map[string]interface{})
+			var fqdns []string
+			if !ok {
+				utils.AviLog.Warning.Printf("vsvip_intf not of type map[string] interface{}. Instead of type %T", vsvip_intf)
+				continue
+			}
+			if vsvip["dns_info"] != nil {
+				for _, aRecord := range vsvip["dns_info"].([]interface{}) {
+					aRecordMap, success := aRecord.(map[string]interface{})
+					if success {
+						fqdn, ok := aRecordMap["fqdn"].(string)
+						if ok {
+							fqdns = append(fqdns, fqdn)
+						}
+					}
+				}
+			}
+			vsvip_cache_obj := AviVSVIPCache{Name: vsvip["name"].(string),
+				Tenant: tenant, Uuid: vsvip["uuid"].(string), FQDNs: fqdns,
+			}
+			k := NamespaceName{Namespace: tenant, Name: vsvip["name"].(string)}
+			c.VSVIPCache.AviCacheAdd(k, &vsvip_cache_obj)
+			utils.AviLog.Info.Printf("Added VSVIP cache key %v val %v",
+				k, vsvip_cache_obj)
+			vsvip_key_collection = append(vsvip_key_collection, k)
+
+		}
+		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
+		if found {
+			vs_cache_obj, ok := vs_cache.(*AviVsCache)
+			if !ok {
+				utils.AviLog.Warning.Printf("Unable to cast to VS object: %v", vsKey)
+				return
+			}
+			vs_cache_obj.VSVipKeyCollection = vsvip_key_collection
+		} else {
+			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update VSVIP collection", vsKey)
+			return
+		}
+		if resp["next"] != nil {
+			// It has a next page, let's recursively call the same method.
+			next_uri := strings.Split(resp["next"].(string), "/api/vsvip")
+			utils.AviLog.Info.Printf("Found next page for vsvip, uri: %s", next_uri)
+			if len(next_uri) > 1 {
+				override_uri := "/api/vsvip" + next_uri[1]
+				utils.AviLog.Info.Printf("Next page uri for vsvip: %s", override_uri)
+				nextPage := NextPage{Next_uri: override_uri}
+				c.AviVSVIPCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
 			}
 		}
 	}

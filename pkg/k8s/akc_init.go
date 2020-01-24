@@ -45,7 +45,6 @@ func InitController(informers K8sinformers) {
 	stopCh := utils.SetupSignalHandler()
 	c := SharedAviController()
 
-	c.SetupEventHandlers(informers)
 	PopulateCache()
 	c.Start(stopCh)
 	/** Sequence:
@@ -68,6 +67,7 @@ func InitController(informers K8sinformers) {
 		worker.SyncFunction = FullSync
 		go worker.Run()
 	}
+	c.SetupEventHandlers(informers)
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer
 	ingestionQueue.Run(stopCh)
@@ -99,7 +99,6 @@ func FullSyncK8s() error {
 		return err
 	}
 	for _, nsObj := range namespaces {
-		utils.AviLog.Info.Printf("")
 		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Error.Printf("Unable to retrieve the services during full sync: %s", err)

@@ -135,6 +135,7 @@ type AviVsNode struct {
 	SharedVS           bool
 	SSLKeyCertRefs     []*AviTLSKeyCertNode
 	HttpPolicyRefs     []*AviHttpPolicySetNode
+	VSVIPRefs          []*AviVSVIPNode
 	VHParentName       string
 	VHDomainNames      []string
 	TLSType            string
@@ -255,6 +256,29 @@ type AviPortHostProtocol struct {
 	Passthrough bool
 	Redirect    bool
 	EnableSSL   bool
+}
+
+type AviVSVIPNode struct {
+	Name             string
+	Tenant           string
+	CloudConfigCksum uint32
+	FQDNs            []string
+}
+
+func (v *AviVSVIPNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviVSVIPNode) CalculateCheckSum() {
+	// A sum of fields for this VS.
+	checksum := utils.Hash(utils.Stringify(v.FQDNs))
+	v.CloudConfigCksum = checksum
+}
+
+func (v *AviVSVIPNode) GetNodeType() string {
+	return "VSVIPNode"
 }
 
 type AviPoolGroupNode struct {
