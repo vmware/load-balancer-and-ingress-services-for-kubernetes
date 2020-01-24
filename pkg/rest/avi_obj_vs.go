@@ -464,8 +464,8 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		auto_alloc := true
 		var vips []*avimodels.Vip
 		vip := avimodels.Vip{AutoAllocateIP: &auto_alloc}
-		for _, fqdn := range vsvip_meta.FQDNs {
-			dns_info := avimodels.DNSInfo{Fqdn: &fqdn}
+		for i, _ := range vsvip_meta.FQDNs {
+			dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
 			dns_info_arr = append(dns_info_arr, &dns_info)
 		}
 		vsvip.DNSInfo = dns_info_arr
