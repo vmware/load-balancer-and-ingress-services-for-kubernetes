@@ -105,6 +105,7 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 	return nil
 }
 
+
 func AviModelToUrl(model string) string {
 	switch model {
 	case "Pool":
@@ -117,6 +118,12 @@ func AviModelToUrl(model string) string {
 		return "/api/sslkeyandcertificate"
 	case "HTTPPolicySet":
 		return "/api/httppolicyset"
+	case "GSLBService":
+		return "/api/gslbservice"
+	case "VsVip":
+		return "/api/vsvip"
+	case "VSDataScriptSet":
+		return "/api/vsdatascriptset"
 	default:
 		AviLog.Warning.Printf("Unknown model %v", model)
 		return ""

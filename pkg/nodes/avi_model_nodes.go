@@ -49,6 +49,7 @@ func (v *AviObjectGraph) GetCheckSum() uint32 {
 
 func (v *AviObjectGraph) CalculateCheckSum() {
 	// A sum of fields for this model.
+	v.GraphChecksum = 0
 	for _, model := range v.modelNodes {
 		v.GraphChecksum = v.GraphChecksum + model.GetCheckSum()
 	}
