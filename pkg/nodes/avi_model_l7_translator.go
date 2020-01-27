@@ -111,7 +111,9 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(ingressConfig))
 			// Processsing insecure ingress
 			for host, val := range ingressConfig.IngressHostMap {
-				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
+				if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
+					vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
+				}
 				for _, obj := range val {
 					var priorityLabel string
 					if obj.Path != "" {
@@ -124,6 +126,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						poolNode.Servers = servers
 					}
 					poolNode.CalculateCheckSum()
+					o.AddModelNode(poolNode)
 					utils.AviLog.Info.Printf("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
 					vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
 				}

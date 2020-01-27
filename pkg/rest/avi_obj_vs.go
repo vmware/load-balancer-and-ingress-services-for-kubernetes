@@ -102,9 +102,9 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 		// TODO other fields like cloud_ref, mix of TCP & UDP protocols, etc.
 
-		for _, pp := range vs_meta.PortProto {
+		for i, pp := range vs_meta.PortProto {
 			port := pp.Port
-			svc := avimodels.Service{Port: &port, EnableSsl: &pp.EnableSSL}
+			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL}
 			if pp.Protocol == utils.TCP {
 				utils.AviLog.Info.Printf("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
 				port := pp.Port
@@ -124,10 +124,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			} else if pp.Protocol == utils.UDP && vs_meta.NetworkProfile == "System-TCP-Proxy" {
 				onw_profile := "/api/networkprofile/?name=System-UDP-Fast-Path"
 				svc.OverrideNetworkProfileRef = &onw_profile
-			}
-			if pp.EnableSSL {
-				ssl_enabled := true
-				svc.EnableSsl = &ssl_enabled
 			}
 			vs.Services = append(vs.Services, &svc)
 		}
@@ -450,8 +446,8 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		if vsvip == nil {
 			return nil
 		}
-		for _, fqdn := range vsvip_meta.FQDNs {
-			dns_info := avimodels.DNSInfo{Fqdn: &fqdn}
+		for i, _ := range vsvip_meta.FQDNs {
+			dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
 			dns_info_arr = append(dns_info_arr, &dns_info)
 		}
 		vsvip.DNSInfo = dns_info_arr
