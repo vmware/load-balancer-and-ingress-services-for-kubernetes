@@ -40,28 +40,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		rest_ops := rest.AviVsSniBuild(vs_meta, rest_method, cache_obj, key)
 		return rest_ops
 	} else {
-		var vip avimodels.Vip
-		if rest_method == utils.RestPost {
-			auto_alloc := true
-			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
-		} else {
-			auto_alloc_put := true
-			auto_allocate_floating_ip := false
-			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc_put, AutoAllocateFloatingIP: &auto_allocate_floating_ip}
-		}
-		// E/W placement subnet is don't care, just needs to be a valid subnet
-		mask := int32(24)
-		addr := "172.18.0.0"
-		atype := "V4"
-		sip := avimodels.IPAddr{Type: &atype, Addr: &addr}
-		ew_subnet := avimodels.IPAddrPrefix{IPAddr: &sip, Mask: &mask}
-		var east_west bool
-		if vs_meta.EastWest == true {
-			vip.Subnet = &ew_subnet
-			east_west = true
-		} else {
-			east_west = false
-		}
 		network_prof := "/api/networkprofile/?name=" + vs_meta.NetworkProfile
 		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
 		// TODO use PoolGroup and use policies if there are > 1 pool, etc.
@@ -77,7 +55,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			ApplicationProfileRef: &app_prof,
 			CloudConfigCksum:      &checksumstr,
 			CreatedBy:             &cr,
-			EastWestPlacement:     &east_west,
 			CloudRef:              &cloudRef,
 			ServiceMetadata:       &svc_mdata}
 
@@ -440,6 +417,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
 	var rest_op utils.RestOp
+
 	if cache_obj != nil {
 
 		vsvip := rest.AviVsVipGet(key, cache_obj.Uuid, name)
@@ -455,15 +433,29 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsvip,
 			Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
 	} else {
-		vsvip := avimodels.VsVip{Name: &name,
-			TenantRef: &tenant, CloudRef: &cloudRef}
 		auto_alloc := true
 		var vips []*avimodels.Vip
 		vip := avimodels.Vip{AutoAllocateIP: &auto_alloc}
+
+		mask := int32(24)
+		addr := "172.18.0.0"
+		atype := "V4"
+		sip := avimodels.IPAddr{Type: &atype, Addr: &addr}
+		ew_subnet := avimodels.IPAddrPrefix{IPAddr: &sip, Mask: &mask}
+		var east_west bool
+		if vsvip_meta.EastWest == true {
+			vip.Subnet = &ew_subnet
+			east_west = true
+		} else {
+			east_west = false
+		}
+
 		for i, _ := range vsvip_meta.FQDNs {
 			dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
 			dns_info_arr = append(dns_info_arr, &dns_info)
 		}
+		vsvip := avimodels.VsVip{Name: &name,
+			TenantRef: &tenant, CloudRef: &cloudRef, EastWestPlacement: &east_west}
 		vsvip.DNSInfo = dns_info_arr
 		vips = append(vips, &vip)
 		vsvip.Vip = vips

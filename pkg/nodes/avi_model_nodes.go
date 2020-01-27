@@ -264,6 +264,7 @@ type AviVSVIPNode struct {
 	Tenant           string
 	CloudConfigCksum uint32
 	FQDNs            []string
+	EastWest         bool
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {
