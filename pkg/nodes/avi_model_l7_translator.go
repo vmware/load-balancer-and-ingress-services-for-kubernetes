@@ -266,7 +266,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	} else {
 		utils.AviLog.Warning.Printf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn")
 	}
-	vsVipNode := &AviVSVIPNode{Name: vsName + "-vsvip", Tenant: utils.ADMIN_NS, FQDNs: fqdns}
+	vsVipNode := &AviVSVIPNode{Name: vsName + "-vsvip", Tenant: utils.ADMIN_NS, FQDNs: fqdns, EastWest: false}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	return avi_vs_meta
 }
