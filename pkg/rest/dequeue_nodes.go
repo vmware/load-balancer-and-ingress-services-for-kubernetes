@@ -311,9 +311,9 @@ func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName
 	for _, del_vsvip := range vsvip_to_delete {
 		// fetch trhe pool uuid from cache
 		vsvip_key := avicache.NamespaceName{Namespace: namespace, Name: del_vsvip.Name}
-		pool_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
+		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
-			vsvip_cache_obj, _ := pool_cache.(*avicache.AviVSVIPCache)
+			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
 			restOp := rest.AviVsVipDel(vsvip_cache_obj.Uuid, namespace, key)
 			restOp.ObjName = del_vsvip.Name
 			rest_ops = append(rest_ops, restOp)

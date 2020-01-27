@@ -74,11 +74,203 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	SetTenant(client.AviSession)
 	SetVersion := session.SetVersion(version)
 	SetVersion(client.AviSession)
-
+	c.AviPopulateAllPGs(client, cloud)
+	c.AviPopulateAllDSs(client, cloud)
+	c.AviPopulateAllSSLKeys(client, cloud)
+	c.AviPopulateAllHttpPolicySets(client, cloud)
+	c.AviPopulateAllPools(client, cloud)
 	// Populate the VS cache
 	c.AviObjVSCachePopulate(client, cloud)
 	c.AviCloudPropertiesPopulate(client, cloud)
 	c.AviObjVrfCachePopulate(client)
+}
+
+func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
+	cloud string, override_uri ...NextPage) {
+	var uri string
+	if len(override_uri) == 1 {
+		uri = override_uri[0].Next_uri
+	} else {
+		uri = "/api/poolgroup?include_name=true&cloud_ref.name=" + cloud
+	}
+	result, err := client.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Get uri %v returned err for pg %v", uri, err)
+		return
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Failed to unmarshal pg data, err: %v", err)
+		return
+	}
+	for i := 0; i < result.Count; i++ {
+		pg := models.PoolGroup{}
+		err = json.Unmarshal(elems[i], &pg)
+		if err != nil {
+			utils.AviLog.Warning.Printf("Failed to unmarshal pg data, err: %v", err)
+			continue
+		}
+
+		pgCacheObj := AviPGCache{
+			Name:             *pg.Name,
+			Uuid:             *pg.UUID,
+			CloudConfigCksum: *pg.CloudConfigCksum,
+		}
+		utils.AviLog.Info.Printf("Adding pg to Cache %s\n", *pg.Name)
+		c.PgCache.AviCacheAdd(*pg.Name, &pgCacheObj)
+
+	}
+}
+
+func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
+	cloud string, override_uri ...NextPage) {
+	var uri string
+	if len(override_uri) == 1 {
+		uri = override_uri[0].Next_uri
+	} else {
+		uri = "/api/vsdatascriptset?include_name=true&cloud_ref.name=" + cloud
+	}
+	result, err := client.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Get uri %v returned err for datascript %v", uri, err)
+		return
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Failed to unmarshal datascript data, err: %v", err)
+		return
+	}
+	for i := 0; i < result.Count; i++ {
+		ds := models.VSDataScriptSet{}
+		err = json.Unmarshal(elems[i], &ds)
+		if err != nil {
+			utils.AviLog.Warning.Printf("Failed to unmarshal datascript data, err: %v", err)
+			continue
+		}
+
+		dsCacheObj := AviDSCache{
+			Name: *ds.Name,
+			Uuid: *ds.UUID,
+		}
+		utils.AviLog.Info.Printf("Adding datascript to Cache %s\n", *ds.Name)
+		c.DSCache.AviCacheAdd(*ds.Name, &dsCacheObj)
+
+	}
+}
+
+func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
+	cloud string, override_uri ...NextPage) {
+	var uri string
+	if len(override_uri) == 1 {
+		uri = override_uri[0].Next_uri
+	} else {
+		uri = "/api/sslkeyandcertificate?include_name=true&cloud_ref.name=" + cloud
+	}
+	result, err := client.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Get uri %v returned err for sslkeyandcertificate %v", uri, err)
+		return
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Failed to unmarshal sslkeyandcertificate data, err: %v", err)
+		return
+	}
+	for i := 0; i < result.Count; i++ {
+		sslkey := models.SSLKeyAndCertificate{}
+		err = json.Unmarshal(elems[i], &sslkey)
+		if err != nil {
+			utils.AviLog.Warning.Printf("Failed to unmarshal sslkeyandcertificate data, err: %v", err)
+			continue
+		}
+
+		sslCacheObj := AviSSLCache{
+			Name: *sslkey.Name,
+			Uuid: *sslkey.UUID,
+		}
+		utils.AviLog.Info.Printf("Adding sslkeyandcertificate to Cache %s\n", *sslkey.Name)
+		c.SSLKeyCache.AviCacheAdd(*sslkey.Name, &sslCacheObj)
+
+	}
+}
+
+func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
+	cloud string, override_uri ...NextPage) {
+	var uri string
+	if len(override_uri) == 1 {
+		uri = override_uri[0].Next_uri
+	} else {
+		uri = "/api/httppolicyset?include_name=true&cloud_ref.name=" + cloud
+	}
+	result, err := client.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Get uri %v returned err for httppolicyset %v", uri, err)
+		return
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Failed to unmarshal httppolicyset data, err: %v", err)
+		return
+	}
+	for i := 0; i < result.Count; i++ {
+		httppol := models.HTTPPolicySet{}
+		err = json.Unmarshal(elems[i], &httppol)
+		if err != nil {
+			utils.AviLog.Warning.Printf("Failed to unmarshal httppolicyset data, err: %v", err)
+			continue
+		}
+
+		httpPolCacheObj := AviHTTPPolicyCache{
+			Name:             *httppol.Name,
+			Uuid:             *httppol.UUID,
+			CloudConfigCksum: *httppol.CloudConfigCksum,
+		}
+		utils.AviLog.Info.Printf("Adding httppolicyset to Cache %s\n", *httppol.Name)
+		c.HTTPPolCache.AviCacheAdd(*httppol.Name, &httpPolCacheObj)
+
+	}
+}
+
+func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
+	cloud string, override_uri ...NextPage) {
+	var uri string
+	if len(override_uri) == 1 {
+		uri = override_uri[0].Next_uri
+	} else {
+		uri = "/api/pool?include_name=true&cloud_ref.name=" + cloud
+	}
+	result, err := client.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Get uri %v returned err for pool %v", uri, err)
+		return
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Failed to unmarshal pool data, err: %v", err)
+		return
+	}
+	for i := 0; i < result.Count; i++ {
+		pool := models.Pool{}
+		err = json.Unmarshal(elems[i], &pool)
+		if err != nil {
+			utils.AviLog.Warning.Printf("Failed to unmarshal pool data, err: %v", err)
+			continue
+		}
+
+		poolCacheObj := AviPoolCache{
+			Name:             *pool.Name,
+			Uuid:             *pool.UUID,
+			CloudConfigCksum: *pool.CloudConfigCksum,
+		}
+		utils.AviLog.Info.Printf("Adding pool to Cache %s\n", *pool.Name)
+		c.PoolCache.AviCacheAdd(*pool.Name, &poolCacheObj)
+
+	}
 }
 
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient) {
@@ -317,13 +509,8 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 				continue
 			}
 			if pg["cloud_config_cksum"] != nil {
-				pg_cache_obj := AviPGCache{Name: pg["name"].(string),
-					Tenant: tenant, Uuid: pg["uuid"].(string),
-					CloudConfigCksum: pg["cloud_config_cksum"].(string)}
 				k := NamespaceName{Namespace: tenant, Name: pg["name"].(string)}
-				c.PgCache.AviCacheAdd(k, &pg_cache_obj)
-				utils.AviLog.Info.Printf("Added PG cache key %v val %v",
-					k, pg_cache_obj)
+				utils.AviLog.Info.Printf("Added PG cache key %v to VS", k)
 				pg_key_collection = append(pg_key_collection, k)
 			}
 
@@ -473,16 +660,11 @@ func (c *AviObjCache) AviHTTPolicyCachePopulate(client *clients.AviClient,
 				utils.AviLog.Warning.Printf("http_intf not of type map[string] interface{}. Instead of type %T", pol_intf)
 				continue
 			}
-			if pol["cloud_config_cksum"] != nil {
-				pol_cache_obj := AviHTTPPolicyCache{Name: pol["name"].(string),
-					Tenant: tenant, Uuid: pol["uuid"].(string),
-					CloudConfigCksum: pol["cloud_config_cksum"].(string)}
-				k := NamespaceName{Namespace: tenant, Name: pol["name"].(string)}
-				c.HTTPPolCache.AviCacheAdd(k, &pol_cache_obj)
-				utils.AviLog.Info.Printf("Added HTTP Policy cache key %v val %v",
-					k, pol_cache_obj)
-				http_pol_key_collection = append(http_pol_key_collection, k)
-			}
+
+			k := NamespaceName{Namespace: tenant, Name: pol["name"].(string)}
+			utils.AviLog.Info.Printf("Added HTTP Policy cache key %v",
+				k)
+			http_pol_key_collection = append(http_pol_key_collection, k)
 
 		}
 		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
@@ -547,12 +729,9 @@ func (c *AviObjCache) AviSSLKeyCachePopulate(client *clients.AviClient,
 				continue
 			}
 
-			sslkey_cache_obj := AviSSLCache{Name: ssl["name"].(string),
-				Tenant: tenant, Uuid: ssl["uuid"].(string)}
 			k := NamespaceName{Namespace: tenant, Name: ssl["name"].(string)}
-			c.HTTPPolCache.AviCacheAdd(k, &sslkey_cache_obj)
-			utils.AviLog.Info.Printf("Added SSL Key cache key %v val %v",
-				k, sslkey_cache_obj)
+			utils.AviLog.Info.Printf("Added SSL Key cache key %v",
+				k)
 			ssl_key_collection = append(ssl_key_collection, k)
 
 		}
@@ -650,17 +829,11 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 				// Not caching a pool with malformed metadata?
 				continue
 			}
-			pool_cache_obj := AviPoolCache{Name: pool["name"].(string),
-				Tenant: tenant, Uuid: pool["uuid"].(string),
-				CloudConfigCksum:   pool["cloud_config_cksum"].(string),
-				ServiceMetadataObj: svc_mdata_obj}
 
 			k := NamespaceName{Namespace: tenant, Name: pool["name"].(string)}
-
-			c.PoolCache.AviCacheAdd(k, &pool_cache_obj)
 			pool_key_collection = append(pool_key_collection, k)
-			utils.AviLog.Info.Printf("Added Pool cache key %v val %v",
-				k, pool_cache_obj)
+			utils.AviLog.Info.Printf("Added Pool cache key %v val.",
+				k)
 
 		}
 		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
@@ -721,16 +894,10 @@ func (c *AviObjCache) AviDataScriptPopulate(client *clients.AviClient,
 				continue
 			}
 
-			ds_cache_obj := AviDSCache{Name: ds["name"].(string),
-				Tenant: tenant, Uuid: ds["uuid"].(string)}
-
 			k := NamespaceName{Namespace: tenant, Name: ds["name"].(string)}
 
-			c.PoolCache.AviCacheAdd(k, &ds_cache_obj)
 			ds_key_collection = append(ds_key_collection, k)
-			utils.AviLog.Info.Printf("Added DS cache key %v val %v",
-				k, ds_cache_obj)
-
+			utils.AviLog.Info.Printf("Added DS cache key %v ", k)
 		}
 		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
 		if found {

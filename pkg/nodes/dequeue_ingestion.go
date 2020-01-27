@@ -96,6 +96,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		for _, ingress := range ingressNames {
 			// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 			// does not allow cross tenant ingress references.
+			utils.AviLog.Info.Printf("key :%s, msg: evaluating ingress: %s", key, ingress)
 			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 			if !found {
 				utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
@@ -140,11 +141,10 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue) {
 
 func PublishKeyToRestLayer(aviGraph *AviObjectGraph, model_name string, key string, sharedQueue *utils.WorkerQueue, fullsync bool) {
 	// First see if there's another instance of the same model in the store
-	utils.AviLog.Info.Printf("key: %s, msg: Evaluating model :%s", model_name)
+	utils.AviLog.Info.Printf("key: %s, msg: Evaluating model :%s", key, model_name)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
 		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
-
 		utils.AviLog.Info.Printf("key :%s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
 		utils.AviLog.Info.Printf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
@@ -203,7 +203,7 @@ func DeriveNamespacedShardVS(namespace string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	var vsNum uint32
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
-	shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")
+	shardVsPrefix := os.Getenv("CLOUD_NAME")
 	if shardVsPrefix == "" {
 		shardVsPrefix = utils.DEFAULT_SHARD_VS_PREFIX
 	}

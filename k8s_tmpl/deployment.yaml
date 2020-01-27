@@ -45,18 +45,18 @@ spec:
             configMapKeyRef:
               name: avi-k8s-config
               key: shardVSSize
-        - name: SHARD_VS_PREFIX
-          valueFrom:
-            configMapKeyRef:
-              name: avi-k8s-config
-              key: shardVSNamePrefix
-        - name: CLOUD_VTYPE
-          valueFrom:
-            configMapKeyRef:
-              name: avi-k8s-config
-              key: cloudVtype
         - name: FULL_SYNC_INTERVAL
           valueFrom:
             configMapKeyRef:
               name: avi-k8s-config
               key: fullSyncFrequency
+        - name: CLOUD_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: cloudName
+        - name: VRF_CONTEXT
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: vrfRefName
