@@ -91,7 +91,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/poolgroups?include_name=true&cloud_ref.name=" + cloud
+		uri = "/api/poolgroup?include_name=true&cloud_ref.name=" + cloud
 	}
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
@@ -187,7 +187,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
 			continue
 		}
 
-		sslCacheObj := AviDSCache{
+		sslCacheObj := AviSSLCache{
 			Name: *sslkey.Name,
 			Uuid: *sslkey.UUID,
 		}
@@ -241,7 +241,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/pools?include_name=true&cloud_ref.name=" + cloud
+		uri = "/api/pool?include_name=true&cloud_ref.name=" + cloud
 	}
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
