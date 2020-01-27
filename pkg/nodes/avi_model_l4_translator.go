@@ -55,6 +55,9 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	} else {
 		avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	}
+	var fqdns []string
+	vsVipNode := &AviVSVIPNode{Name: svcObj.ObjectMeta.Name + "-vsvip", Tenant: utils.ADMIN_NS, FQDNs: fqdns}
+	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	utils.AviLog.Info.Printf("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta
 }
@@ -80,6 +83,8 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		vsNode.TCPPoolGroupRefs = append(vsNode.TCPPoolGroupRefs, pgNode)
 		pgNode.CalculateCheckSum()
 		poolNode.CalculateCheckSum()
+
+		o.AddModelNode(poolNode)
 		vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
 		o.GraphChecksum = o.GraphChecksum + pgNode.GetCheckSum()
 		o.GraphChecksum = o.GraphChecksum + poolNode.GetCheckSum()

@@ -376,7 +376,7 @@ func (c *AviObjCache) AviVSVIPCachePopulate(client *clients.AviClient,
 				rest_response, rest_response)
 			return
 		}
-		utils.AviLog.Info.Printf("VSVIP Get uri %v returned %v PGs", uri,
+		utils.AviLog.Info.Printf("VSVIP Get uri %v returned %v VSVIPs", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {

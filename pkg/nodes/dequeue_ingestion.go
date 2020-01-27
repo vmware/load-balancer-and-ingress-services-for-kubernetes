@@ -143,7 +143,8 @@ func PublishKeyToRestLayer(aviGraph *AviObjectGraph, model_name string, key stri
 	utils.AviLog.Info.Printf("key: %s, msg: Evaluating model :%s", model_name)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
-		prevChecksum := aviModel.(*AviObjectGraph).GetCheckSum()
+		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
+
 		utils.AviLog.Info.Printf("key :%s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
 		utils.AviLog.Info.Printf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
