@@ -66,11 +66,20 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		path = "/api/pool/" + cache_obj.Uuid
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pool,
 			Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
-
 	} else {
-		path = "/api/macro"
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
-			Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+		// Patch an existing pool if it exists in the cache but not associated with this VS.
+		pool_key := avicache.NamespaceName{Namespace: pool_meta.Tenant, Name: name}
+		pool_cache, ok := rest.cache.PoolCache.AviCacheGet(pool_key)
+		if ok {
+			pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
+			path = "/api/pool/" + pool_cache_obj.Uuid
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pool,
+				Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+		} else {
+			path = "/api/macro"
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+				Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+		}
 	}
 
 	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: pool Restop %v K8sAviPoolMeta %v\n", key,

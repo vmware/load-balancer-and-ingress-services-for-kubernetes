@@ -112,6 +112,11 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 			continue
 		}
 
+		if pg.Name == nil || pg.UUID == nil || pg.CloudConfigCksum == nil {
+			utils.AviLog.Warning.Printf("Incomplete pg data unmarshalled, %s", utils.Stringify(pg))
+			continue
+		}
+
 		pgCacheObj := AviPGCache{
 			Name:             *pg.Name,
 			Uuid:             *pg.UUID,

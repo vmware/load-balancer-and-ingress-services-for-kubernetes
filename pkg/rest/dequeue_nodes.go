@@ -195,7 +195,6 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		// VS delete should delete everything together.
 		rest_op := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
 		rest_ops = append(rest_ops, rest_op)
-		rest_ops = rest.VSVipDelete(vs_cache_obj.VSVipKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
@@ -514,16 +513,18 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 
 func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	var cache_ds_nodes []avicache.NamespaceName
+
 	if vs_cache_obj != nil {
 		cache_ds_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.DSKeyCollection))
 		copy(cache_ds_nodes, vs_cache_obj.DSKeyCollection)
+
 		// Default is POST
 		if cache_ds_nodes != nil {
 			for _, ds := range ds_nodes {
 				// check in the ds cache to see if this ds exists in AVI
 				ds_key := avicache.NamespaceName{Namespace: namespace, Name: ds.Name}
 				found := utils.HasElem(cache_ds_nodes, ds_key)
-				if !found {
+				if found {
 					cache_ds_nodes = Remove(cache_ds_nodes, ds_key)
 					_, ok := rest.cache.DSCache.AviCacheGet(ds_key)
 					if !ok {
@@ -532,7 +533,6 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 						rest_ops = append(rest_ops, restOp)
 					}
 				}
-
 			}
 		}
 	} else {

@@ -250,7 +250,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	portProtocols = append(portProtocols, httpsPort)
 	avi_vs_meta.PortProto = portProtocols
 	// Default case.
-	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE
+	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	avi_vs_meta.SNIParent = true
 	o.AddModelNode(avi_vs_meta)
