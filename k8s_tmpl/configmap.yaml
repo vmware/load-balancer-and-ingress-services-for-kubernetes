@@ -8,7 +8,7 @@ data:
   controllerIP: "10.52.3.116:9443"
   controllerVersion: "18.2.7"
   shardVSSize: "LARGE" # SHARD VS size - ENUM: LARGE, MEDIUM, SMALL
-  shardVSNum: 8  # The shardVSSize is ignored if this value is set
-  fullSyncFrequency: 300 # Value in seconds
+  shardVSNum: "8"  # The shardVSSize is ignored if this value is set
+  fullSyncFrequency: "300" # Value in seconds
   cloudName: "Default-Cloud"
   vrfRefName: "global"

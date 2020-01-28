@@ -123,7 +123,8 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 			CloudConfigCksum: *pg.CloudConfigCksum,
 		}
 		utils.AviLog.Info.Printf("Adding pg to Cache %s\n", *pg.Name)
-		c.PgCache.AviCacheAdd(*pg.Name, &pgCacheObj)
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pg.Name}
+		c.PgCache.AviCacheAdd(k, &pgCacheObj)
 
 	}
 }
@@ -160,7 +161,8 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
 			Uuid: *ds.UUID,
 		}
 		utils.AviLog.Info.Printf("Adding datascript to Cache %s\n", *ds.Name)
-		c.DSCache.AviCacheAdd(*ds.Name, &dsCacheObj)
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *ds.Name}
+		c.DSCache.AviCacheAdd(k, &dsCacheObj)
 
 	}
 }
@@ -197,7 +199,8 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
 			Uuid: *sslkey.UUID,
 		}
 		utils.AviLog.Info.Printf("Adding sslkeyandcertificate to Cache %s\n", *sslkey.Name)
-		c.SSLKeyCache.AviCacheAdd(*sslkey.Name, &sslCacheObj)
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *sslkey.Name}
+		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
 
 	}
 }
@@ -235,7 +238,8 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 			CloudConfigCksum: *httppol.CloudConfigCksum,
 		}
 		utils.AviLog.Info.Printf("Adding httppolicyset to Cache %s\n", *httppol.Name)
-		c.HTTPPolCache.AviCacheAdd(*httppol.Name, &httpPolCacheObj)
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *httppol.Name}
+		c.HTTPPolCache.AviCacheAdd(k, &httpPolCacheObj)
 
 	}
 }
@@ -273,7 +277,8 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 			CloudConfigCksum: *pool.CloudConfigCksum,
 		}
 		utils.AviLog.Info.Printf("Adding pool to Cache %s\n", *pool.Name)
-		c.PoolCache.AviCacheAdd(*pool.Name, &poolCacheObj)
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pool.Name}
+		c.PoolCache.AviCacheAdd(k, &poolCacheObj)
 
 	}
 }
