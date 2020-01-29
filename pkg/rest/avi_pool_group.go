@@ -46,9 +46,19 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pg,
 			Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
 	} else {
-		path = "/api/macro"
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
-			Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
+		// Patch an existing pg if it exists in the cache but not associated with this VS.
+		pg_key := avicache.NamespaceName{Namespace: pg_meta.Tenant, Name: name}
+		pg_cache, ok := rest.cache.PgCache.AviCacheGet(pg_key)
+		if ok {
+			pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
+			path = "/api/poolgroup/" + pg_cache_obj.Uuid
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pg,
+				Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
+		} else {
+			path = "/api/macro"
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+				Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
+		}
 	}
 
 	return &rest_op

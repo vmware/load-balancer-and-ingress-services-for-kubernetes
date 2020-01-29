@@ -115,9 +115,19 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
 
 	} else {
-		path = "/api/macro"
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
-			Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
+		// Patch an existing http policy set object if it exists in the cache but not associated with this VS.
+		httppol_key := avicache.NamespaceName{Namespace: hps_meta.Tenant, Name: hps_meta.Name}
+		hps_cache, ok := rest.cache.HTTPPolCache.AviCacheGet(httppol_key)
+		if ok {
+			hps_cache_obj, _ := hps_cache.(*avicache.AviHTTPPolicyCache)
+			path = "/api/httppolicyset/" + hps_cache_obj.Uuid
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
+				Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
+		} else {
+			path = "/api/macro"
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+				Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
+		}
 	}
 
 	utils.AviLog.Info.Print(spew.Sprintf("HTTPPolicySet Restop %v AviHttpPolicySetMeta %v\n",
