@@ -468,9 +468,28 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		vsvip.Vip = vips
 		macro := utils.AviRestObjMacro{ModelName: "VsVip", Data: vsvip}
 		path = "/api/macro"
-
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
-			Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
+		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
+		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
+		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)s
+		if ok {
+			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
+			vsvip_avi := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name)
+			if vsvip_avi == nil {
+				return nil
+			}
+			for i, _ := range vsvip_meta.FQDNs {
+				dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
+				dns_info_arr = append(dns_info_arr, &dns_info)
+			}
+			vsvip_avi.DNSInfo = dns_info_arr
+			vsvip_avi.VrfContextRef = &vrfContextRef
+			path = "/api/vsvip/" + vsvip_cache_obj.Uuid
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsvip_avi,
+				Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
+		} else {
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+				Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
+		}
 	}
 
 	return &rest_op

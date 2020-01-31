@@ -117,7 +117,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	} else {
 		// Patch an existing http policy set object if it exists in the cache but not associated with this VS.
 		httppol_key := avicache.NamespaceName{Namespace: hps_meta.Tenant, Name: hps_meta.Name}
-		hps_cache, ok := rest.cache.HTTPPolCache.AviCacheGet(httppol_key)
+		hps_cache, ok := rest.cache.HTTPPolicyCache.AviCacheGet(httppol_key)
 		if ok {
 			hps_cache_obj, _ := hps_cache.(*avicache.AviHTTPPolicyCache)
 			path = "/api/httppolicyset/" + hps_cache_obj.Uuid

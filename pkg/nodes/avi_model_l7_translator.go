@@ -75,23 +75,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			ok, hosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
 			if ok {
 				// Remove these hosts from the overall FQDN list
-				if len(vsNode[0].VSVIPRefs) > 0 {
-					newFQDNs := make([]string, len(vsNode[0].VSVIPRefs[0].FQDNs))
-					utils.AviLog.Info.Printf("key: %s, msg: found fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
-					for _, host := range hosts {
-						var i int
-						for _, fqdn := range vsNode[0].VSVIPRefs[0].FQDNs {
-							if fqdn != host {
-								// Gather this entry in the new list
-								newFQDNs[i] = fqdn
-								i++
-							}
-						}
-						// Empty unsed bytes.
-						newFQDNs = newFQDNs[:i]
-					}
-					vsNode[0].VSVIPRefs[0].FQDNs = newFQDNs
-				}
+				RemoveFQDNsFromModel(vsNode[0], hosts, key)
 			}
 			utils.AviLog.Info.Printf("key: %s, msg: after removing fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
 			// Now remove the secret relationship
@@ -106,6 +90,18 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		for _, pool := range poolNodes {
 			o.RemovePoolNodeRefs(pool.Name)
 		}
+		// First retrieve the FQDNs from the cache and update the model
+		ok, Storedhosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+		if ok {
+			RemoveFQDNsFromModel(vsNode[0], Storedhosts, key)
+		}
+		// Update the host mappings for this ingress
+		parsedIng := parseHostPathForIngress(ingName, ingObj.Spec, key)
+		var hosts []string
+		for host, _ := range parsedIng.IngressHostMap {
+			hosts = append(hosts, host)
+		}
+		objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, hosts)
 		// PGs are in 'admin' namespace right now.
 		if pgNode != nil {
 			ingressConfig := parseHostPathForIngress(ingName, ingObj.Spec, key)
@@ -157,6 +153,27 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	for _, poolNode := range vsNode[0].PoolRefs {
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
+	}
+}
+
+func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
+	if len(vsNode.VSVIPRefs) > 0 {
+		newFQDNs := make([]string, len(vsNode.VSVIPRefs[0].FQDNs))
+		copy(newFQDNs, vsNode.VSVIPRefs[0].FQDNs)
+		utils.AviLog.Info.Printf("key: %s, msg: found fqdn refs in vs : %s", key, vsNode.VSVIPRefs[0].FQDNs)
+		for _, host := range hosts {
+			var i int
+			for _, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
+				if fqdn != host {
+					// Gather this entry in the new list
+					newFQDNs[i] = fqdn
+					i++
+				}
+			}
+			// Empty unsed bytes.
+			newFQDNs = newFQDNs[:i]
+		}
+		vsNode.VSVIPRefs[0].FQDNs = newFQDNs
 	}
 }
 

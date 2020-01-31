@@ -24,14 +24,13 @@ import (
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
+	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
 type AviObjCache struct {
 	VsCache         *AviCache
 	PgCache         *AviCache
-	HTTPPolCache    *AviCache
 	DSCache         *AviCache
 	PoolCache       *AviCache
 	CloudKeyCache   *AviCache
@@ -79,6 +78,7 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	c.AviPopulateAllDSs(client, cloud)
 	c.AviPopulateAllSSLKeys(client, cloud)
 	c.AviPopulateAllHttpPolicySets(client, cloud)
+	c.AviPopulateAllVSVips(client, cloud)
 	c.AviPopulateAllPools(client, cloud)
 	// Populate the VS cache
 	c.AviObjVSCachePopulate(client, cloud)
@@ -126,6 +126,49 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 		utils.AviLog.Info.Printf("Adding pg to Cache %s\n", *pg.Name)
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pg.Name}
 		c.PgCache.AviCacheAdd(k, &pgCacheObj)
+
+	}
+}
+
+func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
+	cloud string, override_uri ...NextPage) {
+	var uri string
+	if len(override_uri) == 1 {
+		uri = override_uri[0].Next_uri
+	} else {
+		uri = "/api/vsvip?include_name=true&cloud_ref.name=" + cloud
+	}
+	result, err := client.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Get uri %v returned err for vsvip %v", uri, err)
+		return
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Failed to unmarshal vsvip data, err: %v", err)
+		return
+	}
+	for i := 0; i < result.Count; i++ {
+		vsvip := models.VsVip{}
+		err = json.Unmarshal(elems[i], &vsvip)
+		if err != nil {
+			utils.AviLog.Warning.Printf("Failed to unmarshal vsvip data, err: %v", err)
+			continue
+		}
+
+		if vsvip.Name == nil || vsvip.UUID == nil {
+			utils.AviLog.Warning.Printf("Incomplete vsvip data unmarshalled, %s", utils.Stringify(vsvip))
+			continue
+		}
+
+		vsVipCacheObj := AviVSVIPCache{
+			Name: *vsvip.Name,
+			Uuid: *vsvip.UUID,
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *vsvip.Name}
+		c.VSVIPCache.AviCacheAdd(k, &vsVipCacheObj)
+		utils.AviLog.Info.Printf("Adding vsvip to Cache %s with key: %s\n", *vsvip.Name, k)
 
 	}
 }
@@ -240,7 +283,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 		}
 		utils.AviLog.Info.Printf("Adding httppolicyset to Cache %s\n", *httppol.Name)
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *httppol.Name}
-		c.HTTPPolCache.AviCacheAdd(k, &httpPolCacheObj)
+		c.HTTPPolicyCache.AviCacheAdd(k, &httpPolCacheObj)
 
 	}
 }

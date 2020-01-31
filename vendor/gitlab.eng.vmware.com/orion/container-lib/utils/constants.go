@@ -61,4 +61,5 @@ const (
 	GlobalVRF                     = "global"
 	VRF_CONTEXT                   = "VRF_CONTEXT"
 	FULL_SYNC_INTERVAL            = "FULL_SYNC_INTERVAL"
+	DEFAULT_AVI_LOG               = "avi.log"
 )

@@ -564,6 +564,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 					if ok {
 						vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
 						// Cache found. Let's compare the checksums
+						utils.AviLog.Info.Printf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
 						if utils.Hash(utils.Stringify(vsvip_cache_obj.FQDNs)) == vsvip.GetCheckSum() {
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
