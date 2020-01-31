@@ -19,6 +19,7 @@ import (
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
+	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -38,6 +39,10 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	// FQDN should come from the cloud. Modify
 	avi_vs_meta = &AviVsNode{Name: svcObj.ObjectMeta.Name + "--" + svcObj.ObjectMeta.Namespace, Tenant: utils.ADMIN_NS,
 		EastWest: false, ServiceMetadata: avicache.LBServiceMetadataObj{ServiceName: svcObj.ObjectMeta.Name, Namespace: svcObj.ObjectMeta.Namespace}}
+
+	vrfcontext := lib.GetVrf()
+	avi_vs_meta.VrfContext = vrfcontext
+
 	isTCP := false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
@@ -56,7 +61,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	}
 	var fqdns []string
-	vsVipNode := &AviVSVIPNode{Name: svcObj.ObjectMeta.Name + "-vsvip", Tenant: utils.ADMIN_NS, FQDNs: fqdns, EastWest: false}
+	vsVipNode := &AviVSVIPNode{Name: svcObj.ObjectMeta.Name + "-vsvip", Tenant: utils.ADMIN_NS,
+		FQDNs: fqdns, EastWest: false, VrfContext: vrfcontext}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	utils.AviLog.Info.Printf("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta
@@ -70,7 +76,7 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS, Port: fmt.Sprint(filterPort)}
 		// For TCP - the PG to Pool relationship is 1x1
 		poolNode := &AviPoolNode{Name: "l4-" + pgName, Tenant: utils.ADMIN_NS, Port: filterPort, Protocol: portProto.Protocol}
-
+		poolNode.VrfContext = lib.GetVrf()
 		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {
 			poolNode.Servers = servers
 		}

@@ -35,8 +35,10 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
+	vrfContextRef := "/api/vrfcontext?name=" + pool_meta.VrfContext
 	pool := avimodels.Pool{Name: &name, CloudConfigCksum: &cksumString,
-		CreatedBy: &cr, TenantRef: &tenant, CloudRef: &cloudRef, ServiceMetadata: &svc_mdata}
+		CreatedBy: &cr, TenantRef: &tenant, CloudRef: &cloudRef,
+		ServiceMetadata: &svc_mdata, VrfRef: &vrfContextRef}
 
 	for _, server := range pool_meta.Servers {
 		sip := server.Ip
