@@ -142,6 +142,7 @@ type AviVsNode struct {
 	TLSType            string
 	IsSNIChild         bool
 	ServiceMetadata    avicache.LBServiceMetadataObj
+	VrfContext         string
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -265,6 +266,7 @@ type AviVSVIPNode struct {
 	CloudConfigCksum uint32
 	FQDNs            []string
 	EastWest         bool
+	VrfContext       string
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {
@@ -376,6 +378,7 @@ type AviPoolNode struct {
 	IngressName      string
 	PriorityLabel    string
 	ServiceMetadata  avicache.ServiceMetadataObj
+	VrfContext       string
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {

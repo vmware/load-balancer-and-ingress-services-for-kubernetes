@@ -25,6 +25,7 @@ import (
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 )
 
 type AviObjCache struct {
@@ -328,7 +329,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/virtualservice?include_name=true&cloud_ref.name=" + cloud
+		uri = "/api/virtualservice?include_name=true&cloud_ref.name=" + cloud + "&vrf_context_ref.name=" + lib.GetVrf()
 	}
 	err := client.AviSession.Get(uri, &rest_response)
 

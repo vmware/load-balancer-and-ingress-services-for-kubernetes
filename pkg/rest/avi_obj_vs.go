@@ -50,13 +50,16 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		cloudRef := "/api/cloud?name=" + utils.CloudName
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
+		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 		vs := avimodels.VirtualService{Name: &name,
 			NetworkProfileRef:     &network_prof,
 			ApplicationProfileRef: &app_prof,
 			CloudConfigCksum:      &checksumstr,
 			CreatedBy:             &cr,
 			CloudRef:              &cloudRef,
-			ServiceMetadata:       &svc_mdata}
+			ServiceMetadata:       &svc_mdata,
+			VrfContextRef:         &vrfContextRef,
+		}
 
 		if vs_meta.DefaultPoolGroup != "" {
 			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
@@ -160,12 +163,15 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	}
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
+	vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 	sniChild := &avimodels.VirtualService{Name: &name, CloudConfigCksum: &checksumstr,
 		CreatedBy:             &cr,
 		NetworkProfileRef:     &network_prof,
 		ApplicationProfileRef: &app_prof,
 		EastWestPlacement:     &east_west,
-		CloudRef:              &cloudRef}
+		CloudRef:              &cloudRef,
+		VrfContextRef:         &vrfContextRef,
+	}
 
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
 	vh_type := utils.VS_TYPE_VH_CHILD
@@ -454,8 +460,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
 			dns_info_arr = append(dns_info_arr, &dns_info)
 		}
-		vsvip := avimodels.VsVip{Name: &name,
-			TenantRef: &tenant, CloudRef: &cloudRef, EastWestPlacement: &east_west}
+		vrfContextRef := "/api/vrfcontext?name=" + vsvip_meta.VrfContext
+		vsvip := avimodels.VsVip{Name: &name, TenantRef: &tenant, CloudRef: &cloudRef,
+			EastWestPlacement: &east_west, VrfContextRef: &vrfContextRef}
 		vsvip.DNSInfo = dns_info_arr
 		vips = append(vips, &vip)
 		vsvip.Vip = vips

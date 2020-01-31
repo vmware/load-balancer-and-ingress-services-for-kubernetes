@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 
+	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -126,10 +127,7 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue) {
 	}
 	aviModel := NewAviObjectGraph()
 	aviModel.IsVrf = true
-	vrfcontext := os.Getenv(utils.VRF_CONTEXT)
-	if vrfcontext == "" {
-		vrfcontext = utils.GlobalVRF
-	}
+	vrfcontext := lib.GetVrf()
 	err = aviModel.BuildVRFGraph(key, vrfcontext)
 	if err != nil {
 		utils.AviLog.Error.Printf("key: %s, msg: Error creating vrf graph: %v\n", key, err)
