@@ -15,7 +15,6 @@
 package integrationtest
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -70,7 +69,9 @@ func TestNoModel(t *testing.T) {
 func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	model_name := "admin/Shard-VS-6"
+	os.Setenv("CLOUD_NAME", "Shard-VS-")
+	os.Setenv("VRF_CONTEXT", "global")
+	model_name := "admin/Shard-VS---global-6"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := (fakeService{
 		name:         "avisvc",
@@ -143,7 +144,7 @@ func TestL7Model(t *testing.T) {
 func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	model_name := "admin/Shard-VS-6"
+	model_name := "admin/Shard-VS---global-6"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := (fakeService{
 		name:         "avisvc",
@@ -207,7 +208,6 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			fmt.Printf("HOLAA :%s", pool.Name)
 			// We should get two pools.
 			if pool.Name == "foo.com/foo--default--foo-with-targets1" {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
@@ -323,7 +323,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 func TestMultiVSIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	model_name := "admin/Shard-VS-6"
+	model_name := "admin/Shard-VS---global-6"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := (fakeService{
 		name:         "avisvc",
@@ -392,7 +392,7 @@ func TestMultiVSIngress(t *testing.T) {
 		serviceName: "avisvc",
 	}).Ingress()
 	_, err = kubeClient.ExtensionsV1beta1().Ingresses("randomnamespacethatyeildsdiff").Create(randoming)
-	model_name = "admin/Shard-VS-5"
+	model_name = "admin/Shard-VS---global-5"
 	pollForCompletion(t, model_name, 5)
 	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
 	if found {

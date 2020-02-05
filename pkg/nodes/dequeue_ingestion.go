@@ -200,10 +200,16 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 func DeriveNamespacedShardVS(namespace string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	var vsNum uint32
+	var shardVsPrefix string
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
-	shardVsPrefix := os.Getenv("CLOUD_NAME")
-	if shardVsPrefix == "" {
-		shardVsPrefix = utils.DEFAULT_SHARD_VS_PREFIX
+	vrfName := os.Getenv("VRF_CONTEXT")
+	cloudName := os.Getenv("CLOUD_NAME")
+	utils.AviLog.Error.Printf("key: %s, msg: CloudName: %s", key, cloudName)
+	if vrfName == "" || cloudName == "" {
+		utils.AviLog.Warning.Printf("key: %s, msg: vrfname :%s or cloudname: %s not set", key, vrfName, cloudName)
+		shardVsPrefix = "Default-Cloud---global-"
+	} else {
+		shardVsPrefix = cloudName + "--" + vrfName + "-"
 	}
 	shardSize, ok := shardSizeMap[shardVsSize]
 	if ok {

@@ -470,7 +470,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
-		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)s
+		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
 			vsvip_avi := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name)
