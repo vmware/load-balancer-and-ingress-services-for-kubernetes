@@ -16,9 +16,11 @@ package k8s
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"sync"
 
+	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -334,7 +336,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
 	c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
 	c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
-	c.informers.NodeInformer.Informer().AddEventHandler(node_event_handler)
+	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+		utils.AviLog.Info.Printf("Static route sync disabled, skipping node informers")
+	} else {
+		c.informers.NodeInformer.Informer().AddEventHandler(node_event_handler)
+	}
 }
 
 func (c *AviController) Start(stopCh <-chan struct{}) {

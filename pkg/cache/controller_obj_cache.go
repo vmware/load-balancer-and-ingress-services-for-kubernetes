@@ -24,8 +24,8 @@ import (
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
+	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
 type AviObjCache struct {
@@ -285,6 +285,11 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient) {
+	disableStaticRoute := os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC)
+	if disableStaticRoute == "true" {
+		utils.AviLog.Info.Printf("Static route sync disabled, skipping vrf cache population")
+		return
+	}
 	uri := "/api/vrfcontext"
 
 	vrfList := []*models.VrfContext{}
