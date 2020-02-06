@@ -12,3 +12,4 @@ data:
   fullSyncFrequency: "300" # Value in seconds
   cloudName: "Default-Cloud"
   vrfRefName: "global"
+  disableStaticRouteSync: "false"
