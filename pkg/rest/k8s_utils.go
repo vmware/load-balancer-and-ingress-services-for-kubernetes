@@ -32,8 +32,7 @@ func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicac
 	}
 	// Once the vsvip object is available - we should be able to update the hostname, for now just updating the vip
 	lbIngress := core.LoadBalancerIngress{
-		IP:       vs_cache_obj.Vip,
-		Hostname: "tobeupdated.com",
+		IP: vs_cache_obj.Vip,
 	}
 	mIngress.Status = extensions.IngressStatus{
 		LoadBalancer: core.LoadBalancerStatus{

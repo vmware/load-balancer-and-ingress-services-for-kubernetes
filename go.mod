@@ -9,16 +9,18 @@ require (
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/json-iterator/go v1.1.5 // indirect
+	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
 	github.com/onsi/gomega v0.0.0-20190113212917-5533ce8a0da3
 	github.com/openshift/api v3.9.0+incompatible // indirect
 	github.com/openshift/client-go v3.9.0+incompatible // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
-	gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200124092236-12c99dc2631a
+	gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200203160348-4c0f7e0e69d6
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/genproto v0.0.0-20180831171423-11092d34479b // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 	istio.io/api v0.0.0-20191127060211-24b8eae6b18c // indirect
 	k8s.io/api v0.0.0-20190629053923-1634385ce462

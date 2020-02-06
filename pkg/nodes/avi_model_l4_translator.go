@@ -46,7 +46,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	isTCP := false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
-		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol)}
+		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol), Name: port.Name}
 		portProtocols = append(portProtocols, pp)
 		if port.Protocol == "" || port.Protocol == utils.TCP {
 			isTCP = true
@@ -75,8 +75,9 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 
 		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS, Port: fmt.Sprint(filterPort)}
 		// For TCP - the PG to Pool relationship is 1x1
-		poolNode := &AviPoolNode{Name: "l4-" + pgName, Tenant: utils.ADMIN_NS, Port: filterPort, Protocol: portProto.Protocol}
+                poolNode := &AviPoolNode{Name: "l4-" + pgName, Tenant: utils.ADMIN_NS, Protocol: portProto.Protocol, PortName: portProto.Name}
 		poolNode.VrfContext = lib.GetVrf()
+
 		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {
 			poolNode.Servers = servers
 		}
@@ -106,14 +107,18 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, key s
 	}
 	var pool_meta []AviPoolMetaServer
 	for _, ss := range epObj.Subsets {
-		//var epp_port int32
 		port_match := false
 		for _, epp := range ss.Ports {
-			if (int32(poolNode.Port) == epp.Port) || (poolNode.Name == epp.Name) {
+			if poolNode.PortName == epp.Name {
 				port_match = true
-				//epp_port = epp.Port
+				poolNode.Port = epp.Port
 				break
 			}
+		}
+		if len(ss.Ports) == 1 && len(epObj.Subsets) == 1 {
+			// If it's just a single port then we make that as the server port.
+			port_match = true
+			poolNode.Port = ss.Ports[0].Port
 		}
 		if port_match {
 			var atype string

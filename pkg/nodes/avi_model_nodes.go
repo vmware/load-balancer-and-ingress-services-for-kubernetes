@@ -258,6 +258,7 @@ type AviPortHostProtocol struct {
 	Passthrough bool
 	Redirect    bool
 	EnableSSL   bool
+	Name        string
 }
 
 type AviVSVIPNode struct {
