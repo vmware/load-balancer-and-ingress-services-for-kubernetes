@@ -202,7 +202,7 @@ func DeriveNamespacedShardVS(namespace string, key string) string {
 	var vsNum uint32
 	var shardVsPrefix string
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
-	vrfName := os.Getenv("VRF_CONTEXT")
+	vrfName := lib.GetVrf()
 	cloudName := os.Getenv("CLOUD_NAME")
 	utils.AviLog.Error.Printf("key: %s, msg: CloudName: %s", key, cloudName)
 	if vrfName == "" || cloudName == "" {
