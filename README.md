@@ -22,7 +22,7 @@ To Run AKC you need the following pre-requisites:
  - ***Step 1***: An Avi Controller with a vCenter cloud.
 
  - ***Step 2***: If your POD CIDRs are not routable:
-    - A VRF configured for each kubernetes controller.
+    - Create a VRF context object in Avi for the kubernetes controller.
     
       *NOTE: If you are using AKC for test puposes you can use the `global` vrf but you cannot manage multiple kubernetes clusters in the same cloud with this setting.*
     - Configure one of the non-management networks (Ex: PG network) with the vrf mentioned in the previous step.
