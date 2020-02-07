@@ -255,9 +255,10 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/httppolicyset?include_name=true&cloud_ref.name=" + cloud
+		uri = "/api/httppolicyset?include_name=true"
 	}
 	result, err := client.AviSession.GetCollectionRaw(uri)
+	utils.AviLog.Info.Printf("Http policy set returned :%v, results", result.Count)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Get uri %v returned err for httppolicyset %v", uri, err)
 		return
@@ -688,7 +689,7 @@ func (c *AviObjCache) AviHTTPolicyCachePopulate(client *clients.AviClient,
 		uri = nextPage[0].Next_uri
 		http_pol_key_collection = nextPage[0].Collection
 	} else {
-		uri = "/api/httppolicyset?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+		uri = "/api/httppolicyset?include_name=true&referred_by=virtualservice:" + vs_uuid
 	}
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
@@ -701,7 +702,7 @@ func (c *AviObjCache) AviHTTPolicyCachePopulate(client *clients.AviClient,
 				rest_response, rest_response)
 			return
 		}
-		utils.AviLog.Info.Printf("HTTP Policy Get uri %v returned %v PGs", uri,
+		utils.AviLog.Info.Printf("HTTP Policy Get uri %v returned %v HTTP policy objects", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {
@@ -756,7 +757,7 @@ func (c *AviObjCache) AviSSLKeyCachePopulate(client *clients.AviClient,
 		uri = nextPage[0].Next_uri
 		ssl_key_collection = nextPage[0].Collection
 	} else {
-		uri = "/api/sslkeyandcertificate?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
+		uri = "/api/sslkeyandcertificate?include_name=true&referred_by=virtualservice:" + vs_uuid
 	}
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {

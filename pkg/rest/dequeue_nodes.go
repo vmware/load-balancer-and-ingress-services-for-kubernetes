@@ -411,6 +411,7 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 	sni_key := avicache.NamespaceName{Namespace: namespace, Name: del_sni.Name}
 	sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 	if sni_cache_obj != nil {
+		utils.AviLog.Info.Printf("key: %s, msg: SNI object before delete %s", key, utils.Stringify(sni_cache_obj))
 		rest.deleteVSOper(sni_key, sni_cache_obj, namespace, key)
 	}
 

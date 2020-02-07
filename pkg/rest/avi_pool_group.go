@@ -138,7 +138,7 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 
 func (rest *RestOperations) AviPGCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	pgKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
-	rest.cache.PgCache.AviCacheDelete(key)
+	rest.cache.PgCache.AviCacheDelete(pgKey)
 	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
