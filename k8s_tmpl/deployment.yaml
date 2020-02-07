@@ -60,3 +60,8 @@ spec:
             configMapKeyRef:
               name: avi-k8s-config
               key: vrfRefName
+        - name: DISABLE_STATIC_ROUTE_SYNC
+          valueFrom:
+            configMapKeyRef:
+              name: avi-k8s-config
+              key: disableStaticRouteSync

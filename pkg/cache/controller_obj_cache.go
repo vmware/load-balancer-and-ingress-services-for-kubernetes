@@ -328,6 +328,11 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient) {
+	disableStaticRoute := os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC)
+	if disableStaticRoute == "true" {
+		utils.AviLog.Info.Printf("Static route sync disabled, skipping vrf cache population")
+		return
+	}
 	uri := "/api/vrfcontext"
 
 	vrfList := []*models.VrfContext{}
