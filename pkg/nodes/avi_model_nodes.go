@@ -169,7 +169,7 @@ func (v *AviVsNode) GetNodeType() string {
 
 func (v *AviVsNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
-	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto)) + utils.Hash(utils.Stringify(v.HTTPDSrefs)) + utils.Hash(utils.Stringify(v.SniNodes)) + utils.Hash(utils.Stringify(v.ServiceMetadata))
+	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto)) + utils.Hash(utils.Stringify(v.HTTPDSrefs)) + utils.Hash(utils.Stringify(v.SniNodes)) + utils.Hash(utils.Stringify(v.ServiceMetadata)) + utils.Hash(utils.Stringify(v.HttpPolicyRefs))
 	v.CloudConfigCksum = checksum
 }
 

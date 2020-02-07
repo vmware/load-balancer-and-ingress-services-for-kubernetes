@@ -357,6 +357,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(tlsNode *AviVsNode, namespace 
 	for host, paths := range hostpath.Hosts {
 		var hosts []string
 		hosts = append(hosts, host)
+		utils.AviLog.Info.Printf("key: %s, hosts to add for http policyset: %s", key, hosts)
 		httpPGPath := AviHostPathPortPoolPG{Host: hosts}
 		tlsNode.VHDomainNames = hosts
 		for _, path := range paths {
