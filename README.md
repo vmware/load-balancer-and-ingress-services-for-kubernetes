@@ -39,9 +39,8 @@ To Run AKC you need the following pre-requisites:
 
     kubectl create ns avi-system
 
-*Step 2:* Configure `helm` cli and point it to your kubernetes cluster
 
-*Step 3:* Clone this repository, go inside the `helm` directory and run:
+*Step 2:* Clone this repository, go inside the `helm` directory and run:
 
     helm install ./akc --name my-akc-release --namespace=avi-system --set configs.controllerIP=10.10.10.10
 
