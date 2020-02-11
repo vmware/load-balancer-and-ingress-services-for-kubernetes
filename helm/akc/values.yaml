@@ -9,8 +9,7 @@ image:
   pullPolicy: IfNotPresent
 
 configs:
-  controllerIP: "10.79.109.44"
-  controllerVersion: "20.1.1"
+  controllerVersion: "18.2.7"
   shardVSSize: "LARGE"
   shardVSNum: "8"
   fullSyncFrequency: "300"
@@ -43,8 +42,8 @@ securityContext: {}
   # runAsUser: 1000
 
 avicredentials:
-  username: YWRtaW4=
-  password: b3Jpb24xMjM=
+  username: admin
+  password: admin
 
 
 service:
