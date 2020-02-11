@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "akc.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "akc.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "akc.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "akc.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: akc-sa
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: CTRL_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: avi-secret
+                key: username
+          - name: CTRL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: avi-secret
+                key: password
+          - name: CTRL_IPADDRESS
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: controllerIP
+          - name: CTRL_VERSION
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: controllerVersion
+          - name: SHARD_VS_SIZE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: shardVSSize
+          - name: FULL_SYNC_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: fullSyncFrequency
+          - name: CLOUD_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: cloudName
+          - name: VRF_CONTEXT
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: vrfRefName
+          - name: DISABLE_STATIC_ROUTE_SYNC
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: disableStaticRouteSync
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

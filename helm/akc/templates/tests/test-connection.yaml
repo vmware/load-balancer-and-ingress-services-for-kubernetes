@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "akc.fullname" . }}-test-connection"
+  labels:
+    {{- include "akc.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "akc.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never
