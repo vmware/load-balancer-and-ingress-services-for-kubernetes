@@ -70,7 +70,7 @@ github.com/openshift/client-go/route/clientset/versioned/scheme
 github.com/pkg/errors
 # github.com/spf13/pflag v1.0.3
 github.com/spf13/pflag
-# gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200203160348-4c0f7e0e69d6
+# gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200212061324-7b5dc1642bc1
 gitlab.eng.vmware.com/orion/container-lib/utils
 # golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 golang.org/x/crypto/ssh/terminal
@@ -218,6 +218,7 @@ k8s.io/client-go/util/workqueue
 k8s.io/client-go/informers
 k8s.io/client-go/informers/core/v1
 k8s.io/client-go/informers/extensions/v1beta1
+k8s.io/client-go/informers/networking/v1beta1
 k8s.io/client-go/discovery
 k8s.io/client-go/kubernetes/typed/admissionregistration/v1beta1
 k8s.io/client-go/kubernetes/typed/apps/v1
@@ -291,6 +292,7 @@ k8s.io/client-go/informers/settings
 k8s.io/client-go/informers/storage
 k8s.io/client-go/listers/core/v1
 k8s.io/client-go/listers/extensions/v1beta1
+k8s.io/client-go/listers/networking/v1beta1
 k8s.io/client-go/pkg/apis/clientauthentication
 k8s.io/client-go/pkg/apis/clientauthentication/v1alpha1
 k8s.io/client-go/pkg/apis/clientauthentication/v1beta1
@@ -351,7 +353,6 @@ k8s.io/client-go/informers/coordination/v1
 k8s.io/client-go/informers/coordination/v1beta1
 k8s.io/client-go/informers/events/v1beta1
 k8s.io/client-go/informers/networking/v1
-k8s.io/client-go/informers/networking/v1beta1
 k8s.io/client-go/informers/node/v1alpha1
 k8s.io/client-go/informers/node/v1beta1
 k8s.io/client-go/informers/policy/v1beta1
@@ -381,7 +382,6 @@ k8s.io/client-go/listers/coordination/v1
 k8s.io/client-go/listers/coordination/v1beta1
 k8s.io/client-go/listers/events/v1beta1
 k8s.io/client-go/listers/networking/v1
-k8s.io/client-go/listers/networking/v1beta1
 k8s.io/client-go/listers/node/v1alpha1
 k8s.io/client-go/listers/node/v1beta1
 k8s.io/client-go/listers/policy/v1beta1

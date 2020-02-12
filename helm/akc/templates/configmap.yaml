@@ -12,3 +12,4 @@ data:
   cloudName: {{ .Values.configs.cloudName | quote }}
   vrfRefName: {{ .Values.configs.vrfRefName | quote }}
   disableStaticRouteSync: {{ .Values.configs.disableStaticRouteSync | quote }}
+  ingressApi: {{ .Values.configs.ingressApi | quote }}

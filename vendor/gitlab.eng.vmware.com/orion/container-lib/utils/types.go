@@ -22,6 +22,7 @@ import (
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	extensioninformers "k8s.io/client-go/informers/extensions/v1beta1"
+	networking "k8s.io/client-go/informers/networking/v1beta1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -54,14 +55,16 @@ type KubeClientIntf struct {
 }
 
 type Informers struct {
-	ServiceInformer coreinformers.ServiceInformer
-	EpInformer      coreinformers.EndpointsInformer
-	PodInformer     coreinformers.PodInformer
-	NSInformer      coreinformers.NamespaceInformer
-	SecretInformer  coreinformers.SecretInformer
-	IngressInformer extensioninformers.IngressInformer
-	RouteInformer   oshiftinformers.RouteInformer
-	NodeInformer    coreinformers.NodeInformer
+	ConfigMapInformer     coreinformers.ConfigMapInformer
+	ServiceInformer       coreinformers.ServiceInformer
+	EpInformer            coreinformers.EndpointsInformer
+	PodInformer           coreinformers.PodInformer
+	NSInformer            coreinformers.NamespaceInformer
+	SecretInformer        coreinformers.SecretInformer
+	ExtV1IngressInformer  extensioninformers.IngressInformer
+	RouteInformer         oshiftinformers.RouteInformer
+	NodeInformer          coreinformers.NodeInformer
+	CoreV1IngressInformer networking.IngressInformer // New ingress API
 	KubeClientIntf
 }
 

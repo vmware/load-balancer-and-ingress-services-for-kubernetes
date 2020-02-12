@@ -20,6 +20,7 @@ import (
 	"time"
 
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
+	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/akc/pkg/rest"
@@ -108,15 +109,28 @@ func FullSyncK8s() error {
 			key := utils.Service + "/" + utils.ObjKey(svcObj)
 			nodes.DequeueIngestion(key, true)
 		}
-		ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Error.Printf("Unable to retrieve the ingresses during full sync: %s", err)
-			continue
+		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
+			ingObjs, err := utils.GetInformers().ExtV1IngressInformer.Lister().Ingresses(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Error.Printf("Unable to retrieve the ingresses during full sync: %s", err)
+				continue
+			}
+			for _, ingObj := range ingObjs {
+				key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+				nodes.DequeueIngestion(key, true)
+			}
+		} else {
+			ingObjs, err := utils.GetInformers().CoreV1IngressInformer.Lister().Ingresses(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Error.Printf("Unable to retrieve the ingresses during full sync: %s", err)
+				continue
+			}
+			for _, ingObj := range ingObjs {
+				key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+				nodes.DequeueIngestion(key, true)
+			}
 		}
-		for _, ingObj := range ingObjs {
-			key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-			nodes.DequeueIngestion(key, true)
-		}
+
 	}
 	// Publish all the models to REST layer.
 	allModels := objects.SharedAviGraphLister().GetAll()

@@ -20,10 +20,24 @@ import (
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
+var IngressApiMap = map[string]string{
+	"corev1":      utils.CoreV1IngressInformer,
+	"extensionv1": utils.ExtV1IngressInformer,
+}
+
 func GetVrf() string {
 	vrfcontext := os.Getenv(utils.VRF_CONTEXT)
 	if vrfcontext == "" {
 		vrfcontext = utils.GlobalVRF
 	}
 	return vrfcontext
+}
+
+func GetIngressApi() string {
+	ingressApi := os.Getenv(INGRESS_API)
+	ingressApi, ok := IngressApiMap[ingressApi]
+	if !ok {
+		return utils.CoreV1IngressInformer
+	}
+	return ingressApi
 }

@@ -74,6 +74,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: disableStaticRouteSync
+          - name: INGRESS_API
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: ingressApi
           ports:
             - name: http
               containerPort: 80
