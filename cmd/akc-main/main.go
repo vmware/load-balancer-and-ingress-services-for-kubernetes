@@ -19,7 +19,6 @@ import (
 	"os"
 
 	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
-
 	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	"k8s.io/client-go/kubernetes"
@@ -61,11 +60,17 @@ func InitializeAKC() {
 	if err != nil {
 		utils.AviLog.Error.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
-	registeredInformers := []string{utils.ServiceInformer, utils.EndpointInformer, lib.GetIngressApi(), utils.SecretInformer, utils.NSInformer, utils.NodeInformer}
+	registeredInformers := []string{utils.ServiceInformer, utils.EndpointInformer, lib.GetIngressApi(), utils.SecretInformer, utils.NSInformer, utils.NodeInformer, utils.ConfigMapInformer}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
 
 	informers := k8s.K8sinformers{Cs: kubeClient}
-	k8s.InitController(informers)
+	c := k8s.SharedAviController()
+	stopCh := utils.SetupSignalHandler()
+	k8s.PopulateCache()
+	ctrlCh := c.HandleConfigMap(informers, stopCh)
+	go c.InitController(informers, ctrlCh, stopCh)
+	<-stopCh
+	close(ctrlCh)
 }
 
 func init() {

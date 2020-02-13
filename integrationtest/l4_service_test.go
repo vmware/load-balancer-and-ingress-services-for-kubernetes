@@ -31,6 +31,7 @@ import (
 )
 
 var kubeClient *k8sfake.Clientset
+var ctrl *k8s.AviController
 
 func TestMain(m *testing.M) {
 	setUp()
@@ -40,14 +41,33 @@ func TestMain(m *testing.M) {
 
 func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer}
+	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, meshutils.ConfigMapInformer}
 	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: kubeClient}
 	os.Setenv("CTRL_USERNAME", "admin")
 	os.Setenv("CTRL_PASSWORD", "admin")
 	os.Setenv("CTRL_IPADDRESS", "localhost")
 	os.Setenv("INGRESS_API", "extensionv1")
-	go k8s.InitController(informers)
+	os.Setenv("FULL_SYNC_INTERVAL", "60")
+	ctrl = k8s.SharedAviController()
+	stopCh := meshutils.SetupSignalHandler()
+	k8s.PopulateCache()
+	ctrlCh := ctrl.HandleConfigMap(informers, stopCh)
+	go ctrl.InitController(informers, ctrlCh, stopCh)
+}
+
+func TestAviConfigMap(t *testing.T) {
+	aviCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "avi-system",
+			Name:      "avi-k8s-config",
+		},
+	}
+	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	if err != nil {
+		t.Fatalf("error in adding configmap: %v", err)
+	}
+	pollForSyncStart(t, ctrl, 10)
 }
 
 func TestAviNodeCreationSinglePort(t *testing.T) {
@@ -83,7 +103,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
+	pollForCompletion(t, model_name, 15)
 
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if !found {

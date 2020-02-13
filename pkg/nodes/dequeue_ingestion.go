@@ -57,8 +57,9 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Warning.Printf("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
+				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
+				objects.SharedAviGraphLister().Save(model_name, aviModelGraph)
 				if len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
 					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue, fullsync)
 				}
 			} else {
@@ -81,8 +82,9 @@ func DequeueIngestion(key string, fullsync bool) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
+				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
+				objects.SharedAviGraphLister().Save(model_name, aviModelGraph)
 				if len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
 					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue, fullsync)
 				}
 			}
@@ -99,12 +101,13 @@ func DequeueIngestion(key string, fullsync bool) {
 			// does not allow cross tenant ingress references.
 			utils.AviLog.Info.Printf("key :%s, msg: evaluating ingress: %s", key, ingress)
 			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
-			if !found {
+			if !found || aviModel == nil {
 				utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
 				aviModel = NewAviObjectGraph()
 				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 			}
 			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
+			objects.SharedAviGraphLister().Save(model_name, aviModel)
 			if len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
 				PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue, fullsync)
 			}

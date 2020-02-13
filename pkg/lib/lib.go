@@ -16,6 +16,8 @@ package lib
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
@@ -24,6 +26,7 @@ var IngressApiMap = map[string]string{
 	"corev1":      utils.CoreV1IngressInformer,
 	"extensionv1": utils.ExtV1IngressInformer,
 }
+var onlyOneSignalHandler = make(chan struct{})
 
 func GetVrf() string {
 	vrfcontext := os.Getenv(utils.VRF_CONTEXT)
@@ -40,4 +43,20 @@ func GetIngressApi() string {
 		return utils.CoreV1IngressInformer
 	}
 	return ingressApi
+}
+
+func SetupSignalHandler() (stopCh <-chan struct{}) {
+	close(onlyOneSignalHandler) // panics when called twice
+
+	stop := make(chan struct{})
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGUSR1)
+	go func() {
+		<-c
+		close(stop)
+		<-c
+		os.Exit(1) // second signal. Exit directly.
+	}()
+
+	return stop
 }
