@@ -15,9 +15,11 @@
 package nodes
 
 import (
+	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -49,9 +51,17 @@ type GraphSchema struct {
 type GraphDescriptor []GraphSchema
 
 func IngressChanges(ingName string, namespace string, key string) ([]string, bool) {
+	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
+		return ingressExtV1Changes(ingName, namespace, key)
+	} else {
+		return ingressCoreV1Changes(ingName, namespace, key)
+	}
+}
+
+func ingressExtV1Changes(ingName string, namespace string, key string) ([]string, bool) {
 	var ingresses []string
 	ingresses = append(ingresses, ingName)
-	ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(ingName)
+	ingObj, err := utils.GetInformers().ExtV1IngressInformer.Lister().Ingresses(namespace).Get(ingName)
 	if err != nil {
 		// Detect a delete condition here.
 		if errors.IsNotFound(err) {
@@ -66,6 +76,33 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
 		}
 		secrets := parseSecretsForIngress(ingObj.Spec, key)
+		if len(secrets) > 0 {
+			for _, secret := range secrets {
+				objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(ingName, secret)
+			}
+		}
+	}
+	return ingresses, true
+}
+
+func ingressCoreV1Changes(ingName string, namespace string, key string) ([]string, bool) {
+	var ingresses []string
+	ingresses = append(ingresses, ingName)
+	ingObj, err := utils.GetInformers().CoreV1IngressInformer.Lister().Ingresses(namespace).Get(ingName)
+	if err != nil {
+		// Detect a delete condition here.
+		if errors.IsNotFound(err) {
+			// Remove all the Ingress to Services mapping.
+			// Remove the references of this ingress from the Services
+			objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
+		}
+	} else {
+		services := parseServicesForIngressCoreV1(ingObj.Spec, key)
+		for _, svc := range services {
+			utils.AviLog.Info.Printf("key: %s, msg: updating ingress relationship for service:  %s", key, svc)
+			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
+		}
+		secrets := parseSecretsForIngressCoreV1(ingObj.Spec, key)
 		if len(secrets) > 0 {
 			for _, secret := range secrets {
 				objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(ingName, secret)
@@ -102,6 +139,18 @@ func parseServicesForIngress(ingSpec extensionv1beta1.IngressSpec, key string) [
 	return services
 }
 
+func parseServicesForIngressCoreV1(ingSpec v1beta1.IngressSpec, key string) []string {
+	// Figure out the service names that are part of this ingress
+	var services []string
+	for _, rule := range ingSpec.Rules {
+		for _, path := range rule.IngressRuleValue.HTTP.Paths {
+			services = append(services, path.Backend.ServiceName)
+		}
+	}
+	utils.AviLog.Info.Printf("key: %s, msg: total services retrieved  from corev1:  %s", key, services)
+	return services
+}
+
 func parseSecretsForIngress(ingSpec extensionv1beta1.IngressSpec, key string) []string {
 	// Figure out the service names that are part of this ingress
 	var secrets []string
@@ -109,5 +158,15 @@ func parseSecretsForIngress(ingSpec extensionv1beta1.IngressSpec, key string) []
 		secrets = append(secrets, tlsSettings.SecretName)
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: total secrets retrieved:  %s", key, secrets)
+	return secrets
+}
+
+func parseSecretsForIngressCoreV1(ingSpec v1beta1.IngressSpec, key string) []string {
+	// Figure out the service names that are part of this ingress
+	var secrets []string
+	for _, tlsSettings := range ingSpec.TLS {
+		secrets = append(secrets, tlsSettings.SecretName)
+	}
+	utils.AviLog.Info.Printf("key: %s, msg: total secrets retrieved from corev1:  %s", key, secrets)
 	return secrets
 }

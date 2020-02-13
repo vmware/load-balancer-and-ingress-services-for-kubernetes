@@ -164,8 +164,12 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 			informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
 		case NodeInformer:
 			informers.NodeInformer = kubeInformerFactory.Core().V1().Nodes()
-		case IngressInformer:
-			informers.IngressInformer = kubeInformerFactory.Extensions().V1beta1().Ingresses()
+		case ConfigMapInformer:
+			informers.ConfigMapInformer = kubeInformerFactory.Core().V1().ConfigMaps()
+		case ExtV1IngressInformer:
+			informers.ExtV1IngressInformer = kubeInformerFactory.Extensions().V1beta1().Ingresses()
+		case CoreV1IngressInformer:
+			informers.CoreV1IngressInformer = kubeInformerFactory.Networking().V1beta1().Ingresses()
 		case RouteInformer:
 			if ocs != nil {
 				oshiftInformerFactory := oshiftinformers.NewSharedInformerFactory(ocs, time.Second*30)

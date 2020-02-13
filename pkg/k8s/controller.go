@@ -24,6 +24,7 @@ import (
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -246,6 +247,51 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 	}
 
+	corev1ing_event_handler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			ingress := obj.(*v1beta1.Ingress)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
+			key := utils.Ingress + "/" + utils.ObjKey(ingress)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Info.Printf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			ingress, ok := obj.(*v1beta1.Ingress)
+			if !ok {
+				// endpoints was deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Error.Printf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				ingress, ok = tombstone.Obj.(*v1beta1.Ingress)
+				if !ok {
+					utils.AviLog.Error.Printf("Tombstone contained object that is not an Ingress: %#v", obj)
+					return
+				}
+			}
+			ingress = obj.(*v1beta1.Ingress)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
+			key := utils.Ingress + "/" + utils.ObjKey(ingress)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Info.Printf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			oldobj := old.(*v1beta1.Ingress)
+			ingress := cur.(*v1beta1.Ingress)
+			if oldobj.ResourceVersion != ingress.ResourceVersion {
+				// Only add the key if the resource versions have changed.
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
+				key := utils.Ingress + "/" + utils.ObjKey(ingress)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
+			}
+		},
+	}
+
 	secret_event_handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			secret := obj.(*corev1.Secret)
@@ -334,7 +380,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	c.informers.EpInformer.Informer().AddEventHandler(ep_event_handler)
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
-	c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
+	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
+		c.informers.ExtV1IngressInformer.Informer().AddEventHandler(ingress_event_handler)
+	} else {
+		c.informers.CoreV1IngressInformer.Informer().AddEventHandler(corev1ing_event_handler)
+	}
 	c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
 		utils.AviLog.Info.Printf("Static route sync disabled, skipping node informers")
@@ -346,22 +396,40 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
-	go c.informers.IngressInformer.Informer().Run(stopCh)
+	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
+		go c.informers.ExtV1IngressInformer.Informer().Run(stopCh)
+	} else {
+		go c.informers.CoreV1IngressInformer.Informer().Run(stopCh)
+	}
 	go c.informers.SecretInformer.Informer().Run(stopCh)
 	go c.informers.NodeInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
-
-	if !cache.WaitForCacheSync(stopCh,
-		c.informers.EpInformer.Informer().HasSynced,
-		c.informers.ServiceInformer.Informer().HasSynced,
-		c.informers.IngressInformer.Informer().HasSynced,
-		c.informers.SecretInformer.Informer().HasSynced,
-		c.informers.NodeInformer.Informer().HasSynced,
-		c.informers.NSInformer.Informer().HasSynced,
-	) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
+		if !cache.WaitForCacheSync(stopCh,
+			c.informers.EpInformer.Informer().HasSynced,
+			c.informers.ServiceInformer.Informer().HasSynced,
+			c.informers.ExtV1IngressInformer.Informer().HasSynced,
+			c.informers.SecretInformer.Informer().HasSynced,
+			c.informers.NodeInformer.Informer().HasSynced,
+			c.informers.NSInformer.Informer().HasSynced,
+		) {
+			runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		} else {
+			utils.AviLog.Info.Print("Caches synced")
+		}
 	} else {
-		utils.AviLog.Info.Print("Caches synced")
+		if !cache.WaitForCacheSync(stopCh,
+			c.informers.EpInformer.Informer().HasSynced,
+			c.informers.ServiceInformer.Informer().HasSynced,
+			c.informers.CoreV1IngressInformer.Informer().HasSynced,
+			c.informers.SecretInformer.Informer().HasSynced,
+			c.informers.NodeInformer.Informer().HasSynced,
+			c.informers.NSInformer.Informer().HasSynced,
+		) {
+			runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		} else {
+			utils.AviLog.Info.Print("Caches synced")
+		}
 	}
 }
 

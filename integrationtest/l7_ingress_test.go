@@ -71,6 +71,7 @@ func TestL7Model(t *testing.T) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("CLOUD_NAME", "Shard-VS-")
 	os.Setenv("VRF_CONTEXT", "global")
+
 	model_name := "admin/Shard-VS---global-6"
 	objects.SharedAviGraphLister().Delete(model_name)
 	svcExample := (fakeService{

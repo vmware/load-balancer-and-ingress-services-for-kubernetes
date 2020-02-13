@@ -16,6 +16,7 @@ configs:
   cloudName: "Default-Cloud"
   vrfRefName: "global"
   disableStaticRouteSync: "false"
+  ingressApi: "corev1" #enum: extensionv1 and corev1 - if not set default to corev1
 
 imagePullSecrets: []
 nameOverride: ""

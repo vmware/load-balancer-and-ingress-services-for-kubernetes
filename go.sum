@@ -112,6 +112,8 @@ gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200203151410-7fd0bdbcd6aa h1:
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200203151410-7fd0bdbcd6aa/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200203160348-4c0f7e0e69d6 h1:BwggJ8Dpk16nNr460JzORU+zBmJoM5+ngrpOJaUKQAg=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200203160348-4c0f7e0e69d6/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200212061324-7b5dc1642bc1 h1:CyHeSo/v8kwlU+H8ugcewfDki7Yh7F4XrGugPvIFuoo=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200212061324-7b5dc1642bc1/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
 golang.org/x/crypto v0.0.0-20181025213731-e84da0312774/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20190225124518-7f87c0fbb88b h1:+/WWzjwW6gidDJnMKWLKLX1gxn7irUTF1fLpQovfQ5M=
 golang.org/x/crypto v0.0.0-20190225124518-7f87c0fbb88b/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=

@@ -24,6 +24,7 @@ import (
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -41,7 +42,13 @@ const tlsCert = "tls.crt"
 func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName string, key string) {
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
 	utils.AviLog.Info.Printf("key: %s, msg: Building the L7 pools for namespace: %s, ingName: %s", key, namespace, ingName)
-	ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(ingName)
+	var err error
+	var ingObj interface{}
+	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
+		ingObj, err = utils.GetInformers().ExtV1IngressInformer.Lister().Ingresses(namespace).Get(ingName)
+	} else {
+		ingObj, err = utils.GetInformers().CoreV1IngressInformer.Lister().Ingresses(namespace).Get(ingName)
+	}
 	pgName := vsName + utils.L7_PG_PREFIX
 	pgNode := o.GetPoolGroupByName(pgName)
 	vsNode := o.GetAviVS()
@@ -96,7 +103,13 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			RemoveFQDNsFromModel(vsNode[0], Storedhosts, key)
 		}
 		// Update the host mappings for this ingress
-		parsedIng := parseHostPathForIngress(ingName, ingObj.Spec, key)
+		var parsedIng IngressConfig
+		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
+			parsedIng = parseHostPathForIngress(ingName, ingObj.(*extensionv1beta1.Ingress).Spec, key)
+		} else {
+			parsedIng = parseHostPathForIngressCoreV1(ingName, ingObj.(*v1beta1.Ingress).Spec, key)
+		}
+		utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %s", key, parsedIng)
 		var hosts []string
 		for host, _ := range parsedIng.IngressHostMap {
 			hosts = append(hosts, host)
@@ -104,10 +117,9 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, hosts)
 		// PGs are in 'admin' namespace right now.
 		if pgNode != nil {
-			ingressConfig := parseHostPathForIngress(ingName, ingObj.Spec, key)
-			utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(ingressConfig))
+			utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(parsedIng))
 			// Processsing insecure ingress
-			for host, val := range ingressConfig.IngressHostMap {
+			for host, val := range parsedIng.IngressHostMap {
 				if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 					vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 				}
@@ -130,7 +142,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				}
 			}
 			// Processing the TLS nodes
-			for _, tlssetting := range ingressConfig.TlsCollection {
+			for _, tlssetting := range parsedIng.TlsCollection {
 				// For each host, create a SNI node with the secret giving us the key and cert.
 				// construct a SNI VS node per tls setting which corresponds to one secret
 				sniNode := &AviVsNode{Name: ingName + "--" + namespace + "--" + tlssetting.SecretName, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
@@ -253,7 +265,56 @@ func parseHostPathForIngress(ingName string, ingSpec extensionv1beta1.IngressSpe
 	}
 	ingressConfig.TlsCollection = tlsConfigs
 	ingressConfig.IngressHostMap = hostMap
-	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress:  %v", key, ingressConfig)
+	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress extensionv1:  %v", key, ingressConfig)
+	return ingressConfig
+}
+
+func parseHostPathForIngressCoreV1(ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
+	// Figure out the service names that are part of this ingress
+	var hostPathMapSvcList []IngressHostPathSvc
+
+	ingressConfig := IngressConfig{}
+	hostMap := make(IngressHostMap)
+	for _, rule := range ingSpec.Rules {
+		var hostName string
+		if rule.Host == "" {
+			// The Host field is empty. Generate a hostName using the sub-domain info from configmap
+			hostName = ingName // (TODO): Add sub-domain
+		} else {
+			hostName = rule.Host
+		}
+		for _, path := range rule.IngressRuleValue.HTTP.Paths {
+			hostPathMapSvc := IngressHostPathSvc{}
+			//hostPathMapSvc.Host = hostName
+			hostPathMapSvc.Path = path.Path
+			hostPathMapSvc.ServiceName = path.Backend.ServiceName
+			hostPathMapSvc.Port = path.Backend.ServicePort.IntVal
+			if hostPathMapSvc.Port == 0 {
+				// Default to port 80 if not set in the ingress object
+				hostPathMapSvc.Port = 80
+			}
+			hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
+		}
+		hostMap[hostName] = hostPathMapSvcList
+	}
+	tlsHostSvcMap := make(IngressHostMap)
+	var tlsConfigs []TlsSettings
+	for _, tlsSettings := range ingSpec.TLS {
+		tls := TlsSettings{}
+		tls.SecretName = tlsSettings.SecretName
+		for _, host := range tlsSettings.Hosts {
+			hostSvcMap, ok := hostMap[host]
+			if ok {
+				tlsHostSvcMap[host] = hostSvcMap
+				delete(hostMap, host)
+			}
+		}
+		tls.Hosts = tlsHostSvcMap
+		tlsConfigs = append(tlsConfigs, tls)
+	}
+	ingressConfig.TlsCollection = tlsConfigs
+	ingressConfig.IngressHostMap = hostMap
+	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress corev1:  %v", key, ingressConfig)
 	return ingressConfig
 }
 
