@@ -90,7 +90,8 @@ func setUp() {
 	stopCh := meshutils.SetupSignalHandler()
 	ctrl.Start(stopCh)
 	keyChan = make(chan string)
-	ctrl.HandleConfigMap(K8sinformers{kubeClient}, stopCh)
+	ctrlCh := make(chan struct{})
+	ctrl.HandleConfigMap(K8sinformers{kubeClient}, ctrlCh, stopCh)
 	ctrl.SetupEventHandlers(K8sinformers{kubeClient})
 	setupQueue(stopCh)
 }

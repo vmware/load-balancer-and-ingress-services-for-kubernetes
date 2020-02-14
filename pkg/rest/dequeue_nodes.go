@@ -61,6 +61,10 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
+		if avimodel == nil {
+			utils.AviLog.Info.Printf("Enpty Model found, skipping")
+			return
+		}
 		if avimodel.IsVrf {
 			utils.AviLog.Warning.Printf("key: %s, msg: processing vrf object\n", key)
 			vrfNode := avimodel.GetAviVRF()
@@ -139,8 +143,8 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		// The cache was not found - it's a POST call.
 		restOp := rest.AviVsBuild(aviVsNode, utils.RestPost, nil, key)
 		rest_ops = append(rest_ops, restOp...)
-		utils.AviLog.Info.Printf("POST key: %s, vsKey: %s", key, vsKey)
-		utils.AviLog.Info.Printf("POST restops %s", utils.Stringify(rest_ops))
+		utils.AviLog.Trace.Printf("POST key: %s, vsKey: %s", key, vsKey)
+		utils.AviLog.Trace.Printf("POST restops %s", utils.Stringify(rest_ops))
 		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
 	}
 	if vs_cache_obj != nil {

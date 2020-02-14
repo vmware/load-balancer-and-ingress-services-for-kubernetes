@@ -52,7 +52,8 @@ func setUp() {
 	ctrl = k8s.SharedAviController()
 	stopCh := meshutils.SetupSignalHandler()
 	k8s.PopulateCache()
-	ctrlCh := ctrl.HandleConfigMap(informers, stopCh)
+	ctrlCh := make(chan struct{})
+	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
 	go ctrl.InitController(informers, ctrlCh, stopCh)
 }
 

@@ -45,14 +45,13 @@ func PopulateCache() {
 
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
-func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, stopCh <-chan struct{}) chan struct{} {
+func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}) {
 	cs := k8sinfo.Cs
 	utils.AviLog.Info.Printf("Creating event broadcaster for handling configmap")
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(utils.AviLog.Info.Printf)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 
-	ctrlCh := make(chan struct{})
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if isAviConfigMap(obj) {
@@ -72,8 +71,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, stopCh <-chan stru
 
 	c.informers.ConfigMapInformer.Informer().AddEventHandler(configMapEventHandler)
 	go c.informers.ConfigMapInformer.Informer().Run(stopCh)
-
-	return (ctrlCh)
 }
 
 func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
@@ -187,14 +184,22 @@ func (c *AviController) FullSyncK8s() error {
 		}
 
 	}
+
+	nodeObectjs, err := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
+	for _, node := range nodeObectjs {
+		key := utils.NodeObj + "/" + node.Name
+		nodes.DequeueIngestion(key, true)
+	}
+
 	// Publish all the models to REST layer.
 	allModels := objects.SharedAviGraphLister().GetAll()
+	utils.AviLog.Trace.Printf("models fetched in full sync %s", utils.Stringify(allModels))
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	if allModels != nil {
 		for modelName, aviModel := range allModels.(map[string]interface{}) {
 			modelObject, ok := aviModel.(*nodes.AviObjectGraph)
 			if ok {
-				nodes.PublishKeyToRestLayer(modelObject, modelName, "fullsync", sharedQueue, false)
+				nodes.PublishKeyToRestLayer(modelObject, modelName, "fullsync", sharedQueue)
 			} else {
 				utils.AviLog.Warning.Printf("Empty model for : %s", modelName)
 			}
