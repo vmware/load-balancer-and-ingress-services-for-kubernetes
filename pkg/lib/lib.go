@@ -24,6 +24,7 @@ var IngressApiMap = map[string]string{
 	"corev1":      utils.CoreV1IngressInformer,
 	"extensionv1": utils.ExtV1IngressInformer,
 }
+var onlyOneSignalHandler = make(chan struct{})
 
 func GetVrf() string {
 	vrfcontext := os.Getenv(utils.VRF_CONTEXT)

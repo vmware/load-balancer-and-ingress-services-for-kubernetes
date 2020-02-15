@@ -31,8 +31,8 @@ import (
 )
 
 var kubeClient *k8sfake.Clientset
-
 var keyChan chan string
+var ctrl AviController
 
 func syncFuncForTest(key string) error {
 	keyChan <- key
@@ -62,6 +62,19 @@ func setupQueue(stopCh <-chan struct{}) {
 	ingestionQueue.Run(stopCh)
 }
 
+func addConfigMap(t *testing.T) {
+	aviCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "avi-system",
+			Name:      "avi-k8s-config",
+		},
+	}
+	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	if err != nil {
+		t.Fatalf("error in adding configmap: %v", err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	setUp()
 	ret := m.Run()
@@ -71,14 +84,33 @@ func TestMain(m *testing.M) {
 func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
 	os.Setenv("INGRESS_API", "extensionv1")
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer}
+	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, utils.ConfigMapInformer}
 	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
 	ctrl := SharedAviController()
 	stopCh := meshutils.SetupSignalHandler()
 	ctrl.Start(stopCh)
 	keyChan = make(chan string)
+	ctrlCh := make(chan struct{})
+	ctrl.HandleConfigMap(K8sinformers{kubeClient}, ctrlCh, stopCh)
 	ctrl.SetupEventHandlers(K8sinformers{kubeClient})
 	setupQueue(stopCh)
+}
+
+func TestAviConfigMap(t *testing.T) {
+	aviCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "avi-system",
+			Name:      "avi-k8s-config",
+		},
+	}
+	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	if err != nil {
+		t.Fatalf("error in adding configmap: %v", err)
+	}
+	time.Sleep(10 * time.Second)
+	if ctrl.DisableSync {
+		t.Fatalf("sync not enabled after adding configmap")
+	}
 }
 
 func TestSvc(t *testing.T) {

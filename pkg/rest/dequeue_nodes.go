@@ -34,6 +34,14 @@ func NewRestOperations(cache *avicache.AviObjCache, aviRestPoolClient *utils.Avi
 	return RestOperations{cache: cache, aviRestPoolClient: aviRestPoolClient}
 }
 
+func (rest *RestOperations) CleanupVS(key string) {
+	namespace, name := utils.ExtractNamespaceObjectName(key)
+	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
+	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
+	utils.AviLog.Info.Printf("key: %s, msg: cleanup mode, removing all VSes", key)
+	rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key)
+}
+
 func (rest *RestOperations) DeQueueNodes(key string) {
 	utils.AviLog.Info.Printf("key: %s, msg: start rest layer sync.", key)
 	// Got the key from the Graph Layer - let's fetch the model
@@ -53,6 +61,10 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
+		if avimodel == nil {
+			utils.AviLog.Info.Printf("Enpty Model found, skipping")
+			return
+		}
 		if avimodel.IsVrf {
 			utils.AviLog.Warning.Printf("key: %s, msg: processing vrf object\n", key)
 			vrfNode := avimodel.GetAviVRF()
@@ -131,6 +143,8 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		// The cache was not found - it's a POST call.
 		restOp := rest.AviVsBuild(aviVsNode, utils.RestPost, nil, key)
 		rest_ops = append(rest_ops, restOp...)
+		utils.AviLog.Trace.Printf("POST key: %s, vsKey: %s", key, vsKey)
+		utils.AviLog.Trace.Printf("POST restops %s", utils.Stringify(rest_ops))
 		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
 	}
 	if vs_cache_obj != nil {
@@ -193,8 +207,16 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 
 	if vs_cache_obj != nil {
 		// VS delete should delete everything together.
+		for _, sni_uuid := range vs_cache_obj.SNIChildCollection {
+			sniVsKey, ok := rest.cache.VsCache.AviCacheGetKeyByUuid(sni_uuid)
+			if ok {
+				delSNI := sniVsKey.(avicache.NamespaceName)
+				rest.SNINodeDelete(delSNI, namespace, rest_ops, key)
+			}
+		}
 		rest_op := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
 		rest_ops = append(rest_ops, rest_op)
+		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
@@ -283,12 +305,27 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						rest.AviSSLCacheDel(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "VsVip" {
 						rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
+					} else if rest_op.Model == "VSDataScriptSet" {
+						rest.AviDSCacheDel(rest_op, aviObjKey, key)
 					}
 				}
 			}
 
 		}
 	}
+}
+func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName, namespace string, restOps []*utils.RestOp, key string) []*utils.RestOp {
+	for _, delDS := range dsToDelete {
+		dsKey := avicache.NamespaceName{Namespace: namespace, Name: delDS.Name}
+		dsCache, ok := rest.cache.DSCache.AviCacheGet(dsKey)
+		if ok {
+			dsCacheObj, _ := dsCache.(*avicache.AviDSCache)
+			restOp := rest.AviDSDel(dsCacheObj.Uuid, namespace, key)
+			restOp.ObjName = delDS.Name
+			restOps = append(restOps, restOp)
+		}
+	}
+	return restOps
 }
 
 func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {

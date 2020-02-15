@@ -47,7 +47,6 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 		path = "/api/vsdatascriptset/" + cache_obj.Uuid
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsdatascriptset,
 			Tenant: ds_meta.Tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
-
 	} else {
 		// Patch an existing ds if it exists in the cache but not associated with this VS.
 		ds_key := avicache.NamespaceName{Namespace: ds_meta.Tenant, Name: ds_meta.Name}
@@ -142,7 +141,8 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 
 func (rest *RestOperations) AviDSCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	dsKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
-	rest.cache.DSCache.AviCacheDelete(key)
+	utils.AviLog.Info.Printf("Deleting DS: %s", dsKey)
+	rest.cache.DSCache.AviCacheDelete(dsKey)
 	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)

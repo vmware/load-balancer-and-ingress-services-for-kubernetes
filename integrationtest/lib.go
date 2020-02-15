@@ -21,6 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 
+	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
 	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	corev1 "k8s.io/api/core/v1"
@@ -127,6 +128,20 @@ func pollForCompletion(t *testing.T, key string, counter int) interface{} {
 		}
 	}
 	return nil
+}
+
+func pollForSyncStart(t *testing.T, ctrl *k8s.AviController, counter int) bool {
+	count := 0
+	for count < counter {
+
+		if ctrl.DisableSync {
+			time.Sleep(1 * time.Second)
+			count = count + 1
+		} else {
+			return true
+		}
+	}
+	return false
 }
 
 type fakeService struct {

@@ -386,6 +386,12 @@ func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op 
 					rest.findSNIRefAndRemove(vsKey, parent_vs_cache_obj, key)
 				}
 			}
+			if len(vs_cache_obj.VSVipKeyCollection) > 0 {
+				vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
+				vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
+				utils.AviLog.Info.Printf("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
+				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
+			}
 		}
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: deleting vs cache for key: %s", key, vsKey)
@@ -470,6 +476,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
+		utils.AviLog.Warning.Printf("key: %s, seaching in cache for vsVip Key: %s", key, vsvip_key)
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)

@@ -41,7 +41,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// if we get update for object of tyoe k8s node, create vrf graph
 	if objType == utils.NodeObj {
 		utils.AviLog.Info.Printf("key: %s, msg: processing node obj", key)
-		processNodeObj(key, name, sharedQueue)
+		processNodeObj(key, name, sharedQueue, false)
 		return
 	}
 	schema, valid := ConfigDescriptor().GetByType(objType)
@@ -57,9 +57,10 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Warning.Printf("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
-				if len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
-					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue, fullsync)
+				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
+				ok := saveAviModel(model_name, aviModelGraph, key)
+				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
+					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue)
 				}
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
@@ -81,9 +82,10 @@ func DequeueIngestion(key string, fullsync bool) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
-				if len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
-					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue, fullsync)
+				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
+				ok := saveAviModel(model_name, aviModelGraph, key)
+				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
+					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue)
 				}
 			}
 		}
@@ -99,20 +101,38 @@ func DequeueIngestion(key string, fullsync bool) {
 			// does not allow cross tenant ingress references.
 			utils.AviLog.Info.Printf("key :%s, msg: evaluating ingress: %s", key, ingress)
 			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
-			if !found {
+			if !found || aviModel == nil {
 				utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
 				aviModel = NewAviObjectGraph()
 				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 			}
 			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
-			if len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-				PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue, fullsync)
+			ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
+			if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
+				PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue)
 			}
 		}
 	}
 }
 
-func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue) {
+func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool {
+	utils.AviLog.Info.Printf("key: %s, msg: Evaluating model :%s", key, model_name)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	if found && aviModel != nil {
+		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
+		utils.AviLog.Info.Printf("key :%s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
+		presentChecksum := aviGraph.GetCheckSum()
+		utils.AviLog.Info.Printf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
+		if prevChecksum == presentChecksum {
+			utils.AviLog.Info.Printf("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
+			return false
+		}
+	}
+	objects.SharedAviGraphLister().Save(model_name, aviGraph)
+	return true
+}
+
+func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsync bool) {
 	utils.AviLog.Info.Printf("key: %s, Got node Object %s\n", key, nodename)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
 	if err == nil {
@@ -134,30 +154,17 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue) {
 		return
 	}
 	model_name := utils.ADMIN_NS + "/" + vrfcontext
-	PublishKeyToRestLayer(aviModel, model_name, key, sharedQueue, false)
+	ok := saveAviModel(model_name, aviModel, key)
+	if ok && !fullsync {
+		PublishKeyToRestLayer(aviModel, model_name, key, sharedQueue)
+	}
 }
 
-func PublishKeyToRestLayer(aviGraph *AviObjectGraph, model_name string, key string, sharedQueue *utils.WorkerQueue, fullsync bool) {
-	// First see if there's another instance of the same model in the store
-	utils.AviLog.Info.Printf("key: %s, msg: Evaluating model :%s", key, model_name)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
-	if found && aviModel != nil {
-		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
-		utils.AviLog.Info.Printf("key :%s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
-		presentChecksum := aviGraph.GetCheckSum()
-		utils.AviLog.Info.Printf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
-		if prevChecksum == presentChecksum {
-			utils.AviLog.Info.Printf("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
-			return
-		}
-	}
-	// TODO (sudswas): Lots of checksum optimization goes here
-	objects.SharedAviGraphLister().Save(model_name, aviGraph)
-	if !fullsync {
-		bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
-		sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
-		utils.AviLog.Info.Printf("key: %s, msg: Published key with model_name: %s", key, model_name)
-	}
+func PublishKeyToRestLayer(aviGraph *AviObjectGraph, model_name string, key string, sharedQueue *utils.WorkerQueue) {
+	bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
+	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
+	utils.AviLog.Info.Printf("key: %s, msg: Published key with model_name: %s", key, model_name)
+
 }
 
 func isServiceDelete(svcName string, namespace string, key string) bool {
