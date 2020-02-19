@@ -17,6 +17,10 @@ configs:
   vrfRefName: "global"
   disableStaticRouteSync: "false"
   ingressApi: "corev1" #enum: extensionv1 and corev1 - if not set default to corev1
+  defaultIngController: "true"
+  subnetIP: "10.10.10.10"
+  CIDR: "24"
+  NetworkName: "replace-with-your-network-name"
 
 imagePullSecrets: []
 nameOverride: ""

@@ -79,6 +79,21 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: ingressApi
+          - name: SUBNET_IP
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: subnetIP
+          - name: SUBNET_CIDR
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: CIDR
+          - name: NETWORK_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: NetworkName
           ports:
             - name: http
               containerPort: 80

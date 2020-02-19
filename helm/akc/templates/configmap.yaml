@@ -13,3 +13,7 @@ data:
   vrfRefName: {{ .Values.configs.vrfRefName | quote }}
   disableStaticRouteSync: {{ .Values.configs.disableStaticRouteSync | quote }}
   ingressApi: {{ .Values.configs.ingressApi | quote }}
+  defaultIngController: {{ .Values.configs.defaultIngController | quote }}
+  subnetIP: {{ .Values.configs.subnetIP | quote }}
+  CIDR: {{ .Values.configs.CIDR | quote }}
+  NetworkName: {{ .Values.configs.NetworkName | quote }}

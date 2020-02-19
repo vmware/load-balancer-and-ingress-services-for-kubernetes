@@ -18,10 +18,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
+	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
@@ -447,8 +449,24 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	} else {
 		auto_alloc := true
 		var vips []*avimodels.Vip
-		vip := avimodels.Vip{AutoAllocateIP: &auto_alloc}
-
+		var vip avimodels.Vip
+		if lib.GetCIDR() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
+			utils.AviLog.Warning.Printf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
+			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
+		} else {
+			intCidr, err := strconv.ParseInt(lib.GetCIDR(), 10, 32)
+			if err != nil {
+				utils.AviLog.Warning.Printf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
+				intCidr = 24
+			}
+			subnet_mask := int32(intCidr)
+			subnet_addr := lib.GetSubnetIP()
+			subnet_atype := "V4"
+			subnet_ip_obj := avimodels.IPAddr{Type: &subnet_atype, Addr: &subnet_addr}
+			subnet_obj := avimodels.IPAddrPrefix{IPAddr: &subnet_ip_obj, Mask: &subnet_mask}
+			networkRef := "/api/network/?name=" + lib.GetNetworkName()
+			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc, Subnet: &subnet_obj, NetworkRef: &networkRef}
+		}
 		mask := int32(24)
 		addr := "172.18.0.0"
 		atype := "V4"
