@@ -185,10 +185,14 @@ func (c *AviController) FullSyncK8s() error {
 
 	}
 
-	nodeObectjs, err := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
-	for _, node := range nodeObectjs {
-		key := utils.NodeObj + "/" + node.Name
-		nodes.DequeueIngestion(key, true)
+	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+		utils.AviLog.Info.Printf("Static route sync disabled, skipping node informers")
+	} else {
+		nodeObectjs, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
+		for _, node := range nodeObectjs {
+			key := utils.NodeObj + "/" + node.Name
+			nodes.DequeueIngestion(key, true)
+		}
 	}
 
 	// Publish all the models to REST layer.
