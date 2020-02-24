@@ -54,6 +54,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: shardVSSize
+          - name: SHARD_VS_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: shardVSPrefix
           - name: FULL_SYNC_INTERVAL
             valueFrom:
               configMapKeyRef:

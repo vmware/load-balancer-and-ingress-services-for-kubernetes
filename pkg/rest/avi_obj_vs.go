@@ -191,7 +191,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	var rest_ops []*utils.RestOp
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
-		for _, sslkeycert := range vs_meta.SniNodes {
+		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
 			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, certName)
 		}
