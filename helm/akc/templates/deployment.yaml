@@ -54,6 +54,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: shardVSSize
+          - name: SHARD_VS_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: shardVSPrefix
           - name: FULL_SYNC_INTERVAL
             valueFrom:
               configMapKeyRef:
@@ -79,6 +84,21 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: ingressApi
+          - name: SUBNET_IP
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: subnetIP
+          - name: SUBNET_CIDR
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: CIDR
+          - name: NETWORK_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: NetworkName
           ports:
             - name: http
               containerPort: 80

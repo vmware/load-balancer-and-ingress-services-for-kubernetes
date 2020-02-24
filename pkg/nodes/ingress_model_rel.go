@@ -170,3 +170,31 @@ func parseSecretsForIngressCoreV1(ingSpec v1beta1.IngressSpec, key string) []str
 	utils.AviLog.Info.Printf("key: %s, msg: total secrets retrieved from corev1:  %s", key, secrets)
 	return secrets
 }
+
+func filterIngressOnClass(ingress *v1beta1.Ingress) bool {
+	// If Avi is not the default ingress, then filter on ingress class.
+	if !lib.GetDefaultIngController() {
+		annotations := ingress.GetAnnotations()
+		ingClass, ok := annotations[lib.INGRESS_CLASS_ANNOT]
+		if ok && ingClass == lib.AVI_INGRESS_CLASS {
+			return true
+		} else {
+			return false
+		}
+	}
+	return true
+}
+
+func filterIngressOnClassExtV1(ingress *extensionv1beta1.Ingress) bool {
+	// If Avi is not the default ingress, then filter on ingress class.
+	if !lib.GetDefaultIngController() {
+		annotations := ingress.GetAnnotations()
+		ingClass, ok := annotations[lib.INGRESS_CLASS_ANNOT]
+		if ok && ingClass == lib.AVI_INGRESS_CLASS {
+			return true
+		} else {
+			return false
+		}
+	}
+	return true
+}

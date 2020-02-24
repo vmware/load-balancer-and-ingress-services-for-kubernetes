@@ -5,18 +5,23 @@
 replicaCount: 1
 
 image:
-  repository: 100.64.86.10:5443/avi-k8s-controller
+  repository: 10.79.111.50:5443/avi-k8s-controller
   pullPolicy: IfNotPresent
 
 configs:
   controllerVersion: "18.2.7"
   shardVSSize: "LARGE"
   shardVSNum: "8"
+  shardVSPrefix: ""
   fullSyncFrequency: "300"
   cloudName: "Default-Cloud"
   vrfRefName: "global"
   disableStaticRouteSync: "false"
   ingressApi: "corev1" #enum: extensionv1 and corev1 - if not set default to corev1
+  defaultIngController: "true"
+  subnetIP: "100.64.86.0"
+  CIDR: "24"
+  NetworkName: "vxw-dvs-34-virtualwire-85-sid-2140084-wdc-02-vc14-avi-dev078"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -44,7 +49,7 @@ securityContext: {}
 
 avicredentials:
   username: admin
-  password: admin
+  password: orion123
 
 
 service:

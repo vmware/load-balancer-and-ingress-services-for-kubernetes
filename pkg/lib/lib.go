@@ -42,3 +42,29 @@ func GetIngressApi() string {
 	}
 	return ingressApi
 }
+
+func GetDefaultIngController() bool {
+	defaultIngCtrl := os.Getenv("DEFAULT_ING_CONTROLLER")
+	if defaultIngCtrl != "false" {
+		return true
+	}
+	return false
+}
+
+func GetSubnetIP() string {
+	// Additional checks can be performed here.
+	return os.Getenv(SUBNET_IP)
+
+}
+
+func GetCIDR() string {
+	// Additional checks can be performed here.
+	return os.Getenv(SUBNET_CIDR)
+
+}
+
+func GetNetworkName() string {
+	// Additional checks can be performed here.
+	return os.Getenv(NETWORK_NAME)
+
+}

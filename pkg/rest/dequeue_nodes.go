@@ -230,7 +230,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, key string, sslKey ...utils.NamespaceName) {
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
 	bkt := utils.Bkt(key, utils.NumWorkersGraph)
-	utils.AviLog.Warning.Printf("key: %s, msg: processing in rest queue number: %v", key, bkt)
+	utils.AviLog.Info.Printf("key: %s, msg: processing in rest queue number: %v", key, bkt)
 	if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
 		aviclient := rest.aviRestPoolClient.AviClient[bkt]
 		err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)

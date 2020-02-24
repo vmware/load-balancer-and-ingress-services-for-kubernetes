@@ -25,7 +25,6 @@ import (
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/api/networking/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -57,107 +56,89 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		return
 	}
 	if err != nil {
-		// A case, where we detected in Layer 2 that the ingress has been deleted.
-		if errors.IsNotFound(err) {
-			utils.AviLog.Info.Printf("key: %s, msg: ingress not found:  %s", key, ingName)
-
-			// Fetch the ingress pools that are present in the model and delete them.
+		o.DeletePoolForIngress(namespace, ingName, key, vsNode)
+	} else {
+		var parsedIng IngressConfig
+		processIng := true
+		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
+			processIng = filterIngressOnClassExtV1(ingObj.(*extensionv1beta1.Ingress))
+			if !processIng {
+				// If the ingress class is not right, let's delete it.
+				o.DeletePoolForIngress(namespace, ingName, key, vsNode)
+			}
+			parsedIng = parseHostPathForIngress(ingName, ingObj.(*extensionv1beta1.Ingress).Spec, key)
+		} else {
+			processIng = filterIngressOnClass(ingObj.(*v1beta1.Ingress))
+			if !processIng {
+				// If the ingress class is not right, let's delete it.
+				o.DeletePoolForIngress(namespace, ingName, key, vsNode)
+			}
+			parsedIng = parseHostPathForIngressCoreV1(ingName, ingObj.(*v1beta1.Ingress).Spec, key)
+		}
+		if processIng {
+			// First check if there are pools related to this ingress present in the model already
 			poolNodes := o.GetAviPoolNodesByIngress(utils.ADMIN_NS, ingName)
-			utils.AviLog.Info.Printf("key: %s, msg: Pool Nodes to delete for ingress:  %s", key, utils.Stringify(poolNodes))
-
+			utils.AviLog.Info.Printf("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
 			for _, pool := range poolNodes {
 				o.RemovePoolNodeRefs(pool.Name)
 			}
-			// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
-			// Fetch all the secrets for this ingress
-			found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
-			utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
-			if found {
-				for _, secret := range secrets {
-					sniNodeName := ingName + "--" + namespace + "--" + secret
-					utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
-					RemoveSniInModel(sniNodeName, vsNode, key)
-				}
-			}
-			ok, hosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+			// First retrieve the FQDNs from the cache and update the model
+			ok, Storedhosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
 			if ok {
-				// Remove these hosts from the overall FQDN list
-				RemoveFQDNsFromModel(vsNode[0], hosts, key)
+				RemoveFQDNsFromModel(vsNode[0], Storedhosts, key)
 			}
-			utils.AviLog.Info.Printf("key: %s, msg: after removing fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
-			// Now remove the secret relationship
-			objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressSecretMappings(ingName)
-			// Remove the hosts mapping for this ingress
-			objects.SharedSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(ingName)
-		}
-	} else {
-		// First check if there are pools related to this ingress present in the model already
-		poolNodes := o.GetAviPoolNodesByIngress(utils.ADMIN_NS, ingName)
-		utils.AviLog.Info.Printf("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
-		for _, pool := range poolNodes {
-			o.RemovePoolNodeRefs(pool.Name)
-		}
-		// First retrieve the FQDNs from the cache and update the model
-		ok, Storedhosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
-		if ok {
-			RemoveFQDNsFromModel(vsNode[0], Storedhosts, key)
-		}
-		// Update the host mappings for this ingress
-		var parsedIng IngressConfig
-		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-			parsedIng = parseHostPathForIngress(ingName, ingObj.(*extensionv1beta1.Ingress).Spec, key)
-		} else {
-			parsedIng = parseHostPathForIngressCoreV1(ingName, ingObj.(*v1beta1.Ingress).Spec, key)
-		}
-		utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %s", key, parsedIng)
-		var hosts []string
-		for host, _ := range parsedIng.IngressHostMap {
-			hosts = append(hosts, host)
-		}
-		objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, hosts)
-		// PGs are in 'admin' namespace right now.
-		if pgNode != nil {
-			utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(parsedIng))
-			// Processsing insecure ingress
-			for host, val := range parsedIng.IngressHostMap {
-				if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
-					vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
-				}
-				for _, obj := range val {
-					var priorityLabel string
-					if obj.Path != "" {
-						priorityLabel = host + obj.Path
-					} else {
-						priorityLabel = host
-					}
-					poolNode := &AviPoolNode{Name: priorityLabel + "--" + namespace + "--" + ingName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace}}
-					poolNode.VrfContext = lib.GetVrf()
-					if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
-						poolNode.Servers = servers
-					}
-					poolNode.CalculateCheckSum()
-					o.AddModelNode(poolNode)
-					utils.AviLog.Info.Printf("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
-					vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
-				}
-			}
-			// Processing the TLS nodes
-			for _, tlssetting := range parsedIng.TlsCollection {
-				// For each host, create a SNI node with the secret giving us the key and cert.
-				// construct a SNI VS node per tls setting which corresponds to one secret
-				sniNode := &AviVsNode{Name: ingName + "--" + namespace + "--" + tlssetting.SecretName, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
-				sniNode.VrfContext = lib.GetVrf()
-				certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
-				if certsBuilt {
-					o.BuildPolicyPGPoolsForSNI(sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
-					foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
-					if !foundSniModel {
-						vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
-					}
+			// Update the host mappings for this ingress
 
-				}
+			utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %v", key, parsedIng)
+			var hosts []string
+			for host, _ := range parsedIng.IngressHostMap {
+				hosts = append(hosts, host)
 			}
+			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, hosts)
+			// PGs are in 'admin' namespace right now.
+			if pgNode != nil {
+				utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(parsedIng))
+				// Processsing insecure ingress
+				for host, val := range parsedIng.IngressHostMap {
+					if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
+						vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
+					}
+					for _, obj := range val {
+						var priorityLabel string
+						if obj.Path != "" {
+							priorityLabel = host + obj.Path
+						} else {
+							priorityLabel = host
+						}
+						poolNode := &AviPoolNode{Name: priorityLabel + "--" + namespace + "--" + ingName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace}}
+						poolNode.VrfContext = lib.GetVrf()
+						if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
+							poolNode.Servers = servers
+						}
+						poolNode.CalculateCheckSum()
+						o.AddModelNode(poolNode)
+						utils.AviLog.Info.Printf("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
+						vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
+					}
+				}
+				// Processing the TLS nodes
+				for _, tlssetting := range parsedIng.TlsCollection {
+					// For each host, create a SNI node with the secret giving us the key and cert.
+					// construct a SNI VS node per tls setting which corresponds to one secret
+					sniNode := &AviVsNode{Name: ingName + "--" + namespace + "--" + tlssetting.SecretName, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
+					sniNode.VrfContext = lib.GetVrf()
+					certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
+					if certsBuilt {
+						o.BuildPolicyPGPoolsForSNI(sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
+						foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
+						if !foundSniModel {
+							vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
+						}
 
+					}
+				}
+
+			}
 		}
 	}
 	// Reset the PG Node members and rebuild them
@@ -166,6 +147,41 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
 	}
+}
+
+func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vsNode []*AviVsNode) {
+	// A case, where we detected in Layer 2 that the ingress has been deleted.
+	utils.AviLog.Info.Printf("key: %s, msg: ingress not found:  %s", key, ingName)
+
+	// Fetch the ingress pools that are present in the model and delete them.
+	poolNodes := o.GetAviPoolNodesByIngress(utils.ADMIN_NS, ingName)
+	utils.AviLog.Info.Printf("key: %s, msg: Pool Nodes to delete for ingress:  %s", key, utils.Stringify(poolNodes))
+
+	for _, pool := range poolNodes {
+		o.RemovePoolNodeRefs(pool.Name)
+	}
+	// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
+	// Fetch all the secrets for this ingress
+	found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
+	utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
+	if found {
+		for _, secret := range secrets {
+			sniNodeName := ingName + "--" + namespace + "--" + secret
+			utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
+			RemoveSniInModel(sniNodeName, vsNode, key)
+		}
+	}
+	ok, hosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+	if ok {
+		// Remove these hosts from the overall FQDN list
+		RemoveFQDNsFromModel(vsNode[0], hosts, key)
+	}
+	utils.AviLog.Info.Printf("key: %s, msg: after removing fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
+	// Now remove the secret relationship
+	objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressSecretMappings(ingName)
+	// Remove the hosts mapping for this ingress
+	objects.SharedSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(ingName)
+
 }
 
 func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
@@ -271,11 +287,11 @@ func parseHostPathForIngress(ingName string, ingSpec extensionv1beta1.IngressSpe
 
 func parseHostPathForIngressCoreV1(ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
-	var hostPathMapSvcList []IngressHostPathSvc
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
 	for _, rule := range ingSpec.Rules {
+		var hostPathMapSvcList []IngressHostPathSvc
 		var hostName string
 		if rule.Host == "" {
 			// The Host field is empty. Generate a hostName using the sub-domain info from configmap

@@ -8,8 +8,13 @@ data:
   controllerVersion: {{ .Values.configs.controllerVersion | quote }}
   shardVSSize: {{ .Values.configs.shardVSSize | quote }}
   shardVSNum: {{ .Values.configs.shardVSNum | quote }}
+  shardVSPrefix: {{ .Values.configs.shardVSPrefix | quote }}
   fullSyncFrequency: {{ .Values.configs.fullSyncFrequency | quote }}
   cloudName: {{ .Values.configs.cloudName | quote }}
   vrfRefName: {{ .Values.configs.vrfRefName | quote }}
   disableStaticRouteSync: {{ .Values.configs.disableStaticRouteSync | quote }}
   ingressApi: {{ .Values.configs.ingressApi | quote }}
+  defaultIngController: {{ .Values.configs.defaultIngController | quote }}
+  subnetIP: {{ .Values.configs.subnetIP | quote }}
+  CIDR: {{ .Values.configs.CIDR | quote }}
+  NetworkName: {{ .Values.configs.NetworkName | quote }}

@@ -10,4 +10,3 @@ RUN GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -o $GOPATH/bin/akc -mod=vendo
 FROM alpine:latest
 COPY --from=build /go/bin/akc .
 ENTRYPOINT ["./akc"]
-

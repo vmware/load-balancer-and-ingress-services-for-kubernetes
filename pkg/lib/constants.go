@@ -21,4 +21,9 @@ const (
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
 	AviNS                     = "avi-system"
+	INGRESS_CLASS_ANNOT       = "kubernetes.io/ingress.class"
+	AVI_INGRESS_CLASS         = "avi"
+	SUBNET_IP                 = "SUBNET_IP"
+	SUBNET_CIDR               = "SUBNET_CIDR"
+	NETWORK_NAME              = "NETWORK_NAME"
 )
