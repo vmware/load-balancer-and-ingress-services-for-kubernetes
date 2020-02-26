@@ -86,3 +86,7 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+persistentVolumeClaim: ""
+mountPath: "/log"
+logFile: "avi.log"

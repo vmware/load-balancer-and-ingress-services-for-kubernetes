@@ -1,6 +1,7 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/Azure/go-autorest v11.1.2+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
+github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792 h1:WVdw/DU0e+zGRpb5QAmrj4qNwqbhvbsJEQh6MbO2ryg=
 github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
@@ -114,6 +115,12 @@ gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200203160348-4c0f7e0e69d6 h1:
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200203160348-4c0f7e0e69d6/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200212061324-7b5dc1642bc1 h1:CyHeSo/v8kwlU+H8ugcewfDki7Yh7F4XrGugPvIFuoo=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200212061324-7b5dc1642bc1/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200225131631-5e9ef741bff3 h1:6DeHRgy3gyl5ekOcM/K8d64W7kRNXmUgEe84YKfq8eo=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200225131631-5e9ef741bff3/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200225143326-10d3f01e4a78 h1:NcXWVfoVV8anTY2lwWDrSr9MSJDnp2CxbSnXpgzxmqY=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200225143326-10d3f01e4a78/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200226070451-24e6906183aa h1:yt5h7pRF26wOJXRGM80HEGQ3D9NmyWxlYtX+5i4CdeU=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200226070451-24e6906183aa/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
 golang.org/x/crypto v0.0.0-20181025213731-e84da0312774/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20190225124518-7f87c0fbb88b h1:+/WWzjwW6gidDJnMKWLKLX1gxn7irUTF1fLpQovfQ5M=
 golang.org/x/crypto v0.0.0-20190225124518-7f87c0fbb88b/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
