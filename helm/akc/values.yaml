@@ -87,4 +87,6 @@ tolerations: []
 
 affinity: {}
 
-akcPVC: ""
+persistentVolumeClaim: ""
+mountPath: "/log/"
+logFile: "/log/avi.log"

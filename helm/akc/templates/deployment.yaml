@@ -22,17 +22,17 @@ spec:
       serviceAccountName: akc-sa
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{ if .Values.akcPVC }}
+      {{ if .Values.persistentVolumeClaim }}
       volumes:
       - name: akc-pv-storage
         persistentVolumeClaim:
-          claimName: {{ .Values.akcPVC }}
+          claimName: {{ .Values.persistentVolumeClaim }}
       {{ end }}
       containers:
         - name: {{ .Chart.Name }}
-          {{ if .Values.akcPVC }}
+          {{ if .Values.persistentVolumeClaim }}
           volumeMounts:
-          - mountPath: "/log/"
+          - mountPath: {{ .Values.mountPath }}
             name: akc-pv-storage
           {{ end }}
           securityContext:
@@ -110,12 +110,12 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: NetworkName
-          {{ if .Values.akcPVC }}
+          {{ if .Values.persistentVolumeClaim }}
           - name: USE_PVC
             value: "true"
           {{ end }}
           - name: LOG_FILE_NAME
-            value: "/log/avi.log"
+            value: {{ .Values.logFile }}
           ports:
             - name: http
               containerPort: 80
