@@ -115,7 +115,7 @@ spec:
             value: "true"
           {{ end }}
           - name: LOG_FILE_NAME
-            value: {{ .Values.logFile }}
+            value: {{ printf "%s/%s" .Values.mountPath .Values.logFile }}
           ports:
             - name: http
               containerPort: 80

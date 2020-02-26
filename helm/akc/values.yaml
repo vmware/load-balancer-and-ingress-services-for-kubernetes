@@ -88,5 +88,5 @@ tolerations: []
 affinity: {}
 
 persistentVolumeClaim: ""
-mountPath: "/log/"
-logFile: "/log/avi.log"
+mountPath: "/log"
+logFile: "avi.log"
