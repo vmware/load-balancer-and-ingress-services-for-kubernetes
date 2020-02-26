@@ -27,16 +27,24 @@ const (
 func init() {
 	// Change from ioutil.Discard for log to appear
 	// User provides the log file and lumberjack should create compressed log files with the naming format:<file_name>-2020-11-01sT18-30-00.000.log.gz post rotation.
+	var file *os.File
+	var logpath string
+	var err error
+	usePVC := os.Getenv("USE_PVC")
+	if usePVC == "true" {
+		var logpath = os.Getenv("LOG_FILE_NAME")
+		if logpath == "" {
+			logpath = DEFAULT_AVI_LOG
+		}
+		file, err = os.OpenFile(logpath,
+			os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		file = os.Stdout
+	}
 
-	var logpath = os.Getenv("LOG_FILE_NAME")
-	if logpath == "" {
-		logpath = DEFAULT_AVI_LOG
-	}
-	file, err := os.OpenFile(logpath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
 	AviLog.Trace = log.New(ioutil.Discard,
 		TraceColor,
 		log.Ldate|log.Ltime|log.Lshortfile)
@@ -44,14 +52,16 @@ func init() {
 	AviLog.Info = log.New(file,
 		InfoColor,
 		log.Ldate|log.Ltime|log.Lshortfile)
+	if usePVC == "true" {
+		AviLog.Info.SetOutput(&lumberjack.Logger{
+			Filename:   logpath,
+			MaxSize:    1,  // megabytes after which new file is created
+			MaxBackups: 3,  // number of backups
+			MaxAge:     28, //days
+			Compress:   true,
+		})
+	}
 
-	AviLog.Info.SetOutput(&lumberjack.Logger{
-		Filename:   logpath,
-		MaxSize:    1,  // megabytes after which new file is created
-		MaxBackups: 3,  // number of backups
-		MaxAge:     28, //days
-		Compress:   true,
-	})
 	AviLog.Warning = log.New(file,
 		WarnColor,
 		log.Ldate|log.Ltime|log.Lshortfile)
