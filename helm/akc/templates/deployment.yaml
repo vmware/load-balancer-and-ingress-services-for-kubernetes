@@ -116,6 +116,11 @@ spec:
           {{ end }}
           - name: LOG_FILE_NAME
             value: {{ printf "%s/%s" .Values.mountPath .Values.logFile }}
+          - name: L7_SHARD_SCHEME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: L7ShardingScheme
           ports:
             - name: http
               containerPort: 80

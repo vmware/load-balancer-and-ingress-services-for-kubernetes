@@ -90,26 +90,34 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	} else {
-		shardVsName := DeriveNamespacedShardVS(namespace, key)
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			return
-		}
-		model_name := utils.ADMIN_NS + "/" + shardVsName
-		for _, ingress := range ingressNames {
-			// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
-			// does not allow cross tenant ingress references.
-			utils.AviLog.Info.Printf("key :%s, msg: evaluating ingress: %s", key, ingress)
-			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
-			if !found || aviModel == nil {
-				utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
-				aviModel = NewAviObjectGraph()
-				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
+		if lib.GetShardScheme() == lib.DEFAULT_SHARD_SCHEME {
+			shardVsName := DeriveNamespacedShardVS(namespace, key)
+			if shardVsName == "" {
+				// If we aren't able to derive the ShardVS name, we should return
+				return
 			}
-			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
-			ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
-			if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-				PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue)
+			model_name := utils.ADMIN_NS + "/" + shardVsName
+			for _, ingress := range ingressNames {
+				// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
+				// does not allow cross tenant ingress references.
+				utils.AviLog.Info.Printf("key :%s, msg: evaluating ingress: %s", key, ingress)
+				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+				if !found || aviModel == nil {
+					utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
+					aviModel = NewAviObjectGraph()
+					aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
+				}
+				aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
+				ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
+				if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
+					PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue)
+				}
+			}
+		} else {
+			// The only other shard scheme we support now is hostname sharding.
+			for _, ingress := range ingressNames {
+				utils.AviLog.Info.Printf("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
+				hostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
 			}
 		}
 	}
@@ -207,8 +215,22 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 func DeriveNamespacedShardVS(namespace string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	var vsNum uint32
-	shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
+	shardSize, ok := shardSizeMap[shardVsSize]
+	shardVsPrefix := GetShardVSName(key)
+	if ok {
+		vsNum = utils.Bkt(namespace, shardSize)
+	} else {
+		utils.AviLog.Warning.Printf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
+		return ""
+	}
+	// Derive the right VS for this update.
+	vsName := shardVsPrefix + fmt.Sprint(vsNum)
+	return vsName
+}
+
+func GetShardVSName(key string) string {
+	shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")
 	vrfName := lib.GetVrf()
 	cloudName := os.Getenv("CLOUD_NAME")
 	if shardVsPrefix == "" {
@@ -220,9 +242,19 @@ func DeriveNamespacedShardVS(namespace string, key string) string {
 		}
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: ShardVSName: %s", key, shardVsPrefix)
+	return shardVsPrefix
+}
+
+func DeriveHostNameShardVS(hostname string, key string) string {
+	// Read the value of the num_shards from the environment variable.
+	var vsNum uint32
+	shardVsSize := os.Getenv("SHARD_VS_SIZE")
 	shardSize, ok := shardSizeMap[shardVsSize]
+	shardVsPrefix := GetShardVSName(key)
 	if ok {
-		vsNum = utils.Bkt(namespace, shardSize)
+		utils.AviLog.Warning.Printf("key: %s, msg: hostname for sharding: %s", key, hostname)
+		vsNum = utils.Bkt(hostname, shardSize)
+		utils.AviLog.Warning.Printf("key: %s, msg: VS number: %v", key, vsNum)
 	} else {
 		utils.AviLog.Warning.Printf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
 		return ""

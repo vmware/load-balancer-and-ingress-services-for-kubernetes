@@ -77,7 +77,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		}
 		if processIng {
 			// First check if there are pools related to this ingress present in the model already
-			poolNodes := o.GetAviPoolNodesByIngress(utils.ADMIN_NS, ingName)
+			poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
 			utils.AviLog.Info.Printf("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
 			for _, pool := range poolNodes {
 				o.RemovePoolNodeRefs(pool.Name)
@@ -154,7 +154,7 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	utils.AviLog.Info.Printf("key: %s, msg: ingress not found:  %s", key, ingName)
 
 	// Fetch the ingress pools that are present in the model and delete them.
-	poolNodes := o.GetAviPoolNodesByIngress(utils.ADMIN_NS, ingName)
+	poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
 	utils.AviLog.Info.Printf("key: %s, msg: Pool Nodes to delete for ingress:  %s", key, utils.Stringify(poolNodes))
 
 	for _, pool := range poolNodes {
@@ -238,11 +238,11 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 
 func parseHostPathForIngress(ingName string, ingSpec extensionv1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
-	var hostPathMapSvcList []IngressHostPathSvc
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
 	for _, rule := range ingSpec.Rules {
+		var hostPathMapSvcList []IngressHostPathSvc
 		var hostName string
 		if rule.Host == "" {
 			// The Host field is empty. Generate a hostName using the sub-domain info from configmap

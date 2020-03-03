@@ -26,4 +26,6 @@ const (
 	SUBNET_IP                 = "SUBNET_IP"
 	SUBNET_CIDR               = "SUBNET_CIDR"
 	NETWORK_NAME              = "NETWORK_NAME"
+	L7_SHARD_SCHEME           = "L7_SHARD_SCHEME"
+	DEFAULT_SHARD_SCHEME      = "namespace"
 )
