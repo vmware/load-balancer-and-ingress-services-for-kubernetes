@@ -38,6 +38,7 @@ type AviPoolCache struct {
 type ServiceMetadataObj struct {
 	IngressName string `json:"ingress_name"`
 	Namespace   string `json:"namespace"`
+	HostName    string `json:"hostname"`
 }
 
 type LBServiceMetadataObj struct {

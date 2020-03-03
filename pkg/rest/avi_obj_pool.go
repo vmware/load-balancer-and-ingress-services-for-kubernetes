@@ -24,6 +24,7 @@ import (
 	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
 	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
@@ -194,6 +195,13 @@ func SvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *avicache
 			} else {
 				utils.AviLog.Warning.Printf("Incorrect type %T in svc_mdata_map %v", val, *svc_mdata_map)
 			}
+		case "hostname":
+			hostname, ok := val.(string)
+			if ok {
+				svc_mdata.HostName = hostname
+			} else {
+				utils.AviLog.Warning.Printf("Incorrect type %T in svc_mdata_map %v", val, *svc_mdata_map)
+			}
 		}
 	}
 }
@@ -201,6 +209,19 @@ func SvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *avicache
 func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	poolKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	utils.AviLog.Info.Printf("key: %s, msg: deleting pool with key :%s", key, poolKey)
+	// Fetch the pool's cache data and obtain the service metadata
+	pool_cache, found := rest.cache.PoolCache.AviCacheGet(poolKey)
+	if found {
+		pool_cache_obj, success := pool_cache.(*avicache.AviPoolCache)
+		if success {
+			err := DeleteIngressStatus(pool_cache_obj.ServiceMetadataObj, key)
+			if k8serror.IsNotFound(err) {
+				// Just log and get away
+				utils.AviLog.Info.Printf("key: %s, msg: ingress already deleted, nothing to update in status", key)
+			}
+		}
+	}
+	// Now delete the cache.
 	rest.cache.PoolCache.AviCacheDelete(poolKey)
 	// Delete the pool from the vs cache as well.
 	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
