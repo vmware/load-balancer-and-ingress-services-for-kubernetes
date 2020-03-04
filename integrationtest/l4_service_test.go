@@ -18,8 +18,6 @@ import (
 	"os"
 	"testing"
 
-	k8sfake "k8s.io/client-go/kubernetes/fake"
-
 	"github.com/onsi/gomega"
 	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
 	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
@@ -28,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 var kubeClient *k8sfake.Clientset
@@ -55,20 +54,7 @@ func setUp() {
 	ctrlCh := make(chan struct{})
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
 	go ctrl.InitController(informers, ctrlCh, stopCh)
-}
-
-func TestAviConfigMap(t *testing.T) {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
-	if err != nil {
-		t.Fatalf("error in adding configmap: %v", err)
-	}
-	pollForSyncStart(t, ctrl, 10)
+	AddConfigMap()
 }
 
 func TestAviNodeCreationSinglePort(t *testing.T) {
