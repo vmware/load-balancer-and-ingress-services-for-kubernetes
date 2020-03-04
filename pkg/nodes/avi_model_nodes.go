@@ -414,7 +414,7 @@ func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string)
 	for _, model := range o.modelNodes {
 		if model.GetNodeType() == "VirtualServiceNode" {
 			for _, pool := range model.(*AviVsNode).PoolRefs {
-				if pool.IngressName == ingName && tenant == pool.Tenant {
+				if pool.IngressName == ingName && tenant == pool.ServiceMetadata.Namespace {
 					utils.AviLog.Info.Printf("Found Pool with name: %s Adding...", pool.IngressName)
 					aviPool = append(aviPool, pool)
 				}

@@ -24,6 +24,12 @@ var IngressApiMap = map[string]string{
 	"corev1":      utils.CoreV1IngressInformer,
 	"extensionv1": utils.ExtV1IngressInformer,
 }
+
+var ShardSchemeMap = map[string]string{
+	"hostname":  "hostname",
+	"namespace": "namespace",
+}
+
 var onlyOneSignalHandler = make(chan struct{})
 
 func GetVrf() string {
@@ -41,6 +47,15 @@ func GetIngressApi() string {
 		return utils.CoreV1IngressInformer
 	}
 	return ingressApi
+}
+
+func GetShardScheme() string {
+	shardScheme := os.Getenv(L7_SHARD_SCHEME)
+	shardSchemeName, ok := ShardSchemeMap[shardScheme]
+	if !ok {
+		return DEFAULT_SHARD_SCHEME
+	}
+	return shardSchemeName
 }
 
 func GetDefaultIngController() bool {
