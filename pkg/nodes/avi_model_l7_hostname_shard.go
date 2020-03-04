@@ -38,7 +38,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 		return
 	}
 	var priorityLabel string
-	utils.AviLog.Info.Printf("key: %s, msg: The pathsvc mapping: %s", key, pathsvc)
+	utils.AviLog.Info.Printf("key: %s, msg: The pathsvc mapping: %v", key, pathsvc)
 	for _, obj := range pathsvc {
 		if obj.Path != "" {
 			priorityLabel = hostname + obj.Path
@@ -144,6 +144,7 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 			ok, hosts = objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingress)
 			if !ok {
 				utils.AviLog.Warning.Printf("key :%s, msg: nothing to delete for ingress: %s", key, ingress)
+				return
 			}
 			utils.AviLog.Info.Printf("key :%s, msg: hosts to delete are: :%s", key, hosts)
 			for _, host := range hosts {

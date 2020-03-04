@@ -250,6 +250,9 @@ func parseHostPathForIngress(ingName string, ingSpec extensionv1beta1.IngressSpe
 		} else {
 			hostName = rule.Host
 		}
+		if len(hostMap[hostName]) > 0 {
+			hostPathMapSvcList = hostMap[hostName]
+		}
 		for _, path := range rule.IngressRuleValue.HTTP.Paths {
 			hostPathMapSvc := IngressHostPathSvc{}
 			//hostPathMapSvc.Host = hostName
@@ -298,6 +301,9 @@ func parseHostPathForIngressCoreV1(ingName string, ingSpec v1beta1.IngressSpec, 
 			hostName = ingName // (TODO): Add sub-domain
 		} else {
 			hostName = rule.Host
+		}
+		if len(hostMap[hostName]) > 0 {
+			hostPathMapSvcList = hostMap[hostName]
 		}
 		for _, path := range rule.IngressRuleValue.HTTP.Paths {
 			hostPathMapSvc := IngressHostPathSvc{}
