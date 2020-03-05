@@ -46,6 +46,16 @@ func TearDownTestForIngress(t *testing.T, model_name string) {
 	DelEP(t, "default", "avisvc")
 }
 
+func VerifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int) {
+	var nodes []*avinodes.AviVsNode
+	g.Eventually(func() []*avinodes.AviPoolNode {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].PoolRefs
+	}, 5*time.Second).Should(gomega.HaveLen(poolCount))
+
+	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(poolCount))
+}
+
 func TestNoModel(t *testing.T) {
 	model_name := "admin/testl7"
 	objects.SharedAviGraphLister().Delete(model_name)
@@ -126,8 +136,9 @@ func TestL7Model(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	TearDownTestForIngress(t, model_name)
+	VerifyIngressDeletion(t, g, aviModel, 0)
 
+	TearDownTestForIngress(t, model_name)
 }
 
 func TestMultiIngressToSameSvc(t *testing.T) {
@@ -384,6 +395,7 @@ func TestMultiVSIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, model_name)
 }
@@ -445,6 +457,8 @@ func TestMultiPathIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
 	TearDownTestForIngress(t, model_name)
 }
 
@@ -517,10 +531,17 @@ func TestMultiIngressSameHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 1)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("foo.com/bar--default--ingress-multi2"))
+
 	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
 	TearDownTestForIngress(t, model_name)
 }
 
@@ -580,6 +601,8 @@ func TestMultiHostIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
 	TearDownTestForIngress(t, model_name)
 }
 
@@ -639,6 +662,8 @@ func TestMultiHostSameHostnameIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
 	TearDownTestForIngress(t, model_name)
 }
 
@@ -725,6 +750,8 @@ func TestEditPathIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
 	TearDownTestForIngress(t, model_name)
 }
 
@@ -759,7 +786,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	//pollForCompletion(t, model_name, 5)
+
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -851,6 +878,8 @@ func TestEditMultiPathIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
 	TearDownTestForIngress(t, model_name)
 }
 
@@ -921,5 +950,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
 	TearDownTestForIngress(t, model_name)
 }
