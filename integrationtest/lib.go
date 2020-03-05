@@ -15,7 +15,6 @@
 package integrationtest
 
 import (
-	"syscall"
 	"testing"
 	"time"
 
@@ -42,17 +41,6 @@ func AddConfigMap() {
 	kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
 
 	pollForSyncStart(ctrl, 10)
-}
-
-func DelConfigMap() {
-	kubeClient.CoreV1().ConfigMaps("avi-system").Delete("avi-k8s-config", nil)
-}
-
-func Teardown() {
-	//CtrlCh <- struct{}{}
-	DelConfigMap()
-	syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
-	time.Sleep(5 * time.Second)
 }
 
 // Fake ingress
@@ -214,7 +202,6 @@ func pollForCompletion(t *testing.T, key string, counter int) interface{} {
 	return nil
 }
 
-//func pollForSyncStart(t *testing.T, ctrl *k8s.AviController, counter int) bool {
 func pollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 	count := 0
 	for count < counter {
