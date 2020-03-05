@@ -27,24 +27,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func SetUpTestForIngress(t *testing.T, model_name string) {
+func SetUpTestForIngress(t *testing.T, model_Name string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("CLOUD_NAME", "Shard-VS-")
 	os.Setenv("VRF_CONTEXT", "global")
 	os.Setenv("L7_SHARD_SCHEME", "namespace")
-
-	objects.SharedAviGraphLister().Delete(model_name)
+	objects.SharedAviGraphLister().Delete(model_Name)
 	CreateSVC(t, "default", "avisvc")
 	CreateEP(t, "default", "avisvc")
 }
 
-func TearDownTestForIngress(t *testing.T, model_name string) {
+func TearDownTestForIngress(t *testing.T, model_Name string) {
 	os.Setenv("SHARD_VS_SIZE", "")
 	os.Setenv("CLOUD_NAME", "")
 	os.Setenv("VRF_CONTEXT", "")
 	os.Setenv("L7_SHARD_SCHEME", "")
 
-	objects.SharedAviGraphLister().Delete(model_name)
+	objects.SharedAviGraphLister().Delete(model_Name)
 	DelSVC(t, "default", "avisvc")
 	DelEP(t, "default", "avisvc")
 }
@@ -63,15 +62,15 @@ func VerifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, 
 }
 
 func TestNoModel(t *testing.T) {
-	model_name := "admin/testl7"
-	objects.SharedAviGraphLister().Delete(model_name)
+	model_Name := "admin/testl7"
+	objects.SharedAviGraphLister().Delete(model_Name)
 
-	svcExample := (fakeService{
-		name:         "testl7",
-		namespace:    "red-ns",
-		servicePorts: []serviceport{{portName: "foo", protocol: "TCP", portNumber: 8080, targetPort: 8080}},
+	svcExample := (FakeService{
+		Name:         "testl7",
+		Namespace:    "red-ns",
+		ServicePorts: []Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
-	_, err := kubeClient.CoreV1().Services("red-ns").Create(svcExample)
+	_, err := KubeClient.CoreV1().Services("red-ns").Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -85,51 +84,51 @@ func TestNoModel(t *testing.T) {
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	_, err = kubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
+	_, err = KubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
-	found, _ := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, _ := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
-		t.Fatalf("Model found for an unrelated update %v", model_name)
+		t.Fatalf("Model found for an unrelated update %v", model_Name)
 	}
-	err = kubeClient.CoreV1().Endpoints("red-ns").Delete("testl7", nil)
+	err = KubeClient.CoreV1().Endpoints("red-ns").Delete("testl7", nil)
 
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
 	}
-	err = kubeClient.CoreV1().Services("red-ns").Delete("testl7", nil)
+	err = KubeClient.CoreV1().Services("red-ns").Delete("testl7", nil)
 }
 
 func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	pollForCompletion(t, model_name, 5)
-	found, _ := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, _ := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
-		t.Fatalf("Couldn't find model for DELETE event %v", model_name)
+		t.Fatalf("Couldn't find model for DELETE event %v", model_Name)
 	}
-	ingrFake := (fakeIngress{
-		name:        "foo-with-targets",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		ips:         []string{"8.8.8.8"},
-		hostnames:   []string{"v1"},
-		serviceName: "avisvc",
+	ingrFake := (FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -138,13 +137,13 @@ func TestL7Model(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %v", err)
 	}
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }
 
 func TestMultiIngressToSameSvc(t *testing.T) {
@@ -153,15 +152,15 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	os.Setenv("CLOUD_NAME", "Shard-VS-")
 	os.Setenv("VRF_CONTEXT", "global")
 
-	model_name := "admin/Shard-VS---global-6"
-	objects.SharedAviGraphLister().Delete(model_name)
-	svcExample := (fakeService{
-		name:         "avisvc",
-		namespace:    "default",
-		servicePorts: []serviceport{{portName: "foo", protocol: "TCP", portNumber: 8080, targetPort: 8080}},
+	model_Name := "admin/Shard-VS---global-6"
+	objects.SharedAviGraphLister().Delete(model_Name)
+	svcExample := (FakeService{
+		Name:         "avisvc",
+		Namespace:    "default",
+		ServicePorts: []Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 
-	_, err := kubeClient.CoreV1().Services("default").Create(svcExample)
+	_, err := KubeClient.CoreV1().Services("default").Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -175,38 +174,38 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	_, err = kubeClient.CoreV1().Endpoints("default").Create(epExample)
+	_, err = KubeClient.CoreV1().Endpoints("default").Create(epExample)
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
-	ingrFake1 := (fakeIngress{
-		name:        "foo-with-targets1",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		ips:         []string{"8.8.8.8"},
-		hostnames:   []string{"v1"},
-		serviceName: "avisvc",
+	ingrFake1 := (FakeIngress{
+		Name:        "foo-with-targets1",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	ingrFake2 := (fakeIngress{
-		name:        "foo-with-targets2",
-		namespace:   "default",
-		dnsnames:    []string{"bar.com"},
-		ips:         []string{"8.8.8.8"},
-		hostnames:   []string{"v1"},
-		serviceName: "avisvc",
+	ingrFake2 := (FakeIngress{
+		Name:        "foo-with-targets2",
+		Namespace:   "default",
+		DnsNames:    []string{"bar.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake2)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake2)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -226,23 +225,23 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 			}
 		}
 		// Delete the model.
-		objects.SharedAviGraphLister().Delete(model_name)
+		objects.SharedAviGraphLister().Delete(model_Name)
 	} else {
 		t.Fatalf("Could not find model on ingress delete: %v", err)
 	}
 	//====== VERIFICATION OF SERVICE DELETE
 	// Now we have cleared the layer 2 queue for both the models. Let's delete the service.
-	err = kubeClient.CoreV1().Endpoints("default").Delete("avisvc", nil)
+	err = KubeClient.CoreV1().Endpoints("default").Delete("avisvc", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
 	}
-	err = kubeClient.CoreV1().Services("default").Delete("avisvc", nil)
+	err = KubeClient.CoreV1().Services("default").Delete("avisvc", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
 	}
 	// We should be able to get one model now in the queue
-	pollForCompletion(t, model_name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -255,18 +254,18 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model on service delete: %v", err)
 	}
-	_, err = kubeClient.CoreV1().Endpoints("default").Create(epExample)
+	_, err = KubeClient.CoreV1().Endpoints("default").Create(epExample)
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 	//====== VERIFICATION OF ONE INGRESS DELETE
 	// Now let's delete one ingress and expect the update for that.
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets1", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets1", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	DetectModelChecksumChange(t, model_name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	DetectModelChecksumChange(t, model_Name, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -275,19 +274,19 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 
 		// Delete the model.
-		objects.SharedAviGraphLister().Delete(model_name)
+		objects.SharedAviGraphLister().Delete(model_Name)
 	} else {
 		t.Fatalf("Could not find model on ingress delete: %v", err)
 	}
 	//====== VERIFICATION OF SERVICE ADD
 	// Let's add the service back now - the ingress's associated with this service should be returned
-	_, err = kubeClient.CoreV1().Services("default").Create(svcExample)
+	_, err = KubeClient.CoreV1().Services("default").Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
+	PollForCompletion(t, model_Name, 5)
 	// We should be able to get one model now in the queue
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -295,33 +294,33 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 
-		objects.SharedAviGraphLister().Delete(model_name)
+		objects.SharedAviGraphLister().Delete(model_Name)
 	} else {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
 	//====== VERIFICATION OF ONE ENDPOINT DELETE
-	err = kubeClient.CoreV1().Endpoints("default").Delete("avisvc", nil)
+	err = KubeClient.CoreV1().Endpoints("default").Delete("avisvc", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
+	PollForCompletion(t, model_Name, 5)
 	// Deletion should also give us the affected ingress objects
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		// Delete the model.
-		objects.SharedAviGraphLister().Delete(model_name)
+		objects.SharedAviGraphLister().Delete(model_Name)
 	} else {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
-	err = kubeClient.CoreV1().Services("default").Delete("avisvc", nil)
+	err = KubeClient.CoreV1().Services("default").Delete("avisvc", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
 	}
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets2", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets2", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -330,24 +329,24 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 func TestMultiVSIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	ingrFake := (fakeIngress{
-		name:        "foo-with-targets",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		ips:         []string{"8.8.8.8"},
-		hostnames:   []string{"v1"},
-		serviceName: "avisvc",
+	ingrFake := (FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -366,18 +365,18 @@ func TestMultiVSIngress(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %v", err)
 	}
-	randoming := (fakeIngress{
-		name:        "foo-with-targets",
-		namespace:   "randomnamespacethatyeildsdiff",
-		dnsnames:    []string{"foo.com"},
-		ips:         []string{"8.8.8.8"},
-		hostnames:   []string{"v1"},
-		serviceName: "avisvc",
+	randoming := (FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "randomNamespacethatyeildsdiff",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
 	}).Ingress()
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("randomnamespacethatyeildsdiff").Create(randoming)
-	model_name = "admin/Shard-VS---global-5"
-	pollForCompletion(t, model_name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("randomNamespacethatyeildsdiff").Create(randoming)
+	model_Name = "admin/Shard-VS---global-5"
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -393,41 +392,41 @@ func TestMultiVSIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	err = kubeClient.ExtensionsV1beta1().Ingresses("randomnamespacethatyeildsdiff").Delete("foo-with-targets", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("randomNamespacethatyeildsdiff").Delete("foo-with-targets", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }
 
 func TestMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	ingrFake := (fakeIngress{
-		name:        "ingress-multipath",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/foo", "/bar"},
-		serviceName: "avisvc",
+	ingrFake := (FakeIngress{
+		Name:        "ingress-multipath",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
 	}).IngressMultiPath()
 
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -457,51 +456,51 @@ func TestMultiPathIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multipath", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multipath", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }
 
 func TestMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	ingrFake1 := (fakeIngress{
-		name:        "ingress-multi1",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/foo"},
-		serviceName: "avisvc",
+	ingrFake1 := (FakeIngress{
+		Name:        "ingress-multi1",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	ingrFake2 := (fakeIngress{
-		name:        "ingress-multi2",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/bar"},
-		serviceName: "avisvc",
+	ingrFake2 := (FakeIngress{
+		Name:        "ingress-multi2",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/bar"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake2)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake2)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -531,9 +530,9 @@ func TestMultiIngressSameHost(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi1", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi1", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -542,35 +541,35 @@ func TestMultiIngressSameHost(t *testing.T) {
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("foo.com/bar--default--ingress-multi2"))
 
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }
 
 func TestMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	ingrFake := (fakeIngress{
-		name:        "ingress-multihost",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com", "bar.com"},
-		paths:       []string{"/foo", "/bar"},
-		serviceName: "avisvc",
+	ingrFake := (FakeIngress{
+		Name:        "ingress-multihost",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com", "bar.com"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -600,38 +599,38 @@ func TestMultiHostIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
 
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }
 
-func TestMultiHostSameHostnameIngress(t *testing.T) {
+func TestMultiHostSameHostNameIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	ingrFake := (fakeIngress{
-		name:        "ingress-multihost",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com", "foo.com"},
-		paths:       []string{"/foo", "/bar"},
-		serviceName: "avisvc",
+	ingrFake := (FakeIngress{
+		Name:        "ingress-multihost",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com", "foo.com"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -661,38 +660,38 @@ func TestMultiHostSameHostnameIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
 
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }
 
 func TestEditPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	ingrFake := (fakeIngress{
-		name:        "ingress-edit",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/foo"},
-		serviceName: "avisvc",
+	ingrFake := (FakeIngress{
+		Name:        "ingress-edit",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
 	}).Ingress()
 	ingrFake.ResourceVersion = "1"
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
@@ -714,23 +713,23 @@ func TestEditPathIngress(t *testing.T) {
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
 
-	ingrFake = (fakeIngress{
-		name:        "ingress-edit",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/bar"},
-		serviceName: "avisvc",
+	ingrFake = (FakeIngress{
+		Name:        "ingress-edit",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/bar"},
+		ServiceName: "avisvc",
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
@@ -749,51 +748,51 @@ func TestEditPathIngress(t *testing.T) {
 		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=foo.com/bar--default--ingress-edit"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
 
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-edit", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-edit", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }
 
 func TestEditMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	ingrFake := (fakeIngress{
-		name:        "ingress-multipath-edit",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/foo"},
-		serviceName: "avisvc",
+	ingrFake := (FakeIngress{
+		Name:        "ingress-multipath-edit",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
 	}).Ingress()
 	ingrFake.ResourceVersion = "1"
 
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
-	ingrFake = (fakeIngress{
-		name:        "ingress-multipath-edit",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/foo", "/bar"},
-		serviceName: "avisvc",
+	PollForCompletion(t, model_Name, 5)
+	ingrFake = (FakeIngress{
+		Name:        "ingress-multipath-edit",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
 	}).IngressMultiPath()
 	ingrFake.ResourceVersion = "2"
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
@@ -827,24 +826,24 @@ func TestEditMultiPathIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
-	ingrFake = (fakeIngress{
-		name:        "ingress-multipath-edit",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/foo", "/foobar"},
-		serviceName: "avisvc",
+	ingrFake = (FakeIngress{
+		Name:        "ingress-multipath-edit",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo", "/foobar"},
+		ServiceName: "avisvc",
 	}).IngressMultiPath()
 	ingrFake.ResourceVersion = "3"
-	objects.SharedAviGraphLister().Delete(model_name)
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
+	objects.SharedAviGraphLister().Delete(model_Name)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	pollForCompletion(t, model_name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
@@ -877,16 +876,16 @@ func TestEditMultiPathIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
 
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multipath-edit", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multipath-edit", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }
 
 func TestEditMultiIngressSameHost(t *testing.T) {
@@ -895,46 +894,46 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	model_name := "admin/Shard-VS---global-6"
 	SetUpTestForIngress(t, model_name)
 
-	ingrFake1 := (fakeIngress{
-		name:        "ingress-multi1",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/foo"},
-		serviceName: "avisvc",
+	ingrFake1 := (FakeIngress{
+		Name:        "ingress-multi1",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	ingrFake2 := (fakeIngress{
-		name:        "ingress-multi2",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/bar"},
-		serviceName: "avisvc",
+	ingrFake2 := (FakeIngress{
+		Name:        "ingress-multi2",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/bar"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake2)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake2)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	ingrFake2 = (fakeIngress{
-		name:        "ingress-multi2",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com"},
-		paths:       []string{"/foobar"},
-		serviceName: "avisvc",
+	ingrFake2 = (FakeIngress{
+		Name:        "ingress-multi2",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foobar"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake2)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake2)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	pollForCompletion(t, model_name, 5)
+	PollForCompletion(t, model_name, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -967,7 +966,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", model_name)
 	}
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi1", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi1", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -976,7 +975,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("foo.com/foobar--default--ingress-multi2"))
 
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -987,34 +986,34 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 
 func TestEditMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/Shard-VS---global-6"
-	SetUpTestForIngress(t, model_name)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
 
-	ingrFake := (fakeIngress{
-		name:        "ingress-multihost",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com", "bar.com"},
-		paths:       []string{"/foo", "/bar"},
-		serviceName: "avisvc",
+	ingrFake := (FakeIngress{
+		Name:        "ingress-multihost",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com", "bar.com"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	ingrFake = (fakeIngress{
-		name:        "ingress-multihost",
-		namespace:   "default",
-		dnsnames:    []string{"foo.com", "foobar.com"},
-		paths:       []string{"/foo", "/bar"},
-		serviceName: "avisvc",
+	ingrFake = (FakeIngress{
+		Name:        "ingress-multihost",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com", "foobar.com"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 
-	pollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1045,14 +1044,14 @@ func TestEditMultiHostIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", model_Name)
 	}
 
-	err = kubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_name)
+	TearDownTestForIngress(t, model_Name)
 }

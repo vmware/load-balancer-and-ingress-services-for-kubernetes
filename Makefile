@@ -30,4 +30,5 @@ test:
 	/usr/local/go/bin/go test -v ./pkg/k8s
 .PHONY: int_test
 int_test:
-	/usr/local/go/bin/go test -v ./integrationtest
+	/usr/local/go/bin/go test -v ./tests/integrationtest
+	/usr/local/go/bin/go test -v ./tests/hostnameshardtests

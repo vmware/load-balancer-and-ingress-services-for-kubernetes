@@ -18,18 +18,44 @@ import (
 	"testing"
 	"time"
 
+	"os"
+
 	v1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 
 	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
 	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
+	meshutils "gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/avinetworks/sdk/go/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
+
+var KubeClient *k8sfake.Clientset
+var ctrl *k8s.AviController
+
+func SetUp() {
+	KubeClient = k8sfake.NewSimpleClientset()
+	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, meshutils.ConfigMapInformer}
+	meshutils.NewInformers(meshutils.KubeClientIntf{KubeClient}, registeredInformers)
+	informers := k8s.K8sinformers{Cs: KubeClient}
+	os.Setenv("CTRL_USERNAME", "admin")
+	os.Setenv("CTRL_PASSWORD", "admin")
+	os.Setenv("CTRL_IPADDRESS", "localhost")
+	os.Setenv("INGRESS_API", "extensionv1")
+	os.Setenv("FULL_SYNC_INTERVAL", "60")
+	ctrl = k8s.SharedAviController()
+	stopCh := meshutils.SetupSignalHandler()
+	k8s.PopulateCache()
+	ctrlCh := make(chan struct{})
+	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
+	go ctrl.InitController(informers, ctrlCh, stopCh)
+	AddConfigMap()
+}
 
 func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
@@ -38,29 +64,29 @@ func AddConfigMap() {
 			Name:      "avi-k8s-config",
 		},
 	}
-	kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	KubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
 
 	pollForSyncStart(ctrl, 10)
 }
 
 // Fake ingress
-type fakeIngress struct {
-	dnsnames    []string
-	paths       []string
-	tlsdnsnames [][]string
-	ips         []string
-	hostnames   []string
-	namespace   string
-	name        string
+type FakeIngress struct {
+	DnsNames    []string
+	Paths       []string
+	tlsDnsNames [][]string
+	Ips         []string
+	HostNames   []string
+	Namespace   string
+	Name        string
 	annotations map[string]string
-	serviceName string
+	ServiceName string
 }
 
-func (ing fakeIngress) Ingress() *extensionv1beta1.Ingress {
+func (ing FakeIngress) Ingress() *extensionv1beta1.Ingress {
 	ingress := &extensionv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   ing.namespace,
-			Name:        ing.name,
+			Namespace:   ing.Namespace,
+			Name:        ing.Name,
 			Annotations: ing.annotations,
 		},
 		Spec: extensionv1beta1.IngressSpec{
@@ -72,18 +98,18 @@ func (ing fakeIngress) Ingress() *extensionv1beta1.Ingress {
 			},
 		},
 	}
-	for i, dnsname := range ing.dnsnames {
+	for i, dnsName := range ing.DnsNames {
 		path := "/foo"
-		if len(ing.paths) > i {
-			path = ing.paths[i]
+		if len(ing.Paths) > i {
+			path = ing.Paths[i]
 		}
 		ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
-			Host: dnsname,
+			Host: dnsName,
 			IngressRuleValue: extensionv1beta1.IngressRuleValue{
 				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
 					Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
 						Path: path,
-						Backend: extensionv1beta1.IngressBackend{ServiceName: ing.serviceName, ServicePort: intstr.IntOrString{
+						Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 							Type:   intstr.Int,
 							IntVal: 8080,
 						}},
@@ -93,29 +119,29 @@ func (ing fakeIngress) Ingress() *extensionv1beta1.Ingress {
 			},
 		})
 	}
-	for _, hosts := range ing.tlsdnsnames {
+	for _, hosts := range ing.tlsDnsNames {
 		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
 			Hosts: hosts,
 		})
 	}
-	for _, ip := range ing.ips {
+	for _, ip := range ing.Ips {
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
 			IP: ip,
 		})
 	}
-	for _, hostname := range ing.hostnames {
+	for _, hostName := range ing.HostNames {
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
-			Hostname: hostname,
+			Hostname: hostName,
 		})
 	}
 	return ingress
 }
 
-func (ing fakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
+func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 	ingress := &extensionv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   ing.namespace,
-			Name:        ing.name,
+			Namespace:   ing.Namespace,
+			Name:        ing.Name,
 			Annotations: ing.annotations,
 		},
 		Spec: extensionv1beta1.IngressSpec{
@@ -127,12 +153,12 @@ func (ing fakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 			},
 		},
 	}
-	for _, dnsname := range ing.dnsnames {
+	for _, dnsName := range ing.DnsNames {
 		var ingrPaths []extensionv1beta1.HTTPIngressPath
-		for _, path := range ing.paths {
+		for _, path := range ing.Paths {
 			ingrPath := extensionv1beta1.HTTPIngressPath{
 				Path: path,
-				Backend: extensionv1beta1.IngressBackend{ServiceName: ing.serviceName, ServicePort: intstr.IntOrString{
+				Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 					Type:   intstr.Int,
 					IntVal: 8080,
 				}},
@@ -140,7 +166,7 @@ func (ing fakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 			ingrPaths = append(ingrPaths, ingrPath)
 		}
 		ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
-			Host: dnsname,
+			Host: dnsName,
 			IngressRuleValue: extensionv1beta1.IngressRuleValue{
 				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
 					Paths: ingrPaths,
@@ -148,19 +174,19 @@ func (ing fakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 			},
 		})
 	}
-	for _, hosts := range ing.tlsdnsnames {
+	for _, hosts := range ing.tlsDnsNames {
 		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
 			Hosts: hosts,
 		})
 	}
-	for _, ip := range ing.ips {
+	for _, ip := range ing.Ips {
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
 			IP: ip,
 		})
 	}
-	for _, hostname := range ing.hostnames {
+	for _, hostName := range ing.HostNames {
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
-			Hostname: hostname,
+			Hostname: hostName,
 		})
 	}
 	return ingress
@@ -188,7 +214,7 @@ func DetectModelChecksumChange(t *testing.T, key string, counter int) interface{
 	return nil
 }
 
-func pollForCompletion(t *testing.T, key string, counter int) interface{} {
+func PollForCompletion(t *testing.T, key string, counter int) interface{} {
 	count := 0
 	for count < counter {
 		found, aviModel := objects.SharedAviGraphLister().Get(key)
@@ -216,24 +242,24 @@ func pollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 	return false
 }
 
-type fakeService struct {
-	namespace    string
-	name         string
+type FakeService struct {
+	Namespace    string
+	Name         string
 	annotations  map[string]string
-	servicePorts []serviceport
+	ServicePorts []Serviceport
 }
 
-type serviceport struct {
-	portName   string
-	portNumber int32
-	protocol   v1.Protocol
-	targetPort int
+type Serviceport struct {
+	PortName   string
+	PortNumber int32
+	Protocol   v1.Protocol
+	TargetPort int
 }
 
-func (svc fakeService) Service() *corev1.Service {
+func (svc FakeService) Service() *corev1.Service {
 	var ports []corev1.ServicePort
-	for _, svcport := range svc.servicePorts {
-		ports = append(ports, corev1.ServicePort{Name: svcport.portName, Port: svcport.portNumber, Protocol: svcport.protocol, TargetPort: intstr.FromInt(svcport.targetPort)})
+	for _, svcport := range svc.ServicePorts {
+		ports = append(ports, corev1.ServicePort{Name: svcport.PortName, Port: svcport.PortNumber, Protocol: svcport.Protocol, TargetPort: intstr.FromInt(svcport.TargetPort)})
 	}
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
@@ -241,15 +267,15 @@ func (svc fakeService) Service() *corev1.Service {
 			Ports: ports,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: svc.namespace,
-			Name:      svc.name,
+			Namespace: svc.Namespace,
+			Name:      svc.Name,
 		},
 	}
 	return svcExample
 }
 
 type fakeNode struct {
-	name    string
+	Name    string
 	podCIDR string
 	nodeIP  string
 	version string
@@ -258,7 +284,7 @@ type fakeNode struct {
 func (node fakeNode) Node() *corev1.Node {
 	nodeExample := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            node.name,
+			Name:            node.Name,
 			ResourceVersion: node.version,
 		},
 		Spec: corev1.NodeSpec{
@@ -299,45 +325,45 @@ func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.St
 	return &staticRoute
 }
 
-func CreateSVC(t *testing.T, ns string, name string) {
-	svcExample := (fakeService{
-		name:         name,
-		namespace:    ns,
-		servicePorts: []serviceport{{portName: "foo", protocol: "TCP", portNumber: 8080, targetPort: 8080}},
+func CreateSVC(t *testing.T, ns string, Name string) {
+	svcExample := (FakeService{
+		Name:         Name,
+		Namespace:    ns,
+		ServicePorts: []Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 
-	_, err := kubeClient.CoreV1().Services(ns).Create(svcExample)
+	_, err := KubeClient.CoreV1().Services(ns).Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 }
 
-func DelSVC(t *testing.T, ns string, name string) {
-	err := kubeClient.CoreV1().Services(ns).Delete(name, nil)
+func DelSVC(t *testing.T, ns string, Name string) {
+	err := KubeClient.CoreV1().Services(ns).Delete(Name, nil)
 	if err != nil {
 		t.Fatalf("error in deleting Service: %v", err)
 	}
 }
 
-func CreateEP(t *testing.T, ns string, name string) {
+func CreateEP(t *testing.T, ns string, Name string) {
 	epExample := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
-			Name:      name,
+			Name:      Name,
 		},
 		Subsets: []corev1.EndpointSubset{{
 			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	_, err := kubeClient.CoreV1().Endpoints(ns).Create(epExample)
+	_, err := KubeClient.CoreV1().Endpoints(ns).Create(epExample)
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 }
 
-func DelEP(t *testing.T, ns string, name string) {
-	err := kubeClient.CoreV1().Endpoints(ns).Delete(name, nil)
+func DelEP(t *testing.T, ns string, Name string) {
+	err := KubeClient.CoreV1().Endpoints(ns).Delete(Name, nil)
 	if err != nil {
 		t.Fatalf("error in deleting Endpoint: %v", err)
 	}

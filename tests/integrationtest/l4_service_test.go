@@ -19,42 +19,18 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
-	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
 	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
 	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	meshutils "gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
-var kubeClient *k8sfake.Clientset
-var ctrl *k8s.AviController
-
 func TestMain(m *testing.M) {
-	setUp()
+	SetUp()
 	ret := m.Run()
 	os.Exit(ret)
-}
-
-func setUp() {
-	kubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, meshutils.ConfigMapInformer}
-	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: kubeClient}
-	os.Setenv("CTRL_USERNAME", "admin")
-	os.Setenv("CTRL_PASSWORD", "admin")
-	os.Setenv("CTRL_IPADDRESS", "localhost")
-	os.Setenv("INGRESS_API", "extensionv1")
-	os.Setenv("FULL_SYNC_INTERVAL", "60")
-	ctrl = k8s.SharedAviController()
-	stopCh := meshutils.SetupSignalHandler()
-	k8s.PopulateCache()
-	ctrlCh := make(chan struct{})
-	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
-	go ctrl.InitController(informers, ctrlCh, stopCh)
-	AddConfigMap()
 }
 
 func TestAviNodeCreationSinglePort(t *testing.T) {
@@ -72,7 +48,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 			Name:      "testsvc",
 		},
 	}
-	_, err := kubeClient.CoreV1().Services("red-ns").Create(svcExample)
+	_, err := KubeClient.CoreV1().Services("red-ns").Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -86,11 +62,11 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	_, err = kubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
+	_, err = KubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
-	pollForCompletion(t, model_name, 15)
+	PollForCompletion(t, model_name, 15)
 
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if !found {
@@ -111,11 +87,11 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 
 	}
 	objects.SharedAviGraphLister().Delete(model_name)
-	err = kubeClient.CoreV1().Services("red-ns").Delete("testsvc", nil)
+	err = KubeClient.CoreV1().Services("red-ns").Delete("testsvc", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the service %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
+	PollForCompletion(t, model_name, 5)
 	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
 	if !found {
 		t.Fatalf("Couldn't find model for DELETE event %v", model_name)
@@ -124,7 +100,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 			t.Fatalf("Avi model: %v not nil for DELETE", model_name)
 		}
 	}
-	err = kubeClient.CoreV1().Endpoints("red-ns").Delete("testsvc", nil)
+	err = KubeClient.CoreV1().Endpoints("red-ns").Delete("testsvc", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
 	}
@@ -148,7 +124,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 			Name:      "testsvc",
 		},
 	}
-	_, err := kubeClient.CoreV1().Services("red-ns").Create(svcExample)
+	_, err := KubeClient.CoreV1().Services("red-ns").Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -170,11 +146,11 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 				Ports:     []corev1.EndpointPort{{Name: "baz", Port: 7080, Protocol: "UDP"}},
 			}},
 	}
-	_, err = kubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
+	_, err = KubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
+	PollForCompletion(t, model_name, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if !found {
 		t.Fatalf("Couldn't find model %v", model_name)
@@ -229,7 +205,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 			Name:      "testsvc1",
 		},
 	}
-	_, err := kubeClient.CoreV1().Services("red-ns").Create(svcExample)
+	_, err := KubeClient.CoreV1().Services("red-ns").Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -251,11 +227,11 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 				Ports:     []corev1.EndpointPort{{Name: "baz", Port: 7080, Protocol: "UDP"}},
 			}},
 	}
-	_, err = kubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
+	_, err = KubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
+	PollForCompletion(t, model_name, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if !found {
 		t.Fatalf("Couldn't find model %v", model_name)
@@ -307,12 +283,12 @@ func TestAviNodeUpdateEndpoint(t *testing.T) {
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	_, err := kubeClient.CoreV1().Endpoints("red-ns").Update(epExample)
+	_, err := KubeClient.CoreV1().Endpoints("red-ns").Update(epExample)
 	if err != nil {
 		t.Fatalf("Error in updating the Endpoint: %v", err)
 	}
 
-	pollForCompletion(t, model_name, 5)
+	PollForCompletion(t, model_name, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if !found {
 		t.Fatalf("Couldn't find model %v", model_name)
@@ -329,11 +305,11 @@ func TestAviNodeUpdateEndpoint(t *testing.T) {
 		}
 	}
 	objects.SharedAviGraphLister().Delete(model_name)
-	err = kubeClient.CoreV1().Services("red-ns").Delete("testsvc", nil)
+	err = KubeClient.CoreV1().Services("red-ns").Delete("testsvc", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the service %v", err)
 	}
-	pollForCompletion(t, model_name, 5)
+	PollForCompletion(t, model_name, 5)
 	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
 	if !found {
 		t.Fatalf("Couldn't find model for DELETE event %v", model_name)

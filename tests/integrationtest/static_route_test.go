@@ -29,18 +29,18 @@ func TestNodeAdd(t *testing.T) {
 	nodeip := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (fakeNode{
-		name:    "testNode1",
+		Name:    "testNode1",
 		podCIDR: "10.244.0.0/24",
 		version: "1",
 		nodeIP:  nodeip,
 	}).Node()
 
-	_, err := kubeClient.CoreV1().Nodes().Create(nodeExample)
+	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample)
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
 
-	pollForCompletion(t, modelName, 5)
+	PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
 		t.Fatalf("Model not found for node add %v", modelName)
@@ -61,7 +61,7 @@ func TestNodeUpdate(t *testing.T) {
 	nodeip := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (fakeNode{
-		name:    "testNode1",
+		Name:    "testNode1",
 		podCIDR: "10.244.0.0/24",
 		version: "1",
 		nodeIP:  nodeip,
@@ -70,12 +70,12 @@ func TestNodeUpdate(t *testing.T) {
 	nodeExample.ObjectMeta.ResourceVersion = "2"
 	nodeExample.Spec.PodCIDR = "10.245.0.0/24"
 
-	_, err := kubeClient.CoreV1().Nodes().Update(nodeExample)
+	_, err := KubeClient.CoreV1().Nodes().Update(nodeExample)
 	if err != nil {
 		t.Fatalf("error in updating Node: %v", err)
 	}
 
-	pollForCompletion(t, modelName, 5)
+	PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
 		t.Fatalf("Model not found for node add %v", modelName)
@@ -95,11 +95,11 @@ func TestNodeDel(t *testing.T) {
 	modelName := "admin/global"
 	nodeName := "testNode1"
 	objects.SharedAviGraphLister().Delete(modelName)
-	err := kubeClient.CoreV1().Nodes().Delete(nodeName, nil)
+	err := KubeClient.CoreV1().Nodes().Delete(nodeName, nil)
 	if err != nil {
 		t.Fatalf("error in deleting Node: %v", err)
 	}
-	pollForCompletion(t, modelName, 5)
+	PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
 		t.Fatalf("Model not found for node add %v", modelName)
@@ -117,17 +117,17 @@ func TestNodeAddNoPodCIDR(t *testing.T) {
 	nodeip := "20.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (fakeNode{
-		name:    "testNodeInvalid",
+		Name:    "testNodeInvalid",
 		version: "1",
 		nodeIP:  nodeip,
 	}).Node()
 
-	_, err := kubeClient.CoreV1().Nodes().Create(nodeExample)
+	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample)
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
 
-	pollForCompletion(t, modelName, 5)
+	PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
 		t.Fatalf("Model not found for node add %v", modelName)
@@ -146,29 +146,29 @@ func TestMultiNodeAdd(t *testing.T) {
 	nodeip2 := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample1 := (fakeNode{
-		name:    "testNode1",
+		Name:    "testNode1",
 		podCIDR: "10.244.1.0/24",
 		version: "1",
 		nodeIP:  nodeip1,
 	}).Node()
 	nodeExample2 := (fakeNode{
-		name:    "testNode2",
+		Name:    "testNode2",
 		podCIDR: "10.244.2.0/24",
 		version: "1",
 		nodeIP:  nodeip2,
 	}).Node()
 
-	_, err := kubeClient.CoreV1().Nodes().Create(nodeExample1)
+	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample1)
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
-	_, err = kubeClient.CoreV1().Nodes().Create(nodeExample2)
+	_, err = KubeClient.CoreV1().Nodes().Create(nodeExample2)
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
 
 	time.Sleep(5)
-	pollForCompletion(t, modelName, 5)
+	PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
 		t.Fatalf("Model not found for node add %v", modelName)
