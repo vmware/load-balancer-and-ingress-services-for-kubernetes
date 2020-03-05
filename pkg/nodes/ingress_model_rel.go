@@ -181,8 +181,16 @@ func filterIngressOnClass(ingress *v1beta1.Ingress) bool {
 		} else {
 			return false
 		}
+	} else {
+		// If Avi is the default ingress controller, sync everything than the ones that are annotated with ingress class other than 'avi'
+		annotations := ingress.GetAnnotations()
+		ingClass, ok := annotations[lib.INGRESS_CLASS_ANNOT]
+		if ok && ingClass != lib.AVI_INGRESS_CLASS {
+			return false
+		} else {
+			return true
+		}
 	}
-	return true
 }
 
 func filterIngressOnClassExtV1(ingress *extensionv1beta1.Ingress) bool {
@@ -195,6 +203,14 @@ func filterIngressOnClassExtV1(ingress *extensionv1beta1.Ingress) bool {
 		} else {
 			return false
 		}
+	} else {
+		// If Avi is the default ingress controller, sync everything than the ones that are annotated with ingress class other than 'avi'
+		annotations := ingress.GetAnnotations()
+		ingClass, ok := annotations[lib.INGRESS_CLASS_ANNOT]
+		if ok && ingClass != lib.AVI_INGRESS_CLASS {
+			return false
+		} else {
+			return true
+		}
 	}
-	return true
 }
