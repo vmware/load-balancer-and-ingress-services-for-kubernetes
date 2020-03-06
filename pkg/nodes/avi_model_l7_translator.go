@@ -236,17 +236,40 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 	}
 }
 
+func getDefaultSubDomain() string {
+	var defSubdom string
+	cache := avicache.SharedAviObjCache()
+	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
+	if !ok || cloud == nil {
+		utils.AviLog.Warning.Printf("Cloud object not found")
+		return ""
+	}
+	cloudProperty, ok := cloud.(*avicache.AviCloudPropertyCache)
+	if !ok {
+		utils.AviLog.Warning.Printf("Cloud property object not found")
+		return ""
+	}
+	defSubdom = cloudProperty.NSIpamDNS
+	if defSubdom != "" && !strings.HasPrefix(defSubdom, ".") {
+		defSubdom = "." + defSubdom
+	}
+	return defSubdom
+}
+
 func parseHostPathForIngress(ingName string, ingSpec extensionv1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
+	defSubdom := getDefaultSubDomain()
+
 	for _, rule := range ingSpec.Rules {
 		var hostPathMapSvcList []IngressHostPathSvc
 		var hostName string
 		if rule.Host == "" {
-			// The Host field is empty. Generate a hostName using the sub-domain info from configmap
-			hostName = ingName // (TODO): Add sub-domain
+			// The Host field is empty. Generate a hostName using the sub-domain info
+			hostName = ingName + defSubdom
+
 		} else {
 			hostName = rule.Host
 		}
@@ -293,14 +316,14 @@ func parseHostPathForIngressCoreV1(ingName string, ingSpec v1beta1.IngressSpec, 
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
+	defSubdom := getDefaultSubDomain()
+
 	for _, rule := range ingSpec.Rules {
 		var hostPathMapSvcList []IngressHostPathSvc
 		var hostName string
 		if rule.Host == "" {
-			// The Host field is empty. Generate a hostName using the sub-domain info from configmap
-			hostName = ingName // (TODO): Add sub-domain
-		} else {
-			hostName = rule.Host
+			// The Host field is empty. Generate a hostName using the sub-domain info
+			hostName = ingName + defSubdom
 		}
 		if len(hostMap[hostName]) > 0 {
 			hostPathMapSvcList = hostMap[hostName]
