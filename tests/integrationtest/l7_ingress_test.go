@@ -789,7 +789,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
+		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
 	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
@@ -839,7 +839,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(model_Name)
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
+		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
 	PollForCompletion(t, model_Name, 5)
@@ -930,7 +930,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake2)
 	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
+		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
 	PollForCompletion(t, model_name, 5)
@@ -1048,6 +1048,314 @@ func TestEditMultiHostIngress(t *testing.T) {
 	}
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, model_Name)
+}
+
+func TestNoHostIngress(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
+
+	ingrFake := (FakeIngress{
+		Name:        "ingress-nohost",
+		Namespace:   "default",
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).IngressNoHost()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("ingress-nohost.avi.internal/foo--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.avi.internal/foo"))
+
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+
+		pool := nodes[0].PoolGroupRefs[0].Members[0]
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=ingress-nohost.avi.internal/foo--default--ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.avi.internal/foo"))
+	} else {
+		t.Fatalf("Could not find model: %s", model_Name)
+	}
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, model_Name)
+}
+
+func TestEditNoHostIngress(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
+
+	ingrFake := (FakeIngress{
+		Name:        "ingress-nohost",
+		Namespace:   "default",
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).IngressNoHost()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	ingrFake = (FakeIngress{
+		Name:        "ingress-nohost",
+		Namespace:   "default",
+		Paths:       []string{"/bar"},
+		ServiceName: "avisvc",
+	}).IngressNoHost()
+
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
+	if err != nil {
+		t.Fatalf("error in Updating Ingress: %v", err)
+	}
+
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+		g.Eventually(func() string {
+			return nodes[0].PoolRefs[0].Name
+		}, 5*time.Second).Should(gomega.Equal("ingress-nohost.avi.internal/bar--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.avi.internal/bar"))
+
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+
+		pool := nodes[0].PoolGroupRefs[0].Members[0]
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=ingress-nohost.avi.internal/bar--default--ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.avi.internal/bar"))
+	} else {
+		t.Fatalf("Could not find model: %s", model_Name)
+	}
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, model_Name)
+}
+
+func TestEditNoHostToHostIngress(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
+
+	ingrFake := (FakeIngress{
+		Name:        "ingress-nohost",
+		Namespace:   "default",
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).IngressNoHost()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	ingrFake = (FakeIngress{
+		Name:        "ingress-nohost",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/bar"},
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
+	if err != nil {
+		t.Fatalf("error in Updating Ingress: %v", err)
+	}
+
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+		g.Eventually(func() string {
+			return nodes[0].PoolRefs[0].Name
+		}, 5*time.Second).Should(gomega.Equal("foo.com/bar--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com/bar"))
+
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+
+		pool := nodes[0].PoolGroupRefs[0].Members[0]
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=foo.com/bar--default--ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+	} else {
+		t.Fatalf("Could not find model: %s", model_Name)
+	}
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, model_Name)
+}
+
+func TestNoHostMultiPathIngress(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
+
+	ingrFake := (FakeIngress{
+		Name:        "nohost-multipath",
+		Namespace:   "default",
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
+	}).IngressNoHost()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolRefs {
+			if pool.Name == "nohost-multipath.avi.internal/foo--default--nohost-multipath" {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.avi.internal/foo"))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+			} else if pool.Name == "nohost-multipath.avi.internal/bar--default--nohost-multipath" {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.avi.internal/bar"))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+			} else {
+				t.Fatalf("unexpected pool: %s", pool.Name)
+			}
+		}
+
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
+			if *pool.PoolRef == "/api/pool?name=nohost-multipath.avi.internal/foo--default--nohost-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.avi.internal/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=nohost-multipath.avi.internal/bar--default--nohost-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.avi.internal/bar"))
+			} else {
+				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
+			}
+		}
+
+	} else {
+		t.Fatalf("Could not find model: %s", model_Name)
+	}
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("nohost-multipath", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, model_Name)
+}
+
+func TestEditNoHostMultiPathIngress(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	model_Name := "admin/Shard-VS---global-6"
+	SetUpTestForIngress(t, model_Name)
+
+	ingrFake := (FakeIngress{
+		Name:        "nohost-multipath",
+		Namespace:   "default",
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
+	}).IngressNoHost()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	ingrFake = (FakeIngress{
+		Name:        "nohost-multipath",
+		Namespace:   "default",
+		Paths:       []string{"/foo", "/foobar"},
+		ServiceName: "avisvc",
+	}).IngressNoHost()
+
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
+	if err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
+
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolRefs {
+			if pool.Name == "nohost-multipath.avi.internal/foo--default--nohost-multipath" {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.avi.internal/foo"))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+			} else if pool.Name == "nohost-multipath.avi.internal/foobar--default--nohost-multipath" {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.avi.internal/foobar"))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+			} else {
+				t.Fatalf("unexpected pool: %s", pool.Name)
+			}
+		}
+
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
+			if *pool.PoolRef == "/api/pool?name=nohost-multipath.avi.internal/foo--default--nohost-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.avi.internal/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=nohost-multipath.avi.internal/foobar--default--nohost-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.avi.internal/foobar"))
+			} else {
+				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
+			}
+		}
+
+	} else {
+		t.Fatalf("Could not find model: %s", model_Name)
+	}
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("nohost-multipath", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
