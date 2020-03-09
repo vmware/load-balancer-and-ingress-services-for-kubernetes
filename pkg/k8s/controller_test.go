@@ -52,7 +52,7 @@ func waitAndverify(t *testing.T, key string) {
 			t.Fatalf("error in match expected: %v, got: %v", key, data)
 		}
 	case _ = <-waitChan:
-		t.Fatalf("timed out waitig for %v", key)
+		t.Fatalf("timed out waiting for %v", key)
 	}
 }
 
