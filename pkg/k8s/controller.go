@@ -91,7 +91,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(utils.AviLog.Info.Printf)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
-
 	mcpQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	c.workqueue = mcpQueue.Workqueue
 	numWorkers := mcpQueue.NumWorkers

@@ -66,7 +66,7 @@ func AddConfigMap() {
 	}
 	KubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
 
-	pollForSyncStart(ctrl, 10)
+	PollForSyncStart(ctrl, 10)
 }
 
 // Fake ingress
@@ -228,7 +228,7 @@ func PollForCompletion(t *testing.T, key string, counter int) interface{} {
 	return nil
 }
 
-func pollForSyncStart(ctrl *k8s.AviController, counter int) bool {
+func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 	count := 0
 	for count < counter {
 

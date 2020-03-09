@@ -26,7 +26,7 @@ import (
 
 var queuewrapper sync.Once
 var queueInstance *WorkQueueWrapper
-var fixedQueues = [...]WorkerQueue{WorkerQueue{NumWorkers: NumWorkersIngestion, workqueueName: ObjectIngestionLayer}, WorkerQueue{NumWorkers: NumWorkersGraph, workqueueName: GraphLayer}}
+var fixedQueues = [...]WorkerQueue{WorkerQueue{NumWorkers: NumWorkersIngestion, WorkqueueName: ObjectIngestionLayer}, WorkerQueue{NumWorkers: NumWorkersGraph, WorkqueueName: GraphLayer}}
 
 type WorkQueueWrapper struct {
 	// This struct should manage a set of WorkerQueues for the various layers
@@ -38,14 +38,23 @@ func (w *WorkQueueWrapper) GetQueueByName(queueName string) *WorkerQueue {
 	return workqueue
 }
 
-func SharedWorkQueue() *WorkQueueWrapper {
+func SharedWorkQueue(queueParams ...WorkerQueue) *WorkQueueWrapper {
 	queuewrapper.Do(func() {
 		queueInstance = &WorkQueueWrapper{}
 		queueInstance.queueCollection = make(map[string]*WorkerQueue)
-		for _, queue := range fixedQueues {
-			workqueue := NewWorkQueue(queue.NumWorkers, queue.workqueueName)
-			queueInstance.queueCollection[queue.workqueueName] = workqueue
+		if len(queueParams) != 0 {
+			for _, queue := range queueParams {
+				AviLog.Info.Printf("It's here the workers: %s", queue.WorkqueueName)
+				workqueue := NewWorkQueue(queue.NumWorkers, queue.WorkqueueName)
+				queueInstance.queueCollection[queue.WorkqueueName] = workqueue
+			}
+		} else {
+			for _, queue := range fixedQueues {
+				workqueue := NewWorkQueue(queue.NumWorkers, queue.WorkqueueName)
+				queueInstance.queueCollection[queue.WorkqueueName] = workqueue
+			}
 		}
+
 	})
 	return queueInstance
 }
@@ -54,7 +63,7 @@ func SharedWorkQueue() *WorkQueueWrapper {
 type WorkerQueue struct {
 	NumWorkers    uint32
 	Workqueue     []workqueue.RateLimitingInterface
-	workqueueName string
+	WorkqueueName string
 	workerIdMutex sync.Mutex
 	workerId      uint32
 	SyncFunc      func(string) error
@@ -65,7 +74,7 @@ func NewWorkQueue(num_workers uint32, workerQueueName string) *WorkerQueue {
 	queue.Workqueue = make([]workqueue.RateLimitingInterface, num_workers)
 	queue.workerId = (uint32(1) << num_workers) - 1
 	queue.NumWorkers = num_workers
-	queue.workqueueName = workerQueueName
+	queue.WorkqueueName = workerQueueName
 	//queue.syncFunc = syncFunc
 	for i := uint32(0); i < num_workers; i++ {
 		queue.Workqueue[i] = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), fmt.Sprintf("avi-%s", workerQueueName))
@@ -75,16 +84,16 @@ func NewWorkQueue(num_workers uint32, workerQueueName string) *WorkerQueue {
 
 func (c *WorkerQueue) Run(stopCh <-chan struct{}) error {
 	//defer runtime.HandleCrash()
-	AviLog.Info.Printf("Starting workers to drain the %s layer queues", c.workqueueName)
+	AviLog.Info.Printf("Starting workers to drain the %s layer queues", c.WorkqueueName)
 	if c.SyncFunc == nil {
 		// This is a bad situation, the sync function is required.
-		AviLog.Error.Fatalf("Sync function is not set for workqueue: %s", c.workqueueName)
+		AviLog.Error.Fatalf("Sync function is not set for workqueue: %s", c.WorkqueueName)
 		return nil
 	}
 	for i := uint32(0); i < c.NumWorkers; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
-	AviLog.Info.Printf("Started the workers for: %s", c.workqueueName)
+	AviLog.Info.Printf("Started the workers for: %s", c.WorkqueueName)
 
 	return nil
 }
@@ -92,7 +101,7 @@ func (c *WorkerQueue) StopWorkers(stopCh <-chan struct{}) {
 	for i := uint32(0); i < c.NumWorkers; i++ {
 		c.Workqueue[i].ShutDown()
 	}
-	AviLog.Info.Printf("Shutting down the workers for %s", c.workqueueName)
+	AviLog.Info.Printf("Shutting down the workers for %s", c.WorkqueueName)
 }
 
 // runWorker is a long-running function that will continually call the
@@ -158,3 +167,4 @@ func (c *WorkerQueue) processNextWorkItem(worker_id uint32) bool {
 	}
 	return true
 }
+
