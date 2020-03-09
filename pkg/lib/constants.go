@@ -28,4 +28,5 @@ const (
 	NETWORK_NAME              = "NETWORK_NAME"
 	L7_SHARD_SCHEME           = "L7_SHARD_SCHEME"
 	DEFAULT_SHARD_SCHEME      = "namespace"
+	HOSTNAME_SHARD_SCHEME     = "hostname"
 )

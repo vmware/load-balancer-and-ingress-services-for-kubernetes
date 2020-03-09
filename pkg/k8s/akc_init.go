@@ -86,7 +86,19 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 	  3. Initialize the ingestion layer queue for partial sync.
 	  **/
 	// start the go routines draining the queues in various layers
-	graphQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	var graphQueue *utils.WorkerQueue
+	shardScheme := lib.GetShardScheme()
+	// This is the first time initialization of the queue. For hostname based sharding, we don't want layer 2 to process the queue using multiple go routines.
+	if shardScheme == lib.HOSTNAME_SHARD_SCHEME {
+		var numWorkers uint32
+		numWorkers = 1
+		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
+		graphQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersGraph, WorkqueueName: utils.GraphLayer}
+		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams).GetQueueByName(utils.GraphLayer)
+	} else {
+		// Namespace sharding.
+		graphQueue = utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	}
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)

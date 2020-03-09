@@ -468,7 +468,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(tlsNode *AviVsNode, namespace 
 		tlsNode.VHDomainNames = hosts
 		for _, path := range paths {
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
-			httpPGPath.MatchCriteria = "EQUALS"
+			httpPGPath.MatchCriteria = "BEGINS_WITH"
 			pgName := namespace + "--" + ingName + "--" + host + "--" + path.Path
 			pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS}
 			httpPGPath.PoolGroup = pgNode.Name
