@@ -324,7 +324,10 @@ func parseHostPathForIngressCoreV1(ingName string, ingSpec v1beta1.IngressSpec, 
 		if rule.Host == "" {
 			// The Host field is empty. Generate a hostName using the sub-domain info
 			hostName = ingName + defSubdom
+		} else {
+			hostName = rule.Host
 		}
+
 		if len(hostMap[hostName]) > 0 {
 			hostPathMapSvcList = hostMap[hostName]
 		}
