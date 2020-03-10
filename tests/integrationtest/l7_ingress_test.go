@@ -915,7 +915,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 		Paths:       []string{"/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
-
+	ingrFake2.ResourceVersion = "2"
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake2)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
@@ -1010,7 +1010,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
-
+	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 
 	PollForCompletion(t, model_Name, 5)
@@ -1127,7 +1127,7 @@ func TestEditNoHostIngress(t *testing.T) {
 		Paths:       []string{"/bar"},
 		ServiceName: "avisvc",
 	}).IngressNoHost()
-
+	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
 		t.Fatalf("error in Updating Ingress: %v", err)
@@ -1182,6 +1182,29 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+		g.Eventually(func() string {
+			return nodes[0].PoolRefs[0].Name
+		}, 5*time.Second).Should(gomega.Equal("ingress-nohost.avi.internal/foo--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.avi.internal/foo"))
+
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+
+		pool := nodes[0].PoolGroupRefs[0].Members[0]
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=ingress-nohost.avi.internal/foo--default--ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.avi.internal/foo"))
+	} else {
+		t.Fatalf("Could not find model: %s", model_Name)
+	}
+
 	ingrFake = (FakeIngress{
 		Name:        "ingress-nohost",
 		Namespace:   "default",
@@ -1189,14 +1212,14 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		Paths:       []string{"/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
-
+	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
 		t.Fatalf("error in Updating Ingress: %v", err)
 	}
 
 	PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1313,7 +1336,7 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 		Paths:       []string{"/foo", "/foobar"},
 		ServiceName: "avisvc",
 	}).IngressNoHost()
-
+	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
