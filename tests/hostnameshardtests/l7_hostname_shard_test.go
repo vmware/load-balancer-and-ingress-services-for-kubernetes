@@ -109,6 +109,16 @@ func VerifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, 
 	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(poolCount))
 }
 
+func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, sniCount int) {
+	var nodes []*avinodes.AviVsNode
+	g.Eventually(func() []*avinodes.AviVsNode {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].SniNodes
+	}, 5*time.Second).Should(gomega.HaveLen(sniCount))
+
+	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(sniCount))
+}
+
 func TestCacheGETOKStatus(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1233,7 +1243,6 @@ func TestEditNoHostIngress(t *testing.T) {
 		Paths:       []string{"/foo"},
 		ServiceName: "avisvc",
 	}).IngressNoHost()
-
 	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
@@ -1245,7 +1254,7 @@ func TestEditNoHostIngress(t *testing.T) {
 		Paths:       []string{"/bar"},
 		ServiceName: "avisvc",
 	}).IngressNoHost()
-
+	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
 		t.Fatalf("error in Updating Ingress: %v", err)
@@ -1443,4 +1452,107 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, model_Name)
+}
+
+// All SNI test cases follow:
+
+func TestL7ModelSNI(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	integrationtest.AddSecret("my-secret", "default")
+	Model_Name := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, Model_Name)
+
+	integrationtest.PollForCompletion(t, Model_Name, 5)
+	found, _ := objects.SharedAviGraphLister().Get(Model_Name)
+	if found {
+		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
+		t.Fatalf("Couldn't find Model for DELETE event %v", Model_Name)
+	}
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		TlsDnsNames: [][]string{{"foo.com"}},
+		SecretName:  "my-secret",
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, Model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(Model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
+		g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("default--foo-with-targets--foo.com--/foo"))
+		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
+	} else {
+		t.Fatalf("Could not find Model: %v", err)
+	}
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
+	VerifySNIIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, Model_Name)
+}
+
+func TestL7ModelNoSecret(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	Model_Name := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, Model_Name)
+
+	integrationtest.PollForCompletion(t, Model_Name, 5)
+	found, _ := objects.SharedAviGraphLister().Get(Model_Name)
+	if found {
+		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
+		t.Fatalf("Couldn't find Model for DELETE event %v", Model_Name)
+	}
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-no-secret",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		TlsDnsNames: [][]string{{"foo.com"}},
+		SecretName:  "my-secret",
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, Model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(Model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
+	} else {
+		t.Fatalf("Could not find Model: %v", err)
+	}
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-no-secret", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+
+	VerifySNIIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, Model_Name)
 }

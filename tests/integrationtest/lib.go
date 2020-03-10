@@ -73,13 +73,31 @@ func AddConfigMap() {
 type FakeIngress struct {
 	DnsNames    []string
 	Paths       []string
-	tlsDnsNames [][]string
+	TlsDnsNames [][]string
+	SecretName  string
 	Ips         []string
 	HostNames   []string
 	Namespace   string
 	Name        string
 	annotations map[string]string
 	ServiceName string
+}
+
+func AddSecret(secretName string, namespace string) {
+	tlsCert := []byte("tlsCert")
+	tlsKey := []byte("tlsKey")
+	data := map[string][]byte{
+		"tls.crt": tlsCert,
+		"tls.key": tlsKey,
+	}
+	aviSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      secretName,
+		},
+		Data: data,
+	}
+	KubeClient.CoreV1().Secrets("default").Create(aviSecret)
 }
 
 func (ing FakeIngress) Ingress() *extensionv1beta1.Ingress {
@@ -119,9 +137,66 @@ func (ing FakeIngress) Ingress() *extensionv1beta1.Ingress {
 			},
 		})
 	}
-	for _, hosts := range ing.tlsDnsNames {
+	for _, hosts := range ing.TlsDnsNames {
 		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
-			Hosts: hosts,
+			Hosts:      hosts,
+			SecretName: ing.SecretName,
+		})
+	}
+	for _, ip := range ing.Ips {
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+			IP: ip,
+		})
+	}
+	for _, hostName := range ing.HostNames {
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+			Hostname: hostName,
+		})
+	}
+	return ingress
+}
+
+func (ing FakeIngress) SecureIngress() *extensionv1beta1.Ingress {
+	ingress := &extensionv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   ing.Namespace,
+			Name:        ing.Name,
+			Annotations: ing.annotations,
+		},
+		Spec: extensionv1beta1.IngressSpec{
+			Rules: []extensionv1beta1.IngressRule{},
+		},
+		Status: extensionv1beta1.IngressStatus{
+			LoadBalancer: v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{},
+			},
+		},
+	}
+	for i, dnsName := range ing.DnsNames {
+		path := "/foo"
+		if len(ing.Paths) > i {
+			path = ing.Paths[i]
+		}
+		ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+			Host: dnsName,
+			IngressRuleValue: extensionv1beta1.IngressRuleValue{
+				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
+					Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+						Path: path,
+						Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: 8080,
+						}},
+					},
+					},
+				},
+			},
+		})
+	}
+	for _, hosts := range ing.TlsDnsNames {
+		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
+			Hosts:      hosts,
+			SecretName: ing.SecretName,
 		})
 	}
 	for _, ip := range ing.Ips {
@@ -169,7 +244,7 @@ func (ing FakeIngress) IngressNoHost() *extensionv1beta1.Ingress {
 			},
 		})
 	}
-	for _, hosts := range ing.tlsDnsNames {
+	for _, hosts := range ing.TlsDnsNames {
 		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
 			Hosts: hosts,
 		})
@@ -224,7 +299,7 @@ func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 			},
 		})
 	}
-	for _, hosts := range ing.tlsDnsNames {
+	for _, hosts := range ing.TlsDnsNames {
 		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
 			Hosts: hosts,
 		})
