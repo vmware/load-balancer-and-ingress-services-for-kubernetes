@@ -18,9 +18,10 @@ import (
 	"flag"
 	"os"
 
-	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
-	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"ako/pkg/k8s"
+	"ako/pkg/lib"
+
+	"github.com/avinetworks/container-lib/utils"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

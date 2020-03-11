@@ -18,10 +18,11 @@ import (
 	"os"
 	"testing"
 
+	avinodes "ako/pkg/nodes"
+	"ako/pkg/objects"
+
+	meshutils "github.com/avinetworks/container-lib/utils"
 	"github.com/onsi/gomega"
-	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
-	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
-	meshutils "gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"

@@ -18,7 +18,7 @@ import (
 	"errors"
 	"regexp"
 
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"github.com/avinetworks/container-lib/utils"
 )
 
 func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) ([]map[string]interface{}, error) {

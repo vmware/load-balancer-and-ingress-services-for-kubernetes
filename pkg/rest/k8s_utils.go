@@ -17,8 +17,9 @@ package rest
 import (
 	core "k8s.io/api/core/v1"
 
-	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	avicache "ako/pkg/cache"
+
+	"github.com/avinetworks/container-lib/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

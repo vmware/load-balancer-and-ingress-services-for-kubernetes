@@ -20,9 +20,10 @@ import (
 	"strconv"
 	"strings"
 
+	"ako/pkg/objects"
+
+	"github.com/avinetworks/container-lib/utils"
 	"github.com/avinetworks/sdk/go/models"
-	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	v1 "k8s.io/api/core/v1"
 )
 

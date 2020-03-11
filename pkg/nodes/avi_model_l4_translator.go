@@ -17,10 +17,11 @@ package nodes
 import (
 	"fmt"
 
+	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
+
+	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
-	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
-	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -75,7 +76,7 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 
 		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS, Port: fmt.Sprint(filterPort)}
 		// For TCP - the PG to Pool relationship is 1x1
-                poolNode := &AviPoolNode{Name: "l4-" + pgName, Tenant: utils.ADMIN_NS, Protocol: portProto.Protocol, PortName: portProto.Name}
+		poolNode := &AviPoolNode{Name: "l4-" + pgName, Tenant: utils.ADMIN_NS, Protocol: portProto.Protocol, PortName: portProto.Name}
 		poolNode.VrfContext = lib.GetVrf()
 
 		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {

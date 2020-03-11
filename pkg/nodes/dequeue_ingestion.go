@@ -19,9 +19,10 @@ import (
 	"os"
 	"strings"
 
-	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
-	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"ako/pkg/lib"
+	"ako/pkg/objects"
+
+	"github.com/avinetworks/container-lib/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 

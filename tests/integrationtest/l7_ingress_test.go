@@ -19,10 +19,11 @@ import (
 	"testing"
 	"time"
 
+	avinodes "ako/pkg/nodes"
+	"ako/pkg/objects"
+
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
-	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
-	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

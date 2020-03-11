@@ -10,7 +10,7 @@ The controller ingests the Kubernetes API server object updates namely services 
 to construct corresponding objects in Avi controller. Hence the AKC performs the dual
 functionality of an ingress controller and a layer 4 load balancer.
 
-![Alt text](AKC.jpg?raw=true "Title")
+![Alt text](AKO.jpg?raw=true "Title")
 
 ## Run AKC
 

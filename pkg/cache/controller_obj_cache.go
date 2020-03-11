@@ -21,11 +21,12 @@ import (
 	"strings"
 	"sync"
 
+	"ako/pkg/lib"
+
+	"github.com/avinetworks/container-lib/utils"
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"
-	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
 type AviObjCache struct {

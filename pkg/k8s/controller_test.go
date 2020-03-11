@@ -23,8 +23,8 @@ import (
 	// To Do: add test for openshift route
 	//oshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
 
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
-	meshutils "gitlab.eng.vmware.com/orion/container-lib/utils"
+	"github.com/avinetworks/container-lib/utils"
+	meshutils "github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

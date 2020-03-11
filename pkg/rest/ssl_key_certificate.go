@@ -18,11 +18,12 @@ import (
 	"errors"
 	"fmt"
 
+	avicache "ako/pkg/cache"
+	"ako/pkg/nodes"
+
+	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
-	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
-	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
 func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache_obj *avicache.AviSSLCache) *utils.RestOp {

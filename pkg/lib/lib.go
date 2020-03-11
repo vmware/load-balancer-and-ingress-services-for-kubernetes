@@ -17,7 +17,7 @@ package lib
 import (
 	"os"
 
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"github.com/avinetworks/container-lib/utils"
 )
 
 var IngressApiMap = map[string]string{

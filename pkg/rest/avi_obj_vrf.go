@@ -18,11 +18,12 @@ import (
 	"encoding/json"
 	"errors"
 
+	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
+	"ako/pkg/nodes"
+
+	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
-	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
-	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
-	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
 func (rest *RestOperations) AviVrfGet(key, uuid, name string) *avimodels.VrfContext {

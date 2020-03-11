@@ -19,7 +19,7 @@ package objects
 import (
 	"sync"
 
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"github.com/avinetworks/container-lib/utils"
 )
 
 var aviGraphinstance *AviGraphLister

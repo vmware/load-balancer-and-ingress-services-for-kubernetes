@@ -17,11 +17,12 @@ package rest
 import (
 	"fmt"
 
-	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
+	"ako/pkg/objects"
 
-	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
-	"gitlab.eng.vmware.com/orion/akc/pkg/nodes"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	avicache "ako/pkg/cache"
+	"ako/pkg/nodes"
+
+	"github.com/avinetworks/container-lib/utils"
 )
 
 type RestOperations struct {

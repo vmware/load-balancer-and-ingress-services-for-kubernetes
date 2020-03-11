@@ -20,8 +20,9 @@ import (
 	"reflect"
 	"sync"
 
-	"gitlab.eng.vmware.com/orion/akc/pkg/lib"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"ako/pkg/lib"
+
+	"github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/api/networking/v1beta1"

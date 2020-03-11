@@ -18,9 +18,10 @@ import (
 	"testing"
 	"time"
 
+	avinodes "ako/pkg/nodes"
+	"ako/pkg/objects"
+
 	"github.com/onsi/gomega"
-	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
-	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
 )
 
 func TestNodeAdd(t *testing.T) {

@@ -3,7 +3,7 @@ GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
 BINARY_NAME_AMC=avi-k8s-controller
-REL_PATH_AMC=gitlab.eng.vmware.com/orion/akc/cmd/akc-main
+REL_PATH_AMC=ako/cmd/akc-main
 
 .PHONY:all
 all: build docker
@@ -23,7 +23,7 @@ deps:
 
 .PHONY: docker
 docker:
-	docker build -t $(BINARY_NAME_AMC):latest -f Dockerfile.akc .
+	docker build -t $(BINARY_NAME_AMC):latest -f Dockerfile.ako .
 
 .PHONY: test
 test:

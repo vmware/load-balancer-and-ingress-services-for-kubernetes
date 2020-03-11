@@ -18,9 +18,10 @@ import (
 	"fmt"
 	"sort"
 
+	avicache "ako/pkg/cache"
+
+	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
-	avicache "gitlab.eng.vmware.com/orion/akc/pkg/cache"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
 type AviModelNode interface {

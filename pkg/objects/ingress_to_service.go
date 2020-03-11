@@ -17,7 +17,7 @@ package objects
 import (
 	"sync"
 
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
+	"github.com/avinetworks/container-lib/utils"
 )
 
 //This package gives relationship APIs to manage a kubernetes service object.

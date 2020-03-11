@@ -24,10 +24,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"ako/pkg/cache"
+	"ako/pkg/k8s"
+
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
-	"gitlab.eng.vmware.com/orion/akc/pkg/cache"
-	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
 )
 
 func TestCacheGETOKStatus(t *testing.T) {

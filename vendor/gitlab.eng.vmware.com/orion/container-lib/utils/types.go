@@ -37,7 +37,7 @@ const (
 )
 
 const (
-	OSHIFT_K8S_CLOUD_CONNECTOR string = "amc-k8s-cloud-connector"
+	OSHIFT_K8S_CLOUD_CONNECTOR string = "avi-k8s-operator"
 )
 
 const (

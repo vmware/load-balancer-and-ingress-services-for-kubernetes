@@ -23,10 +23,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 
-	"gitlab.eng.vmware.com/orion/akc/pkg/k8s"
-	avinodes "gitlab.eng.vmware.com/orion/akc/pkg/nodes"
-	"gitlab.eng.vmware.com/orion/akc/pkg/objects"
-	meshutils "gitlab.eng.vmware.com/orion/container-lib/utils"
+	"ako/pkg/k8s"
+	avinodes "ako/pkg/nodes"
+	"ako/pkg/objects"
+
+	meshutils "github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/avinetworks/sdk/go/models"

@@ -3,6 +3,8 @@ cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMT
 github.com/Azure/go-autorest v11.1.2+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
+github.com/avinetworks/container-lib v0.0.0-20200309063932-14a4b95b6102 h1:7Vir9rWqYQeaJ/HK3r8awYQ/JtVvBHAfdJzcfz4bwMs=
+github.com/avinetworks/container-lib v0.0.0-20200309063932-14a4b95b6102/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
 github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792 h1:WVdw/DU0e+zGRpb5QAmrj4qNwqbhvbsJEQh6MbO2ryg=
 github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
@@ -92,6 +94,8 @@ github.com/spf13/pflag v1.0.3/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnIn
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+gitlab.eng.vmware.com/orion/akc v0.0.0-20200310160450-ae4cc17258e1 h1:aibm8qKh8PZWqV/mdaiKQoNi9h+PlnNRV0nla7Wx/HA=
+gitlab.eng.vmware.com/orion/akc v0.0.0-20200310160450-ae4cc17258e1/go.mod h1:peMJcEinkUea3oiK7ZLLrChi4cRb/5UwXqe7sVE/Qf0=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20191127072232-e3e1546a3dab h1:8LL/IYZSvrQzOsPmegWnFToG3wE3t644fdcRPaUs5mc=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20191127072232-e3e1546a3dab/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20191203062150-1d60b0aef6ee h1:p3jtuqncQlXw0tK1/U0asE4kbo9OxS2ca5gi6ZJDufU=
@@ -130,6 +134,8 @@ gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200226070451-24e6906183aa h1:
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200226070451-24e6906183aa/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200309064353-907a77d04ab5 h1:Yx2t2uN1TCVXboGvHfzFCflTwzc02JNOd0qwepY7qfk=
 gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200309064353-907a77d04ab5/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200310133218-91a12b939899 h1:s0758KRr/Xeht59qYTGU6eRpeM9OLg4pkHp2snEud5g=
+gitlab.eng.vmware.com/orion/container-lib v0.0.0-20200310133218-91a12b939899/go.mod h1:iXHIPnP6zkqZF8L+csT9TxqP/kAFmQio6XVCTQiKvvA=
 golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff h1:k/MrR0lKiCokRu1JUDDAWhWZinfBAOZRzz3LkPOkFMs=
 golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
 golang.org/x/crypto v0.0.0-20181025213731-e84da0312774/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=

@@ -15,8 +15,8 @@
 package lib
 
 import (
+	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
-	"gitlab.eng.vmware.com/orion/container-lib/utils"
 )
 
 func StaticRoutesIntfToObj(staticRoutesIntf []interface{}) []*avimodels.StaticRoute {
