@@ -1,5 +1,5 @@
 FROM golang:latest AS build
-ENV BUILD_PATH="gitlab.eng.vmware.com/orion/akc/"
+ENV BUILD_PATH="ako/"
 RUN mkdir -p $GOPATH/src/$BUILD_PATH
 
 COPY . $GOPATH/src/$BUILD_PATH
