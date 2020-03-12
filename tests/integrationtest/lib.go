@@ -15,7 +15,12 @@
 package integrationtest
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,8 +32,7 @@ import (
 	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
-
-	meshutils "github.com/avinetworks/container-lib/utils"
+	"github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/avinetworks/sdk/go/models"
@@ -37,21 +41,32 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
+// constants to be used for creating K8s objs and verifying Avi objs
+const (
+	SINGLEPORTSVC   = "testsvc"                    // single port service name
+	MULTIPORTSVC    = "testsvcmulti"               // multi port service name
+	NAMESPACE       = "red-ns"                     // namespace
+	AVINAMESPACE    = "admin"                      // avi namespace
+	SINGLEPORTMODEL = "admin/testsvc--red-ns"      // single port model name
+	MULTIPORTMODEL  = "admin/testsvcmulti--red-ns" // multi port model name
+	RANDOMUUID      = "random-uuid"                // random avi object uuid
+)
+
 var KubeClient *k8sfake.Clientset
 var ctrl *k8s.AviController
 
 func SetUp() {
 	KubeClient = k8sfake.NewSimpleClientset()
 	registeredInformers := []string{
-		meshutils.ServiceInformer,
-		meshutils.EndpointInformer,
-		meshutils.ExtV1IngressInformer,
-		meshutils.SecretInformer,
-		meshutils.NSInformer,
-		meshutils.NodeInformer,
-		meshutils.ConfigMapInformer,
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		utils.ExtV1IngressInformer,
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
 	}
-	meshutils.NewInformers(meshutils.KubeClientIntf{KubeClient}, registeredInformers)
+	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 
 	os.Setenv("CTRL_USERNAME", "admin")
@@ -60,7 +75,7 @@ func SetUp() {
 	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("FULL_SYNC_INTERVAL", "60")
 	ctrl = k8s.SharedAviController()
-	stopCh := meshutils.SetupSignalHandler()
+	stopCh := utils.SetupSignalHandler()
 	k8s.PopulateCache()
 	ctrlCh := make(chan struct{})
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
@@ -367,7 +382,6 @@ func PollForCompletion(t *testing.T, key string, counter int) interface{} {
 func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 	count := 0
 	for count < counter {
-
 		if ctrl.DisableSync {
 			time.Sleep(1 * time.Second)
 			count = count + 1
@@ -509,7 +523,6 @@ func DelSVC(t *testing.T, ns string, Name string) {
 
 /*
 CreateEP creates a sample Endpoint object
-
 if multiPort: False and multiAddress: False
 	1.1.1.1:8080
 if multiPort: True and multiAddress: False
@@ -566,4 +579,48 @@ func DelEP(t *testing.T, ns string, Name string) {
 	if err != nil {
 		t.Fatalf("error in deleting Endpoint: %v", err)
 	}
+}
+
+// GetAviControllerFakeAPIServer returns a sample Controller API FakeClient
+// This would also add some crucial fields, like uuid and url, which are required for
+// the cache sync to move ahead
+func GetAviControllerFakeAPIServer() (ts *httptest.Server) {
+	ts = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		url := r.URL.EscapedPath()
+		var resp map[string]interface{}
+		utils.AviLog.Info.Printf("[fakeAPI]: %s %s\n", r.Method, url)
+
+		if strings.Contains(url, "macro") && r.Method == "POST" {
+			// POST macro APIs for vs, pg, pool, ds creation on controller
+			// copying request payload into response body
+			data, _ := ioutil.ReadAll(r.Body)
+			var resp map[string]interface{}
+			_ = json.Unmarshal(data, &resp)
+			rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rData["name"].(string))
+
+			// adding additional 'uuid' and 'url' (read-only) fields in the response
+			rData["url"] = objURL
+			rData["uuid"] = fmt.Sprintf("%s-%s", rModelName, RANDOMUUID)
+			finalResponse, _ := json.Marshal([]interface{}{resp["data"]})
+			fmt.Fprintln(w, string(finalResponse))
+		} else if r.Method == "PUT" {
+			data, _ := ioutil.ReadAll(r.Body)
+			_ = json.Unmarshal(data, &resp)
+			resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
+			finalResponse, _ := json.Marshal(resp)
+			fmt.Fprintln(w, string(finalResponse))
+		} else {
+			// This is used for /login --> first request to controller
+			fmt.Fprintln(w, string(`{"dummy" :"data"}`))
+		}
+	}))
+
+	url := strings.Split(ts.URL, "https://")[1]
+	os.Setenv("CTRL_USERNAME", "admin")
+	os.Setenv("CTRL_PASSWORD", "admin")
+	os.Setenv("CTRL_IPADDRESS", url)
+	return ts
 }
