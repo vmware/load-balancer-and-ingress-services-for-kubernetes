@@ -151,14 +151,14 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 				// If the ingress class is not right, let's delete it.
 				DeletePoolsByHostname(namespace, ingress, key, fullsync, sharedQueue)
 			}
-			parsedIng = parseHostPathForIngress(ingress, ingObj.(*extensionv1beta1.Ingress).Spec, key)
+			parsedIng = parseHostPathForIngress(namespace, ingress, ingObj.(*extensionv1beta1.Ingress).Spec, key)
 		} else {
 			processIng = filterIngressOnClass(ingObj.(*v1beta1.Ingress))
 			if !processIng {
 				// If the ingress class is not right, let's delete it.
 				DeletePoolsByHostname(namespace, ingress, key, fullsync, sharedQueue)
 			}
-			parsedIng = parseHostPathForIngressCoreV1(ingress, ingObj.(*v1beta1.Ingress).Spec, key)
+			parsedIng = parseHostPathForIngressCoreV1(namespace, ingress, ingObj.(*v1beta1.Ingress).Spec, key)
 		}
 		if processIng {
 			// Check if this ingress and had any previous mappings, if so - delete them first.

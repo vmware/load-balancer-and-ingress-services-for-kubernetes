@@ -89,6 +89,13 @@ func TestCacheGETOKStatus(t *testing.T) {
 		g.Expect(len(vs_cache_obj.DSKeyCollection)).To(gomega.Equal(1))
 	}
 
+	// vs with no created_by field should not be present in cache
+	vsKey = cache.NamespaceName{Namespace: "admin", Name: "dns-vs"}
+	vs_cache, found = cacheobj.VsCache.AviCacheGet(vsKey)
+	if found {
+		t.Fatalf("Unexpected Cache found for VS: %v", vsKey)
+	}
+
 	vrfName := "global"
 	vrfCache, found := cacheobj.VrfCache.AviCacheGet(vrfName)
 	if !found {

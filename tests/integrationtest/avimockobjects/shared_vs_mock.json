@@ -1,5 +1,5 @@
 {
-    "count": 2,
+    "count": 3,
     "results": [
       {
         "network_profile_ref": "https://10.52.2.174:9443/api/networkprofile/networkprofile-cafa1a58-460c-40f0-bedf-62c1e677f6a0",
@@ -116,7 +116,7 @@
         "uuid": "virtualservice-cf0ea99a-3a72-4043-bad1-30241db467e3",
         "east_west_placement": false,
         "limit_doser": false,
-        "name": "Shard-VS-5",
+        "name": "Shard-VS-6",
         "close_client_conn_on_config_update": false,
         "type": "VS_TYPE_NORMAL",
         "enable_autogw": true,
@@ -487,6 +487,321 @@
         "cloud_config_cksum": "496a4fa92c22ee563b3a63ae11b82bcc",
         "redis_port": 5026,
         "flow_label_type": "NO_LABEL"
+      },
+      {
+        "url": "https://10.79.109.44/api/virtualservice/virtualservice-c389fb49-d586-4377-b5af-eed844baec9c",
+        "uuid": "virtualservice-c389fb49-d586-4377-b5af-eed844baec9c",
+        "name": "dns-vs",
+        "enabled": true,
+        "application_profile_ref": "https://10.79.109.44/api/applicationprofile/applicationprofile-1dcccb56-4048-4619-91ce-6c038149d361",
+        "se_group_ref": "https://10.79.109.44/api/serviceenginegroup/serviceenginegroup-4ba45918-a839-42c4-90a9-b35b5401903b",
+        "network_security_policy_ref": "https://10.79.109.44/api/networksecuritypolicy/networksecuritypolicy-3d84af84-d04c-4789-ba46-ee996ee7913b",
+        "vrf_context_ref": "https://10.79.109.44/api/vrfcontext/vrfcontext-9320230e-181e-4402-9e1b-e778f8cd3aef",
+        "analytics_profile_ref": "https://10.79.109.44/api/analyticsprofile/analyticsprofile-4e3a86f2-fec1-4e5e-aef6-6aa6f1eab4b4",
+        "tenant_ref": "https://10.79.109.44/api/tenant/admin",
+        "cloud_ref": "https://10.79.109.44/api/cloud/cloud-b5e6124a-db19-4b16-a9ed-8e6cb03586c1",
+        "vsvip_ref": "https://10.79.109.44/api/vsvip/vsvip-72361f9e-3b31-4d9f-bd00-4003e49352fe",
+        "_last_modified": "1582108968719637",
+        "network_profile_ref": "https://10.79.109.44/api/networkprofile/networkprofile-71dada2d-5150-4e75-9f83-f288d718c515",
+        "weight": 1,
+        "flow_dist": "LOAD_AWARE",
+        "remove_listening_port_on_vs_down": false,
+        "delay_fairness": false,
+        "sideband_profile": {
+          "sideband_max_request_body_size": 1024
+        },
+        "cloud_type": "CLOUD_VCENTER",
+        "advertise_down_vs": false,
+        "scaleout_ecmp": false,
+        "max_cps_per_client": 0,
+        "topology_policies": [
+          {
+            "index": 11,
+            "dns_policy_ref": "https://10.79.109.44/api/dnspolicy/dnspolicy-3870b4d1-24ac-4b57-8a44-ba2e373b200c"
+          }
+        ],
+        "traffic_enabled": true,
+        "ssl_sess_cache_avg_size": 1024,
+        "allow_invalid_client_cert": false,
+        "bulk_sync_kvcache": false,
+        "use_bridge_ip_as_vip": false,
+        "active_standby_se_tag": "ACTIVE_STANDBY_SE_1",
+        "use_vip_as_snat": false,
+        "services": [
+          {
+            "enable_ssl": false,
+            "port_range_end": 53,
+            "port": 53,
+            "http2": false
+          }
+        ],
+        "ign_pool_net_reach": false,
+        "east_west_placement": false,
+        "limit_doser": false,
+        "close_client_conn_on_config_update": false,
+        "type": "VS_TYPE_NORMAL",
+        "enable_autogw": true,
+        "content_rewrite": {
+          "rewritable_content_ref": "https://10.79.109.44/api/stringgroup/stringgroup-b8c904c1-5bb7-48f5-bbcd-c0484a845a9c",
+          "response_rewrite_enabled": false,
+          "request_rewrite_enabled": false
+        },
+        "dns_policies": [
+          {
+            "index": 11,
+            "dns_policy_ref": "https://10.79.109.44/api/dnspolicy/dnspolicy-bb8eaae9-c7b0-4110-8331-a9f6568c037e"
+          }
+        ],
+        "analytics_policy": {
+          "udf_log_throttle": 10,
+          "full_client_logs": {
+            "duration": 0,
+            "throttle": 10,
+            "enabled": false
+          },
+          "metrics_realtime_update": {
+            "duration": 0,
+            "enabled": false
+          },
+          "significant_log_throttle": 10,
+          "client_insights": "NO_INSIGHTS",
+          "all_headers": false
+        },
+        "flow_label_type": "NO_LABEL",
+        "vip_runtime": [
+          {
+            "se_list": [
+              {
+                "attach_ip_success": true,
+                "memory": 2000,
+                "vip_intf_mac": "00:50:56:81:57:d8",
+                "is_portchannel": false,
+                "attach_ip_status": "Programming Network reachability to the Virtual Service IP in the Cloud",
+                "delete_in_progress": false,
+                "admin_down_requested": false,
+                "vnic": [
+                  {
+                    "mac": "00:50:56:81:57:d8",
+                    "type": "VNIC_TYPE_FE"
+                  },
+                  {
+                    "mac": "00:50:56:81:57:d8",
+                    "type": "VNIC_TYPE_BE"
+                  }
+                ],
+                "incarnation": "2020-0309 10:06:17.235435",
+                "sec_idx": 0,
+                "scaleout_in_progress": false,
+                "vip_intf_list": [
+                  {
+                    "vip_intf_ip": {
+                      "type": "V4",
+                      "addr": "100.64.86.45"
+                    },
+                    "vip_intf_mac": "00:50:56:81:57:d8",
+                    "is_portchannel": false,
+                    "vlan_id": 0
+                  }
+                ],
+                "is_standby": false,
+                "vip_subnet_mask": 32,
+                "vcpus": 1,
+                "se_ref": "https://10.79.109.44/api/serviceengine/se-00505681440d",
+                "is_primary": true,
+                "vip6_subnet_mask": 128,
+                "vlan_id": 0
+              }
+            ],
+            "first_se_assigned_time": {
+              "secs": "1583748377",
+              "usecs": "235109"
+            },
+            "vip_id": "1",
+            "num_additional_se": 0,
+            "requested_resource": {
+              "num_se": 1,
+              "num_standby_se": 0
+            }
+          }
+        ],
+        "tls_ticket_key": [
+          {
+            "hmac_key": "oe1RRTjNzyl3UVziM8GTUg==",
+            "name": "bf1d2af6-ea6b-469c-b03e-6f7113e9ecf2",
+            "aes_key": "THGbSQSEEpTyQjjnewiFug=="
+          },
+          {
+            "hmac_key": "hQBvwqPkc980jHw0YfdLnQ==",
+            "name": "b5f36998-92ee-4923-b6ab-d6d21c449d31",
+            "aes_key": "UQK4vnpbsRmAd3sMk9hgCw=="
+          },
+          {
+            "hmac_key": "5gqZnyfWwBUcwx0mATvIbQ==",
+            "name": "2a812f75-025a-4c66-b768-2e224fb9cac0",
+            "aes_key": "cV3THz9P3JWcbqBnZvHtSg=="
+          }
+        ],
+        "marked_for_delete": false,
+        "redis_db": 2,
+        "version": "679",
+        "redis_port": 5022,
+        "self_se_election": true,
+        "ipam_dns_records": [
+          {
+            "description": "admin:dns-vs",
+            "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH",
+            "num_records_in_response": 1,
+            "type": "DNS_RECORD_A",
+            "fqdn": [
+              "dns-vs.avi.internal"
+            ],
+            "ttl": 30,
+            "delegated": false,
+            "wildcard_match": false,
+            "ip_address": [
+              {
+                "ip_address": {
+                  "type": "V4",
+                  "addr": "100.64.86.140"
+                }
+              }
+            ],
+            "metadata": "74072b0d"
+          },
+          {
+            "description": "admin:Default-Cloud--global-7",
+            "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH",
+            "num_records_in_response": 1,
+            "type": "DNS_RECORD_A",
+            "fqdn": [
+              "default-cloud--global-7.admin.avi.internal"
+            ],
+            "ttl": 30,
+            "delegated": false,
+            "wildcard_match": false,
+            "ip_address": [
+              {
+                "ip_address": {
+                  "type": "V4",
+                  "addr": "100.64.86.147"
+                }
+              }
+            ],
+            "metadata": "cf41df1f"
+          },
+          {
+            "description": "admin:Default-Cloud--global-0",
+            "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH",
+            "num_records_in_response": 1,
+            "type": "DNS_RECORD_A",
+            "fqdn": [
+              "default-cloud--global-0.admin.avi.internal"
+            ],
+            "ttl": 30,
+            "delegated": false,
+            "wildcard_match": false,
+            "ip_address": [
+              {
+                "ip_address": {
+                  "type": "V4",
+                  "addr": "100.64.86.148"
+                }
+              }
+            ],
+            "metadata": "103a60c9"
+          },
+          {
+            "description": "admin:Default-Cloud--global-1",
+            "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH",
+            "num_records_in_response": 1,
+            "type": "DNS_RECORD_A",
+            "fqdn": [
+              "default-cloud--global-1.admin.avi.internal"
+            ],
+            "ttl": 30,
+            "delegated": false,
+            "wildcard_match": false,
+            "ip_address": [
+              {
+                "ip_address": {
+                  "type": "V4",
+                  "addr": "100.64.86.141"
+                }
+              }
+            ],
+            "metadata": "3c56cde9"
+          },
+          {
+            "description": "admin:Default-Cloud--global-1",
+            "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH",
+            "num_records_in_response": 1,
+            "type": "DNS_RECORD_A",
+            "fqdn": [
+              "hackazon-insecure.ako.avidemo.vmware.com"
+            ],
+            "ttl": 30,
+            "delegated": false,
+            "wildcard_match": false,
+            "ip_address": [
+              {
+                "ip_address": {
+                  "type": "V4",
+                  "addr": "100.64.86.141"
+                }
+              }
+            ],
+            "metadata": "400b863a"
+          }
+        ],
+        "shared_vs_refs": [],
+        "dns_info": [
+          {
+            "num_records_in_response": 1,
+            "type": "DNS_RECORD_A",
+            "fqdn": "dns-vs.avi.internal",
+            "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH",
+            "ttl": 30
+          }
+        ],
+        "vip": [
+          {
+            "auto_allocate_ip": true,
+            "vip_id": "1",
+            "avi_allocated_fip": false,
+            "discovered_networks": [
+              {
+                "subnet": [
+                  {
+                    "mask": 24,
+                    "ip_addr": {
+                      "type": "V4",
+                      "addr": "100.64.86.0"
+                    }
+                  }
+                ],
+                "network_ref": "https://10.79.109.44/api/network/dvportgroup-285-cloud-b5e6124a-db19-4b16-a9ed-8e6cb03586c1"
+              }
+            ],
+            "enabled": true,
+            "ipam_network_subnet": {
+              "subnet": {
+                "mask": 24,
+                "ip_addr": {
+                  "type": "V4",
+                  "addr": "100.64.86.0"
+                }
+              },
+              "network_ref": "https://10.79.109.44/api/network/dvportgroup-285-cloud-b5e6124a-db19-4b16-a9ed-8e6cb03586c1"
+            },
+            "auto_allocate_floating_ip": false,
+            "avi_allocated_vip": false,
+            "auto_allocate_ip_type": "V4_ONLY",
+            "ip_address": {
+              "type": "V4",
+              "addr": "100.64.86.140"
+            }
+          }
+        ]
       }
     ]
   }
