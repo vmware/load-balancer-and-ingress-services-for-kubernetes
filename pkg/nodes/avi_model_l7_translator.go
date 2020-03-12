@@ -67,14 +67,14 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				// If the ingress class is not right, let's delete it.
 				o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 			}
-			parsedIng = parseHostPathForIngress(ingName, ingObj.(*extensionv1beta1.Ingress).Spec, key)
+			parsedIng = parseHostPathForIngress(namespace, ingName, ingObj.(*extensionv1beta1.Ingress).Spec, key)
 		} else {
 			processIng = filterIngressOnClass(ingObj.(*v1beta1.Ingress))
 			if !processIng {
 				// If the ingress class is not right, let's delete it.
 				o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 			}
-			parsedIng = parseHostPathForIngressCoreV1(ingName, ingObj.(*v1beta1.Ingress).Spec, key)
+			parsedIng = parseHostPathForIngressCoreV1(namespace, ingName, ingObj.(*v1beta1.Ingress).Spec, key)
 		}
 		if processIng {
 			// First check if there are pools related to this ingress present in the model already
@@ -237,7 +237,7 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 	}
 }
 
-func getDefaultSubDomain() string {
+func getDefaultSubDomain(ns string) string {
 	var defSubdom string
 	cache := avicache.SharedAviObjCache()
 	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
@@ -252,17 +252,17 @@ func getDefaultSubDomain() string {
 	}
 	defSubdom = cloudProperty.NSIpamDNS
 	if defSubdom != "" && !strings.HasPrefix(defSubdom, ".") {
-		defSubdom = "." + defSubdom
+		defSubdom = "." + ns + "." + defSubdom
 	}
 	return defSubdom
 }
 
-func parseHostPathForIngress(ingName string, ingSpec extensionv1beta1.IngressSpec, key string) IngressConfig {
+func parseHostPathForIngress(ns string, ingName string, ingSpec extensionv1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
-	defSubdom := getDefaultSubDomain()
+	defSubdom := getDefaultSubDomain(ns)
 
 	for _, rule := range ingSpec.Rules {
 		var hostPathMapSvcList []IngressHostPathSvc
@@ -312,12 +312,12 @@ func parseHostPathForIngress(ingName string, ingSpec extensionv1beta1.IngressSpe
 	return ingressConfig
 }
 
-func parseHostPathForIngressCoreV1(ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
+func parseHostPathForIngressCoreV1(ns string, ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
-	defSubdom := getDefaultSubDomain()
+	defSubdom := getDefaultSubDomain(ns)
 
 	for _, rule := range ingSpec.Rules {
 		var hostPathMapSvcList []IngressHostPathSvc
