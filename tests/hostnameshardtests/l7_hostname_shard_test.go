@@ -86,8 +86,8 @@ func SetUpTestForIngress(t *testing.T, Model_Name string) {
 	os.Setenv("VRF_CONTEXT", "global")
 
 	objects.SharedAviGraphLister().Delete(Model_Name)
-	integrationtest.CreateSVC(t, "default", "avisvc")
-	integrationtest.CreateEP(t, "default", "avisvc")
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "avisvc", false, false)
 }
 
 func TearDownTestForIngress(t *testing.T, Model_Name string) {
@@ -234,6 +234,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	svcExample := (integrationtest.FakeService{
 		Name:         "avisvc",
 		Namespace:    "default",
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 

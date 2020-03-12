@@ -15,6 +15,7 @@
 package integrationtest
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -41,9 +42,18 @@ var ctrl *k8s.AviController
 
 func SetUp() {
 	KubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, meshutils.ConfigMapInformer}
+	registeredInformers := []string{
+		meshutils.ServiceInformer,
+		meshutils.EndpointInformer,
+		meshutils.ExtV1IngressInformer,
+		meshutils.SecretInformer,
+		meshutils.NSInformer,
+		meshutils.NodeInformer,
+		meshutils.ConfigMapInformer,
+	}
 	meshutils.NewInformers(meshutils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
+
 	os.Setenv("CTRL_USERNAME", "admin")
 	os.Setenv("CTRL_PASSWORD", "admin")
 	os.Setenv("CTRL_IPADDRESS", "localhost")
@@ -371,6 +381,7 @@ func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 type FakeService struct {
 	Namespace    string
 	Name         string
+	Type         corev1.ServiceType
 	annotations  map[string]string
 	ServicePorts []Serviceport
 }
@@ -385,11 +396,16 @@ type Serviceport struct {
 func (svc FakeService) Service() *corev1.Service {
 	var ports []corev1.ServicePort
 	for _, svcport := range svc.ServicePorts {
-		ports = append(ports, corev1.ServicePort{Name: svcport.PortName, Port: svcport.PortNumber, Protocol: svcport.Protocol, TargetPort: intstr.FromInt(svcport.TargetPort)})
+		ports = append(ports, corev1.ServicePort{
+			Name:       svcport.PortName,
+			Port:       svcport.PortNumber,
+			Protocol:   svcport.Protocol,
+			TargetPort: intstr.FromInt(svcport.TargetPort),
+		})
 	}
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
-			Type:  corev1.ServiceTypeClusterIP,
+			Type:  svc.Type,
 			Ports: ports,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -451,13 +467,33 @@ func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.St
 	return &staticRoute
 }
 
-func CreateSVC(t *testing.T, ns string, Name string) {
-	svcExample := (FakeService{
-		Name:         Name,
-		Namespace:    ns,
-		ServicePorts: []Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
-	}).Service()
+/*
+CreateSVC creates a sample service of type: Type
+if multiPort: True, the service gets created with 3 ports as follows
+ServicePorts: [
+	{Name: "foo0", Port: 8080, Protocol: "TCP", TargetPort: 8080},
+	{Name: "foo1", Port: 8081, Protocol: "TCP", TargetPort: 8081},
+	{Name: "foo2", Port: 8082, Protocol: "TCP", TargetPort: 8082},
+]
+*/
+func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+	var servicePorts []Serviceport
+	numPorts := 1
+	if multiPort {
+		numPorts = 3
+	}
 
+	for i := 0; i < numPorts; i++ {
+		mPort := 8080 + i
+		servicePorts = append(servicePorts, Serviceport{
+			PortName:   fmt.Sprintf("foo%d", i),
+			PortNumber: int32(mPort),
+			Protocol:   "TCP",
+			TargetPort: mPort,
+		})
+	}
+
+	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts}).Service()
 	_, err := KubeClient.CoreV1().Services(ns).Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -471,16 +507,53 @@ func DelSVC(t *testing.T, ns string, Name string) {
 	}
 }
 
-func CreateEP(t *testing.T, ns string, Name string) {
+/*
+CreateEP creates a sample Endpoint object
+
+if multiPort: False and multiAddress: False
+	1.1.1.1:8080
+if multiPort: True and multiAddress: False
+	1.1.1.1:8080,
+	1.1.1.2:8081,
+	1.1.1.3:8082
+if multiPort: False and multiAddress: True
+	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.2:8080
+if multiPort: True and multiAddress: True
+	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.3:8080,
+	1.1.1.4:8081, 1.1.1.5:8081,
+	1.1.1.6:8082
+*/
+func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool) {
+	var endpointSubsets []corev1.EndpointSubset
+	numPorts, numAddresses, addressStart := 1, 1, 0
+	if multiPort {
+		numPorts = 3
+	}
+	if multiAddress {
+		numAddresses, addressStart = 3, 0
+	}
+
+	for i := 0; i < numPorts; i++ {
+		mPort := 8080 + i
+		var epAddresses []corev1.EndpointAddress
+		for j := 0; j < numAddresses; j++ {
+			epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("1.1.1.%d", addressStart+j+i+1)})
+		}
+		numAddresses = numAddresses - 1
+		addressStart = addressStart + numAddresses
+		endpointSubsets = append(endpointSubsets, corev1.EndpointSubset{
+			Addresses: epAddresses,
+			Ports: []corev1.EndpointPort{{
+				Name:     fmt.Sprintf("foo%d", i),
+				Port:     int32(mPort),
+				Protocol: "TCP",
+			}},
+		})
+	}
+
 	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: ns,
-			Name:      Name,
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
+		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: Name},
+		Subsets:    endpointSubsets,
 	}
 	_, err := KubeClient.CoreV1().Endpoints(ns).Create(epExample)
 	if err != nil {

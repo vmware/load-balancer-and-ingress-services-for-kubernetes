@@ -15,308 +15,354 @@
 package integrationtest
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
+	"ako/pkg/cache"
+	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
-
-	meshutils "github.com/avinetworks/container-lib/utils"
+	"github.com/avinetworks/container-lib/utils"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+)
+
+const (
+	SINGLEPORTSVC   = "testsvc"
+	MULTIPORTSVC    = "testsvcmulti"
+	NAMESPACE       = "red-ns"
+	AVINAMESPACE    = "admin"
+	SINGLEPORTMODEL = "admin/testsvc--red-ns"
+	MULTIPORTMODEL  = "admin/testsvcmulti--red-ns"
 )
 
 func TestMain(m *testing.M) {
 	SetUp()
-	ret := m.Run()
-	os.Exit(ret)
+	os.Exit(m.Run())
+}
+
+func returnTestServerMacro() (ts *httptest.Server) {
+	ts = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		if strings.Contains(r.URL.EscapedPath(), "macro") {
+			// POST macro APIs for vs, pg, pool, ds creation on controller
+
+			// copying request payload into response body
+			data, _ := ioutil.ReadAll(r.Body)
+			var s map[string]interface{}
+			_ = json.Unmarshal(data, &s)
+			sData, sModelName := s["data"].(map[string]interface{}), strings.ToLower(s["model_name"].(string))
+			theURL := "https://localhost/api/" + sModelName + "/" + sModelName + "-random-uuid#" + sData["name"].(string)
+
+			// and adding uuid and url (read-only) fields in the response
+			sData["url"] = theURL
+			sData["uuid"] = "random-uuid"
+			respData := []interface{}{s["data"]}
+			out, _ := json.Marshal(respData)
+			fmt.Fprintln(w, string(out))
+		} else {
+			// This is used for /login --> first request to controller
+			fmt.Fprintln(w, string(`{"dummy" :"data"}`))
+		}
+	}))
+
+	url := strings.Split(ts.URL, "https://")[1]
+	os.Setenv("CTRL_USERNAME", "admin")
+	os.Setenv("CTRL_PASSWORD", "admin")
+	os.Setenv("CTRL_IPADDRESS", url)
+	return ts
+}
+
+func SetUpTestForSvcLB(t *testing.T) {
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false)
+	PollForCompletion(t, SINGLEPORTMODEL, 5)
+}
+
+func TearDownTestForSvcLB(t *testing.T) {
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	DelSVC(t, NAMESPACE, SINGLEPORTSVC)
+	DelEP(t, NAMESPACE, SINGLEPORTSVC)
+}
+
+func SetUpTestForSvcLBMultiport(t *testing.T) {
+	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
+	CreateSVC(t, NAMESPACE, MULTIPORTSVC, corev1.ServiceTypeLoadBalancer, true)
+	CreateEP(t, NAMESPACE, MULTIPORTSVC, true, true)
+	PollForCompletion(t, MULTIPORTMODEL, 10)
+}
+
+func TearDownTestForSvcLBMultiport(t *testing.T) {
+	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
+	DelSVC(t, NAMESPACE, MULTIPORTSVC)
+	DelEP(t, NAMESPACE, MULTIPORTSVC)
 }
 
 func TestAviNodeCreationSinglePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/testsvc--red-ns"
-	svcExample := &corev1.Service{
-		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeLoadBalancer,
-			Ports: []corev1.ServicePort{
-				{Name: "foo", Port: 8080, Protocol: "TCP", TargetPort: intstr.FromInt(8080)},
-			},
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "red-ns",
-			Name:      "testsvc",
-		},
-	}
-	_, err := KubeClient.CoreV1().Services("red-ns").Create(svcExample)
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "red-ns",
-			Name:      "testsvc",
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
-	}
-	_, err = KubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
-	PollForCompletion(t, model_name, 15)
+	name, namespace, aviNamespace := "testsvc", "red-ns", "admin"
+	modelName := SINGLEPORTMODEL
 
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	SetUpTestForSvcLB(t)
+
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
-		t.Fatalf("Couldn't find model %v", model_name)
+		t.Fatalf("Couldn't find model %v", modelName)
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc--red-ns"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("%s--%s", name, namespace)))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal(aviNamespace))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
 		// Check for the pools
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
-		address := "1.2.3.4"
+		address := "1.1.1.1"
 		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 		g.Expect(len(nodes[0].TCPPoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+	}
 
-	}
-	objects.SharedAviGraphLister().Delete(model_name)
-	err = KubeClient.CoreV1().Services("red-ns").Delete("testsvc", nil)
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the service %v", err)
-	}
-	PollForCompletion(t, model_name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
-	if !found {
-		t.Fatalf("Couldn't find model for DELETE event %v", model_name)
-	} else {
-		if aviModel != nil {
-			t.Fatalf("Avi model: %v not nil for DELETE", model_name)
-		}
-	}
-	err = KubeClient.CoreV1().Endpoints("red-ns").Delete("testsvc", nil)
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
-	}
+	TearDownTestForSvcLB(t)
 }
 
 func TestAviNodeCreationMultiPort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/testsvc--red-ns"
-	objects.SharedAviGraphLister().Delete(model_name)
-	svcExample := &corev1.Service{
-		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeLoadBalancer,
-			Ports: []corev1.ServicePort{
-				{Name: "foo", Port: 8080, Protocol: "TCP", TargetPort: intstr.FromInt(8080)},
-				{Name: "bar", Port: 9080, Protocol: "TCP", TargetPort: intstr.FromInt(9080)},
-				{Name: "baz", Port: 7080, Protocol: "TCP", TargetPort: intstr.FromInt(7080)},
-			},
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "red-ns",
-			Name:      "testsvc",
-		},
-	}
-	_, err := KubeClient.CoreV1().Services("red-ns").Create(svcExample)
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "red-ns",
-			Name:      "testsvc",
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.5"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		},
-			{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.6"}, {IP: "1.2.3.9"}},
-				Ports:     []corev1.EndpointPort{{Name: "bar", Port: 9080, Protocol: "TCP"}},
-			},
-			{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.7"}, {IP: "1.2.3.10"}, {IP: "1.2.3.11"}},
-				Ports:     []corev1.EndpointPort{{Name: "baz", Port: 7080, Protocol: "UDP"}},
-			}},
-	}
-	_, err = KubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
-	PollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	name, namespace, aviNamespace := "testsvcmulti", "red-ns", "admin"
+	modelName := fmt.Sprintf("%s/%s--%s", aviNamespace, name, namespace)
+
+	SetUpTestForSvcLBMultiport(t)
+
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
-		t.Fatalf("Couldn't find model %v", model_name)
+		t.Fatalf("Couldn't find model %v", modelName)
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc--red-ns"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("%s--%s", name, namespace)))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal(aviNamespace))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
 		// Check for the pools
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(3))
-
 		for _, node := range nodes[0].PoolRefs {
-			if node.Port == 9080 {
-				address := "1.2.3.6"
+			if node.Port == 8080 {
+				address := "1.1.1.1"
+				g.Expect(len(node.Servers)).To(gomega.Equal(3))
+				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
+			} else if node.Port == 8081 {
+				address := "1.1.1.4"
 				g.Expect(len(node.Servers)).To(gomega.Equal(2))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			} else if node.Port == 8080 {
-				address := "1.2.3.5"
-				g.Expect(len(node.Servers)).To(gomega.Equal(1))
-				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			} else {
-				address := "1.2.3.7"
-				g.Expect(len(node.Servers)).To(gomega.Equal(3))
+				address := "1.1.1.6"
+				g.Expect(len(node.Servers)).To(gomega.Equal(1))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			}
 		}
 		g.Expect(len(nodes[0].TCPPoolGroupRefs)).To(gomega.Equal(3))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(3))
-		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(meshutils.DEFAULT_L4_APP_PROFILE))
-		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(meshutils.DEFAULT_TCP_NW_PROFILE))
-
+		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
+		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
 	}
+
+	TearDownTestForSvcLBMultiport(t)
 }
 
 func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/testsvc1--red-ns"
-	objects.SharedAviGraphLister().Delete(model_name)
-	svcExample := &corev1.Service{
-		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeLoadBalancer,
-			Ports: []corev1.ServicePort{
-				{Name: "foo", Port: 8080, Protocol: "UDP", TargetPort: intstr.FromInt(8080)},
-				{Name: "bar", Port: 9080, Protocol: "UDP", TargetPort: intstr.FromInt(9080)},
-				{Name: "baz", Port: 7080, Protocol: "UDP", TargetPort: intstr.FromInt(7080)},
-			},
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "red-ns",
-			Name:      "testsvc1",
-		},
-	}
-	_, err := KubeClient.CoreV1().Services("red-ns").Create(svcExample)
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "red-ns",
-			Name:      "testsvc1",
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.5"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "UDP"}},
-		},
-			{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.6"}, {IP: "1.2.3.9"}},
-				Ports:     []corev1.EndpointPort{{Name: "bar", Port: 9080, Protocol: "UDP"}},
-			},
-			{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.7"}, {IP: "1.2.3.10"}, {IP: "1.2.3.11"}},
-				Ports:     []corev1.EndpointPort{{Name: "baz", Port: 7080, Protocol: "UDP"}},
-			}},
-	}
-	_, err = KubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
-	PollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	name, namespace, aviNamespace := "testsvcmulti", "red-ns", "admin"
+	modelName := fmt.Sprintf("%s/%s--%s", aviNamespace, name, namespace)
+
+	SetUpTestForSvcLBMultiport(t)
+
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
-		t.Fatalf("Couldn't find model %v", model_name)
+		t.Fatalf("Couldn't find model %v", modelName)
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal("testsvc1--red-ns"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("%s--%s", name, namespace)))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal(aviNamespace))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
 		// Check for the pools
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(3))
-
 		for _, node := range nodes[0].PoolRefs {
-			if node.Port == 9080 {
-				address := "1.2.3.6"
+			if node.Port == 8080 {
+				address := "1.1.1.1"
+				g.Expect(len(node.Servers)).To(gomega.Equal(3))
+				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
+			} else if node.Port == 8081 {
+				address := "1.1.1.4"
 				g.Expect(len(node.Servers)).To(gomega.Equal(2))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			} else if node.Port == 8080 {
-				address := "1.2.3.5"
+			} else if node.Port == 8082 {
+				address := "1.1.1.6"
 				g.Expect(len(node.Servers)).To(gomega.Equal(1))
-				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			} else {
-				address := "1.2.3.7"
-				g.Expect(len(node.Servers)).To(gomega.Equal(3))
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			}
 		}
 		g.Expect(len(nodes[0].TCPPoolGroupRefs)).To(gomega.Equal(3))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(3))
 		g.Expect(nodes[0].SharedVS).To(gomega.Equal(false))
-		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(meshutils.DEFAULT_L4_APP_PROFILE))
-		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(meshutils.SYSTEM_UDP_FAST_PATH))
-
+		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
+		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
 	}
+
+	TearDownTestForSvcLBMultiport(t)
 }
 
 func TestAviNodeUpdateEndpoint(t *testing.T) {
+	var err error
 	g := gomega.NewGomegaWithT(t)
-	model_name := "admin/testsvc--red-ns"
-	objects.SharedAviGraphLister().Delete(model_name)
+	name, namespace, aviNamespace := "testsvc", "red-ns", "admin"
+	modelName := fmt.Sprintf("%s/%s--%s", aviNamespace, name, namespace)
+
+	SetUpTestForSvcLB(t)
+
 	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "red-ns",
-			Name:      "testsvc",
-		},
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
 		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
+			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.14"}, {IP: "1.2.3.24"}},
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	_, err := KubeClient.CoreV1().Endpoints("red-ns").Update(epExample)
-	if err != nil {
+	if _, err = KubeClient.CoreV1().Endpoints(namespace).Update(epExample); err != nil {
 		t.Fatalf("Error in updating the Endpoint: %v", err)
 	}
 
-	PollForCompletion(t, model_name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	var aviModel interface{}
+	g.Eventually(func() []avinodes.AviPoolMetaServer {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		pools := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
+		return pools[0].Servers
+	}, 5*time.Second).Should(gomega.HaveLen(2))
+
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {
-		t.Fatalf("Couldn't find model %v", model_name)
+		t.Fatalf("Couldn't find model %v", modelName)
 	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(3))
-		for _, node := range nodes[0].PoolRefs {
-			if node.Port == 9080 {
-				g.Expect(len(node.Servers)).To(gomega.Equal(0))
-			} else if node.Port == 8080 {
-				g.Expect(len(node.Servers)).To(gomega.Equal(2))
+		pools := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
+		for _, pool := range pools {
+			if pool.Port == 8080 {
+				address := "1.2.3.24"
+				g.Expect(pool.Servers).To(gomega.HaveLen(2))
+				g.Expect(pool.Servers[1].Ip.Addr).To(gomega.Equal(&address))
+			} else {
+				g.Expect(pool.Servers).To(gomega.HaveLen(0))
 			}
 		}
 	}
-	objects.SharedAviGraphLister().Delete(model_name)
-	err = KubeClient.CoreV1().Services("red-ns").Delete("testsvc", nil)
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the service %v", err)
-	}
-	PollForCompletion(t, model_name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_name)
+
+	TearDownTestForSvcLB(t)
+}
+
+func TestCreateServiceLB(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	name, namespace, aviNamespace := "testsvc", "red-ns", "admin"
+
+	ts := returnTestServerMacro()
+	defer ts.Close()
+	k8s.PopulateCache()
+
+	SetUpTestForSvcLB(t)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: aviNamespace, Name: fmt.Sprintf("%s--%s", name, namespace)}
+	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
 	if !found {
-		t.Fatalf("Couldn't find model for DELETE event %v", model_name)
+		t.Fatalf("Cache not found for VS: %v", vsKey)
 	} else {
-		if aviModel != nil {
-			t.Fatalf("Avi model: %v not nil for DELETE", model_name)
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if !ok {
+			t.Fatalf("Invalid VS object. Cannot cast.")
 		}
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("%s--%s", name, namespace)))
+		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(aviNamespace))
 	}
+
+	TearDownTestForSvcLB(t)
+}
+
+func TestCreateMultiportServiceLB(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	name, namespace, aviNamespace := "testsvcmulti", "red-ns", "admin"
+
+	ts := returnTestServerMacro()
+	defer ts.Close()
+	k8s.PopulateCache()
+
+	SetUpTestForSvcLBMultiport(t)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: aviNamespace, Name: fmt.Sprintf("%s--%s", name, namespace)}
+	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+	if !found {
+		t.Fatalf("Cache not found for VS: %v", vsKey)
+	} else {
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if !ok {
+			t.Fatalf("Invalid VS object. Cannot cast.")
+		}
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("%s--%s", name, namespace)))
+		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(aviNamespace))
+
+		// TODO: Check for the pools
+	}
+
+	TearDownTestForSvcLBMultiport(t)
+}
+
+func TestUpdateAndDeleteServiceLB(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	var err error
+	name, namespace, aviNamespace := "testsvc", "red-ns", "admin"
+
+	ts := returnTestServerMacro()
+	defer ts.Close()
+	k8s.PopulateCache()
+
+	SetUpTestForSvcLB(t)
+
+	svcExample := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
+		Subsets: []corev1.EndpointSubset{{
+			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.24"}, {IP: "1.2.3.14"}},
+			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
+		}},
+	}
+	if _, err = KubeClient.CoreV1().Endpoints(namespace).Update(svcExample); err != nil {
+		t.Fatalf("Error in updating the Endpoint: %v", err)
+	}
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: aviNamespace, Name: fmt.Sprintf("%s--%s", name, namespace)}
+	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+	if !found {
+		t.Fatalf("Cache not found for VS: %v", vsKey)
+	} else {
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if !ok {
+			t.Fatalf("Invalid VS object. Cannot cast.")
+		}
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("%s--%s", name, namespace)))
+		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(aviNamespace))
+	}
+
+	TearDownTestForSvcLB(t)
 }

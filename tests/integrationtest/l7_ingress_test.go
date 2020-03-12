@@ -34,8 +34,8 @@ func SetUpTestForIngress(t *testing.T, model_Name string) {
 	os.Setenv("VRF_CONTEXT", "global")
 	os.Setenv("L7_SHARD_SCHEME", "namespace")
 	objects.SharedAviGraphLister().Delete(model_Name)
-	CreateSVC(t, "default", "avisvc")
-	CreateEP(t, "default", "avisvc")
+	CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
+	CreateEP(t, "default", "avisvc", false, false)
 }
 
 func TearDownTestForIngress(t *testing.T, model_Name string) {
@@ -69,6 +69,7 @@ func TestNoModel(t *testing.T) {
 	svcExample := (FakeService{
 		Name:         "testl7",
 		Namespace:    "red-ns",
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	_, err := KubeClient.CoreV1().Services("red-ns").Create(svcExample)
@@ -158,6 +159,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	svcExample := (FakeService{
 		Name:         "avisvc",
 		Namespace:    "default",
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 
