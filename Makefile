@@ -30,5 +30,5 @@ test:
 	/usr/local/go/bin/go test -v ./pkg/k8s
 .PHONY: int_test
 int_test:
-	/usr/local/go/bin/go test -v ./tests/integrationtest
-	/usr/local/go/bin/go test -v ./tests/hostnameshardtests
+	/usr/local/go/bin/go test -mod=vendor -v ./tests/integrationtest
+	/usr/local/go/bin/go test -mod=vendor -v ./tests/hostnameshardtests
