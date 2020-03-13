@@ -15,6 +15,12 @@
 package integrationtest
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,8 +32,7 @@ import (
 	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
-
-	meshutils "github.com/avinetworks/container-lib/utils"
+	"github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/avinetworks/sdk/go/models"
@@ -36,21 +41,41 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
+// constants to be used for creating K8s objs and verifying Avi objs
+const (
+	SINGLEPORTSVC   = "testsvc"                    // single port service name
+	MULTIPORTSVC    = "testsvcmulti"               // multi port service name
+	NAMESPACE       = "red-ns"                     // namespace
+	AVINAMESPACE    = "admin"                      // avi namespace
+	SINGLEPORTMODEL = "admin/testsvc--red-ns"      // single port model name
+	MULTIPORTMODEL  = "admin/testsvcmulti--red-ns" // multi port model name
+	RANDOMUUID      = "random-uuid"                // random avi object uuid
+)
+
 var KubeClient *k8sfake.Clientset
 var ctrl *k8s.AviController
 
 func SetUp() {
 	KubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, meshutils.ConfigMapInformer}
-	meshutils.NewInformers(meshutils.KubeClientIntf{KubeClient}, registeredInformers)
+	registeredInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		utils.ExtV1IngressInformer,
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
+	}
+	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
+
 	os.Setenv("CTRL_USERNAME", "admin")
 	os.Setenv("CTRL_PASSWORD", "admin")
 	os.Setenv("CTRL_IPADDRESS", "localhost")
 	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("FULL_SYNC_INTERVAL", "60")
 	ctrl = k8s.SharedAviController()
-	stopCh := meshutils.SetupSignalHandler()
+	stopCh := utils.SetupSignalHandler()
 	k8s.PopulateCache()
 	ctrlCh := make(chan struct{})
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
@@ -357,7 +382,6 @@ func PollForCompletion(t *testing.T, key string, counter int) interface{} {
 func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 	count := 0
 	for count < counter {
-
 		if ctrl.DisableSync {
 			time.Sleep(1 * time.Second)
 			count = count + 1
@@ -371,6 +395,7 @@ func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 type FakeService struct {
 	Namespace    string
 	Name         string
+	Type         corev1.ServiceType
 	annotations  map[string]string
 	ServicePorts []Serviceport
 }
@@ -385,11 +410,16 @@ type Serviceport struct {
 func (svc FakeService) Service() *corev1.Service {
 	var ports []corev1.ServicePort
 	for _, svcport := range svc.ServicePorts {
-		ports = append(ports, corev1.ServicePort{Name: svcport.PortName, Port: svcport.PortNumber, Protocol: svcport.Protocol, TargetPort: intstr.FromInt(svcport.TargetPort)})
+		ports = append(ports, corev1.ServicePort{
+			Name:       svcport.PortName,
+			Port:       svcport.PortNumber,
+			Protocol:   svcport.Protocol,
+			TargetPort: intstr.FromInt(svcport.TargetPort),
+		})
 	}
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
-			Type:  corev1.ServiceTypeClusterIP,
+			Type:  svc.Type,
 			Ports: ports,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -451,13 +481,33 @@ func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.St
 	return &staticRoute
 }
 
-func CreateSVC(t *testing.T, ns string, Name string) {
-	svcExample := (FakeService{
-		Name:         Name,
-		Namespace:    ns,
-		ServicePorts: []Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
-	}).Service()
+/*
+CreateSVC creates a sample service of type: Type
+if multiPort: True, the service gets created with 3 ports as follows
+ServicePorts: [
+	{Name: "foo0", Port: 8080, Protocol: "TCP", TargetPort: 8080},
+	{Name: "foo1", Port: 8081, Protocol: "TCP", TargetPort: 8081},
+	{Name: "foo2", Port: 8082, Protocol: "TCP", TargetPort: 8082},
+]
+*/
+func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+	var servicePorts []Serviceport
+	numPorts := 1
+	if multiPort {
+		numPorts = 3
+	}
 
+	for i := 0; i < numPorts; i++ {
+		mPort := 8080 + i
+		servicePorts = append(servicePorts, Serviceport{
+			PortName:   fmt.Sprintf("foo%d", i),
+			PortNumber: int32(mPort),
+			Protocol:   "TCP",
+			TargetPort: mPort,
+		})
+	}
+
+	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts}).Service()
 	_, err := KubeClient.CoreV1().Services(ns).Create(svcExample)
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -471,16 +521,52 @@ func DelSVC(t *testing.T, ns string, Name string) {
 	}
 }
 
-func CreateEP(t *testing.T, ns string, Name string) {
+/*
+CreateEP creates a sample Endpoint object
+if multiPort: False and multiAddress: False
+	1.1.1.1:8080
+if multiPort: True and multiAddress: False
+	1.1.1.1:8080,
+	1.1.1.2:8081,
+	1.1.1.3:8082
+if multiPort: False and multiAddress: True
+	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.2:8080
+if multiPort: True and multiAddress: True
+	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.3:8080,
+	1.1.1.4:8081, 1.1.1.5:8081,
+	1.1.1.6:8082
+*/
+func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool) {
+	var endpointSubsets []corev1.EndpointSubset
+	numPorts, numAddresses, addressStart := 1, 1, 0
+	if multiPort {
+		numPorts = 3
+	}
+	if multiAddress {
+		numAddresses, addressStart = 3, 0
+	}
+
+	for i := 0; i < numPorts; i++ {
+		mPort := 8080 + i
+		var epAddresses []corev1.EndpointAddress
+		for j := 0; j < numAddresses; j++ {
+			epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("1.1.1.%d", addressStart+j+i+1)})
+		}
+		numAddresses = numAddresses - 1
+		addressStart = addressStart + numAddresses
+		endpointSubsets = append(endpointSubsets, corev1.EndpointSubset{
+			Addresses: epAddresses,
+			Ports: []corev1.EndpointPort{{
+				Name:     fmt.Sprintf("foo%d", i),
+				Port:     int32(mPort),
+				Protocol: "TCP",
+			}},
+		})
+	}
+
 	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: ns,
-			Name:      Name,
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
+		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: Name},
+		Subsets:    endpointSubsets,
 	}
 	_, err := KubeClient.CoreV1().Endpoints(ns).Create(epExample)
 	if err != nil {
@@ -511,4 +597,48 @@ func DelEP(t *testing.T, ns string, Name string) {
 	if err != nil {
 		t.Fatalf("error in deleting Endpoint: %v", err)
 	}
+}
+
+// GetAviControllerFakeAPIServer returns a sample Controller API FakeClient
+// This would also add some crucial fields, like uuid and url, which are required for
+// the cache sync to move ahead
+func GetAviControllerFakeAPIServer() (ts *httptest.Server) {
+	ts = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		url := r.URL.EscapedPath()
+		var resp map[string]interface{}
+		utils.AviLog.Info.Printf("[fakeAPI]: %s %s\n", r.Method, url)
+
+		if strings.Contains(url, "macro") && r.Method == "POST" {
+			// POST macro APIs for vs, pg, pool, ds creation on controller
+			// copying request payload into response body
+			data, _ := ioutil.ReadAll(r.Body)
+			var resp map[string]interface{}
+			_ = json.Unmarshal(data, &resp)
+			rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rData["name"].(string))
+
+			// adding additional 'uuid' and 'url' (read-only) fields in the response
+			rData["url"] = objURL
+			rData["uuid"] = fmt.Sprintf("%s-%s", rModelName, RANDOMUUID)
+			finalResponse, _ := json.Marshal([]interface{}{resp["data"]})
+			fmt.Fprintln(w, string(finalResponse))
+		} else if r.Method == "PUT" {
+			data, _ := ioutil.ReadAll(r.Body)
+			_ = json.Unmarshal(data, &resp)
+			resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
+			finalResponse, _ := json.Marshal(resp)
+			fmt.Fprintln(w, string(finalResponse))
+		} else {
+			// This is used for /login --> first request to controller
+			fmt.Fprintln(w, string(`{"dummy" :"data"}`))
+		}
+	}))
+
+	url := strings.Split(ts.URL, "https://")[1]
+	os.Setenv("CTRL_USERNAME", "admin")
+	os.Setenv("CTRL_PASSWORD", "admin")
+	os.Setenv("CTRL_IPADDRESS", url)
+	return ts
 }
