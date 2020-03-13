@@ -488,6 +488,24 @@ func CreateEP(t *testing.T, ns string, Name string) {
 	}
 }
 
+func ScaleCreateEP(t *testing.T, ns string, Name string) {
+	epExample := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      Name,
+		},
+		Subsets: []corev1.EndpointSubset{{
+			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
+			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
+		}},
+	}
+	epExample.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Endpoints(ns).Update(epExample)
+	if err != nil {
+		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+}
+
 func DelEP(t *testing.T, ns string, Name string) {
 	err := KubeClient.CoreV1().Endpoints(ns).Delete(Name, nil)
 	if err != nil {

@@ -37,10 +37,15 @@ var (
 		Type:               "Endpoints",
 		GetParentIngresses: EPToIng,
 	}
+	Secret = GraphSchema{
+		Type:               "Secret",
+		GetParentIngresses: SecretToIng,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		Service,
 		Endpoint,
+		Secret,
 	}
 )
 
@@ -126,6 +131,15 @@ func EPToIng(epName string, namespace string, key string) ([]string, bool) {
 	ingresses, found := SvcToIng(epName, namespace, key)
 	utils.AviLog.Info.Printf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	return ingresses, found
+}
+
+func SecretToIng(secretName string, namespace string, key string) ([]string, bool) {
+	ok, ingNames := objects.SharedSvcLister().IngressMappings(namespace).GetSecretToIng(secretName)
+	utils.AviLog.Info.Printf("key:%s, msg: Ingresses associated with the secret are: %s", key, ingNames)
+	if ok {
+		return ingNames, true
+	}
+	return nil, false
 }
 
 func parseServicesForIngress(ingSpec extensionv1beta1.IngressSpec, key string) []string {

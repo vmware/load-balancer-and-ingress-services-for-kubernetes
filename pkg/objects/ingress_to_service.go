@@ -120,12 +120,12 @@ func (v *SvcNSCache) GetSecretToIng(secretName string) (bool, []string) {
 func (v *SvcNSCache) DeleteSecretToIngMapping(secretName string) bool {
 	// Need checks if it's found or not?
 	success := v.secretIngObject.Delete(secretName)
-	utils.AviLog.Info.Printf("Deleted the service mappings for svc: %s", secretName)
+	utils.AviLog.Info.Printf("Deleted the ingress mappings for secret: %s", secretName)
 	return success
 }
 
 func (v *SvcNSCache) UpdateSecretToIngMapping(secretName string, ingressList []string) {
-	utils.AviLog.Info.Printf("Updated the service mappings with secret: %s, ingresses: %s", secretName, ingressList)
+	utils.AviLog.Info.Printf("Updated the secret mappings with secret: %s, ingresses: %s", secretName, ingressList)
 	v.secretIngObject.AddOrUpdate(secretName, ingressList)
 }
 
