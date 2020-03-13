@@ -226,12 +226,25 @@ func (c *AviController) FullSyncK8s() error {
 }
 
 // DeleteModels : Delete models and add the model name in the queue.
-// The rest layer would pick up the model key and dlete the objects in Avi
+// The rest layer would pick up the model key and delete the objects in Avi
 func (c *AviController) DeleteModels() {
 	allModels := objects.SharedAviGraphLister().GetAll()
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	for modelName, _ := range allModels.(map[string]interface{}) {
-		objects.SharedAviGraphLister().Save(modelName, nil)
+	for modelName, avimodelIntf := range allModels.(map[string]interface{}) {
+		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
+		// for vrf, delete all static routes
+		if avimodel.IsVrf {
+			newAviModel := nodes.NewAviObjectGraph()
+			newAviModel.IsVrf = true
+			aviVrfNode := &nodes.AviVrfNode{
+				Name: lib.GetVrf(),
+			}
+			newAviModel.AddModelNode(aviVrfNode)
+			newAviModel.CalculateCheckSum()
+			objects.SharedAviGraphLister().Save(modelName, newAviModel)
+		} else {
+			objects.SharedAviGraphLister().Save(modelName, nil)
+		}
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
 	}

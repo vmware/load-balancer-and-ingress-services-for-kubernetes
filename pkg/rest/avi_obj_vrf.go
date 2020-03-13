@@ -90,6 +90,9 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 		return errors.New("vrfcontext not found")
 	}
 	vrfName := vrfKey.Name
+
+	var checksum uint32
+	var staticRoutes []*avimodels.StaticRoute
 	rest.cache.VrfCache.AviCacheGet(vrfName)
 	for _, resp := range respElems {
 		name, ok := resp["name"].(string)
@@ -102,17 +105,21 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 			utils.AviLog.Warning.Printf("key: %s, msg: wrong object type %T for uuid in vrf %s\n", key, resp["uuid"], vrfName)
 			continue
 		}
-		staticRoutesIntf, ok := resp["static_routes"].([]interface{})
-		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: wrong object type %T for staticroutes in staticroutes %s\n", key, resp["staticroutes"], vrfName)
-			continue
+		if resp["static_routes"] == nil {
+			staticRoutes = nil
+		} else {
+			staticRoutesIntf, ok := resp["static_routes"].([]interface{})
+			if !ok {
+				utils.AviLog.Warning.Printf("key: %s, msg: wrong object type %T for staticroutes in staticroutes %s\n", key, resp["staticroutes"], vrfName)
+				continue
+			}
+			staticRoutes = lib.StaticRoutesIntfToObj(staticRoutesIntf)
+			if len(staticRoutes) == 0 {
+				utils.AviLog.Trace.Printf("key: %s, no static routes found for vrf %s\n", key, vrfName)
+				continue
+			}
 		}
-		staticRoutes := lib.StaticRoutesIntfToObj(staticRoutesIntf)
-		if len(staticRoutes) == 0 {
-			utils.AviLog.Trace.Printf("key: %s, no static routes found for vrf %s\n", key, vrfName)
-			continue
-		}
-		checksum := avicache.VrfChecksum(name, staticRoutes)
+		checksum = avicache.VrfChecksum(name, staticRoutes)
 		vrfCacheObj := avicache.AviVrfCache{Name: name, Uuid: uuid, CloudConfigCksum: checksum}
 		rest.cache.VrfCache.AviCacheAdd(vrfKey, vrfCacheObj)
 	}
