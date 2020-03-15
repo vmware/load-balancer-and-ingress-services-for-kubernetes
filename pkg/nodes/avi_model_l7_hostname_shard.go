@@ -183,8 +183,6 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
 						PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue)
 					}
-					vsNode := aviModel.(*AviObjectGraph).GetAviVS()
-					RemoveFQDNsFromModel(vsNode[0], Storedhosts, key)
 				}
 			}
 			// Process insecure routes first.
@@ -274,11 +272,12 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
+
 		sniNode := &AviVsNode{Name: ingName + "--" + namespace + "--" + tlssetting.SecretName + "--" + sniHost, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
 		sniNode.VrfContext = lib.GetVrf()
 		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 		if certsBuilt {
-			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
+			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
 			foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
 			if !foundSniModel {
 				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)

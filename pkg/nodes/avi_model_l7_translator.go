@@ -130,7 +130,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					sniNode.VrfContext = lib.GetVrf()
 					certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 					if certsBuilt {
-						o.BuildPolicyPGPoolsForSNI(sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
+						o.BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
 						foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
 						if !foundSniModel {
 							vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
@@ -204,6 +204,25 @@ func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
 			newFQDNs = newFQDNs[:i]
 		}
 		vsNode.VSVIPRefs[0].FQDNs = newFQDNs
+	}
+	// Remove the VHDomain entries if found matching to the hosts. This will apply for SNI hosts
+	if len(vsNode.VHDomainNames) > 0 {
+		vhDomains := make([]string, len(vsNode.VHDomainNames))
+		copy(vhDomains, vsNode.VHDomainNames)
+		utils.AviLog.Info.Printf("key: %s, msg: found fqdn refs in vs : %s", key, vsNode.VHDomainNames)
+		for _, host := range hosts {
+			var i int
+			for _, fqdn := range vsNode.VHDomainNames {
+				if fqdn != host {
+					// Gather this entry in the new list
+					vhDomains[i] = fqdn
+					i++
+				}
+			}
+			// Empty unsed bytes.
+			vhDomains = vhDomains[:i]
+		}
+		vsNode.VHDomainNames = vhDomains
 	}
 }
 
@@ -464,11 +483,20 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string) {
 	var httpPolicySet []AviHostPathPortPoolPG
 	for host, paths := range hostpath.Hosts {
 		var hosts []string
 		hosts = append(hosts, host)
+		// Update the VSVIP with the host information.
+		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
+			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
+		}
+		// Update the VH Domain entries.
+		if !utils.HasElem(vsNode[0].VHDomainNames, host) {
+			vsNode[0].VHDomainNames = append(vsNode[0].VHDomainNames, host)
+		}
+		utils.AviLog.Info.Printf("key: %s, hosts to add for http policyset: %s", key, hosts)
 		httpPGPath := AviHostPathPortPoolPG{Host: hosts}
 		tlsNode.VHDomainNames = hosts
 		for _, path := range paths {
