@@ -97,16 +97,15 @@ func AddConfigMap() {
 
 // Fake ingress
 type FakeIngress struct {
-	DnsNames    []string
-	Paths       []string
-	TlsDnsNames [][]string
-	SecretName  string
-	Ips         []string
-	HostNames   []string
-	Namespace   string
-	Name        string
-	annotations map[string]string
-	ServiceName string
+	DnsNames     []string
+	Paths        []string
+	Ips          []string
+	HostNames    []string
+	Namespace    string
+	Name         string
+	annotations  map[string]string
+	ServiceName  string
+	TlsSecretDNS map[string][]string
 }
 
 func AddSecret(secretName string, namespace string) {
@@ -163,10 +162,10 @@ func (ing FakeIngress) Ingress() *extensionv1beta1.Ingress {
 			},
 		})
 	}
-	for _, hosts := range ing.TlsDnsNames {
+	for secret, hosts := range ing.TlsSecretDNS {
 		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
 			Hosts:      hosts,
-			SecretName: ing.SecretName,
+			SecretName: secret,
 		})
 	}
 	for _, ip := range ing.Ips {
@@ -219,12 +218,7 @@ func (ing FakeIngress) SecureIngress() *extensionv1beta1.Ingress {
 			},
 		})
 	}
-	for _, hosts := range ing.TlsDnsNames {
-		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
-			Hosts:      hosts,
-			SecretName: ing.SecretName,
-		})
-	}
+
 	for _, ip := range ing.Ips {
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
 			IP: ip,
@@ -268,11 +262,6 @@ func (ing FakeIngress) IngressNoHost() *extensionv1beta1.Ingress {
 					},
 				},
 			},
-		})
-	}
-	for _, hosts := range ing.TlsDnsNames {
-		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
-			Hosts: hosts,
 		})
 	}
 	for _, ip := range ing.Ips {
@@ -325,11 +314,7 @@ func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 			},
 		})
 	}
-	for _, hosts := range ing.TlsDnsNames {
-		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
-			Hosts: hosts,
-		})
-	}
+
 	for _, ip := range ing.Ips {
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
 			IP: ip,

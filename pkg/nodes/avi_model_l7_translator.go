@@ -148,6 +148,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
 	}
+
 }
 
 func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vsNode []*AviVsNode) {
@@ -291,10 +292,11 @@ func parseHostPathForIngress(ns string, ingName string, ingSpec extensionv1beta1
 		}
 		hostMap[hostName] = hostPathMapSvcList
 	}
-	tlsHostSvcMap := make(IngressHostMap)
+
 	var tlsConfigs []TlsSettings
 	for _, tlsSettings := range ingSpec.TLS {
 		tls := TlsSettings{}
+		tlsHostSvcMap := make(IngressHostMap)
 		tls.SecretName = tlsSettings.SecretName
 		for _, host := range tlsSettings.Hosts {
 			hostSvcMap, ok := hostMap[host]
@@ -467,7 +469,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(tlsNode *AviVsNode, namespace 
 	for host, paths := range hostpath.Hosts {
 		var hosts []string
 		hosts = append(hosts, host)
-		utils.AviLog.Info.Printf("key: %s, hosts to add for http policyset: %s", key, hosts)
 		httpPGPath := AviHostPathPortPoolPG{Host: hosts}
 		tlsNode.VHDomainNames = hosts
 		for _, path := range paths {
@@ -496,6 +497,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(tlsNode *AviVsNode, namespace 
 	httppolname := ingName + "--" + namespace + "--" + secretName
 	policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: utils.ADMIN_NS}
 	tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
-	utils.AviLog.Trace.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
+	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
 
 }
