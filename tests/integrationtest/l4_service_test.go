@@ -395,7 +395,7 @@ func TestScaleUpAndDownServiceLB(t *testing.T) {
 		DelEP(t, NAMESPACE, service)
 	}
 
-	// verify that the graph nodes and corresponding cache are deleted for the 50 services
+	// verify that the graph nodes and corresponding cache are deleted for the 30 services
 	for i := 0; i < numScale; i++ {
 		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
