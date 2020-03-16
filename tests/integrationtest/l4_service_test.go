@@ -402,13 +402,13 @@ func TestScaleUpAndDownServiceLB(t *testing.T) {
 		g.Eventually(func() interface{} {
 			found, aviModel = objects.SharedAviGraphLister().Get(model)
 			return aviModel
-		}, 15*time.Second).Should(gomega.BeNil())
+		}, 25*time.Second).Should(gomega.BeNil())
 
 		vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: strings.TrimPrefix(model, AVINAMESPACE+"/")}
 		g.Eventually(func() bool {
 			_, found = mcache.VsCache.AviCacheGet(vsKey)
 			return found
-		}, 15*time.Second).Should(gomega.Equal(false))
+		}, 25*time.Second).Should(gomega.Equal(false))
 	}
 
 	// verifying whether the first service created still has the corresponding cache entry
