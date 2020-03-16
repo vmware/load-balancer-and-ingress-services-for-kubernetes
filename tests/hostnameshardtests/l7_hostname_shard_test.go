@@ -106,7 +106,7 @@ func VerifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, 
 	g.Eventually(func() []*avinodes.AviPoolNode {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolRefs
-	}, 5*time.Second).Should(gomega.HaveLen(poolCount))
+	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
 
 	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(poolCount))
 }
@@ -116,7 +116,7 @@ func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{
 	g.Eventually(func() []*avinodes.AviVsNode {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].SniNodes
-	}, 5*time.Second).Should(gomega.HaveLen(sniCount))
+	}, 10*time.Second).Should(gomega.HaveLen(sniCount))
 
 	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(sniCount))
 }
@@ -465,7 +465,7 @@ func TestMultiVSIngress(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].PoolRefs)
-		}, 5*time.Second).Should(gomega.Equal(2))
+		}, 10*time.Second).Should(gomega.Equal(2))
 
 	} else {
 		t.Fatalf("Could not find model: %v", err)
@@ -710,11 +710,14 @@ func TestDeleteBackendService(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].PoolRefs[0].Servers)
-		}, 5*time.Second).Should(gomega.Equal(0))
+		}, 10*time.Second).Should(gomega.Equal(0))
 
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs[1].Servers)
+			if len(nodes[0].PoolRefs) > 1 {
+				return len(nodes[0].PoolRefs[1].Servers)
+			}
+			return 1
 		}, 10*time.Second).Should(gomega.Equal(0))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
@@ -909,12 +912,12 @@ func TestEditPathIngress(t *testing.T) {
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
+		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
-		}, 5*time.Second).Should(gomega.HaveLen(1))
+		}, 10*time.Second).Should(gomega.HaveLen(1))
 
 		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("foo.com/foo--default--ingress-edit"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com/foo"))
@@ -947,15 +950,15 @@ func TestEditPathIngress(t *testing.T) {
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
+		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
-		}, 5*time.Second).Should(gomega.HaveLen(1))
+		}, 10*time.Second).Should(gomega.HaveLen(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("foo.com/bar--default--ingress-edit"))
+		}, 10*time.Second).Should(gomega.Equal("foo.com/bar--default--ingress-edit"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com/bar"))
 		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
@@ -1010,13 +1013,13 @@ func TestEditMultiPathIngress(t *testing.T) {
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
+		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		//g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
-		}, 5*time.Second).Should(gomega.HaveLen(2))
+		}, 10*time.Second).Should(gomega.HaveLen(2))
 		for _, pool := range nodes[0].PoolRefs {
 			if pool.Name == "foo.com/foo--default--ingress-multipath-edit" {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
@@ -1061,12 +1064,12 @@ func TestEditMultiPathIngress(t *testing.T) {
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
+		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
-		}, 5*time.Second).Should(gomega.HaveLen(2))
+		}, 10*time.Second).Should(gomega.HaveLen(2))
 		for _, pool := range nodes[0].PoolRefs {
 			if pool.Name == "foo.com/foo--default--ingress-multipath-edit" {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
@@ -1381,7 +1384,7 @@ func TestEditNoHostIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("ingress-nohost.default.avi.internal/bar--default--ingress-nohost"))
+		}, 10*time.Second).Should(gomega.Equal("ingress-nohost.default.avi.internal/bar--default--ingress-nohost"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/bar"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
@@ -1462,7 +1465,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() int {
 			return len(nodes[0].PoolRefs)
-		}, 5*time.Second).Should(gomega.Equal(0))
+		}, 10*time.Second).Should(gomega.Equal(0))
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -1477,7 +1480,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() int {
 			return len(nodes[0].PoolRefs)
-		}, 5*time.Second).Should(gomega.Equal(1))
+		}, 10*time.Second).Should(gomega.Equal(1))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("bar.com/bar"))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -1643,12 +1646,12 @@ func TestScaleEndpoints(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].PoolRefs[0].Servers)
-		}, 5*time.Second).Should(gomega.Equal(2))
+		}, 10*time.Second).Should(gomega.Equal(2))
 
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].PoolRefs[1].Servers)
-		}, 5*time.Second).Should(gomega.Equal(2))
+		}, 10*time.Second).Should(gomega.Equal(2))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
@@ -1776,7 +1779,7 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
-		}, 5*time.Second).Should(gomega.Equal(1))
+		}, 10*time.Second).Should(gomega.Equal(1))
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -1853,7 +1856,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
-		}, 5*time.Second).Should(gomega.Equal(2))
+		}, 10*time.Second).Should(gomega.Equal(2))
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
@@ -1869,7 +1872,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
-		}, 5*time.Second).Should(gomega.Equal(0))
+		}, 10*time.Second).Should(gomega.Equal(0))
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -2003,7 +2006,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
-		}, 5*time.Second).Should(gomega.Equal(1))
+		}, 10*time.Second).Should(gomega.Equal(1))
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
@@ -2015,7 +2018,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
-		}, 5*time.Second).Should(gomega.Equal(1))
+		}, 10*time.Second).Should(gomega.Equal(1))
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
