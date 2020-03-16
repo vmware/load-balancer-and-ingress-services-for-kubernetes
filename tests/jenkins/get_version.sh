@@ -52,5 +52,5 @@ version_tag="$AKO_VERSION_major.$AKO_VERSION_minor.$AKO_VERSION_maintenance-$ver
 
 mkdir -p /tmp/$JOB;
 touch /tmp/$JOB/jenkins.properties;
-echo "version_tag=${VERSION_TAG}" > /tmp/$JOB/jenkins.properties;
+echo "version_tag=${version_tag}" > /tmp/$JOB/jenkins.properties;
 echo $version_tag
