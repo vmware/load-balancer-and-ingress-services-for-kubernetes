@@ -85,7 +85,6 @@ func SetUpTestForIngress(t *testing.T, modelName string) {
 	os.Setenv("CLOUD_NAME", "Shard-VS-")
 	os.Setenv("VRF_CONTEXT", "global")
 
-
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc", false, false)
@@ -231,8 +230,8 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	os.Setenv("CLOUD_NAME", "Shard-VS-")
 	os.Setenv("VRF_CONTEXT", "global")
 
-	model_Name := "admin/Shard-VS---global-0"
-	objects.SharedAviGraphLister().Delete(model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	objects.SharedAviGraphLister().Delete(modelName)
 	svcExample := (integrationtest.FakeService{
 		Name:         "avisvc",
 		Namespace:    "default",
@@ -284,8 +283,8 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -305,7 +304,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 			}
 		}
 		// Delete the model.
-		objects.SharedAviGraphLister().Delete(model_Name)
+		objects.SharedAviGraphLister().Delete(modelName)
 	} else {
 		t.Fatalf("Could not find model on ingress delete: %v", err)
 	}
@@ -320,8 +319,8 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
 	}
 	// We should be able to get one model now in the queue
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -344,8 +343,8 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	integrationtest.DetectModelChecksumChange(t, model_Name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.DetectModelChecksumChange(t, modelName, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -354,7 +353,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
 		// Delete the model.
-		objects.SharedAviGraphLister().Delete(model_Name)
+		objects.SharedAviGraphLister().Delete(modelName)
 	} else {
 		t.Fatalf("Could not find model on ingress delete: %v", err)
 	}
@@ -364,10 +363,10 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	model_Name = "admin/Shard-VS---global-1"
-	integrationtest.PollForCompletion(t, model_Name, 5)
+	modelName = "admin/Shard-VS---global-1"
+	integrationtest.PollForCompletion(t, modelName, 5)
 	// We should be able to get one model now in the queue
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -375,7 +374,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 
-		objects.SharedAviGraphLister().Delete(model_Name)
+		objects.SharedAviGraphLister().Delete(modelName)
 	} else {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
@@ -384,16 +383,16 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
 	}
-	integrationtest.PollForCompletion(t, model_Name, 5)
+	integrationtest.PollForCompletion(t, modelName, 5)
 	// Deletion should also give us the affected ingress objects
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		// Delete the model.
-		objects.SharedAviGraphLister().Delete(model_Name)
+		objects.SharedAviGraphLister().Delete(modelName)
 	} else {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
@@ -410,8 +409,8 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 func TestMultiVSIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -426,8 +425,8 @@ func TestMultiVSIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -454,8 +453,8 @@ func TestMultiVSIngress(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("randomNamespacethatyeildsdiff").Create(randoming)
-	integrationtest.PollForCompletion(t, model_Name, 10)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 10)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -484,15 +483,15 @@ func TestMultiVSIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multipath",
@@ -507,8 +506,8 @@ func TestMultiPathIngress(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -538,7 +537,7 @@ func TestMultiPathIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multipath", nil)
 	if err != nil {
@@ -546,14 +545,14 @@ func TestMultiPathIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
@@ -581,8 +580,8 @@ func TestMultiIngressSameHost(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -612,7 +611,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi1", nil)
 	if err != nil {
@@ -629,14 +628,14 @@ func TestMultiIngressSameHost(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestDeleteBackendService(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
@@ -664,8 +663,8 @@ func TestDeleteBackendService(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -695,12 +694,12 @@ func TestDeleteBackendService(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	// Delete the service
 	integrationtest.DelSVC(t, "default", "avisvc")
 	integrationtest.DelEP(t, "default", "avisvc")
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -716,12 +715,12 @@ func TestDeleteBackendService(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].PoolRefs[1].Servers)
-		}, 5*time.Second).Should(gomega.Equal(0))
+		}, 10*time.Second).Should(gomega.Equal(0))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi1", nil)
 	if err != nil {
@@ -742,8 +741,8 @@ func TestDeleteBackendService(t *testing.T) {
 
 func TestMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multihost",
@@ -758,8 +757,8 @@ func TestMultiHostIngress(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 10)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -784,13 +783,13 @@ func TestMultiHostIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	model_Name = "admin/Shard-VS---global-1"
+	modelName = "admin/Shard-VS---global-1"
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -816,7 +815,7 @@ func TestMultiHostIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
 	if err != nil {
@@ -824,13 +823,13 @@ func TestMultiHostIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestMultiHostSameHostNameIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multihost",
@@ -845,8 +844,8 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -876,7 +875,7 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
@@ -885,13 +884,13 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestEditPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-edit",
@@ -906,8 +905,8 @@ func TestEditPathIngress(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
@@ -929,7 +928,7 @@ func TestEditPathIngress(t *testing.T) {
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	ingrFake = (integrationtest.FakeIngress{
@@ -945,7 +944,7 @@ func TestEditPathIngress(t *testing.T) {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
@@ -964,7 +963,7 @@ func TestEditPathIngress(t *testing.T) {
 		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=foo.com/bar--default--ingress-edit"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-edit", nil)
@@ -973,13 +972,13 @@ func TestEditPathIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestEditMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multipath-edit",
@@ -994,7 +993,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, model_Name, 5)
+	integrationtest.PollForCompletion(t, modelName, 5)
 	ingrFake = (integrationtest.FakeIngress{
 		Name:        "ingress-multipath-edit",
 		Namespace:   "default",
@@ -1008,7 +1007,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
@@ -1042,7 +1041,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	ingrFake = (integrationtest.FakeIngress{
 		Name:        "ingress-multipath-edit",
@@ -1052,14 +1051,14 @@ func TestEditMultiPathIngress(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
 	ingrFake.ResourceVersion = "3"
-	objects.SharedAviGraphLister().Delete(model_Name)
+	objects.SharedAviGraphLister().Delete(modelName)
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
@@ -1092,7 +1091,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multipath-edit", nil)
@@ -1101,7 +1100,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestEditMultiIngressSameHost(t *testing.T) {
@@ -1202,8 +1201,8 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 
 func TestEditMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multihost",
@@ -1228,8 +1227,8 @@ func TestEditMultiHostIngress(t *testing.T) {
 
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake)
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1255,11 +1254,11 @@ func TestEditMultiHostIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	model_Name = "admin/Shard-VS---global-3"
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	modelName = "admin/Shard-VS---global-3"
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1285,7 +1284,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multihost", nil)
@@ -1294,13 +1293,13 @@ func TestEditMultiHostIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-nohost",
@@ -1314,8 +1313,8 @@ func TestNoHostIngress(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1332,7 +1331,7 @@ func TestNoHostIngress(t *testing.T) {
 		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=ingress-nohost.default.avi.internal/foo--default--ingress-nohost"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/foo"))
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
@@ -1341,13 +1340,13 @@ func TestNoHostIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestEditNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-nohost",
@@ -1372,8 +1371,8 @@ func TestEditNoHostIngress(t *testing.T) {
 		t.Fatalf("error in Updating Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1392,7 +1391,7 @@ func TestEditNoHostIngress(t *testing.T) {
 		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=ingress-nohost.default.avi.internal/bar--default--ingress-nohost"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/bar"))
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
@@ -1401,13 +1400,13 @@ func TestEditNoHostIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestEditNoHostToHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-nohost",
@@ -1421,8 +1420,8 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1439,7 +1438,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=ingress-nohost.default.avi.internal/foo--default--ingress-nohost"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/foo"))
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	ingrFake = (integrationtest.FakeIngress{
@@ -1455,7 +1454,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in Updating Ingress: %v", err)
 	}
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1466,10 +1465,11 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		}, 5*time.Second).Should(gomega.Equal(0))
 
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
-	model_Name = "admin/Shard-VS---global-1"
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	VerifyIngressDeletion(t, g, aviModel, 0)
+	modelName = "admin/Shard-VS---global-1"
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1480,7 +1480,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		}, 5*time.Second).Should(gomega.Equal(1))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("bar.com/bar"))
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
 	if err != nil {
@@ -1488,13 +1488,13 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestEditNoHostMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-3"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-3"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "nohost-multipath",
@@ -1520,8 +1520,8 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1554,7 +1554,7 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 		}
 
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("nohost-multipath", nil)
@@ -1563,14 +1563,14 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestScaleEndpoints(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_Name := "admin/Shard-VS---global-0"
-	SetUpTestForIngress(t, model_Name)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
@@ -1598,8 +1598,8 @@ func TestScaleEndpoints(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1629,10 +1629,10 @@ func TestScaleEndpoints(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	integrationtest.ScaleCreateEP(t, "default", "avisvc")
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1653,7 +1653,7 @@ func TestScaleEndpoints(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 	} else {
-		t.Fatalf("Could not find model: %s", model_Name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi1", nil)
 	if err != nil {
@@ -1669,7 +1669,7 @@ func TestScaleEndpoints(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
-	TearDownTestForIngress(t, model_Name)
+	TearDownTestForIngress(t, modelName)
 
 }
 
@@ -1710,6 +1710,7 @@ func TestL7ModelSNI(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
@@ -1764,6 +1765,7 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
+		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(0))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
@@ -1839,6 +1841,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].VHDomainNames)).To(gomega.Equal(0))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
@@ -1851,7 +1854,9 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
 		}, 5*time.Second).Should(gomega.Equal(2))
-
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -1914,6 +1919,7 @@ func TestL7ModelMultiSNI(t *testing.T) {
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
+		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(2))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
@@ -1932,7 +1938,11 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default")
 	integrationtest.AddSecret("my-secret2", "default")
-	modelName := "admin/Shard-VS---global-0"
+	// Clean up any earlier models.
+	modelName := "admin/Shard-VS---global-1"
+	objects.SharedAviGraphLister().Delete(modelName)
+	modelName = "admin/Shard-VS---global-0"
+	objects.SharedAviGraphLister().Delete(modelName)
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1966,6 +1976,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
+		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(2))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
@@ -1993,7 +2004,8 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
 		}, 5*time.Second).Should(gomega.Equal(1))
-
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -2004,7 +2016,8 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
 		}, 5*time.Second).Should(gomega.Equal(1))
-
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
