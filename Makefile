@@ -27,8 +27,8 @@ docker:
 
 .PHONY: test
 test:
-	/usr/local/go/bin/go test -mod=vendor -v ./pkg/k8s
+	/usr/local/go/bin/go test -mod=vendor -v ./pkg/k8s -failfast
 .PHONY: int_test
 int_test:
-	/usr/local/go/bin/go test -mod=vendor -v ./tests/integrationtest
-	/usr/local/go/bin/go test -mod=vendor -v ./tests/hostnameshardtests
+	/usr/local/go/bin/go test -mod=vendor -v ./tests/integrationtest -failfast
+	/usr/local/go/bin/go test -mod=vendor -v ./tests/hostnameshardtests -failfast
