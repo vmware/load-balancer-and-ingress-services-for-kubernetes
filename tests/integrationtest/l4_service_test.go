@@ -16,7 +16,9 @@ package integrationtest
 
 import (
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,11 +31,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func TestMain(m *testing.M) {
-	SetUp()
-	os.Exit(m.Run())
-}
 
 func SetUpTestForSvcLB(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
@@ -61,15 +58,18 @@ func TearDownTestForSvcLBMultiport(t *testing.T) {
 	DelEP(t, NAMESPACE, MULTIPORTSVC)
 }
 
+func TestMain(m *testing.M) {
+	SetUp()
+	os.Exit(m.Run())
+}
+
 func TestAviNodeCreationSinglePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := SINGLEPORTMODEL
-
 	SetUpTestForSvcLB(t)
 
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 	if !found {
-		t.Fatalf("Couldn't find model %v", modelName)
+		t.Fatalf("Couldn't find model %v", SINGLEPORTMODEL)
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(nodes).To(gomega.HaveLen(1))
@@ -336,4 +336,86 @@ func TestUpdateAndDeleteServiceLB(t *testing.T) {
 		_, found = mcache.PoolCache.AviCacheGet(poolKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
+}
+
+// TestScaleUpAndDownServiceLB tests the avi node graph and rest layer functionality when the
+// multiport serviceLB is increased from 1 to 30 and then decreased back to 1
+func TestScaleUpAndDownServiceLB(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	var model, service string
+
+	// Simulate a delay of 200ms in the Avi API
+	ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer ts.Close()
+	k8s.PopulateCache()
+
+	SetUpTestForSvcLB(t)
+
+	// create 30 more multiport service of type loadbalancer
+	numScale := 30
+	for i := 0; i < numScale; i++ {
+		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
+		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
+
+		objects.SharedAviGraphLister().Delete(model)
+		CreateSVC(t, NAMESPACE, service, corev1.ServiceTypeLoadBalancer, true)
+		CreateEP(t, NAMESPACE, service, true, true)
+	}
+
+	// verify that 30 services are created on the graph and corresponding cache objects
+	var found bool
+	var vsKey cache.NamespaceName
+	var aviModel interface{}
+
+	mcache := cache.SharedAviObjCache()
+	for i := 0; i < numScale; i++ {
+		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
+		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
+
+		PollForCompletion(t, model, 5)
+		found, aviModel = objects.SharedAviGraphLister().Get(model)
+		g.Expect(found).To(gomega.Equal(true))
+		g.Expect(aviModel).To(gomega.Not(gomega.BeNil()))
+
+		vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: strings.TrimPrefix(model, AVINAMESPACE+"/")}
+		g.Eventually(func() bool {
+			_, found = mcache.VsCache.AviCacheGet(vsKey)
+			return found
+		}, 15*time.Second).Should(gomega.Equal(true))
+	}
+
+	// delete the 30 services
+	for i := 0; i < numScale; i++ {
+		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
+		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
+		objects.SharedAviGraphLister().Delete(model)
+		DelSVC(t, NAMESPACE, service)
+		DelEP(t, NAMESPACE, service)
+	}
+
+	// verify that the graph nodes and corresponding cache are deleted for the 30 services
+	for i := 0; i < numScale; i++ {
+		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
+		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
+		g.Eventually(func() interface{} {
+			found, aviModel = objects.SharedAviGraphLister().Get(model)
+			return aviModel
+		}, 15*time.Second).Should(gomega.BeNil())
+
+		vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: strings.TrimPrefix(model, AVINAMESPACE+"/")}
+		g.Eventually(func() bool {
+			_, found = mcache.VsCache.AviCacheGet(vsKey)
+			return found
+		}, 15*time.Second).Should(gomega.Equal(false))
+	}
+
+	// verifying whether the first service created still has the corresponding cache entry
+	vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("%s--%s", SINGLEPORTSVC, NAMESPACE)}
+	g.Eventually(func() bool {
+		_, found = mcache.VsCache.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(true))
+	TearDownTestForSvcLB(t)
 }

@@ -584,41 +584,62 @@ func DelEP(t *testing.T, ns string, Name string) {
 	}
 }
 
+/*
+InjectFault type func should be used to inject custom faults to the ControllerFakeAPIServer as follows:
+In order to add a lag of 200ms
+ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(200*time.Millisecond)
+})
+
+or use it to return an unauthorised error
+ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusUnauthorised)
+	fmt.Fprintln(w, `{"error": "Authentication credentials are not provided"}`)
+})
+*/
+type InjectFault func(w http.ResponseWriter, r *http.Request)
+
 // GetAviControllerFakeAPIServer returns a sample Controller API FakeClient
-// This would also add some crucial fields, like uuid and url, which are required for
-// the cache sync to move ahead
-func GetAviControllerFakeAPIServer() (ts *httptest.Server) {
+func GetAviControllerFakeAPIServer(fault ...InjectFault) (ts *httptest.Server) {
 	ts = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
 		url := r.URL.EscapedPath()
 		var resp map[string]interface{}
+		var finalResponse []byte
 		utils.AviLog.Info.Printf("[fakeAPI]: %s %s\n", r.Method, url)
 
+		if len(fault) != 0 {
+			fault[0](w, r)
+		}
+
 		if strings.Contains(url, "macro") && r.Method == "POST" {
-			// POST macro APIs for vs, pg, pool, ds creation on controller
 			// copying request payload into response body
 			data, _ := ioutil.ReadAll(r.Body)
-			var resp map[string]interface{}
-			_ = json.Unmarshal(data, &resp)
+			json.Unmarshal(data, &resp)
 			rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rData["name"].(string))
+			rName := rData["name"].(string)
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
 
 			// adding additional 'uuid' and 'url' (read-only) fields in the response
 			rData["url"] = objURL
-			rData["uuid"] = fmt.Sprintf("%s-%s", rModelName, RANDOMUUID)
-			finalResponse, _ := json.Marshal([]interface{}{resp["data"]})
-			fmt.Fprintln(w, string(finalResponse))
+			rData["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+			finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
+			w.WriteHeader(http.StatusOK)
 		} else if r.Method == "PUT" {
 			data, _ := ioutil.ReadAll(r.Body)
-			_ = json.Unmarshal(data, &resp)
+			json.Unmarshal(data, &resp)
 			resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
-			finalResponse, _ := json.Marshal(resp)
-			fmt.Fprintln(w, string(finalResponse))
+			finalResponse, _ = json.Marshal(resp)
+			w.WriteHeader(http.StatusOK)
+		} else if r.Method == "DELETE" {
+			w.WriteHeader(http.StatusNoContent)
 		} else {
 			// This is used for /login --> first request to controller
-			fmt.Fprintln(w, string(`{"dummy" :"data"}`))
+			w.WriteHeader(http.StatusOK)
+			finalResponse = []byte(`{"success": "true"}`)
 		}
+
+		fmt.Fprintln(w, string(finalResponse))
 	}))
 
 	url := strings.Split(ts.URL, "https://")[1]
