@@ -625,26 +625,41 @@ func GetAviControllerFakeAPIServer(fault ...InjectFault) (ts *httptest.Server) {
 			rData["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
 			finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
 			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, string(finalResponse))
 		} else if r.Method == "PUT" {
 			data, _ := ioutil.ReadAll(r.Body)
 			json.Unmarshal(data, &resp)
 			resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
 			finalResponse, _ = json.Marshal(resp)
 			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, string(finalResponse))
 		} else if r.Method == "DELETE" {
 			w.WriteHeader(http.StatusNoContent)
-		} else {
+			fmt.Fprintln(w, string(finalResponse))
+		} else if strings.Contains(url, "login") {
 			// This is used for /login --> first request to controller
 			w.WriteHeader(http.StatusOK)
-			finalResponse = []byte(`{"success": "true"}`)
+			fmt.Fprintln(w, `{"success": "true"}`)
 		}
-
-		fmt.Fprintln(w, string(finalResponse))
 	}))
 
 	url := strings.Split(ts.URL, "https://")[1]
 	os.Setenv("CTRL_USERNAME", "admin")
 	os.Setenv("CTRL_PASSWORD", "admin")
 	os.Setenv("CTRL_IPADDRESS", url)
+	k8s.PopulateCache()
 	return ts
+}
+
+// FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data
+// for GET objects list API. GET /api/virtualservice returns from virtualservice_mock.json and so on
+func FeedMockCollectionData(w http.ResponseWriter, r *http.Request) {
+	mockFilePath := "../avimockobjects"
+	url := r.URL.EscapedPath() // url = //api/<object>
+	object := strings.Split(strings.Trim(url, "/"), "/")
+	if len(object) > 1 && r.Method == "GET" {
+		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, object[1]))
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, string(data))
+	}
 }

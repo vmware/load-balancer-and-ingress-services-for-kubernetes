@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"ako/pkg/cache"
-	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
 	"github.com/avinetworks/container-lib/utils"
@@ -225,7 +224,6 @@ func TestCreateServiceLB(t *testing.T) {
 
 	ts := GetAviControllerFakeAPIServer()
 	defer ts.Close()
-	k8s.PopulateCache()
 
 	SetUpTestForSvcLB(t)
 
@@ -256,7 +254,6 @@ func TestCreateMultiportServiceLB(t *testing.T) {
 
 	ts := GetAviControllerFakeAPIServer()
 	defer ts.Close()
-	k8s.PopulateCache()
 
 	SetUpTestForSvcLBMultiport(t)
 
@@ -286,7 +283,6 @@ func TestUpdateAndDeleteServiceLB(t *testing.T) {
 
 	ts := GetAviControllerFakeAPIServer()
 	defer ts.Close()
-	k8s.PopulateCache()
 
 	SetUpTestForSvcLB(t)
 
@@ -349,7 +345,6 @@ func TestScaleUpAndDownServiceLB(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	})
 	defer ts.Close()
-	k8s.PopulateCache()
 
 	SetUpTestForSvcLB(t)
 
