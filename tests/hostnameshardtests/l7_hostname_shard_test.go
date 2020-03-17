@@ -15,18 +15,12 @@
 package hostnameshardtests
 
 import (
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
-	"ako/pkg/k8s"
-
 	"ako/pkg/cache"
+	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
 	"ako/tests/integrationtest"
@@ -123,45 +117,10 @@ func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{
 
 func TestCacheGETOKStatus(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if strings.Contains(r.URL.EscapedPath(), "virtualservice") {
-			data, _ := ioutil.ReadFile("../integrationtest/avimockobjects/shared_vs_mock.json")
 
-			fmt.Fprintln(w, string(data))
-		} else if strings.Contains(r.URL.EscapedPath(), "poolgroup") {
-			data, _ := ioutil.ReadFile("../integrationtest/avimockobjects/poolgroups_mock.json")
-
-			fmt.Fprintln(w, string(data))
-		} else if strings.Contains(r.URL.EscapedPath(), "pool") {
-			data, _ := ioutil.ReadFile("../integrationtest/avimockobjects/pool_mock.json")
-
-			fmt.Fprintln(w, string(data))
-		} else if strings.Contains(r.URL.EscapedPath(), "vsdatascript") {
-			data, _ := ioutil.ReadFile("../integrationtest/avimockobjects/datascript_http_mock.json")
-			fmt.Fprintln(w, string(data))
-		} else if strings.Contains(r.URL.EscapedPath(), "cloud") {
-			data, _ := ioutil.ReadFile("../integrationtest/avimockobjects/cloud_mock.json")
-			fmt.Fprintln(w, string(data))
-		} else if strings.Contains(r.URL.EscapedPath(), "ipamdnsproviderprofile") {
-			data, _ := ioutil.ReadFile("../integrationtest/avimockobjects/ipamdns_mock.json")
-			fmt.Fprintln(w, string(data))
-		} else if strings.Contains(r.URL.EscapedPath(), "vrfcontext") {
-			data, _ := ioutil.ReadFile("../integrationtest/avimockobjects/vrf_mock.json")
-			fmt.Fprintln(w, string(data))
-		} else {
-			// This is used for /login --> first request to controller
-			fmt.Fprintln(w, string(`{"dummy" :"data"}`))
-		}
-
-	}))
+	ts := integrationtest.GetAviControllerFakeAPIServer(integrationtest.FeedMockCollectionData)
 	defer ts.Close()
-	url := strings.Split(ts.URL, "https://")[1]
-	os.Setenv("CTRL_USERNAME", "admin")
-	os.Setenv("CTRL_PASSWORD", "admin")
-	os.Setenv("CTRL_IPADDRESS", url)
-	k8s.PopulateCache()
+
 	// Verify the cache.
 	cacheobj := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS-5"}
