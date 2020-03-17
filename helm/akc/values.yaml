@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: 10.79.111.50:5443/avi-k8s-controller
+  repository: 10.79.111.50:5443/ako
   pullPolicy: IfNotPresent
 
 configs:

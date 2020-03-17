@@ -2,7 +2,7 @@ GOCMD=/usr/local/go/bin/go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
-BINARY_NAME_AMC=avi-k8s-controller
+BINARY_NAME_AMC=ako
 REL_PATH_AMC=ako/cmd/akc-main
 
 .PHONY:all
