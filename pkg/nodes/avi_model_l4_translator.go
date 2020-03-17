@@ -146,6 +146,8 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, key s
 }
 
 func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	var VsNode *AviVsNode
 	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {

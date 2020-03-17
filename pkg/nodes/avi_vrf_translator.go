@@ -29,6 +29,8 @@ import (
 
 // BuildVRFGraph : build vrf graph from k8s nodes
 func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	aviVrfNode := &AviVrfNode{
 		Name: vrfName,
 	}
