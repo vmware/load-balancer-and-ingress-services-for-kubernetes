@@ -29,6 +29,8 @@ import (
 )
 
 func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace string, ingName string, hostname string, pathsvc []IngressHostPathSvc, key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
 	utils.AviLog.Info.Printf("key: %s, msg: Building the L7 pools for namespace: %s, hostname: %s", key, namespace, hostname)
 	pgName := vsName + utils.L7_PG_PREFIX
@@ -89,6 +91,8 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 }
 
 func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostname, key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 
 	vsNode := o.GetAviVS()
 

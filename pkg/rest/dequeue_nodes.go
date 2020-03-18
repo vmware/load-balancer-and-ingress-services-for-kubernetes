@@ -66,6 +66,11 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 			utils.AviLog.Info.Printf("Enpty Model found, skipping")
 			return
 		}
+		avimodel, ok = avimodel.GetCopy(key)
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, failed to get process model", key)
+			return
+		}
 		if avimodel.IsVrf {
 			utils.AviLog.Warning.Printf("key: %s, msg: processing vrf object\n", key)
 			vrfNode := avimodel.GetAviVRF()

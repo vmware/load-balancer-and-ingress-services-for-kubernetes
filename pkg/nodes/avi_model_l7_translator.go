@@ -40,6 +40,8 @@ var shardSizeMap = map[string]uint32{
 const tlsCert = "tls.crt"
 
 func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName string, key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
 	utils.AviLog.Info.Printf("key: %s, msg: Building the L7 pools for namespace: %s, ingName: %s", key, namespace, ingName)
 	var err error
@@ -389,6 +391,8 @@ func parseHostPathForIngressCoreV1(ns string, ingName string, ingSpec v1beta1.In
 }
 
 func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsNode {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	var avi_vs_meta *AviVsNode
 
 	// This is a shared VS - always created in the admin namespace for now.
