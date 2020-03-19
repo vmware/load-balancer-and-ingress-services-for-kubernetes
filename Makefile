@@ -42,3 +42,7 @@ test:
 int_test:
 	/usr/local/go/bin/go test -mod=vendor -v ./tests/integrationtest -failfast
 	/usr/local/go/bin/go test -mod=vendor -v ./tests/hostnameshardtests -failfast
+
+.PHONY: scale_test
+scale_test:
+	/usr/local/go/bin/go test -mod=vendor -v ./tests/scaletest -failfast
