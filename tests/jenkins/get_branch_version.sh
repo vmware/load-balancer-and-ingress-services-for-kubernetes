@@ -1,15 +1,7 @@
-#!/bin/bash 
+#!/bin/bash
 
 set -e
 
-
-if [ $# -lt 2 ] ; then
-    echo "Usage: ./get_version.sh <JOB> <BUILD_NUMBER>";
-    exit 1
-fi
-
-JOB=$1
-BUILD_NUMBER=$2
 
 
 # Function to parse yaml file
@@ -44,13 +36,4 @@ function get_git_ws {
 version_file=$(get_git_ws)/version.yaml
 eval $(parse_yaml $version_file AKO_VERSION_)
 
-# Compute base_build_num
-base_build_num=$(cat $(get_git_ws)/base_build_num)
-version_build_num=$(expr "$base_build_num" + "$BUILD_NUMBER")
-
-version_tag="$AKO_VERSION_major.$AKO_VERSION_minor.$AKO_VERSION_maintenance-$version_build_num"
-
-mkdir -p /tmp/$JOB;
-touch /tmp/$JOB/jenkins.properties;
-echo "version_tag=${version_tag}" > /tmp/$JOB/jenkins.properties;
-echo $version_tag
+echo "$AKO_VERSION_major.$AKO_VERSION_minor.$AKO_VERSION_maintenance"

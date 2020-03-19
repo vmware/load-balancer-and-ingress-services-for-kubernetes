@@ -5,6 +5,7 @@ GOGET=$(GOCMD) get
 BINARY_NAME_AMC=ako
 REL_PATH_AMC=ako/cmd/akc-main
 
+
 .PHONY:all
 all: build docker
 
@@ -23,7 +24,16 @@ deps:
 
 .PHONY: docker
 docker:
-	docker build -t $(BINARY_NAME_AMC):latest -f Dockerfile.ako .
+ifndef BUILD_TAG
+	$(eval BUILD_TAG=$(shell ./tests/jenkins/get_build_version.sh "dummy" 0))
+endif
+
+ifndef BUILD_TIME
+	$(eval BUILD_TIME=$(shell date +%Y-%m-%d_%H:%M:%S_%Z))
+endif
+
+	sudo docker build -t $(BINARY_NAME_AMC):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" -f Dockerfile.ako .
+
 
 .PHONY: test
 test:
