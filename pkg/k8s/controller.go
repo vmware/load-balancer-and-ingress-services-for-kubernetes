@@ -457,40 +457,42 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 	}
 
-	block_affinity_handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Info.Printf("calico blockaffinity ADD Event")
-			if c.DisableSync {
-				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for node add")
-				return
-			}
-			crd := obj.(*unstructured.Unstructured)
-			specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
-			if err != nil || !found {
-				utils.AviLog.Warning.Printf("calico block affinity spec not found: %+v", err)
-			}
-			key := utils.NodeObj + "/" + specJSON["name"]
-			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Info.Printf("calico blockaffinity DELETE Event")
-			if c.DisableSync {
-				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for node delete")
-				return
-			}
-			crd := obj.(*unstructured.Unstructured)
-			specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
-			if err != nil || !found {
-				utils.AviLog.Warning.Printf("calico block affinity spec not found: %+v", err)
-			}
-			key := utils.NodeObj + "/" + specJSON["name"]
-			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
-	}
+	if lib.GetCNIPlugin() == "calico" {
+		block_affinity_handler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				utils.AviLog.Info.Printf("calico blockaffinity ADD Event")
+				if c.DisableSync {
+					utils.AviLog.Trace.Printf("Sync disabled, skipping sync for node add")
+					return
+				}
+				crd := obj.(*unstructured.Unstructured)
+				specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+				if err != nil || !found {
+					utils.AviLog.Warning.Printf("calico block affinity spec not found: %+v", err)
+				}
+				key := utils.NodeObj + "/" + specJSON["name"]
+				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				utils.AviLog.Info.Printf("calico blockaffinity DELETE Event")
+				if c.DisableSync {
+					utils.AviLog.Trace.Printf("Sync disabled, skipping sync for node delete")
+					return
+				}
+				crd := obj.(*unstructured.Unstructured)
+				specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+				if err != nil || !found {
+					utils.AviLog.Warning.Printf("calico block affinity spec not found: %+v", err)
+				}
+				key := utils.NodeObj + "/" + specJSON["name"]
+				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
 
-	c.dynamicInformers.CalicoBlockAffinityInformer.Informer().AddEventHandler(block_affinity_handler)
+		c.dynamicInformers.CalicoBlockAffinityInformer.Informer().AddEventHandler(block_affinity_handler)
+	}
 
 	c.informers.EpInformer.Informer().AddEventHandler(ep_event_handler)
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
@@ -527,7 +529,9 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.NodeInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
 
-	go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
+	if lib.GetCNIPlugin() == "calico" {
+		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
+	}
 
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		if !cache.WaitForCacheSync(stopCh,
@@ -566,10 +570,10 @@ func isServiceLBType(svcObj *corev1.Service) bool {
 	return false
 }
 
-// // Run will set up the event handlers for types we are interested in, as well
-// // as syncing informer caches and starting workers. It will block until stopCh
-// // is closed, at which point it will shutdown the workqueue and wait for
-// // workers to finish processing their current work items.
+// Run will set up the event handlers for types we are interested in, as well
+// as syncing informer caches and starting workers. It will block until stopCh
+// is closed, at which point it will shutdown the workqueue and wait for
+// workers to finish processing their current work items.
 func (c *AviController) Run(stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 

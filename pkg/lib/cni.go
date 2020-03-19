@@ -2,6 +2,8 @@ package lib
 
 import (
 	"errors"
+	"os"
+	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
 
@@ -70,7 +72,7 @@ func GetPodCIDR(node *v1.Node) (string, error) {
 	podCIDR := node.Spec.PodCIDR // default
 	dynamicClient := GetDynamicClientSet()
 
-	if dynamicClientSet != nil {
+	if GetCNIPlugin() == "calico" && dynamicClientSet != nil {
 		crdClient := dynamicClient.Resource(CalicoBlockaffinityGVR)
 		crdList, err := crdClient.List(metav1.ListOptions{})
 		if err != nil {
@@ -93,4 +95,9 @@ func GetPodCIDR(node *v1.Node) (string, error) {
 		return "", errors.New("podcidr not found")
 	}
 	return podCIDR, nil
+}
+
+// GetCNIPlugin returns the user provided CNI plugin - oneof (calico|canal|flannel)
+func GetCNIPlugin() string {
+	return strings.ToLower(os.Getenv(CNI_PLUGIN))
 }
