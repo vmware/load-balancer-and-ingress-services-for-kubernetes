@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"ako/pkg/lib"
 	"ako/pkg/objects"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -78,8 +79,8 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName, routeid string)
 		utils.AviLog.Error.Printf("Error in fetching nodeIP for %v", node.ObjectMeta.Name)
 		return nil, errors.New("nodeip not found")
 	}
-	podCIDR := node.Spec.PodCIDR
-	if podCIDR == "" {
+	podCIDR, err := lib.GetPodCIDR(node)
+	if err != nil {
 		utils.AviLog.Error.Printf("Error in fetching Pod CIDR for %v", node.ObjectMeta.Name)
 		return nil, errors.New("podcidr not found")
 	}

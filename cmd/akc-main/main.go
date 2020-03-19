@@ -57,14 +57,27 @@ func InitializeAKC() {
 		}
 	}
 
+	dynamicClient, err := lib.NewDynamicClientSet(cfg)
+	if err != nil {
+		utils.AviLog.Warning.Printf("Error while creating dynamic client %v", err)
+	}
+
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		utils.AviLog.Error.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
-	registeredInformers := []string{utils.ServiceInformer, utils.EndpointInformer, lib.GetIngressApi(), utils.SecretInformer, utils.NSInformer, utils.NodeInformer, utils.ConfigMapInformer}
+	registeredInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		lib.GetIngressApi(),
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
+	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
 
-	informers := k8s.K8sinformers{Cs: kubeClient}
+	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	k8s.PopulateCache()

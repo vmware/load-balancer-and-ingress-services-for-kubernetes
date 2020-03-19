@@ -26,7 +26,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/api/networking/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -41,13 +43,15 @@ type AviController struct {
 	worker_id       uint32
 	worker_id_mutex sync.Mutex
 	//recorder        record.EventRecorder
-	informers   *utils.Informers
-	workqueue   []workqueue.RateLimitingInterface
-	DisableSync bool
+	informers        *utils.Informers
+	dynamicInformers *lib.DynamicInformers
+	workqueue        []workqueue.RateLimitingInterface
+	DisableSync      bool
 }
 
 type K8sinformers struct {
-	Cs kubernetes.Interface
+	Cs            kubernetes.Interface
+	DynamicClient dynamic.Interface
 }
 
 func SharedAviController() *AviController {
@@ -55,8 +59,9 @@ func SharedAviController() *AviController {
 		controllerInstance = &AviController{
 			worker_id: (uint32(1) << utils.NumWorkersIngestion) - 1,
 			//recorder:  recorder,
-			informers:   utils.GetInformers(),
-			DisableSync: true,
+			informers:        utils.GetInformers(),
+			dynamicInformers: lib.GetDynamicInformers(),
+			DisableSync:      true,
 		}
 	})
 	return controllerInstance
@@ -452,6 +457,41 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 	}
 
+	block_affinity_handler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Info.Printf("calico blockaffinity ADD Event")
+			if c.DisableSync {
+				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for node add")
+				return
+			}
+			crd := obj.(*unstructured.Unstructured)
+			specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+			if err != nil || !found {
+				utils.AviLog.Warning.Printf("calico block affinity spec not found: %+v", err)
+			}
+			key := utils.NodeObj + "/" + specJSON["name"]
+			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Info.Printf("calico blockaffinity DELETE Event")
+			if c.DisableSync {
+				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for node delete")
+				return
+			}
+			crd := obj.(*unstructured.Unstructured)
+			specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+			if err != nil || !found {
+				utils.AviLog.Warning.Printf("calico block affinity spec not found: %+v", err)
+			}
+			key := utils.NodeObj + "/" + specJSON["name"]
+			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+
+	c.dynamicInformers.CalicoBlockAffinityInformer.Informer().AddEventHandler(block_affinity_handler)
+
 	c.informers.EpInformer.Informer().AddEventHandler(ep_event_handler)
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
@@ -486,6 +526,9 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.SecretInformer.Informer().Run(stopCh)
 	go c.informers.NodeInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
+
+	go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
+
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		if !cache.WaitForCacheSync(stopCh,
 			c.informers.EpInformer.Informer().HasSynced,
