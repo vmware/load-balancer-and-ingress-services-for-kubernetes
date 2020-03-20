@@ -119,6 +119,17 @@ func ingressCoreV1Changes(ingName string, namespace string, key string) ([]strin
 }
 
 func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
+	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	if err != nil {
+		// Detect a delete condition here.
+		if errors.IsNotFound(err) {
+			// Garbage collect the service if no ingress references exist
+			_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
+			if len(ingresses) == 0 {
+				objects.SharedSvcLister().IngressMappings(namespace).DeleteSvcToIngMapping(svcName)
+			}
+		}
+	}
 	_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
 	utils.AviLog.Info.Printf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	if len(ingresses) == 0 {

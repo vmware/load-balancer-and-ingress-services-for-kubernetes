@@ -462,6 +462,13 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 	secretObj, err := mClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil || secretObj == nil {
 		// This secret has been deleted.
+		ok, ingNames := objects.SharedSvcLister().IngressMappings(namespace).GetSecretToIng(secretName)
+		if ok {
+			// Delete the secret key in the cache if it has no references
+			if len(ingNames) == 0 {
+				objects.SharedSvcLister().IngressMappings(namespace).DeleteSecretToIngMapping(secretName)
+			}
+		}
 		utils.AviLog.Info.Printf("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
 		return false
 	}

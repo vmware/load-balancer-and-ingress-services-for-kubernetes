@@ -42,7 +42,7 @@ func syncFuncForTest(key string) error {
 func waitAndverify(t *testing.T, key string) {
 	waitChan := make(chan int)
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		waitChan <- 1
 	}()
 
