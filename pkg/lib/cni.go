@@ -1,3 +1,17 @@
+/*
+ * [2013] - [2018] Avi Networks Incorporated
+ * All Rights Reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*   http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
 package lib
 
 import (
@@ -19,6 +33,7 @@ import (
 var dynamicInformerInstance *DynamicInformers
 var dynamicClientSet dynamic.Interface
 var (
+	// CalicoBlockaffinityGVR : Calico's BlockAffinity CRD resource identifier
 	CalicoBlockaffinityGVR = schema.GroupVersionResource{
 		Group:    "crd.projectcalico.org",
 		Version:  "v1",
@@ -26,7 +41,13 @@ var (
 	}
 )
 
+// NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
+	// do not instantiate the dynamic client set if the CNI being used is NOT calico
+	if GetCNIPlugin() != CALICO_CNI {
+		return nil, nil
+	}
+
 	ds, err := dynamic.NewForConfig(config)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Error while creating dynamic client %v", err)
@@ -38,6 +59,7 @@ func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	return dynamicClientSet, nil
 }
 
+// GetDynamicClientSet returns dynamic client set instance
 func GetDynamicClientSet() dynamic.Interface {
 	if dynamicClientSet == nil {
 		utils.AviLog.Warning.Print("Cannot retrieve the dynamic informers since it's not initialized yet.")
@@ -51,13 +73,17 @@ type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 }
 
+// NewDynamicInformers initializes the DynamicInformers struct
 func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 	informers := &DynamicInformers{}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
-	informers.CalicoBlockAffinityInformer = f.ForResource(CalicoBlockaffinityGVR)
+	if GetCNIPlugin() == CALICO_CNI {
+		informers.CalicoBlockAffinityInformer = f.ForResource(CalicoBlockaffinityGVR)
+	}
 	return informers
 }
 
+// GetDynamicInformers returns DynamicInformers instance
 func GetDynamicInformers() *DynamicInformers {
 	if dynamicInformerInstance == nil {
 		utils.AviLog.Warning.Print("Cannot retrieve the dynamic informers since it's not initialized yet.")
@@ -72,7 +98,7 @@ func GetPodCIDR(node *v1.Node) (string, error) {
 	podCIDR := node.Spec.PodCIDR // default
 	dynamicClient := GetDynamicClientSet()
 
-	if GetCNIPlugin() == "calico" && dynamicClientSet != nil {
+	if GetCNIPlugin() == CALICO_CNI && dynamicClientSet != nil {
 		crdClient := dynamicClient.Resource(CalicoBlockaffinityGVR)
 		crdList, err := crdClient.List(metav1.ListOptions{})
 		if err != nil {

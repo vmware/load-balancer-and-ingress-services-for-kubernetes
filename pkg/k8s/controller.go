@@ -457,18 +457,19 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 	}
 
-	if lib.GetCNIPlugin() == "calico" {
+	if lib.GetCNIPlugin() == lib.CALICO_CNI {
 		block_affinity_handler := cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				utils.AviLog.Info.Printf("calico blockaffinity ADD Event")
 				if c.DisableSync {
-					utils.AviLog.Trace.Printf("Sync disabled, skipping sync for node add")
+					utils.AviLog.Trace.Printf("Sync disabled, skipping sync for calico blockaffinity add")
 					return
 				}
 				crd := obj.(*unstructured.Unstructured)
 				specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
 				if err != nil || !found {
-					utils.AviLog.Warning.Printf("calico block affinity spec not found: %+v", err)
+					utils.AviLog.Warning.Printf("calico blockaffinity spec not found: %+v", err)
+					return
 				}
 				key := utils.NodeObj + "/" + specJSON["name"]
 				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
@@ -477,13 +478,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			DeleteFunc: func(obj interface{}) {
 				utils.AviLog.Info.Printf("calico blockaffinity DELETE Event")
 				if c.DisableSync {
-					utils.AviLog.Trace.Printf("Sync disabled, skipping sync for node delete")
+					utils.AviLog.Trace.Printf("Sync disabled, skipping sync for calico blockaffinity delete")
 					return
 				}
 				crd := obj.(*unstructured.Unstructured)
 				specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
 				if err != nil || !found {
-					utils.AviLog.Warning.Printf("calico block affinity spec not found: %+v", err)
+					utils.AviLog.Warning.Printf("calico blockaffinity spec not found: %+v", err)
+					return
 				}
 				key := utils.NodeObj + "/" + specJSON["name"]
 				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
@@ -529,7 +531,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.NodeInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
 
-	if lib.GetCNIPlugin() == "calico" {
+	if lib.GetCNIPlugin() == lib.CALICO_CNI {
 		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
 	}
 
