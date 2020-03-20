@@ -60,6 +60,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: controllerVersion
+          - name: CNI_PLUGIN
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: cniPlugin
           - name: SHARD_VS_SIZE
             valueFrom:
               configMapKeyRef:

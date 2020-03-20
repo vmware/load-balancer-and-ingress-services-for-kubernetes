@@ -26,9 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-const NodeObj = "Node"
-const GlobalVRF = "global"
-
 func DequeueIngestion(key string, fullsync bool) {
 	// The key format expected here is: objectType/Namespace/ObjKey
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
@@ -39,7 +36,7 @@ func DequeueIngestion(key string, fullsync bool) {
 
 	objType, namespace, name := extractTypeNameNamespace(key)
 
-	// if we get update for object of tyoe k8s node, create vrf graph
+	// if we get update for object of type k8s node, create vrf graph
 	if objType == utils.NodeObj {
 		utils.AviLog.Info.Printf("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, false)

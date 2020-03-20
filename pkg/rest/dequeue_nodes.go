@@ -279,6 +279,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			// Add to local obj caches
 			for _, rest_op := range rest_ops {
 				if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
+					utils.AviLog.Info.Printf("key: %s, msg: creating/updating %s cache", rest_op.Model, key)
 					if rest_op.Model == "Pool" {
 						rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "VirtualService" {
@@ -298,8 +299,8 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					}
 
 				} else {
+					utils.AviLog.Info.Printf("key: %s, msg: deleting %s cache", rest_op.Model, key)
 					if rest_op.Model == "Pool" {
-						utils.AviLog.Info.Printf("key: %s, msg: deleting pool cache", key)
 						rest.AviPoolCacheDel(rest_op, aviObjKey, key)
 					} else if rest_op.Model == "VirtualService" {
 						rest.AviVsCacheDel(aviObjKey, rest_op, key)
@@ -320,6 +321,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 		}
 	}
 }
+
 func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName, namespace string, restOps []*utils.RestOp, key string) []*utils.RestOp {
 	for _, delDS := range dsToDelete {
 		dsKey := avicache.NamespaceName{Namespace: namespace, Name: delDS.Name}

@@ -77,8 +77,17 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
 	// set up signals so we handle the first shutdown signal gracefully
 	var worker *utils.FullSyncThread
-	registeredInformers := []string{utils.ServiceInformer, utils.EndpointInformer, lib.GetIngressApi(), utils.SecretInformer, utils.NSInformer, utils.NodeInformer, utils.ConfigMapInformer}
+	registeredInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		lib.GetIngressApi(),
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
+	}
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers)
+	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient)
 
 	c.Start(stopCh)
 	/** Sequence:
@@ -201,8 +210,8 @@ func (c *AviController) FullSyncK8s() error {
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
 		utils.AviLog.Info.Printf("Static route sync disabled, skipping node informers")
 	} else {
-		nodeObectjs, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
-		for _, node := range nodeObectjs {
+		nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
+		for _, node := range nodeObjects {
 			key := utils.NodeObj + "/" + node.Name
 			nodes.DequeueIngestion(key, true)
 		}

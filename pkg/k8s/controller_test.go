@@ -18,19 +18,21 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	// To Do: add test for openshift route
 	//oshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
 
 	"github.com/avinetworks/container-lib/utils"
-	meshutils "github.com/avinetworks/container-lib/utils"
-	corev1 "k8s.io/api/core/v1"
-	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var kubeClient *k8sfake.Clientset
+var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl AviController
 
@@ -57,7 +59,7 @@ func waitAndverify(t *testing.T, key string) {
 }
 
 func setupQueue(stopCh <-chan struct{}) {
-	ingestionQueue := meshutils.SharedWorkQueue().GetQueueByName(meshutils.ObjectIngestionLayer)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = syncFuncForTest
 	ingestionQueue.Run(stopCh)
 }
@@ -83,16 +85,17 @@ func TestMain(m *testing.M) {
 
 func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
+	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	os.Setenv("INGRESS_API", "extensionv1")
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, utils.ConfigMapInformer}
-	meshutils.NewInformers(meshutils.KubeClientIntf{kubeClient}, registeredInformers)
+	registeredInformers := []string{utils.ServiceInformer, utils.EndpointInformer, utils.ExtV1IngressInformer, utils.SecretInformer, utils.NSInformer, utils.NodeInformer, utils.ConfigMapInformer}
+	utils.NewInformers(utils.KubeClientIntf{kubeClient}, registeredInformers)
 	ctrl := SharedAviController()
-	stopCh := meshutils.SetupSignalHandler()
+	stopCh := utils.SetupSignalHandler()
 	ctrl.Start(stopCh)
 	keyChan = make(chan string)
 	ctrlCh := make(chan struct{})
-	ctrl.HandleConfigMap(K8sinformers{kubeClient}, ctrlCh, stopCh)
-	ctrl.SetupEventHandlers(K8sinformers{kubeClient})
+	ctrl.HandleConfigMap(K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh)
+	ctrl.SetupEventHandlers(K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)
 }
 
