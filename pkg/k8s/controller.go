@@ -91,6 +91,41 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 	return false
 }
 
+// Consider an ingress has been updated only if spec/annotation is updated
+func isIngressUpdated(oldIngress, newIngress *extensionv1beta1.Ingress) bool {
+	if oldIngress.ResourceVersion == newIngress.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldIngress.Spec))
+	oldAnnotationHash := utils.Hash(utils.Stringify(oldIngress.Annotations))
+	newSpecHash := utils.Hash(utils.Stringify(newIngress.Spec))
+	newAnnotationHash := utils.Hash(utils.Stringify(newIngress.Annotations))
+
+	if oldSpecHash != newSpecHash || oldAnnotationHash != newAnnotationHash {
+		return true
+	}
+
+	return false
+}
+
+func isCorev1IngressUpdated(oldIngress, newIngress *v1beta1.Ingress) bool {
+	if oldIngress.ResourceVersion == newIngress.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldIngress.Spec))
+	oldAnnotationHash := utils.Hash(utils.Stringify(oldIngress.Annotations))
+	newSpecHash := utils.Hash(utils.Stringify(newIngress.Spec))
+	newAnnotationHash := utils.Hash(utils.Stringify(newIngress.Annotations))
+
+	if oldSpecHash != newSpecHash || oldAnnotationHash != newAnnotationHash {
+		return true
+	}
+
+	return false
+}
+
 func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	cs := k8sinfo.Cs
 	utils.AviLog.Info.Printf("Creating event broadcaster")
@@ -279,8 +314,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			oldobj := old.(*extensionv1beta1.Ingress)
 			ingress := cur.(*extensionv1beta1.Ingress)
-			if oldobj.ResourceVersion != ingress.ResourceVersion {
-				// Only add the key if the resource versions have changed.
+			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -336,8 +370,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			oldobj := old.(*v1beta1.Ingress)
 			ingress := cur.(*v1beta1.Ingress)
-			if oldobj.ResourceVersion != ingress.ResourceVersion {
-				// Only add the key if the resource versions have changed.
+			if isCorev1IngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
