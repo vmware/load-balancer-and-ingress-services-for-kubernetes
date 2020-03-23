@@ -15,8 +15,8 @@ build:
 
 .PHONY: clean
 clean: 
-		$(GOCLEAN)
-		rm -f $(BINARY_NAME)
+		$(GOCLEAN) -mod=vendor $(REL_PATH_AMC)
+		rm -f bin/$(BINARY_NAME_AMC)
 
 .PHONY: deps
 deps:
