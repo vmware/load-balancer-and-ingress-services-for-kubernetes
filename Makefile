@@ -2,8 +2,9 @@ GOCMD=/usr/local/go/bin/go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
-BINARY_NAME_AMC=ako
-REL_PATH_AMC=ako/cmd/akc-main
+GOTEST=$(GOCMD) test
+BINARY_NAME_AKO=ako
+REL_PATH_AKO=ako/cmd/akc-main
 
 
 .PHONY:all
@@ -11,12 +12,12 @@ all: build docker
 
 .PHONY: build
 build: 
-		$(GOBUILD) -o bin/$(BINARY_NAME_AMC)  -mod=vendor $(REL_PATH_AMC)
+		$(GOBUILD) -o bin/$(BINARY_NAME_AKO)  -mod=vendor $(REL_PATH_AKO)
 
 .PHONY: clean
 clean: 
-		$(GOCLEAN)
-		rm -f $(BINARY_NAME)
+		$(GOCLEAN) -mod=vendor $(REL_PATH_AKO)
+		rm -f bin/$(BINARY_NAME_AKO)
 
 .PHONY: deps
 deps:
@@ -32,17 +33,17 @@ ifndef BUILD_TIME
 	$(eval BUILD_TIME=$(shell date +%Y-%m-%d_%H:%M:%S_%Z))
 endif
 
-	sudo docker build -t $(BINARY_NAME_AMC):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" -f Dockerfile.ako .
+	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" -f Dockerfile.ako .
 
 
 .PHONY: test
 test:
-	/usr/local/go/bin/go test -mod=vendor -v ./pkg/k8s -failfast
+	$(GOTEST) -mod=vendor -v ./pkg/k8s -failfast
 .PHONY: int_test
 int_test:
-	/usr/local/go/bin/go test -mod=vendor -v ./tests/integrationtest -failfast
-	/usr/local/go/bin/go test -mod=vendor -v ./tests/hostnameshardtests -failfast
+	$(GOTEST) -mod=vendor -v ./tests/integrationtest -failfast
+	$(GOTEST) -mod=vendor -v ./tests/hostnameshardtests -failfast
 
 .PHONY: scale_test
 scale_test:
-	/usr/local/go/bin/go test -mod=vendor -v ./tests/scaletest -failfast
+	$(GOTEST) -mod=vendor -v ./tests/scaletest -failfast
