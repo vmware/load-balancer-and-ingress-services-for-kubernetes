@@ -58,7 +58,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
 				ok := saveAviModel(model_name, aviModelGraph, key)
 				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue)
+					PublishKeyToRestLayer(model_name, key, sharedQueue)
 				}
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
@@ -83,7 +83,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
 				ok := saveAviModel(model_name, aviModelGraph, key)
 				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue)
+					PublishKeyToRestLayer(model_name, key, sharedQueue)
 				}
 			}
 		}
@@ -108,7 +108,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
 				ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
 				if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue)
+					PublishKeyToRestLayer(model_name, key, sharedQueue)
 				}
 			}
 		} else {
@@ -162,11 +162,11 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	model_name := utils.ADMIN_NS + "/" + vrfcontext
 	ok := saveAviModel(model_name, aviModel, key)
 	if ok && !fullsync {
-		PublishKeyToRestLayer(aviModel, model_name, key, sharedQueue)
+		PublishKeyToRestLayer(model_name, key, sharedQueue)
 	}
 }
 
-func PublishKeyToRestLayer(aviGraph *AviObjectGraph, model_name string, key string, sharedQueue *utils.WorkerQueue) {
+func PublishKeyToRestLayer(model_name string, key string, sharedQueue *utils.WorkerQueue) {
 	bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
 	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
 	utils.AviLog.Info.Printf("key: %s, msg: Published key with model_name: %s", key, model_name)

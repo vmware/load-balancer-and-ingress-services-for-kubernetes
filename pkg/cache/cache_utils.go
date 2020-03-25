@@ -165,3 +165,11 @@ func (c *AviCache) AviCacheDelete(k interface{}) {
 	defer c.cache_lock.Unlock()
 	delete(c.cache, k)
 }
+
+func (c *AviCache) Copy() map[interface{}]interface{} {
+	newMap := make(map[interface{}]interface{})
+	for key, value := range c.cache {
+		newMap[key] = value
+	}
+	return newMap
+}

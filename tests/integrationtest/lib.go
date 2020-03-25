@@ -33,6 +33,7 @@ import (
 	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
+
 	"github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 
@@ -74,7 +75,7 @@ func SetUp() {
 	os.Setenv("CTRL_PASSWORD", "admin")
 	os.Setenv("CTRL_IPADDRESS", "localhost")
 	os.Setenv("INGRESS_API", "extensionv1")
-	os.Setenv("FULL_SYNC_INTERVAL", "60")
+	os.Setenv("FULL_SYNC_INTERVAL", "600")
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	k8s.PopulateCache()

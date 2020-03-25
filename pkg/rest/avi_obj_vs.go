@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
@@ -28,6 +29,8 @@ import (
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
 )
+
+const VSVIP_NOTFOUND = "VsVip object not found"
 
 func FindPoolGroupForPort(pgList []*nodes.AviPoolGroupNode, portToSearch int32) string {
 	for _, pg := range pgList {
@@ -425,7 +428,7 @@ func (rest *RestOperations) findSNIRefAndRemove(snichildkey avicache.NamespaceNa
 	}
 }
 
-func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, key string) *utils.RestOp {
+func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
 	name := vsvip_meta.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
@@ -435,9 +438,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 
 	if cache_obj != nil {
 
-		vsvip := rest.AviVsVipGet(key, cache_obj.Uuid, name)
-		if vsvip == nil {
-			return nil
+		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name)
+		if err != nil {
+			return nil, err
 		}
 		for i, _ := range vsvip_meta.FQDNs {
 			dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
@@ -495,13 +498,23 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
-		utils.AviLog.Warning.Printf("key: %s, seaching in cache for vsVip Key: %s", key, vsvip_key)
+		utils.AviLog.Info.Printf("key: %s, seaching in cache for vsVip Key: %s", key, vsvip_key)
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
-			vsvip_avi := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name)
-			if vsvip_avi == nil {
-				return nil
+			vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name)
+			if err != nil {
+				if strings.Contains(err.Error(), VSVIP_NOTFOUND) {
+					// Clear the cache for this key
+					rest.cache.VSVIPCache.AviCacheDelete(vsvip_key)
+					utils.AviLog.Warning.Printf("key: %s, Removed the vsvip object from the cache", key)
+					rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+						Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
+					return &rest_op, nil
+				}
+				// If it's not nil, return an error.
+				utils.AviLog.Warning.Printf("key: %s, Error in vsvip GET operation :%s", key, err)
+				return nil, err
 			}
 			for i, _ := range vsvip_meta.FQDNs {
 				dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
@@ -518,17 +531,17 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		}
 	}
 
-	return &rest_op
+	return &rest_op, nil
 }
 
-func (rest *RestOperations) AviVsVipGet(key, uuid, name string) *avimodels.VsVip {
+func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVip, error) {
 	if rest.aviRestPoolClient == nil {
 		utils.AviLog.Warning.Printf("key: %s, msg: aviRestPoolClient during vsvip not initialized\n", key)
-		return nil
+		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
 	if len(rest.aviRestPoolClient.AviClient) < 1 {
 		utils.AviLog.Warning.Printf("key: %s, msg: client in aviRestPoolClient during vsvip not initialized\n", key)
-		return nil
+		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
 	client := rest.aviRestPoolClient.AviClient[0]
 	uri := "/api/vsvip/" + uuid
@@ -536,12 +549,12 @@ func (rest *RestOperations) AviVsVipGet(key, uuid, name string) *avimodels.VsVip
 	rawData, err := client.AviSession.GetRaw(uri)
 	if err != nil {
 		utils.AviLog.Warning.Printf("VsVip Get uri %v returned err %v", uri, err)
-		return nil
+		return nil, err
 	}
 	vsvip := avimodels.VsVip{}
 	json.Unmarshal(rawData, &vsvip)
 
-	return &vsvip
+	return &vsvip, nil
 }
 
 func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) *utils.RestOp {

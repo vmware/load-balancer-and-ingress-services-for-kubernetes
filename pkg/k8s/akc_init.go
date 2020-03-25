@@ -24,6 +24,7 @@ import (
 	"ako/pkg/nodes"
 	"ako/pkg/objects"
 	"ako/pkg/rest"
+	"ako/pkg/retry"
 
 	"github.com/avinetworks/container-lib/utils"
 	"k8s.io/apimachinery/pkg/labels"
@@ -99,15 +100,21 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 	var graphQueue *utils.WorkerQueue
 	shardScheme := lib.GetShardScheme()
 	// This is the first time initialization of the queue. For hostname based sharding, we don't want layer 2 to process the queue using multiple go routines.
+	var retryQueueWorkers uint32
+	retryQueueWorkers = 1
+	slowRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.SLOW_RETRY_LAYER, SlowSyncTime: lib.SLOW_SYNC_TIME}
+	fastRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.FAST_RETRY_LAYER}
 	if shardScheme == lib.HOSTNAME_SHARD_SCHEME {
 		var numWorkers uint32
 		numWorkers = 1
 		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 		graphQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersGraph, WorkqueueName: utils.GraphLayer}
-		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams).GetQueueByName(utils.GraphLayer)
+		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams, slowRetryQParams, fastRetryQParams).GetQueueByName(utils.GraphLayer)
 	} else {
 		// Namespace sharding.
-		graphQueue = utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+		ingestionQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersIngestion, WorkqueueName: utils.ObjectIngestionLayer}
+		graphQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersGraph, WorkqueueName: utils.GraphLayer}
+		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams, slowRetryQParams, fastRetryQParams).GetQueueByName(utils.GraphLayer)
 	}
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh)
@@ -126,7 +133,12 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer
 	ingestionQueue.Run(stopCh)
-
+	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
+	slowRetryQueue.SyncFunc = SyncFromSlowRetryLayer
+	slowRetryQueue.Run(stopCh)
+	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
+	fastRetryQueue.SyncFunc = SyncFromFastRetryLayer
+	fastRetryQueue.Run(stopCh)
 	for {
 		select {
 		case <-ctrlCh:
@@ -222,13 +234,8 @@ func (c *AviController) FullSyncK8s() error {
 	utils.AviLog.Trace.Printf("models fetched in full sync %s", utils.Stringify(allModels))
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	if allModels != nil {
-		for modelName, aviModel := range allModels.(map[string]interface{}) {
-			modelObject, ok := aviModel.(*nodes.AviObjectGraph)
-			if ok {
-				nodes.PublishKeyToRestLayer(modelObject, modelName, "fullsync", sharedQueue)
-			} else {
-				utils.AviLog.Warning.Printf("Empty model for : %s", modelName)
-			}
+		for modelName, _ := range allModels.(map[string]interface{}) {
+			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
 	}
 	return nil
@@ -266,6 +273,16 @@ func SyncFromIngestionLayer(key string) error {
 	// This condition in the future and visit as needed. But right now, there's no necessity for it.
 	//sharedQueue := SharedWorkQueueWrappers().GetQueueByName(queue.GraphLayer)
 	nodes.DequeueIngestion(key, false)
+	return nil
+}
+
+func SyncFromSlowRetryLayer(key string) error {
+	retry.DequeueSlowRetry(key)
+	return nil
+}
+
+func SyncFromFastRetryLayer(key string) error {
+	retry.DequeueFastRetry(key)
 	return nil
 }
 
