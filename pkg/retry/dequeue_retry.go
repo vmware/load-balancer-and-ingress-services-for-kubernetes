@@ -23,7 +23,6 @@ import (
 )
 
 func DequeueSlowRetry(vsKey string) {
-	// TBU - right now just a copy of fast retry.
 	// Retrieve the Key and note the time.
 	utils.AviLog.Info.Printf("Retrieved the key: %s", vsKey)
 	// Fetch the cache for this VS key
@@ -68,6 +67,7 @@ func DequeueSlowRetry(vsKey string) {
 }
 
 func DequeueFastRetry(vsKey string) {
+	// Identical to the slow retry for now, we can make them different as we test out more scenarios.
 	// Retrieve the Key and note the time.
 	utils.AviLog.Info.Printf("Retrieved the key for fast retry: %s", vsKey)
 	// Fetch the cache for this VS key
@@ -83,6 +83,8 @@ func DequeueFastRetry(vsKey string) {
 		if len(avi_rest_client_pool.AviClient) > 0 {
 			vsCacheObj, found := vsCache.(*avicache.AviVsCache)
 			if found {
+				// If we are here, refresh the Pool/PG/DS/SSL cache
+				aviObjCache.AviRefreshObjectCache(avi_rest_client_pool.AviClient[0], utils.CloudName)
 				utils.AviLog.Info.Printf("Refreshing cache for: %s", vsCacheObj.Uuid)
 				// Let's check if this VS also has a SNI Child - in which we will refresh that cache as well.
 				err := aviObjCache.AviObjOneVSCachePopulate(avi_rest_client_pool.AviClient[0], utils.CloudName, vsCacheObj.Uuid)

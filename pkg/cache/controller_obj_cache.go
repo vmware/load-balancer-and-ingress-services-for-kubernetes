@@ -91,13 +91,15 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	utils.AviLog.Info.Printf("Refreshing all object cache")
 	c.AviRefreshObjectCache(client, cloud)
 	vsCacheCopy := c.VsCache.Copy()
-	c.AviObjVSCachePopulate(client, cloud, vsCacheCopy)
+	err := c.AviObjVSCachePopulate(client, cloud, vsCacheCopy)
 	// Delete all the VS keys that are left in the copy.
-	for key := range vsCacheCopy {
-		utils.AviLog.Info.Printf("Removing vs key from cache: %s", key)
-		// We want to synthesize these keys to layer 3.
-		deletedKeys = append(deletedKeys, key)
-		c.VsCache.AviCacheDelete(key)
+	if err != nil {
+		for key := range vsCacheCopy {
+			utils.AviLog.Info.Printf("Removing vs key from cache: %s", key)
+			// We want to synthesize these keys to layer 3.
+			deletedKeys = append(deletedKeys, key)
+			c.VsCache.AviCacheDelete(key)
+		}
 	}
 	c.AviCloudPropertiesPopulate(client, cloud)
 	c.AviObjVrfCachePopulate(client)
@@ -105,7 +107,7 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) []AviPGCache {
+	cloud string, override_uri ...NextPage) ([]AviPGCache, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(override_uri) == 1 {
@@ -116,13 +118,13 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Get uri %v returned err for pg %v", uri, err)
-		return nil
+		return nil, err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Failed to unmarshal pg data, err: %v", err)
-		return nil
+		return nil, err
 	}
 	var pgData []AviPGCache
 	for i := 0; i < result.Count; i++ {
@@ -145,12 +147,15 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 		}
 		pgData = append(pgData, pgCacheObj)
 	}
-	return pgData
+	return pgData, nil
 }
 
 func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
-	pgData := c.AviPopulateAllPGs(client, cloud)
+	pgData, err := c.AviPopulateAllPGs(client, cloud)
+	if err != nil {
+		return
+	}
 	// Get all the PG cache data and copy them.
 	pgCacheData := c.PgCache.Copy()
 	for i, pgCacheObj := range pgData {
@@ -167,7 +172,7 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) []AviVSVIPCache {
+	cloud string, override_uri ...NextPage) ([]AviVSVIPCache, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(override_uri) == 1 {
@@ -178,13 +183,13 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Get uri %v returned err for vsvip %v", uri, err)
-		return nil
+		return nil, err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Failed to unmarshal vsvip data, err: %v", err)
-		return nil
+		return nil, err
 	}
 	var vsVipData []AviVSVIPCache
 	for i := 0; i < result.Count; i++ {
@@ -207,12 +212,15 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 		vsVipData = append(vsVipData, vsVipCacheObj)
 
 	}
-	return vsVipData
+	return vsVipData, nil
 }
 
 func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
-	vsVipData := c.AviPopulateAllVSVips(client, cloud)
+	vsVipData, err := c.AviPopulateAllVSVips(client, cloud)
+	if err != nil {
+		return
+	}
 	vsVipCacheData := c.VSVIPCache.Copy()
 	for i, vsVipCacheObj := range vsVipData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vsVipCacheObj.Name}
@@ -228,7 +236,7 @@ func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) []AviDSCache {
+	cloud string, override_uri ...NextPage) ([]AviDSCache, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(override_uri) == 1 {
@@ -239,13 +247,13 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Get uri %v returned err for datascript %v", uri, err)
-		return nil
+		return nil, err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Failed to unmarshal datascript data, err: %v", err)
-		return nil
+		return nil, err
 	}
 	var DsData []AviDSCache
 	for i := 0; i < result.Count; i++ {
@@ -265,13 +273,16 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
 		}
 		DsData = append(DsData, dsCacheObj)
 	}
-	return DsData
+	return DsData, nil
 }
 
 func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
-	DsData := c.AviPopulateAllDSs(client, cloud)
+	DsData, err := c.AviPopulateAllDSs(client, cloud)
 	dsCacheData := c.DSCache.Copy()
+	if err != nil {
+		return
+	}
 	for i, DsCacheObj := range DsData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: DsCacheObj.Name}
 		utils.AviLog.Info.Printf("Adding key to ds cache :%s", k)
@@ -286,7 +297,7 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) []AviSSLCache {
+	cloud string, override_uri ...NextPage) ([]AviSSLCache, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(override_uri) == 1 {
@@ -297,13 +308,13 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Get uri %v returned err for sslkeyandcertificate %v", uri, err)
-		return nil
+		return nil, err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Failed to unmarshal sslkeyandcertificate data, err: %v", err)
-		return nil
+		return nil, err
 	}
 	var SslData []AviSSLCache
 	for i := 0; i < result.Count; i++ {
@@ -323,12 +334,15 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
 		}
 		SslData = append(SslData, sslCacheObj)
 	}
-	return SslData
+	return SslData, nil
 }
 
 func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
-	SslKeyData := c.AviPopulateAllSSLKeys(client, cloud)
+	SslKeyData, err := c.AviPopulateAllSSLKeys(client, cloud)
+	if err != nil {
+		return
+	}
 	sslCacheData := c.SSLKeyCache.Copy()
 	for i, SslKeyCacheObj := range SslKeyData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: SslKeyCacheObj.Name}
@@ -390,6 +404,9 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
 	HttPolData := c.AviPopulateAllHttpPolicySets(client, cloud)
+	if HttPolData == nil {
+		return
+	}
 	httpCacheData := c.HTTPPolicyCache.Copy()
 	for i, HttpPolCacheObj := range HttPolData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: HttpPolCacheObj.Name}
@@ -405,7 +422,7 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) []AviPoolCache {
+	cloud string, override_uri ...NextPage) ([]AviPoolCache, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(override_uri) == 1 {
@@ -416,13 +433,13 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Get uri %v returned err for pool %v", uri, err)
-		return nil
+		return nil, err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warning.Printf("Failed to unmarshal pool data, err: %v", err)
-		return nil
+		return nil, err
 	}
 	var poolsData []AviPoolCache
 	for i := 0; i < result.Count; i++ {
@@ -443,12 +460,15 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 		}
 		poolsData = append(poolsData, poolCacheObj)
 	}
-	return poolsData
+	return poolsData, nil
 }
 
 func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
-	poolsData := c.AviPopulateAllPools(client, cloud)
+	poolsData, err := c.AviPopulateAllPools(client, cloud)
+	if err != nil {
+		return
+	}
 	poolCacheData := c.PoolCache.Copy()
 	for i, poolCacheObj := range poolsData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: poolCacheObj.Name}
@@ -507,7 +527,7 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient) {
 // TODO (sudswas): Should this be run inside a go routine for parallel population
 // to reduce bootup time when the system is loaded. Variable duplication expected.
 func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
-	cloud string, vsCacheCopy map[interface{}]interface{}, override_uri ...NextPage) {
+	cloud string, vsCacheCopy map[interface{}]interface{}, override_uri ...NextPage) error {
 	var rest_response interface{}
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	var uri string
@@ -520,19 +540,20 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 
 	if err != nil {
 		utils.AviLog.Warning.Printf("Vs Get uri %v returned err %v", uri, err)
+		return err
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
 			utils.AviLog.Warning.Printf("Vs Get uri %v returned %v type %T", uri,
 				rest_response, rest_response)
-			return
+			return errors.New("VS type is wrong")
 		}
 		utils.AviLog.Info.Printf("Vs Get uri %v returned %v vses", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {
 			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T", resp["results"])
-			return
+			return errors.New("Results are not of right type for VS")
 		}
 		for _, vs_intf := range results {
 
@@ -666,6 +687,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 			}
 		}
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,

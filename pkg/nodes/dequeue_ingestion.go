@@ -213,10 +213,9 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 func DeriveNamespacedShardVS(namespace string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	var vsNum uint32
-	shardVsSize := os.Getenv("SHARD_VS_SIZE")
-	shardSize, ok := shardSizeMap[shardVsSize]
+	shardSize := lib.GetshardSize()
 	shardVsPrefix := GetShardVSName(key)
-	if ok {
+	if shardSize != 0 {
 		vsNum = utils.Bkt(namespace, shardSize)
 	} else {
 		utils.AviLog.Warning.Printf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
@@ -246,10 +245,10 @@ func GetShardVSName(key string) string {
 func DeriveHostNameShardVS(hostname string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	var vsNum uint32
-	shardVsSize := os.Getenv("SHARD_VS_SIZE")
-	shardSize, ok := shardSizeMap[shardVsSize]
+	shardSize := lib.GetshardSize()
+
 	shardVsPrefix := GetShardVSName(key)
-	if ok {
+	if shardSize != 0 {
 		utils.AviLog.Warning.Printf("key: %s, msg: hostname for sharding: %s", key, hostname)
 		vsNum = utils.Bkt(hostname, shardSize)
 		utils.AviLog.Warning.Printf("key: %s, msg: VS number: %v", key, vsNum)

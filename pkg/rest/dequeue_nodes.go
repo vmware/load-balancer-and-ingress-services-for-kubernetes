@@ -239,71 +239,74 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 
 func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, parentVs string, key string, sslKey ...utils.NamespaceName) {
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
-	bkt := utils.Bkt(key, utils.NumWorkersGraph)
-	utils.AviLog.Info.Printf("key: %s, msg: processing in rest queue number: %v", key, bkt)
-	if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
-		aviclient := rest.aviRestPoolClient.AviClient[bkt]
-		utils.AviLog.Info.Printf("key: %s, msg: REST OPs: %s", key, utils.Stringify(rest_ops))
-		err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
-		if err != nil {
-			utils.AviLog.Warning.Printf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
-			for i := len(rest_ops) - 1; i >= 0; i-- {
-				// Go over each of the failed requests and enqueue them to the worker queue for retry.
-				if rest_ops[i].Err != nil {
-					// If it's for a SNI child, publish the parent VS's key
-					var publishKey string
-					if parentVs != "" {
-						publishKey = parentVs
+	shardSize := lib.GetshardSize()
+	if shardSize != 0 {
+		bkt := utils.Bkt(key, shardSize)
+		utils.AviLog.Info.Printf("key: %s, msg: processing in rest queue number: %v", key, bkt)
+		if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
+			aviclient := rest.aviRestPoolClient.AviClient[bkt]
+			utils.AviLog.Info.Printf("key: %s, msg: REST OPs: %s", key, utils.Stringify(rest_ops))
+			err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
+			if err != nil {
+				utils.AviLog.Warning.Printf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
+				for i := len(rest_ops) - 1; i >= 0; i-- {
+					// Go over each of the failed requests and enqueue them to the worker queue for retry.
+					if rest_ops[i].Err != nil {
+						// If it's for a SNI child, publish the parent VS's key
+						var publishKey string
+						if parentVs != "" {
+							publishKey = parentVs
+						} else {
+							publishKey = aviObjKey.Name
+						}
+						PublishKeyToRetryLayer(publishKey, key, rest_ops[i].Err.Error())
+					}
+				}
+			} else {
+				utils.AviLog.Info.Printf("key: %s, msg: rest call executed successfully, will update cache", key)
+				// Add to local obj caches
+				for _, rest_op := range rest_ops {
+					if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
+						utils.AviLog.Info.Printf("key: %s, msg: creating/updating %s cache", rest_op.Model, key)
+						if rest_op.Model == "Pool" {
+							rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VirtualService" {
+							rest.AviVsCacheAdd(rest_op, key)
+						} else if rest_op.Model == "PoolGroup" {
+							rest.AviPGCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VSDataScriptSet" {
+							rest.AviDSCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "HTTPPolicySet" {
+							rest.AviHTTPPolicyCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "SSLKeyAndCertificate" {
+							rest.AviSSLKeyCertAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VrfContext" {
+							rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VsVip" {
+							rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
+						}
+
 					} else {
-						publishKey = aviObjKey.Name
-					}
-					PublishKeyToRetryLayer(publishKey, key, rest_ops[i].Err.Error())
-				}
-			}
-		} else {
-			utils.AviLog.Info.Printf("key: %s, msg: rest call executed successfully, will update cache", key)
-			// Add to local obj caches
-			for _, rest_op := range rest_ops {
-				if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
-					utils.AviLog.Info.Printf("key: %s, msg: creating/updating %s cache", rest_op.Model, key)
-					if rest_op.Model == "Pool" {
-						rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VirtualService" {
-						rest.AviVsCacheAdd(rest_op, key)
-					} else if rest_op.Model == "PoolGroup" {
-						rest.AviPGCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VSDataScriptSet" {
-						rest.AviDSCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "HTTPPolicySet" {
-						rest.AviHTTPPolicyCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "SSLKeyAndCertificate" {
-						rest.AviSSLKeyCertAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VrfContext" {
-						rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VsVip" {
-						rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
-					}
-
-				} else {
-					utils.AviLog.Info.Printf("key: %s, msg: deleting %s cache", rest_op.Model, key)
-					if rest_op.Model == "Pool" {
-						rest.AviPoolCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VirtualService" {
-						rest.AviVsCacheDel(aviObjKey, rest_op, key)
-					} else if rest_op.Model == "PoolGroup" {
-						rest.AviPGCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "HTTPPolicySet" {
-						rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "SSLKeyAndCertificate" {
-						rest.AviSSLCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VsVip" {
-						rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VSDataScriptSet" {
-						rest.AviDSCacheDel(rest_op, aviObjKey, key)
+						utils.AviLog.Info.Printf("key: %s, msg: deleting %s cache", rest_op.Model, key)
+						if rest_op.Model == "Pool" {
+							rest.AviPoolCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VirtualService" {
+							rest.AviVsCacheDel(aviObjKey, rest_op, key)
+						} else if rest_op.Model == "PoolGroup" {
+							rest.AviPGCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "HTTPPolicySet" {
+							rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "SSLKeyAndCertificate" {
+							rest.AviSSLCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VsVip" {
+							rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VSDataScriptSet" {
+							rest.AviDSCacheDel(rest_op, aviObjKey, key)
+						}
 					}
 				}
-			}
 
+			}
 		}
 	}
 }
@@ -332,7 +335,7 @@ func PublishKeyToRetryLayer(vs_key string, key string, errorStr string) {
 		slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
 		slowRetryQueue.Workqueue[bkt].AddRateLimited(vs_key)
 		utils.AviLog.Info.Printf("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, vs_key)
-	} else if statuscode == "404" { // Will account for more error codes.
+	} else if statuscode == "404" || statuscode == "400" { // Will account for more error codes.
 		fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
 		fastRetryQueue.Workqueue[bkt].AddRateLimited(vs_key)
 		utils.AviLog.Info.Printf("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, vs_key)

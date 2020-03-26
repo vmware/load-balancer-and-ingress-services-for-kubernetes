@@ -30,7 +30,23 @@ var ShardSchemeMap = map[string]string{
 	"namespace": "namespace",
 }
 
+var shardSizeMap = map[string]uint32{
+	"LARGE":  8,
+	"MEDIUM": 4,
+	"SMALL":  1,
+}
+
 var onlyOneSignalHandler = make(chan struct{})
+
+func GetshardSize() uint32 {
+	shardVsSize := os.Getenv("SHARD_VS_SIZE")
+	shardSize, ok := shardSizeMap[shardVsSize]
+	if ok {
+		return shardSize
+	} else {
+		return 0
+	}
+}
 
 func GetVrf() string {
 	vrfcontext := os.Getenv(utils.VRF_CONTEXT)
