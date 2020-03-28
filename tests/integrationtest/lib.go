@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 
+	"ako/pkg/cache"
 	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
@@ -647,6 +648,8 @@ func GetAviControllerFakeAPIServer(fault ...InjectFault) (ts *httptest.Server) {
 	os.Setenv("CTRL_USERNAME", "admin")
 	os.Setenv("CTRL_PASSWORD", "admin")
 	os.Setenv("CTRL_IPADDRESS", url)
+	// resets avi client pool instance, allows to connect with the new `ts` server
+	cache.AviClientInstance = nil
 	k8s.PopulateCache()
 	return ts
 }
