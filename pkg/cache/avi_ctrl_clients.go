@@ -39,15 +39,16 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
 		shardSize := lib.GetshardSize()
 		if shardSize != 0 {
-			AviClientInstance, err = utils.NewAviRestClientPool(shardSize,
-				ctrlIpAddress, ctrlUsername, ctrlPassword)
-			if err != nil {
-				utils.AviLog.Error.Print("AVI controller initilization failed")
+			if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
+				AviClientInstance, err = utils.NewAviRestClientPool(shardSize,
+					ctrlIpAddress, ctrlUsername, ctrlPassword)
+				if err != nil {
+					utils.AviLog.Error.Print("AVI controller initilization failed")
+				}
 			}
 		} else {
 			utils.AviLog.Error.Print("Unable to initialize the Avi controller because the shard vs size is indeterministic")
 		}
 	}
-
 	return AviClientInstance
 }

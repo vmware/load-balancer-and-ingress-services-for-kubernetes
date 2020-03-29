@@ -75,12 +75,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 		}
 		if avimodel.IsVrf {
 			utils.AviLog.Warning.Printf("key: %s, msg: processing vrf object\n", key)
-			vrfNode := avimodel.GetAviVRF()
-			if len(vrfNode) != 1 {
-				utils.AviLog.Warning.Printf("key: %s, msg: Number of vrf nodes is not one\n", key)
-				return
-			}
-			rest.vrfCU(key, name, vrfNode[0])
+			rest.vrfCU(key, name, avimodel)
 			return
 		}
 		utils.AviLog.Info.Printf("key: %s, msg: VS create/update.", key)
@@ -88,12 +83,18 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 			utils.AviLog.Warning.Printf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviVS())
 			return
 		}
-		rest.RestOperation(name, namespace, avimodel.GetAviVS()[0], false, vs_cache_obj, key)
+		rest.RestOperation(name, namespace, avimodel, false, vs_cache_obj, key)
 	}
 
 }
 
-func (rest *RestOperations) vrfCU(key, vrfName string, aviVrfNode *nodes.AviVrfNode) {
+func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObjectGraph) {
+	vrfNode := avimodel.GetAviVRF()
+	if len(vrfNode) != 1 {
+		utils.AviLog.Warning.Printf("key: %s, msg: Number of vrf nodes is not one\n", key)
+		return
+	}
+	aviVrfNode := vrfNode[0]
 	vrfCacheObj := rest.getVrfCacheObj(vrfName)
 	if vrfCacheObj == nil {
 		utils.AviLog.Warning.Printf("key: %s, vrf %s not found in cache, exiting\n", key, vrfName)
@@ -113,16 +114,17 @@ func (rest *RestOperations) vrfCU(key, vrfName string, aviVrfNode *nodes.AviVrfN
 	vrfKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: vrfName}
 	utils.AviLog.Info.Printf("key: %s, msg: Executing rest for vrf %s\n", key, vrfName)
 	utils.AviLog.Trace.Printf("key: %s, msg: restops %v\n", key, *restOp)
-	rest.ExecuteRestAndPopulateCache(restOps, vrfKey, "", key)
+	rest.ExecuteRestAndPopulateCache(restOps, vrfKey, avimodel, key)
 }
 
-func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVsNode *nodes.AviVsNode, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
+func (rest *RestOperations) RestOperation(vsName string, namespace string, avimodel *nodes.AviObjectGraph, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
 	var pools_to_delete []avicache.NamespaceName
 	var pgs_to_delete []avicache.NamespaceName
 	var ds_to_delete []avicache.NamespaceName
 	var vsvip_to_delete []avicache.NamespaceName
 	var sni_to_delete []avicache.NamespaceName
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: vsName}
+	aviVsNode := avimodel.GetAviVS()[0]
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
@@ -140,7 +142,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 			rest_ops = append(rest_ops, restOp...)
 
 		}
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, "", key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	} else {
 		var rest_ops []*utils.RestOp
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
@@ -153,7 +155,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		rest_ops = append(rest_ops, restOp...)
 		utils.AviLog.Trace.Printf("POST key: %s, vsKey: %s", key, vsKey)
 		utils.AviLog.Trace.Printf("POST restops %s", utils.Stringify(rest_ops))
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, "", key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	}
 	if vs_cache_obj != nil {
 		for _, sni_uuid := range vs_cache_obj.SNIChildCollection {
@@ -177,7 +179,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 			utils.AviLog.Info.Printf("key: %s, msg: Here2")
 			_, rest_ops = rest.SNINodeCU(sni_node, nil, namespace, sni_to_delete, rest_ops, key)
 		}
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, aviVsNode.Name, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	}
 
 	// Let's populate all the DELETE entries
@@ -186,7 +188,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		var rest_ops []*utils.RestOp
 		for _, del_sni := range sni_to_delete {
 			rest.SNINodeDelete(del_sni, namespace, rest_ops, key)
-			rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, aviVsNode.Name, key)
+			rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 		}
 	} else {
 		var rest_ops []*utils.RestOp
@@ -194,7 +196,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, "", key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	}
 }
 
@@ -231,13 +233,13 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, "", key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
 		return true
 	}
 	return false
 }
 
-func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, parentVs string, key string, sslKey ...utils.NamespaceName) {
+func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, sslKey ...utils.NamespaceName) {
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
 	shardSize := lib.GetshardSize()
 	if shardSize != 0 {
@@ -253,13 +255,12 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					// Go over each of the failed requests and enqueue them to the worker queue for retry.
 					if rest_ops[i].Err != nil {
 						// If it's for a SNI child, publish the parent VS's key
-						var publishKey string
-						if parentVs != "" {
-							publishKey = parentVs
-						} else {
-							publishKey = aviObjKey.Name
+						if avimodel != nil {
+							publishKey := avimodel.GetAviVS()[0].Name
+							if avimodel.GetRetryCounter() != 0 {
+								PublishKeyToRetryLayer(publishKey, key, rest_ops[i].Err.Error())
+							}
 						}
-						PublishKeyToRetryLayer(publishKey, key, rest_ops[i].Err.Error())
 					}
 				}
 			} else {
@@ -335,7 +336,7 @@ func PublishKeyToRetryLayer(vs_key string, key string, errorStr string) {
 		slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
 		slowRetryQueue.Workqueue[bkt].AddRateLimited(vs_key)
 		utils.AviLog.Info.Printf("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, vs_key)
-	} else if statuscode == "404" || statuscode == "400" { // Will account for more error codes.
+	} else if statuscode == "404" || statuscode == "400" || statuscode == "409" { // Will account for more error codes.
 		fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
 		fastRetryQueue.Workqueue[bkt].AddRateLimited(vs_key)
 		utils.AviLog.Info.Printf("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, vs_key)
@@ -435,6 +436,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 					if ok {
 						pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
 						// Cache found. Let's compare the checksums
+						utils.AviLog.Info.Printf("key: %s, msg: poolcache: %v", key, pool_cache_obj)
 						if pool_cache_obj.CloudConfigCksum == fmt.Sprint(pool.GetCheckSum()) {
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for pool %s, not doing anything", key, pool.Name)
 						} else {

@@ -43,6 +43,7 @@ type AviObjectGraph struct {
 	Name          string
 	GraphChecksum uint32
 	IsVrf         bool
+	RetryCount    int
 	Lock          sync.RWMutex
 }
 
@@ -53,6 +54,8 @@ type AviObjectGraph struct {
 func (v *AviObjectGraph) GetCopy(key string) (*AviObjectGraph, bool) {
 	v.Lock.RLock()
 	defer v.Lock.RUnlock()
+	// Decrement the counter value before copying.
+	v.DecrementRetryCounter()
 	newModel := AviObjectGraph{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
@@ -75,6 +78,27 @@ func (v *AviObjectGraph) GetCheckSum() uint32 {
 	// Calculate checksum and return
 	v.CalculateCheckSum()
 	return v.GraphChecksum
+}
+
+func (v *AviObjectGraph) SetRetryCounter() {
+	// Overwrite the retry counter value.
+	v.Lock.RLock()
+	defer v.Lock.RUnlock()
+	v.RetryCount = 2
+}
+
+func (v *AviObjectGraph) GetRetryCounter() int {
+	// Overwrite the retry counter value.
+	v.Lock.RLock()
+	defer v.Lock.RUnlock()
+	return v.RetryCount
+}
+
+func (v *AviObjectGraph) DecrementRetryCounter() {
+	// Overwrite the retry counter value.
+	if v.RetryCount != 0 {
+		v.RetryCount = v.RetryCount - 1
+	}
 }
 
 func (v *AviObjectGraph) CalculateCheckSum() {
