@@ -34,10 +34,12 @@ func SharedAVIClients() *utils.AviRestClientPool {
 		utils.AviLog.Error.Panic("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
 	}
 
-	AviClientInstance, err = utils.NewAviRestClientPool(utils.NumWorkersGraph,
-		ctrlIpAddress, ctrlUsername, ctrlPassword)
-	if err != nil {
-		utils.AviLog.Error.Print("AVI controller initilization failed")
+	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
+		AviClientInstance, err = utils.NewAviRestClientPool(utils.NumWorkersGraph,
+			ctrlIpAddress, ctrlUsername, ctrlPassword)
+		if err != nil {
+			utils.AviLog.Error.Print("AVI controller initilization failed")
+		}
 	}
 
 	return AviClientInstance
