@@ -23,6 +23,7 @@ configs:
   CIDR: "24"
   NetworkName: "vxw-dvs-34-virtualwire-85-sid-2140084-wdc-02-vc14-avi-dev078"
   L7ShardingScheme: "namespace"
+  cniPlugin: "calico" #enum: calico|canal|flannel
 
 imagePullSecrets: []
 nameOverride: ""
