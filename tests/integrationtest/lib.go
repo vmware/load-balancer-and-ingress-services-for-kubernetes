@@ -33,6 +33,7 @@ import (
 	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
+
 	"github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 
@@ -44,13 +45,13 @@ import (
 
 // constants to be used for creating K8s objs and verifying Avi objs
 const (
-	SINGLEPORTSVC   = "testsvc"                    // single port service name
-	MULTIPORTSVC    = "testsvcmulti"               // multi port service name
-	NAMESPACE       = "red-ns"                     // namespace
-	AVINAMESPACE    = "admin"                      // avi namespace
-	SINGLEPORTMODEL = "admin/testsvc--red-ns"      // single port model name
-	MULTIPORTMODEL  = "admin/testsvcmulti--red-ns" // multi port model name
-	RANDOMUUID      = "random-uuid"                // random avi object uuid
+	SINGLEPORTSVC   = "testsvc"                            // single port service name
+	MULTIPORTSVC    = "testsvcmulti"                       // multi port service name
+	NAMESPACE       = "red-ns"                             // namespace
+	AVINAMESPACE    = "admin"                              // avi namespace
+	SINGLEPORTMODEL = "admin/testsvc--red-ns--global"      // single port model name
+	MULTIPORTMODEL  = "admin/testsvcmulti--red-ns--global" // multi port model name
+	RANDOMUUID      = "random-uuid"                        // random avi object uuid
 )
 
 var KubeClient *k8sfake.Clientset
@@ -74,7 +75,8 @@ func SetUp() {
 	os.Setenv("CTRL_PASSWORD", "admin")
 	os.Setenv("CTRL_IPADDRESS", "localhost")
 	os.Setenv("INGRESS_API", "extensionv1")
-	os.Setenv("FULL_SYNC_INTERVAL", "60")
+	os.Setenv("FULL_SYNC_INTERVAL", "600")
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	k8s.PopulateCache()

@@ -1,7 +1,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: akc-cr
+  name: ako-cr
 rules:
   - apiGroups: [""]
     resources: ["*"]
@@ -12,6 +12,3 @@ rules:
   - apiGroups: [""]
     resources: ["services/status"]
     verbs: ["get","watch","list","patch", "update"]
-  - apiGroups: ["crd.projectcalico.org"]
-    resources: ["blockaffinities"]
-    verbs: ["get", "watch", "list"]

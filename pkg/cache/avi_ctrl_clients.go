@@ -18,6 +18,8 @@ import (
 	"os"
 	"sync"
 
+	"ako/pkg/lib"
+
 	"github.com/avinetworks/container-lib/utils"
 )
 
@@ -35,12 +37,18 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	}
 
 	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
-		AviClientInstance, err = utils.NewAviRestClientPool(utils.NumWorkersGraph,
-			ctrlIpAddress, ctrlUsername, ctrlPassword)
-		if err != nil {
-			utils.AviLog.Error.Print("AVI controller initilization failed")
+		shardSize := lib.GetshardSize()
+		if shardSize != 0 {
+			if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
+				AviClientInstance, err = utils.NewAviRestClientPool(shardSize,
+					ctrlIpAddress, ctrlUsername, ctrlPassword)
+				if err != nil {
+					utils.AviLog.Error.Print("AVI controller initilization failed")
+				}
+			}
+		} else {
+			utils.AviLog.Error.Print("Unable to initialize the Avi controller because the shard vs size is indeterministic")
 		}
 	}
-
 	return AviClientInstance
 }

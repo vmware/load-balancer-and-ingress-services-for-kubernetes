@@ -29,13 +29,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Candidate for utils.
-var shardSizeMap = map[string]uint32{
-	"LARGE":  8,
-	"MEDIUM": 4,
-	"SMALL":  2,
-}
-
 // TODO: Move to utils
 const tlsCert = "tls.crt"
 

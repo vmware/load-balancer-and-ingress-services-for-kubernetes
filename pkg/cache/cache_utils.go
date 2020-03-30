@@ -85,7 +85,7 @@ type AviSSLCache struct {
 
 type NextPage struct {
 	Next_uri   string
-	Collection []NamespaceName
+	Collection interface{}
 }
 
 type AviPGCache struct {
@@ -164,4 +164,15 @@ func (c *AviCache) AviCacheDelete(k interface{}) {
 	c.cache_lock.Lock()
 	defer c.cache_lock.Unlock()
 	delete(c.cache, k)
+}
+
+func (c *AviCache) ShallowCopy() map[interface{}]interface{} {
+	// Shallow copy, does not dereference the pointers.
+	c.cache_lock.Lock()
+	defer c.cache_lock.Unlock()
+	newMap := make(map[interface{}]interface{})
+	for key, value := range c.cache {
+		newMap[key] = value
+	}
+	return newMap
 }

@@ -31,4 +31,8 @@ const (
 	L7_SHARD_SCHEME           = "L7_SHARD_SCHEME"
 	DEFAULT_SHARD_SCHEME      = "namespace"
 	HOSTNAME_SHARD_SCHEME     = "hostname"
+	SLOW_RETRY_LAYER          = "SlowRetryLayer"
+	FAST_RETRY_LAYER          = "FastRetryLayer"
+	NOT_FOUND                 = "HTTP code: 404"
+	SLOW_SYNC_TIME            = 120
 )

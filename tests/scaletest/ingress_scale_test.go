@@ -776,7 +776,7 @@ func Test100MultipathIngressCreate(t *testing.T) {
 }
 
 func Test100MultipathIngressUpdatePath(t *testing.T) {
-	nIngressMultipathUpdatePathTest(t, 100, 10, 100, 20)
+	nIngressMultipathUpdatePathTest(t, 100, 10, 100, 100)
 }
 
 func Test100MultihostIngressCreate(t *testing.T) {
@@ -784,7 +784,7 @@ func Test100MultihostIngressCreate(t *testing.T) {
 }
 
 func Test100MultihostIngressUpdatePath(t *testing.T) {
-	nIngressMultihostUpdatePathTest(t, 100, 10, 100, 20)
+	nIngressMultihostUpdatePathTest(t, 100, 10, 100, 200)
 }
 
 func Test10X10MultiNSIngressCreate(t *testing.T) {
@@ -792,7 +792,7 @@ func Test10X10MultiNSIngressCreate(t *testing.T) {
 }
 
 func Test10X10MultiNSIngressUpdatePath(t *testing.T) {
-	nIngressMultiNSIngressUpdatePathTest(t, 10, 10, 100, 20)
+	nIngressMultiNSIngressUpdatePathTest(t, 10, 10, 100, 200)
 }
 
 func Test1X100MultiNSIngressCreate(t *testing.T) {
@@ -800,7 +800,7 @@ func Test1X100MultiNSIngressCreate(t *testing.T) {
 }
 
 func Test1X100MultiNSIngressUpdatePath(t *testing.T) {
-	nIngressMultiNSIngressUpdatePathTest(t, 1, 100, 100, 20)
+	nIngressMultiNSIngressUpdatePathTest(t, 1, 100, 100, 200)
 }
 
 // hostname shard: test ingress create with single host
@@ -924,7 +924,7 @@ func Test100IngressCreateHostnameShard(t *testing.T) {
 }
 
 func Test100IngressUpdateHostnameShard(t *testing.T) {
-	nIngressUpdateTestHostnameShard(t, 100, 100, 20)
+	nIngressUpdateTestHostnameShard(t, 100, 100, 200)
 }
 
 func Test100X10IngressCreateMultiHostHostnameShard(t *testing.T) {
@@ -932,5 +932,5 @@ func Test100X10IngressCreateMultiHostHostnameShard(t *testing.T) {
 }
 
 func Test100X10IngressUpdateMultiHostHostnameShard(t *testing.T) {
-	nIngressMultihostHostnameShardUpdateTest(t, 100, 10, 100, 20)
+	nIngressMultihostHostnameShardUpdateTest(t, 100, 10, 100, 200)
 }

@@ -1,30 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "akc.fullname" . }}
+  name: {{ include "ako.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "akc.labels" . | nindent 4 }}
+    {{- include "ako.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "akc.selectorLabels" . | nindent 6 }}
+      {{- include "ako.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "akc.selectorLabels" . | nindent 8 }}
+        {{- include "ako.selectorLabels" . | nindent 8 }}
     spec:
     {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
     {{- end }}
-      serviceAccountName: akc-sa
+      serviceAccountName: ako-sa
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{ if .Values.persistentVolumeClaim }}
       volumes:
-      - name: akc-pv-storage
+      - name: ako-pv-storage
         persistentVolumeClaim:
           claimName: {{ .Values.persistentVolumeClaim }}
       {{ end }}
@@ -33,7 +33,7 @@ spec:
           {{ if .Values.persistentVolumeClaim }}
           volumeMounts:
           - mountPath: {{ .Values.mountPath }}
-            name: akc-pv-storage
+            name: ako-pv-storage
           {{ end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}

@@ -44,7 +44,7 @@ func SharedWorkQueue(queueParams ...WorkerQueue) *WorkQueueWrapper {
 		queueInstance.queueCollection = make(map[string]*WorkerQueue)
 		if len(queueParams) != 0 {
 			for _, queue := range queueParams {
-				workqueue := NewWorkQueue(queue.NumWorkers, queue.WorkqueueName)
+				workqueue := NewWorkQueue(queue.NumWorkers, queue.WorkqueueName, queue.SlowSyncTime)
 				queueInstance.queueCollection[queue.WorkqueueName] = workqueue
 			}
 		} else {
@@ -53,7 +53,6 @@ func SharedWorkQueue(queueParams ...WorkerQueue) *WorkQueueWrapper {
 				queueInstance.queueCollection[queue.WorkqueueName] = workqueue
 			}
 		}
-
 	})
 	return queueInstance
 }
@@ -66,15 +65,18 @@ type WorkerQueue struct {
 	workerIdMutex sync.Mutex
 	workerId      uint32
 	SyncFunc      func(string) error
+	SlowSyncTime  int
 }
 
-func NewWorkQueue(num_workers uint32, workerQueueName string) *WorkerQueue {
+func NewWorkQueue(num_workers uint32, workerQueueName string, slowSyncTime ...int) *WorkerQueue {
 	queue := &WorkerQueue{}
 	queue.Workqueue = make([]workqueue.RateLimitingInterface, num_workers)
 	queue.workerId = (uint32(1) << num_workers) - 1
 	queue.NumWorkers = num_workers
 	queue.WorkqueueName = workerQueueName
-	//queue.syncFunc = syncFunc
+	if len(slowSyncTime) > 0 {
+		queue.SlowSyncTime = slowSyncTime[0]
+	}
 	for i := uint32(0); i < num_workers; i++ {
 		queue.Workqueue[i] = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), fmt.Sprintf("avi-%s", workerQueueName))
 	}
@@ -123,10 +125,18 @@ func (c *WorkerQueue) runWorker() {
 	c.workerIdMutex.Lock()
 	c.workerId = c.workerId | (uint32(1) << workerId)
 	c.workerIdMutex.Unlock()
-	//utils.AviLog.Info.Printf("Worker id %d restarting", workerId)
 }
 
 func (c *WorkerQueue) processNextWorkItem(worker_id uint32) bool {
+	if c.SlowSyncTime != 0 {
+		timer := time.NewTimer(time.Duration(c.SlowSyncTime) * time.Second)
+		<-timer.C
+		return c.processBatchedItems(worker_id)
+	}
+	return c.processSingleWorkItem(worker_id)
+}
+
+func (c *WorkerQueue) processSingleWorkItem(worker_id uint32) bool {
 	obj, shutdown := c.Workqueue[worker_id].Get()
 	if shutdown {
 		return false
@@ -153,7 +163,6 @@ func (c *WorkerQueue) processNextWorkItem(worker_id uint32) bool {
 		// Run the syncToAvi, passing it the ev resource to be synced.
 		err := c.SyncFunc(ev)
 		if err != nil {
-			// TODO (sudswas): Do an add back logic via the retry layer here.
 			AviLog.Error.Printf("There was an error while syncing the key: %s", ev)
 		}
 		c.Workqueue[worker_id].Forget(obj)
@@ -166,3 +175,17 @@ func (c *WorkerQueue) processNextWorkItem(worker_id uint32) bool {
 	}
 	return true
 }
+
+func (c *WorkerQueue) processBatchedItems(worker_id uint32) bool {
+	length := c.Workqueue[worker_id].Len()
+	var overallStatus bool
+	for i := 0; i < length; i++ {
+		overallStatus = c.processSingleWorkItem(worker_id)
+		// Break if there's a problem in processing.
+		if !overallStatus {
+			return overallStatus
+		}
+	}
+	return true
+}
+

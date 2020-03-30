@@ -55,15 +55,15 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Warning.Printf("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
-				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
+				model_name := lib.GetModelName(utils.ADMIN_NS, aviModelGraph.GetAviVS()[0].Name)
 				ok := saveAviModel(model_name, aviModelGraph, key)
 				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue)
+					PublishKeyToRestLayer(model_name, key, sharedQueue)
 				}
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
 				utils.AviLog.Info.Printf("key: %s, msg: received DELETE event for service", key)
-				model_name := utils.ADMIN_NS + "/" + name + "--" + namespace
+				model_name := lib.GetModelName(utils.ADMIN_NS, name+"--"+namespace)
 				objects.SharedAviGraphLister().Save(model_name, nil)
 				if !fullsync {
 					bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
@@ -80,10 +80,10 @@ func DequeueIngestion(key string, fullsync bool) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
-				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
+				model_name := lib.GetModelName(utils.ADMIN_NS, aviModelGraph.GetAviVS()[0].Name)
 				ok := saveAviModel(model_name, aviModelGraph, key)
 				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(aviModelGraph, model_name, key, sharedQueue)
+					PublishKeyToRestLayer(model_name, key, sharedQueue)
 				}
 			}
 		}
@@ -94,7 +94,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				// If we aren't able to derive the ShardVS name, we should return
 				return
 			}
-			model_name := utils.ADMIN_NS + "/" + shardVsName
+			model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 			for _, ingress := range ingressNames {
 				// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 				// does not allow cross tenant ingress references.
@@ -108,7 +108,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
 				ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
 				if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(aviModel.(*AviObjectGraph), model_name, key, sharedQueue)
+					PublishKeyToRestLayer(model_name, key, sharedQueue)
 				}
 			}
 		} else {
@@ -134,6 +134,8 @@ func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool 
 			return false
 		}
 	}
+	// Right before saving the model, let's reset the retry counter for the graph.
+	aviGraph.SetRetryCounter()
 	objects.SharedAviGraphLister().Save(model_name, aviGraph)
 	return true
 }
@@ -159,14 +161,14 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 		utils.AviLog.Error.Printf("key: %s, msg: Error creating vrf graph: %v\n", key, err)
 		return
 	}
-	model_name := utils.ADMIN_NS + "/" + vrfcontext
+	model_name := lib.GetModelName(utils.ADMIN_NS, vrfcontext)
 	ok := saveAviModel(model_name, aviModel, key)
 	if ok && !fullsync {
-		PublishKeyToRestLayer(aviModel, model_name, key, sharedQueue)
+		PublishKeyToRestLayer(model_name, key, sharedQueue)
 	}
 }
 
-func PublishKeyToRestLayer(aviGraph *AviObjectGraph, model_name string, key string, sharedQueue *utils.WorkerQueue) {
+func PublishKeyToRestLayer(model_name string, key string, sharedQueue *utils.WorkerQueue) {
 	bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
 	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
 	utils.AviLog.Info.Printf("key: %s, msg: Published key with model_name: %s", key, model_name)
@@ -213,10 +215,9 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 func DeriveNamespacedShardVS(namespace string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	var vsNum uint32
-	shardVsSize := os.Getenv("SHARD_VS_SIZE")
-	shardSize, ok := shardSizeMap[shardVsSize]
+	shardSize := lib.GetshardSize()
 	shardVsPrefix := GetShardVSName(key)
-	if ok {
+	if shardSize != 0 {
 		vsNum = utils.Bkt(namespace, shardSize)
 	} else {
 		utils.AviLog.Warning.Printf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
@@ -246,10 +247,10 @@ func GetShardVSName(key string) string {
 func DeriveHostNameShardVS(hostname string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	var vsNum uint32
-	shardVsSize := os.Getenv("SHARD_VS_SIZE")
-	shardSize, ok := shardSizeMap[shardVsSize]
+	shardSize := lib.GetshardSize()
+
 	shardVsPrefix := GetShardVSName(key)
-	if ok {
+	if shardSize != 0 {
 		utils.AviLog.Warning.Printf("key: %s, msg: hostname for sharding: %s", key, hostname)
 		vsNum = utils.Bkt(hostname, shardSize)
 		utils.AviLog.Warning.Printf("key: %s, msg: VS number: %v", key, vsNum)

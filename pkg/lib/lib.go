@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -30,7 +31,43 @@ var ShardSchemeMap = map[string]string{
 	"namespace": "namespace",
 }
 
+var shardSizeMap = map[string]uint32{
+	"LARGE":  8,
+	"MEDIUM": 4,
+	"SMALL":  1,
+}
+
 var onlyOneSignalHandler = make(chan struct{})
+
+func GetshardSize() uint32 {
+	shardVsSize := os.Getenv("SHARD_VS_SIZE")
+	shardSize, ok := shardSizeMap[shardVsSize]
+	if ok {
+		return shardSize
+	} else {
+		return 0
+	}
+}
+
+func GetModelName(namespace, objectName string) string {
+	return namespace + "/" + objectName
+}
+
+func GetL4PoolName(vsName string, port int32) string {
+	return "pool-" + GetL4PGName(vsName, port)
+}
+
+func GetL4PGName(vsName string, port int32) string {
+	return vsName + "-" + GetVrf() + "-l4-" + fmt.Sprint(port)
+}
+
+func GetL4VSName(svcName, namespace string) string {
+	return svcName + "--" + namespace + "--" + GetVrf()
+}
+
+func GetL4VSVipName(svcName, namespace string) string {
+	return "vsvip" + "--" + svcName + "--" + namespace + "--" + GetVrf()
+}
 
 func GetVrf() string {
 	vrfcontext := os.Getenv(utils.VRF_CONTEXT)

@@ -16,10 +16,12 @@ package rest
 
 import (
 	"fmt"
+	"regexp"
 
 	"ako/pkg/objects"
 
 	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
 	"ako/pkg/nodes"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -73,12 +75,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 		}
 		if avimodel.IsVrf {
 			utils.AviLog.Warning.Printf("key: %s, msg: processing vrf object\n", key)
-			vrfNode := avimodel.GetAviVRF()
-			if len(vrfNode) != 1 {
-				utils.AviLog.Warning.Printf("key: %s, msg: Number of vrf nodes is not one\n", key)
-				return
-			}
-			rest.vrfCU(key, name, vrfNode[0])
+			rest.vrfCU(key, name, avimodel)
 			return
 		}
 		utils.AviLog.Info.Printf("key: %s, msg: VS create/update.", key)
@@ -86,12 +83,18 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 			utils.AviLog.Warning.Printf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviVS())
 			return
 		}
-		rest.RestOperation(name, namespace, avimodel.GetAviVS()[0], false, vs_cache_obj, key)
+		rest.RestOperation(name, namespace, avimodel, false, vs_cache_obj, key)
 	}
 
 }
 
-func (rest *RestOperations) vrfCU(key, vrfName string, aviVrfNode *nodes.AviVrfNode) {
+func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObjectGraph) {
+	vrfNode := avimodel.GetAviVRF()
+	if len(vrfNode) != 1 {
+		utils.AviLog.Warning.Printf("key: %s, msg: Number of vrf nodes is not one\n", key)
+		return
+	}
+	aviVrfNode := vrfNode[0]
 	vrfCacheObj := rest.getVrfCacheObj(vrfName)
 	if vrfCacheObj == nil {
 		utils.AviLog.Warning.Printf("key: %s, vrf %s not found in cache, exiting\n", key, vrfName)
@@ -111,16 +114,17 @@ func (rest *RestOperations) vrfCU(key, vrfName string, aviVrfNode *nodes.AviVrfN
 	vrfKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: vrfName}
 	utils.AviLog.Info.Printf("key: %s, msg: Executing rest for vrf %s\n", key, vrfName)
 	utils.AviLog.Trace.Printf("key: %s, msg: restops %v\n", key, *restOp)
-	rest.ExecuteRestAndPopulateCache(restOps, vrfKey, key)
+	rest.ExecuteRestAndPopulateCache(restOps, vrfKey, avimodel, key)
 }
 
-func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVsNode *nodes.AviVsNode, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
+func (rest *RestOperations) RestOperation(vsName string, namespace string, avimodel *nodes.AviObjectGraph, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
 	var pools_to_delete []avicache.NamespaceName
 	var pgs_to_delete []avicache.NamespaceName
 	var ds_to_delete []avicache.NamespaceName
 	var vsvip_to_delete []avicache.NamespaceName
 	var sni_to_delete []avicache.NamespaceName
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: vsName}
+	aviVsNode := avimodel.GetAviVS()[0]
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
@@ -138,7 +142,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 			rest_ops = append(rest_ops, restOp...)
 
 		}
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	} else {
 		var rest_ops []*utils.RestOp
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
@@ -151,7 +155,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		rest_ops = append(rest_ops, restOp...)
 		utils.AviLog.Trace.Printf("POST key: %s, vsKey: %s", key, vsKey)
 		utils.AviLog.Trace.Printf("POST restops %s", utils.Stringify(rest_ops))
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	}
 	if vs_cache_obj != nil {
 		for _, sni_uuid := range vs_cache_obj.SNIChildCollection {
@@ -164,16 +168,18 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		}
 	}
 	for _, sni_node := range aviVsNode.SniNodes {
-		utils.AviLog.Warning.Printf("key: %s, msg: processing sni node: %s", key, sni_node.Name)
+		utils.AviLog.Info.Printf("key: %s, msg: processing sni node: %s", key, sni_node.Name)
 		utils.AviLog.Info.Printf("key: %s, msg: probable SNI delete candidates: %s", key, sni_to_delete)
 		var rest_ops []*utils.RestOp
 		vsKey = avicache.NamespaceName{Namespace: namespace, Name: sni_node.Name}
 		if vs_cache_obj != nil {
+			utils.AviLog.Info.Printf("key: %s, msg: Here!")
 			sni_to_delete, rest_ops = rest.SNINodeCU(sni_node, vs_cache_obj, namespace, sni_to_delete, rest_ops, key)
 		} else {
+			utils.AviLog.Info.Printf("key: %s, msg: Here2")
 			_, rest_ops = rest.SNINodeCU(sni_node, nil, namespace, sni_to_delete, rest_ops, key)
 		}
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	}
 
 	// Let's populate all the DELETE entries
@@ -182,7 +188,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		var rest_ops []*utils.RestOp
 		for _, del_sni := range sni_to_delete {
 			rest.SNINodeDelete(del_sni, namespace, rest_ops, key)
-			rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
+			rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 		}
 	} else {
 		var rest_ops []*utils.RestOp
@@ -190,7 +196,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, aviVs
 		rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	}
 }
 
@@ -227,97 +233,81 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
 		return true
 	}
 	return false
 }
 
-func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, key string, sslKey ...utils.NamespaceName) {
+func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, sslKey ...utils.NamespaceName) {
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
-	bkt := utils.Bkt(key, utils.NumWorkersGraph)
-	utils.AviLog.Info.Printf("key: %s, msg: processing in rest queue number: %v", key, bkt)
-	if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
-		aviclient := rest.aviRestPoolClient.AviClient[bkt]
-		err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
-		if err != nil {
-			utils.AviLog.Warning.Printf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
-
-			// Iterate over rest_ops in reverse and delete created objs
-			for i := len(rest_ops) - 1; i >= 0; i-- {
-				if rest_ops[i].Err == nil {
-					if rest_ops[i].Method == utils.RestPost {
-						resp_arr, ok := rest_ops[i].Response.([]interface{})
-						if !ok {
-							utils.AviLog.Warning.Printf("Invalid resp type for rest_op %v", rest_ops[i])
-							continue
-						}
-						resp, ok := resp_arr[0].(map[string]interface{})
-						if ok {
-							uuid, ok := resp["uuid"].(string)
-							if !ok {
-								utils.AviLog.Warning.Printf("Invalid resp type for uuid %v",
-									resp)
-								continue
+	shardSize := lib.GetshardSize()
+	if shardSize != 0 {
+		bkt := utils.Bkt(key, shardSize)
+		utils.AviLog.Info.Printf("key: %s, msg: processing in rest queue number: %v", key, bkt)
+		if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
+			aviclient := rest.aviRestPoolClient.AviClient[bkt]
+			utils.AviLog.Info.Printf("key: %s, msg: REST OPs: %s", key, utils.Stringify(rest_ops))
+			err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
+			if err != nil {
+				utils.AviLog.Warning.Printf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
+				for i := len(rest_ops) - 1; i >= 0; i-- {
+					// Go over each of the failed requests and enqueue them to the worker queue for retry.
+					if rest_ops[i].Err != nil {
+						// If it's for a SNI child, publish the parent VS's key
+						if avimodel != nil {
+							publishKey := avimodel.GetAviVS()[0].Name
+							if avimodel.GetRetryCounter() != 0 {
+								PublishKeyToRetryLayer(publishKey, key, rest_ops[i].Err.Error())
 							}
-							utils.AviLog.Info.Printf("Model returned from REST call : %s", rest_ops[i].Model)
-							url := utils.AviModelToUrl(rest_ops[i].Model) + "/" + uuid
-							err := aviclient.AviSession.Delete(url)
-							if err != nil {
-								utils.AviLog.Warning.Printf("Error %v deleting url %v", err, url)
-							} else {
-								utils.AviLog.Info.Printf("Success deleting url %v", url)
-							}
-						} else {
-							utils.AviLog.Warning.Printf("Invalid resp for rest_op %v", rest_ops[i])
 						}
 					}
 				}
-			}
-		} else {
-			utils.AviLog.Info.Printf("key: %s, msg: rest call executed successfully, will update cache", key)
-			// Add to local obj caches
-			for _, rest_op := range rest_ops {
-				if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
-					utils.AviLog.Info.Printf("key: %s, msg: creating/updating %s cache", rest_op.Model, key)
-					if rest_op.Model == "Pool" {
-						rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VirtualService" {
-						rest.AviVsCacheAdd(rest_op, key)
-					} else if rest_op.Model == "PoolGroup" {
-						rest.AviPGCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VSDataScriptSet" {
-						rest.AviDSCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "HTTPPolicySet" {
-						rest.AviHTTPPolicyCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "SSLKeyAndCertificate" {
-						rest.AviSSLKeyCertAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VrfContext" {
-						rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VsVip" {
-						rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
-					}
+			} else {
+				utils.AviLog.Info.Printf("key: %s, msg: rest call executed successfully, will update cache", key)
+				// Add to local obj caches
+				for _, rest_op := range rest_ops {
+					if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
+						utils.AviLog.Info.Printf("key: %s, msg: creating/updating %s cache", key, rest_op.Model)
+						if rest_op.Model == "Pool" {
+							rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VirtualService" {
+							rest.AviVsCacheAdd(rest_op, key)
+						} else if rest_op.Model == "PoolGroup" {
+							rest.AviPGCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VSDataScriptSet" {
+							rest.AviDSCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "HTTPPolicySet" {
+							rest.AviHTTPPolicyCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "SSLKeyAndCertificate" {
+							rest.AviSSLKeyCertAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VrfContext" {
+							rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VsVip" {
+							rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
+						}
 
-				} else {
-					utils.AviLog.Info.Printf("key: %s, msg: deleting %s cache", rest_op.Model, key)
-					if rest_op.Model == "Pool" {
-						rest.AviPoolCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VirtualService" {
-						rest.AviVsCacheDel(aviObjKey, rest_op, key)
-					} else if rest_op.Model == "PoolGroup" {
-						rest.AviPGCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "HTTPPolicySet" {
-						rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "SSLKeyAndCertificate" {
-						rest.AviSSLCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VsVip" {
-						rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
-					} else if rest_op.Model == "VSDataScriptSet" {
-						rest.AviDSCacheDel(rest_op, aviObjKey, key)
+					} else {
+						utils.AviLog.Info.Printf("key: %s, msg: deleting %s cache", rest_op.Model, key)
+						if rest_op.Model == "Pool" {
+							rest.AviPoolCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VirtualService" {
+							rest.AviVsCacheDel(aviObjKey, rest_op, key)
+						} else if rest_op.Model == "PoolGroup" {
+							rest.AviPGCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "HTTPPolicySet" {
+							rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "SSLKeyAndCertificate" {
+							rest.AviSSLCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VsVip" {
+							rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
+						} else if rest_op.Model == "VSDataScriptSet" {
+							rest.AviDSCacheDel(rest_op, aviObjKey, key)
+						}
 					}
 				}
-			}
 
+			}
 		}
 	}
 }
@@ -334,6 +324,33 @@ func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName
 		}
 	}
 	return restOps
+}
+
+func PublishKeyToRetryLayer(vs_key string, key string, errorStr string) {
+	var bkt uint32
+	bkt = 0
+	// SDK does not give us a error status code, so let's extract it.
+	statuscode := ExtractStatusCode(errorStr)
+	utils.AviLog.Info.Printf("key: %s, msg: Status code retrieved: %s", key, statuscode)
+	if statuscode == "500" || statuscode == "501" || statuscode == "502" || statuscode == "503" {
+		slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
+		slowRetryQueue.Workqueue[bkt].AddRateLimited(vs_key)
+		utils.AviLog.Info.Printf("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, vs_key)
+	} else if statuscode == "404" || statuscode == "400" || statuscode == "409" { // Will account for more error codes.
+		fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
+		fastRetryQueue.Workqueue[bkt].AddRateLimited(vs_key)
+		utils.AviLog.Info.Printf("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, vs_key)
+	}
+}
+
+//Candidate for container-lib
+func ExtractStatusCode(word string) string {
+	r, _ := regexp.Compile("HTTP code: .*.;")
+	result := r.FindAllString(word, -1)
+	if len(result) == 1 {
+		return result[0][len(result[0])-4 : len(result[0])-1]
+	}
+	return ""
 }
 
 func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
@@ -419,6 +436,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 					if ok {
 						pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
 						// Cache found. Let's compare the checksums
+						utils.AviLog.Info.Printf("key: %s, msg: poolcache: %v", key, pool_cache_obj)
 						if pool_cache_obj.CloudConfigCksum == fmt.Sprint(pool.GetCheckSum()) {
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for pool %s, not doing anything", key, pool.Name)
 						} else {
@@ -507,6 +525,16 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 		rest_ops = rest.PoolGroupDelete(sni_pgs_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, key)
 		utils.AviLog.Info.Printf("key: %s, msg: the SNI VSes to be deleted are: %s", key, cache_sni_nodes)
+	} else {
+		utils.AviLog.Info.Printf("key: %s, msg: sni child %s not found in cache and SNI parent also does not exist in cache", key, sni_node.Name)
+		_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
+
+		// Not found - it should be a POST call.
+		restOp := rest.AviVsBuild(sni_node, utils.RestPost, nil, key)
+		rest_ops = append(rest_ops, restOp...)
 	}
 	return cache_sni_nodes, rest_ops
 }
@@ -615,14 +643,18 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.
-							restOp := rest.AviVsVipBuild(vsvip, vsvip_cache_obj, key)
-							rest_ops = append(rest_ops, restOp)
+							restOp, err := rest.AviVsVipBuild(vsvip, vsvip_cache_obj, key)
+							if err == nil {
+								rest_ops = append(rest_ops, restOp)
+							}
 						}
 					}
 				} else {
 					// Not found - it should be a POST call.
-					restOp := rest.AviVsVipBuild(vsvip, nil, key)
-					rest_ops = append(rest_ops, restOp)
+					restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
+					if err == nil {
+						rest_ops = append(rest_ops, restOp)
+					}
 				}
 
 			}
@@ -630,8 +662,10 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 	} else {
 		// Everything is a POST call
 		for _, vsvip := range vsvip_nodes {
-			restOp := rest.AviVsVipBuild(vsvip, nil, key)
-			rest_ops = append(rest_ops, restOp)
+			restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
+			if err == nil {
+				rest_ops = append(rest_ops, restOp)
+			}
 		}
 
 	}
