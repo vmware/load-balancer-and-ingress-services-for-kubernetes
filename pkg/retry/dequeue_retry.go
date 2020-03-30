@@ -59,9 +59,9 @@ func DequeueSlowRetry(vsKey string) {
 	for _, key := range deletedKeys {
 		// Don't want to re-enqueue the same key again
 		if key.(avicache.NamespaceName).Name != vsKey {
-			utils.AviLog.Info.Printf("Found deleted keys in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
+			utils.AviLog.Info.Printf("Found deleted keys in the cache during full sync, re-publishing them to the REST layer: :%s", utils.Stringify(key))
 			modelName := utils.ADMIN_NS + "/" + key.(avicache.NamespaceName).Name
-			nodes.PublishKeyToRestLayer(modelName, vsKey, sharedQueue)
+			nodes.PublishKeyToRestLayer(modelName, key.(avicache.NamespaceName).Name, sharedQueue)
 		}
 	}
 }
