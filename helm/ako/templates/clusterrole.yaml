@@ -12,3 +12,6 @@ rules:
   - apiGroups: [""]
     resources: ["services/status"]
     verbs: ["get","watch","list","patch", "update"]
+  - apiGroups: ["crd.projectcalico.org"]
+    resources: ["blockaffinities"]
+    verbs: ["get", "watch", "list"]
