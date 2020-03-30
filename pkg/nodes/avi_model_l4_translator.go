@@ -38,7 +38,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	var avi_vs_meta *AviVsNode
 
 	// FQDN should come from the cloud. Modify
-	avi_vs_meta = &AviVsNode{Name: svcObj.ObjectMeta.Name + "--" + svcObj.ObjectMeta.Namespace, Tenant: utils.ADMIN_NS,
+	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
+	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: utils.ADMIN_NS,
 		EastWest: false, ServiceMetadata: avicache.LBServiceMetadataObj{ServiceName: svcObj.ObjectMeta.Name, Namespace: svcObj.ObjectMeta.Namespace}}
 
 	vrfcontext := lib.GetVrf()
@@ -62,7 +63,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	}
 	var fqdns []string
-	vsVipNode := &AviVSVIPNode{Name: svcObj.ObjectMeta.Name + "-vsvip", Tenant: utils.ADMIN_NS,
+	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
+	vsVipNode := &AviVSVIPNode{Name: vsVipName, Tenant: utils.ADMIN_NS,
 		FQDNs: fqdns, EastWest: false, VrfContext: vrfcontext}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	utils.AviLog.Info.Printf("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
@@ -72,11 +74,11 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode, key string) {
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
-		pgName := vsNode.Name + "-l4-" + fmt.Sprint(filterPort)
+		pgName := lib.GetL4PGName(vsNode.Name, filterPort)
 
 		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS, Port: fmt.Sprint(filterPort)}
 		// For TCP - the PG to Pool relationship is 1x1
-		poolNode := &AviPoolNode{Name: "l4-" + pgName, Tenant: utils.ADMIN_NS, Protocol: portProto.Protocol, PortName: portProto.Name}
+		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: utils.ADMIN_NS, Protocol: portProto.Protocol, PortName: portProto.Name}
 		poolNode.VrfContext = lib.GetVrf()
 
 		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {

@@ -175,7 +175,7 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 						// If we aren't able to derive the ShardVS name, we should return
 						return
 					}
-					model_name := utils.ADMIN_NS + "/" + shardVsName
+					model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 					found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 					if !found || aviModel == nil {
 						utils.AviLog.Warning.Printf("key :%s, msg: model not found during delete: %s", key, model_name)
@@ -198,7 +198,7 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					// If we aren't able to derive the ShardVS name, we should return
 					return
 				}
-				model_name := utils.ADMIN_NS + "/" + shardVsName
+				model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 				if !found || aviModel == nil {
 					utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
@@ -238,7 +238,7 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 			// If we aren't able to derive the ShardVS name, we should return
 			return
 		}
-		model_name := utils.ADMIN_NS + "/" + shardVsName
+		model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
 			utils.AviLog.Warning.Printf("key :%s, msg: model not found during delete: %s", key, model_name)
@@ -268,7 +268,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			// If we aren't able to derive the ShardVS name, we should return
 			return sniHosts
 		}
-		model_name := utils.ADMIN_NS + "/" + shardVsName
+		model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
 			utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)

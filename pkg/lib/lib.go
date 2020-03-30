@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -46,6 +47,26 @@ func GetshardSize() uint32 {
 	} else {
 		return 0
 	}
+}
+
+func GetModelName(namespace, objectName string) string {
+	return namespace + "/" + objectName
+}
+
+func GetL4PoolName(vsName string, port int32) string {
+	return "pool-" + GetL4PGName(vsName, port)
+}
+
+func GetL4PGName(vsName string, port int32) string {
+	return vsName + "-" + GetVrf() + "-l4-" + fmt.Sprint(port)
+}
+
+func GetL4VSName(svcName, namespace string) string {
+	return svcName + "--" + namespace + "--" + GetVrf()
+}
+
+func GetL4VSVipName(svcName, namespace string) string {
+	return "vsvip" + "--" + svcName + "--" + namespace + "--" + GetVrf()
 }
 
 func GetVrf() string {

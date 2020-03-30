@@ -55,7 +55,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Warning.Printf("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
-				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
+				model_name := lib.GetModelName(utils.ADMIN_NS, aviModelGraph.GetAviVS()[0].Name)
 				ok := saveAviModel(model_name, aviModelGraph, key)
 				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 					PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -63,7 +63,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
 				utils.AviLog.Info.Printf("key: %s, msg: received DELETE event for service", key)
-				model_name := utils.ADMIN_NS + "/" + name + "--" + namespace
+				model_name := lib.GetModelName(utils.ADMIN_NS, name+"--"+namespace)
 				objects.SharedAviGraphLister().Save(model_name, nil)
 				if !fullsync {
 					bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
@@ -80,7 +80,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
-				model_name := utils.ADMIN_NS + "/" + aviModelGraph.GetAviVS()[0].Name
+				model_name := lib.GetModelName(utils.ADMIN_NS, aviModelGraph.GetAviVS()[0].Name)
 				ok := saveAviModel(model_name, aviModelGraph, key)
 				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 					PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -94,7 +94,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				// If we aren't able to derive the ShardVS name, we should return
 				return
 			}
-			model_name := utils.ADMIN_NS + "/" + shardVsName
+			model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 			for _, ingress := range ingressNames {
 				// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 				// does not allow cross tenant ingress references.
@@ -161,7 +161,7 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 		utils.AviLog.Error.Printf("key: %s, msg: Error creating vrf graph: %v\n", key, err)
 		return
 	}
-	model_name := utils.ADMIN_NS + "/" + vrfcontext
+	model_name := lib.GetModelName(utils.ADMIN_NS, vrfcontext)
 	ok := saveAviModel(model_name, aviModel, key)
 	if ok && !fullsync {
 		PublishKeyToRestLayer(model_name, key, sharedQueue)

@@ -45,7 +45,7 @@ func syncFuncForTest(key string) error {
 func waitAndverify(t *testing.T, key string) {
 	waitChan := make(chan int)
 	go func() {
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 		waitChan <- 1
 	}()
 
@@ -115,7 +115,7 @@ func TestAviConfigMap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding configmap: %v", err)
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
 	if ctrl.DisableSync {
 		t.Fatalf("sync not enabled after adding configmap")
 	}
