@@ -60,7 +60,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				utils.AviLog.Info.Printf("avi k8s configmap created")
 				c.DisableSync = false
 				ctrlCh <- struct{}{}
-				c.FullSyncK8s()
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -128,6 +127,7 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 		c.FullSyncK8s()
 		worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
 		worker.SyncFunction = c.FullSync
+		worker.QuickSyncFunction = c.FullSyncK8s
 		go worker.Run()
 	}
 	c.SetupEventHandlers(informers)
@@ -175,16 +175,16 @@ func (c *AviController) FullSync() {
 	}
 }
 
-func (c *AviController) FullSyncK8s() error {
+func (c *AviController) FullSyncK8s() {
 	if c.DisableSync {
 		utils.AviLog.Info.Printf("Sync disabled, skipping full sync")
-		return nil
+		return
 	}
 	// List all the kubernetes resources
 	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Error.Printf("Unable to list the namespaces")
-		return err
+		return
 	}
 	for _, nsObj := range namespaces {
 		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
@@ -245,7 +245,7 @@ func (c *AviController) FullSyncK8s() error {
 			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
 	}
-	return nil
+	return
 }
 
 // DeleteModels : Delete models and add the model name in the queue.
