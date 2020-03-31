@@ -48,7 +48,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 		} else {
 			priorityLabel = hostname
 		}
-		poolName := priorityLabel + "--" + namespace + "--" + ingName
+		poolName := lib.GetL7PoolName(priorityLabel, namespace, ingName)
 		// First check if there are pools related to this ingress present in the model already
 		poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
 		utils.AviLog.Info.Printf("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
@@ -110,7 +110,8 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 	utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 	if found {
 		for _, secret := range secrets {
-			sniNodeName := ingName + "--" + namespace + "--" + secret + "--" + hostname
+			sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
+
 			utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
 			RemoveSniInModel(sniNodeName, vsNode, key)
 		}
@@ -277,7 +278,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 
-		sniNode := &AviVsNode{Name: ingName + "--" + namespace + "--" + tlssetting.SecretName + "--" + sniHost, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
+		sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
 		sniNode.VrfContext = lib.GetVrf()
 		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 		if certsBuilt {

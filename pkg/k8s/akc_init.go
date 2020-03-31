@@ -60,6 +60,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				utils.AviLog.Info.Printf("avi k8s configmap created")
 				c.DisableSync = false
 				ctrlCh <- struct{}{}
+				c.FullSyncK8s()
 			}
 		},
 		DeleteFunc: func(obj interface{}) {

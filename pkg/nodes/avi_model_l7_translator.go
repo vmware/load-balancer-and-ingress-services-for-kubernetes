@@ -106,7 +106,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						} else {
 							priorityLabel = host
 						}
-						poolNode := &AviPoolNode{Name: priorityLabel + "--" + namespace + "--" + ingName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostName: host}}
+						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostName: host}}
 						poolNode.VrfContext = lib.GetVrf()
 						if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 							poolNode.Servers = servers
@@ -121,7 +121,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				for _, tlssetting := range parsedIng.TlsCollection {
 					// For each host, create a SNI node with the secret giving us the key and cert.
 					// construct a SNI VS node per tls setting which corresponds to one secret
-					sniNode := &AviVsNode{Name: ingName + "--" + namespace + "--" + tlssetting.SecretName, VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
+					sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
 					sniNode.VrfContext = lib.GetVrf()
 					certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 					if certsBuilt {
@@ -163,7 +163,7 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 	if found {
 		for _, secret := range secrets {
-			sniNodeName := ingName + "--" + namespace + "--" + secret
+			sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
 			utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
 			RemoveSniInModel(sniNodeName, vsNode, key)
 		}
@@ -465,7 +465,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 		utils.AviLog.Info.Printf("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
 		return false
 	}
-	certNode := &AviTLSKeyCertNode{Name: namespace + "-" + secretName, Tenant: utils.ADMIN_NS}
+	certNode := &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: utils.ADMIN_NS}
 	keycertMap := secretObj.Data
 	cert, ok := keycertMap[tlsCert]
 	if ok {
@@ -506,14 +506,15 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 		for _, path := range paths {
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
-			pgName := namespace + "--" + ingName + "--" + host + "--" + path.Path
+			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
 			pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS}
 			httpPGPath.PoolGroup = pgNode.Name
 			httpPGPath.Host = hosts
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 
 			tlsNode.PoolGroupRefs = append(tlsNode.PoolGroupRefs, pgNode)
-			poolNode := &AviPoolNode{Name: namespace + "--" + ingName + "--" + host + "--" + path.Path, Tenant: utils.ADMIN_NS}
+
+			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), Tenant: utils.ADMIN_NS}
 			poolNode.VrfContext = lib.GetVrf()
 
 			if servers := PopulateServers(poolNode, namespace, path.ServiceName, key); servers != nil {
@@ -526,7 +527,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 		}
 	}
-	httppolname := ingName + "--" + namespace + "--" + secretName
+	httppolname := lib.GetSniHttpPolName(ingName, namespace, secretName)
 	policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: utils.ADMIN_NS}
 	tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
 	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
