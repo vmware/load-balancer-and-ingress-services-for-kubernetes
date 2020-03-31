@@ -49,8 +49,8 @@ const (
 	MULTIPORTSVC    = "testsvcmulti"                       // multi port service name
 	NAMESPACE       = "red-ns"                             // namespace
 	AVINAMESPACE    = "admin"                              // avi namespace
-	SINGLEPORTMODEL = "admin/testsvc--red-ns--global"      // single port model name
-	MULTIPORTMODEL  = "admin/testsvcmulti--red-ns--global" // multi port model name
+	SINGLEPORTMODEL = "admin/global--testsvc--red-ns"      // single port model name
+	MULTIPORTMODEL  = "admin/global--testsvcmulti--red-ns" // multi port model name
 	RANDOMUUID      = "random-uuid"                        // random avi object uuid
 )
 

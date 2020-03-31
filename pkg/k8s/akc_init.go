@@ -60,6 +60,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				utils.AviLog.Info.Printf("avi k8s configmap created")
 				c.DisableSync = false
 				ctrlCh <- struct{}{}
+				c.FullSyncK8s()
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -161,11 +162,17 @@ func (c *AviController) FullSync() {
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
-		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
+		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+		deletedKeys := avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
 			utils.CtrlVersion, utils.CloudName)
+		for _, key := range deletedKeys {
+
+			utils.AviLog.Info.Printf("Found deleted keys in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
+			modelName := utils.ADMIN_NS + "/" + key.(avicache.NamespaceName).Name
+			nodes.PublishKeyToRestLayer(modelName, key.(avicache.NamespaceName).Name, sharedQueue)
+
+		}
 	}
-	// Not handling any full sync error right now.
-	c.FullSyncK8s()
 }
 
 func (c *AviController) FullSyncK8s() error {

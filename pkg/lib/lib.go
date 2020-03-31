@@ -54,19 +54,43 @@ func GetModelName(namespace, objectName string) string {
 }
 
 func GetL4PoolName(vsName string, port int32) string {
-	return "pool-" + GetL4PGName(vsName, port)
+	return "pool--" + vsName + "--" + fmt.Sprint(port)
 }
 
 func GetL4PGName(vsName string, port int32) string {
-	return vsName + "-" + GetVrf() + "-l4-" + fmt.Sprint(port)
+	return "pg--" + vsName + "--" + fmt.Sprint(port)
 }
 
 func GetL4VSName(svcName, namespace string) string {
-	return svcName + "--" + namespace + "--" + GetVrf()
+	return GetVrf() + "--" + svcName + "--" + namespace
 }
 
 func GetL4VSVipName(svcName, namespace string) string {
 	return "vsvip" + "--" + svcName + "--" + namespace + "--" + GetVrf()
+}
+
+func GetL7PoolName(priorityLabel, namespace, ingName string) string {
+	return "pool-" + "-" + GetVrf() + "--" + priorityLabel + "--" + namespace + "--" + ingName
+}
+
+func GetSniNodeName(ingName, namespace, secret string) string {
+	return "sni-" + "-" + GetVrf() + "--" + ingName + "--" + namespace + "--" + secret
+}
+
+func GetSniPoolName(ingName, namespace, host, path string) string {
+	return "pool-" + "-" + GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
+}
+
+func GetSniHttpPolName(ingName, namespace, secret string) string {
+	return "httppol-" + "-" + GetVrf() + "--" + ingName + "--" + namespace + "--" + secret
+}
+
+func GetSniPGName(ingName, namespace, host, path string) string {
+	return "pg-" + "-" + GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
+}
+
+func GetTLSKeyCertNodeName(namespace, secret string) string {
+	return "sni-" + "-" + GetVrf() + "--" + namespace + "--" + secret
 }
 
 func GetVrf() string {

@@ -19,19 +19,20 @@ import (
 )
 
 type FullSyncThread struct {
-	Stopped      bool
-	ShutdownChan chan string
-	QuickSyncChan chan string
-	Interval     time.Duration
-	SyncFunction func()
+	Stopped           bool
+	ShutdownChan      chan string
+	QuickSyncChan     chan string
+	Interval          time.Duration
+	SyncFunction      func()
+	QuickSyncFunction func()
 }
 
 func NewFullSyncThread(interval time.Duration) *FullSyncThread {
 	return &FullSyncThread{
-		Stopped:      false,
-		ShutdownChan: make(chan string),
+		Stopped:       false,
+		ShutdownChan:  make(chan string),
 		QuickSyncChan: make(chan string),
-		Interval:     interval,
+		Interval:      interval,
 	}
 }
 
@@ -45,11 +46,16 @@ func (w *FullSyncThread) Run() {
 			AviLog.Info.Printf("Shutting down full sync go routine")
 			return
 		case <-w.QuickSyncChan:
+			// First the regular sync function - that syncs the cache
+			w.SyncFunction()
+			// Second the function that syncs the k8s objects.
+			w.QuickSyncFunction()
 			break
 		case <-time.After(w.Interval):
+			// Just the cache sync functions.
+			w.SyncFunction()
 			break
 		}
-		w.SyncFunction()
 	}
 }
 
@@ -61,3 +67,4 @@ func (w *FullSyncThread) Shutdown() {
 func (w *FullSyncThread) QuickSync() {
 	w.QuickSyncChan <- "quicksync"
 }
+
