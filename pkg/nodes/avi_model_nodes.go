@@ -70,6 +70,7 @@ func (v *AviObjectGraph) GetCopy(key string) (*AviObjectGraph, bool) {
 	for _, node := range v.GetOrderedNodes() {
 		newModel.AddModelNode(node.CopyNode())
 	}
+	newModel.SetRetryCounter(v.RetryCount)
 	utils.AviLog.Info.Printf("key: %s, nodes copied from model: %d", key, len(newModel.modelNodes))
 	return &newModel, true
 }
@@ -80,11 +81,15 @@ func (v *AviObjectGraph) GetCheckSum() uint32 {
 	return v.GraphChecksum
 }
 
-func (v *AviObjectGraph) SetRetryCounter() {
+func (v *AviObjectGraph) SetRetryCounter(num ...int) {
 	// Overwrite the retry counter value.
 	v.Lock.RLock()
 	defer v.Lock.RUnlock()
-	v.RetryCount = 2
+	if len(num) > 0 {
+		v.RetryCount = num[0]
+	} else {
+		v.RetryCount = 2
+	}
 }
 
 func (v *AviObjectGraph) GetRetryCounter() int {

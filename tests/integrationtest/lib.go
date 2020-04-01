@@ -98,6 +98,38 @@ func AddConfigMap() {
 	PollForSyncStart(ctrl, 10)
 }
 
+// Fake Secret
+type FakeSecret struct {
+	Cert      string
+	Key       string
+	Name      string
+	Namespace string
+}
+
+func (secret FakeSecret) Secret() *corev1.Secret {
+	data := map[string][]byte{
+		"tls.crt": []byte(secret.Cert),
+		"tls.key": []byte(secret.Key),
+	}
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: secret.Namespace,
+			Name:      secret.Name,
+		},
+		Data: data,
+	}
+}
+
+func AddSecret(secretName string, namespace string) {
+	fakeSecret := (FakeSecret{
+		Cert:      "tlsCert",
+		Key:       "tlsKey",
+		Namespace: namespace,
+		Name:      secretName,
+	}).Secret()
+	KubeClient.CoreV1().Secrets("default").Create(fakeSecret)
+}
+
 // Fake ingress
 type FakeIngress struct {
 	DnsNames     []string
@@ -109,23 +141,6 @@ type FakeIngress struct {
 	annotations  map[string]string
 	ServiceName  string
 	TlsSecretDNS map[string][]string
-}
-
-func AddSecret(secretName string, namespace string) {
-	tlsCert := []byte("tlsCert")
-	tlsKey := []byte("tlsKey")
-	data := map[string][]byte{
-		"tls.crt": tlsCert,
-		"tls.key": tlsKey,
-	}
-	aviSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      secretName,
-		},
-		Data: data,
-	}
-	KubeClient.CoreV1().Secrets("default").Create(aviSecret)
 }
 
 func (ing FakeIngress) Ingress() *extensionv1beta1.Ingress {
@@ -607,53 +622,67 @@ func GetAviControllerFakeAPIServer(fault ...InjectFault) (ts *httptest.Server) {
 	ts = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		url := r.URL.EscapedPath()
-		var resp map[string]interface{}
-		var finalResponse []byte
 		utils.AviLog.Info.Printf("[fakeAPI]: %s %s\n", r.Method, url)
 
 		if len(fault) != 0 {
 			fault[0](w, r)
+			return
 		}
-
-		if strings.Contains(url, "macro") && r.Method == "POST" {
-			// copying request payload into response body
-			data, _ := ioutil.ReadAll(r.Body)
-			json.Unmarshal(data, &resp)
-			rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
-			rName := rData["name"].(string)
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
-
-			// adding additional 'uuid' and 'url' (read-only) fields in the response
-			rData["url"] = objURL
-			rData["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
-			finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, string(finalResponse))
-		} else if r.Method == "PUT" {
-			data, _ := ioutil.ReadAll(r.Body)
-			json.Unmarshal(data, &resp)
-			resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
-			finalResponse, _ = json.Marshal(resp)
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, string(finalResponse))
-		} else if r.Method == "DELETE" {
-			w.WriteHeader(http.StatusNoContent)
-			fmt.Fprintln(w, string(finalResponse))
-		} else if strings.Contains(url, "login") {
-			// This is used for /login --> first request to controller
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, `{"success": "true"}`)
-		}
+		NormalControllerServer(w, r)
 	}))
 
 	url := strings.Split(ts.URL, "https://")[1]
 	os.Setenv("CTRL_USERNAME", "admin")
 	os.Setenv("CTRL_PASSWORD", "admin")
 	os.Setenv("CTRL_IPADDRESS", url)
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	// resets avi client pool instance, allows to connect with the new `ts` server
 	cache.AviClientInstance = nil
 	k8s.PopulateCache()
 	return ts
+}
+
+func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.EscapedPath()
+	var resp map[string]interface{}
+	var finalResponse []byte
+
+	if strings.Contains(url, "macro") && r.Method == "POST" {
+		data, _ := ioutil.ReadAll(r.Body)
+		json.Unmarshal(data, &resp)
+		rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
+		rName := rData["name"].(string)
+		objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", rModelName, rModelName, rName, RANDOMUUID, rName)
+
+		// adding additional 'uuid' and 'url' (read-only) fields in the response
+		rData["url"] = objURL
+		rData["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+
+		// handle sni child, fill in vs parent ref
+		if rModelName == "virtualservice" {
+			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
+				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", "Shard-VS---global-6", RANDOMUUID, "Shard-VS---global-6")
+			}
+		}
+
+		finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, string(finalResponse))
+	} else if r.Method == "PUT" {
+		data, _ := ioutil.ReadAll(r.Body)
+		json.Unmarshal(data, &resp)
+		resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
+		finalResponse, _ = json.Marshal(resp)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, string(finalResponse))
+	} else if r.Method == "DELETE" {
+		w.WriteHeader(http.StatusNoContent)
+		fmt.Fprintln(w, string(finalResponse))
+	} else if strings.Contains(url, "login") {
+		// This is used for /login --> first request to controller
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, `{"success": "true"}`)
+	}
 }
 
 // FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data
@@ -666,5 +695,9 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request) {
 		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, object[1]))
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, string(data))
+	} else if strings.Contains(url, "login") {
+		// This is used for /login --> first request to controller
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, `{"success": "true"}`)
 	}
 }

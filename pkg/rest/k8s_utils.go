@@ -76,7 +76,7 @@ func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) 
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: status after update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 
-	response, err := mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).UpdateStatus(mIngress)
+	response, err := mClient.ExtensionsV1beta1().Ingresses(mIngress.Namespace).UpdateStatus(mIngress)
 	if err != nil {
 		utils.AviLog.Error.Printf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
 		return err

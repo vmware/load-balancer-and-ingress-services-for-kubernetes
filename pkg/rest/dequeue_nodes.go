@@ -173,10 +173,8 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		var rest_ops []*utils.RestOp
 		vsKey = avicache.NamespaceName{Namespace: namespace, Name: sni_node.Name}
 		if vs_cache_obj != nil {
-			utils.AviLog.Info.Printf("key: %s, msg: Here!")
 			sni_to_delete, rest_ops = rest.SNINodeCU(sni_node, vs_cache_obj, namespace, sni_to_delete, rest_ops, key)
 		} else {
-			utils.AviLog.Info.Printf("key: %s, msg: Here2")
 			_, rest_ops = rest.SNINodeCU(sni_node, nil, namespace, sni_to_delete, rest_ops, key)
 		}
 		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)

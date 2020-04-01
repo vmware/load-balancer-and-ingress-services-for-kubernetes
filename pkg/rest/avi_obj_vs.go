@@ -264,23 +264,25 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		utils.AviLog.Info.Printf("key: %s, msg: vs information %s", key, utils.Stringify(resp))
 
 		vh_parent_uuid, found_parent := resp["vh_parent_vs_ref"]
+		var vhParentKey interface{}
 		if found_parent {
 			// the uuid is expected to be in the format: "https://IP:PORT/api/virtualservice/virtualservice-88fd9718-f4f9-4e2b-9552-d31336330e0e#mygateway"
 			vs_uuid := avicache.ExtractVsUuid(vh_parent_uuid.(string))
 			utils.AviLog.Info.Printf("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
 			// Now let's get the VS key from this uuid
-			vsKey, foundvscache := rest.cache.VsCache.AviCacheGetKeyByUuid(vs_uuid)
-			utils.AviLog.Info.Printf("key: %s, msg: extracted the VS key from the uuid :%s", key, vsKey)
+			var foundvscache bool
+			vhParentKey, foundvscache = rest.cache.VsCache.AviCacheGetKeyByUuid(vs_uuid)
+			utils.AviLog.Info.Printf("key: %s, msg: extracted the VS key from the uuid :%s", key, vhParentKey)
 			if foundvscache {
-				vs_obj := rest.getVsCacheObj(vsKey.(avicache.NamespaceName), key)
+				vs_obj := rest.getVsCacheObj(vhParentKey.(avicache.NamespaceName), key)
 				if !utils.HasElem(vs_obj.SNIChildCollection, uuid) {
 					vs_obj.SNIChildCollection = append(vs_obj.SNIChildCollection, uuid)
 				}
 			} else {
 				vs_cache_obj := avicache.AviVsCache{Name: ExtractVsName(vh_parent_uuid.(string)), Tenant: rest_op.Tenant,
 					SNIChildCollection: []string{uuid}}
-				rest.cache.VsCache.AviCacheAdd(vsKey, &vs_cache_obj)
-				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v\n", key, vsKey,
+				rest.cache.VsCache.AviCacheAdd(vhParentKey, &vs_cache_obj)
+				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v\n", key, vhParentKey,
 					vs_cache_obj))
 			}
 		}
@@ -313,6 +315,10 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
+
+				if vhParentKey != nil {
+					vs_cache_obj.ParentVSRef = vhParentKey.(avicache.NamespaceName)
+				}
 				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
