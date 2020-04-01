@@ -102,7 +102,8 @@ func GetPodCIDR(node *v1.Node) (string, error) {
 		crdClient := dynamicClient.Resource(CalicoBlockaffinityGVR)
 		crdList, err := crdClient.List(metav1.ListOptions{})
 		if err != nil {
-			utils.AviLog.Warning.Printf("Error getting CRD %v", err)
+			utils.AviLog.Error.Printf("Error getting CRD %v", err)
+			return "", err
 		}
 
 		for _, i := range crdList.Items {
