@@ -102,7 +102,7 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 		}
 	}
 	c.AviCloudPropertiesPopulate(client, cloud)
-	c.AviObjVrfCachePopulate(client)
+	c.AviObjVrfCachePopulate(client, cloud)
 	return deletedKeys
 }
 
@@ -113,7 +113,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/poolgroup?include_name=true&cloud_ref.name=" + cloud + "&vrf_context_ref.name=" + lib.GetVrf() + "&created_by=" + akcUser
+		uri = "/api/poolgroup?include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akcUser
 	}
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
@@ -499,13 +499,13 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 	}
 }
 
-func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient) {
+func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) {
 	disableStaticRoute := os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC)
 	if disableStaticRoute == "true" {
 		utils.AviLog.Info.Printf("Static route sync disabled, skipping vrf cache population")
 		return
 	}
-	uri := "/api/vrfcontext"
+	uri := "/api/vrfcontext?include_name=true&cloud_ref.name=" + cloud
 
 	vrfList := []*models.VrfContext{}
 	result, err := client.AviSession.GetCollectionRaw(uri)
