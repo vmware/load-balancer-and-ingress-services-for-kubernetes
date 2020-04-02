@@ -582,7 +582,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 				continue
 			}
 			svc_mdata_intf, ok := vs["service_metadata"]
-			var svc_mdata_obj LBServiceMetadataObj
+			var svc_mdata_obj ServiceMetadataObj
 			var svc_mdata interface{}
 			var svc_mdata_map map[string]interface{}
 			if ok {
@@ -729,7 +729,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 			return errors.New("VS object is corrupted")
 		}
 		svc_mdata_intf, ok := vs["service_metadata"]
-		var svc_mdata_obj LBServiceMetadataObj
+		var svc_mdata_obj ServiceMetadataObj
 		var svc_mdata interface{}
 		var svc_mdata_map map[string]interface{}
 		if ok {
@@ -1092,7 +1092,7 @@ func (c *AviObjCache) AviSSLKeyCachePopulate(client *clients.AviClient,
 				rest_response, rest_response)
 			return
 		}
-		utils.AviLog.Info.Printf("SSL Keys Get uri %v returned %v PGs", uri,
+		utils.AviLog.Info.Printf("SSL Keys Get uri %v returned %v SSL key", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {

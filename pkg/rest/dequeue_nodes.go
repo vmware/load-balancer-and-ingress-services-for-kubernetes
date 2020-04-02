@@ -245,7 +245,6 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 		utils.AviLog.Info.Printf("key: %s, msg: processing in rest queue number: %v", key, bkt)
 		if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
 			aviclient := rest.aviRestPoolClient.AviClient[bkt]
-			utils.AviLog.Info.Printf("key: %s, msg: REST OPs: %s", key, utils.Stringify(rest_ops))
 			err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
 			if err != nil {
 				utils.AviLog.Warning.Printf("key: %s, msg: there was an error sending the macro %v", key, err.Error())

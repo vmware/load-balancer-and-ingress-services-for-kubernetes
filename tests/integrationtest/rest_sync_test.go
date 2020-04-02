@@ -305,7 +305,7 @@ func TestCreateSNICacheSync(t *testing.T) {
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.ContainSubstring("sni--global--default--my-secret"))
 	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.HTTPKeyCollection[0].Name).To(gomega.ContainSubstring("httppol--global--foo-with-targets--default--my-secret"))
+	g.Expect(sniCacheObj.HTTPKeyCollection[0].Name).To(gomega.ContainSubstring("httppol--global--default--foo.com"))
 	g.Expect(sniCacheObj.ParentVSRef).To(gomega.Equal(parentVSKey))
 
 	TearDownIngressForCacheSyncCheck(t, modelName, g)

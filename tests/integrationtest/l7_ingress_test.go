@@ -43,7 +43,6 @@ func TearDownTestForIngress(t *testing.T, model_Name string) {
 	os.Setenv("SHARD_VS_SIZE", "")
 	os.Setenv("CLOUD_NAME", "")
 	os.Setenv("VRF_CONTEXT", "")
-	os.Setenv("L7_SHARD_SCHEME", "")
 
 	objects.SharedAviGraphLister().Delete(model_Name)
 	DelSVC(t, "default", "avisvc")

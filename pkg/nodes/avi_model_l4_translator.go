@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"strings"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
@@ -36,11 +37,15 @@ func contains(s []int32, e int32) bool {
 
 func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
 	var avi_vs_meta *AviVsNode
-
+	var fqdns []string
 	// FQDN should come from the cloud. Modify
 	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
+	// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
+	subDomain := GetDefaultSubDomain(svcObj.ObjectMeta.Namespace)
+	fqdn := svcObj.ObjectMeta.Name + subDomain
+	fqdns = append(fqdns, fqdn)
 	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: utils.ADMIN_NS,
-		EastWest: false, ServiceMetadata: avicache.LBServiceMetadataObj{ServiceName: svcObj.ObjectMeta.Name, Namespace: svcObj.ObjectMeta.Namespace}}
+		EastWest: false, ServiceMetadata: avicache.ServiceMetadataObj{ServiceName: svcObj.ObjectMeta.Name, Namespace: svcObj.ObjectMeta.Namespace, HostNames: fqdns}}
 
 	vrfcontext := lib.GetVrf()
 	avi_vs_meta.VrfContext = vrfcontext
@@ -62,7 +67,6 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	} else {
 		avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	}
-	var fqdns []string
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	vsVipNode := &AviVSVIPNode{Name: vsVipName, Tenant: utils.ADMIN_NS,
 		FQDNs: fqdns, EastWest: false, VrfContext: vrfcontext}
@@ -163,4 +167,24 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 	o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
 	utils.AviLog.Info.Printf("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
 	utils.AviLog.Info.Printf("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
+}
+
+func GetDefaultSubDomain(ns string) string {
+	var defSubdom string
+	cache := avicache.SharedAviObjCache()
+	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
+	if !ok || cloud == nil {
+		utils.AviLog.Warning.Printf("Cloud object not found")
+		return ""
+	}
+	cloudProperty, ok := cloud.(*avicache.AviCloudPropertyCache)
+	if !ok {
+		utils.AviLog.Warning.Printf("Cloud property object not found")
+		return ""
+	}
+	defSubdom = cloudProperty.NSIpamDNS
+	if defSubdom != "" && !strings.HasPrefix(defSubdom, ".") {
+		defSubdom = "." + ns + "." + defSubdom
+	}
+	return defSubdom
 }

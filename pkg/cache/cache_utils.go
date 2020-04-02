@@ -36,14 +36,10 @@ type AviPoolCache struct {
 }
 
 type ServiceMetadataObj struct {
-	IngressName string `json:"ingress_name"`
-	Namespace   string `json:"namespace"`
-	HostName    string `json:"hostname"`
-}
-
-type LBServiceMetadataObj struct {
-	ServiceName string `json:"svc_name"`
-	Namespace   string `json:"namespace"`
+	IngressName string   `json:"ingress_name"`
+	Namespace   string   `json:"namespace"`
+	HostNames   []string `json:"hostnames"`
+	ServiceName string   `json:"svc_name"`
 }
 
 type AviDSCache struct {
@@ -73,7 +69,7 @@ type AviVsCache struct {
 	SSLKeyCertCollection []NamespaceName
 	SNIChildCollection   []string
 	ParentVSRef          NamespaceName
-	ServiceMetadataObj   LBServiceMetadataObj
+	ServiceMetadataObj   ServiceMetadataObj
 }
 
 type AviSSLCache struct {

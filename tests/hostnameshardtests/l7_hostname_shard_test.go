@@ -1867,12 +1867,12 @@ func TestL7ModelMultiSNI(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(2))
+		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(2))
+		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
-		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(2))
+		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}

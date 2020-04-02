@@ -126,17 +126,12 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			continue
 		}
 		cksum := resp["cloud_config_cksum"].(string)
-		var svc_mdata interface{}
-		var svc_mdata_map map[string]interface{}
-		var svc_mdata_obj avicache.ServiceMetadataObj
 
-		if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
-			&svc_mdata); err == nil {
-			svc_mdata_map, ok = svc_mdata.(map[string]interface{})
-			if !ok {
-				utils.AviLog.Warning.Printf("resp %v svc_mdata %T has invalid service_metadata type", resp, svc_mdata)
-			} else {
-				SvcMdataMapToObj(&svc_mdata_map, &svc_mdata_obj)
+		var svc_mdata_obj avicache.ServiceMetadataObj
+		if resp["service_metadata"] != nil {
+			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
+				&svc_mdata_obj); err != nil {
+				utils.AviLog.Warning.Printf("Error parsing service metadata :%v", err)
 			}
 		}
 		pool_cache_obj := avicache.AviPoolCache{Name: name, Tenant: rest_op.Tenant,
@@ -177,34 +172,6 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 	}
 
 	return nil
-}
-
-func SvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *avicache.ServiceMetadataObj) {
-	for k, val := range *svc_mdata_map {
-		switch k {
-		case "ingress_name":
-			ingName, ok := val.(string)
-			if ok {
-				svc_mdata.IngressName = ingName
-			} else {
-				utils.AviLog.Warning.Printf("Incorrect type %T in svc_mdata_map %v", val, *svc_mdata_map)
-			}
-		case "namespace":
-			namespace, ok := val.(string)
-			if ok {
-				svc_mdata.Namespace = namespace
-			} else {
-				utils.AviLog.Warning.Printf("Incorrect type %T in svc_mdata_map %v", val, *svc_mdata_map)
-			}
-		case "hostname":
-			hostname, ok := val.(string)
-			if ok {
-				svc_mdata.HostName = hostname
-			} else {
-				utils.AviLog.Warning.Printf("Incorrect type %T in svc_mdata_map %v", val, *svc_mdata_map)
-			}
-		}
-	}
 }
 
 func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
