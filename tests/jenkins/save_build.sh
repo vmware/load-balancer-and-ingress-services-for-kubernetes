@@ -23,7 +23,7 @@ function get_git_ws {
 
 BRANCH_VERSION_SCRIPT=$SCRIPTPATH/get_branch_version.sh
 BUILD_VERSION_SCRIPT=$SCRIPTPATH/get_build_version.sh
-CHARTS_PATH="$(get_git_ws)/helm/akc/"
+CHARTS_PATH="$(get_git_ws)/helm/ako"
 
 build_version=$(bash $BUILD_VERSION_SCRIPT "dummy" $BUILD_NUMBER)
 branch_version=$(bash $BRANCH_VERSION_SCRIPT)
