@@ -33,35 +33,26 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	SetUp()
-	ret := m.Run()
-	os.Exit(ret)
-}
-
-var KubeClient *k8sfake.Clientset
-var ctrl *k8s.AviController
-
-func SetUp() {
 	KubeClient = k8sfake.NewSimpleClientset()
 	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, meshutils.ConfigMapInformer}
 	meshutils.NewInformers(meshutils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
-	os.Setenv("CTRL_USERNAME", "admin")
-	os.Setenv("CTRL_PASSWORD", "admin")
-	os.Setenv("CTRL_IPADDRESS", "localhost")
-	os.Setenv("INGRESS_API", "extensionv1")
-	os.Setenv("FULL_SYNC_INTERVAL", "600")
-	os.Setenv("L7_SHARD_SCHEME", "hostname")
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
+
+	integrationtest.NewAviFakeClientInstance()
+	defer integrationtest.AviFakeClientInstance.Close()
+
 	ctrl = k8s.SharedAviController()
 	stopCh := meshutils.SetupSignalHandler()
-	k8s.PopulateCache()
 	ctrlCh := make(chan struct{})
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
 	go ctrl.InitController(informers, ctrlCh, stopCh)
 	AddConfigMap()
 	integrationtest.KubeClient = KubeClient
+	os.Exit(m.Run())
 }
+
+var KubeClient *k8sfake.Clientset
+var ctrl *k8s.AviController
 
 func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
@@ -79,11 +70,11 @@ func SetUpTestForIngress(t *testing.T, modelName string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("CLOUD_NAME", "Shard-VS-")
 	os.Setenv("VRF_CONTEXT", "global")
+	os.Setenv("L7_SHARD_SCHEME", "hostname")
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc", false, false)
-
 }
 
 func TearDownTestForIngress(t *testing.T, modelName string) {
@@ -118,9 +109,6 @@ func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{
 
 func TestCacheGETOKStatus(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-
-	ts := integrationtest.GetAviControllerFakeAPIServer(integrationtest.FeedMockCollectionData)
-	defer ts.Close()
 
 	// Verify the cache.
 	cacheobj := cache.SharedAviObjCache()
@@ -166,15 +154,17 @@ func TestL7Model(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-	} else {
-		t.Fatalf("Could not find Model: %v", err)
-	}
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
