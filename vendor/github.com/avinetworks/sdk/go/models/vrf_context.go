@@ -29,6 +29,9 @@ type VrfContext struct {
 	// Configure ping based heartbeat check for all default gateways in service engines of vrf. Field introduced in 17.1.1.
 	InternalGatewayMonitor *InternalGatewayMonitor `json:"internal_gateway_monitor,omitempty"`
 
+	// Key/value labels which can be used for Object Access Policy permission scoping. Field introduced in 18.2.7.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Name of the object.
 	// Required: true
 	Name *string `json:"name"`

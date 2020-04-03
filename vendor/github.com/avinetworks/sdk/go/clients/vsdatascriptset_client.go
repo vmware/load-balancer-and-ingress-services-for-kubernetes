@@ -45,23 +45,23 @@ func (client *VSDataScriptSetClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of VSDataScriptSet objects
-func (client *VSDataScriptSetClient) GetAll() ([]*models.VSDataScriptSet, error) {
+func (client *VSDataScriptSetClient) GetAll(options ...session.ApiOptionsParams) ([]*models.VSDataScriptSet, error) {
 	var plist []*models.VSDataScriptSet
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing VSDataScriptSet by uuid
-func (client *VSDataScriptSetClient) Get(uuid string) (*models.VSDataScriptSet, error) {
+func (client *VSDataScriptSetClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.VSDataScriptSet, error) {
 	var obj *models.VSDataScriptSet
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing VSDataScriptSet by name
-func (client *VSDataScriptSetClient) GetByName(name string) (*models.VSDataScriptSet, error) {
+func (client *VSDataScriptSetClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.VSDataScriptSet, error) {
 	var obj *models.VSDataScriptSet
-	err := client.aviSession.GetObjectByName("vsdatascriptset", name, &obj)
+	err := client.aviSession.GetObjectByName("vsdatascriptset", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *VSDataScriptSetClient) GetObject(options ...session.ApiOptionsPara
 }
 
 // Create a new VSDataScriptSet object
-func (client *VSDataScriptSetClient) Create(obj *models.VSDataScriptSet) (*models.VSDataScriptSet, error) {
+func (client *VSDataScriptSetClient) Create(obj *models.VSDataScriptSet, options ...session.ApiOptionsParams) (*models.VSDataScriptSet, error) {
 	var robj *models.VSDataScriptSet
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing VSDataScriptSet object
-func (client *VSDataScriptSetClient) Update(obj *models.VSDataScriptSet) (*models.VSDataScriptSet, error) {
+func (client *VSDataScriptSetClient) Update(obj *models.VSDataScriptSet, options ...session.ApiOptionsParams) (*models.VSDataScriptSet, error) {
 	var robj *models.VSDataScriptSet
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *VSDataScriptSetClient) Update(obj *models.VSDataScriptSet) (*model
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.VSDataScriptSet
 // or it should be json compatible of form map[string]interface{}
-func (client *VSDataScriptSetClient) Patch(uuid string, patch interface{}, patchOp string) (*models.VSDataScriptSet, error) {
+func (client *VSDataScriptSetClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.VSDataScriptSet, error) {
 	var robj *models.VSDataScriptSet
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing VSDataScriptSet object with a given UUID
-func (client *VSDataScriptSetClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *VSDataScriptSetClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing VSDataScriptSet object with a given name
-func (client *VSDataScriptSetClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *VSDataScriptSetClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

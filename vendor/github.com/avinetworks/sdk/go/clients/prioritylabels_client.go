@@ -45,23 +45,23 @@ func (client *PriorityLabelsClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of PriorityLabels objects
-func (client *PriorityLabelsClient) GetAll() ([]*models.PriorityLabels, error) {
+func (client *PriorityLabelsClient) GetAll(options ...session.ApiOptionsParams) ([]*models.PriorityLabels, error) {
 	var plist []*models.PriorityLabels
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing PriorityLabels by uuid
-func (client *PriorityLabelsClient) Get(uuid string) (*models.PriorityLabels, error) {
+func (client *PriorityLabelsClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.PriorityLabels, error) {
 	var obj *models.PriorityLabels
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing PriorityLabels by name
-func (client *PriorityLabelsClient) GetByName(name string) (*models.PriorityLabels, error) {
+func (client *PriorityLabelsClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.PriorityLabels, error) {
 	var obj *models.PriorityLabels
-	err := client.aviSession.GetObjectByName("prioritylabels", name, &obj)
+	err := client.aviSession.GetObjectByName("prioritylabels", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *PriorityLabelsClient) GetObject(options ...session.ApiOptionsParam
 }
 
 // Create a new PriorityLabels object
-func (client *PriorityLabelsClient) Create(obj *models.PriorityLabels) (*models.PriorityLabels, error) {
+func (client *PriorityLabelsClient) Create(obj *models.PriorityLabels, options ...session.ApiOptionsParams) (*models.PriorityLabels, error) {
 	var robj *models.PriorityLabels
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing PriorityLabels object
-func (client *PriorityLabelsClient) Update(obj *models.PriorityLabels) (*models.PriorityLabels, error) {
+func (client *PriorityLabelsClient) Update(obj *models.PriorityLabels, options ...session.ApiOptionsParams) (*models.PriorityLabels, error) {
 	var robj *models.PriorityLabels
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *PriorityLabelsClient) Update(obj *models.PriorityLabels) (*models.
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.PriorityLabels
 // or it should be json compatible of form map[string]interface{}
-func (client *PriorityLabelsClient) Patch(uuid string, patch interface{}, patchOp string) (*models.PriorityLabels, error) {
+func (client *PriorityLabelsClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.PriorityLabels, error) {
 	var robj *models.PriorityLabels
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing PriorityLabels object with a given UUID
-func (client *PriorityLabelsClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *PriorityLabelsClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing PriorityLabels object with a given name
-func (client *PriorityLabelsClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *PriorityLabelsClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

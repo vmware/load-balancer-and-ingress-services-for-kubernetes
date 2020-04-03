@@ -199,8 +199,14 @@ type VserverL7MetricsObj struct {
 	// Average SSL Sessions with TLS version 1.2.
 	AvgSslVerTLS12 *float64 `json:"avg_ssl_ver_tls12,omitempty"`
 
+	// Average SSL Sessions with TLS version 1.3. Field introduced in 18.2.6.
+	AvgSslVerTLS13 *float64 `json:"avg_ssl_ver_tls13,omitempty"`
+
 	// Avg number of HTTP requests that completed within tolerated latency.
 	AvgToleratedResponses *float64 `json:"avg_tolerated_responses,omitempty"`
+
+	// Average number of client HTTP2 requests received by the Virtual Service per second. Field introduced in 18.2.5.
+	AvgTotalHttp2Requests *float64 `json:"avg_total_http2_requests,omitempty"`
 
 	// Average rate of client HTTP requests received by the virtual service per second.
 	AvgTotalRequests *float64 `json:"avg_total_requests,omitempty"`

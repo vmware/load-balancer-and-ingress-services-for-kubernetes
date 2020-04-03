@@ -16,6 +16,9 @@ type DNSResponse struct {
 	// Flag to indicate the responding DNS is an authority for the requested FQDN.
 	AuthoritativeAnswer *bool `json:"authoritative_answer,omitempty"`
 
+	// Flag to indicate whether fallback algorithm was used to serve this request. Field introduced in 18.2.3.
+	FallbackAlgorithmUsed *bool `json:"fallback_algorithm_used,omitempty"`
+
 	// Resource records in the response are generated based on wildcard match. Field introduced in 18.2.1.
 	IsWildcard *bool `json:"is_wildcard,omitempty"`
 

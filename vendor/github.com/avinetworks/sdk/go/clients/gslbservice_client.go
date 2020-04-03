@@ -45,23 +45,23 @@ func (client *GslbServiceClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of GslbService objects
-func (client *GslbServiceClient) GetAll() ([]*models.GslbService, error) {
+func (client *GslbServiceClient) GetAll(options ...session.ApiOptionsParams) ([]*models.GslbService, error) {
 	var plist []*models.GslbService
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing GslbService by uuid
-func (client *GslbServiceClient) Get(uuid string) (*models.GslbService, error) {
+func (client *GslbServiceClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.GslbService, error) {
 	var obj *models.GslbService
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing GslbService by name
-func (client *GslbServiceClient) GetByName(name string) (*models.GslbService, error) {
+func (client *GslbServiceClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.GslbService, error) {
 	var obj *models.GslbService
-	err := client.aviSession.GetObjectByName("gslbservice", name, &obj)
+	err := client.aviSession.GetObjectByName("gslbservice", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *GslbServiceClient) GetObject(options ...session.ApiOptionsParams) 
 }
 
 // Create a new GslbService object
-func (client *GslbServiceClient) Create(obj *models.GslbService) (*models.GslbService, error) {
+func (client *GslbServiceClient) Create(obj *models.GslbService, options ...session.ApiOptionsParams) (*models.GslbService, error) {
 	var robj *models.GslbService
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing GslbService object
-func (client *GslbServiceClient) Update(obj *models.GslbService) (*models.GslbService, error) {
+func (client *GslbServiceClient) Update(obj *models.GslbService, options ...session.ApiOptionsParams) (*models.GslbService, error) {
 	var robj *models.GslbService
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *GslbServiceClient) Update(obj *models.GslbService) (*models.GslbSe
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.GslbService
 // or it should be json compatible of form map[string]interface{}
-func (client *GslbServiceClient) Patch(uuid string, patch interface{}, patchOp string) (*models.GslbService, error) {
+func (client *GslbServiceClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.GslbService, error) {
 	var robj *models.GslbService
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing GslbService object with a given UUID
-func (client *GslbServiceClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *GslbServiceClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing GslbService object with a given name
-func (client *GslbServiceClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *GslbServiceClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

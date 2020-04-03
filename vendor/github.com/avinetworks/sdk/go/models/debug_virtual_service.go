@@ -14,6 +14,9 @@ type DebugVirtualService struct {
 	// Placeholder for description of property capture of obj type DebugVirtualService field type str  type boolean
 	Capture *bool `json:"capture,omitempty"`
 
+	// Per packet capture filters for Debug Virtual Service. Applies to both frontend and backend packets. Field introduced in 18.2.7.
+	CaptureFilters *CaptureFilters `json:"capture_filters,omitempty"`
+
 	// Placeholder for description of property capture_params of obj type DebugVirtualService field type str  type object
 	CaptureParams *DebugVirtualServiceCapture `json:"capture_params,omitempty"`
 
@@ -23,7 +26,7 @@ type DebugVirtualService struct {
 	// This option controls the capture of Health Monitor flows. Enum options - DEBUG_VS_HM_NONE, DEBUG_VS_HM_ONLY, DEBUG_VS_HM_INCLUDE.
 	DebugHm *string `json:"debug_hm,omitempty"`
 
-	// Placeholder for description of property debug_ip of obj type DebugVirtualService field type str  type object
+	// Filters all packets of a complete transaction (client and server side), based on client ip.
 	DebugIP *DebugIPAddr `json:"debug_ip,omitempty"`
 
 	// Dns debug options. Field introduced in 18.2.1.

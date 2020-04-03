@@ -22,7 +22,7 @@ type OShiftK8SConfiguration struct {
 	// UUID of the client TLS cert and key instead of service account token. One of client certificate or token is required. It is a reference to an object of type SSLKeyAndCertificate.
 	ClientTLSKeyAndCertificateRef *string `json:"client_tls_key_and_certificate_ref,omitempty"`
 
-	// Openshift/K8S Cluster ID used to uniquely map same named namespaces as tenants in Avi. Warn  All virtual services will be disrupted if this field is modified. Field introduced in 17.2.5.
+	// Openshift/K8S Cluster ID used to uniquely map same named namespaces as tenants in Avi. In order to use more than one OpenShift/K8S cloud on this controller, cluster_tag has to be unique across these clouds. Changing cluster_tag is disruptive as all virtual services in the cloud will be recreated. Field introduced in 17.2.5.
 	ClusterTag *string `json:"cluster_tag,omitempty"`
 
 	// Perform container port matching to create a HTTP Virtualservice instead of a TCP/UDP VirtualService. By default, ports 80, 8080, 443, 8443 are considered HTTP.
@@ -61,6 +61,9 @@ type OShiftK8SConfiguration struct {
 	// Enable Kubernetes event subscription.
 	EnableEventSubscription *bool `json:"enable_event_subscription,omitempty"`
 
+	// Knob to turn on adding of HTTP drop rules for host and path combinations in incoming request header, specified as part of Ingress/Route spec. The default state is to enable this behavior. Note  Toggling this knob only affects any new routes/ingresses, existing routes/ingresses present in Avi will continue to function as-is. Field introduced in 18.2.6.
+	EnableRouteIngressHardening *bool `json:"enable_route_ingress_hardening,omitempty"`
+
 	// Enable proxy ARP from Host interface for Front End  proxies.
 	FeproxyVipsEnableProxyArp *bool `json:"feproxy_vips_enable_proxy_arp,omitempty"`
 
@@ -94,8 +97,17 @@ type OShiftK8SConfiguration struct {
 	// Nuage Overlay SDN Controller information. Field deprecated in 17.2.13,18.1.5,18.2.1.
 	NuageController *NuageSDNController `json:"nuage_controller,omitempty"`
 
+	// Enables sharding of Routes and Ingresses to this number (if non zero) of virtual services in the admin tenant per SEGroup. Sharding is done by hashing on the namespace of the Ingress/Route object. This knob is valid only if shared_virtualservice_namespace flag is set. Field introduced in 18.2.5.
+	NumShards *int32 `json:"num_shards,omitempty"`
+
 	// Override Service Ports with well known ports (80/443) for http/https Route/Ingress VirtualServices. Field introduced in 17.2.12,18.1.3.
 	OverrideServicePorts *bool `json:"override_service_ports,omitempty"`
+
+	// Persistent Volume Claim name to be used for persistent storage for Avi service engines. This could be used in scenarios where host based volumes are ephemeral. Refer https //kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims for more details on the usage of this field. Field introduced in 18.2.6.
+	PersistentVolumeClaim *string `json:"persistent_volume_claim,omitempty"`
+
+	// Routes support adding routes to a particular namespace routing table in Openshift/K8s cluster. Each route is a combination of subnet and nexthop ip address or nexthop interface name, and a enum type is used to distinguish an entry in the host (default behaviour) or in the container/pod or in other namespace. This knob should be enabled in the following cases  1. Forwarding the network packets to the same network interface from where it came from in the OpenShift/K8s node. 2. OpenShift/K8s Node connected to the Internet via multiple network interfaces on different networks/ISPs.3. Handling North-South traffic originating from with in the node when the default gateway for outgoing traffic of vs is configured.4. Handling the container/pod traffic by adding the routes in the container/pod. Field introduced in 18.2.6.
+	Routes []*RouteInfo `json:"routes,omitempty"`
 
 	// Deprecated. Field deprecated in 17.1.9. Field introduced in 17.1.1.
 	RoutesShareVirtualservice *bool `json:"routes_share_virtualservice,omitempty"`
@@ -115,8 +127,14 @@ type OShiftK8SConfiguration struct {
 	// Create SEs just on hosts with include attributes.
 	SeIncludeAttributes []*MesosAttribute `json:"se_include_attributes,omitempty"`
 
+	// Kubernetes namespace to be used for deploying Avi service engines. This namespace is used to create daemonsets, service accounts, etc. for Avi only use. Setting this value is a disruptive operation and assumes the namespace exists in kubernetes. 'default' namespace is picked if this field is unset. Field introduced in 18.2.6.
+	SeNamespace *string `json:"se_namespace,omitempty"`
+
 	// Match SE Pod tolerations against taints of OpenShift/K8S nodes https //kubernetes.io/docs/concepts/configuration/taint-and-toleration/. Field introduced in 17.2.14, 18.1.5, 18.2.1.
 	SePodTolerations []*PodToleration `json:"se_pod_tolerations,omitempty"`
+
+	// Priority class for AVI SEs when running as pods. User is expected to have the priority class (with this name) created in Kubernetes, beforehand. If the priority class doesn't exist while assigning this field, the SE pods may not start. If empty no priority class will be used for deploying SE pods (default behaviour). Field introduced in 18.2.6.
+	SePriorityClass *string `json:"se_priority_class,omitempty"`
 
 	// Restart ServiceEngines by batch on ServiceEngineGroup updates (cpu, memory..etc). Field introduced in 17.2.15, 18.1.5, 18.2.1.
 	SeRestartBatchSize *int32 `json:"se_restart_batch_size,omitempty"`
@@ -139,6 +157,9 @@ type OShiftK8SConfiguration struct {
 	// Perform service port matching to create a HTTP Virtualservice instead of a TCP/UDP VirtualService. Field deprecated in 17.2.11,18.1.2.
 	ServicePortMatchHTTPService *bool `json:"service_port_match_http_service,omitempty"`
 
+	// Prefix to be used for Shard VS name when num_shards knob is non zero. Format for Shard VS name will be <shard_prefix>-<idx>-CloudName-SEGroupName. Field introduced in 18.2.5.
+	ShardPrefix *string `json:"shard_prefix,omitempty"`
+
 	// Projects/Namespaces use a shared virtualservice for http/https Routes and Ingress objects unless overriden by the avi_virtualservice  dedicated|shared annotation. Field introduced in 17.1.9,17.2.3.
 	SharedVirtualserviceNamespace *bool `json:"shared_virtualservice_namespace,omitempty"`
 
@@ -147,6 +168,9 @@ type OShiftK8SConfiguration struct {
 
 	// Cloud connector user uuid for SSH to hosts. It is a reference to an object of type CloudConnectorUser. Field introduced in 17.1.1.
 	SSHUserRef *string `json:"ssh_user_ref,omitempty"`
+
+	// Allow the not_ready_addresses in the kubernetes endpoint object to be added as servers in the AVI pool object. Field introduced in 18.2.5.
+	SyncNotReadyAddresses *bool `json:"sync_not_ready_addresses,omitempty"`
 
 	// If true, use controller generated SE docker image via fileservice, else use docker repository image as defined by docker_registry_se.
 	UseControllerImage *bool `json:"use_controller_image,omitempty"`
@@ -159,4 +183,7 @@ type OShiftK8SConfiguration struct {
 
 	// Use Cluster IP of service as VIP for East-West services; This option requires that kube proxy is disabled on all nodes.
 	UseServiceClusterIPAsEwVip *bool `json:"use_service_cluster_ip_as_ew_vip,omitempty"`
+
+	// VirtualService default gateway if multiple nics are present in the host. Field introduced in 18.2.2.
+	VipDefaultGateway *IPAddr `json:"vip_default_gateway,omitempty"`
 }

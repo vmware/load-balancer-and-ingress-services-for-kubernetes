@@ -32,6 +32,9 @@ type VIMgrSEVMRuntime struct {
 	// controller_ip_addr of VIMgrSEVMRuntime.
 	ControllerIPAddr *string `json:"controller_ip_addr,omitempty"`
 
+	// Service Engine Cookie set by the resource manager. Field introduced in 18.2.2.
+	Cookie *string `json:"cookie,omitempty"`
+
 	// Placeholder for description of property creation_in_progress of obj type VIMgrSEVMRuntime field type str  type boolean
 	CreationInProgress *bool `json:"creation_in_progress,omitempty"`
 
@@ -43,6 +46,9 @@ type VIMgrSEVMRuntime struct {
 
 	// Number of discovery_status.
 	DiscoveryStatus *int32 `json:"discovery_status,omitempty"`
+
+	// Disk space in GB for each service engine VM. Field introduced in 18.2.2.
+	DiskGb *int32 `json:"disk_gb,omitempty"`
 
 	// flavor of VIMgrSEVMRuntime.
 	Flavor *string `json:"flavor,omitempty"`
@@ -71,6 +77,9 @@ type VIMgrSEVMRuntime struct {
 	// managed_object_id of VIMgrSEVMRuntime.
 	// Required: true
 	ManagedObjectID *string `json:"managed_object_id"`
+
+	// Memory in MB for each service engine VM. Field introduced in 18.2.2.
+	MemoryMb *int32 `json:"memory_mb,omitempty"`
 
 	// Name of the object.
 	// Required: true
@@ -122,4 +131,7 @@ type VIMgrSEVMRuntime struct {
 
 	//  Enum options - VMTYPE_SE_VM, VMTYPE_POOL_SRVR.
 	VcenterVMType *string `json:"vcenter_vm_type,omitempty"`
+
+	// Count of vcpus for each service engine VM. Field introduced in 18.2.2.
+	Vcpus *int32 `json:"vcpus,omitempty"`
 }

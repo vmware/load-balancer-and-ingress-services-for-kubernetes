@@ -45,23 +45,23 @@ func (client *PoolClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of Pool objects
-func (client *PoolClient) GetAll() ([]*models.Pool, error) {
+func (client *PoolClient) GetAll(options ...session.ApiOptionsParams) ([]*models.Pool, error) {
 	var plist []*models.Pool
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing Pool by uuid
-func (client *PoolClient) Get(uuid string) (*models.Pool, error) {
+func (client *PoolClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.Pool, error) {
 	var obj *models.Pool
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing Pool by name
-func (client *PoolClient) GetByName(name string) (*models.Pool, error) {
+func (client *PoolClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.Pool, error) {
 	var obj *models.Pool
-	err := client.aviSession.GetObjectByName("pool", name, &obj)
+	err := client.aviSession.GetObjectByName("pool", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *PoolClient) GetObject(options ...session.ApiOptionsParams) (*model
 }
 
 // Create a new Pool object
-func (client *PoolClient) Create(obj *models.Pool) (*models.Pool, error) {
+func (client *PoolClient) Create(obj *models.Pool, options ...session.ApiOptionsParams) (*models.Pool, error) {
 	var robj *models.Pool
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing Pool object
-func (client *PoolClient) Update(obj *models.Pool) (*models.Pool, error) {
+func (client *PoolClient) Update(obj *models.Pool, options ...session.ApiOptionsParams) (*models.Pool, error) {
 	var robj *models.Pool
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *PoolClient) Update(obj *models.Pool) (*models.Pool, error) {
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.Pool
 // or it should be json compatible of form map[string]interface{}
-func (client *PoolClient) Patch(uuid string, patch interface{}, patchOp string) (*models.Pool, error) {
+func (client *PoolClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.Pool, error) {
 	var robj *models.Pool
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing Pool object with a given UUID
-func (client *PoolClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *PoolClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing Pool object with a given name
-func (client *PoolClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *PoolClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -45,23 +45,23 @@ func (client *PoolGroupDeploymentPolicyClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of PoolGroupDeploymentPolicy objects
-func (client *PoolGroupDeploymentPolicyClient) GetAll() ([]*models.PoolGroupDeploymentPolicy, error) {
+func (client *PoolGroupDeploymentPolicyClient) GetAll(options ...session.ApiOptionsParams) ([]*models.PoolGroupDeploymentPolicy, error) {
 	var plist []*models.PoolGroupDeploymentPolicy
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing PoolGroupDeploymentPolicy by uuid
-func (client *PoolGroupDeploymentPolicyClient) Get(uuid string) (*models.PoolGroupDeploymentPolicy, error) {
+func (client *PoolGroupDeploymentPolicyClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.PoolGroupDeploymentPolicy, error) {
 	var obj *models.PoolGroupDeploymentPolicy
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing PoolGroupDeploymentPolicy by name
-func (client *PoolGroupDeploymentPolicyClient) GetByName(name string) (*models.PoolGroupDeploymentPolicy, error) {
+func (client *PoolGroupDeploymentPolicyClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.PoolGroupDeploymentPolicy, error) {
 	var obj *models.PoolGroupDeploymentPolicy
-	err := client.aviSession.GetObjectByName("poolgroupdeploymentpolicy", name, &obj)
+	err := client.aviSession.GetObjectByName("poolgroupdeploymentpolicy", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *PoolGroupDeploymentPolicyClient) GetObject(options ...session.ApiO
 }
 
 // Create a new PoolGroupDeploymentPolicy object
-func (client *PoolGroupDeploymentPolicyClient) Create(obj *models.PoolGroupDeploymentPolicy) (*models.PoolGroupDeploymentPolicy, error) {
+func (client *PoolGroupDeploymentPolicyClient) Create(obj *models.PoolGroupDeploymentPolicy, options ...session.ApiOptionsParams) (*models.PoolGroupDeploymentPolicy, error) {
 	var robj *models.PoolGroupDeploymentPolicy
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing PoolGroupDeploymentPolicy object
-func (client *PoolGroupDeploymentPolicyClient) Update(obj *models.PoolGroupDeploymentPolicy) (*models.PoolGroupDeploymentPolicy, error) {
+func (client *PoolGroupDeploymentPolicyClient) Update(obj *models.PoolGroupDeploymentPolicy, options ...session.ApiOptionsParams) (*models.PoolGroupDeploymentPolicy, error) {
 	var robj *models.PoolGroupDeploymentPolicy
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *PoolGroupDeploymentPolicyClient) Update(obj *models.PoolGroupDeplo
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.PoolGroupDeploymentPolicy
 // or it should be json compatible of form map[string]interface{}
-func (client *PoolGroupDeploymentPolicyClient) Patch(uuid string, patch interface{}, patchOp string) (*models.PoolGroupDeploymentPolicy, error) {
+func (client *PoolGroupDeploymentPolicyClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.PoolGroupDeploymentPolicy, error) {
 	var robj *models.PoolGroupDeploymentPolicy
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing PoolGroupDeploymentPolicy object with a given UUID
-func (client *PoolGroupDeploymentPolicyClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *PoolGroupDeploymentPolicyClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing PoolGroupDeploymentPolicy object with a given name
-func (client *PoolGroupDeploymentPolicyClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *PoolGroupDeploymentPolicyClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

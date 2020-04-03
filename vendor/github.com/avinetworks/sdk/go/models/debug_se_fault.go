@@ -7,6 +7,9 @@ package models
 // swagger:model DebugSeFault
 type DebugSeFault struct {
 
+	// Set of faults to enable/disable. Field introduced in 18.2.7.
+	Faults []*SeFault `json:"faults,omitempty"`
+
 	// Fail SE malloc type at this frequency. Field introduced in 18.1.2.
 	SeMallocFailFrequency *int32 `json:"se_malloc_fail_frequency,omitempty"`
 

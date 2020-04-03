@@ -60,6 +60,9 @@ type GslbService struct {
 	// The load balancing algorithm will pick a GSLB pool within the GSLB service list of available pools. Enum options - GSLB_SERVICE_ALGORITHM_PRIORITY, GSLB_SERVICE_ALGORITHM_GEO. Field introduced in 17.2.3.
 	PoolAlgorithm *string `json:"pool_algorithm,omitempty"`
 
+	// This field indicates that for a CNAME query, respond with resolved CNAMEs in the additional section with A records. Field introduced in 18.2.5.
+	ResolveCname *bool `json:"resolve_cname,omitempty"`
+
 	// Enable site-persistence for the GslbService. . Field introduced in 17.2.1.
 	SitePersistenceEnabled *bool `json:"site_persistence_enabled,omitempty"`
 

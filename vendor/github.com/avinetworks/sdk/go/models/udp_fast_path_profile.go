@@ -7,6 +7,9 @@ package models
 // swagger:model UDPFastPathProfile
 type UDPFastPathProfile struct {
 
+	// DSR profile information. Field introduced in 18.2.3.
+	DsrProfile *DsrProfile `json:"dsr_profile,omitempty"`
+
 	// When enabled, every UDP packet is considered a new transaction and may be load balanced to a different server.  When disabled, packets from the same client source IP and port are sent to the same server.
 	PerPktLoadbalance *bool `json:"per_pkt_loadbalance,omitempty"`
 

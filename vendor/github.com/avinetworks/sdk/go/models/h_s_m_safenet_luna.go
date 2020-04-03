@@ -8,7 +8,7 @@ package models
 type HSMSafenetLuna struct {
 
 	// Group Number of generated HA Group.
-	HaGroupNum *int32 `json:"ha_group_num,omitempty"`
+	HaGroupNum *int64 `json:"ha_group_num,omitempty"`
 
 	// Set to indicate HA across more than one servers.
 	// Required: true

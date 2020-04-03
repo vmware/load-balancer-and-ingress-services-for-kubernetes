@@ -34,6 +34,9 @@ type ServerConfig struct {
 	// Required: true
 	Port *int32 `json:"port"`
 
+	// If this is set, propogate this server state to other SEs for this VS. Applicable to EastWest VS and GS HM-sharding.
+	PropogateState *bool `json:"propogate_state,omitempty"`
+
 	// Placeholder for description of property timer_exists of obj type ServerConfig field type str  type boolean
 	TimerExists *bool `json:"timer_exists,omitempty"`
 }

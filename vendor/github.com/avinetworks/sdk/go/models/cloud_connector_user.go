@@ -39,6 +39,9 @@ type CloudConnectorUser struct {
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
+	// Credentials for Tencent Cloud. Field introduced in 18.2.3.
+	TencentCredentials *TencentCredentials `json:"tencent_credentials,omitempty"`
+
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`

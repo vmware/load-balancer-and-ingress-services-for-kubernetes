@@ -45,23 +45,23 @@ func (client *TrafficCloneProfileClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of TrafficCloneProfile objects
-func (client *TrafficCloneProfileClient) GetAll() ([]*models.TrafficCloneProfile, error) {
+func (client *TrafficCloneProfileClient) GetAll(options ...session.ApiOptionsParams) ([]*models.TrafficCloneProfile, error) {
 	var plist []*models.TrafficCloneProfile
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing TrafficCloneProfile by uuid
-func (client *TrafficCloneProfileClient) Get(uuid string) (*models.TrafficCloneProfile, error) {
+func (client *TrafficCloneProfileClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.TrafficCloneProfile, error) {
 	var obj *models.TrafficCloneProfile
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing TrafficCloneProfile by name
-func (client *TrafficCloneProfileClient) GetByName(name string) (*models.TrafficCloneProfile, error) {
+func (client *TrafficCloneProfileClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.TrafficCloneProfile, error) {
 	var obj *models.TrafficCloneProfile
-	err := client.aviSession.GetObjectByName("trafficcloneprofile", name, &obj)
+	err := client.aviSession.GetObjectByName("trafficcloneprofile", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *TrafficCloneProfileClient) GetObject(options ...session.ApiOptions
 }
 
 // Create a new TrafficCloneProfile object
-func (client *TrafficCloneProfileClient) Create(obj *models.TrafficCloneProfile) (*models.TrafficCloneProfile, error) {
+func (client *TrafficCloneProfileClient) Create(obj *models.TrafficCloneProfile, options ...session.ApiOptionsParams) (*models.TrafficCloneProfile, error) {
 	var robj *models.TrafficCloneProfile
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing TrafficCloneProfile object
-func (client *TrafficCloneProfileClient) Update(obj *models.TrafficCloneProfile) (*models.TrafficCloneProfile, error) {
+func (client *TrafficCloneProfileClient) Update(obj *models.TrafficCloneProfile, options ...session.ApiOptionsParams) (*models.TrafficCloneProfile, error) {
 	var robj *models.TrafficCloneProfile
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *TrafficCloneProfileClient) Update(obj *models.TrafficCloneProfile)
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.TrafficCloneProfile
 // or it should be json compatible of form map[string]interface{}
-func (client *TrafficCloneProfileClient) Patch(uuid string, patch interface{}, patchOp string) (*models.TrafficCloneProfile, error) {
+func (client *TrafficCloneProfileClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.TrafficCloneProfile, error) {
 	var robj *models.TrafficCloneProfile
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing TrafficCloneProfile object with a given UUID
-func (client *TrafficCloneProfileClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *TrafficCloneProfileClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing TrafficCloneProfile object with a given name
-func (client *TrafficCloneProfileClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *TrafficCloneProfileClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

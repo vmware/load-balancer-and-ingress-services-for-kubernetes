@@ -20,7 +20,7 @@ type ControllerUpgradeState struct {
 	// Placeholder for description of property rollback of obj type ControllerUpgradeState field type str  type boolean
 	Rollback *bool `json:"rollback,omitempty"`
 
-	//  Enum options - UPGRADE_STARTED, UPGRADE_WAITING, UPGRADE_IN_PROGRESS, UPGRADE_CONTROLLER_COMPLETED, UPGRADE_COMPLETED, UPGRADE_ABORT_IN_PROGRESS, UPGRADE_ABORTED.
+	//  Enum options - UPGRADE_STARTED, UPGRADE_WAITING, UPGRADE_IN_PROGRESS, UPGRADE_CONTROLLER_COMPLETED, UPGRADE_COMPLETED, UPGRADE_ABORT_IN_PROGRESS, UPGRADE_ABORTED, UPGRADE_DUMMY_1, UPGRADE_DUMMY_2, UPGRADE_DUMMY_3, UPGRADE_DUMMY_4, UPGRADE_DUMMY_5.
 	// Required: true
 	State *string `json:"state"`
 

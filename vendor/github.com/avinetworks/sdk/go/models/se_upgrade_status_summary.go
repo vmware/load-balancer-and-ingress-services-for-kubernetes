@@ -41,7 +41,7 @@ type SeUpgradeStatusSummary struct {
 	SeUpgradeCompleted []string `json:"se_upgrade_completed,omitempty"`
 
 	// Placeholder for description of property se_upgrade_errors of obj type SeUpgradeStatusSummary field type str  type object
-	SeUpgradeErrors []*SeUpgradeErrors `json:"se_upgrade_errors,omitempty"`
+	SeUpgradeErrors []*SeUpgradeEvents `json:"se_upgrade_errors,omitempty"`
 
 	//  It is a reference to an object of type ServiceEngine.
 	SeUpgradeFailed []string `json:"se_upgrade_failed,omitempty"`
@@ -61,7 +61,7 @@ type SeUpgradeStatusSummary struct {
 	//  It is a reference to an object of type ServiceEngine.
 	SeUpgradeRetryInProgress []string `json:"se_upgrade_retry_in_progress,omitempty"`
 
-	// Service Engines that were in suspended state and were skipped upon Service Engine Group ugprade resumption. It is a reference to an object of type ServiceEngine.
+	// Service Engines that were in suspended state and were skipped upon Service Engine Group upgrade resumption. It is a reference to an object of type ServiceEngine.
 	SeUpgradeSkipSuspended []string `json:"se_upgrade_skip_suspended,omitempty"`
 
 	// Service Engines which triggered Service Engine Group to be in suspended state. It is a reference to an object of type ServiceEngine.
@@ -70,7 +70,7 @@ type SeUpgradeStatusSummary struct {
 	// start_time of SeUpgradeStatusSummary.
 	StartTime *string `json:"start_time,omitempty"`
 
-	//  Enum options - SE_UPGRADE_PREVIEW, SE_UPGRADE_IN_PROGRESS, SE_UPGRADE_COMPLETE, SE_UPGRADE_ERROR, SE_IMAGE_INSTALL, SE_UPGRADE_IMAGE_NOT_FOUND, SE_ALREADY_UPGRADED, SE_REBOOT, SE_CONNECT_AFTER_REBOOT, SEGROUP_UPGRADE_NOT_STARTED, SEGROUP_UPGRADE_ENQUEUED, SEGROUP_UPGRADE_ENQUEUE_FAILED, SEGROUP_UPGRADE_IN_PROGRESS, SEGROUP_UPGRADE_COMPLETE, SEGROUP_UPGRADE_ERROR, SEGROUP_UPGRADE_SUSPENDED, VS_DISRUPTED, VS_SCALEIN, VS_SCALEIN_ERROR, VS_SCALEIN_ERROR_RPC_FAILED, VS_SCALEOUT, VS_SCALEOUT_ERROR, VS_SCALEOUT_ERROR_RPC_FAILED, VS_SCALEOUT_ERROR_SE_NOT_READY, VS_MIGRATE, VS_MIGRATE_ERROR, VS_MIGRATE_BACK, VS_MIGRATE_BACK_ERROR, VS_MIGRATE_BACK_NOT_NEEDED, VS_MIGRATE_ERROR_NO_CANDIDATE_SE, VS_MIGRATE_ERROR_RPC_FAILED, VS_MIGRATE_BACK_ERROR_SE_NOT_READY, VS_MIGRATE_BACK_ERROR_RPC_FAILED.
+	//  Enum options - SE_UPGRADE_PREVIEW. SE_UPGRADE_IN_PROGRESS. SE_UPGRADE_COMPLETE. SE_UPGRADE_ERROR. SE_UPGRADE_PRE_CHECKS. SE_IMAGE_INSTALL. SE_UPGRADE_IMAGE_NOT_FOUND. SE_ALREADY_UPGRADED. SE_REBOOT. SE_CONNECT_AFTER_REBOOT. SE_PRE_UPGRADE_TASKS. SE_POST_UPGRADE_TASKS. SE_WAIT_FOR_SWITCHOVER. SE_CHECK_SCALEDOUT_VS_EXISTS. SE_UPGRADE_SEMGR_REQUEST. SE_UPGRADE_SEMGR_SE_UNREACHABLE. SE_PRE_UPGRADE_SCALE_IN_OPS. SE_POST_UPGRADE_SCALE_OUT_OPS. SE_UPGRADE_SUSPENDED. SE_UPGRADE_START...
 	State *string `json:"state,omitempty"`
 
 	// Placeholder for description of property vs_errors of obj type SeUpgradeStatusSummary field type str  type object

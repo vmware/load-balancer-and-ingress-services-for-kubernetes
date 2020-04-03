@@ -45,23 +45,23 @@ func (client *WafPolicyClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of WafPolicy objects
-func (client *WafPolicyClient) GetAll() ([]*models.WafPolicy, error) {
+func (client *WafPolicyClient) GetAll(options ...session.ApiOptionsParams) ([]*models.WafPolicy, error) {
 	var plist []*models.WafPolicy
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing WafPolicy by uuid
-func (client *WafPolicyClient) Get(uuid string) (*models.WafPolicy, error) {
+func (client *WafPolicyClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.WafPolicy, error) {
 	var obj *models.WafPolicy
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing WafPolicy by name
-func (client *WafPolicyClient) GetByName(name string) (*models.WafPolicy, error) {
+func (client *WafPolicyClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.WafPolicy, error) {
 	var obj *models.WafPolicy
-	err := client.aviSession.GetObjectByName("wafpolicy", name, &obj)
+	err := client.aviSession.GetObjectByName("wafpolicy", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *WafPolicyClient) GetObject(options ...session.ApiOptionsParams) (*
 }
 
 // Create a new WafPolicy object
-func (client *WafPolicyClient) Create(obj *models.WafPolicy) (*models.WafPolicy, error) {
+func (client *WafPolicyClient) Create(obj *models.WafPolicy, options ...session.ApiOptionsParams) (*models.WafPolicy, error) {
 	var robj *models.WafPolicy
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing WafPolicy object
-func (client *WafPolicyClient) Update(obj *models.WafPolicy) (*models.WafPolicy, error) {
+func (client *WafPolicyClient) Update(obj *models.WafPolicy, options ...session.ApiOptionsParams) (*models.WafPolicy, error) {
 	var robj *models.WafPolicy
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *WafPolicyClient) Update(obj *models.WafPolicy) (*models.WafPolicy,
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.WafPolicy
 // or it should be json compatible of form map[string]interface{}
-func (client *WafPolicyClient) Patch(uuid string, patch interface{}, patchOp string) (*models.WafPolicy, error) {
+func (client *WafPolicyClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.WafPolicy, error) {
 	var robj *models.WafPolicy
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing WafPolicy object with a given UUID
-func (client *WafPolicyClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *WafPolicyClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing WafPolicy object with a given name
-func (client *WafPolicyClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *WafPolicyClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

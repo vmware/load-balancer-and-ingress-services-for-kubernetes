@@ -45,23 +45,23 @@ func (client *TenantClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of Tenant objects
-func (client *TenantClient) GetAll() ([]*models.Tenant, error) {
+func (client *TenantClient) GetAll(options ...session.ApiOptionsParams) ([]*models.Tenant, error) {
 	var plist []*models.Tenant
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing Tenant by uuid
-func (client *TenantClient) Get(uuid string) (*models.Tenant, error) {
+func (client *TenantClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.Tenant, error) {
 	var obj *models.Tenant
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing Tenant by name
-func (client *TenantClient) GetByName(name string) (*models.Tenant, error) {
+func (client *TenantClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.Tenant, error) {
 	var obj *models.Tenant
-	err := client.aviSession.GetObjectByName("tenant", name, &obj)
+	err := client.aviSession.GetObjectByName("tenant", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *TenantClient) GetObject(options ...session.ApiOptionsParams) (*mod
 }
 
 // Create a new Tenant object
-func (client *TenantClient) Create(obj *models.Tenant) (*models.Tenant, error) {
+func (client *TenantClient) Create(obj *models.Tenant, options ...session.ApiOptionsParams) (*models.Tenant, error) {
 	var robj *models.Tenant
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing Tenant object
-func (client *TenantClient) Update(obj *models.Tenant) (*models.Tenant, error) {
+func (client *TenantClient) Update(obj *models.Tenant, options ...session.ApiOptionsParams) (*models.Tenant, error) {
 	var robj *models.Tenant
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *TenantClient) Update(obj *models.Tenant) (*models.Tenant, error) {
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.Tenant
 // or it should be json compatible of form map[string]interface{}
-func (client *TenantClient) Patch(uuid string, patch interface{}, patchOp string) (*models.Tenant, error) {
+func (client *TenantClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.Tenant, error) {
 	var robj *models.Tenant
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing Tenant object with a given UUID
-func (client *TenantClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *TenantClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing Tenant object with a given name
-func (client *TenantClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *TenantClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -31,8 +31,14 @@ type VirtualServiceRuntime struct {
 	// Placeholder for description of property is_dns_vs of obj type VirtualServiceRuntime field type str  type boolean
 	IsDNSVs *bool `json:"is_dns_vs,omitempty"`
 
+	// Number of times keys have been rotated. Field introduced in 18.2.2.
+	KeyRotationCount *int64 `json:"key_rotation_count,omitempty"`
+
 	// Placeholder for description of property last_changed_time of obj type VirtualServiceRuntime field type str  type object
 	LastChangedTime *TimeStamp `json:"last_changed_time,omitempty"`
+
+	// Timestamp of the last key rotation. Field introduced in 18.2.2.
+	LastKeyRotationTime *TimeStamp `json:"last_key_rotation_time,omitempty"`
 
 	// lif of VirtualServiceRuntime.
 	Lif []string `json:"lif,omitempty"`
@@ -67,13 +73,16 @@ type VirtualServiceRuntime struct {
 	// Number of redis_port.
 	RedisPort *int32 `json:"redis_port,omitempty"`
 
-	// Placeholder for description of property rules_configured of obj type VirtualServiceRuntime field type str  type boolean
+	//  Field deprecated in 18.2.5.
 	RulesConfigured *bool `json:"rules_configured,omitempty"`
+
+	// Runtime info from security_manager. Field introduced in 18.2.5.
+	SecMgrInfo *SecurityMgrRuntime `json:"sec_mgr_info,omitempty"`
 
 	// Enable Service Engines to elect a primary amongst themselves in the absence of connectivity to controller. Field introduced in 18.1.2.
 	SelfSeElection *bool `json:"self_se_election,omitempty"`
 
-	// Placeholder for description of property servers_configured of obj type VirtualServiceRuntime field type str  type boolean
+	//  Field deprecated in 18.2.5.
 	ServersConfigured *bool `json:"servers_configured,omitempty"`
 
 	// Placeholder for description of property tls_ticket_key of obj type VirtualServiceRuntime field type str  type object

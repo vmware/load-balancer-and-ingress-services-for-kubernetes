@@ -20,7 +20,7 @@ type WafRuleLog struct {
 	RuleGroup *string `json:"rule_group,omitempty"`
 
 	// ID of the matching rule per ModSec language. Field introduced in 17.2.1.
-	RuleID *int32 `json:"rule_id,omitempty"`
+	RuleID *int64 `json:"rule_id,omitempty"`
 
 	// Name of the rule. Field introduced in 17.2.3.
 	RuleName *string `json:"rule_name,omitempty"`

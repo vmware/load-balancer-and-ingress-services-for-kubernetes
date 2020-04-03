@@ -45,23 +45,23 @@ func (client *ClusterClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of Cluster objects
-func (client *ClusterClient) GetAll() ([]*models.Cluster, error) {
+func (client *ClusterClient) GetAll(options ...session.ApiOptionsParams) ([]*models.Cluster, error) {
 	var plist []*models.Cluster
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing Cluster by uuid
-func (client *ClusterClient) Get(uuid string) (*models.Cluster, error) {
+func (client *ClusterClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.Cluster, error) {
 	var obj *models.Cluster
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing Cluster by name
-func (client *ClusterClient) GetByName(name string) (*models.Cluster, error) {
+func (client *ClusterClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.Cluster, error) {
 	var obj *models.Cluster
-	err := client.aviSession.GetObjectByName("cluster", name, &obj)
+	err := client.aviSession.GetObjectByName("cluster", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *ClusterClient) GetObject(options ...session.ApiOptionsParams) (*mo
 }
 
 // Create a new Cluster object
-func (client *ClusterClient) Create(obj *models.Cluster) (*models.Cluster, error) {
+func (client *ClusterClient) Create(obj *models.Cluster, options ...session.ApiOptionsParams) (*models.Cluster, error) {
 	var robj *models.Cluster
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing Cluster object
-func (client *ClusterClient) Update(obj *models.Cluster) (*models.Cluster, error) {
+func (client *ClusterClient) Update(obj *models.Cluster, options ...session.ApiOptionsParams) (*models.Cluster, error) {
 	var robj *models.Cluster
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *ClusterClient) Update(obj *models.Cluster) (*models.Cluster, error
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.Cluster
 // or it should be json compatible of form map[string]interface{}
-func (client *ClusterClient) Patch(uuid string, patch interface{}, patchOp string) (*models.Cluster, error) {
+func (client *ClusterClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.Cluster, error) {
 	var robj *models.Cluster
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing Cluster object with a given UUID
-func (client *ClusterClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *ClusterClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing Cluster object with a given name
-func (client *ClusterClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *ClusterClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

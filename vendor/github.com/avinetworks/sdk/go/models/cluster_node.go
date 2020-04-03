@@ -17,6 +17,9 @@ type ClusterNode struct {
 	// Name of the object.
 	Name *string `json:"name,omitempty"`
 
+	// The password we will use when authenticating with this node (Not persisted). Field introduced in 18.2.3.
+	Password *string `json:"password,omitempty"`
+
 	// Public IP address or hostname of the controller VM. Field introduced in 17.2.3.
 	PublicIPOrName *IPAddr `json:"public_ip_or_name,omitempty"`
 

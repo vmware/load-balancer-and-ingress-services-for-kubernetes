@@ -45,23 +45,23 @@ func (client *HardwareSecurityModuleGroupClient) getAPIPath(uuid string) string 
 }
 
 // GetAll is a collection API to get a list of HardwareSecurityModuleGroup objects
-func (client *HardwareSecurityModuleGroupClient) GetAll() ([]*models.HardwareSecurityModuleGroup, error) {
+func (client *HardwareSecurityModuleGroupClient) GetAll(options ...session.ApiOptionsParams) ([]*models.HardwareSecurityModuleGroup, error) {
 	var plist []*models.HardwareSecurityModuleGroup
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing HardwareSecurityModuleGroup by uuid
-func (client *HardwareSecurityModuleGroupClient) Get(uuid string) (*models.HardwareSecurityModuleGroup, error) {
+func (client *HardwareSecurityModuleGroupClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.HardwareSecurityModuleGroup, error) {
 	var obj *models.HardwareSecurityModuleGroup
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing HardwareSecurityModuleGroup by name
-func (client *HardwareSecurityModuleGroupClient) GetByName(name string) (*models.HardwareSecurityModuleGroup, error) {
+func (client *HardwareSecurityModuleGroupClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.HardwareSecurityModuleGroup, error) {
 	var obj *models.HardwareSecurityModuleGroup
-	err := client.aviSession.GetObjectByName("hardwaresecuritymodulegroup", name, &obj)
+	err := client.aviSession.GetObjectByName("hardwaresecuritymodulegroup", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *HardwareSecurityModuleGroupClient) GetObject(options ...session.Ap
 }
 
 // Create a new HardwareSecurityModuleGroup object
-func (client *HardwareSecurityModuleGroupClient) Create(obj *models.HardwareSecurityModuleGroup) (*models.HardwareSecurityModuleGroup, error) {
+func (client *HardwareSecurityModuleGroupClient) Create(obj *models.HardwareSecurityModuleGroup, options ...session.ApiOptionsParams) (*models.HardwareSecurityModuleGroup, error) {
 	var robj *models.HardwareSecurityModuleGroup
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing HardwareSecurityModuleGroup object
-func (client *HardwareSecurityModuleGroupClient) Update(obj *models.HardwareSecurityModuleGroup) (*models.HardwareSecurityModuleGroup, error) {
+func (client *HardwareSecurityModuleGroupClient) Update(obj *models.HardwareSecurityModuleGroup, options ...session.ApiOptionsParams) (*models.HardwareSecurityModuleGroup, error) {
 	var robj *models.HardwareSecurityModuleGroup
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *HardwareSecurityModuleGroupClient) Update(obj *models.HardwareSecu
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.HardwareSecurityModuleGroup
 // or it should be json compatible of form map[string]interface{}
-func (client *HardwareSecurityModuleGroupClient) Patch(uuid string, patch interface{}, patchOp string) (*models.HardwareSecurityModuleGroup, error) {
+func (client *HardwareSecurityModuleGroupClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.HardwareSecurityModuleGroup, error) {
 	var robj *models.HardwareSecurityModuleGroup
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing HardwareSecurityModuleGroup object with a given UUID
-func (client *HardwareSecurityModuleGroupClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *HardwareSecurityModuleGroupClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing HardwareSecurityModuleGroup object with a given name
-func (client *HardwareSecurityModuleGroupClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *HardwareSecurityModuleGroupClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

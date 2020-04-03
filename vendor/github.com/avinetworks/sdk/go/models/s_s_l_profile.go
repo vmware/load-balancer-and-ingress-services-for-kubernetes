@@ -17,14 +17,20 @@ type SSLProfile struct {
 	// Set of versions accepted by the server.
 	AcceptedVersions []*SSLVersion `json:"accepted_versions,omitempty"`
 
-	//  Enum options - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_GCM_SHA384, TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_RSA_WITH_AES_256_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_256_CBC_SHA, TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_RSA_WITH_RC4_128_SHA.
+	//  Enum options - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256. TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384. TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256. TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384. TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256. TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384. TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256. TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384. TLS_RSA_WITH_AES_128_GCM_SHA256. TLS_RSA_WITH_AES_256_GCM_SHA384. TLS_RSA_WITH_AES_128_CBC_SHA256. TLS_RSA_WITH_AES_256_CBC_SHA256. TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA. TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA. TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA. TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA. TLS_RSA_WITH_AES_128_CBC_SHA. TLS_RSA_WITH_AES_256_CBC_SHA. TLS_RSA_WITH_3DES_EDE_CBC_SHA. TLS_RSA_WITH_RC4_128_SHA...
 	CipherEnums []string `json:"cipher_enums,omitempty"`
+
+	// TLS 1.3 Ciphers suites represented as defined by U(https //www.openssl.org/docs/manmaster/man1/ciphers.html). Field introduced in 18.2.6.
+	Ciphersuites *string `json:"ciphersuites,omitempty"`
 
 	// User defined description for the object.
 	Description *string `json:"description,omitempty"`
 
 	// DH Parameters used in SSL. At this time, it is not configurable and is set to 2048 bits.
 	Dhparam *string `json:"dhparam,omitempty"`
+
+	// Enable early data processing for TLS1.3 connections. Field introduced in 18.2.6.
+	EnableEarlyData *bool `json:"enable_early_data,omitempty"`
 
 	// Enable SSL session re-use.
 	EnableSslSessionReuse *bool `json:"enable_ssl_session_reuse,omitempty"`

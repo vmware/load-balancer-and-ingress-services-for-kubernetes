@@ -45,23 +45,23 @@ func (client *SecureChannelAvailableLocalIpsClient) getAPIPath(uuid string) stri
 }
 
 // GetAll is a collection API to get a list of SecureChannelAvailableLocalIps objects
-func (client *SecureChannelAvailableLocalIpsClient) GetAll() ([]*models.SecureChannelAvailableLocalIps, error) {
+func (client *SecureChannelAvailableLocalIpsClient) GetAll(options ...session.ApiOptionsParams) ([]*models.SecureChannelAvailableLocalIps, error) {
 	var plist []*models.SecureChannelAvailableLocalIps
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing SecureChannelAvailableLocalIps by uuid
-func (client *SecureChannelAvailableLocalIpsClient) Get(uuid string) (*models.SecureChannelAvailableLocalIps, error) {
+func (client *SecureChannelAvailableLocalIpsClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.SecureChannelAvailableLocalIps, error) {
 	var obj *models.SecureChannelAvailableLocalIps
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing SecureChannelAvailableLocalIps by name
-func (client *SecureChannelAvailableLocalIpsClient) GetByName(name string) (*models.SecureChannelAvailableLocalIps, error) {
+func (client *SecureChannelAvailableLocalIpsClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.SecureChannelAvailableLocalIps, error) {
 	var obj *models.SecureChannelAvailableLocalIps
-	err := client.aviSession.GetObjectByName("securechannelavailablelocalips", name, &obj)
+	err := client.aviSession.GetObjectByName("securechannelavailablelocalips", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *SecureChannelAvailableLocalIpsClient) GetObject(options ...session
 }
 
 // Create a new SecureChannelAvailableLocalIps object
-func (client *SecureChannelAvailableLocalIpsClient) Create(obj *models.SecureChannelAvailableLocalIps) (*models.SecureChannelAvailableLocalIps, error) {
+func (client *SecureChannelAvailableLocalIpsClient) Create(obj *models.SecureChannelAvailableLocalIps, options ...session.ApiOptionsParams) (*models.SecureChannelAvailableLocalIps, error) {
 	var robj *models.SecureChannelAvailableLocalIps
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing SecureChannelAvailableLocalIps object
-func (client *SecureChannelAvailableLocalIpsClient) Update(obj *models.SecureChannelAvailableLocalIps) (*models.SecureChannelAvailableLocalIps, error) {
+func (client *SecureChannelAvailableLocalIpsClient) Update(obj *models.SecureChannelAvailableLocalIps, options ...session.ApiOptionsParams) (*models.SecureChannelAvailableLocalIps, error) {
 	var robj *models.SecureChannelAvailableLocalIps
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *SecureChannelAvailableLocalIpsClient) Update(obj *models.SecureCha
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.SecureChannelAvailableLocalIps
 // or it should be json compatible of form map[string]interface{}
-func (client *SecureChannelAvailableLocalIpsClient) Patch(uuid string, patch interface{}, patchOp string) (*models.SecureChannelAvailableLocalIps, error) {
+func (client *SecureChannelAvailableLocalIpsClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.SecureChannelAvailableLocalIps, error) {
 	var robj *models.SecureChannelAvailableLocalIps
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing SecureChannelAvailableLocalIps object with a given UUID
-func (client *SecureChannelAvailableLocalIpsClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *SecureChannelAvailableLocalIpsClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing SecureChannelAvailableLocalIps object with a given name
-func (client *SecureChannelAvailableLocalIpsClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *SecureChannelAvailableLocalIpsClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

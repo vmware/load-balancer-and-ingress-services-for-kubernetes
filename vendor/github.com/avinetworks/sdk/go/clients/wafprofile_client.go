@@ -45,23 +45,23 @@ func (client *WafProfileClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of WafProfile objects
-func (client *WafProfileClient) GetAll() ([]*models.WafProfile, error) {
+func (client *WafProfileClient) GetAll(options ...session.ApiOptionsParams) ([]*models.WafProfile, error) {
 	var plist []*models.WafProfile
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing WafProfile by uuid
-func (client *WafProfileClient) Get(uuid string) (*models.WafProfile, error) {
+func (client *WafProfileClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.WafProfile, error) {
 	var obj *models.WafProfile
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing WafProfile by name
-func (client *WafProfileClient) GetByName(name string) (*models.WafProfile, error) {
+func (client *WafProfileClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.WafProfile, error) {
 	var obj *models.WafProfile
-	err := client.aviSession.GetObjectByName("wafprofile", name, &obj)
+	err := client.aviSession.GetObjectByName("wafprofile", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *WafProfileClient) GetObject(options ...session.ApiOptionsParams) (
 }
 
 // Create a new WafProfile object
-func (client *WafProfileClient) Create(obj *models.WafProfile) (*models.WafProfile, error) {
+func (client *WafProfileClient) Create(obj *models.WafProfile, options ...session.ApiOptionsParams) (*models.WafProfile, error) {
 	var robj *models.WafProfile
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing WafProfile object
-func (client *WafProfileClient) Update(obj *models.WafProfile) (*models.WafProfile, error) {
+func (client *WafProfileClient) Update(obj *models.WafProfile, options ...session.ApiOptionsParams) (*models.WafProfile, error) {
 	var robj *models.WafProfile
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *WafProfileClient) Update(obj *models.WafProfile) (*models.WafProfi
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.WafProfile
 // or it should be json compatible of form map[string]interface{}
-func (client *WafProfileClient) Patch(uuid string, patch interface{}, patchOp string) (*models.WafProfile, error) {
+func (client *WafProfileClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.WafProfile, error) {
 	var robj *models.WafProfile
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing WafProfile object with a given UUID
-func (client *WafProfileClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *WafProfileClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing WafProfile object with a given name
-func (client *WafProfileClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *WafProfileClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -11,13 +11,19 @@ type DebugServiceEngine struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Enable/disable packet capture. Field introduced in 18.2.2.
+	Capture *bool `json:"capture,omitempty"`
+
+	// Per packet capture filters for Debug Service Engine. Not applicable for DOS pcap capture. . Field introduced in 18.2.5.
+	CaptureFilters *CaptureFilters `json:"capture_filters,omitempty"`
+
 	// Params for SE pcap. Field introduced in 17.2.14,18.1.5,18.2.1.
 	CaptureParams *DebugVirtualServiceCapture `json:"capture_params,omitempty"`
 
 	// Placeholder for description of property cpu_shares of obj type DebugServiceEngine field type str  type object
 	CPUShares []*DebugSeCPUShares `json:"cpu_shares,omitempty"`
 
-	// IP filter for SE pcap. Field introduced in 17.2.14,18.1.5,18.2.1.
+	// Per packet IP filter for Service Engine PCAP. Matches with source and destination address. Field introduced in 17.2.14,18.1.5,18.2.1.
 	DebugIP *DebugIPAddr `json:"debug_ip,omitempty"`
 
 	// Params for SE fault injection. Field introduced in 18.1.2.

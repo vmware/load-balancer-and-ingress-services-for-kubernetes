@@ -45,23 +45,23 @@ func (client *WebhookClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of Webhook objects
-func (client *WebhookClient) GetAll() ([]*models.Webhook, error) {
+func (client *WebhookClient) GetAll(options ...session.ApiOptionsParams) ([]*models.Webhook, error) {
 	var plist []*models.Webhook
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing Webhook by uuid
-func (client *WebhookClient) Get(uuid string) (*models.Webhook, error) {
+func (client *WebhookClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.Webhook, error) {
 	var obj *models.Webhook
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing Webhook by name
-func (client *WebhookClient) GetByName(name string) (*models.Webhook, error) {
+func (client *WebhookClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.Webhook, error) {
 	var obj *models.Webhook
-	err := client.aviSession.GetObjectByName("webhook", name, &obj)
+	err := client.aviSession.GetObjectByName("webhook", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *WebhookClient) GetObject(options ...session.ApiOptionsParams) (*mo
 }
 
 // Create a new Webhook object
-func (client *WebhookClient) Create(obj *models.Webhook) (*models.Webhook, error) {
+func (client *WebhookClient) Create(obj *models.Webhook, options ...session.ApiOptionsParams) (*models.Webhook, error) {
 	var robj *models.Webhook
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing Webhook object
-func (client *WebhookClient) Update(obj *models.Webhook) (*models.Webhook, error) {
+func (client *WebhookClient) Update(obj *models.Webhook, options ...session.ApiOptionsParams) (*models.Webhook, error) {
 	var robj *models.Webhook
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *WebhookClient) Update(obj *models.Webhook) (*models.Webhook, error
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.Webhook
 // or it should be json compatible of form map[string]interface{}
-func (client *WebhookClient) Patch(uuid string, patch interface{}, patchOp string) (*models.Webhook, error) {
+func (client *WebhookClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.Webhook, error) {
 	var robj *models.Webhook
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing Webhook object with a given UUID
-func (client *WebhookClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *WebhookClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing Webhook object with a given name
-func (client *WebhookClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *WebhookClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

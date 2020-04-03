@@ -45,23 +45,23 @@ func (client *NetworkProfileClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of NetworkProfile objects
-func (client *NetworkProfileClient) GetAll() ([]*models.NetworkProfile, error) {
+func (client *NetworkProfileClient) GetAll(options ...session.ApiOptionsParams) ([]*models.NetworkProfile, error) {
 	var plist []*models.NetworkProfile
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing NetworkProfile by uuid
-func (client *NetworkProfileClient) Get(uuid string) (*models.NetworkProfile, error) {
+func (client *NetworkProfileClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.NetworkProfile, error) {
 	var obj *models.NetworkProfile
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing NetworkProfile by name
-func (client *NetworkProfileClient) GetByName(name string) (*models.NetworkProfile, error) {
+func (client *NetworkProfileClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.NetworkProfile, error) {
 	var obj *models.NetworkProfile
-	err := client.aviSession.GetObjectByName("networkprofile", name, &obj)
+	err := client.aviSession.GetObjectByName("networkprofile", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *NetworkProfileClient) GetObject(options ...session.ApiOptionsParam
 }
 
 // Create a new NetworkProfile object
-func (client *NetworkProfileClient) Create(obj *models.NetworkProfile) (*models.NetworkProfile, error) {
+func (client *NetworkProfileClient) Create(obj *models.NetworkProfile, options ...session.ApiOptionsParams) (*models.NetworkProfile, error) {
 	var robj *models.NetworkProfile
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing NetworkProfile object
-func (client *NetworkProfileClient) Update(obj *models.NetworkProfile) (*models.NetworkProfile, error) {
+func (client *NetworkProfileClient) Update(obj *models.NetworkProfile, options ...session.ApiOptionsParams) (*models.NetworkProfile, error) {
 	var robj *models.NetworkProfile
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *NetworkProfileClient) Update(obj *models.NetworkProfile) (*models.
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.NetworkProfile
 // or it should be json compatible of form map[string]interface{}
-func (client *NetworkProfileClient) Patch(uuid string, patch interface{}, patchOp string) (*models.NetworkProfile, error) {
+func (client *NetworkProfileClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.NetworkProfile, error) {
 	var robj *models.NetworkProfile
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing NetworkProfile object with a given UUID
-func (client *NetworkProfileClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *NetworkProfileClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing NetworkProfile object with a given name
-func (client *NetworkProfileClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *NetworkProfileClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -45,23 +45,23 @@ func (client *HealthMonitorClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of HealthMonitor objects
-func (client *HealthMonitorClient) GetAll() ([]*models.HealthMonitor, error) {
+func (client *HealthMonitorClient) GetAll(options ...session.ApiOptionsParams) ([]*models.HealthMonitor, error) {
 	var plist []*models.HealthMonitor
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing HealthMonitor by uuid
-func (client *HealthMonitorClient) Get(uuid string) (*models.HealthMonitor, error) {
+func (client *HealthMonitorClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.HealthMonitor, error) {
 	var obj *models.HealthMonitor
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing HealthMonitor by name
-func (client *HealthMonitorClient) GetByName(name string) (*models.HealthMonitor, error) {
+func (client *HealthMonitorClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.HealthMonitor, error) {
 	var obj *models.HealthMonitor
-	err := client.aviSession.GetObjectByName("healthmonitor", name, &obj)
+	err := client.aviSession.GetObjectByName("healthmonitor", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *HealthMonitorClient) GetObject(options ...session.ApiOptionsParams
 }
 
 // Create a new HealthMonitor object
-func (client *HealthMonitorClient) Create(obj *models.HealthMonitor) (*models.HealthMonitor, error) {
+func (client *HealthMonitorClient) Create(obj *models.HealthMonitor, options ...session.ApiOptionsParams) (*models.HealthMonitor, error) {
 	var robj *models.HealthMonitor
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing HealthMonitor object
-func (client *HealthMonitorClient) Update(obj *models.HealthMonitor) (*models.HealthMonitor, error) {
+func (client *HealthMonitorClient) Update(obj *models.HealthMonitor, options ...session.ApiOptionsParams) (*models.HealthMonitor, error) {
 	var robj *models.HealthMonitor
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *HealthMonitorClient) Update(obj *models.HealthMonitor) (*models.He
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.HealthMonitor
 // or it should be json compatible of form map[string]interface{}
-func (client *HealthMonitorClient) Patch(uuid string, patch interface{}, patchOp string) (*models.HealthMonitor, error) {
+func (client *HealthMonitorClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.HealthMonitor, error) {
 	var robj *models.HealthMonitor
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing HealthMonitor object with a given UUID
-func (client *HealthMonitorClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *HealthMonitorClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing HealthMonitor object with a given name
-func (client *HealthMonitorClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *HealthMonitorClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

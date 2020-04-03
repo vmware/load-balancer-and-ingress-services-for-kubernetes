@@ -7,6 +7,9 @@ package models
 // swagger:model SeRuntimeProperties
 type SeRuntimeProperties struct {
 
+	// Allow admin user ssh access to SE. Field introduced in 18.2.5.
+	AdminSSHEnabled *bool `json:"admin_ssh_enabled,omitempty"`
+
 	// Placeholder for description of property app_headers of obj type SeRuntimeProperties field type str  type object
 	AppHeaders []*AppHdr `json:"app_headers,omitempty"`
 
@@ -31,7 +34,7 @@ type SeRuntimeProperties struct {
 	// Placeholder for description of property dos_profile of obj type SeRuntimeProperties field type str  type object
 	DosProfile *DosThresholdProfile `json:"dos_profile,omitempty"`
 
-	// Number of downstream_send_timeout.
+	// Timeout for downstream to become writable.
 	DownstreamSendTimeout *int32 `json:"downstream_send_timeout,omitempty"`
 
 	// Frequency of SE - SE HB messages when aggressive failure mode detection is enabled.
@@ -154,7 +157,7 @@ type SeRuntimeProperties struct {
 	// enables mcache_fetch.
 	McacheFetchEnabled *bool `json:"mcache_fetch_enabled,omitempty"`
 
-	// max cache size.
+	// Use SE Group's app_cache_percent to set cache memory usage limit on SE. Field deprecated in 18.2.3.
 	McacheMaxCacheSize *int64 `json:"mcache_max_cache_size,omitempty"`
 
 	// enables mcache_store.
@@ -169,7 +172,7 @@ type SeRuntimeProperties struct {
 	// enables mcache_store_out.
 	McacheStoreOutEnabled *bool `json:"mcache_store_out_enabled,omitempty"`
 
-	// Number of mcache_store_se_max_size.
+	// Use SE Group's app_cache_percent to set cache memory usage limit on SE. Field deprecated in 18.2.3.
 	McacheStoreSeMaxSize *int64 `json:"mcache_store_se_max_size,omitempty"`
 
 	// Placeholder for description of property ngx_free_connection_stack of obj type SeRuntimeProperties field type str  type boolean
@@ -220,19 +223,19 @@ type SeRuntimeProperties struct {
 	// Internal buffer full indicator on the Service Engine beyond which the user filtered logs are abandoned.
 	SeDpLogUdfEnqueuePercent *int32 `json:"se_dp_log_udf_enqueue_percent,omitempty"`
 
-	// Time (in seconds) service engine waits for after generating a Vnic transmit queue stall event before resetting theNIC. Field introduced in 17.1.1.
+	// Deprecated. Field deprecated in 18.2.5. Field introduced in 17.1.1.
 	SeDpVnicQueueStallEventSleep *int32 `json:"se_dp_vnic_queue_stall_event_sleep,omitempty"`
 
-	// Number of consecutive transmit failures to look for before generating a Vnic transmit queue stall event. Field introduced in 17.1.1.
+	// Deprecated. Field deprecated in 18.2.5. Field introduced in 17.1.1.
 	SeDpVnicQueueStallThreshold *int32 `json:"se_dp_vnic_queue_stall_threshold,omitempty"`
 
-	// Time (in milliseconds) to wait for network/NIC recovery on detecting a transmit queue stall after which service engine resets the NIC. Field introduced in 17.1.1.
+	// Deprecated. Field deprecated in 18.2.5. Field introduced in 17.1.1.
 	SeDpVnicQueueStallTimeout *int32 `json:"se_dp_vnic_queue_stall_timeout,omitempty"`
 
-	// Number of consecutive transmit queue stall events in se_dp_vnic_stall_se_restart_window to look for before restarting SE. Field introduced in 17.1.14, 17.2.5, 18.1.1.
+	// Deprecated. Field deprecated in 18.2.5. Field introduced in 17.1.14, 17.2.5, 18.1.1.
 	SeDpVnicRestartOnQueueStallCount *int32 `json:"se_dp_vnic_restart_on_queue_stall_count,omitempty"`
 
-	// Window of time (in seconds) during which se_dp_vnic_restart_on_queue_stall_count number of consecutive stalls results in a SE restart. Field introduced in 17.1.14, 17.2.5, 18.1.1.
+	// Deprecated. Field deprecated in 18.2.5. Field introduced in 17.1.14, 17.2.5, 18.1.1.
 	SeDpVnicStallSeRestartWindow *int32 `json:"se_dp_vnic_stall_se_restart_window,omitempty"`
 
 	// Enable core dump on assert. Field introduced in 18.1.3, 18.2.1.
@@ -289,13 +292,13 @@ type SeRuntimeProperties struct {
 	// Default value for max number of retransmissions for a SYN packet.
 	TCPSyncacheMaxRetransmitDefault *int32 `json:"tcp_syncache_max_retransmit_default,omitempty"`
 
-	// Number of upstream_connect_timeout.
+	// Timeout for backend connection.
 	UpstreamConnectTimeout *int32 `json:"upstream_connect_timeout,omitempty"`
 
-	// Number of upstream_connpool_cache_thresh.
+	// L7 Upstream Connection pool cache threshold in percentage.
 	UpstreamConnpoolCacheThresh *int32 `json:"upstream_connpool_cache_thresh,omitempty"`
 
-	// Number of upstream_connpool_conn_idle_thresh_tmo.
+	// Idle timeout value for a connection in the upstream connection pool, when the current cache size is above the threshold.
 	UpstreamConnpoolConnIDLEThreshTmo *int32 `json:"upstream_connpool_conn_idle_thresh_tmo,omitempty"`
 
 	// Deprecated. Field deprecated in 18.2.1.
@@ -307,10 +310,10 @@ type SeRuntimeProperties struct {
 	// Deprecated. Field deprecated in 18.2.1.
 	UpstreamConnpoolConnMaxReuse *int32 `json:"upstream_connpool_conn_max_reuse,omitempty"`
 
-	// Number of upstream_connpool_core_max_cache.
+	// L7 Upstream Connection pool max cache size per core.
 	UpstreamConnpoolCoreMaxCache *int32 `json:"upstream_connpool_core_max_cache,omitempty"`
 
-	// Placeholder for description of property upstream_connpool_enable of obj type SeRuntimeProperties field type str  type boolean
+	// Enable upstream connection pool.
 	UpstreamConnpoolEnable *bool `json:"upstream_connpool_enable,omitempty"`
 
 	// Deprecated. Field deprecated in 18.2.1.
@@ -322,10 +325,10 @@ type SeRuntimeProperties struct {
 	// Placeholder for description of property upstream_keepalive of obj type SeRuntimeProperties field type str  type boolean
 	UpstreamKeepalive *bool `json:"upstream_keepalive,omitempty"`
 
-	// Number of upstream_read_timeout.
+	// Timeout for data to be received from backend.
 	UpstreamReadTimeout *int32 `json:"upstream_read_timeout,omitempty"`
 
-	// Number of upstream_send_timeout.
+	// Timeout for upstream to become writable.
 	UpstreamSendTimeout *int32 `json:"upstream_send_timeout,omitempty"`
 
 	// Defines in seconds how long before an unused user-defined-metric is garbage collected. Field introduced in 17.1.5.

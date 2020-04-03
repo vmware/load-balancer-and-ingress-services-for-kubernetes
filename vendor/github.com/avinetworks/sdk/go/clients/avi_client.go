@@ -49,8 +49,11 @@ type AviClient struct {
 	Cluster                        *ClusterClient
 	ClusterCloudDetails            *ClusterCloudDetailsClient
 	ControllerLicense              *ControllerLicenseClient
+	ControllerPortalRegistration   *ControllerPortalRegistrationClient
 	ControllerProperties           *ControllerPropertiesClient
+	ControllerSite                 *ControllerSiteClient
 	CustomIPAMDNSProfile           *CustomIPAMDNSProfileClient
+	CustomerPortalInfo             *CustomerPortalInfoClient
 	DNSPolicy                      *DNSPolicyClient
 	DebugController                *DebugControllerClient
 	DebugServiceEngine             *DebugServiceEngineClient
@@ -65,25 +68,33 @@ type AviClient struct {
 	HealthMonitor                  *HealthMonitorClient
 	IPAMDNSProviderProfile         *IPAMDNSProviderProfileClient
 	IPAddrGroup                    *IPAddrGroupClient
+	Image                          *ImageClient
 	JobEntry                       *JobEntryClient
 	L4PolicySet                    *L4PolicySetClient
 	LogControllerMapping           *LogControllerMappingClient
 	MicroService                   *MicroServiceClient
 	MicroServiceGroup              *MicroServiceGroupClient
+	NatPolicy                      *NatPolicyClient
 	Network                        *NetworkClient
 	NetworkProfile                 *NetworkProfileClient
 	NetworkRuntime                 *NetworkRuntimeClient
 	NetworkSecurityPolicy          *NetworkSecurityPolicyClient
+	NetworkService                 *NetworkServiceClient
+	ObjectAccessPolicy             *ObjectAccessPolicyClient
 	PKIprofile                     *PKIprofileClient
+	PingAccessAgent                *PingAccessAgentClient
 	Pool                           *PoolClient
 	PoolGroup                      *PoolGroupClient
 	PoolGroupDeploymentPolicy      *PoolGroupDeploymentPolicyClient
+	PortalFileUpload               *PortalFileUploadClient
 	PriorityLabels                 *PriorityLabelsClient
+	ProtocolParser                 *ProtocolParserClient
 	Role                           *RoleClient
 	SCPoolServerStateInfo          *SCPoolServerStateInfoClient
 	SCVsStateInfo                  *SCVsStateInfoClient
 	SSLKeyAndCertificate           *SSLKeyAndCertificateClient
 	SSLProfile                     *SSLProfileClient
+	SSOPolicy                      *SSOPolicyClient
 	Scheduler                      *SchedulerClient
 	SeProperties                   *SePropertiesClient
 	SecureChannelAvailableLocalIps *SecureChannelAvailableLocalIpsClient
@@ -97,7 +108,12 @@ type AviClient struct {
 	StringGroup                    *StringGroupClient
 	SystemConfiguration            *SystemConfigurationClient
 	Tenant                         *TenantClient
+	TestSeDatastoreLevel1          *TestSeDatastoreLevel1Client
+	TestSeDatastoreLevel2          *TestSeDatastoreLevel2Client
+	TestSeDatastoreLevel3          *TestSeDatastoreLevel3Client
 	TrafficCloneProfile            *TrafficCloneProfileClient
+	UpgradeStatusInfo              *UpgradeStatusInfoClient
+	UpgradeStatusSummary           *UpgradeStatusSummaryClient
 	UserAccountProfile             *UserAccountProfileClient
 	UserActivity                   *UserActivityClient
 	VIDCInfo                       *VIDCInfoClient
@@ -114,7 +130,9 @@ type AviClient struct {
 	VirtualService                 *VirtualServiceClient
 	VrfContext                     *VrfContextClient
 	VsVip                          *VsVipClient
+	WafCRS                         *WafCRSClient
 	WafPolicy                      *WafPolicyClient
+	WafPolicyPSMGroup              *WafPolicyPSMGroupClient
 	WafProfile                     *WafProfileClient
 	Webhook                        *WebhookClient
 }
@@ -151,8 +169,11 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.Cluster = NewClusterClient(aviSession)
 	aviClient.ClusterCloudDetails = NewClusterCloudDetailsClient(aviSession)
 	aviClient.ControllerLicense = NewControllerLicenseClient(aviSession)
+	aviClient.ControllerPortalRegistration = NewControllerPortalRegistrationClient(aviSession)
 	aviClient.ControllerProperties = NewControllerPropertiesClient(aviSession)
+	aviClient.ControllerSite = NewControllerSiteClient(aviSession)
 	aviClient.CustomIPAMDNSProfile = NewCustomIPAMDNSProfileClient(aviSession)
+	aviClient.CustomerPortalInfo = NewCustomerPortalInfoClient(aviSession)
 	aviClient.DNSPolicy = NewDNSPolicyClient(aviSession)
 	aviClient.DebugController = NewDebugControllerClient(aviSession)
 	aviClient.DebugServiceEngine = NewDebugServiceEngineClient(aviSession)
@@ -167,25 +188,33 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.HealthMonitor = NewHealthMonitorClient(aviSession)
 	aviClient.IPAMDNSProviderProfile = NewIPAMDNSProviderProfileClient(aviSession)
 	aviClient.IPAddrGroup = NewIPAddrGroupClient(aviSession)
+	aviClient.Image = NewImageClient(aviSession)
 	aviClient.JobEntry = NewJobEntryClient(aviSession)
 	aviClient.L4PolicySet = NewL4PolicySetClient(aviSession)
 	aviClient.LogControllerMapping = NewLogControllerMappingClient(aviSession)
 	aviClient.MicroService = NewMicroServiceClient(aviSession)
 	aviClient.MicroServiceGroup = NewMicroServiceGroupClient(aviSession)
+	aviClient.NatPolicy = NewNatPolicyClient(aviSession)
 	aviClient.Network = NewNetworkClient(aviSession)
 	aviClient.NetworkProfile = NewNetworkProfileClient(aviSession)
 	aviClient.NetworkRuntime = NewNetworkRuntimeClient(aviSession)
 	aviClient.NetworkSecurityPolicy = NewNetworkSecurityPolicyClient(aviSession)
+	aviClient.NetworkService = NewNetworkServiceClient(aviSession)
+	aviClient.ObjectAccessPolicy = NewObjectAccessPolicyClient(aviSession)
 	aviClient.PKIprofile = NewPKIprofileClient(aviSession)
+	aviClient.PingAccessAgent = NewPingAccessAgentClient(aviSession)
 	aviClient.Pool = NewPoolClient(aviSession)
 	aviClient.PoolGroup = NewPoolGroupClient(aviSession)
 	aviClient.PoolGroupDeploymentPolicy = NewPoolGroupDeploymentPolicyClient(aviSession)
+	aviClient.PortalFileUpload = NewPortalFileUploadClient(aviSession)
 	aviClient.PriorityLabels = NewPriorityLabelsClient(aviSession)
+	aviClient.ProtocolParser = NewProtocolParserClient(aviSession)
 	aviClient.Role = NewRoleClient(aviSession)
 	aviClient.SCPoolServerStateInfo = NewSCPoolServerStateInfoClient(aviSession)
 	aviClient.SCVsStateInfo = NewSCVsStateInfoClient(aviSession)
 	aviClient.SSLKeyAndCertificate = NewSSLKeyAndCertificateClient(aviSession)
 	aviClient.SSLProfile = NewSSLProfileClient(aviSession)
+	aviClient.SSOPolicy = NewSSOPolicyClient(aviSession)
 	aviClient.Scheduler = NewSchedulerClient(aviSession)
 	aviClient.SeProperties = NewSePropertiesClient(aviSession)
 	aviClient.SecureChannelAvailableLocalIps = NewSecureChannelAvailableLocalIpsClient(aviSession)
@@ -199,7 +228,12 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.StringGroup = NewStringGroupClient(aviSession)
 	aviClient.SystemConfiguration = NewSystemConfigurationClient(aviSession)
 	aviClient.Tenant = NewTenantClient(aviSession)
+	aviClient.TestSeDatastoreLevel1 = NewTestSeDatastoreLevel1Client(aviSession)
+	aviClient.TestSeDatastoreLevel2 = NewTestSeDatastoreLevel2Client(aviSession)
+	aviClient.TestSeDatastoreLevel3 = NewTestSeDatastoreLevel3Client(aviSession)
 	aviClient.TrafficCloneProfile = NewTrafficCloneProfileClient(aviSession)
+	aviClient.UpgradeStatusInfo = NewUpgradeStatusInfoClient(aviSession)
+	aviClient.UpgradeStatusSummary = NewUpgradeStatusSummaryClient(aviSession)
 	aviClient.UserAccountProfile = NewUserAccountProfileClient(aviSession)
 	aviClient.UserActivity = NewUserActivityClient(aviSession)
 	aviClient.VIDCInfo = NewVIDCInfoClient(aviSession)
@@ -216,7 +250,9 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.VirtualService = NewVirtualServiceClient(aviSession)
 	aviClient.VrfContext = NewVrfContextClient(aviSession)
 	aviClient.VsVip = NewVsVipClient(aviSession)
+	aviClient.WafCRS = NewWafCRSClient(aviSession)
 	aviClient.WafPolicy = NewWafPolicyClient(aviSession)
+	aviClient.WafPolicyPSMGroup = NewWafPolicyPSMGroupClient(aviSession)
 	aviClient.WafProfile = NewWafProfileClient(aviSession)
 	aviClient.Webhook = NewWebhookClient(aviSession)
 	return &aviClient, nil

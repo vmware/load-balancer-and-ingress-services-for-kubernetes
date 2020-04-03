@@ -45,23 +45,23 @@ func (client *NetworkSecurityPolicyClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of NetworkSecurityPolicy objects
-func (client *NetworkSecurityPolicyClient) GetAll() ([]*models.NetworkSecurityPolicy, error) {
+func (client *NetworkSecurityPolicyClient) GetAll(options ...session.ApiOptionsParams) ([]*models.NetworkSecurityPolicy, error) {
 	var plist []*models.NetworkSecurityPolicy
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing NetworkSecurityPolicy by uuid
-func (client *NetworkSecurityPolicyClient) Get(uuid string) (*models.NetworkSecurityPolicy, error) {
+func (client *NetworkSecurityPolicyClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.NetworkSecurityPolicy, error) {
 	var obj *models.NetworkSecurityPolicy
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing NetworkSecurityPolicy by name
-func (client *NetworkSecurityPolicyClient) GetByName(name string) (*models.NetworkSecurityPolicy, error) {
+func (client *NetworkSecurityPolicyClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.NetworkSecurityPolicy, error) {
 	var obj *models.NetworkSecurityPolicy
-	err := client.aviSession.GetObjectByName("networksecuritypolicy", name, &obj)
+	err := client.aviSession.GetObjectByName("networksecuritypolicy", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *NetworkSecurityPolicyClient) GetObject(options ...session.ApiOptio
 }
 
 // Create a new NetworkSecurityPolicy object
-func (client *NetworkSecurityPolicyClient) Create(obj *models.NetworkSecurityPolicy) (*models.NetworkSecurityPolicy, error) {
+func (client *NetworkSecurityPolicyClient) Create(obj *models.NetworkSecurityPolicy, options ...session.ApiOptionsParams) (*models.NetworkSecurityPolicy, error) {
 	var robj *models.NetworkSecurityPolicy
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing NetworkSecurityPolicy object
-func (client *NetworkSecurityPolicyClient) Update(obj *models.NetworkSecurityPolicy) (*models.NetworkSecurityPolicy, error) {
+func (client *NetworkSecurityPolicyClient) Update(obj *models.NetworkSecurityPolicy, options ...session.ApiOptionsParams) (*models.NetworkSecurityPolicy, error) {
 	var robj *models.NetworkSecurityPolicy
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *NetworkSecurityPolicyClient) Update(obj *models.NetworkSecurityPol
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.NetworkSecurityPolicy
 // or it should be json compatible of form map[string]interface{}
-func (client *NetworkSecurityPolicyClient) Patch(uuid string, patch interface{}, patchOp string) (*models.NetworkSecurityPolicy, error) {
+func (client *NetworkSecurityPolicyClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.NetworkSecurityPolicy, error) {
 	var robj *models.NetworkSecurityPolicy
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing NetworkSecurityPolicy object with a given UUID
-func (client *NetworkSecurityPolicyClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *NetworkSecurityPolicyClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing NetworkSecurityPolicy object with a given name
-func (client *NetworkSecurityPolicyClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *NetworkSecurityPolicyClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

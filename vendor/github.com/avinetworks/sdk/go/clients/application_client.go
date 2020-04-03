@@ -45,23 +45,23 @@ func (client *ApplicationClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of Application objects
-func (client *ApplicationClient) GetAll() ([]*models.Application, error) {
+func (client *ApplicationClient) GetAll(options ...session.ApiOptionsParams) ([]*models.Application, error) {
 	var plist []*models.Application
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing Application by uuid
-func (client *ApplicationClient) Get(uuid string) (*models.Application, error) {
+func (client *ApplicationClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.Application, error) {
 	var obj *models.Application
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing Application by name
-func (client *ApplicationClient) GetByName(name string) (*models.Application, error) {
+func (client *ApplicationClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.Application, error) {
 	var obj *models.Application
-	err := client.aviSession.GetObjectByName("application", name, &obj)
+	err := client.aviSession.GetObjectByName("application", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *ApplicationClient) GetObject(options ...session.ApiOptionsParams) 
 }
 
 // Create a new Application object
-func (client *ApplicationClient) Create(obj *models.Application) (*models.Application, error) {
+func (client *ApplicationClient) Create(obj *models.Application, options ...session.ApiOptionsParams) (*models.Application, error) {
 	var robj *models.Application
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing Application object
-func (client *ApplicationClient) Update(obj *models.Application) (*models.Application, error) {
+func (client *ApplicationClient) Update(obj *models.Application, options ...session.ApiOptionsParams) (*models.Application, error) {
 	var robj *models.Application
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *ApplicationClient) Update(obj *models.Application) (*models.Applic
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.Application
 // or it should be json compatible of form map[string]interface{}
-func (client *ApplicationClient) Patch(uuid string, patch interface{}, patchOp string) (*models.Application, error) {
+func (client *ApplicationClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.Application, error) {
 	var robj *models.Application
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing Application object with a given UUID
-func (client *ApplicationClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *ApplicationClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing Application object with a given name
-func (client *ApplicationClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *ApplicationClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -79,6 +79,12 @@ type SeAgentProperties struct {
 	// SDB scan count. Allowed values are 1-1000.
 	SdbScanCount *int32 `json:"sdb_scan_count,omitempty"`
 
+	// Internal flag used to decide if SE restart is needed,when the se-group is changed. Field introduced in 18.2.3.
+	SeGrpChangeDisruptive *bool `json:"se_grp_change_disruptive,omitempty"`
+
+	// SeAgent properties for State Cache functionality. Field introduced in 18.2.5.
+	SeagentStatecacheProperties *SeAgentStateCacheProperties `json:"seagent_statecache_properties,omitempty"`
+
 	// Timeout for sending SE_READY without NS HELPER registration completion. Allowed values are 10-600. Field introduced in 17.2.13, 18.1.3, 18.2.1.
 	SendSeReadyTimeout *int32 `json:"send_se_ready_timeout,omitempty"`
 
@@ -96,4 +102,10 @@ type SeAgentProperties struct {
 
 	// Probe vnic interval.
 	VnicProbeInterval *int32 `json:"vnic_probe_interval,omitempty"`
+
+	// Time interval for retrying the failed VNIC RPC requests. Field introduced in 18.2.6.
+	VnicRPCRetryInterval *int32 `json:"vnic_rpc_retry_interval,omitempty"`
+
+	// Size of vnicdb command history. Allowed values are 0-65535. Field introduced in 18.2.3.
+	VnicdbCmdHistorySize *int32 `json:"vnicdb_cmd_history_size,omitempty"`
 }

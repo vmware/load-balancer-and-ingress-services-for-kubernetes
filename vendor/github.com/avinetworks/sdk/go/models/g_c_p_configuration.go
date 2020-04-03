@@ -10,13 +10,16 @@ type GCPConfiguration struct {
 	// Credentials to access Google Cloud Platform APIs. It is a reference to an object of type CloudConnectorUser. Field introduced in 18.2.1.
 	CloudCredentialsRef *string `json:"cloud_credentials_ref,omitempty"`
 
+	// Key Resource ID of Customer-Managed Encryption Key (CMEK) used to encrypt Service Engine disks and images. Field introduced in 18.2.7.
+	EncryptionKeyID *string `json:"encryption_key_id,omitempty"`
+
 	// Firewall rule network target tags which will be applied on Service Engines to allow ingress and egress traffic for Service Engines. Field introduced in 18.2.1.
 	FirewallTargetTags []string `json:"firewall_target_tags,omitempty"`
 
 	// Google Cloud Storage Bucket Name where Service Engine image will be uploaded. This image will be deleted once the image is created in Google compute images. By default, a bucket will be created if this field is not specified. Field introduced in 18.2.1.
 	GcsBucketName *string `json:"gcs_bucket_name,omitempty"`
 
-	// Google Cloud Storage Project ID where Service Engine image will be uploaded. This image will be deleted once the image is created in Google compute images. By default, se_project_id will be used. Field introduced in 18.2.1.
+	// Google Cloud Storage Project ID where Service Engine image will be uploaded. This image will be deleted once the image is created in Google compute images. By default, Service Engine Project ID will be used. Field introduced in 18.2.1.
 	GcsProjectID *string `json:"gcs_project_id,omitempty"`
 
 	// Match SE group subnets for VIP placement. Default is to not match SE group subnets. Field introduced in 18.2.1.
@@ -34,6 +37,7 @@ type GCPConfiguration struct {
 	// Required: true
 	SeProjectID *string `json:"se_project_id"`
 
-	// Google Cloud Platform Zones where Service Engines will be distributed for HA. By default, all the zones in a region will be used. Field introduced in 18.2.1.
+	// Google Cloud Platform Zones where Service Engines will be distributed for HA. Field introduced in 18.2.1.
+	// Required: true
 	Zones []string `json:"zones,omitempty"`
 }

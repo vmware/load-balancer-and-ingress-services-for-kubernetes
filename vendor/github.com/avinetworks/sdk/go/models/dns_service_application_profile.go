@@ -10,11 +10,17 @@ type DNSServiceApplicationProfile struct {
 	// Respond to AAAA queries with empty response when there are only IPV4 records.
 	AaaaEmptyResponse *bool `json:"aaaa_empty_response,omitempty"`
 
-	// Domain names authoritatively serviced by this Virtual Service. These are configured as Ends-With semantics. Queries for FQDNs that are subdomains of this domain and do not have any DNS record in Avi are dropped or NXDomain response sent. . Field introduced in 17.1.6,17.2.2.
+	// Email address of the administrator responsible for this zone . This field is used in SOA records (rname) pertaining to all domain names specified as authoritative domain names. If not configured, the default value 'hostmaster' is used in SOA responses. Field introduced in 18.2.5.
+	AdminEmail *string `json:"admin_email,omitempty"`
+
+	// Domain names authoritatively serviced by this Virtual Service. These are configured as Ends-With semantics. Queries for FQDNs that are subdomains of this domain and do not have any DNS record in Avi are dropped or NXDomain response sent. . Field deprecated in 18.2.6. Field introduced in 17.1.6,17.2.2.
 	AuthoritativeDomainNames []string `json:"authoritative_domain_names,omitempty"`
 
 	// Enable DNS query/response over TCP. This enables analytics for pass-through queries as well. Field introduced in 17.1.1.
 	DNSOverTCPEnabled *bool `json:"dns_over_tcp_enabled,omitempty"`
+
+	// DNS zones hosted on this Virtual Service. Field introduced in 18.2.6.
+	DNSZones []*DNSZone `json:"dns_zones,omitempty"`
 
 	// Subdomain names serviced by this Virtual Service. These are configured as Ends-With semantics.
 	DomainNames []string `json:"domain_names,omitempty"`
@@ -30,6 +36,9 @@ type DNSServiceApplicationProfile struct {
 
 	// Drop or respond to client when the DNS service encounters an error processing a client query. By default, such a request is dropped without any response, or passed through to a passthrough pool, if configured. When set to respond, an appropriate response is sent to client, e.g. NXDOMAIN response for non-existent records, empty NOERROR response for unsupported queries, etc. Enum options - DNS_ERROR_RESPONSE_ERROR, DNS_ERROR_RESPONSE_NONE.
 	ErrorResponse *string `json:"error_response,omitempty"`
+
+	// The <domain-name>  of the name server that was the original or primary source of data for this zone. This field is used in SOA records (mname) pertaining to all domain names specified as authoritative domain names. If not configured, domain name is used as name server in SOA response. Field introduced in 18.2.5.
+	NameServer *string `json:"name_server,omitempty"`
 
 	// Specifies the TTL value (in seconds) for SOA (Start of Authority) (corresponding to a authoritative domain owned by this DNS Virtual Service) record's minimum TTL served by the DNS Virtual Service. Allowed values are 0-86400. Field introduced in 17.2.4.
 	NegativeCachingTTL *int32 `json:"negative_caching_ttl,omitempty"`

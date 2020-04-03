@@ -45,23 +45,23 @@ func (client *VIPGNameInfoClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of VIPGNameInfo objects
-func (client *VIPGNameInfoClient) GetAll() ([]*models.VIPGNameInfo, error) {
+func (client *VIPGNameInfoClient) GetAll(options ...session.ApiOptionsParams) ([]*models.VIPGNameInfo, error) {
 	var plist []*models.VIPGNameInfo
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing VIPGNameInfo by uuid
-func (client *VIPGNameInfoClient) Get(uuid string) (*models.VIPGNameInfo, error) {
+func (client *VIPGNameInfoClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.VIPGNameInfo, error) {
 	var obj *models.VIPGNameInfo
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing VIPGNameInfo by name
-func (client *VIPGNameInfoClient) GetByName(name string) (*models.VIPGNameInfo, error) {
+func (client *VIPGNameInfoClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.VIPGNameInfo, error) {
 	var obj *models.VIPGNameInfo
-	err := client.aviSession.GetObjectByName("vipgnameinfo", name, &obj)
+	err := client.aviSession.GetObjectByName("vipgnameinfo", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *VIPGNameInfoClient) GetObject(options ...session.ApiOptionsParams)
 }
 
 // Create a new VIPGNameInfo object
-func (client *VIPGNameInfoClient) Create(obj *models.VIPGNameInfo) (*models.VIPGNameInfo, error) {
+func (client *VIPGNameInfoClient) Create(obj *models.VIPGNameInfo, options ...session.ApiOptionsParams) (*models.VIPGNameInfo, error) {
 	var robj *models.VIPGNameInfo
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing VIPGNameInfo object
-func (client *VIPGNameInfoClient) Update(obj *models.VIPGNameInfo) (*models.VIPGNameInfo, error) {
+func (client *VIPGNameInfoClient) Update(obj *models.VIPGNameInfo, options ...session.ApiOptionsParams) (*models.VIPGNameInfo, error) {
 	var robj *models.VIPGNameInfo
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *VIPGNameInfoClient) Update(obj *models.VIPGNameInfo) (*models.VIPG
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.VIPGNameInfo
 // or it should be json compatible of form map[string]interface{}
-func (client *VIPGNameInfoClient) Patch(uuid string, patch interface{}, patchOp string) (*models.VIPGNameInfo, error) {
+func (client *VIPGNameInfoClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.VIPGNameInfo, error) {
 	var robj *models.VIPGNameInfo
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing VIPGNameInfo object with a given UUID
-func (client *VIPGNameInfoClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *VIPGNameInfoClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing VIPGNameInfo object with a given name
-func (client *VIPGNameInfoClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *VIPGNameInfoClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

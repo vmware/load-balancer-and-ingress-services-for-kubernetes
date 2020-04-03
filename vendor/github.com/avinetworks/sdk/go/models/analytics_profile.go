@@ -212,6 +212,10 @@ type AnalyticsProfile struct {
 	// Score assigned when supporting TLS1.2 encryption protocol. Allowed values are 0-5.
 	HsSecurityTLS12Score *float64 `json:"hs_security_tls12_score,omitempty"`
 
+	// Score assigned when supporting TLS1.3 encryption protocol. Allowed values are 0-5. Field introduced in 18.2.6.
+	// Read Only: true
+	HsSecurityTLS13Score *float64 `json:"hs_security_tls13_score,omitempty"`
+
 	// Penalty for allowing weak signature algorithm(s). Allowed values are 0-5.
 	HsSecurityWeakSignatureAlgoPenalty *float64 `json:"hs_security_weak_signature_algo_penalty,omitempty"`
 
