@@ -485,6 +485,9 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
 	var poolsData []AviPoolCache
 	allPools := c.AviPopulateAllPools(client, cloud, &poolsData)
+	if allPools == nil {
+		return
+	}
 	allPoolsValue := *allPools
 	poolCacheData := c.PoolCache.ShallowCopy()
 	for i, poolCacheObj := range allPoolsValue {

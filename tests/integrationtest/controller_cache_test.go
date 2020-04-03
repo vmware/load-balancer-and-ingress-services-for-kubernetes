@@ -82,10 +82,10 @@ func TestCacheGETControllerUnavailable(t *testing.T) {
 	ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
 		if ctrlUnavail {
 			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintln(w, string(`{"error": "Unserviceable"}`))
 			ctrlUnavail = false
-		} else {
-			fmt.Fprintln(w, string(`{"dummy" :"data"}`))
 		}
+		FeedMockCollectionData(w, r)
 	})
 	defer ts.Close()
 

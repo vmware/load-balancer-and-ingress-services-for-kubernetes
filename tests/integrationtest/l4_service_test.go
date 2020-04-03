@@ -15,7 +15,9 @@
 package integrationtest
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -247,6 +249,73 @@ func TestCreateServiceLB(t *testing.T) {
 	}
 
 	TearDownTestForSvcLB(t)
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+}
+
+func TestCreateServiceLBWithFault(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	injectFault := true
+	ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
+		var resp map[string]interface{}
+		var finalResponse []byte
+		url := r.URL.EscapedPath()
+
+		if strings.Contains(url, "macro") && r.Method == "POST" {
+			data, _ := ioutil.ReadAll(r.Body)
+			json.Unmarshal(data, &resp)
+			rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
+			if rModelName == "virtualservice" && injectFault {
+				injectFault = false
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintln(w, `{"error": "bad request"}`)
+			} else {
+				rName := rData["name"].(string)
+				objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
+
+				// adding additional 'uuid' and 'url' (read-only) fields in the response
+				rData["url"] = objURL
+				rData["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+				finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintln(w, string(finalResponse))
+			}
+		} else if strings.Contains(url, "login") {
+			// This is used for /login --> first request to controller
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, `{"success": "true"}`)
+		}
+	})
+	defer ts.Close()
+
+	SetUpTestForSvcLB(t)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+	if !found {
+		t.Fatalf("Cache not found for VS: %v", vsKey)
+	} else {
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if !ok {
+			t.Fatalf("Invalid VS object. Cannot cast.")
+		}
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)))
+		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
+		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("pool--global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
+		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("pg--global--testsvc--red-ns--8080"))
+	}
+
+	TearDownTestForSvcLB(t)
 }
 
 func TestCreateMultiportServiceLB(t *testing.T) {
@@ -344,6 +413,7 @@ func TestScaleUpAndDownServiceLB(t *testing.T) {
 	// Simulate a delay of 200ms in the Avi API
 	ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(200 * time.Millisecond)
+		NormalControllerServer(w, r)
 	})
 	defer ts.Close()
 
