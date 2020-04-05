@@ -45,23 +45,23 @@ func (client *VIMgrSEVMRuntimeClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of VIMgrSEVMRuntime objects
-func (client *VIMgrSEVMRuntimeClient) GetAll() ([]*models.VIMgrSEVMRuntime, error) {
+func (client *VIMgrSEVMRuntimeClient) GetAll(options ...session.ApiOptionsParams) ([]*models.VIMgrSEVMRuntime, error) {
 	var plist []*models.VIMgrSEVMRuntime
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing VIMgrSEVMRuntime by uuid
-func (client *VIMgrSEVMRuntimeClient) Get(uuid string) (*models.VIMgrSEVMRuntime, error) {
+func (client *VIMgrSEVMRuntimeClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.VIMgrSEVMRuntime, error) {
 	var obj *models.VIMgrSEVMRuntime
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing VIMgrSEVMRuntime by name
-func (client *VIMgrSEVMRuntimeClient) GetByName(name string) (*models.VIMgrSEVMRuntime, error) {
+func (client *VIMgrSEVMRuntimeClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.VIMgrSEVMRuntime, error) {
 	var obj *models.VIMgrSEVMRuntime
-	err := client.aviSession.GetObjectByName("vimgrsevmruntime", name, &obj)
+	err := client.aviSession.GetObjectByName("vimgrsevmruntime", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *VIMgrSEVMRuntimeClient) GetObject(options ...session.ApiOptionsPar
 }
 
 // Create a new VIMgrSEVMRuntime object
-func (client *VIMgrSEVMRuntimeClient) Create(obj *models.VIMgrSEVMRuntime) (*models.VIMgrSEVMRuntime, error) {
+func (client *VIMgrSEVMRuntimeClient) Create(obj *models.VIMgrSEVMRuntime, options ...session.ApiOptionsParams) (*models.VIMgrSEVMRuntime, error) {
 	var robj *models.VIMgrSEVMRuntime
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing VIMgrSEVMRuntime object
-func (client *VIMgrSEVMRuntimeClient) Update(obj *models.VIMgrSEVMRuntime) (*models.VIMgrSEVMRuntime, error) {
+func (client *VIMgrSEVMRuntimeClient) Update(obj *models.VIMgrSEVMRuntime, options ...session.ApiOptionsParams) (*models.VIMgrSEVMRuntime, error) {
 	var robj *models.VIMgrSEVMRuntime
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *VIMgrSEVMRuntimeClient) Update(obj *models.VIMgrSEVMRuntime) (*mod
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.VIMgrSEVMRuntime
 // or it should be json compatible of form map[string]interface{}
-func (client *VIMgrSEVMRuntimeClient) Patch(uuid string, patch interface{}, patchOp string) (*models.VIMgrSEVMRuntime, error) {
+func (client *VIMgrSEVMRuntimeClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.VIMgrSEVMRuntime, error) {
 	var robj *models.VIMgrSEVMRuntime
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing VIMgrSEVMRuntime object with a given UUID
-func (client *VIMgrSEVMRuntimeClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *VIMgrSEVMRuntimeClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing VIMgrSEVMRuntime object with a given name
-func (client *VIMgrSEVMRuntimeClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *VIMgrSEVMRuntimeClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -25,6 +25,9 @@ type GslbPoolMember struct {
 	// Internal generated system-field. Field deprecated in 18.2.2. Field introduced in 17.1.1.
 	HmProxies []*GslbHealthMonitorProxy `json:"hm_proxies,omitempty"`
 
+	// Hostname to be used as host header for http health monitors and as TLS server name for https health monitors.(By default, the fqdn of the GSLB pool member or GSLB service is used.) Note  this field is not used as http host header when exact_http_request is set in the health monitor. . Field introduced in 18.2.5.
+	Hostname *string `json:"hostname,omitempty"`
+
 	// IP address of the pool member. If this IP address is hosted via an AVI virtual service, then the user should configure the cluster uuid and virtual service uuid. If this IP address is hosted on a third-party device and the device is tagged/tethered to a third-party site, then user can configure the third-party site uuid.  User may configure the IP address without the cluster uuid or the virtual service uuid.  In this option, some advanced site related features cannot be enabled. If the user has configured a fqdn for the pool member, then it takes precedence and will overwrite the configured IP address. .
 	IP *IPAddr `json:"ip,omitempty"`
 

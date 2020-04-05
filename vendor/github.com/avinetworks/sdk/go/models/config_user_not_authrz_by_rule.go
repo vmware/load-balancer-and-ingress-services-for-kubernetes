@@ -7,6 +7,9 @@ package models
 // swagger:model ConfigUserNotAuthrzByRule
 type ConfigUserNotAuthrzByRule struct {
 
+	// Comma separated list of policies assigned to the user.
+	Policies *string `json:"policies,omitempty"`
+
 	// assigned roles.
 	Roles *string `json:"roles,omitempty"`
 

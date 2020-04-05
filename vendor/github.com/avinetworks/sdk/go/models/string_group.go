@@ -17,6 +17,9 @@ type StringGroup struct {
 	// Configure Key Value in the *string group.
 	Kv []*KeyValue `json:"kv,omitempty"`
 
+	// Enable the longest match, default is the shortest match. Field introduced in 18.2.8.
+	LongestMatch *bool `json:"longest_match,omitempty"`
+
 	// Name of the *string group.
 	// Required: true
 	Name *string `json:"name"`

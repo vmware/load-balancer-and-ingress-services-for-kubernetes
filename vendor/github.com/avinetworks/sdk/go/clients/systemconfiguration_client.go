@@ -45,23 +45,23 @@ func (client *SystemConfigurationClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of SystemConfiguration objects
-func (client *SystemConfigurationClient) GetAll() ([]*models.SystemConfiguration, error) {
+func (client *SystemConfigurationClient) GetAll(options ...session.ApiOptionsParams) ([]*models.SystemConfiguration, error) {
 	var plist []*models.SystemConfiguration
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing SystemConfiguration by uuid
-func (client *SystemConfigurationClient) Get(uuid string) (*models.SystemConfiguration, error) {
+func (client *SystemConfigurationClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.SystemConfiguration, error) {
 	var obj *models.SystemConfiguration
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing SystemConfiguration by name
-func (client *SystemConfigurationClient) GetByName(name string) (*models.SystemConfiguration, error) {
+func (client *SystemConfigurationClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.SystemConfiguration, error) {
 	var obj *models.SystemConfiguration
-	err := client.aviSession.GetObjectByName("systemconfiguration", name, &obj)
+	err := client.aviSession.GetObjectByName("systemconfiguration", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *SystemConfigurationClient) GetObject(options ...session.ApiOptions
 }
 
 // Create a new SystemConfiguration object
-func (client *SystemConfigurationClient) Create(obj *models.SystemConfiguration) (*models.SystemConfiguration, error) {
+func (client *SystemConfigurationClient) Create(obj *models.SystemConfiguration, options ...session.ApiOptionsParams) (*models.SystemConfiguration, error) {
 	var robj *models.SystemConfiguration
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing SystemConfiguration object
-func (client *SystemConfigurationClient) Update(obj *models.SystemConfiguration) (*models.SystemConfiguration, error) {
+func (client *SystemConfigurationClient) Update(obj *models.SystemConfiguration, options ...session.ApiOptionsParams) (*models.SystemConfiguration, error) {
 	var robj *models.SystemConfiguration
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *SystemConfigurationClient) Update(obj *models.SystemConfiguration)
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.SystemConfiguration
 // or it should be json compatible of form map[string]interface{}
-func (client *SystemConfigurationClient) Patch(uuid string, patch interface{}, patchOp string) (*models.SystemConfiguration, error) {
+func (client *SystemConfigurationClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.SystemConfiguration, error) {
 	var robj *models.SystemConfiguration
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing SystemConfiguration object with a given UUID
-func (client *SystemConfigurationClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *SystemConfigurationClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing SystemConfiguration object with a given name
-func (client *SystemConfigurationClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *SystemConfigurationClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

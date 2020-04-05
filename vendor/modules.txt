@@ -1,6 +1,6 @@
-# github.com/avinetworks/container-lib v0.0.0-20200309063932-14a4b95b6102
+# github.com/avinetworks/container-lib v0.0.0-20200331110659-c333a6c8ab7d
 github.com/avinetworks/container-lib/utils
-# github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792
+# github.com/avinetworks/sdk v0.0.0-20200403054229-39f30c036b56
 github.com/avinetworks/sdk/go/clients
 github.com/avinetworks/sdk/go/models
 github.com/avinetworks/sdk/go/session

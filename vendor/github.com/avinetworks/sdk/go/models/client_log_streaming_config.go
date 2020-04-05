@@ -7,12 +7,15 @@ package models
 // swagger:model ClientLogStreamingConfig
 type ClientLogStreamingConfig struct {
 
-	// The destination server IP address or hostname. If a name is provided, this should be resolvable on Avi Service Engines. Field introduced in 17.1.1.
+	// IP address or hostnames (FQDNs) of destination servers. If an FQDN is provided, this should be resolvable on Avi Service Engines. Multiple servers are supported by furnishing a comma-separated list of IP addresses or host names, for example, 11.11.11.11,23.12.12.4. Optionally, a separate port can be specified for each external server in the list, for example, 11.11.11.11 234,12.12.12.12 343. Field introduced in 17.1.1.
 	// Required: true
 	ExternalServer *string `json:"external_server"`
 
-	// The destination server's service port. Field introduced in 17.1.1.
+	// The service port to use for the external servers. If multiple external servers have been specified, the single port number specified here will apply to all those servers for which an explicit port number has not been specified in the external server list. Field introduced in 17.1.1.
 	ExternalServerPort *int32 `json:"external_server_port,omitempty"`
+
+	// Configuration to specify the format of streamed logs. By default, each log is encoded in JSON format. Field introduced in 18.2.5.
+	FormatConfig *ClientLogStreamingFormat `json:"format_config,omitempty"`
 
 	// Type of logs to stream to the external server. Default is LOGS_ALL, i.e., send all logs. Enum options - LOGS_SIGNIFICANT_ONLY, LOGS_UDF_ONLY, LOGS_UDF_SIGNIFICANT, LOGS_ALL. Field introduced in 17.1.1.
 	LogTypesToSend *string `json:"log_types_to_send,omitempty"`

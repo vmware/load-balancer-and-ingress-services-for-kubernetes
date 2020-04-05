@@ -10,6 +10,9 @@ type VlanInterface struct {
 	// Placeholder for description of property dhcp_enabled of obj type VlanInterface field type str  type boolean
 	DhcpEnabled *bool `json:"dhcp_enabled,omitempty"`
 
+	// Enable the interface. Field introduced in 18.2.5.
+	Enabled *bool `json:"enabled,omitempty"`
+
 	// if_name of VlanInterface.
 	// Required: true
 	IfName *string `json:"if_name"`

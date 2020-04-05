@@ -45,23 +45,23 @@ func (client *SecurityPolicyClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of SecurityPolicy objects
-func (client *SecurityPolicyClient) GetAll() ([]*models.SecurityPolicy, error) {
+func (client *SecurityPolicyClient) GetAll(options ...session.ApiOptionsParams) ([]*models.SecurityPolicy, error) {
 	var plist []*models.SecurityPolicy
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing SecurityPolicy by uuid
-func (client *SecurityPolicyClient) Get(uuid string) (*models.SecurityPolicy, error) {
+func (client *SecurityPolicyClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.SecurityPolicy, error) {
 	var obj *models.SecurityPolicy
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing SecurityPolicy by name
-func (client *SecurityPolicyClient) GetByName(name string) (*models.SecurityPolicy, error) {
+func (client *SecurityPolicyClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.SecurityPolicy, error) {
 	var obj *models.SecurityPolicy
-	err := client.aviSession.GetObjectByName("securitypolicy", name, &obj)
+	err := client.aviSession.GetObjectByName("securitypolicy", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *SecurityPolicyClient) GetObject(options ...session.ApiOptionsParam
 }
 
 // Create a new SecurityPolicy object
-func (client *SecurityPolicyClient) Create(obj *models.SecurityPolicy) (*models.SecurityPolicy, error) {
+func (client *SecurityPolicyClient) Create(obj *models.SecurityPolicy, options ...session.ApiOptionsParams) (*models.SecurityPolicy, error) {
 	var robj *models.SecurityPolicy
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing SecurityPolicy object
-func (client *SecurityPolicyClient) Update(obj *models.SecurityPolicy) (*models.SecurityPolicy, error) {
+func (client *SecurityPolicyClient) Update(obj *models.SecurityPolicy, options ...session.ApiOptionsParams) (*models.SecurityPolicy, error) {
 	var robj *models.SecurityPolicy
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *SecurityPolicyClient) Update(obj *models.SecurityPolicy) (*models.
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.SecurityPolicy
 // or it should be json compatible of form map[string]interface{}
-func (client *SecurityPolicyClient) Patch(uuid string, patch interface{}, patchOp string) (*models.SecurityPolicy, error) {
+func (client *SecurityPolicyClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.SecurityPolicy, error) {
 	var robj *models.SecurityPolicy
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing SecurityPolicy object with a given UUID
-func (client *SecurityPolicyClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *SecurityPolicyClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing SecurityPolicy object with a given name
-func (client *SecurityPolicyClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *SecurityPolicyClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

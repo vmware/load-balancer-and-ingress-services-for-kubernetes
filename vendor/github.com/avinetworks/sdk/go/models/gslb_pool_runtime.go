@@ -12,4 +12,7 @@ type GslbPoolRuntime struct {
 
 	// Name of the object.
 	Name *string `json:"name,omitempty"`
+
+	// Gslb Pool's consolidated operational status . Field introduced in 18.2.3.
+	OperStatus *OperationalStatus `json:"oper_status,omitempty"`
 }

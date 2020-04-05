@@ -76,7 +76,7 @@ type VipRuntime struct {
 	// Placeholder for description of property se_list of obj type VipRuntime field type str  type object
 	SeList []*SeList `json:"se_list,omitempty"`
 
-	// Placeholder for description of property servers_configured of obj type VipRuntime field type str  type boolean
+	//  Field deprecated in 18.2.5.
 	ServersConfigured *bool `json:"servers_configured,omitempty"`
 
 	// Placeholder for description of property supp_runtime_status of obj type VipRuntime field type str  type object

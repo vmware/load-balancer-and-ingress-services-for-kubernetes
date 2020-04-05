@@ -11,6 +11,9 @@ type ControllerProperties struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Allow non-admin tenants to update admin VrfContext and Network objects. Field introduced in 18.2.7.
+	AllowAdminNetworkUpdates *bool `json:"allow_admin_network_updates,omitempty"`
+
 	//  Field introduced in 17.1.1.
 	AllowIPForwarding *bool `json:"allow_ip_forwarding,omitempty"`
 
@@ -59,6 +62,9 @@ type ControllerProperties struct {
 	// Number of dead_se_detection_timer.
 	DeadSeDetectionTimer *int32 `json:"dead_se_detection_timer,omitempty"`
 
+	// Minimum api timeout value.If this value is not 60, it will be the default timeout for all APIs that do not have a specific timeout.If an API has a specific timeout but is less than this value, this value will become the new timeout. Allowed values are 60-3600. Field introduced in 18.2.6.
+	DefaultMinimumAPITimeout *int32 `json:"default_minimum_api_timeout,omitempty"`
+
 	// Period for refresh pool and gslb DNS job.
 	DNSRefreshPeriod *int32 `json:"dns_refresh_period,omitempty"`
 
@@ -85,6 +91,9 @@ type ControllerProperties struct {
 
 	// Number of max_seq_vnic_failures.
 	MaxSeqVnicFailures *int32 `json:"max_seq_vnic_failures,omitempty"`
+
+	// Network and VrfContext objects from the admin tenant will not be shared to non-admin tenants unless admin permissions are granted. Field introduced in 18.2.7.
+	PermissionScopedSharedAdminNetworks *bool `json:"permission_scoped_shared_admin_networks,omitempty"`
 
 	// Period for rotate app persistence keys job. Allowed values are 1-1051200. Special values are 0 - 'Disabled'.
 	PersistenceKeyRotatePeriod *int32 `json:"persistence_key_rotate_period,omitempty"`
@@ -128,11 +137,17 @@ type ControllerProperties struct {
 	// Number of secure_channel_se_token_timeout.
 	SecureChannelSeTokenTimeout *int32 `json:"secure_channel_se_token_timeout,omitempty"`
 
+	// This parameter defines the number of simultaneous SE image downloads in a SeGroup. It is used to pace the SE downloads so that controller network/CPU bandwidth is a bounded operation. A value of 0 will disable the pacing scheme and all the SE(s) in the SeGroup will attempt to download the image. . Field introduced in 18.2.6.
+	SeupgradeCopyPoolSize *int32 `json:"seupgrade_copy_pool_size,omitempty"`
+
 	// Pool size used for all fabric commands during se upgrade.
 	SeupgradeFabricPoolSize *int32 `json:"seupgrade_fabric_pool_size,omitempty"`
 
 	// Time to wait before marking segroup upgrade as stuck.
 	SeupgradeSegroupMinDeadTimeout *int32 `json:"seupgrade_segroup_min_dead_timeout,omitempty"`
+
+	// SSL Certificates in the admin tenant can be used in non-admin tenants. Field introduced in 18.2.5.
+	SharedSslCertificates *bool `json:"shared_ssl_certificates,omitempty"`
 
 	// Number of days for SSL Certificate expiry warning.
 	SslCertificateExpiryWarningDays []int64 `json:"ssl_certificate_expiry_warning_days,omitempty,omitempty"`
@@ -164,6 +179,9 @@ type ControllerProperties struct {
 
 	// Period for rotate VS keys job. Allowed values are 1-1051200. Special values are 0 - 'Disabled'.
 	VsKeyRotatePeriod *int32 `json:"vs_key_rotate_period,omitempty"`
+
+	// Interval for checking scaleout_ready status while controller is waiting for ScaleOutReady RPC from the Service Engine. Field introduced in 18.2.2.
+	VsScaleoutReadyCheckInterval *int32 `json:"vs_scaleout_ready_check_interval,omitempty"`
 
 	// Time to wait before marking attach IP operation on an SE as failed. Field introduced in 17.2.2.
 	VsSeAttachIPFail *int32 `json:"vs_se_attach_ip_fail,omitempty"`

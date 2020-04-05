@@ -22,8 +22,14 @@ type VNIC struct {
 	// Placeholder for description of property del_pending of obj type vNIC field type str  type boolean
 	DelPending *bool `json:"del_pending,omitempty"`
 
+	// Delete this VNIC. Please confirm dp_deletion_done before removing the VNIC from the cloud. Field introduced in 18.2.5.
+	DeleteVnic *bool `json:"delete_vnic,omitempty"`
+
 	// Placeholder for description of property dhcp_enabled of obj type vNIC field type str  type boolean
 	DhcpEnabled *bool `json:"dhcp_enabled,omitempty"`
+
+	// The VNIC has been cleaned up in the datapath. Field introduced in 18.2.3.
+	DpDeletionDone *bool `json:"dp_deletion_done,omitempty"`
 
 	// Placeholder for description of property enabled of obj type vNIC field type str  type boolean
 	Enabled *bool `json:"enabled,omitempty"`
@@ -48,6 +54,9 @@ type VNIC struct {
 
 	// Placeholder for description of property is_portchannel of obj type vNIC field type str  type boolean
 	IsPortchannel *bool `json:"is_portchannel,omitempty"`
+
+	// The link is operationally up. Field introduced in 18.2.8.
+	LinkUp *bool `json:"link_up,omitempty"`
 
 	// linux_name of vNIC.
 	LinuxName *string `json:"linux_name,omitempty"`

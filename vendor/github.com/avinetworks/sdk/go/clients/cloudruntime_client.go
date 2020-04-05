@@ -45,23 +45,23 @@ func (client *CloudRuntimeClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of CloudRuntime objects
-func (client *CloudRuntimeClient) GetAll() ([]*models.CloudRuntime, error) {
+func (client *CloudRuntimeClient) GetAll(options ...session.ApiOptionsParams) ([]*models.CloudRuntime, error) {
 	var plist []*models.CloudRuntime
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing CloudRuntime by uuid
-func (client *CloudRuntimeClient) Get(uuid string) (*models.CloudRuntime, error) {
+func (client *CloudRuntimeClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.CloudRuntime, error) {
 	var obj *models.CloudRuntime
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing CloudRuntime by name
-func (client *CloudRuntimeClient) GetByName(name string) (*models.CloudRuntime, error) {
+func (client *CloudRuntimeClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.CloudRuntime, error) {
 	var obj *models.CloudRuntime
-	err := client.aviSession.GetObjectByName("cloudruntime", name, &obj)
+	err := client.aviSession.GetObjectByName("cloudruntime", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *CloudRuntimeClient) GetObject(options ...session.ApiOptionsParams)
 }
 
 // Create a new CloudRuntime object
-func (client *CloudRuntimeClient) Create(obj *models.CloudRuntime) (*models.CloudRuntime, error) {
+func (client *CloudRuntimeClient) Create(obj *models.CloudRuntime, options ...session.ApiOptionsParams) (*models.CloudRuntime, error) {
 	var robj *models.CloudRuntime
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing CloudRuntime object
-func (client *CloudRuntimeClient) Update(obj *models.CloudRuntime) (*models.CloudRuntime, error) {
+func (client *CloudRuntimeClient) Update(obj *models.CloudRuntime, options ...session.ApiOptionsParams) (*models.CloudRuntime, error) {
 	var robj *models.CloudRuntime
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *CloudRuntimeClient) Update(obj *models.CloudRuntime) (*models.Clou
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.CloudRuntime
 // or it should be json compatible of form map[string]interface{}
-func (client *CloudRuntimeClient) Patch(uuid string, patch interface{}, patchOp string) (*models.CloudRuntime, error) {
+func (client *CloudRuntimeClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.CloudRuntime, error) {
 	var robj *models.CloudRuntime
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing CloudRuntime object with a given UUID
-func (client *CloudRuntimeClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *CloudRuntimeClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing CloudRuntime object with a given name
-func (client *CloudRuntimeClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *CloudRuntimeClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -45,23 +45,23 @@ func (client *SSLProfileClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of SSLProfile objects
-func (client *SSLProfileClient) GetAll() ([]*models.SSLProfile, error) {
+func (client *SSLProfileClient) GetAll(options ...session.ApiOptionsParams) ([]*models.SSLProfile, error) {
 	var plist []*models.SSLProfile
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing SSLProfile by uuid
-func (client *SSLProfileClient) Get(uuid string) (*models.SSLProfile, error) {
+func (client *SSLProfileClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.SSLProfile, error) {
 	var obj *models.SSLProfile
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing SSLProfile by name
-func (client *SSLProfileClient) GetByName(name string) (*models.SSLProfile, error) {
+func (client *SSLProfileClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.SSLProfile, error) {
 	var obj *models.SSLProfile
-	err := client.aviSession.GetObjectByName("sslprofile", name, &obj)
+	err := client.aviSession.GetObjectByName("sslprofile", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *SSLProfileClient) GetObject(options ...session.ApiOptionsParams) (
 }
 
 // Create a new SSLProfile object
-func (client *SSLProfileClient) Create(obj *models.SSLProfile) (*models.SSLProfile, error) {
+func (client *SSLProfileClient) Create(obj *models.SSLProfile, options ...session.ApiOptionsParams) (*models.SSLProfile, error) {
 	var robj *models.SSLProfile
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing SSLProfile object
-func (client *SSLProfileClient) Update(obj *models.SSLProfile) (*models.SSLProfile, error) {
+func (client *SSLProfileClient) Update(obj *models.SSLProfile, options ...session.ApiOptionsParams) (*models.SSLProfile, error) {
 	var robj *models.SSLProfile
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *SSLProfileClient) Update(obj *models.SSLProfile) (*models.SSLProfi
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.SSLProfile
 // or it should be json compatible of form map[string]interface{}
-func (client *SSLProfileClient) Patch(uuid string, patch interface{}, patchOp string) (*models.SSLProfile, error) {
+func (client *SSLProfileClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.SSLProfile, error) {
 	var robj *models.SSLProfile
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing SSLProfile object with a given UUID
-func (client *SSLProfileClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *SSLProfileClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing SSLProfile object with a given name
-func (client *SSLProfileClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *SSLProfileClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

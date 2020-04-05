@@ -45,23 +45,23 @@ func (client *DebugControllerClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of DebugController objects
-func (client *DebugControllerClient) GetAll() ([]*models.DebugController, error) {
+func (client *DebugControllerClient) GetAll(options ...session.ApiOptionsParams) ([]*models.DebugController, error) {
 	var plist []*models.DebugController
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing DebugController by uuid
-func (client *DebugControllerClient) Get(uuid string) (*models.DebugController, error) {
+func (client *DebugControllerClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.DebugController, error) {
 	var obj *models.DebugController
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing DebugController by name
-func (client *DebugControllerClient) GetByName(name string) (*models.DebugController, error) {
+func (client *DebugControllerClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.DebugController, error) {
 	var obj *models.DebugController
-	err := client.aviSession.GetObjectByName("debugcontroller", name, &obj)
+	err := client.aviSession.GetObjectByName("debugcontroller", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *DebugControllerClient) GetObject(options ...session.ApiOptionsPara
 }
 
 // Create a new DebugController object
-func (client *DebugControllerClient) Create(obj *models.DebugController) (*models.DebugController, error) {
+func (client *DebugControllerClient) Create(obj *models.DebugController, options ...session.ApiOptionsParams) (*models.DebugController, error) {
 	var robj *models.DebugController
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing DebugController object
-func (client *DebugControllerClient) Update(obj *models.DebugController) (*models.DebugController, error) {
+func (client *DebugControllerClient) Update(obj *models.DebugController, options ...session.ApiOptionsParams) (*models.DebugController, error) {
 	var robj *models.DebugController
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *DebugControllerClient) Update(obj *models.DebugController) (*model
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.DebugController
 // or it should be json compatible of form map[string]interface{}
-func (client *DebugControllerClient) Patch(uuid string, patch interface{}, patchOp string) (*models.DebugController, error) {
+func (client *DebugControllerClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.DebugController, error) {
 	var robj *models.DebugController
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing DebugController object with a given UUID
-func (client *DebugControllerClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *DebugControllerClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing DebugController object with a given name
-func (client *DebugControllerClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *DebugControllerClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

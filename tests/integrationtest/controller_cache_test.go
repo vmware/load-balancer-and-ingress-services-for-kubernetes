@@ -28,8 +28,6 @@ import (
 
 func TestCacheGETOKStatus(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ts := GetAviControllerFakeAPIServer(FeedMockCollectionData)
-	defer ts.Close()
 
 	// Verify the cache.
 	cacheobj := cache.SharedAviObjCache()
@@ -79,7 +77,7 @@ func TestCacheGETOKStatus(t *testing.T) {
 
 func TestCacheGETControllerUnavailable(t *testing.T) {
 	ctrlUnavail := true
-	ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if ctrlUnavail {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintln(w, string(`{"error": "Unserviceable"}`))
@@ -87,7 +85,7 @@ func TestCacheGETControllerUnavailable(t *testing.T) {
 		}
 		FeedMockCollectionData(w, r)
 	})
-	defer ts.Close()
+	defer ResetMiddleware()
 
 	// Verify the cache.
 	cacheobj := cache.SharedAviObjCache()
@@ -131,7 +129,7 @@ func TestCacheGETDependentObjectUnavailable(t *testing.T) {
 		g.Expect(len(vs_cache_obj.DSKeyCollection)).To(gomega.Equal(1))
 	}
 
-	ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.EscapedPath(), "poolgroup") {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -142,7 +140,7 @@ func TestCacheGETDependentObjectUnavailable(t *testing.T) {
 
 		FeedMockCollectionData(w, r)
 	})
-	defer ts.Close()
+	defer ResetMiddleware()
 
 	// Verify the cache.
 	vs_cache, found = cacheobj.VsCache.AviCacheGet(vsKey)

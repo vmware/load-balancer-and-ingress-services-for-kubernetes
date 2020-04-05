@@ -28,6 +28,12 @@ type EventDetails struct {
 	// Placeholder for description of property avg_uptime_change_details of obj type EventDetails field type str  type object
 	AvgUptimeChangeDetails *AvgUptimeChangeDetails `json:"avg_uptime_change_details,omitempty"`
 
+	// Placeholder for description of property avi_cloud_crs_details of obj type EventDetails field type str  type object
+	AviCloudCrsDetails *AviCloudCRSDetails `json:"avi_cloud_crs_details,omitempty"`
+
+	// Placeholder for description of property avi_cloud_status_details of obj type EventDetails field type str  type object
+	AviCloudStatusDetails *AviCloudStatusDetails `json:"avi_cloud_status_details,omitempty"`
+
 	//  Field introduced in 17.2.10,18.1.2.
 	AwsAsgDeletionDetails *AWSASGDelete `json:"aws_asg_deletion_details,omitempty"`
 
@@ -72,6 +78,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property cc_parkintf_details of obj type EventDetails field type str  type object
 	CcParkintfDetails *CloudVipParkingIntf `json:"cc_parkintf_details,omitempty"`
+
+	//  Field introduced in 18.2.5.
+	CcScalesetNotifDetails *CCScaleSetNotifDetails `json:"cc_scaleset_notif_details,omitempty"`
 
 	// Placeholder for description of property cc_se_vm_details of obj type EventDetails field type str  type object
 	CcSeVMDetails *CloudSeVMChange `json:"cc_se_vm_details,omitempty"`
@@ -154,6 +163,9 @@ type EventDetails struct {
 	// Placeholder for description of property config_user_not_authrz_rule_details of obj type EventDetails field type str  type object
 	ConfigUserNotAuthrzRuleDetails *ConfigUserNotAuthrzByRule `json:"config_user_not_authrz_rule_details,omitempty"`
 
+	// Placeholder for description of property container_cloud_batch_setup of obj type EventDetails field type str  type object
+	ContainerCloudBatchSetup *ContainerCloudBatchSetup `json:"container_cloud_batch_setup,omitempty"`
+
 	// Placeholder for description of property container_cloud_setup of obj type EventDetails field type str  type object
 	ContainerCloudSetup *ContainerCloudSetup `json:"container_cloud_setup,omitempty"`
 
@@ -180,6 +192,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property dos_attack_event_details of obj type EventDetails field type str  type object
 	DosAttackEventDetails *DosAttackEventDetails `json:"dos_attack_event_details,omitempty"`
+
+	// Placeholder for description of property gcp_cloud_router_info of obj type EventDetails field type str  type object
+	GcpCloudRouterInfo *GCPCloudRouterUpdate `json:"gcp_cloud_router_info,omitempty"`
 
 	// Placeholder for description of property gcp_info of obj type EventDetails field type str  type object
 	GcpInfo *GCPSetup `json:"gcp_info,omitempty"`
@@ -219,6 +234,12 @@ type EventDetails struct {
 
 	// Placeholder for description of property metrics_db_disk_details of obj type EventDetails field type str  type object
 	MetricsDbDiskDetails *MetricsDbDiskEventDetails `json:"metrics_db_disk_details,omitempty"`
+
+	// Placeholder for description of property metrics_db_queue_full_details of obj type EventDetails field type str  type object
+	MetricsDbQueueFullDetails *MetricsDbQueueFullEventDetails `json:"metrics_db_queue_full_details,omitempty"`
+
+	// Placeholder for description of property metrics_db_queue_healthy_details of obj type EventDetails field type str  type object
+	MetricsDbQueueHealthyDetails *MetricsDbQueueHealthyEventDetails `json:"metrics_db_queue_healthy_details,omitempty"`
 
 	// Placeholder for description of property mgmt_nw_change_details of obj type EventDetails field type str  type object
 	MgmtNwChangeDetails *VinfraMgmtNwChangeDetails `json:"mgmt_nw_change_details,omitempty"`
@@ -270,6 +291,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property pool_server_delete_details of obj type EventDetails field type str  type object
 	PoolServerDeleteDetails *VinfraPoolServerDeleteDetails `json:"pool_server_delete_details,omitempty"`
+
+	// Placeholder for description of property psm_program_details of obj type EventDetails field type str  type object
+	PsmProgramDetails *PsmProgramDetails `json:"psm_program_details,omitempty"`
 
 	// Placeholder for description of property rebalance_migrate_details of obj type EventDetails field type str  type object
 	RebalanceMigrateDetails *RebalanceMigrateEventDetails `json:"rebalance_migrate_details,omitempty"`
@@ -333,6 +357,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property se_licensed_bandwdith_exceeded_event_details of obj type EventDetails field type str  type object
 	SeLicensedBandwdithExceededEventDetails *SeLicensedBandwdithExceededEventDetails `json:"se_licensed_bandwdith_exceeded_event_details,omitempty"`
+
+	//  Field introduced in 18.2.2.
+	SeMemoryLimitEventDetails *SeMemoryLimitEventDetails `json:"se_memory_limit_event_details,omitempty"`
 
 	// Placeholder for description of property se_persistence_details of obj type EventDetails field type str  type object
 	SePersistenceDetails *SePersistenceEventDetails `json:"se_persistence_details,omitempty"`
@@ -412,11 +439,23 @@ type EventDetails struct {
 	// Placeholder for description of property switchover_fail_details of obj type EventDetails field type str  type object
 	SwitchoverFailDetails *SwitchoverFailEventDetails `json:"switchover_fail_details,omitempty"`
 
+	// Azure cloud sync services event details. Field introduced in 18.2.3.
+	SyncServicesInfo *CloudSyncServices `json:"sync_services_info,omitempty"`
+
 	// Placeholder for description of property system_upgrade_details of obj type EventDetails field type str  type object
 	SystemUpgradeDetails *SystemUpgradeDetails `json:"system_upgrade_details,omitempty"`
 
+	// Placeholder for description of property tencent_info of obj type EventDetails field type str  type object
+	TencentInfo *TencentSetup `json:"tencent_info,omitempty"`
+
 	// Placeholder for description of property unbind_vs_se_details of obj type EventDetails field type str  type object
 	UnbindVsSeDetails *RmUnbindVsSeEventDetails `json:"unbind_vs_se_details,omitempty"`
+
+	//  Field introduced in 18.2.6.
+	UpgradeEntry *UpgradeOpsEntry `json:"upgrade_entry,omitempty"`
+
+	//  Field introduced in 18.2.6.
+	UpgradeStatusInfo *UpgradeStatusInfo `json:"upgrade_status_info,omitempty"`
 
 	// Placeholder for description of property vca_infra_details of obj type EventDetails field type str  type object
 	VcaInfraDetails *VCASetup `json:"vca_infra_details,omitempty"`

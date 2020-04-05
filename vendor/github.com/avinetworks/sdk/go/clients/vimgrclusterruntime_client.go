@@ -45,23 +45,23 @@ func (client *VIMgrClusterRuntimeClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of VIMgrClusterRuntime objects
-func (client *VIMgrClusterRuntimeClient) GetAll() ([]*models.VIMgrClusterRuntime, error) {
+func (client *VIMgrClusterRuntimeClient) GetAll(options ...session.ApiOptionsParams) ([]*models.VIMgrClusterRuntime, error) {
 	var plist []*models.VIMgrClusterRuntime
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing VIMgrClusterRuntime by uuid
-func (client *VIMgrClusterRuntimeClient) Get(uuid string) (*models.VIMgrClusterRuntime, error) {
+func (client *VIMgrClusterRuntimeClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.VIMgrClusterRuntime, error) {
 	var obj *models.VIMgrClusterRuntime
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing VIMgrClusterRuntime by name
-func (client *VIMgrClusterRuntimeClient) GetByName(name string) (*models.VIMgrClusterRuntime, error) {
+func (client *VIMgrClusterRuntimeClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.VIMgrClusterRuntime, error) {
 	var obj *models.VIMgrClusterRuntime
-	err := client.aviSession.GetObjectByName("vimgrclusterruntime", name, &obj)
+	err := client.aviSession.GetObjectByName("vimgrclusterruntime", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *VIMgrClusterRuntimeClient) GetObject(options ...session.ApiOptions
 }
 
 // Create a new VIMgrClusterRuntime object
-func (client *VIMgrClusterRuntimeClient) Create(obj *models.VIMgrClusterRuntime) (*models.VIMgrClusterRuntime, error) {
+func (client *VIMgrClusterRuntimeClient) Create(obj *models.VIMgrClusterRuntime, options ...session.ApiOptionsParams) (*models.VIMgrClusterRuntime, error) {
 	var robj *models.VIMgrClusterRuntime
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing VIMgrClusterRuntime object
-func (client *VIMgrClusterRuntimeClient) Update(obj *models.VIMgrClusterRuntime) (*models.VIMgrClusterRuntime, error) {
+func (client *VIMgrClusterRuntimeClient) Update(obj *models.VIMgrClusterRuntime, options ...session.ApiOptionsParams) (*models.VIMgrClusterRuntime, error) {
 	var robj *models.VIMgrClusterRuntime
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *VIMgrClusterRuntimeClient) Update(obj *models.VIMgrClusterRuntime)
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.VIMgrClusterRuntime
 // or it should be json compatible of form map[string]interface{}
-func (client *VIMgrClusterRuntimeClient) Patch(uuid string, patch interface{}, patchOp string) (*models.VIMgrClusterRuntime, error) {
+func (client *VIMgrClusterRuntimeClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.VIMgrClusterRuntime, error) {
 	var robj *models.VIMgrClusterRuntime
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing VIMgrClusterRuntime object with a given UUID
-func (client *VIMgrClusterRuntimeClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *VIMgrClusterRuntimeClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing VIMgrClusterRuntime object with a given name
-func (client *VIMgrClusterRuntimeClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *VIMgrClusterRuntimeClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

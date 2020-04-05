@@ -10,7 +10,7 @@ type SeBootupProperties struct {
 	// Deprecated. Field deprecated in 17.2.8. Field introduced in 17.1.1.
 	DistributeQueues *bool `json:"distribute_queues,omitempty"`
 
-	// Distributes vnic ownership among cores so multiple cores handle dispatcher duties.
+	// Deprecated. Field deprecated in 18.2.5.
 	DistributeVnics *bool `json:"distribute_vnics,omitempty"`
 
 	// End of the Local TCP port range used by SE for backend connections in docker environment.
@@ -25,10 +25,10 @@ type SeBootupProperties struct {
 	// Granularity or Resolution of co-ordinates used. When the value is 1 the co-ordinates provided in the geo-db are used as is (highest resolution.This value provides a 'zoom-out' value so that coarser co-ordinates are used. With higher resolution, logs can contain finer location information. But, lower resolution provides significant memory and cpu benefits on the service engine. Besides, given a smaller number of members that are separated geographically, a lower resolution is sufficient for correct load-balancing. Allowed values are 1-20. Field introduced in 17.1.1.
 	GeoDbGranularity *int32 `json:"geo_db_granularity,omitempty"`
 
-	// Number of l7_conns_per_core.
+	// Number of L7 connections that can be cached per core.
 	L7ConnsPerCore *int32 `json:"l7_conns_per_core,omitempty"`
 
-	// Number of l7_resvd_listen_conns_per_core.
+	// Number of reserved L7 listener connections per core.
 	L7ResvdListenConnsPerCore *int32 `json:"l7_resvd_listen_conns_per_core,omitempty"`
 
 	// Enable debug logs by default on Service Engine. This includes all other debugging logs. Debug logs can also be explcitly enabled from the CLI shell.
@@ -73,31 +73,31 @@ type SeBootupProperties struct {
 	// Internal events buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments.
 	SeLogBufferEventsSize *int32 `json:"se_log_buffer_events_size,omitempty"`
 
-	// Enable or disable Large Receive Optimization for vnics.
+	// Deprecated. Field deprecated in 18.2.5.
 	SeLro *int32 `json:"se_lro,omitempty"`
 
-	// Max number of packets the pcap interface can hold.
+	// Deprecated. Field deprecated in 18.2.5.
 	SePcapPktCount *int32 `json:"se_pcap_pkt_count,omitempty"`
 
-	// Max size of each packet in the pcap interface.
+	// Deprecated. Field deprecated in 18.2.5.
 	SePcapPktSz *int32 `json:"se_pcap_pkt_sz,omitempty"`
 
-	// when sampling for navigation timing data from the end user client. minimum time to wait on server between samples.
+	// Deprecated. Field deprecated in 18.2.6.
 	SeRumSamplingNavInterval *int32 `json:"se_rum_sampling_nav_interval,omitempty"`
 
-	// percentage of navigation timing data to sample from the end user client for client insights.
+	// Deprecated. Field deprecated in 18.2.6.
 	SeRumSamplingNavPercent *int32 `json:"se_rum_sampling_nav_percent,omitempty"`
 
-	// when sampling for resource timing data from the end user client. minimum time to wait on server between samples.
+	// Deprecated. Field deprecated in 18.2.6.
 	SeRumSamplingResInterval *int32 `json:"se_rum_sampling_res_interval,omitempty"`
 
-	// percentage of resource timing data to sample from the end user client for client insights.
+	// Deprecated. Field deprecated in 18.2.6.
 	SeRumSamplingResPercent *int32 `json:"se_rum_sampling_res_percent,omitempty"`
 
 	// Determines if DSR from secondary SE is active or not      0        Automatically determine based on hypervisor type    1        Disable DSR unconditionally    ~[0,1]   Enable DSR unconditionally. Field deprecated in 17.1.1.
 	SeTunnelMode *int32 `json:"se_tunnel_mode,omitempty"`
 
-	// Number of packets to batch for transmit to the nic.
+	// Deprecated. Field deprecated in 18.2.5.
 	SeTxBatchSize *int32 `json:"se_tx_batch_size,omitempty"`
 
 	// This field has been moved to se_group properties 18.1.2 onwards. Field deprecated in 18.1.3.

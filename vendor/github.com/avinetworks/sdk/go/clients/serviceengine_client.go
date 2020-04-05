@@ -45,23 +45,23 @@ func (client *ServiceEngineClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of ServiceEngine objects
-func (client *ServiceEngineClient) GetAll() ([]*models.ServiceEngine, error) {
+func (client *ServiceEngineClient) GetAll(options ...session.ApiOptionsParams) ([]*models.ServiceEngine, error) {
 	var plist []*models.ServiceEngine
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing ServiceEngine by uuid
-func (client *ServiceEngineClient) Get(uuid string) (*models.ServiceEngine, error) {
+func (client *ServiceEngineClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.ServiceEngine, error) {
 	var obj *models.ServiceEngine
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing ServiceEngine by name
-func (client *ServiceEngineClient) GetByName(name string) (*models.ServiceEngine, error) {
+func (client *ServiceEngineClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.ServiceEngine, error) {
 	var obj *models.ServiceEngine
-	err := client.aviSession.GetObjectByName("serviceengine", name, &obj)
+	err := client.aviSession.GetObjectByName("serviceengine", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *ServiceEngineClient) GetObject(options ...session.ApiOptionsParams
 }
 
 // Create a new ServiceEngine object
-func (client *ServiceEngineClient) Create(obj *models.ServiceEngine) (*models.ServiceEngine, error) {
+func (client *ServiceEngineClient) Create(obj *models.ServiceEngine, options ...session.ApiOptionsParams) (*models.ServiceEngine, error) {
 	var robj *models.ServiceEngine
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing ServiceEngine object
-func (client *ServiceEngineClient) Update(obj *models.ServiceEngine) (*models.ServiceEngine, error) {
+func (client *ServiceEngineClient) Update(obj *models.ServiceEngine, options ...session.ApiOptionsParams) (*models.ServiceEngine, error) {
 	var robj *models.ServiceEngine
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *ServiceEngineClient) Update(obj *models.ServiceEngine) (*models.Se
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.ServiceEngine
 // or it should be json compatible of form map[string]interface{}
-func (client *ServiceEngineClient) Patch(uuid string, patch interface{}, patchOp string) (*models.ServiceEngine, error) {
+func (client *ServiceEngineClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.ServiceEngine, error) {
 	var robj *models.ServiceEngine
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing ServiceEngine object with a given UUID
-func (client *ServiceEngineClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *ServiceEngineClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing ServiceEngine object with a given name
-func (client *ServiceEngineClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *ServiceEngineClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

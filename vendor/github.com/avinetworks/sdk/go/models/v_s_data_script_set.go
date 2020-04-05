@@ -33,6 +33,9 @@ type VSDataScriptSet struct {
 	// UUID of pools that could be referred by VSDataScriptSet objects. It is a reference to an object of type Pool.
 	PoolRefs []string `json:"pool_refs,omitempty"`
 
+	// List of protocol parsers that could be referred by VSDataScriptSet objects. It is a reference to an object of type ProtocolParser. Field introduced in 18.2.3.
+	ProtocolParserRefs []string `json:"protocol_parser_refs,omitempty"`
+
 	// UUID of String Groups that could be referred by VSDataScriptSet objects. It is a reference to an object of type StringGroup.
 	StringGroupRefs []string `json:"string_group_refs,omitempty"`
 

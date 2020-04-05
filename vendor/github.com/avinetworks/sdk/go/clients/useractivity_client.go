@@ -45,23 +45,23 @@ func (client *UserActivityClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of UserActivity objects
-func (client *UserActivityClient) GetAll() ([]*models.UserActivity, error) {
+func (client *UserActivityClient) GetAll(options ...session.ApiOptionsParams) ([]*models.UserActivity, error) {
 	var plist []*models.UserActivity
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing UserActivity by uuid
-func (client *UserActivityClient) Get(uuid string) (*models.UserActivity, error) {
+func (client *UserActivityClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.UserActivity, error) {
 	var obj *models.UserActivity
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing UserActivity by name
-func (client *UserActivityClient) GetByName(name string) (*models.UserActivity, error) {
+func (client *UserActivityClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.UserActivity, error) {
 	var obj *models.UserActivity
-	err := client.aviSession.GetObjectByName("useractivity", name, &obj)
+	err := client.aviSession.GetObjectByName("useractivity", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *UserActivityClient) GetObject(options ...session.ApiOptionsParams)
 }
 
 // Create a new UserActivity object
-func (client *UserActivityClient) Create(obj *models.UserActivity) (*models.UserActivity, error) {
+func (client *UserActivityClient) Create(obj *models.UserActivity, options ...session.ApiOptionsParams) (*models.UserActivity, error) {
 	var robj *models.UserActivity
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing UserActivity object
-func (client *UserActivityClient) Update(obj *models.UserActivity) (*models.UserActivity, error) {
+func (client *UserActivityClient) Update(obj *models.UserActivity, options ...session.ApiOptionsParams) (*models.UserActivity, error) {
 	var robj *models.UserActivity
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *UserActivityClient) Update(obj *models.UserActivity) (*models.User
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.UserActivity
 // or it should be json compatible of form map[string]interface{}
-func (client *UserActivityClient) Patch(uuid string, patch interface{}, patchOp string) (*models.UserActivity, error) {
+func (client *UserActivityClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.UserActivity, error) {
 	var robj *models.UserActivity
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing UserActivity object with a given UUID
-func (client *UserActivityClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *UserActivityClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing UserActivity object with a given name
-func (client *UserActivityClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *UserActivityClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -37,6 +37,12 @@ type HTTPApplicationProfile struct {
 	// Disable keep-alive client side connections for older browsers based off MS Internet Explorer 6.0 (MSIE6). For some applications, this might break NTLM authentication for older clients based off MSIE6. For such applications, set this option to false to allow keep-alive connections.
 	DisableKeepalivePostsMsie6 *bool `json:"disable_keepalive_posts_msie6,omitempty"`
 
+	// Disable strict check between TLS servername and HTTP Host name. Field introduced in 18.2.5.
+	DisableSniHostnameCheck *bool `json:"disable_sni_hostname_check,omitempty"`
+
+	// Enable chunk body merge for chunked transfer encoding response. Field introduced in 18.2.7.
+	EnableChunkMerge *bool `json:"enable_chunk_merge,omitempty"`
+
 	// Enable support for fire and forget feature. If enabled, request from client is forwarded to server even if client prematurely closes the connection. Field introduced in 17.2.4.
 	EnableFireAndForget *bool `json:"enable_fire_and_forget,omitempty"`
 
@@ -45,6 +51,9 @@ type HTTPApplicationProfile struct {
 
 	// Enable HTTP request body metrics. If enabled, requests from clients are parsed and relevant statistics about them are gathered. Currently, it processes HTTP POST requests with Content-Type application/x-www-form-urlencoded or multipart/form-data, and adds the number of detected parameters to the l7_client.http_params_count. This is an experimental feature and it may have performance impact. Use it when detailed information about the number of HTTP POST parameters is needed, e.g. for WAF sizing. Field introduced in 18.1.5, 18.2.1.
 	EnableRequestBodyMetrics *bool `json:"enable_request_body_metrics,omitempty"`
+
+	// Forward the Connection  Close header coming from backend server to the client if connection-switching is enabled, i.e. front-end and backend connections are bound together. Field introduced in 18.2.3.
+	FwdCloseHdrForBoundConnections *bool `json:"fwd_close_hdr_for_bound_connections,omitempty"`
 
 	// Inserts HTTP Strict-Transport-Security header in the HTTPS response.  HSTS can help mitigate man-in-the-middle attacks by telling browsers that support HSTS that they should only access this site via HTTPS.
 	HstsEnabled *bool `json:"hsts_enabled,omitempty"`
@@ -79,6 +88,21 @@ type HTTPApplicationProfile struct {
 	// Maximum bad requests per second per URI. Allowed values are 10-1000. Special values are 0- 'unlimited'.
 	MaxBadRpsURI *int32 `json:"max_bad_rps_uri,omitempty"`
 
+	// The max number of concurrent streams over a client side HTTP/2 connection. Allowed values are 1-256. Field introduced in 18.2.6.
+	MaxHttp2ConcurrentStreamsPerConnection *int32 `json:"max_http2_concurrent_streams_per_connection,omitempty"`
+
+	// The max number of control frames that client can send over an HTTP/2 connection. '0' means unlimited. Allowed values are 0-10000. Special values are 0- 'Unlimited control frames on a client side HTTP/2 connection'. Field introduced in 18.2.6.
+	MaxHttp2ControlFramesPerConnection *int32 `json:"max_http2_control_frames_per_connection,omitempty"`
+
+	// The max number of empty data frames that client can send over an HTTP/2 connection. '0' means unlimited. Allowed values are 0-10000. Special values are 0- 'Unlimited empty data frames over a client side HTTP/2 connection'. Field introduced in 18.2.6.
+	MaxHttp2EmptyDataFramesPerConnection *int32 `json:"max_http2_empty_data_frames_per_connection,omitempty"`
+
+	// The max number of frames that can be queued waiting to be sent over a client side HTTP/2 connection at any given time. '0' means unlimited. Allowed values are 0-10000. Special values are 0- 'Unlimited frames can be queued on a client side HTTP/2 connection'. Field introduced in 18.2.6.
+	MaxHttp2QueuedFramesToClientPerConnection *int32 `json:"max_http2_queued_frames_to_client_per_connection,omitempty"`
+
+	// The max number of HTTP requests that can be sent over a Keep-Alive connection. '0' means unlimited. Allowed values are 0-1000000. Special values are 0- 'Unlimited requests on a connection'. Field introduced in 18.2.5.
+	MaxKeepaliveRequests *int32 `json:"max_keepalive_requests,omitempty"`
+
 	// Maximum size in Kbytes of all the HTTP response headers. Allowed values are 1-256.
 	MaxResponseHeadersSize *int32 `json:"max_response_headers_size,omitempty"`
 
@@ -103,6 +127,9 @@ type HTTPApplicationProfile struct {
 	// The max allowed length of time between a client establishing a TCP connection until Avi receives the first byte of the client's HTTP request. Allowed values are 10-100000000.
 	PostAcceptTimeout *int32 `json:"post_accept_timeout,omitempty"`
 
+	// If enabled, an HTTP request on an SSL port will result in connection close instead of a 400 response. Field introduced in 18.2.6.
+	ResetConnHTTPOnSslPort *bool `json:"reset_conn_http_on_ssl_port,omitempty"`
+
 	// Avi will respond with 100-Continue response if Expect  100-Continue header received from client. Field introduced in 17.2.8.
 	RespondWith100Continue *bool `json:"respond_with_100_continue,omitempty"`
 
@@ -112,10 +139,10 @@ type HTTPApplicationProfile struct {
 	// When terminating client SSL sessions at Avi, servers may incorrectly send redirect to clients as HTTP.  This option will rewrite the server's redirect responses for this virtual service from HTTP to HTTPS.
 	ServerSideRedirectToHTTPS *bool `json:"server_side_redirect_to_https,omitempty"`
 
-	// Enable SPDY proxy for traffic from clients to the virtual service.  SPDY requires SSL from the clients to Avi.  Avi ADC will proxy the SPDY protocol, and forward requests to servers as HTTP 1.1. .
+	// This field is deprecated. Field deprecated in 18.2.8.
 	SpdyEnabled *bool `json:"spdy_enabled,omitempty"`
 
-	// Enable fwd proxy mode with SPDY. This makes the Proxy combine the  host and  uri spdy headers to create a fwd-proxy style request URI.
+	// This field is deprecated. Field deprecated in 18.2.8.
 	SpdyFwdProxyMode *bool `json:"spdy_fwd_proxy_mode,omitempty"`
 
 	// Set of match/action rules that govern what happens when the client certificate request is enabled.
@@ -124,7 +151,7 @@ type HTTPApplicationProfile struct {
 	// Specifies whether the client side verification is set to none, request or require. Enum options - SSL_CLIENT_CERTIFICATE_NONE, SSL_CLIENT_CERTIFICATE_REQUEST, SSL_CLIENT_CERTIFICATE_REQUIRE.
 	SslClientCertificateMode *string `json:"ssl_client_certificate_mode,omitempty"`
 
-	// Enable common settings to increase the level of security for  virtual services running HTTP and HTTPS.  For sites that are  HTTP only, these settings will have no effect.
+	// Enable common settings to increase the level of security for  virtual services running HTTP and HTTPS. For sites that are  HTTP only, these settings will have no effect. Field deprecated in 18.2.7.
 	SslEverywhereEnabled *bool `json:"ssl_everywhere_enabled,omitempty"`
 
 	// Use 'Keep-Alive' header timeout sent by application instead of sending the HTTP Keep-Alive Timeout.

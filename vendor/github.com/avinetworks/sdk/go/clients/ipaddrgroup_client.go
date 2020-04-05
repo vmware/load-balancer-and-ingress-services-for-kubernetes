@@ -45,23 +45,23 @@ func (client *IPAddrGroupClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of IPAddrGroup objects
-func (client *IPAddrGroupClient) GetAll() ([]*models.IPAddrGroup, error) {
+func (client *IPAddrGroupClient) GetAll(options ...session.ApiOptionsParams) ([]*models.IPAddrGroup, error) {
 	var plist []*models.IPAddrGroup
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing IPAddrGroup by uuid
-func (client *IPAddrGroupClient) Get(uuid string) (*models.IPAddrGroup, error) {
+func (client *IPAddrGroupClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.IPAddrGroup, error) {
 	var obj *models.IPAddrGroup
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing IPAddrGroup by name
-func (client *IPAddrGroupClient) GetByName(name string) (*models.IPAddrGroup, error) {
+func (client *IPAddrGroupClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.IPAddrGroup, error) {
 	var obj *models.IPAddrGroup
-	err := client.aviSession.GetObjectByName("ipaddrgroup", name, &obj)
+	err := client.aviSession.GetObjectByName("ipaddrgroup", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *IPAddrGroupClient) GetObject(options ...session.ApiOptionsParams) 
 }
 
 // Create a new IPAddrGroup object
-func (client *IPAddrGroupClient) Create(obj *models.IPAddrGroup) (*models.IPAddrGroup, error) {
+func (client *IPAddrGroupClient) Create(obj *models.IPAddrGroup, options ...session.ApiOptionsParams) (*models.IPAddrGroup, error) {
 	var robj *models.IPAddrGroup
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing IPAddrGroup object
-func (client *IPAddrGroupClient) Update(obj *models.IPAddrGroup) (*models.IPAddrGroup, error) {
+func (client *IPAddrGroupClient) Update(obj *models.IPAddrGroup, options ...session.ApiOptionsParams) (*models.IPAddrGroup, error) {
 	var robj *models.IPAddrGroup
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *IPAddrGroupClient) Update(obj *models.IPAddrGroup) (*models.IPAddr
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.IPAddrGroup
 // or it should be json compatible of form map[string]interface{}
-func (client *IPAddrGroupClient) Patch(uuid string, patch interface{}, patchOp string) (*models.IPAddrGroup, error) {
+func (client *IPAddrGroupClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.IPAddrGroup, error) {
 	var robj *models.IPAddrGroup
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing IPAddrGroup object with a given UUID
-func (client *IPAddrGroupClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *IPAddrGroupClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing IPAddrGroup object with a given name
-func (client *IPAddrGroupClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *IPAddrGroupClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

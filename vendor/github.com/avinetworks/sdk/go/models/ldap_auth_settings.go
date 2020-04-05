@@ -25,7 +25,7 @@ type LdapAuthSettings struct {
 	// LDAP connection security mode. Enum options - AUTH_LDAP_SECURE_NONE, AUTH_LDAP_SECURE_USE_LDAPS.
 	SecurityMode *string `json:"security_mode,omitempty"`
 
-	// LDAP server IP address.
+	// LDAP server IP address or Hostname. Use IP address if an auth profile is used to configure Virtual Service.
 	Server []string `json:"server,omitempty"`
 
 	// LDAP full directory configuration with administrator credentials.

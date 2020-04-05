@@ -45,23 +45,23 @@ func (client *CustomIPAMDNSProfileClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of CustomIPAMDNSProfile objects
-func (client *CustomIPAMDNSProfileClient) GetAll() ([]*models.CustomIPAMDNSProfile, error) {
+func (client *CustomIPAMDNSProfileClient) GetAll(options ...session.ApiOptionsParams) ([]*models.CustomIPAMDNSProfile, error) {
 	var plist []*models.CustomIPAMDNSProfile
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing CustomIPAMDNSProfile by uuid
-func (client *CustomIPAMDNSProfileClient) Get(uuid string) (*models.CustomIPAMDNSProfile, error) {
+func (client *CustomIPAMDNSProfileClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.CustomIPAMDNSProfile, error) {
 	var obj *models.CustomIPAMDNSProfile
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing CustomIPAMDNSProfile by name
-func (client *CustomIPAMDNSProfileClient) GetByName(name string) (*models.CustomIPAMDNSProfile, error) {
+func (client *CustomIPAMDNSProfileClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.CustomIPAMDNSProfile, error) {
 	var obj *models.CustomIPAMDNSProfile
-	err := client.aviSession.GetObjectByName("customipamdnsprofile", name, &obj)
+	err := client.aviSession.GetObjectByName("customipamdnsprofile", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *CustomIPAMDNSProfileClient) GetObject(options ...session.ApiOption
 }
 
 // Create a new CustomIPAMDNSProfile object
-func (client *CustomIPAMDNSProfileClient) Create(obj *models.CustomIPAMDNSProfile) (*models.CustomIPAMDNSProfile, error) {
+func (client *CustomIPAMDNSProfileClient) Create(obj *models.CustomIPAMDNSProfile, options ...session.ApiOptionsParams) (*models.CustomIPAMDNSProfile, error) {
 	var robj *models.CustomIPAMDNSProfile
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing CustomIPAMDNSProfile object
-func (client *CustomIPAMDNSProfileClient) Update(obj *models.CustomIPAMDNSProfile) (*models.CustomIPAMDNSProfile, error) {
+func (client *CustomIPAMDNSProfileClient) Update(obj *models.CustomIPAMDNSProfile, options ...session.ApiOptionsParams) (*models.CustomIPAMDNSProfile, error) {
 	var robj *models.CustomIPAMDNSProfile
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *CustomIPAMDNSProfileClient) Update(obj *models.CustomIPAMDNSProfil
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.CustomIPAMDNSProfile
 // or it should be json compatible of form map[string]interface{}
-func (client *CustomIPAMDNSProfileClient) Patch(uuid string, patch interface{}, patchOp string) (*models.CustomIPAMDNSProfile, error) {
+func (client *CustomIPAMDNSProfileClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.CustomIPAMDNSProfile, error) {
 	var robj *models.CustomIPAMDNSProfile
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing CustomIPAMDNSProfile object with a given UUID
-func (client *CustomIPAMDNSProfileClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *CustomIPAMDNSProfileClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing CustomIPAMDNSProfile object with a given name
-func (client *CustomIPAMDNSProfileClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *CustomIPAMDNSProfileClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

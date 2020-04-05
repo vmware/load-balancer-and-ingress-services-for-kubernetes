@@ -45,23 +45,23 @@ func (client *ControllerPropertiesClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of ControllerProperties objects
-func (client *ControllerPropertiesClient) GetAll() ([]*models.ControllerProperties, error) {
+func (client *ControllerPropertiesClient) GetAll(options ...session.ApiOptionsParams) ([]*models.ControllerProperties, error) {
 	var plist []*models.ControllerProperties
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing ControllerProperties by uuid
-func (client *ControllerPropertiesClient) Get(uuid string) (*models.ControllerProperties, error) {
+func (client *ControllerPropertiesClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.ControllerProperties, error) {
 	var obj *models.ControllerProperties
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing ControllerProperties by name
-func (client *ControllerPropertiesClient) GetByName(name string) (*models.ControllerProperties, error) {
+func (client *ControllerPropertiesClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.ControllerProperties, error) {
 	var obj *models.ControllerProperties
-	err := client.aviSession.GetObjectByName("controllerproperties", name, &obj)
+	err := client.aviSession.GetObjectByName("controllerproperties", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *ControllerPropertiesClient) GetObject(options ...session.ApiOption
 }
 
 // Create a new ControllerProperties object
-func (client *ControllerPropertiesClient) Create(obj *models.ControllerProperties) (*models.ControllerProperties, error) {
+func (client *ControllerPropertiesClient) Create(obj *models.ControllerProperties, options ...session.ApiOptionsParams) (*models.ControllerProperties, error) {
 	var robj *models.ControllerProperties
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing ControllerProperties object
-func (client *ControllerPropertiesClient) Update(obj *models.ControllerProperties) (*models.ControllerProperties, error) {
+func (client *ControllerPropertiesClient) Update(obj *models.ControllerProperties, options ...session.ApiOptionsParams) (*models.ControllerProperties, error) {
 	var robj *models.ControllerProperties
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *ControllerPropertiesClient) Update(obj *models.ControllerPropertie
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.ControllerProperties
 // or it should be json compatible of form map[string]interface{}
-func (client *ControllerPropertiesClient) Patch(uuid string, patch interface{}, patchOp string) (*models.ControllerProperties, error) {
+func (client *ControllerPropertiesClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.ControllerProperties, error) {
 	var robj *models.ControllerProperties
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing ControllerProperties object with a given UUID
-func (client *ControllerPropertiesClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *ControllerPropertiesClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing ControllerProperties object with a given name
-func (client *ControllerPropertiesClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *ControllerPropertiesClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

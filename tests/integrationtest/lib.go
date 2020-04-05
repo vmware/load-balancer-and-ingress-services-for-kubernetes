@@ -57,35 +57,6 @@ const (
 var KubeClient *k8sfake.Clientset
 var ctrl *k8s.AviController
 
-func SetUp() {
-	KubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{
-		utils.ServiceInformer,
-		utils.EndpointInformer,
-		utils.ExtV1IngressInformer,
-		utils.SecretInformer,
-		utils.NSInformer,
-		utils.NodeInformer,
-		utils.ConfigMapInformer,
-	}
-	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
-
-	os.Setenv("CTRL_USERNAME", "admin")
-	os.Setenv("CTRL_PASSWORD", "admin")
-	os.Setenv("CTRL_IPADDRESS", "localhost")
-	os.Setenv("INGRESS_API", "extensionv1")
-	os.Setenv("FULL_SYNC_INTERVAL", "600")
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	ctrl = k8s.SharedAviController()
-	stopCh := utils.SetupSignalHandler()
-	k8s.PopulateCache()
-	ctrlCh := make(chan struct{})
-	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
-	go ctrl.InitController(informers, ctrlCh, stopCh)
-	AddConfigMap()
-}
-
 func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -602,50 +573,63 @@ func DelEP(t *testing.T, ns string, Name string) {
 	}
 }
 
-/*
-InjectFault type func should be used to inject custom faults to the ControllerFakeAPIServer as follows:
-In order to add a lag of 200ms
-ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
-	time.Sleep(200*time.Millisecond)
-})
+var AviFakeClientInstance *httptest.Server
+var FakeServerMiddleware InjectFault
+var FakeAviObjects = []string{
+	"cloud",
+	"ipamdnsproviderprofile",
+	"pool",
+	"poolgroup",
+	"virtualservice",
+	"vrfcontext",
+	"vsdatascriptset",
+}
 
-or use it to return an unauthorised error
-ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusUnauthorised)
-	fmt.Fprintln(w, `{"error": "Authentication credentials are not provided"}`)
-})
-*/
 type InjectFault func(w http.ResponseWriter, r *http.Request)
 
-// GetAviControllerFakeAPIServer returns a sample Controller API FakeClient
-func GetAviControllerFakeAPIServer(fault ...InjectFault) (ts *httptest.Server) {
-	ts = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		url := r.URL.EscapedPath()
-		utils.AviLog.Info.Printf("[fakeAPI]: %s %s\n", r.Method, url)
+func AddMiddleware(exec InjectFault) {
+	FakeServerMiddleware = exec
+}
 
-		if len(fault) != 0 {
-			fault[0](w, r)
-			return
-		}
-		NormalControllerServer(w, r)
-	}))
+func ResetMiddleware() {
+	FakeServerMiddleware = nil
+}
 
-	url := strings.Split(ts.URL, "https://")[1]
-	os.Setenv("CTRL_USERNAME", "admin")
-	os.Setenv("CTRL_PASSWORD", "admin")
-	os.Setenv("CTRL_IPADDRESS", url)
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	// resets avi client pool instance, allows to connect with the new `ts` server
-	cache.AviClientInstance = nil
-	k8s.PopulateCache()
-	return ts
+func NewAviFakeClientInstance() {
+	if AviFakeClientInstance == nil {
+		AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			url := r.URL.EscapedPath()
+			utils.AviLog.Info.Printf("[fakeAPI]: %s %s\n", r.Method, url)
+
+			if FakeServerMiddleware != nil {
+				FakeServerMiddleware(w, r)
+				return
+			}
+
+			NormalControllerServer(w, r)
+		}))
+
+		url := strings.Split(AviFakeClientInstance.URL, "https://")[1]
+		os.Setenv("CTRL_USERNAME", "admin")
+		os.Setenv("CTRL_PASSWORD", "admin")
+		os.Setenv("CTRL_IPADDRESS", url)
+		os.Setenv("SHARD_VS_SIZE", "LARGE")
+		os.Setenv("INGRESS_API", "extensionv1")
+		os.Setenv("FULL_SYNC_INTERVAL", "600")
+		os.Setenv("SHARD_VS_SIZE", "LARGE")
+
+		// resets avi client pool instance, allows to connect with the new `ts` server
+		cache.AviClientInstance = nil
+		k8s.PopulateCache()
+	}
 }
 
 func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.EscapedPath()
 	var resp map[string]interface{}
 	var finalResponse []byte
+	object := strings.Split(strings.Trim(url, "/"), "/")
 
 	if strings.Contains(url, "macro") && r.Method == "POST" {
 		data, _ := ioutil.ReadAll(r.Body)
@@ -668,6 +652,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 		finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, string(finalResponse))
+
 	} else if r.Method == "PUT" {
 		data, _ := ioutil.ReadAll(r.Body)
 		json.Unmarshal(data, &resp)
@@ -675,14 +660,28 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 		finalResponse, _ = json.Marshal(resp)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, string(finalResponse))
+
 	} else if r.Method == "DELETE" {
 		w.WriteHeader(http.StatusNoContent)
 		fmt.Fprintln(w, string(finalResponse))
+
+	} else if r.Method == "GET" && inArray(FakeAviObjects, object[1]) {
+		FeedMockCollectionData(w, r)
+
 	} else if strings.Contains(url, "login") {
 		// This is used for /login --> first request to controller
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, `{"success": "true"}`)
 	}
+}
+
+func inArray(a []string, b string) bool {
+	for _, k := range a {
+		if k == b {
+			return true
+		}
+	}
+	return false
 }
 
 // FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data

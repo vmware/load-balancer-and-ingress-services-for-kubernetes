@@ -45,23 +45,23 @@ func (client *AutoScaleLaunchConfigClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of AutoScaleLaunchConfig objects
-func (client *AutoScaleLaunchConfigClient) GetAll() ([]*models.AutoScaleLaunchConfig, error) {
+func (client *AutoScaleLaunchConfigClient) GetAll(options ...session.ApiOptionsParams) ([]*models.AutoScaleLaunchConfig, error) {
 	var plist []*models.AutoScaleLaunchConfig
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing AutoScaleLaunchConfig by uuid
-func (client *AutoScaleLaunchConfigClient) Get(uuid string) (*models.AutoScaleLaunchConfig, error) {
+func (client *AutoScaleLaunchConfigClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.AutoScaleLaunchConfig, error) {
 	var obj *models.AutoScaleLaunchConfig
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing AutoScaleLaunchConfig by name
-func (client *AutoScaleLaunchConfigClient) GetByName(name string) (*models.AutoScaleLaunchConfig, error) {
+func (client *AutoScaleLaunchConfigClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.AutoScaleLaunchConfig, error) {
 	var obj *models.AutoScaleLaunchConfig
-	err := client.aviSession.GetObjectByName("autoscalelaunchconfig", name, &obj)
+	err := client.aviSession.GetObjectByName("autoscalelaunchconfig", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *AutoScaleLaunchConfigClient) GetObject(options ...session.ApiOptio
 }
 
 // Create a new AutoScaleLaunchConfig object
-func (client *AutoScaleLaunchConfigClient) Create(obj *models.AutoScaleLaunchConfig) (*models.AutoScaleLaunchConfig, error) {
+func (client *AutoScaleLaunchConfigClient) Create(obj *models.AutoScaleLaunchConfig, options ...session.ApiOptionsParams) (*models.AutoScaleLaunchConfig, error) {
 	var robj *models.AutoScaleLaunchConfig
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing AutoScaleLaunchConfig object
-func (client *AutoScaleLaunchConfigClient) Update(obj *models.AutoScaleLaunchConfig) (*models.AutoScaleLaunchConfig, error) {
+func (client *AutoScaleLaunchConfigClient) Update(obj *models.AutoScaleLaunchConfig, options ...session.ApiOptionsParams) (*models.AutoScaleLaunchConfig, error) {
 	var robj *models.AutoScaleLaunchConfig
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *AutoScaleLaunchConfigClient) Update(obj *models.AutoScaleLaunchCon
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.AutoScaleLaunchConfig
 // or it should be json compatible of form map[string]interface{}
-func (client *AutoScaleLaunchConfigClient) Patch(uuid string, patch interface{}, patchOp string) (*models.AutoScaleLaunchConfig, error) {
+func (client *AutoScaleLaunchConfigClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.AutoScaleLaunchConfig, error) {
 	var robj *models.AutoScaleLaunchConfig
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing AutoScaleLaunchConfig object with a given UUID
-func (client *AutoScaleLaunchConfigClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *AutoScaleLaunchConfigClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing AutoScaleLaunchConfig object with a given name
-func (client *AutoScaleLaunchConfigClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *AutoScaleLaunchConfigClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

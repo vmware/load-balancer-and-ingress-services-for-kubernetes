@@ -55,6 +55,9 @@ type Vip struct {
 	// Manually override the network on which the Vip is placed. It is a reference to an object of type Network. Field introduced in 17.1.1.
 	NetworkRef *string `json:"network_ref,omitempty"`
 
+	// Placement networks/subnets to use for vip placement. Field introduced in 18.2.5.
+	PlacementNetworks []*VipPlacementNetwork `json:"placement_networks,omitempty"`
+
 	// (internal-use) Network port assigned to the Vip IP address. Field introduced in 17.1.1.
 	PortUUID *string `json:"port_uuid,omitempty"`
 

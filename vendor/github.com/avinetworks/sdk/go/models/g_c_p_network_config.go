@@ -12,11 +12,11 @@ type GCPNetworkConfig struct {
 	Config *string `json:"config"`
 
 	// Configure InBand Management as Google Cloud network configuration. In this configuration the data network and management network for Service Engines will be same. Field introduced in 18.2.1.
-	Inband *InBandManagement `json:"inband,omitempty"`
+	Inband *GCPInBandManagement `json:"inband,omitempty"`
 
 	// Configure One Arm Mode as Google Cloud network configuration. In this configuration the data network and the management network for the Service Engines will be separated. Field introduced in 18.2.1.
-	OneArm *OneArmMode `json:"one_arm,omitempty"`
+	OneArm *GCPOneArmMode `json:"one_arm,omitempty"`
 
 	// Configure Two Arm Mode as Google Cloud network configuration. In this configuration the frontend data network, backend data network and the management network for the Service Engines will be separated. Field introduced in 18.2.1.
-	TwoArm *TwoArmMode `json:"two_arm,omitempty"`
+	TwoArm *GCPTwoArmMode `json:"two_arm,omitempty"`
 }

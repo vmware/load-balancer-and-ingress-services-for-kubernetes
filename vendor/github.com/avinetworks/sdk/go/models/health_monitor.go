@@ -11,8 +11,14 @@ type HealthMonitor struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// By default, multiple instances of the same healthmonitor to the same server are suppressed intelligently. In rare cases, the monitor may have specific constructs that go beyond the server keys (ip, port, etc.) during which such suppression is not desired. Use this knob to allow duplicates. Field introduced in 18.2.8.
+	AllowDuplicateMonitors *bool `json:"allow_duplicate_monitors,omitempty"`
+
 	// User defined description for the object.
 	Description *string `json:"description,omitempty"`
+
+	// During addition of a server or healthmonitors or during bootup, Avi performs sequential health checks rather than waiting for send-interval to kick in, to mark the server up as soon as possible. This knob may be used to turn this feature off. Field introduced in 18.2.7.
+	DisableQuickstart *bool `json:"disable_quickstart,omitempty"`
 
 	// Placeholder for description of property dns_monitor of obj type HealthMonitor field type str  type object
 	DNSMonitor *HealthMonitorDNS `json:"dns_monitor,omitempty"`
@@ -39,6 +45,9 @@ type HealthMonitor struct {
 	// Required: true
 	Name *string `json:"name"`
 
+	// Health monitor for Radius. Field introduced in 18.2.3.
+	RadiusMonitor *HealthMonitorRadius `json:"radius_monitor,omitempty"`
+
 	// A valid response from the server is expected within the receive timeout window.  This timeout must be less than the send interval.  If server status is regularly flapping up and down, consider increasing this value. Allowed values are 1-2400.
 	ReceiveTimeout *int32 `json:"receive_timeout,omitempty"`
 
@@ -57,7 +66,7 @@ type HealthMonitor struct {
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// Type of the health monitor. Enum options - HEALTH_MONITOR_PING, HEALTH_MONITOR_TCP, HEALTH_MONITOR_HTTP, HEALTH_MONITOR_HTTPS, HEALTH_MONITOR_EXTERNAL, HEALTH_MONITOR_UDP, HEALTH_MONITOR_DNS, HEALTH_MONITOR_GSLB, HEALTH_MONITOR_SIP.
+	// Type of the health monitor. Enum options - HEALTH_MONITOR_PING, HEALTH_MONITOR_TCP, HEALTH_MONITOR_HTTP, HEALTH_MONITOR_HTTPS, HEALTH_MONITOR_EXTERNAL, HEALTH_MONITOR_UDP, HEALTH_MONITOR_DNS, HEALTH_MONITOR_GSLB, HEALTH_MONITOR_SIP, HEALTH_MONITOR_RADIUS.
 	// Required: true
 	Type *string `json:"type"`
 

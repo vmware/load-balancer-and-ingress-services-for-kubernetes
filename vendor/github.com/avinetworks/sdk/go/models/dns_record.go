@@ -28,6 +28,9 @@ type DNSRecord struct {
 	// IP address in A record.
 	IPAddress []*DNSARdata `json:"ip_address,omitempty"`
 
+	// Internal metadata for the DNS record. Field introduced in 18.2.5.
+	Metadata *string `json:"metadata,omitempty"`
+
 	// Name Server information in NS record. Field introduced in 17.1.1.
 	Ns []*DNSNsRdata `json:"ns,omitempty"`
 

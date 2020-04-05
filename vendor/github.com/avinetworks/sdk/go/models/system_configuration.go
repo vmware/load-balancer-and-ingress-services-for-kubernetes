@@ -65,4 +65,7 @@ type SystemConfiguration struct {
 
 	// Unique object identifier of the object.
 	UUID *string `json:"uuid,omitempty"`
+
+	// This flag is set once the Initial Controller Setup workflow is complete. Field introduced in 18.2.3.
+	WelcomeWorkflowComplete *bool `json:"welcome_workflow_complete,omitempty"`
 }

@@ -45,23 +45,23 @@ func (client *GslbGeoDbProfileClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of GslbGeoDbProfile objects
-func (client *GslbGeoDbProfileClient) GetAll() ([]*models.GslbGeoDbProfile, error) {
+func (client *GslbGeoDbProfileClient) GetAll(options ...session.ApiOptionsParams) ([]*models.GslbGeoDbProfile, error) {
 	var plist []*models.GslbGeoDbProfile
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing GslbGeoDbProfile by uuid
-func (client *GslbGeoDbProfileClient) Get(uuid string) (*models.GslbGeoDbProfile, error) {
+func (client *GslbGeoDbProfileClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.GslbGeoDbProfile, error) {
 	var obj *models.GslbGeoDbProfile
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing GslbGeoDbProfile by name
-func (client *GslbGeoDbProfileClient) GetByName(name string) (*models.GslbGeoDbProfile, error) {
+func (client *GslbGeoDbProfileClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.GslbGeoDbProfile, error) {
 	var obj *models.GslbGeoDbProfile
-	err := client.aviSession.GetObjectByName("gslbgeodbprofile", name, &obj)
+	err := client.aviSession.GetObjectByName("gslbgeodbprofile", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *GslbGeoDbProfileClient) GetObject(options ...session.ApiOptionsPar
 }
 
 // Create a new GslbGeoDbProfile object
-func (client *GslbGeoDbProfileClient) Create(obj *models.GslbGeoDbProfile) (*models.GslbGeoDbProfile, error) {
+func (client *GslbGeoDbProfileClient) Create(obj *models.GslbGeoDbProfile, options ...session.ApiOptionsParams) (*models.GslbGeoDbProfile, error) {
 	var robj *models.GslbGeoDbProfile
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing GslbGeoDbProfile object
-func (client *GslbGeoDbProfileClient) Update(obj *models.GslbGeoDbProfile) (*models.GslbGeoDbProfile, error) {
+func (client *GslbGeoDbProfileClient) Update(obj *models.GslbGeoDbProfile, options ...session.ApiOptionsParams) (*models.GslbGeoDbProfile, error) {
 	var robj *models.GslbGeoDbProfile
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *GslbGeoDbProfileClient) Update(obj *models.GslbGeoDbProfile) (*mod
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.GslbGeoDbProfile
 // or it should be json compatible of form map[string]interface{}
-func (client *GslbGeoDbProfileClient) Patch(uuid string, patch interface{}, patchOp string) (*models.GslbGeoDbProfile, error) {
+func (client *GslbGeoDbProfileClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.GslbGeoDbProfile, error) {
 	var robj *models.GslbGeoDbProfile
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing GslbGeoDbProfile object with a given UUID
-func (client *GslbGeoDbProfileClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *GslbGeoDbProfileClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing GslbGeoDbProfile object with a given name
-func (client *GslbGeoDbProfileClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *GslbGeoDbProfileClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

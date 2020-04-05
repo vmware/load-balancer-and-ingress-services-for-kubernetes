@@ -45,23 +45,23 @@ func (client *NetworkRuntimeClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of NetworkRuntime objects
-func (client *NetworkRuntimeClient) GetAll() ([]*models.NetworkRuntime, error) {
+func (client *NetworkRuntimeClient) GetAll(options ...session.ApiOptionsParams) ([]*models.NetworkRuntime, error) {
 	var plist []*models.NetworkRuntime
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing NetworkRuntime by uuid
-func (client *NetworkRuntimeClient) Get(uuid string) (*models.NetworkRuntime, error) {
+func (client *NetworkRuntimeClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.NetworkRuntime, error) {
 	var obj *models.NetworkRuntime
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing NetworkRuntime by name
-func (client *NetworkRuntimeClient) GetByName(name string) (*models.NetworkRuntime, error) {
+func (client *NetworkRuntimeClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.NetworkRuntime, error) {
 	var obj *models.NetworkRuntime
-	err := client.aviSession.GetObjectByName("networkruntime", name, &obj)
+	err := client.aviSession.GetObjectByName("networkruntime", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *NetworkRuntimeClient) GetObject(options ...session.ApiOptionsParam
 }
 
 // Create a new NetworkRuntime object
-func (client *NetworkRuntimeClient) Create(obj *models.NetworkRuntime) (*models.NetworkRuntime, error) {
+func (client *NetworkRuntimeClient) Create(obj *models.NetworkRuntime, options ...session.ApiOptionsParams) (*models.NetworkRuntime, error) {
 	var robj *models.NetworkRuntime
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing NetworkRuntime object
-func (client *NetworkRuntimeClient) Update(obj *models.NetworkRuntime) (*models.NetworkRuntime, error) {
+func (client *NetworkRuntimeClient) Update(obj *models.NetworkRuntime, options ...session.ApiOptionsParams) (*models.NetworkRuntime, error) {
 	var robj *models.NetworkRuntime
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *NetworkRuntimeClient) Update(obj *models.NetworkRuntime) (*models.
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.NetworkRuntime
 // or it should be json compatible of form map[string]interface{}
-func (client *NetworkRuntimeClient) Patch(uuid string, patch interface{}, patchOp string) (*models.NetworkRuntime, error) {
+func (client *NetworkRuntimeClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.NetworkRuntime, error) {
 	var robj *models.NetworkRuntime
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing NetworkRuntime object with a given UUID
-func (client *NetworkRuntimeClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *NetworkRuntimeClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing NetworkRuntime object with a given name
-func (client *NetworkRuntimeClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *NetworkRuntimeClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

@@ -14,6 +14,9 @@ type VirtualService struct {
 	// This configuration only applies if the VirtualService is in Legacy Active Standby HA mode and Load Distribution among Active Standby is enabled. This field is used to tag the VirtualService so that VirtualServices with the same tag will share the same Active ServiceEngine. VirtualServices with different tags will have different Active ServiceEngines. If one of the ServiceEngine's in the ServiceEngineGroup fails, all VirtualServices will end up using the same Active ServiceEngine. Redistribution of the VirtualServices can be either manual or automated when the failed ServiceEngine recovers. Redistribution is based on the auto redistribute property of the ServiceEngineGroup. Enum options - ACTIVE_STANDBY_SE_1, ACTIVE_STANDBY_SE_2.
 	ActiveStandbySeTag *string `json:"active_standby_se_tag,omitempty"`
 
+	// Process request even if invalid client certificate is presented. Datascript APIs need to be used for processing of such requests. Field introduced in 18.2.3.
+	AllowInvalidClientCert *bool `json:"allow_invalid_client_cert,omitempty"`
+
 	// Determines analytics settings for the application.
 	AnalyticsPolicy *AnalyticsPolicy `json:"analytics_policy,omitempty"`
 
@@ -190,6 +193,9 @@ type VirtualService struct {
 	// Rate limit the incoming requests to this virtual service.
 	RequestsRateLimit *RateProfile `json:"requests_rate_limit,omitempty"`
 
+	// Application-specific SAML config. Field introduced in 18.2.3.
+	SamlSpConfig *SAMLSPConfig `json:"saml_sp_config,omitempty"`
+
 	// Disable re-distribution of flows across service engines for a virtual service. Enable if the network itself performs flow hashing with ECMP in environments such as GCP.
 	ScaleoutEcmp *bool `json:"scaleout_ecmp,omitempty"`
 
@@ -227,11 +233,17 @@ type VirtualService struct {
 	// Determines the set of SSL versions and ciphers to accept for SSL/TLS terminated connections. It is a reference to an object of type SSLProfile.
 	SslProfileRef *string `json:"ssl_profile_ref,omitempty"`
 
+	// Select SSL Profile based on client IP address match. Field introduced in 18.2.3.
+	SslProfileSelectors []*SSLProfileSelector `json:"ssl_profile_selectors,omitempty"`
+
 	// Expected number of SSL session cache entries (may be exceeded). Allowed values are 1024-16383.
 	SslSessCacheAvgSize *int32 `json:"ssl_sess_cache_avg_size,omitempty"`
 
-	// Client Authentication and Authorization Policy for the virtualservice. Field introduced in 18.2.1.
+	// Client Authentication and Authorization Policy for the virtualservice. Field deprecated in 18.2.3. Field introduced in 18.2.1.
 	SsoPolicy *SSOPolicy `json:"sso_policy,omitempty"`
+
+	// The SSO Policy attached to the virtualservice. It is a reference to an object of type SSOPolicy. Field introduced in 18.2.3.
+	SsoPolicyRef *string `json:"sso_policy_ref,omitempty"`
 
 	// List of static DNS records applied to this Virtual Service. These are static entries and no health monitoring is performed against the IP addresses.
 	StaticDNSRecords []*DNSRecord `json:"static_dns_records,omitempty"`
@@ -244,6 +256,12 @@ type VirtualService struct {
 
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
+
+	// Used for testing SE Datastore Upgrade 2.0 functionality. It is a reference to an object of type TestSeDatastoreLevel1. Field introduced in 18.2.6.
+	TestSeDatastoreLevel1Ref *string `json:"test_se_datastore_level_1_ref,omitempty"`
+
+	// Topology Policies applied on the dns traffic of the Virtual Service based onGSLB Topology algorithm. Field introduced in 18.2.3.
+	TopologyPolicies []*DNSPolicies `json:"topology_policies,omitempty"`
 
 	// Server network or list of servers for cloning traffic. It is a reference to an object of type TrafficCloneProfile. Field introduced in 17.1.1.
 	TrafficCloneProfileRef *string `json:"traffic_clone_profile_ref,omitempty"`

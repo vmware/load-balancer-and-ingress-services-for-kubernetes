@@ -45,23 +45,23 @@ func (client *SecureChannelTokenClient) getAPIPath(uuid string) string {
 }
 
 // GetAll is a collection API to get a list of SecureChannelToken objects
-func (client *SecureChannelTokenClient) GetAll() ([]*models.SecureChannelToken, error) {
+func (client *SecureChannelTokenClient) GetAll(options ...session.ApiOptionsParams) ([]*models.SecureChannelToken, error) {
 	var plist []*models.SecureChannelToken
-	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist)
+	err := client.aviSession.GetCollection(client.getAPIPath(""), &plist, options...)
 	return plist, err
 }
 
 // Get an existing SecureChannelToken by uuid
-func (client *SecureChannelTokenClient) Get(uuid string) (*models.SecureChannelToken, error) {
+func (client *SecureChannelTokenClient) Get(uuid string, options ...session.ApiOptionsParams) (*models.SecureChannelToken, error) {
 	var obj *models.SecureChannelToken
-	err := client.aviSession.Get(client.getAPIPath(uuid), &obj)
+	err := client.aviSession.Get(client.getAPIPath(uuid), &obj, options...)
 	return obj, err
 }
 
 // GetByName - Get an existing SecureChannelToken by name
-func (client *SecureChannelTokenClient) GetByName(name string) (*models.SecureChannelToken, error) {
+func (client *SecureChannelTokenClient) GetByName(name string, options ...session.ApiOptionsParams) (*models.SecureChannelToken, error) {
 	var obj *models.SecureChannelToken
-	err := client.aviSession.GetObjectByName("securechanneltoken", name, &obj)
+	err := client.aviSession.GetObjectByName("securechanneltoken", name, &obj, options...)
 	return obj, err
 }
 
@@ -79,17 +79,17 @@ func (client *SecureChannelTokenClient) GetObject(options ...session.ApiOptionsP
 }
 
 // Create a new SecureChannelToken object
-func (client *SecureChannelTokenClient) Create(obj *models.SecureChannelToken) (*models.SecureChannelToken, error) {
+func (client *SecureChannelTokenClient) Create(obj *models.SecureChannelToken, options ...session.ApiOptionsParams) (*models.SecureChannelToken, error) {
 	var robj *models.SecureChannelToken
-	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj)
+	err := client.aviSession.Post(client.getAPIPath(""), obj, &robj, options...)
 	return robj, err
 }
 
 // Update an existing SecureChannelToken object
-func (client *SecureChannelTokenClient) Update(obj *models.SecureChannelToken) (*models.SecureChannelToken, error) {
+func (client *SecureChannelTokenClient) Update(obj *models.SecureChannelToken, options ...session.ApiOptionsParams) (*models.SecureChannelToken, error) {
 	var robj *models.SecureChannelToken
 	path := client.getAPIPath(*obj.UUID)
-	err := client.aviSession.Put(path, obj, &robj)
+	err := client.aviSession.Put(path, obj, &robj, options...)
 	return robj, err
 }
 
@@ -97,25 +97,29 @@ func (client *SecureChannelTokenClient) Update(obj *models.SecureChannelToken) (
 // patchOp: Patch operation - add, replace, or delete
 // patch: Patch payload should be compatible with the models.SecureChannelToken
 // or it should be json compatible of form map[string]interface{}
-func (client *SecureChannelTokenClient) Patch(uuid string, patch interface{}, patchOp string) (*models.SecureChannelToken, error) {
+func (client *SecureChannelTokenClient) Patch(uuid string, patch interface{}, patchOp string, options ...session.ApiOptionsParams) (*models.SecureChannelToken, error) {
 	var robj *models.SecureChannelToken
 	path := client.getAPIPath(uuid)
-	err := client.aviSession.Patch(path, patch, patchOp, &robj)
+	err := client.aviSession.Patch(path, patch, patchOp, &robj, options...)
 	return robj, err
 }
 
 // Delete an existing SecureChannelToken object with a given UUID
-func (client *SecureChannelTokenClient) Delete(uuid string) error {
-	return client.aviSession.Delete(client.getAPIPath(uuid))
+func (client *SecureChannelTokenClient) Delete(uuid string, options ...session.ApiOptionsParams) error {
+	if len(options) == 0 {
+		return client.aviSession.Delete(client.getAPIPath(uuid))
+	} else {
+		return client.aviSession.DeleteObject(client.getAPIPath(uuid), options...)
+	}
 }
 
 // DeleteByName - Delete an existing SecureChannelToken object with a given name
-func (client *SecureChannelTokenClient) DeleteByName(name string) error {
-	res, err := client.GetByName(name)
+func (client *SecureChannelTokenClient) DeleteByName(name string, options ...session.ApiOptionsParams) error {
+	res, err := client.GetByName(name, options...)
 	if err != nil {
 		return err
 	}
-	return client.Delete(*res.UUID)
+	return client.Delete(*res.UUID, options...)
 }
 
 // GetAviSession

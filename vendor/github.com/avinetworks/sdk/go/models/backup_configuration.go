@@ -11,6 +11,15 @@ type BackupConfiguration struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// AWS Access Key ID. Field introduced in 18.2.3.
+	AwsAccessKey *string `json:"aws_access_key,omitempty"`
+
+	// AWS bucket. Field introduced in 18.2.3.
+	AwsBucketID *string `json:"aws_bucket_id,omitempty"`
+
+	// AWS Secret Access Key. Field introduced in 18.2.3.
+	AwsSecretAccess *string `json:"aws_secret_access,omitempty"`
+
 	// Prefix of the exported configuration file. Field introduced in 17.1.1.
 	BackupFilePrefix *string `json:"backup_file_prefix,omitempty"`
 
@@ -41,6 +50,9 @@ type BackupConfiguration struct {
 
 	// Remote Backup.
 	UploadToRemoteHost *bool `json:"upload_to_remote_host,omitempty"`
+
+	// Cloud Backup. Field introduced in 18.2.3.
+	UploadToS3 *bool `json:"upload_to_s3,omitempty"`
 
 	// url
 	// Read Only: true

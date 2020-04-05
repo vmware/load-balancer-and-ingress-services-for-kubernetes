@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"ako/pkg/cache"
+	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 func SetUpTestForSvcLB(t *testing.T) {
@@ -61,7 +63,28 @@ func TearDownTestForSvcLBMultiport(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	SetUp()
+	KubeClient = k8sfake.NewSimpleClientset()
+	registeredInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		utils.ExtV1IngressInformer,
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
+	}
+	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
+	informers := k8s.K8sinformers{Cs: KubeClient}
+
+	NewAviFakeClientInstance()
+	defer AviFakeClientInstance.Close()
+
+	ctrl = k8s.SharedAviController()
+	stopCh := utils.SetupSignalHandler()
+	ctrlCh := make(chan struct{})
+	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
+	go ctrl.InitController(informers, ctrlCh, stopCh)
+	AddConfigMap()
 	os.Exit(m.Run())
 }
 
@@ -225,9 +248,6 @@ func TestAviNodeUpdateEndpoint(t *testing.T) {
 func TestCreateServiceLB(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ts := GetAviControllerFakeAPIServer()
-	defer ts.Close()
-
 	SetUpTestForSvcLB(t)
 
 	mcache := cache.SharedAviObjCache()
@@ -259,7 +279,7 @@ func TestCreateServiceLBWithFault(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	injectFault := true
-	ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		var resp map[string]interface{}
 		var finalResponse []byte
 		url := r.URL.EscapedPath()
@@ -289,7 +309,7 @@ func TestCreateServiceLBWithFault(t *testing.T) {
 			fmt.Fprintln(w, `{"success": "true"}`)
 		}
 	})
-	defer ts.Close()
+	defer ResetMiddleware()
 
 	SetUpTestForSvcLB(t)
 
@@ -322,9 +342,6 @@ func TestCreateMultiportServiceLB(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	MULTIPORTSVC, NAMESPACE, AVINAMESPACE := "testsvcmulti", "red-ns", "admin"
 
-	ts := GetAviControllerFakeAPIServer()
-	defer ts.Close()
-
 	SetUpTestForSvcLBMultiport(t)
 
 	mcache := cache.SharedAviObjCache()
@@ -350,9 +367,6 @@ func TestCreateMultiportServiceLB(t *testing.T) {
 func TestUpdateAndDeleteServiceLB(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
-
-	ts := GetAviControllerFakeAPIServer()
-	defer ts.Close()
 
 	SetUpTestForSvcLB(t)
 
@@ -385,7 +399,7 @@ func TestUpdateAndDeleteServiceLB(t *testing.T) {
 				return poolCacheObj.CloudConfigCksum
 			}
 		}
-		return ""
+		return oldPoolCksum
 	}, 5*time.Second).Should(gomega.Not(gomega.Equal(oldPoolCksum)))
 	if poolCache, found = mcache.PoolCache.AviCacheGet(poolKey); !found {
 		t.Fatalf("Cache not updated for Pool: %v", poolKey)
@@ -411,11 +425,11 @@ func TestScaleUpAndDownServiceLB(t *testing.T) {
 	var model, service string
 
 	// Simulate a delay of 200ms in the Avi API
-	ts := GetAviControllerFakeAPIServer(func(w http.ResponseWriter, r *http.Request) {
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(200 * time.Millisecond)
 		NormalControllerServer(w, r)
 	})
-	defer ts.Close()
+	defer ResetMiddleware()
 
 	SetUpTestForSvcLB(t)
 

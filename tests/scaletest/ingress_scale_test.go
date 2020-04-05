@@ -36,15 +36,6 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	SetUp()
-	ret := m.Run()
-	os.Exit(ret)
-}
-
-var KubeClient *k8sfake.Clientset
-var ctrl *k8s.AviController
-
-func SetUp() {
 	KubeClient = k8sfake.NewSimpleClientset()
 	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer,
 		meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer,
@@ -52,17 +43,9 @@ func SetUp() {
 
 	meshutils.NewInformers(meshutils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
-	os.Setenv("CTRL_USERNAME", "admin")
-	os.Setenv("CTRL_PASSWORD", "admin")
-	os.Setenv("CTRL_IPADDRESS", "localhost")
-	os.Setenv("INGRESS_API", "extensionv1")
-	os.Setenv("FULL_SYNC_INTERVAL", "10")
 
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("CLOUD_NAME", "Shard-VS-")
-	os.Setenv("VRF_CONTEXT", "global")
-
-	os.Setenv("USE_PVC", "true")
+	integrationtest.NewAviFakeClientInstance()
+	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
 	stopCh := meshutils.SetupSignalHandler()
@@ -72,7 +55,12 @@ func SetUp() {
 	go ctrl.InitController(informers, ctrlCh, stopCh)
 	AddConfigMap()
 	integrationtest.KubeClient = KubeClient
+
+	os.Exit(m.Run())
 }
+
+var KubeClient *k8sfake.Clientset
+var ctrl *k8s.AviController
 
 func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
@@ -88,6 +76,8 @@ func AddConfigMap() {
 
 func SetUpHostnameShardTestforIngress(t *testing.T, ns string) {
 	os.Setenv("L7_SHARD_SCHEME", "hostname")
+	os.Setenv("VRF_CONTEXT", "global")
+	os.Setenv("USE_PVC", "true")
 	integrationtest.CreateSVC(t, ns, "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, ns, "avisvc", false, false)
 }
@@ -235,7 +225,7 @@ func generatePoolData(t *testing.T, ns string, count int, hostSuffix, ingrSuffix
 	for i := 0; i < count; i++ {
 		host := fmt.Sprintf("%d-%s", i, hostSuffix)
 		ingrname := fmt.Sprintf("%d-%s", i, ingrSuffix)
-		poolname := host + path + "--" + ns + "--" + ingrname
+		poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
 		priority := host + path
 		pooldata[poolname] = poolData{
 			ingressName: ingrname,
@@ -277,7 +267,7 @@ func generatePoolDataMultiPath(t *testing.T, ns string, count, pathCount int, ho
 		ingrname := fmt.Sprintf("%d-%s", i, ingrSuffix)
 		ingrdata[ingrname] = ingrData{ingressName: ingrname, hosts: []string{host}}
 		for _, path := range paths {
-			poolname := host + path + "--" + ns + "--" + ingrname
+			poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
 			priority := host + path
 			pooldata[poolname] = poolData{
 				ingressName: ingrname,
@@ -318,7 +308,7 @@ func generatePoolDataMultiHost(t *testing.T, ns string, count, hostCount int, ho
 			host := fmt.Sprintf("%s-%d", baseHost, j)
 			hosts = append(hosts, host)
 			paths = append(paths, path)
-			poolname := host + path + "--" + ns + "--" + ingrname
+			poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
 			priority := host + path
 			pooldata[poolname] = poolData{
 				ingressName: ingrname,
@@ -359,6 +349,7 @@ func verifyModel(t *testing.T, g *gomega.GomegaWithT, count int, modelName strin
 	for _, pool := range nodes[0].PoolRefs {
 		data, ok := pooldata[pool.Name]
 		if !ok {
+			fmt.Printf("CHA: %+v", pooldata)
 			t.Fatalf("Unexpected Poolname: %s", pool.Name)
 		}
 		if data.priority != pool.PriorityLabel {
@@ -815,7 +806,7 @@ func nIngressCreateTestHostnameShard(t *testing.T, count, timeout int) {
 		host := ingr.hosts[0]
 		path := ingr.paths[0]
 		modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-		poolname := host + path + "--" + ns + "--" + ingrname
+		poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
 		if modelToPools[modelname] == nil {
 			modelToPools[modelname] = make(map[string]poolData)
 		}
@@ -872,7 +863,7 @@ func nIngressMultihostHostnameShardCreateTest(t *testing.T, ingrCount, hostCount
 			host := ingr.hosts[i]
 			path := ingr.paths[i]
 			modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-			poolname := host + path + "--" + ns + "--" + ingrname
+			poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
 			if modelToPools[modelname] == nil {
 				modelToPools[modelname] = make(map[string]poolData)
 			}
