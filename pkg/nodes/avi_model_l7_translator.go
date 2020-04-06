@@ -84,7 +84,16 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				RemoveFQDNsFromModel(vsNode[0], Storedhosts, key)
 			}
 			// Update the host mappings for this ingress
-
+			// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
+			// Fetch all the secrets for this ingress
+			found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
+			utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
+			if found {
+				for _, secret := range secrets {
+					sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
+					RemoveSniInModel(sniNodeName, vsNode, key)
+				}
+			}
 			utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %v", key, parsedIng)
 			var hosts []string
 			for host, _ := range parsedIng.IngressHostMap {
@@ -193,12 +202,17 @@ func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
 			for _, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
 				if fqdn != host {
 					// Gather this entry in the new list
+					if len(newFQDNs) == 0 {
+						break
+					}
 					newFQDNs[i] = fqdn
 					i++
 				}
 			}
 			// Empty unsed bytes.
-			newFQDNs = newFQDNs[:i]
+			if len(newFQDNs) != 0 {
+				newFQDNs = newFQDNs[:i]
+			}
 		}
 		vsNode.VSVIPRefs[0].FQDNs = newFQDNs
 	}
@@ -212,12 +226,18 @@ func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
 			for _, fqdn := range vsNode.VHDomainNames {
 				if fqdn != host {
 					// Gather this entry in the new list
+					// If the list had the last element then break from the loop
+					if len(vhDomains) == 0 {
+						break
+					}
 					vhDomains[i] = fqdn
 					i++
 				}
 			}
 			// Empty unsed bytes.
-			vhDomains = vhDomains[:i]
+			if len(vhDomains) != 0 {
+				vhDomains = vhDomains[:i]
+			}
 		}
 		vsNode.VHDomainNames = vhDomains
 	}

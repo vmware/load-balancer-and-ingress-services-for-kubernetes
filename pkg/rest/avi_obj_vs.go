@@ -463,9 +463,18 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			east_west = false
 		}
 
-		for i, _ := range vsvip_meta.FQDNs {
+		for i, fqdn := range vsvip_meta.FQDNs {
 			dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
-			dns_info_arr = append(dns_info_arr, &dns_info)
+			foundFQDN := false
+			// Verify this FQDN is already in the list or not.
+			for _, dns := range dns_info_arr {
+				if *dns.Fqdn == fqdn {
+					foundFQDN = true
+				}
+			}
+			if !foundFQDN {
+				dns_info_arr = append(dns_info_arr, &dns_info)
+			}
 		}
 		vrfContextRef := "/api/vrfcontext?name=" + vsvip_meta.VrfContext
 		vsvip := avimodels.VsVip{Name: &name, TenantRef: &tenant, CloudRef: &cloudRef,
@@ -477,7 +486,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
-		utils.AviLog.Info.Printf("key: %s, seaching in cache for vsVip Key: %s", key, vsvip_key)
+		utils.AviLog.Info.Printf("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
@@ -495,9 +504,18 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 				utils.AviLog.Warning.Printf("key: %s, Error in vsvip GET operation :%s", key, err)
 				return nil, err
 			}
-			for i, _ := range vsvip_meta.FQDNs {
+			for i, fqdn := range vsvip_meta.FQDNs {
 				dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
-				dns_info_arr = append(dns_info_arr, &dns_info)
+				foundFQDN := false
+				// Verify this FQDN is already in the list or not.
+				for _, dns := range dns_info_arr {
+					if *dns.Fqdn == fqdn {
+						foundFQDN = true
+					}
+				}
+				if !foundFQDN {
+					dns_info_arr = append(dns_info_arr, &dns_info)
+				}
 			}
 			vsvip_avi.DNSInfo = dns_info_arr
 			vsvip_avi.VrfContextRef = &vrfContextRef

@@ -257,11 +257,10 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 	cloud string, vsVipData *[]AviVSVIPCache, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
 	var uri string
-	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/vsvip?include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akcUser
+		uri = "/api/vsvip?include_name=true&cloud_ref.name=" + cloud
 	}
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {

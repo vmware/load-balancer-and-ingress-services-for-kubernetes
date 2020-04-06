@@ -263,9 +263,9 @@ func TestCreateServiceLB(t *testing.T) {
 		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)))
 		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("pool--global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
 		g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("pg--global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
 	}
 
 	TearDownTestForSvcLB(t)
@@ -330,9 +330,9 @@ func TestCreateServiceLBWithFault(t *testing.T) {
 		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)))
 		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("pool--global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
 		g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("pg--global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
 	}
 
 	TearDownTestForSvcLB(t)
@@ -357,9 +357,9 @@ func TestCreateMultiportServiceLB(t *testing.T) {
 	g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", MULTIPORTSVC, NAMESPACE)))
 	g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 	g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(3))
-	g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp(`^(pool--global--[a-zA-Z0-9-]+-808(0|1|2))$`))
+	g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp(`^(global--[a-zA-Z0-9-]+-808(0|1|2))$`))
 	g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(3))
-	g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp(`^(pg--global--[a-zA-Z0-9-]+-808(0|1|2))$`))
+	g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp(`^(global--[a-zA-Z0-9-]+-808(0|1|2))$`))
 
 	TearDownTestForSvcLBMultiport(t)
 }
@@ -371,7 +371,7 @@ func TestUpdateAndDeleteServiceLB(t *testing.T) {
 	SetUpTestForSvcLB(t)
 
 	// Get hold of the pool checksum on CREATE
-	poolName := "pool--global--testsvc--red-ns--8080"
+	poolName := "global--testsvc--red-ns--8080"
 	mcache := cache.SharedAviObjCache()
 	poolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: poolName}
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)

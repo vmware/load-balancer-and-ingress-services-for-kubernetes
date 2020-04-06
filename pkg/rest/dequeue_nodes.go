@@ -251,12 +251,16 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				for i := len(rest_ops) - 1; i >= 0; i-- {
 					// Go over each of the failed requests and enqueue them to the worker queue for retry.
 					if rest_ops[i].Err != nil {
+						utils.AviLog.Warning.Printf("key: %s, msg: problem in processing request for: %s", key, rest_ops[i].Model)
 						// If it's for a SNI child, publish the parent VS's key
 						if avimodel != nil {
 							publishKey := avimodel.GetAviVS()[0].Name
+							utils.AviLog.Warning.Printf("key: %s, msg: Retrieved key for Retry:%s", key, publishKey)
 							if avimodel.GetRetryCounter() != 0 {
 								PublishKeyToRetryLayer(publishKey, key, rest_ops[i].Err.Error())
 							}
+						} else {
+							utils.AviLog.Warning.Printf("key: %s, msg: Avi model not set", key)
 						}
 					}
 				}
