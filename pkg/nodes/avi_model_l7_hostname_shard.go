@@ -134,7 +134,6 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 
 func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
 	var ingObj interface{}
-	utils.AviLog.Info.Printf("key :%s, msg: is this called1", key)
 	var err error
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		ingObj, err = utils.GetInformers().ExtV1IngressInformer.Lister().Ingresses(namespace).Get(ingress)
@@ -222,8 +221,10 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 			hosts = append(hosts, sniHosts...)
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingress, hosts)
 			utils.AviLog.Info.Printf("key :%s, msg: List of models to publish: %s", key, modelList)
-			for _, modelName := range modelList {
-				PublishKeyToRestLayer(modelName, key, sharedQueue)
+			if !fullsync {
+				for _, modelName := range modelList {
+					PublishKeyToRestLayer(modelName, key, sharedQueue)
+				}
 			}
 		}
 	}
