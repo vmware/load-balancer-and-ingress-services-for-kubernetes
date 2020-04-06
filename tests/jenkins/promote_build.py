@@ -739,7 +739,7 @@ def _create_push_build_tags(branch_name, mapping_info):
         raise Exception("'last-built' build information is missing in mapping_info object")
 
     commit = mapping_info['last-built']['head_commit']
-    message = '''{}-ci-build#{}'''.format(
+    message = '''ako-{}-ci-build#{}'''.format(
             branch_name,
             mapping_info['last-built']['jenkins_build_number'])
     tag_name = mapping_info['last-built']['build_version_string']
