@@ -1663,7 +1663,7 @@ func TestL7ModelSNI(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(nodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
+		g.Expect(nodes[0].SniNodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
@@ -1794,7 +1794,6 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].VHDomainNames)).To(gomega.Equal(0))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
@@ -1808,8 +1807,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 			return len(nodes[0].SniNodes)
 		}, 10*time.Second).Should(gomega.Equal(2))
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
+		g.Expect(nodes[0].SniNodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -1872,7 +1870,7 @@ func TestL7ModelMultiSNI(t *testing.T) {
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
-		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
@@ -1929,7 +1927,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
-		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(2))
+		g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
@@ -1958,7 +1956,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 			return len(nodes[0].SniNodes)
 		}, 10*time.Second).Should(gomega.Equal(1))
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -1970,7 +1968,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 			return len(nodes[0].SniNodes)
 		}, 10*time.Second).Should(gomega.Equal(1))
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}

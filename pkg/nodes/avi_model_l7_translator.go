@@ -216,31 +216,6 @@ func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
 		}
 		vsNode.VSVIPRefs[0].FQDNs = newFQDNs
 	}
-	// Remove the VHDomain entries if found matching to the hosts. This will apply for SNI hosts
-	if len(vsNode.VHDomainNames) > 0 {
-		vhDomains := make([]string, len(vsNode.VHDomainNames))
-		copy(vhDomains, vsNode.VHDomainNames)
-		utils.AviLog.Info.Printf("key: %s, msg: found VHDomain refs in vs : %s", key, vsNode.VHDomainNames)
-		for _, host := range hosts {
-			var i int
-			for _, fqdn := range vsNode.VHDomainNames {
-				if fqdn != host {
-					// Gather this entry in the new list
-					// If the list had the last element then break from the loop
-					if len(vhDomains) == 0 {
-						break
-					}
-					vhDomains[i] = fqdn
-					i++
-				}
-			}
-			// Empty unsed bytes.
-			if len(vhDomains) != 0 {
-				vhDomains = vhDomains[:i]
-			}
-		}
-		vsNode.VHDomainNames = vhDomains
-	}
 }
 
 func FindAndReplaceSniInModel(currentSniNode *AviVsNode, modelSniNodes []*AviVsNode, key string) bool {
@@ -503,10 +478,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 		// Update the VSVIP with the host information.
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
-		}
-		// Update the VH Domain entries.
-		if !utils.HasElem(vsNode[0].VHDomainNames, host) {
-			vsNode[0].VHDomainNames = append(vsNode[0].VHDomainNames, host)
 		}
 		utils.AviLog.Info.Printf("key: %s, hosts to add for http policyset: %s", key, hosts)
 		httpPGPath := AviHostPathPortPoolPG{Host: hosts}
