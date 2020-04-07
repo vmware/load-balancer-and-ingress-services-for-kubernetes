@@ -41,4 +41,4 @@ fi
 
 set -e
 
-sudo sed -i --regexp-extended "s/^(\s*)(version\s*:\s*0.1.0\s*$)/\1version: $build_version/" $target_path/Chart.yaml
+sudo sed -i --regexp-extended "s/^(\s*)(appVersion\s*:\s*latest\s*$)/\1appVersion: $build_version/" $target_path/Chart.yaml
