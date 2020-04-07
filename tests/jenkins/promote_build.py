@@ -65,8 +65,8 @@ COMMON_BUILDS_TAG = 'ci-build-'
 COMMON_SYMLINK_TAG = "last-"
 
 # Maximum rentention hours for orphan folders
-# Currently, set to 24 hours
-MAXIMUM_RETENTION_HOURS = 24
+# Currently, set to 72 hours
+MAXIMUM_RETENTION_HOURS = 72
 
 # Maximum number of orphan build folders to be retained within MAXIMUM_RETENTION_HOURS
 # Currently, set to 3 orphan builds
