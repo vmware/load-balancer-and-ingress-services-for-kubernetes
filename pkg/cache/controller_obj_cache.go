@@ -181,7 +181,7 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 			if ok {
 				if oldPGData.InvalidData || oldPGData.LastModified != pgData[i].LastModified {
 					pgData[i].InvalidData = true
-					utils.AviLog.Info.Printf("Invalid cache data for pg: %s", k)
+					utils.AviLog.Warning.Printf("Invalid cache data for pg: %s", k)
 				}
 			} else {
 				utils.AviLog.Warning.Printf("Wrong data type for pg: %s in cache", k)
@@ -268,7 +268,7 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 			if ok {
 				if oldPoolData.InvalidData || oldPoolData.LastModified != poolsData[i].LastModified {
 					poolsData[i].InvalidData = true
-					utils.AviLog.Info.Printf("Invalid cache data for pool: %s", k)
+					utils.AviLog.Warning.Printf("Invalid cache data for pool: %s", k)
 				}
 			} else {
 				utils.AviLog.Warning.Printf("Wrong data type for pool: %s in cache", k)
@@ -353,7 +353,7 @@ func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient,
 			if ok {
 				if oldVsvipData.InvalidData || oldVsvipData.LastModified != vsVipData[i].LastModified {
 					vsVipData[i].InvalidData = true
-					utils.AviLog.Info.Printf("Invalid cache data for vsvip: %s", k)
+					utils.AviLog.Warning.Printf("Invalid cache data for vsvip: %s", k)
 				}
 			} else {
 				utils.AviLog.Warning.Printf("Wrong data type for vsvip: %s in cache", k)
@@ -435,7 +435,7 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
 			if ok {
 				if oldDSData.InvalidData || oldDSData.LastModified != DsData[i].LastModified {
 					DsData[i].InvalidData = true
-					utils.AviLog.Info.Printf("Invalid cache data for datascript: %s", k)
+					utils.AviLog.Warning.Printf("Invalid cache data for datascript: %s", k)
 				}
 			} else {
 				utils.AviLog.Warning.Printf("Wrong data type for datascript: %s in cache", k)
@@ -517,7 +517,7 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient,
 			if ok {
 				if oldSslkeyData.InvalidData || oldSslkeyData.LastModified != SslKeyData[i].LastModified {
 					SslKeyData[i].InvalidData = true
-					utils.AviLog.Info.Printf("Invalid cache data for ssl key: %s", k)
+					utils.AviLog.Warning.Printf("Invalid cache data for ssl key: %s", k)
 				}
 			} else {
 				utils.AviLog.Warning.Printf("Wrong data type for ssl key: %s in cache", k)
@@ -603,7 +603,7 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient,
 			if ok {
 				if oldHttppolData.InvalidData || oldHttppolData.LastModified != HttPolData[i].LastModified {
 					HttPolData[i].InvalidData = true
-					utils.AviLog.Info.Printf("Invalid cache data for http policy: %s", k)
+					utils.AviLog.Warning.Printf("Invalid cache data for http policy: %s", k)
 				}
 			} else {
 				utils.AviLog.Warning.Printf("Wrong data type for http policy: %s in cache", k)
@@ -766,7 +766,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 							vs_cache_obj.ParentVSRef = parentVSKey
 							newLastModified := vs["_last_modified"].(string)
 							if vs_cache_obj.LastModified != "" && vs_cache_obj.LastModified != newLastModified {
-								utils.AviLog.Info.Printf("Invalid cache data for vs: %s", k)
+								utils.AviLog.Warning.Printf("Invalid cache data for vs: %s", k)
 								vs_cache_obj.InvalidData = true
 							}
 							vs_cache_obj.LastModified = newLastModified

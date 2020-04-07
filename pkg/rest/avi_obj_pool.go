@@ -151,7 +151,9 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			CloudConfigCksum:   cksum,
 			ServiceMetadataObj: svc_mdata_obj,
 			LastModified:       lastModifiedStr,
-			InvalidData:        false,
+		}
+		if lastModifiedStr == "" {
+			pool_cache_obj.InvalidData = true
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}

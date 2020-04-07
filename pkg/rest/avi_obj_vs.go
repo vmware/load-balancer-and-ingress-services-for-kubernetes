@@ -324,7 +324,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 
 				vs_cache_obj.LastModified = lastModifiedStr
-				vs_cache_obj.InvalidData = false
+				if lastModifiedStr == "" {
+					vs_cache_obj.InvalidData = true
+				} else {
+					vs_cache_obj.InvalidData = false
+				}
 
 				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
@@ -354,6 +358,9 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			vs_cache_obj := avicache.AviVsCache{Name: name, Tenant: rest_op.Tenant,
 				Uuid: uuid, CloudConfigCksum: cksum, ServiceMetadataObj: svc_mdata_obj,
 				LastModified: lastModifiedStr,
+			}
+			if lastModifiedStr == "" {
+				vs_cache_obj.InvalidData = true
 			}
 			if vipExists && len(vsvip) > 0 {
 				vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
@@ -618,6 +625,9 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 
 		vsvip_cache_obj := avicache.AviVSVIPCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid, LastModified: lastModifiedStr}
+		if lastModifiedStr == "" {
+			vsvip_cache_obj.InvalidData = true
+		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.VSVIPCache.AviCacheAdd(k, &vsvip_cache_obj)

@@ -103,8 +103,6 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	if vrfCacheObj.CloudConfigCksum == aviVrfNode.CloudConfigCksum {
 		utils.AviLog.Info.Printf("key: %s, msg: checksum for vrf %s has not changed, skipping\n", key, vrfName)
 		return
-	} else {
-		utils.AviLog.Warning.Printf("xxx: vrf checksum changed, old: %d, new: %d", vrfCacheObj.CloudConfigCksum, aviVrfNode.CloudConfigCksum)
 	}
 	var restOps []*utils.RestOp
 	restOp := rest.AviVrfBuild(key, aviVrfNode, vrfCacheObj.Uuid)

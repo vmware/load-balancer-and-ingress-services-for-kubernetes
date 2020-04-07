@@ -116,7 +116,9 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 			Uuid:             uuid,
 			CloudConfigCksum: cksum,
 			LastModified:     lastModifiedStr,
-			InvalidData:      false,
+		}
+		if lastModifiedStr == "" {
+			pg_cache_obj.InvalidData = true
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}

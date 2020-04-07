@@ -188,6 +188,9 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 			CloudConfigCksum: cksum,
 			LastModified:     lastModifiedStr,
 		}
+		if lastModifiedStr == "" {
+			http_cache_obj.InvalidData = true
+		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.HTTPPolicyCache.AviCacheAdd(k, &http_cache_obj)

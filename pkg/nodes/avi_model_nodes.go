@@ -432,7 +432,6 @@ func (v *AviPoolGroupNode) CalculateCheckSum() {
 	sort.Slice(pgMembers, func(i, j int) bool {
 		return *pgMembers[i].PoolRef < *pgMembers[j].PoolRef
 	})
-	utils.AviLog.Warning.Printf("xxx %s pgCheksum: %v", v.Name, utils.Stringify(pgMembers))
 	checksum := utils.Hash(utils.Stringify(pgMembers))
 	v.CloudConfigCksum = checksum
 }
