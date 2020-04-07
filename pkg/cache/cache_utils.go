@@ -33,6 +33,8 @@ type AviPoolCache struct {
 	Uuid               string
 	CloudConfigCksum   string
 	ServiceMetadataObj ServiceMetadataObj
+	LastModified       string
+	InvalidData        bool
 }
 
 type ServiceMetadataObj struct {
@@ -43,9 +45,11 @@ type ServiceMetadataObj struct {
 }
 
 type AviDSCache struct {
-	Name   string
-	Tenant string
-	Uuid   string
+	Name         string
+	Tenant       string
+	Uuid         string
+	LastModified string
+	InvalidData  bool
 }
 
 type AviCloudPropertyCache struct {
@@ -70,6 +74,8 @@ type AviVsCache struct {
 	SNIChildCollection   []string
 	ParentVSRef          NamespaceName
 	ServiceMetadataObj   ServiceMetadataObj
+	LastModified         string
+	InvalidData          bool
 }
 
 type AviSSLCache struct {
@@ -77,6 +83,8 @@ type AviSSLCache struct {
 	Tenant string
 	Uuid   string
 	//CloudConfigCksum string
+	LastModified string
+	InvalidData  bool
 }
 
 type NextPage struct {
@@ -89,6 +97,8 @@ type AviPGCache struct {
 	Tenant           string
 	Uuid             string
 	CloudConfigCksum string
+	LastModified     string
+	InvalidData      bool
 }
 
 type AviVSVIPCache struct {
@@ -97,6 +107,8 @@ type AviVSVIPCache struct {
 	Uuid             string
 	FQDNs            []string
 	CloudConfigCksum string
+	LastModified     string
+	InvalidData      bool
 }
 
 type AviHTTPPolicyCache struct {
@@ -104,6 +116,8 @@ type AviHTTPPolicyCache struct {
 	Tenant           string
 	Uuid             string
 	CloudConfigCksum string
+	LastModified     string
+	InvalidData      bool
 }
 
 type AviVrfCache struct {

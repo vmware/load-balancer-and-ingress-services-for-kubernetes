@@ -103,6 +103,8 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	if vrfCacheObj.CloudConfigCksum == aviVrfNode.CloudConfigCksum {
 		utils.AviLog.Info.Printf("key: %s, msg: checksum for vrf %s has not changed, skipping\n", key, vrfName)
 		return
+	} else {
+		utils.AviLog.Warning.Printf("xxx: vrf checksum changed, old: %d, new: %d", vrfCacheObj.CloudConfigCksum, aviVrfNode.CloudConfigCksum)
 	}
 	var restOps []*utils.RestOp
 	restOp := rest.AviVrfBuild(key, aviVrfNode, vrfCacheObj.Uuid)
@@ -133,7 +135,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
 		vsvip_to_delete, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		utils.AviLog.Info.Printf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, fmt.Sprint(aviVsNode.GetCheckSum()))
-		if vs_cache_obj.CloudConfigCksum == fmt.Sprint(aviVsNode.GetCheckSum()) {
+		if !vs_cache_obj.InvalidData && vs_cache_obj.CloudConfigCksum == fmt.Sprint(aviVsNode.GetCheckSum()) {
 			utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for vs %s, not doing anything", key, vs_cache_obj.Name)
 		} else {
 			utils.AviLog.Info.Printf("key: %s, msg: the stored checksum for vs is %v, and the obtained checksum for VS is: %v", key, vs_cache_obj.CloudConfigCksum, fmt.Sprint(aviVsNode.GetCheckSum()))
@@ -438,7 +440,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 						pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
 						// Cache found. Let's compare the checksums
 						utils.AviLog.Info.Printf("key: %s, msg: poolcache: %v", key, pool_cache_obj)
-						if pool_cache_obj.CloudConfigCksum == fmt.Sprint(pool.GetCheckSum()) {
+						if !pool_cache_obj.InvalidData && pool_cache_obj.CloudConfigCksum == fmt.Sprint(pool.GetCheckSum()) {
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for pool %s, not doing anything", key, pool.Name)
 						} else {
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are different for pool %s, operation: PUT", key, pool.Name)
@@ -497,7 +499,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 			sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 			if sni_cache_obj != nil {
 				// Cache found. Let's compare the checksums
-				if sni_cache_obj.CloudConfigCksum == fmt.Sprint(sni_node.GetCheckSum()) {
+				if !sni_cache_obj.InvalidData && sni_cache_obj.CloudConfigCksum == fmt.Sprint(sni_node.GetCheckSum()) {
 					utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for sni child %s, not doing anything", key, sni_node.Name)
 				} else {
 					sni_pools_to_delete, rest_ops = rest.PoolCU(sni_node.PoolRefs, sni_cache_obj, namespace, rest_ops, key)
@@ -557,7 +559,7 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 					if ok {
 						pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
 						// Cache found. Let's compare the checksums
-						if pg_cache_obj.CloudConfigCksum == fmt.Sprint(pg.GetCheckSum()) {
+						if !pg_cache_obj.InvalidData && pg_cache_obj.CloudConfigCksum == fmt.Sprint(pg.GetCheckSum()) {
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for PG %s, not doing anything", key, pg_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.
@@ -640,7 +642,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 						vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
 						// Cache found. Let's compare the checksums
 						utils.AviLog.Info.Printf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
-						if utils.Hash(utils.Stringify(vsvip_cache_obj.FQDNs)) == vsvip.GetCheckSum() {
+						if !vsvip_cache_obj.InvalidData && utils.Hash(utils.Stringify(vsvip_cache_obj.FQDNs)) == vsvip.GetCheckSum() {
 							utils.AviLog.Info.Printf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.
@@ -690,7 +692,7 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 					cache_http_nodes = Remove(cache_http_nodes, http_key)
 					http_cache_obj, _ := http_cache.(*avicache.AviHTTPPolicyCache)
 					// Cache found. Let's compare the checksums
-					if http_cache_obj.CloudConfigCksum == fmt.Sprint(http.GetCheckSum()) {
+					if !http_cache_obj.InvalidData && http_cache_obj.CloudConfigCksum == fmt.Sprint(http.GetCheckSum()) {
 						utils.AviLog.Info.Printf("The checksums are same for HTTP cache obj %s, not doing anything", http_cache_obj.Name)
 					} else {
 						// The checksums are different, so it should be a PUT call.

@@ -134,10 +134,24 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				utils.AviLog.Warning.Printf("Error parsing service metadata :%v", err)
 			}
 		}
+
+		var lastModifiedStr string
+		lastModifiedIntf, ok := resp["_last_modified"]
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+		} else {
+			lastModifiedStr, ok = lastModifiedIntf.(string)
+			if !ok {
+				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+			}
+		}
+
 		pool_cache_obj := avicache.AviPoolCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:               uuid,
 			CloudConfigCksum:   cksum,
 			ServiceMetadataObj: svc_mdata_obj,
+			LastModified:       lastModifiedStr,
+			InvalidData:        false,
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
