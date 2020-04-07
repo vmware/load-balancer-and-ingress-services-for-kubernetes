@@ -202,7 +202,7 @@ func TestUpdatePoolCacheSync(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
 
 	// Get hold of the pool checksum on CREATE
-	poolName := "pool--global--foo.com/foo--default--foo-with-targets"
+	poolName := "global--foo.com/foo--default--foo-with-targets"
 	mcache := cache.SharedAviObjCache()
 	poolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: poolName}
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)
@@ -265,8 +265,8 @@ func TestDeletePoolCacheSync(t *testing.T) {
 	}, 5*time.Second).Should(gomega.ContainSubstring("bar.com"))
 
 	// check that old pool is deleted and new one is created, will have different names
-	oldPoolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: "pool--global--foo.com/foo--default--foo-with-targets"}
-	newPoolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: "pool--global--bar.com/foo--default--foo-with-targets"}
+	oldPoolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: "global--foo.com/foo--default--foo-with-targets"}
+	newPoolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: "global--bar.com/foo--default--foo-with-targets"}
 	mcache := cache.SharedAviObjCache()
 	g.Eventually(func() bool {
 		_, found := mcache.PoolCache.AviCacheGet(oldPoolKey)
@@ -289,7 +289,7 @@ func TestCreateSNICacheSync(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-6"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "sni--global--foo-with-targets--default--my-secret"}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--my-secret"}
 
 	g.Eventually(func() bool {
 		_, found := mcache.VsCache.AviCacheGet(sniVSKey)
@@ -298,14 +298,14 @@ func TestCreateSNICacheSync(t *testing.T) {
 	parentCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
 	parentCacheObj, _ := parentCache.(*cache.AviVsCache)
 	g.Expect(parentCacheObj.SNIChildCollection).To(gomega.HaveLen(1))
-	g.Expect(parentCacheObj.SNIChildCollection[0]).To(gomega.ContainSubstring("sni--global--foo-with-targets--default--my-secret"))
+	g.Expect(parentCacheObj.SNIChildCollection[0]).To(gomega.ContainSubstring("global--foo-with-targets--default--my-secret"))
 
 	sniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.ContainSubstring("sni--global--default--my-secret"))
+	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.ContainSubstring("global--default--my-secret"))
 	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.HTTPKeyCollection[0].Name).To(gomega.ContainSubstring("httppol--global--foo-with-targets--default--my-secret"))
+	g.Expect(sniCacheObj.HTTPKeyCollection[0].Name).To(gomega.ContainSubstring("global--default--foo.com"))
 	g.Expect(sniCacheObj.ParentVSRef).To(gomega.Equal(parentVSKey))
 
 	TearDownIngressForCacheSyncCheck(t, modelName, g)

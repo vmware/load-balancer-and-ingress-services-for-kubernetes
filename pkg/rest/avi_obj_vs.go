@@ -147,9 +147,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			rest_ops = append(rest_ops, &rest_op)
 
 		}
-
-		utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: VS Restop %v K8sAviVsMeta %v\n", key, utils.Stringify(rest_op),
-			*vs_meta))
 		return rest_ops
 	}
 }
@@ -170,6 +167,8 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
 	vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
+	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
+	svc_mdata := string(svc_mdata_json)
 	sniChild := &avimodels.VirtualService{Name: &name, CloudConfigCksum: &checksumstr,
 		CreatedBy:             &cr,
 		NetworkProfileRef:     &network_prof,
@@ -177,6 +176,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		EastWestPlacement:     &east_west,
 		CloudRef:              &cloudRef,
 		VrfContextRef:         &vrfContextRef,
+		ServiceMetadata:       &svc_mdata,
 	}
 
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
@@ -261,9 +261,9 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		}
 
 		cksum := resp["cloud_config_cksum"].(string)
-		utils.AviLog.Info.Printf("key: %s, msg: vs information %s", key, utils.Stringify(resp))
 
 		vh_parent_uuid, found_parent := resp["vh_parent_vs_ref"]
+		var parentVsObj *avicache.AviVsCache
 		var vhParentKey interface{}
 		if found_parent {
 			// the uuid is expected to be in the format: "https://IP:PORT/api/virtualservice/virtualservice-88fd9718-f4f9-4e2b-9552-d31336330e0e#mygateway"
@@ -274,9 +274,9 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			vhParentKey, foundvscache = rest.cache.VsCache.AviCacheGetKeyByUuid(vs_uuid)
 			utils.AviLog.Info.Printf("key: %s, msg: extracted the VS key from the uuid :%s", key, vhParentKey)
 			if foundvscache {
-				vs_obj := rest.getVsCacheObj(vhParentKey.(avicache.NamespaceName), key)
-				if !utils.HasElem(vs_obj.SNIChildCollection, uuid) {
-					vs_obj.SNIChildCollection = append(vs_obj.SNIChildCollection, uuid)
+				parentVsObj = rest.getVsCacheObj(vhParentKey.(avicache.NamespaceName), key)
+				if !utils.HasElem(parentVsObj.SNIChildCollection, uuid) {
+					parentVsObj.SNIChildCollection = append(parentVsObj.SNIChildCollection, uuid)
 				}
 			} else {
 				vs_cache_obj := avicache.AviVsCache{Name: ExtractVsName(vh_parent_uuid.(string)), Tenant: rest_op.Tenant,
@@ -289,19 +289,12 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		vsvip, vipExists := resp["vip"].([]interface{})
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		vs_cache, ok := rest.cache.VsCache.AviCacheGet(k)
-		var svc_mdata interface{}
-		var svc_mdata_map map[string]interface{}
-		var svc_mdata_obj avicache.LBServiceMetadataObj
+		var svc_mdata_obj avicache.ServiceMetadataObj
 		if resp["service_metadata"] != nil {
+			utils.AviLog.Warning.Printf("key:%s, msg: Service Metadata: %s", key, resp["service_metadata"])
 			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
-				&svc_mdata); err == nil {
-				var svcOk bool
-				svc_mdata_map, svcOk = svc_mdata.(map[string]interface{})
-				if !svcOk {
-					utils.AviLog.Warning.Printf("resp %v svc_mdata %T has invalid service_metadata type", resp, svc_mdata)
-				} else {
-					LBSvcMdataMapToObj(&svc_mdata_map, &svc_mdata_obj)
-				}
+				&svc_mdata_obj); err != nil {
+				utils.AviLog.Warning.Printf("Error parsing service metadata :%v", err)
 			}
 		}
 		if ok {
@@ -315,7 +308,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
-
 				if vhParentKey != nil {
 					vs_cache_obj.ParentVSRef = vhParentKey.(avicache.NamespaceName)
 				}
@@ -324,6 +316,8 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 					// This service needs an update of the status
 					UpdateL4LBStatus(vs_cache_obj, svc_mdata_obj, key)
+				} else if svc_mdata_obj.IngressName != "" && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
+					UpdateIngressStatus(parentVsObj, svc_mdata_obj, key)
 				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
 				// But before this a pool may have got created as a part of the macro operation, so update the ingress status here.
@@ -361,27 +355,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 	}
 
 	return nil
-}
-
-func LBSvcMdataMapToObj(svc_mdata_map *map[string]interface{}, svc_mdata *avicache.LBServiceMetadataObj) {
-	for k, val := range *svc_mdata_map {
-		switch k {
-		case "svc_name":
-			svcName, ok := val.(string)
-			if ok {
-				svc_mdata.ServiceName = svcName
-			} else {
-				utils.AviLog.Warning.Printf("Incorrect type %T in lb_svc_mdata_map %v", val, *svc_mdata_map)
-			}
-		case "namespace":
-			namespace, ok := val.(string)
-			if ok {
-				svc_mdata.Namespace = namespace
-			} else {
-				utils.AviLog.Warning.Printf("Incorrect type %T in lb_svc_mdata_map %v", val, *svc_mdata_map)
-			}
-		}
-	}
 }
 
 func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op *utils.RestOp, key string) error {
@@ -490,9 +463,18 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			east_west = false
 		}
 
-		for i, _ := range vsvip_meta.FQDNs {
+		for i, fqdn := range vsvip_meta.FQDNs {
 			dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
-			dns_info_arr = append(dns_info_arr, &dns_info)
+			foundFQDN := false
+			// Verify this FQDN is already in the list or not.
+			for _, dns := range dns_info_arr {
+				if *dns.Fqdn == fqdn {
+					foundFQDN = true
+				}
+			}
+			if !foundFQDN {
+				dns_info_arr = append(dns_info_arr, &dns_info)
+			}
 		}
 		vrfContextRef := "/api/vrfcontext?name=" + vsvip_meta.VrfContext
 		vsvip := avimodels.VsVip{Name: &name, TenantRef: &tenant, CloudRef: &cloudRef,
@@ -504,7 +486,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
-		utils.AviLog.Info.Printf("key: %s, seaching in cache for vsVip Key: %s", key, vsvip_key)
+		utils.AviLog.Info.Printf("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
@@ -522,9 +504,18 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 				utils.AviLog.Warning.Printf("key: %s, Error in vsvip GET operation :%s", key, err)
 				return nil, err
 			}
-			for i, _ := range vsvip_meta.FQDNs {
+			for i, fqdn := range vsvip_meta.FQDNs {
 				dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
-				dns_info_arr = append(dns_info_arr, &dns_info)
+				foundFQDN := false
+				// Verify this FQDN is already in the list or not.
+				for _, dns := range dns_info_arr {
+					if *dns.Fqdn == fqdn {
+						foundFQDN = true
+					}
+				}
+				if !foundFQDN {
+					dns_info_arr = append(dns_info_arr, &dns_info)
+				}
 			}
 			vsvip_avi.DNSInfo = dns_info_arr
 			vsvip_avi.VrfContextRef = &vrfContextRef
@@ -607,7 +598,6 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				utils.AviLog.Info.Printf("key: %s, msg: the VS cache before modification by VSVIP creation is :%v", key, utils.Stringify(vs_cache_obj))
 				if vs_cache_obj.VSVipKeyCollection == nil {
 					vs_cache_obj.VSVipKeyCollection = []avicache.NamespaceName{k}
 				} else {

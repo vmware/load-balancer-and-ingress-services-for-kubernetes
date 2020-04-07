@@ -69,7 +69,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
 			}
 
-			poolNode := &AviPoolNode{Name: poolName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostName: hostname}}
+			poolNode := &AviPoolNode{Name: poolName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: storedHosts}}
 			poolNode.VrfContext = lib.GetVrf()
 			if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 				poolNode.Servers = servers
@@ -110,8 +110,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 	utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 	if found {
 		for _, secret := range secrets {
-			sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
-
+			sniNodeName := lib.GetSniNodeName(ingName, namespace, secret, hostname)
 			utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
 			RemoveSniInModel(sniNodeName, vsNode, key)
 		}
@@ -149,6 +148,7 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 		}
 	} else {
 		var parsedIng IngressConfig
+		var modelList []string
 		processIng := true
 		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 			processIng = filterIngressOnClassExtV1(ingObj.(*extensionv1beta1.Ingress))
@@ -184,9 +184,9 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					}
 					// Delete the pool corresponding to this host
 					aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, key)
-					ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
-					if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-						PublishKeyToRestLayer(model_name, key, sharedQueue)
+					saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
+					if !utils.HasElem(modelList, model_name) {
+						modelList = append(modelList, model_name)
 					}
 				}
 			}
@@ -207,20 +207,25 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 				}
 				aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName, namespace, ingress, host, pathsvcmap, key)
-				ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
-				if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(model_name, key, sharedQueue)
+				saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
+				if !utils.HasElem(modelList, model_name) {
+					modelList = append(modelList, model_name)
 				}
 			}
 			var sniHosts []string
 			// Process secure routes next.
 			for _, tlssetting := range parsedIng.TlsCollection {
-				locSniHost := sniNodeHostName(tlssetting, ingress, namespace, key, fullsync, sharedQueue)
+				locSniHost := sniNodeHostName(tlssetting, ingress, namespace, key, fullsync, sharedQueue, &modelList)
 				sniHosts = append(sniHosts, locSniHost...)
 			}
 			hosts = append(hosts, sniHosts...)
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingress, hosts)
-
+			utils.AviLog.Info.Printf("key :%s, msg: List of models to publish: %s", key, modelList)
+			if !fullsync {
+				for _, modelName := range modelList {
+					PublishKeyToRestLayer(modelName, key, sharedQueue)
+				}
+			}
 		}
 	}
 }
@@ -258,16 +263,18 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 	objects.SharedSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(ingress)
 }
 
-func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) []string {
-	var sniHosts []string
+func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) []string {
+	var allSniHosts []string
 	for sniHost, _ := range tlssetting.Hosts {
+		var sniHosts []string
 		sniHosts = append(sniHosts, sniHost)
+		allSniHosts = append(allSniHosts, sniHost)
 		shardVsName := DeriveHostNameShardVS(sniHost, key)
 		// For each host, create a SNI node with the secret giving us the key and cert.
 		// construct a SNI VS node per tls setting which corresponds to one secret
 		if shardVsName == "" {
 			// If we aren't able to derive the ShardVS name, we should return
-			return sniHosts
+			return allSniHosts
 		}
 		model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
@@ -278,21 +285,21 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 
-		sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
+		sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: sniHosts}}
 		sniNode.VrfContext = lib.GetVrf()
 		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 		if certsBuilt {
-			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
+			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key, sniHost)
 			foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
 			if !foundSniModel {
 				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 			}
 
 		}
-		ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
-		if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-			PublishKeyToRestLayer(model_name, key, sharedQueue)
+		if !utils.HasElem(*modelList, model_name) {
+			*modelList = append(*modelList, model_name)
 		}
+		saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
 	}
-	return sniHosts
+	return allSniHosts
 }

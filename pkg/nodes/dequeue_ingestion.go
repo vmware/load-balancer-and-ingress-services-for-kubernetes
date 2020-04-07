@@ -88,7 +88,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	} else {
-		if lib.GetShardScheme() == lib.DEFAULT_SHARD_SCHEME {
+		if lib.GetShardScheme() == lib.NAMESPACE_SHARD_SCHEME {
 			shardVsName := DeriveNamespacedShardVS(namespace, key)
 			if shardVsName == "" {
 				// If we aren't able to derive the ShardVS name, we should return

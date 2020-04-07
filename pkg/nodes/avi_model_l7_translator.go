@@ -84,7 +84,16 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				RemoveFQDNsFromModel(vsNode[0], Storedhosts, key)
 			}
 			// Update the host mappings for this ingress
-
+			// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
+			// Fetch all the secrets for this ingress
+			found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
+			utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
+			if found {
+				for _, secret := range secrets {
+					sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
+					RemoveSniInModel(sniNodeName, vsNode, key)
+				}
+			}
 			utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %v", key, parsedIng)
 			var hosts []string
 			for host, _ := range parsedIng.IngressHostMap {
@@ -101,12 +110,14 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					}
 					for _, obj := range val {
 						var priorityLabel string
+						var hostSlice []string
 						if obj.Path != "" {
 							priorityLabel = host + obj.Path
 						} else {
 							priorityLabel = host
 						}
-						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostName: host}}
+						hostSlice = append(hostSlice, host)
+						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: hostSlice}}
 						poolNode.VrfContext = lib.GetVrf()
 						if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 							poolNode.Servers = servers
@@ -121,7 +132,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				for _, tlssetting := range parsedIng.TlsCollection {
 					// For each host, create a SNI node with the secret giving us the key and cert.
 					// construct a SNI VS node per tls setting which corresponds to one secret
-					sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true}
+					sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace}}
 					sniNode.VrfContext = lib.GetVrf()
 					certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 					if certsBuilt {
@@ -130,7 +141,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						if !foundSniModel {
 							vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 						}
-
+						sniNode.ServiceMetadata = avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: sniNode.VHDomainNames}
 					}
 				}
 
@@ -191,33 +202,19 @@ func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
 			for _, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
 				if fqdn != host {
 					// Gather this entry in the new list
+					if len(newFQDNs) == 0 {
+						break
+					}
 					newFQDNs[i] = fqdn
 					i++
 				}
 			}
 			// Empty unsed bytes.
-			newFQDNs = newFQDNs[:i]
+			if len(newFQDNs) != 0 {
+				newFQDNs = newFQDNs[:i]
+			}
 		}
 		vsNode.VSVIPRefs[0].FQDNs = newFQDNs
-	}
-	// Remove the VHDomain entries if found matching to the hosts. This will apply for SNI hosts
-	if len(vsNode.VHDomainNames) > 0 {
-		vhDomains := make([]string, len(vsNode.VHDomainNames))
-		copy(vhDomains, vsNode.VHDomainNames)
-		utils.AviLog.Info.Printf("key: %s, msg: found fqdn refs in vs : %s", key, vsNode.VHDomainNames)
-		for _, host := range hosts {
-			var i int
-			for _, fqdn := range vsNode.VHDomainNames {
-				if fqdn != host {
-					// Gather this entry in the new list
-					vhDomains[i] = fqdn
-					i++
-				}
-			}
-			// Empty unsed bytes.
-			vhDomains = vhDomains[:i]
-		}
-		vsNode.VHDomainNames = vhDomains
 	}
 }
 
@@ -252,32 +249,12 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 	}
 }
 
-func getDefaultSubDomain(ns string) string {
-	var defSubdom string
-	cache := avicache.SharedAviObjCache()
-	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
-	if !ok || cloud == nil {
-		utils.AviLog.Warning.Printf("Cloud object not found")
-		return ""
-	}
-	cloudProperty, ok := cloud.(*avicache.AviCloudPropertyCache)
-	if !ok {
-		utils.AviLog.Warning.Printf("Cloud property object not found")
-		return ""
-	}
-	defSubdom = cloudProperty.NSIpamDNS
-	if defSubdom != "" && !strings.HasPrefix(defSubdom, ".") {
-		defSubdom = "." + ns + "." + defSubdom
-	}
-	return defSubdom
-}
-
 func parseHostPathForIngress(ns string, ingName string, ingSpec extensionv1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
-	defSubdom := getDefaultSubDomain(ns)
+	defSubdom := GetDefaultSubDomain(ns)
 
 	for _, rule := range ingSpec.Rules {
 		var hostPathMapSvcList []IngressHostPathSvc
@@ -333,7 +310,7 @@ func parseHostPathForIngressCoreV1(ns string, ingName string, ingSpec v1beta1.In
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
-	defSubdom := getDefaultSubDomain(ns)
+	defSubdom := GetDefaultSubDomain(ns)
 
 	for _, rule := range ingSpec.Rules {
 		var hostPathMapSvcList []IngressHostPathSvc
@@ -487,22 +464,24 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, hostName ...string) {
 	var httpPolicySet []AviHostPathPortPoolPG
 	for host, paths := range hostpath.Hosts {
 		var hosts []string
+		if len(hostName) > 0 {
+			if hostName[0] != host {
+				// If a hostname is passed to this method, ensure we only process that hostname and nothing else.
+				continue
+			}
+		}
 		hosts = append(hosts, host)
 		// Update the VSVIP with the host information.
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 		}
-		// Update the VH Domain entries.
-		if !utils.HasElem(vsNode[0].VHDomainNames, host) {
-			vsNode[0].VHDomainNames = append(vsNode[0].VHDomainNames, host)
-		}
 		utils.AviLog.Info.Printf("key: %s, hosts to add for http policyset: %s", key, hosts)
 		httpPGPath := AviHostPathPortPoolPG{Host: hosts}
-		tlsNode.VHDomainNames = hosts
+		tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, hosts...)
 		for _, path := range paths {
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
@@ -524,12 +503,11 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
 
 			tlsNode.PoolRefs = append(tlsNode.PoolRefs, poolNode)
-
+			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
+			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: utils.ADMIN_NS}
+			tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
 		}
 	}
-	httppolname := lib.GetSniHttpPolName(ingName, namespace, secretName)
-	policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: utils.ADMIN_NS}
-	tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
 	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
 
 }

@@ -54,11 +54,11 @@ func GetModelName(namespace, objectName string) string {
 }
 
 func GetL4PoolName(vsName string, port int32) string {
-	return "pool--" + vsName + "--" + fmt.Sprint(port)
+	return vsName + "--" + fmt.Sprint(port)
 }
 
 func GetL4PGName(vsName string, port int32) string {
-	return "pg--" + vsName + "--" + fmt.Sprint(port)
+	return vsName + "--" + fmt.Sprint(port)
 }
 
 func GetL4VSName(svcName, namespace string) string {
@@ -66,31 +66,34 @@ func GetL4VSName(svcName, namespace string) string {
 }
 
 func GetL4VSVipName(svcName, namespace string) string {
-	return "vsvip" + "--" + svcName + "--" + namespace + "--" + GetVrf()
+	return svcName + "--" + namespace + "--" + GetVrf()
 }
 
 func GetL7PoolName(priorityLabel, namespace, ingName string) string {
-	return "pool-" + "-" + GetVrf() + "--" + priorityLabel + "--" + namespace + "--" + ingName
+	return GetVrf() + "--" + priorityLabel + "--" + namespace + "--" + ingName
 }
 
-func GetSniNodeName(ingName, namespace, secret string) string {
-	return "sni-" + "-" + GetVrf() + "--" + ingName + "--" + namespace + "--" + secret
+func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) string {
+	if len(sniHostName) > 0 {
+		return GetVrf() + "--" + ingName + "--" + namespace + "--" + sniHostName[0]
+	}
+	return GetVrf() + "--" + ingName + "--" + namespace + "--" + secret
 }
 
 func GetSniPoolName(ingName, namespace, host, path string) string {
-	return "pool-" + "-" + GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
+	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
 }
 
-func GetSniHttpPolName(ingName, namespace, secret string) string {
-	return "httppol-" + "-" + GetVrf() + "--" + ingName + "--" + namespace + "--" + secret
+func GetSniHttpPolName(ingName, namespace, host, path string) string {
+	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
 }
 
 func GetSniPGName(ingName, namespace, host, path string) string {
-	return "pg-" + "-" + GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
+	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
 }
 
 func GetTLSKeyCertNodeName(namespace, secret string) string {
-	return "sni-" + "-" + GetVrf() + "--" + namespace + "--" + secret
+	return GetVrf() + "--" + namespace + "--" + secret
 }
 
 func GetVrf() string {
@@ -116,6 +119,7 @@ func GetShardScheme() string {
 	if !ok {
 		return DEFAULT_SHARD_SCHEME
 	}
+	utils.AviLog.Info.Printf("SHARDING scheme :%s", shardSchemeName)
 	return shardSchemeName
 }
 

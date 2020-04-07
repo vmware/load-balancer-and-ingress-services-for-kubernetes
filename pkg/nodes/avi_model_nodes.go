@@ -213,7 +213,7 @@ type AviVsNode struct {
 	VHDomainNames      []string
 	TLSType            string
 	IsSNIChild         bool
-	ServiceMetadata    avicache.LBServiceMetadataObj
+	ServiceMetadata    avicache.ServiceMetadataObj
 	VrfContext         string
 }
 
