@@ -81,7 +81,7 @@ func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
-	version string, cloud string) []interface{} {
+	version string, cloud string) ([]interface{}, []interface{}) {
 	// Populate the VS cache
 	var deletedKeys []interface{}
 	SetTenant := session.SetTenant(utils.ADMIN_NS)
@@ -91,6 +91,10 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	utils.AviLog.Info.Printf("Refreshing all object cache")
 	c.AviRefreshObjectCache(client, cloud)
 	vsCacheCopy := c.VsCache.ShallowCopy()
+	var allKeys []interface{}
+	for k := range vsCacheCopy {
+		allKeys = append(allKeys, k)
+	}
 	err := c.AviObjVSCachePopulate(client, cloud, vsCacheCopy)
 	// Delete all the VS keys that are left in the copy.
 	if err != nil {
@@ -103,7 +107,7 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	}
 	c.AviCloudPropertiesPopulate(client, cloud)
 	c.AviObjVrfCachePopulate(client, cloud)
-	return deletedKeys
+	return deletedKeys, allKeys
 }
 
 func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
@@ -143,6 +147,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 			Name:             *pg.Name,
 			Uuid:             *pg.UUID,
 			CloudConfigCksum: *pg.CloudConfigCksum,
+			LastModified:     *pg.LastModified,
 		}
 		*pgData = append(*pgData, pgCacheObj)
 	}
@@ -170,6 +175,18 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 	pgCacheData := c.PgCache.ShallowCopy()
 	for i, pgCacheObj := range pgData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgCacheObj.Name}
+		oldPGIntf, found := c.PgCache.AviCacheGet(k)
+		if found {
+			oldPGData, ok := oldPGIntf.(*AviPGCache)
+			if ok {
+				if oldPGData.InvalidData || oldPGData.LastModified != pgData[i].LastModified {
+					pgData[i].InvalidData = true
+					utils.AviLog.Warning.Printf("Invalid cache data for pg: %s", k)
+				}
+			} else {
+				utils.AviLog.Warning.Printf("Wrong data type for pg: %s in cache", k)
+			}
+		}
 		utils.AviLog.Info.Printf("Adding key to pg cache :%s value :%s", k, pgCacheObj.Uuid)
 		c.PgCache.AviCacheAdd(k, &pgData[i])
 		delete(pgCacheData, k)
@@ -218,6 +235,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 			Name:             *pool.Name,
 			Uuid:             *pool.UUID,
 			CloudConfigCksum: *pool.CloudConfigCksum,
+			LastModified:     *pool.LastModified,
 		}
 		*poolData = append(*poolData, poolCacheObj)
 	}
@@ -244,6 +262,18 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 	poolCacheData := c.PoolCache.ShallowCopy()
 	for i, poolCacheObj := range poolsData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: poolCacheObj.Name}
+		oldPoolIntf, found := c.PoolCache.AviCacheGet(k)
+		if found {
+			oldPoolData, ok := oldPoolIntf.(*AviPoolCache)
+			if ok {
+				if oldPoolData.InvalidData || oldPoolData.LastModified != poolsData[i].LastModified {
+					poolsData[i].InvalidData = true
+					utils.AviLog.Warning.Printf("Invalid cache data for pool: %s", k)
+				}
+			} else {
+				utils.AviLog.Warning.Printf("Wrong data type for pool: %s in cache", k)
+			}
+		}
 		c.PoolCache.AviCacheAdd(k, &poolsData[i])
 		delete(poolCacheData, k)
 	}
@@ -287,8 +317,10 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 		}
 
 		vsVipCacheObj := AviVSVIPCache{
-			Name: *vsvip.Name,
-			Uuid: *vsvip.UUID,
+			Name:             *vsvip.Name,
+			Uuid:             *vsvip.UUID,
+			CloudConfigCksum: *vsvip.VsvipCloudConfigCksum,
+			LastModified:     *vsvip.LastModified,
 		}
 		*vsVipData = append(*vsVipData, vsVipCacheObj)
 
@@ -315,6 +347,18 @@ func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient,
 	vsVipCacheData := c.VSVIPCache.ShallowCopy()
 	for i, vsVipCacheObj := range vsVipData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vsVipCacheObj.Name}
+		oldVsvipIntf, found := c.VSVIPCache.AviCacheGet(k)
+		if found {
+			oldVsvipData, ok := oldVsvipIntf.(*AviVSVIPCache)
+			if ok {
+				if oldVsvipData.InvalidData || oldVsvipData.LastModified != vsVipData[i].LastModified {
+					vsVipData[i].InvalidData = true
+					utils.AviLog.Warning.Printf("Invalid cache data for vsvip: %s", k)
+				}
+			} else {
+				utils.AviLog.Warning.Printf("Wrong data type for vsvip: %s in cache", k)
+			}
+		}
 		utils.AviLog.Info.Printf("Adding key to vsvip cache :%s", k)
 		c.VSVIPCache.AviCacheAdd(k, &vsVipData[i])
 		delete(vsVipCacheData, k)
@@ -385,6 +429,18 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
 	}
 	for i, DsCacheObj := range DsData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: DsCacheObj.Name}
+		oldDSIntf, found := c.DSCache.AviCacheGet(k)
+		if found {
+			oldDSData, ok := oldDSIntf.(*AviDSCache)
+			if ok {
+				if oldDSData.InvalidData || oldDSData.LastModified != DsData[i].LastModified {
+					DsData[i].InvalidData = true
+					utils.AviLog.Warning.Printf("Invalid cache data for datascript: %s", k)
+				}
+			} else {
+				utils.AviLog.Warning.Printf("Wrong data type for datascript: %s in cache", k)
+			}
+		}
 		utils.AviLog.Info.Printf("Adding key to ds cache :%s", k)
 		c.DSCache.AviCacheAdd(k, &DsData[i])
 		delete(dsCacheData, k)
@@ -455,6 +511,18 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient,
 	sslCacheData := c.SSLKeyCache.ShallowCopy()
 	for i, SslKeyCacheObj := range SslKeyData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: SslKeyCacheObj.Name}
+		oldSslkeyIntf, found := c.SSLKeyCache.AviCacheGet(k)
+		if found {
+			oldSslkeyData, ok := oldSslkeyIntf.(*AviSSLCache)
+			if ok {
+				if oldSslkeyData.InvalidData || oldSslkeyData.LastModified != SslKeyData[i].LastModified {
+					SslKeyData[i].InvalidData = true
+					utils.AviLog.Warning.Printf("Invalid cache data for ssl key: %s", k)
+				}
+			} else {
+				utils.AviLog.Warning.Printf("Wrong data type for ssl key: %s in cache", k)
+			}
+		}
 		utils.AviLog.Info.Printf("Adding key to sslkey cache :%s", k)
 		c.SSLKeyCache.AviCacheAdd(k, &SslKeyData[i])
 		delete(sslCacheData, k)
@@ -502,6 +570,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 			Name:             *httppol.Name,
 			Uuid:             *httppol.UUID,
 			CloudConfigCksum: *httppol.CloudConfigCksum,
+			LastModified:     *httppol.LastModified,
 		}
 		*httpPolicyData = append(*httpPolicyData, httpPolCacheObj)
 
@@ -528,6 +597,18 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient,
 	httpCacheData := c.HTTPPolicyCache.ShallowCopy()
 	for i, HttpPolCacheObj := range HttPolData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: HttpPolCacheObj.Name}
+		oldHttppolIntf, found := c.HTTPPolicyCache.AviCacheGet(k)
+		if found {
+			oldHttppolData, ok := oldHttppolIntf.(*AviHTTPPolicyCache)
+			if ok {
+				if oldHttppolData.InvalidData || oldHttppolData.LastModified != HttPolData[i].LastModified {
+					HttPolData[i].InvalidData = true
+					utils.AviLog.Warning.Printf("Invalid cache data for http policy: %s", k)
+				}
+			} else {
+				utils.AviLog.Warning.Printf("Wrong data type for http policy: %s in cache", k)
+			}
+		}
 		utils.AviLog.Info.Printf("Adding key to httppol cache :%s", k)
 		c.HTTPPolicyCache.AviCacheAdd(k, &HttPolData[i])
 		delete(httpCacheData, k)
@@ -683,6 +764,12 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 							vs_cache_obj.CloudConfigCksum = vs["cloud_config_cksum"].(string)
 							vs_cache_obj.SNIChildCollection = sni_child_collection
 							vs_cache_obj.ParentVSRef = parentVSKey
+							newLastModified := vs["_last_modified"].(string)
+							if vs_cache_obj.LastModified != "" && vs_cache_obj.LastModified != newLastModified {
+								utils.AviLog.Warning.Printf("Invalid cache data for vs: %s", k)
+								vs_cache_obj.InvalidData = true
+							}
+							vs_cache_obj.LastModified = newLastModified
 							utils.AviLog.Info.Printf("Updated Vs cache k %v val %v",
 								k, vs_cache_obj)
 						} else {

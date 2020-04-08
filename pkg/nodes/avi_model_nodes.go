@@ -389,6 +389,7 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 
 func (v *AviVSVIPNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
+	sort.Strings(v.FQDNs)
 	checksum := utils.Hash(utils.Stringify(v.FQDNs))
 	v.CloudConfigCksum = checksum
 }
@@ -426,8 +427,12 @@ func (v *AviPoolGroupNode) GetCheckSum() uint32 {
 }
 
 func (v *AviPoolGroupNode) CalculateCheckSum() {
-	// A sum of fields for this VS.
-	checksum := utils.Hash(utils.Stringify(v.Members))
+	// A sum of fields for this PG.
+	pgMembers := v.Members
+	sort.Slice(pgMembers, func(i, j int) bool {
+		return *pgMembers[i].PoolRef < *pgMembers[j].PoolRef
+	})
+	checksum := utils.Hash(utils.Stringify(pgMembers))
 	v.CloudConfigCksum = checksum
 }
 
@@ -477,6 +482,7 @@ func (v *AviHTTPDataScriptNode) GetCheckSum() uint32 {
 
 func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
+	sort.Strings(v.PoolGroupRefs)
 	checksum := utils.Hash(utils.Stringify(v.PoolGroupRefs))
 	v.CloudConfigCksum = checksum
 }
