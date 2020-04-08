@@ -69,11 +69,14 @@ func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string, g *gomega.
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-6"}
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: strings.Split(modelName, "/")[1]}
 	g.Eventually(func() int {
-		vsCache, _ := mcache.VsCache.AviCacheGet(vsKey)
-		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
-		return len(vsCacheObj.PoolKeyCollection)
+		vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if found && ok {
+			return len(vsCacheObj.PoolKeyCollection)
+		}
+		return -1
 	}, 5*time.Second).Should(gomega.Equal(0))
 
 	TearDownTestForIngress(t, modelName)
@@ -309,4 +312,164 @@ func TestCreateSNICacheSync(t *testing.T) {
 	g.Expect(sniCacheObj.ParentVSRef).To(gomega.Equal(parentVSKey))
 
 	TearDownIngressForCacheSyncCheck(t, modelName, g)
+}
+
+func TestUpdateSNICacheSync(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	var err error
+
+	modelName := "admin/Shard-VS---global-6"
+	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+
+	mcache := cache.SharedAviObjCache()
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--my-secret"}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(sniVSKey)
+		return found
+	}, 15*time.Second).Should(gomega.Equal(true))
+	oldSniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	oldSniCacheObj, _ := oldSniCache.(*cache.AviVsCache)
+
+	ingressUpdate := (FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		Paths:       []string{"/bar-updated"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo.com"},
+		},
+	}).Ingress()
+	ingressUpdate.ResourceVersion = "2"
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingressUpdate)
+	if err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
+
+	// verify that a NEW httppolicy set object is created
+	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--foo.com/foo--foo-with-targets"}
+	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--foo.com/bar-updated--foo-with-targets"}
+	g.Eventually(func() bool {
+		_, found := mcache.HTTPPolicyCache.AviCacheGet(newHttpPolKey)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, oldHttpPolFound := mcache.HTTPPolicyCache.AviCacheGet(oldHttpPolKey)
+	g.Expect(oldHttpPolFound).To(gomega.Equal(false))
+
+	// verify same vs cksum
+	g.Eventually(func() string {
+		sniVSCache, found := mcache.VsCache.AviCacheGet(sniVSKey)
+		sniVSCacheObj, ok := sniVSCache.(*cache.AviVsCache)
+		if found && ok {
+			return sniVSCacheObj.CloudConfigCksum
+		}
+		return "456def"
+	}, 15*time.Second).Should(gomega.Equal(oldSniCacheObj.CloudConfigCksum))
+	sniVSCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
+	g.Expect(sniVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
+	g.Expect(sniVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
+
+	TearDownIngressForCacheSyncCheck(t, modelName, g)
+}
+
+func TestDeleteSNICacheSync(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	var err error
+
+	modelName := "admin/Shard-VS---global-6"
+	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+
+	mcache := cache.SharedAviObjCache()
+	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-6"}
+
+	// hostname based sharding would have dns name appended
+	// sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--my-secret--foo.com"}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--my-secret"}
+
+	ingressUpdate := (FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	ingressUpdate.ResourceVersion = "2"
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingressUpdate)
+	if err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
+
+	// verify that sni vs is deleted, but the parent vs is not
+	// deleted snivs key should be deleted from parent vs snichildcollection
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(sniVSKey)
+		return found
+	}, 15*time.Second).Should(gomega.Equal(false))
+
+	oldSniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+	oldSniCacheObj, _ := oldSniCache.(*cache.AviVsCache)
+	g.Expect(oldSniCacheObj.SNIChildCollection).To(gomega.HaveLen(0))
+
+	TearDownIngressForCacheSyncCheck(t, modelName, g)
+}
+
+func TestCUDSecretCacheSync(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	// var err error
+
+	modelName := "admin/Shard-VS---global-6"
+	SetUpIngressForCacheSyncCheck(t, modelName, true, false)
+
+	mcache := cache.SharedAviObjCache()
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--my-secret"}
+	sslKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--my-secret"}
+
+	// no ssl key cache would be found since the secret is not yet added
+	g.Eventually(func() bool {
+		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+
+	// add Secret
+	AddSecret("my-secret", "default")
+
+	// ssl key should be created now and must be attached to the sni vs cache
+	g.Eventually(func() bool {
+		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(true))
+	sniVSCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
+	g.Expect(sniVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
+
+	// update Secret
+	secretUpdate := (FakeSecret{
+		Namespace: "default",
+		Name:      "my-secret",
+		Cert:      "tlsCert_Updated",
+		Key:       "tlsKey_Updated",
+	}).Secret()
+	secretUpdate.ResourceVersion = "2"
+	KubeClient.CoreV1().Secrets("default").Update(secretUpdate)
+
+	// can't check update rn, ssl cache object doesnot have checksum,
+	// but PUTs happen, everytime though
+
+	// delete Secret
+	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
+
+	// ssl key must be deleted again and sni vs as well
+	g.Eventually(func() bool {
+		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+	_, found := mcache.VsCache.AviCacheGet(sniVSKey)
+	g.Expect(found).To(gomega.Equal(false))
+
+	return
 }
