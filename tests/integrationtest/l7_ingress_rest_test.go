@@ -431,7 +431,7 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestMultiHostMultiSecretSNICacheSyncV2(t *testing.T) {
+func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/Shard-VS---global-6"
 
@@ -473,30 +473,35 @@ func TestMultiHostMultiSecretSNICacheSyncV2(t *testing.T) {
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("xyz.com"))
 
-	g.Eventually(func() bool {
-		_, found1 := mcache.VsCache.AviCacheGet(sniVSKey1)
-		_, found2 := mcache.VsCache.AviCacheGet(sniVSKey2)
-		if found1 && found2 {
-			return true
+	g.Eventually(func() int {
+		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey1)
+		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
+		if found && ok {
+			return len(sniCacheObj.PoolKeyCollection)
 		}
-		return false
-	}, 5*time.Second).Should(gomega.Equal(true))
-
+		return 0
+	}, 10*time.Second).Should(gomega.Equal(1))
 	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey1)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
-	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret"))
 
+	g.Eventually(func() int {
+		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey2)
+		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
+		if found && ok {
+			return len(sniCacheObj.PoolKeyCollection)
+		}
+		return 0
+	}, 10*time.Second).Should(gomega.Equal(1))
 	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey2)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
-	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("bar.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2"))
 
-	fmt.Printf("XXXDELETEXXX\n")
+	// delete cert
 	KubeClient.CoreV1().Secrets("default").Delete("my-secret-v2", nil)
 	ingressUpdateObject := FakeIngress{
 		Name:        "foo-with-targets",

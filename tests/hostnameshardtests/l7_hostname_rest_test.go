@@ -477,16 +477,18 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	mcache := cache.SharedAviObjCache()
-	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-0"}
 	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--foo.com"}
 	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--bar.com"}
 
+	// Shard scheme: Shard-VS---global-0 -> foo.com
+	// Shard scheme: Shard-VS---global-3 -> xyz.com
+	xyzParentKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-3"}
 	g.Eventually(func() int {
-		sniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+		sniCache, _ := mcache.VsCache.AviCacheGet(xyzParentKey)
 		sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 		return len(sniCacheObj.PoolKeyCollection)
 	}, 10*time.Second).Should(gomega.Equal(1))
-	sniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+	sniCache, _ := mcache.VsCache.AviCacheGet(xyzParentKey)
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("xyz.com"))
 
@@ -499,16 +501,30 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		return false
 	}, 5*time.Second).Should(gomega.Equal(true))
 
+	g.Eventually(func() int {
+		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey1)
+		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
+		if found && ok {
+			return len(sniCacheObj.PoolKeyCollection)
+		}
+		return 0
+	}, 10*time.Second).Should(gomega.Equal(1))
 	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey1)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
-	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret"))
 
+	g.Eventually(func() int {
+		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey2)
+		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
+		if found && ok {
+			return len(sniCacheObj.PoolKeyCollection)
+		}
+		return 0
+	}, 10*time.Second).Should(gomega.Equal(1))
 	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey2)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
-	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("bar.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2"))
@@ -534,11 +550,13 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
+	// Shard scheme: Shard-VS---global-1 -> bar.com
+	barParentKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-1"}
 	g.Eventually(func() int {
-		sniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+		sniCache, _ := mcache.VsCache.AviCacheGet(barParentKey)
 		sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 		return len(sniCacheObj.PoolKeyCollection)
-	}, 10*time.Second).Should(gomega.Equal(2))
+	}, 10*time.Second).Should(gomega.Equal(1))
 
 	// should not be found
 	g.Eventually(func() bool {
