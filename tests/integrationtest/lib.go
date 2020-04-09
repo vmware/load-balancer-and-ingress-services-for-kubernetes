@@ -645,7 +645,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 		if rModelName == "virtualservice" {
 			// handle sni child, fill in vs parent ref
 			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName = strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
+				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
 				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 			}
 
