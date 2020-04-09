@@ -18,9 +18,9 @@ configs:
   disableStaticRouteSync: "false"
   ingressApi: "corev1" #enum: extensionv1 and corev1 - if not set default to corev1
   defaultIngController: "true"
-  subnetIP: ""
-  CIDR: ""
-  NetworkName: ""
+  subnetIP: "" # Subnet IP of the data network
+  CIDR: "" # CIDR of the data network
+  NetworkName: "" # Network Name of the data network
   L7ShardingScheme: "hostname"
   cniPlugin: "" #enum: calico|canal|flannel
 
