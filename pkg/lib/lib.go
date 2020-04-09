@@ -53,6 +53,16 @@ func GetModelName(namespace, objectName string) string {
 	return namespace + "/" + objectName
 }
 
+// All L4 object names.
+
+func GetL4VSName(svcName, namespace string) string {
+	return GetVrf() + "--" + svcName + "--" + namespace
+}
+
+func GetL4VSVipName(svcName, namespace string) string {
+	return GetVrf() + "--" + svcName + "--" + namespace
+}
+
 func GetL4PoolName(vsName string, port int32) string {
 	return vsName + "--" + fmt.Sprint(port)
 }
@@ -61,12 +71,17 @@ func GetL4PGName(vsName string, port int32) string {
 	return vsName + "--" + fmt.Sprint(port)
 }
 
-func GetL4VSName(svcName, namespace string) string {
-	return GetVrf() + "--" + svcName + "--" + namespace
+// All L7 object names.
+func GetVsVipName(vsName string) string {
+	return GetVrf() + "--" + vsName
 }
 
-func GetL4VSVipName(svcName, namespace string) string {
-	return svcName + "--" + namespace + "--" + GetVrf()
+func GetL7InsecureDSName(vsName string) string {
+	return GetVrf() + "--" + vsName
+}
+
+func GetL7SharedPGName(vsName string) string {
+	return GetVrf() + "--" + vsName
 }
 
 func GetL7PoolName(priorityLabel, namespace, ingName string) string {

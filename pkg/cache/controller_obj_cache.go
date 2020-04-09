@@ -143,7 +143,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 			continue
 		}
 		//Only cache a PG that belongs to this AKO.
-		if !strings.HasPrefix(*pg.Name, lib.GetVrf()) {
+		if !strings.HasPrefix(*pg.Name, lib.GetVrf()+"--") {
 			continue
 		}
 		pgCacheObj := AviPGCache{
@@ -234,7 +234,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 			continue
 		}
 		//Only cache a Pool that belongs to this AKO.
-		if !strings.HasPrefix(*pool.Name, lib.GetVrf()) {
+		if !strings.HasPrefix(*pool.Name, lib.GetVrf()+"--") {
 			continue
 		}
 		poolCacheObj := AviPoolCache{
@@ -280,6 +280,7 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 				utils.AviLog.Warning.Printf("Wrong data type for pool: %s in cache", k)
 			}
 		}
+		utils.AviLog.Info.Printf("Adding key to pool cache :%s", k)
 		c.PoolCache.AviCacheAdd(k, &poolsData[i])
 		delete(poolCacheData, k)
 	}
@@ -321,8 +322,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 			utils.AviLog.Warning.Printf("Incomplete vsvip data unmarshalled, %s", utils.Stringify(vsvip))
 			continue
 		}
-		//Only cache a VsVip that belongs to this AKO.
-		if !strings.HasPrefix(*vsvip.Name, lib.GetVrf()) {
+		if !strings.HasPrefix(*vsvip.Name, lib.GetVrf()+"--") {
 			continue
 		}
 		vsVipCacheObj := AviVSVIPCache{
@@ -410,7 +410,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
 			continue
 		}
 		//Only cache a DS that belongs to this AKO.
-		if !strings.HasPrefix(*ds.Name, lib.GetVrf()) {
+		if !strings.HasPrefix(*ds.Name, lib.GetVrf()+"--") {
 			continue
 		}
 		dsCacheObj := AviDSCache{
@@ -496,7 +496,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
 			continue
 		}
 		//Only cache a SSL keys that belongs to this AKO.
-		if !strings.HasPrefix(*sslkey.Name, lib.GetVrf()) {
+		if !strings.HasPrefix(*sslkey.Name, lib.GetVrf()+"--") {
 			continue
 		}
 		sslCacheObj := AviSSLCache{
@@ -583,7 +583,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 			continue
 		}
 		//Only cache a http policies that belongs to this AKO.
-		if !strings.HasPrefix(*httppol.Name, lib.GetVrf()) {
+		if !strings.HasPrefix(*httppol.Name, lib.GetVrf()+"--") {
 			continue
 		}
 		httpPolCacheObj := AviHTTPPolicyCache{
