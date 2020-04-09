@@ -9,9 +9,8 @@ image:
   pullPolicy: IfNotPresent
 
 configs:
-  controllerVersion: "18.2.7"
+  controllerVersion: "18.2.8"
   shardVSSize: "LARGE"
-  shardVSNum: "8"
   shardVSPrefix: ""
   fullSyncFrequency: "300"
   cloudName: "Default-Cloud"
@@ -19,11 +18,11 @@ configs:
   disableStaticRouteSync: "false"
   ingressApi: "corev1" #enum: extensionv1 and corev1 - if not set default to corev1
   defaultIngController: "true"
-  subnetIP: "100.64.86.0"
-  CIDR: "24"
-  NetworkName: "vxw-dvs-34-virtualwire-85-sid-2140084-wdc-02-vc14-avi-dev078"
-  L7ShardingScheme: "namespace"
-  cniPlugin: "calico" #enum: calico|canal|flannel
+  subnetIP: ""
+  CIDR: ""
+  NetworkName: ""
+  L7ShardingScheme: "hostname"
+  cniPlugin: "" #enum: calico|canal|flannel
 
 imagePullSecrets: []
 nameOverride: ""
