@@ -43,10 +43,16 @@ func SetUpTestForSvcLB(t *testing.T) {
 	PollForCompletion(t, SINGLEPORTMODEL, 5)
 }
 
-func TearDownTestForSvcLB(t *testing.T) {
+func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
 	DelSVC(t, NAMESPACE, SINGLEPORTSVC)
 	DelEP(t, NAMESPACE, SINGLEPORTSVC)
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
 }
 
 func SetUpTestForSvcLBMultiport(t *testing.T) {
@@ -56,10 +62,16 @@ func SetUpTestForSvcLBMultiport(t *testing.T) {
 	PollForCompletion(t, MULTIPORTMODEL, 10)
 }
 
-func TearDownTestForSvcLBMultiport(t *testing.T) {
+func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
 	DelSVC(t, NAMESPACE, MULTIPORTSVC)
 	DelEP(t, NAMESPACE, MULTIPORTSVC)
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", MULTIPORTSVC, NAMESPACE)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
 }
 
 func TestMain(m *testing.M) {
@@ -111,7 +123,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 		g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(1))
 	}
 
-	TearDownTestForSvcLB(t)
+	TearDownTestForSvcLB(t, g)
 }
 
 func TestAviNodeCreationMultiPort(t *testing.T) {
@@ -154,7 +166,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
 	}
 
-	TearDownTestForSvcLBMultiport(t)
+	TearDownTestForSvcLBMultiport(t, g)
 }
 
 func TestAviNodeMultiPortApplicationProf(t *testing.T) {
@@ -198,7 +210,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
 	}
 
-	TearDownTestForSvcLBMultiport(t)
+	TearDownTestForSvcLBMultiport(t, g)
 }
 
 func TestAviNodeUpdateEndpoint(t *testing.T) {
@@ -242,10 +254,12 @@ func TestAviNodeUpdateEndpoint(t *testing.T) {
 		}
 	}
 
-	TearDownTestForSvcLB(t)
+	TearDownTestForSvcLB(t, g)
 }
 
-func TestCreateServiceLB(t *testing.T) {
+// Rest Cache sync tests
+
+func TestCreateServiceLBCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	SetUpTestForSvcLB(t)
@@ -268,14 +282,14 @@ func TestCreateServiceLB(t *testing.T) {
 		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
 	}
 
-	TearDownTestForSvcLB(t)
+	TearDownTestForSvcLB(t, g)
 	g.Eventually(func() bool {
 		_, found := mcache.VsCache.AviCacheGet(vsKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
 
-func TestCreateServiceLBWithFault(t *testing.T) {
+func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	injectFault := true
@@ -335,10 +349,10 @@ func TestCreateServiceLBWithFault(t *testing.T) {
 		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
 	}
 
-	TearDownTestForSvcLB(t)
+	TearDownTestForSvcLB(t, g)
 }
 
-func TestCreateMultiportServiceLB(t *testing.T) {
+func TestCreateMultiportServiceLBCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	MULTIPORTSVC, NAMESPACE, AVINAMESPACE := "testsvcmulti", "red-ns", "admin"
 
@@ -361,10 +375,10 @@ func TestCreateMultiportServiceLB(t *testing.T) {
 	g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(3))
 	g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp(`^(global--[a-zA-Z0-9-]+-808(0|1|2))$`))
 
-	TearDownTestForSvcLBMultiport(t)
+	TearDownTestForSvcLBMultiport(t, g)
 }
 
-func TestUpdateAndDeleteServiceLB(t *testing.T) {
+func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -411,16 +425,16 @@ func TestUpdateAndDeleteServiceLB(t *testing.T) {
 	g.Expect(poolCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 
 	// DELETE Test: Cache corresponding to the pool MUST NOT be found
-	TearDownTestForSvcLB(t)
+	TearDownTestForSvcLB(t, g)
 	g.Eventually(func() bool {
 		_, found = mcache.PoolCache.AviCacheGet(poolKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
 
-//TestScaleUpAndDownServiceLB tests the avi node graph and rest layer functionality when the
+//TestScaleUpAndDownServiceLBCacheSync tests the avi node graph and rest layer functionality when the
 //multiport serviceLB is increased from 1 to 30 and then decreased back to 1
-func TestScaleUpAndDownServiceLB(t *testing.T) {
+func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var model, service string
 
@@ -497,5 +511,5 @@ func TestScaleUpAndDownServiceLB(t *testing.T) {
 		_, found = mcache.VsCache.AviCacheGet(vsKey)
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
-	TearDownTestForSvcLB(t)
+	TearDownTestForSvcLB(t, g)
 }

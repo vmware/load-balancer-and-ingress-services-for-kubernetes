@@ -642,11 +642,15 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 		rData["url"] = objURL
 		rData["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
 
-		// handle sni child, fill in vs parent ref
 		if rModelName == "virtualservice" {
+			// handle sni child, fill in vs parent ref
 			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", "Shard-VS---global-6", RANDOMUUID, "Shard-VS---global-6")
+				parentVSName = strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
+				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 			}
+
+			// add hardcoded vip for status update checks
+			rData["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": "10.250.250.250", "type": "V4"}}}
 		}
 
 		finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
