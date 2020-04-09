@@ -317,10 +317,9 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 		}
 
 		vsVipCacheObj := AviVSVIPCache{
-			Name:             *vsvip.Name,
-			Uuid:             *vsvip.UUID,
-			CloudConfigCksum: *vsvip.VsvipCloudConfigCksum,
-			LastModified:     *vsvip.LastModified,
+			Name:         *vsvip.Name,
+			Uuid:         *vsvip.UUID,
+			LastModified: *vsvip.LastModified,
 		}
 		*vsVipData = append(*vsVipData, vsVipCacheObj)
 
