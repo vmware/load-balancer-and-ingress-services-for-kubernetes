@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"ako/pkg/cache"
 	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
@@ -105,27 +104,6 @@ func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{
 	}, 10*time.Second).Should(gomega.HaveLen(sniCount))
 
 	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(sniCount))
-}
-
-func TestCacheGETOKStatus(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	// Verify the cache.
-	cacheobj := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS-5"}
-	vs_cache, found := cacheobj.VsCache.AviCacheGet(vsKey)
-
-	if !found {
-		t.Fatalf("Cache not found for VS: %v", vsKey)
-	} else {
-		vs_cache_obj, ok := vs_cache.(*cache.AviVsCache)
-		if !ok {
-			t.Fatalf("Invalid VS object. Cannot cast.")
-		}
-		g.Expect(len(vs_cache_obj.PoolKeyCollection)).To(gomega.Equal(3))
-		g.Expect(len(vs_cache_obj.PGKeyCollection)).To(gomega.Equal(1))
-		g.Expect(len(vs_cache_obj.DSKeyCollection)).To(gomega.Equal(1))
-	}
 }
 
 func TestL7Model(t *testing.T) {

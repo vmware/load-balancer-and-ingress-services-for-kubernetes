@@ -227,7 +227,7 @@ func (v *SvcNSCache) UpdateIngressSecretsMappings(ingName string, secret string)
 	_, secrets := v.GetIngToSecret(ingName)
 	if !utils.HasElem(secrets, secret) {
 		secrets = append(secrets, secret)
-		utils.AviLog.Info.Printf("Updated the ingress-->secret mapping: %s", secrets)
+		utils.AviLog.Info.Printf("Updated the ingress: %s to secrets: %s", ingName, secrets)
 		v.UpdateIngToSecretMapping(ingName, secrets)
 	}
 }
