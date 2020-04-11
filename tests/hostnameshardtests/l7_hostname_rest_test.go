@@ -28,7 +28,6 @@ import (
 	"ako/pkg/objects"
 	"ako/tests/integrationtest"
 
-	"github.com/avinetworks/container-lib/utils"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,19 +81,6 @@ func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, w
 	integrationtest.PollForCompletion(t, modelName, 5)
 }
 
-func VerifyCacheRemoval(modelName string, g *gomega.GomegaWithT) {
-	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: strings.Split(modelName, "/")[1]}
-	g.Eventually(func() int {
-		vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
-		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
-		if found && ok {
-			return len(vsCacheObj.PoolKeyCollection)
-		}
-		return -1
-	}, 5*time.Second).Should(gomega.Equal(0))
-}
-
 func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string) {
 	if err := KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -135,6 +121,31 @@ func TestHostnameCreateIngressCacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
+func TestHostnameIngressStatusCheck(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/Shard-VS---global-0"
+	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-0"}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 5*time.Second).Should(gomega.Equal(1))
+	ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
+	g.Expect(ingress.Status.LoadBalancer.Ingress).To(gomega.HaveLen(1))
+	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.Equal("10.250.250.10"))
+	g.Expect(ingress.Status.LoadBalancer.Ingress[0].Hostname).To(gomega.ContainSubstring("foo.com"))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
 func TestHostnameCreateIngressWithFaultCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var found bool
@@ -149,7 +160,6 @@ func TestHostnameCreateIngressWithFaultCacheSync(t *testing.T) {
 			data, _ := ioutil.ReadAll(r.Body)
 			json.Unmarshal(data, &resp)
 			rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
-			fmt.Printf("%s %+v\n", rModelName, resp)
 			if rModelName == "virtualservice" && injectFault {
 				injectFault = false
 				w.WriteHeader(http.StatusBadRequest)
@@ -357,8 +367,6 @@ func TestHostnameUpdateSNICacheSync(t *testing.T) {
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
 		Paths:       []string{"/bar-updated"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
@@ -413,8 +421,6 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com", "bar.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
@@ -455,10 +461,6 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 		return sniCacheObj1.ParentVSRef.Name
 	}, 15*time.Second).Should(gomega.Not(gomega.Equal("")))
 
-	time.Sleep(5 * time.Second)
-	fmt.Printf("X: %+v", utils.Stringify(sniCacheObj1))
-	fmt.Printf("Y: %+v", utils.Stringify(sniCacheObj2))
-
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
@@ -472,8 +474,6 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com", "bar.com", "xyz.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
 		Paths:       []string{"/foo", "/bar", "/xyz"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
@@ -549,8 +549,6 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com", "bar.com", "xyz.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
 		Paths:       []string{"/foo", "/bar", "/xyz"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
@@ -687,4 +685,124 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	g.Expect(found).To(gomega.Equal(false))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/Shard-VS---global-0"
+
+	SetUpTestForIngress(t, modelName)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	ingressObject := integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com", "bar.com", "xyz.com"},
+		Paths:       []string{"/foo", "/bar", "/xyz"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			"my-secret":    []string{"foo.com"},
+			"my-secret-v2": []string{"bar.com"},
+		},
+	}
+	integrationtest.AddSecret("my-secret-v2", "default")
+	integrationtest.AddSecret("my-secret", "default")
+
+	ingrFake := ingressObject.Ingress()
+	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	// Shard scheme: Shard-VS---global-0 -> foo.com
+	// Shard scheme: Shard-VS---global-3 -> xyz.com
+	// Shard scheme: Shard-VS---global-1 -> bar.com
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 10*time.Second).Should(gomega.Equal(3))
+	ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
+	// fake avi controller server returns IP in the form: 10.250.250.1<Shard-VS-NUM>
+	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))
+	g.Expect(ingress.Status.LoadBalancer.Ingress[0].Hostname).To(gomega.MatchRegexp(`^((foo|bar|xyz).com)$`))
+	g.Expect(ingress.Status.LoadBalancer.Ingress[1].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))
+	g.Expect(ingress.Status.LoadBalancer.Ingress[1].Hostname).To(gomega.MatchRegexp(`^((foo|bar|xyz).com)$`))
+	g.Expect(ingress.Status.LoadBalancer.Ingress[2].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))
+	g.Expect(ingress.Status.LoadBalancer.Ingress[2].Hostname).To(gomega.MatchRegexp(`^((foo|bar|xyz).com)$`))
+
+	if err := KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	TearDownTestForIngress(t, modelName)
+}
+
+func TestHostnameMultiHostUpdateIngressStatusCheck(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	var err error
+	modelName := "admin/Shard-VS---global-0"
+	ingressId := "thmhuisc"
+	ingressName := fmt.Sprintf("ing-%s", ingressId)
+	pathSuffix := "-" + ingressName + ".com"
+
+	SetUpTestForIngress(t, modelName)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	ingressObject := integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo" + pathSuffix, "bar" + pathSuffix, "xyz" + pathSuffix},
+		Paths:       []string{"/foo", "/bar", "/xyz"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo" + pathSuffix, "bar" + pathSuffix},
+		},
+	}
+	integrationtest.AddSecret("my-secret", "default")
+	ingrFake := ingressObject.Ingress()
+	if _, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get(ingressName, metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 10*time.Second).Should(gomega.Equal(3))
+	ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get(ingressName, metav1.GetOptions{})
+
+	// donot update status
+	var ingressStatusIPs, ingressStatusNames []string
+	for _, i := range ingress.Status.LoadBalancer.Ingress {
+		ingressStatusIPs = append(ingressStatusIPs, i.IP)
+		ingressStatusNames = append(ingressStatusNames, i.Hostname)
+	}
+
+	// remove one hostname
+	ingressUpdate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo" + pathSuffix, "xyz" + pathSuffix},
+		Paths:       []string{"/foo", "/xyz"},
+		Ips:         ingressStatusIPs,
+		HostNames:   ingressStatusNames,
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo" + pathSuffix},
+		},
+	}).Ingress()
+	ingressUpdate.ResourceVersion = "2"
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingressUpdate)
+	if err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
+
+	// statuses go down from 3 to 2
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get(ingressName, metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 10*time.Second).Should(gomega.Equal(2))
+
+	if err := KubeClient.ExtensionsV1beta1().Ingresses("default").Delete(ingressName, nil); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	TearDownTestForIngress(t, modelName)
 }

@@ -629,6 +629,8 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.EscapedPath()
 	var resp map[string]interface{}
 	var finalResponse []byte
+	var vipAddress, shardVSNum string
+	addrPrefix := "10.250.250"
 	object := strings.Split(strings.Trim(url, "/"), "/")
 
 	if strings.Contains(url, "macro") && r.Method == "POST" {
@@ -646,11 +648,21 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 			// handle sni child, fill in vs parent ref
 			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
 				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
+				shardVSNum = strings.Split(parentVSName, "global-")[1]
+
 				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
+
+			} else if strings.Contains(rName, "Shard-VS") {
+				shardVSNum = strings.Split(rName, "global-")[1]
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
+			} else {
+				vipAddress = "10.250.250.250"
 			}
 
-			// add hardcoded vip for status update checks
-			rData["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": "10.250.250.250", "type": "V4"}}}
+			// add vip for status update checks
+			// use vh_parent_vs_uuid for sniVS, and name for normal VSes
+			rData["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 		}
 
 		finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
