@@ -262,6 +262,17 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 		cksum := resp["cloud_config_cksum"].(string)
 
+		var lastModifiedStr string
+		lastModifiedIntf, ok := resp["_last_modified"]
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+		} else {
+			lastModifiedStr, ok = lastModifiedIntf.(string)
+			if !ok {
+				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+			}
+		}
+
 		vh_parent_uuid, found_parent := resp["vh_parent_vs_ref"]
 		var parentVsObj *avicache.AviVsCache
 		var vhParentKey interface{}
@@ -311,6 +322,14 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				if vhParentKey != nil {
 					vs_cache_obj.ParentVSRef = vhParentKey.(avicache.NamespaceName)
 				}
+
+				vs_cache_obj.LastModified = lastModifiedStr
+				if lastModifiedStr == "" {
+					vs_cache_obj.InvalidData = true
+				} else {
+					vs_cache_obj.InvalidData = false
+				}
+
 				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
@@ -337,7 +356,12 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			}
 		} else {
 			vs_cache_obj := avicache.AviVsCache{Name: name, Tenant: rest_op.Tenant,
-				Uuid: uuid, CloudConfigCksum: cksum, ServiceMetadataObj: svc_mdata_obj}
+				Uuid: uuid, CloudConfigCksum: cksum, ServiceMetadataObj: svc_mdata_obj,
+				LastModified: lastModifiedStr,
+			}
+			if lastModifiedStr == "" {
+				vs_cache_obj.InvalidData = true
+			}
 			if vipExists && len(vsvip) > 0 {
 				vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
 				vs_cache_obj.Vip = vip
@@ -588,8 +612,22 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			continue
 		}
 
+		var lastModifiedStr string
+		lastModifiedIntf, ok := resp["_last_modified"]
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+		} else {
+			lastModifiedStr, ok = lastModifiedIntf.(string)
+			if !ok {
+				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+			}
+		}
+
 		vsvip_cache_obj := avicache.AviVSVIPCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid: uuid}
+			Uuid: uuid, LastModified: lastModifiedStr}
+		if lastModifiedStr == "" {
+			vsvip_cache_obj.InvalidData = true
+		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.VSVIPCache.AviCacheAdd(k, &vsvip_cache_obj)

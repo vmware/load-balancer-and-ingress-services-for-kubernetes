@@ -172,9 +172,25 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 
 		cksum := resp["cloud_config_cksum"].(string)
 
+		var lastModifiedStr string
+		lastModifiedIntf, ok := resp["_last_modified"]
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+		} else {
+			lastModifiedStr, ok = lastModifiedIntf.(string)
+			if !ok {
+				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+			}
+		}
+
 		http_cache_obj := avicache.AviHTTPPolicyCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
-			CloudConfigCksum: cksum}
+			CloudConfigCksum: cksum,
+			LastModified:     lastModifiedStr,
+		}
+		if lastModifiedStr == "" {
+			http_cache_obj.InvalidData = true
+		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.HTTPPolicyCache.AviCacheAdd(k, &http_cache_obj)

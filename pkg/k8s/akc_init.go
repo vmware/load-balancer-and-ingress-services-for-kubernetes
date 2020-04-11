@@ -163,14 +163,12 @@ func (c *AviController) FullSync() {
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
 		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-		deletedKeys := avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
+		_, allKeys := avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
 			utils.CtrlVersion, utils.CloudName)
-		for _, key := range deletedKeys {
-
-			utils.AviLog.Info.Printf("Found deleted keys in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
+		for _, key := range allKeys {
+			utils.AviLog.Info.Printf("Found key in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
 			modelName := utils.ADMIN_NS + "/" + key.(avicache.NamespaceName).Name
 			nodes.PublishKeyToRestLayer(modelName, key.(avicache.NamespaceName).Name, sharedQueue)
-
 		}
 	}
 }

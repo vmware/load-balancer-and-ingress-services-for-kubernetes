@@ -44,7 +44,7 @@ func DequeueSlowRetry(vsKey string) {
 				if err != nil && strings.Contains(err.Error(), lib.NOT_FOUND) {
 					// Assume something really bad has happened, run a refresh on the entire cache.
 					utils.AviLog.Warning.Printf("VS not found, something bad happened, refreshing the entire cache: %s", vsCacheObj.Uuid)
-					deletedKeys = aviObjCache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
+					deletedKeys, _ = aviObjCache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
 					utils.AviLog.Info.Printf("Deleting cache for: %s, object not present in controller", vsCacheObj.Uuid)
 					aviObjCache.VsCache.AviCacheDelete(vsCacheKey)
 				}
@@ -91,7 +91,7 @@ func DequeueFastRetry(vsKey string) {
 				if err != nil && strings.Contains(err.Error(), lib.NOT_FOUND) {
 					// Assume something really bad has happened, run a refresh on the entire cache.
 					utils.AviLog.Warning.Printf("VS not found, something bad happened, refreshing the entire cache: %s", vsCacheObj.Uuid)
-					deletedKeys = aviObjCache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
+					deletedKeys, _ = aviObjCache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
 					utils.AviLog.Info.Printf("Deleting cache for: %s, object not present in controller", vsCacheObj.Uuid)
 					aviObjCache.VsCache.AviCacheDelete(vsCacheKey)
 				}

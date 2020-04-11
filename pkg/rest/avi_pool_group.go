@@ -101,9 +101,25 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 
 		cksum := resp["cloud_config_cksum"].(string)
 
+		var lastModifiedStr string
+		lastModifiedIntf, ok := resp["_last_modified"]
+		if !ok {
+			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+		} else {
+			lastModifiedStr, ok = lastModifiedIntf.(string)
+			if !ok {
+				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+			}
+		}
+
 		pg_cache_obj := avicache.AviPGCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
-			CloudConfigCksum: cksum}
+			CloudConfigCksum: cksum,
+			LastModified:     lastModifiedStr,
+		}
+		if lastModifiedStr == "" {
+			pg_cache_obj.InvalidData = true
+		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.PgCache.AviCacheAdd(k, &pg_cache_obj)

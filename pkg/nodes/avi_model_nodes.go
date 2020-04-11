@@ -240,8 +240,23 @@ func (v *AviVsNode) GetNodeType() string {
 }
 
 func (v *AviVsNode) CalculateCheckSum() {
+	portproto := v.PortProto
+	sort.Slice(portproto, func(i, j int) bool {
+		return portproto[i].Name < portproto[j].Name
+	})
+
+	var dsChecksum, httppolChecksum uint32
+	for _, ds := range v.HTTPDSrefs {
+		dsChecksum += ds.GetCheckSum()
+	}
+
+	for _, httppol := range v.HttpPolicyRefs {
+		httppolChecksum += httppol.GetCheckSum()
+	}
+
 	// A sum of fields for this VS.
-	checksum := utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) + utils.Hash(utils.Stringify(v.PortProto)) + utils.Hash(utils.Stringify(v.HTTPDSrefs)) + utils.Hash(utils.Stringify(v.SniNodes)) + utils.Hash(utils.Stringify(v.ServiceMetadata)) + utils.Hash(utils.Stringify(v.HttpPolicyRefs))
+	checksum := dsChecksum + httppolChecksum + utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) +
+		utils.Hash(utils.Stringify(v.SniNodes)) + utils.Hash(utils.Stringify(v.ServiceMetadata)) + utils.Hash(utils.Stringify(portproto))
 	v.CloudConfigCksum = checksum
 }
 
@@ -389,6 +404,7 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 
 func (v *AviVSVIPNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
+	sort.Strings(v.FQDNs)
 	checksum := utils.Hash(utils.Stringify(v.FQDNs))
 	v.CloudConfigCksum = checksum
 }
@@ -426,8 +442,12 @@ func (v *AviPoolGroupNode) GetCheckSum() uint32 {
 }
 
 func (v *AviPoolGroupNode) CalculateCheckSum() {
-	// A sum of fields for this VS.
-	checksum := utils.Hash(utils.Stringify(v.Members))
+	// A sum of fields for this PG.
+	pgMembers := v.Members
+	sort.Slice(pgMembers, func(i, j int) bool {
+		return *pgMembers[i].PoolRef < *pgMembers[j].PoolRef
+	})
+	checksum := utils.Hash(utils.Stringify(pgMembers))
 	v.CloudConfigCksum = checksum
 }
 
@@ -477,6 +497,7 @@ func (v *AviHTTPDataScriptNode) GetCheckSum() uint32 {
 
 func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
+	sort.Strings(v.PoolGroupRefs)
 	checksum := utils.Hash(utils.Stringify(v.PoolGroupRefs))
 	v.CloudConfigCksum = checksum
 }
@@ -539,8 +560,15 @@ func (v *AviPoolNode) GetCheckSum() uint32 {
 }
 
 func (v *AviPoolNode) CalculateCheckSum() {
-	// A sum of fields for this VS.
-	checksum := utils.Hash(v.Protocol) + utils.Hash(fmt.Sprint(v.Port)) + utils.Hash(v.PortName) + utils.Hash(utils.Stringify(v.Servers)) + utils.Hash(utils.Stringify(v.LbAlgorithm)) + utils.Hash(utils.Stringify(v.SSLProfileRef)) + utils.Hash(utils.Stringify(v.ServerClientCert)) + utils.Hash(utils.Stringify(v.PkiProfile)) + utils.Hash(utils.Stringify(v.PriorityLabel))
+	servers := v.Servers
+	sort.Slice(servers, func(i, j int) bool {
+		return servers[i].ServerNode < servers[j].ServerNode
+	})
+
+	// A sum of fields for this Pool.
+	checksum := utils.Hash(v.Protocol) + utils.Hash(fmt.Sprint(v.Port)) + utils.Hash(v.PortName) + utils.Hash(utils.Stringify(servers)) +
+		utils.Hash(utils.Stringify(v.LbAlgorithm)) + utils.Hash(utils.Stringify(v.SSLProfileRef)) + utils.Hash(utils.Stringify(v.ServerClientCert)) +
+		utils.Hash(utils.Stringify(v.PkiProfile)) + utils.Hash(utils.Stringify(v.PriorityLabel))
 	v.CloudConfigCksum = checksum
 }
 
