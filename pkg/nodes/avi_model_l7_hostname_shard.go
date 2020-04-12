@@ -33,7 +33,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 	defer o.Lock.Unlock()
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
 	utils.AviLog.Info.Printf("key: %s, msg: Building the L7 pools for namespace: %s, hostname: %s", key, namespace, hostname)
-	pgName := vsName + utils.L7_PG_PREFIX
+	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	vsNode := o.GetAviVS()
 	if len(vsNode) != 1 {
@@ -121,7 +121,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 	// Remove these hosts from the overall FQDN list
 	RemoveFQDNsFromModel(vsNode[0], hosts, key)
 	// Reset the PG Node members and rebuild them
-	pgName := vsName + utils.L7_PG_PREFIX
+	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	pgNode.Members = nil
 	for _, poolNode := range vsNode[0].PoolRefs {

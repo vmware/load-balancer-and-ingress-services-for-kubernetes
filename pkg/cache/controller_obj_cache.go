@@ -142,7 +142,10 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 			utils.AviLog.Warning.Printf("Incomplete pg data unmarshalled, %s", utils.Stringify(pg))
 			continue
 		}
-
+		//Only cache a PG that belongs to this AKO.
+		if !strings.HasPrefix(*pg.Name, lib.GetVrf()+"--") {
+			continue
+		}
 		pgCacheObj := AviPGCache{
 			Name:             *pg.Name,
 			Uuid:             *pg.UUID,
@@ -230,7 +233,10 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 			utils.AviLog.Warning.Printf("Incomplete pool data unmarshalled, %s", utils.Stringify(pool))
 			continue
 		}
-
+		//Only cache a Pool that belongs to this AKO.
+		if !strings.HasPrefix(*pool.Name, lib.GetVrf()+"--") {
+			continue
+		}
 		poolCacheObj := AviPoolCache{
 			Name:             *pool.Name,
 			Uuid:             *pool.UUID,
@@ -274,6 +280,7 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 				utils.AviLog.Warning.Printf("Wrong data type for pool: %s in cache", k)
 			}
 		}
+		utils.AviLog.Info.Printf("Adding key to pool cache :%s", k)
 		c.PoolCache.AviCacheAdd(k, &poolsData[i])
 		delete(poolCacheData, k)
 	}
@@ -315,7 +322,9 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 			utils.AviLog.Warning.Printf("Incomplete vsvip data unmarshalled, %s", utils.Stringify(vsvip))
 			continue
 		}
-
+		if !strings.HasPrefix(*vsvip.Name, lib.GetVrf()+"--") {
+			continue
+		}
 		vsVipCacheObj := AviVSVIPCache{
 			Name:         *vsvip.Name,
 			Uuid:         *vsvip.UUID,
@@ -400,6 +409,10 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
 			utils.AviLog.Warning.Printf("Incomplete Datascript data unmarshalled, %s", utils.Stringify(ds))
 			continue
 		}
+		//Only cache a DS that belongs to this AKO.
+		if !strings.HasPrefix(*ds.Name, lib.GetVrf()+"--") {
+			continue
+		}
 		dsCacheObj := AviDSCache{
 			Name: *ds.Name,
 			Uuid: *ds.UUID,
@@ -458,7 +471,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/sslkeyandcertificate?include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akcUser
+		uri = "/api/sslkeyandcertificate?include_name=true" + "&created_by=" + akcUser
 	}
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
@@ -480,6 +493,10 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
 		}
 		if sslkey.Name == nil || sslkey.UUID == nil {
 			utils.AviLog.Warning.Printf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(sslkey))
+			continue
+		}
+		//Only cache a SSL keys that belongs to this AKO.
+		if !strings.HasPrefix(*sslkey.Name, lib.GetVrf()+"--") {
 			continue
 		}
 		sslCacheObj := AviSSLCache{
@@ -565,6 +582,10 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 			utils.AviLog.Warning.Printf("Incomplete http policy data unmarshalled, %s", utils.Stringify(httppol))
 			continue
 		}
+		//Only cache a http policies that belongs to this AKO.
+		if !strings.HasPrefix(*httppol.Name, lib.GetVrf()+"--") {
+			continue
+		}
 		httpPolCacheObj := AviHTTPPolicyCache{
 			Name:             *httppol.Name,
 			Uuid:             *httppol.UUID,
@@ -625,7 +646,7 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		utils.AviLog.Info.Printf("Static route sync disabled, skipping vrf cache population")
 		return
 	}
-	uri := "/api/vrfcontext?include_name=true&cloud_ref.name=" + cloud
+	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
 
 	vrfList := []*models.VrfContext{}
 	result, err := client.AviSession.GetCollectionRaw(uri)

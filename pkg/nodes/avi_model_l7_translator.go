@@ -44,7 +44,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	} else {
 		ingObj, err = utils.GetInformers().CoreV1IngressInformer.Lister().Ingresses(namespace).Get(ingName)
 	}
-	pgName := vsName + utils.L7_PG_PREFIX
+	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	vsNode := o.GetAviVS()
 	if len(vsNode) != 1 {
@@ -396,14 +396,14 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	} else {
 		utils.AviLog.Warning.Printf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn")
 	}
-	vsVipNode := &AviVSVIPNode{Name: vsName + "-vsvip", Tenant: utils.ADMIN_NS, FQDNs: fqdns,
+	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: utils.ADMIN_NS, FQDNs: fqdns,
 		EastWest: false, VrfContext: vrfcontext}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	return avi_vs_meta
 }
 
 func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNode *AviVsNode) *AviPoolGroupNode {
-	pgName := vsName + utils.L7_PG_PREFIX
+	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS, ImplicitPriorityLabel: true}
 	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
 	o.AddModelNode(pgNode)
@@ -414,9 +414,9 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	scriptStr := utils.HTTP_DS_SCRIPT
 	evt := utils.VS_DATASCRIPT_EVT_HTTP_REQ
 	var poolGroupRefs []string
-	pgName := vsName + utils.L7_PG_PREFIX
+	pgName := lib.GetL7SharedPGName(vsName)
 	poolGroupRefs = append(poolGroupRefs, pgName)
-	dsName := vsName + "-http-datascript"
+	dsName := lib.GetL7InsecureDSName(vsName)
 	script := &DataScript{Script: scriptStr, Evt: evt}
 	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: utils.ADMIN_NS, DataScript: script, PoolGroupRefs: poolGroupRefs}
 	if len(dsScriptNode.PoolGroupRefs) > 0 {
