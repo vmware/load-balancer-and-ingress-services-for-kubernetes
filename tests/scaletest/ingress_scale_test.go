@@ -225,7 +225,7 @@ func generatePoolData(t *testing.T, ns string, count int, hostSuffix, ingrSuffix
 	for i := 0; i < count; i++ {
 		host := fmt.Sprintf("%d-%s", i, hostSuffix)
 		ingrname := fmt.Sprintf("%d-%s", i, ingrSuffix)
-		poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
+		poolname := "global--" + host + path + "--" + ns + "--" + ingrname
 		priority := host + path
 		pooldata[poolname] = poolData{
 			ingressName: ingrname,
@@ -267,7 +267,7 @@ func generatePoolDataMultiPath(t *testing.T, ns string, count, pathCount int, ho
 		ingrname := fmt.Sprintf("%d-%s", i, ingrSuffix)
 		ingrdata[ingrname] = ingrData{ingressName: ingrname, hosts: []string{host}}
 		for _, path := range paths {
-			poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
+			poolname := "global--" + host + path + "--" + ns + "--" + ingrname
 			priority := host + path
 			pooldata[poolname] = poolData{
 				ingressName: ingrname,
@@ -308,7 +308,7 @@ func generatePoolDataMultiHost(t *testing.T, ns string, count, hostCount int, ho
 			host := fmt.Sprintf("%s-%d", baseHost, j)
 			hosts = append(hosts, host)
 			paths = append(paths, path)
-			poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
+			poolname := "global--" + host + path + "--" + ns + "--" + ingrname
 			priority := host + path
 			pooldata[poolname] = poolData{
 				ingressName: ingrname,
@@ -349,7 +349,6 @@ func verifyModel(t *testing.T, g *gomega.GomegaWithT, count int, modelName strin
 	for _, pool := range nodes[0].PoolRefs {
 		data, ok := pooldata[pool.Name]
 		if !ok {
-			fmt.Printf("CHA: %+v", pooldata)
 			t.Fatalf("Unexpected Poolname: %s", pool.Name)
 		}
 		if data.priority != pool.PriorityLabel {
@@ -531,6 +530,9 @@ func verifyMultiModelWithRetry(t *testing.T, g *gomega.GomegaWithT, modeltoPools
 				if data.priority != pool.PriorityLabel {
 					t.Fatalf("Unexpected priority %s for Pool %s, expected %s", pool.PriorityLabel, pool.Name, data.priority)
 				}
+			}
+			if !success {
+				continue
 			}
 			for _, pool := range nodes[0].PoolGroupRefs[0].Members {
 				poolname := strings.TrimPrefix(*pool.PoolRef, "/api/pool?name=")
@@ -767,7 +769,7 @@ func Test100MultipathIngressCreate(t *testing.T) {
 }
 
 func Test100MultipathIngressUpdatePath(t *testing.T) {
-	nIngressMultipathUpdatePathTest(t, 100, 10, 100, 100)
+	nIngressMultipathUpdatePathTest(t, 100, 10, 100, 200)
 }
 
 func Test100MultihostIngressCreate(t *testing.T) {
@@ -806,7 +808,7 @@ func nIngressCreateTestHostnameShard(t *testing.T, count, timeout int) {
 		host := ingr.hosts[0]
 		path := ingr.paths[0]
 		modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-		poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
+		poolname := "global--" + host + path + "--" + ns + "--" + ingrname
 		if modelToPools[modelname] == nil {
 			modelToPools[modelname] = make(map[string]poolData)
 		}
@@ -835,7 +837,7 @@ func nIngressUpdateTestHostnameShard(t *testing.T, count, timeout, retry int) {
 		host := ingr.hosts[0]
 		path := ingr.paths[0]
 		modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-		poolname := host + path + "--" + ns + "--" + ingrname
+		poolname := "global--" + host + path + "--" + ns + "--" + ingrname
 		if modelToPools[modelname] == nil {
 			modelToPools[modelname] = make(map[string]poolData)
 		}
@@ -863,7 +865,7 @@ func nIngressMultihostHostnameShardCreateTest(t *testing.T, ingrCount, hostCount
 			host := ingr.hosts[i]
 			path := ingr.paths[i]
 			modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-			poolname := "pool--global--" + host + path + "--" + ns + "--" + ingrname
+			poolname := "global--" + host + path + "--" + ns + "--" + ingrname
 			if modelToPools[modelname] == nil {
 				modelToPools[modelname] = make(map[string]poolData)
 			}
@@ -895,7 +897,7 @@ func nIngressMultihostHostnameShardUpdateTest(t *testing.T, ingrCount, hostCount
 			host := ingr.hosts[i]
 			path := ingr.paths[i]
 			modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-			poolname := host + path + "--" + ns + "--" + ingrname
+			poolname := "global--" + host + path + "--" + ns + "--" + ingrname
 			if modelToPools[modelname] == nil {
 				modelToPools[modelname] = make(map[string]poolData)
 			}
