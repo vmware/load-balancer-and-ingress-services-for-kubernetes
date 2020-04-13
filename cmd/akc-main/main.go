@@ -76,6 +76,7 @@ func InitializeAKC() {
 		utils.ConfigMapInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	lib.NewDynamicInformers(dynamicClient)
 
 	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := k8s.SharedAviController()

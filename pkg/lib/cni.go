@@ -80,7 +80,8 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 	if GetCNIPlugin() == CALICO_CNI {
 		informers.CalicoBlockAffinityInformer = f.ForResource(CalicoBlockaffinityGVR)
 	}
-	return informers
+	dynamicInformerInstance = informers
+	return dynamicInformerInstance
 }
 
 // GetDynamicInformers returns DynamicInformers instance
