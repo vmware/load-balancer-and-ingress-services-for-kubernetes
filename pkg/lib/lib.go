@@ -146,6 +146,14 @@ func GetDefaultIngController() bool {
 	return false
 }
 
+func GetNamespaceToSync() string {
+	namespace := os.Getenv("SYNC_NAMESPACE")
+	if namespace != "" {
+		return namespace
+	}
+	return ""
+}
+
 func GetSubnetIP() string {
 	// Additional checks can be performed here.
 	return os.Getenv(SUBNET_IP)

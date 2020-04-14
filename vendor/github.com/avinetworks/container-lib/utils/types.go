@@ -48,6 +48,7 @@ const (
 const (
 	INFORMERS_INSTANTIATE_ONCE string = "instantiateOnce"
 	INFORMERS_OPENSHIFT_CLIENT string = "oshiftClient"
+	INFORMERS_NAMESPACE        string = "namespace"
 )
 
 type KubeClientIntf struct {
@@ -255,3 +256,4 @@ func init() {
 		CloudName = "Default-Cloud"
 	}
 }
+

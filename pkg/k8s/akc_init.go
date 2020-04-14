@@ -87,7 +87,13 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers)
+	if lib.GetNamespaceToSync() != "" {
+		namespaceMap := make(map[string]interface{})
+		namespaceMap[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
+		c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, namespaceMap)
+	} else {
+		c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers)
+	}
 	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient)
 
 	c.Start(stopCh)

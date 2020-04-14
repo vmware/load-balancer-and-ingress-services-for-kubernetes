@@ -483,7 +483,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 			return len(sniCacheObj.PoolKeyCollection)
 		}
 		return 0
-	}, 10*time.Second).Should(gomega.Equal(1))
+	}, 20*time.Second).Should(gomega.Equal(1))
 	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey2)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("bar.com"))

@@ -75,7 +75,13 @@ func InitializeAKC() {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	if lib.GetNamespaceToSync() != "" {
+		namespaceMap := make(map[string]interface{})
+		namespaceMap[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
+		utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, namespaceMap)
+	} else {
+		utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	}
 	lib.NewDynamicInformers(dynamicClient)
 
 	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
