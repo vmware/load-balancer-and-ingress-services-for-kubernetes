@@ -480,9 +480,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 		}
 		utils.AviLog.Info.Printf("key: %s, hosts to add for http policyset: %s", key, hosts)
-		httpPGPath := AviHostPathPortPoolPG{Host: hosts}
 		tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, hosts...)
 		for _, path := range paths {
+			httpPGPath := AviHostPathPortPoolPG{Host: hosts}
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
