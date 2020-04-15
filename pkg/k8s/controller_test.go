@@ -115,7 +115,7 @@ func TestAviConfigMap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding configmap: %v", err)
 	}
-	time.Sleep(20 * time.Second)
+	time.Sleep(30 * time.Second)
 	if ctrl.DisableSync {
 		t.Fatalf("sync not enabled after adding configmap")
 	}

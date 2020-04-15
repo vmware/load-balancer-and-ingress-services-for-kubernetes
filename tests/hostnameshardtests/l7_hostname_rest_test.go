@@ -33,27 +33,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestHostnameCacheGETOKStatus(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	// Verify the cache.
-	cacheobj := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS-5"}
-	vs_cache, found := cacheobj.VsCache.AviCacheGet(vsKey)
-
-	if !found {
-		t.Fatalf("Cache not found for VS: %v", vsKey)
-	} else {
-		vs_cache_obj, ok := vs_cache.(*cache.AviVsCache)
-		if !ok {
-			t.Fatalf("Invalid VS object. Cannot cast.")
-		}
-		g.Expect(len(vs_cache_obj.PoolKeyCollection)).To(gomega.Equal(3))
-		g.Expect(len(vs_cache_obj.PGKeyCollection)).To(gomega.Equal(1))
-		g.Expect(len(vs_cache_obj.DSKeyCollection)).To(gomega.Equal(1))
-	}
-}
-
 func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
 	SetUpTestForIngress(t, modelName)
 	integrationtest.PollForCompletion(t, modelName, 5)

@@ -17,6 +17,7 @@ package k8s
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	avicache "ako/pkg/cache"
@@ -240,12 +241,54 @@ func (c *AviController) FullSyncK8s() {
 		}
 	}
 
-	// Publish all the models to REST layer.
-	allModels := objects.SharedAviGraphLister().GetAll()
-	utils.AviLog.Trace.Printf("models fetched in full sync %s", utils.Stringify(allModels))
+	cache := avicache.SharedAviObjCache()
+	vsKeys := cache.VsCache.AviCacheGetAllKeys()
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	allModelsMap := objects.SharedAviGraphLister().GetAll()
+	var allModels []string
+	for modelName, _ := range allModelsMap.(map[string]interface{}) {
+		allModels = append(allModels, modelName)
+	}
+	if len(vsKeys) != 0 {
+		for _, vsKey := range vsKeys {
+			vsCacheKey := vsKey.(avicache.NamespaceName)
+			// Reverse map the model key from this.
+			if lib.GetNamespaceToSync() != "" {
+				shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")
+				if shardVsPrefix != "" {
+					if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
+						modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
+						if utils.HasElem(allModels, modelName) {
+							allModels = objects.Remove(allModels, modelName)
+						}
+						utils.AviLog.Info.Printf("Model published L7 VS during namespace based sync: %s", modelName)
+						nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+					}
+				}
+				// For namespace based syncs, the L4 VSes would be named: vrfName + "--" + namespace
+				if strings.HasPrefix(vsCacheKey.Name, lib.GetVrf()+"--"+lib.GetNamespaceToSync()) {
+					modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
+					if utils.HasElem(allModels, modelName) {
+						allModels = objects.Remove(allModels, modelName)
+					}
+					utils.AviLog.Info.Printf("Model published L4 VS during namespace based sync: %s", modelName)
+					nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+				}
+			} else {
+				modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
+				if utils.HasElem(allModels, modelName) {
+					allModels = objects.Remove(allModels, modelName)
+				}
+				utils.AviLog.Info.Printf("Model published in full sync %s", modelName)
+				nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+			}
+		}
+	}
+	// Now also publish the newly generated models (if any)
+	// Publish all the models to REST layer.
+	utils.AviLog.Info.Printf("Newly generated models that do not exist in cache %s", utils.Stringify(allModels))
 	if allModels != nil {
-		for modelName, _ := range allModels.(map[string]interface{}) {
+		for _, modelName := range allModels {
 			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
 	}

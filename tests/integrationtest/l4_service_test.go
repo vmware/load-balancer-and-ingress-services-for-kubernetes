@@ -110,7 +110,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)))
+		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", NAMESPACE, SINGLEPORTSVC)))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
@@ -128,7 +128,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 
 func TestAviNodeCreationMultiPort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := fmt.Sprintf("%s/global--%s--%s", AVINAMESPACE, MULTIPORTSVC, NAMESPACE)
+	modelName := fmt.Sprintf("%s/global--%s--%s", AVINAMESPACE, NAMESPACE, MULTIPORTSVC)
 
 	SetUpTestForSvcLBMultiport(t)
 
@@ -138,7 +138,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", MULTIPORTSVC, NAMESPACE)))
+		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", NAMESPACE, MULTIPORTSVC)))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
@@ -171,7 +171,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 
 func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := fmt.Sprintf("%s/global--%s--%s", AVINAMESPACE, MULTIPORTSVC, NAMESPACE)
+	modelName := fmt.Sprintf("%s/global--%s--%s", AVINAMESPACE, NAMESPACE, MULTIPORTSVC)
 
 	SetUpTestForSvcLBMultiport(t)
 
@@ -181,7 +181,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 	} else {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", MULTIPORTSVC, NAMESPACE)))
+		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", NAMESPACE, MULTIPORTSVC)))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
@@ -216,7 +216,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 func TestAviNodeUpdateEndpoint(t *testing.T) {
 	var err error
 	g := gomega.NewGomegaWithT(t)
-	modelName := fmt.Sprintf("%s/global--%s--%s", AVINAMESPACE, SINGLEPORTSVC, NAMESPACE)
+	modelName := fmt.Sprintf("%s/global--%s--%s", AVINAMESPACE, NAMESPACE, SINGLEPORTSVC)
 
 	SetUpTestForSvcLB(t)
 
@@ -265,7 +265,7 @@ func TestCreateServiceLBCacheSync(t *testing.T) {
 	SetUpTestForSvcLB(t)
 
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)}
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", NAMESPACE, SINGLEPORTSVC)}
 	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
@@ -274,19 +274,19 @@ func TestCreateServiceLBCacheSync(t *testing.T) {
 		if !ok {
 			t.Fatalf("Invalid VS object. Cannot cast.")
 		}
-		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)))
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", NAMESPACE, SINGLEPORTSVC)))
 		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("global--red-ns--testsvc--8080"))
 		g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("global--red-ns--testsvc--8080"))
 	}
 
 	TearDownTestForSvcLB(t, g)
 	g.Eventually(func() bool {
 		_, found := mcache.VsCache.AviCacheGet(vsKey)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(false))
+	}, 10*time.Second).Should(gomega.Equal(false))
 }
 
 func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
@@ -328,7 +328,7 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 	SetUpTestForSvcLB(t)
 
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)}
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", NAMESPACE, SINGLEPORTSVC)}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCache.AviCacheGet(vsKey)
 		return found
@@ -341,12 +341,12 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 		if !ok {
 			t.Fatalf("Invalid VS object. Cannot cast.")
 		}
-		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)))
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", NAMESPACE, SINGLEPORTSVC)))
 		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("global--red-ns--testsvc--8080"))
 		g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("global--testsvc--red-ns--8080"))
+		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("global--red-ns--testsvc--8080"))
 	}
 
 	TearDownTestForSvcLB(t, g)
@@ -359,7 +359,7 @@ func TestCreateMultiportServiceLBCacheSync(t *testing.T) {
 	SetUpTestForSvcLBMultiport(t)
 
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", MULTIPORTSVC, NAMESPACE)}
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", NAMESPACE, MULTIPORTSVC)}
 	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
@@ -368,7 +368,7 @@ func TestCreateMultiportServiceLBCacheSync(t *testing.T) {
 	if !ok {
 		t.Fatalf("Invalid VS object. Cannot cast.")
 	}
-	g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", MULTIPORTSVC, NAMESPACE)))
+	g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("global--%s--%s", NAMESPACE, MULTIPORTSVC)))
 	g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 	g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(3))
 	g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp(`^(global--[a-zA-Z0-9-]+-808(0|1|2))$`))
@@ -385,7 +385,7 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 	SetUpTestForSvcLB(t)
 
 	// Get hold of the pool checksum on CREATE
-	poolName := "global--testsvc--red-ns--8080"
+	poolName := "global--red-ns--testsvc--8080"
 	mcache := cache.SharedAviObjCache()
 	poolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: poolName}
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)
@@ -506,7 +506,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	}
 
 	// verifying whether the first service created still has the corresponding cache entry
-	vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", SINGLEPORTSVC, NAMESPACE)}
+	vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", NAMESPACE, SINGLEPORTSVC)}
 	g.Eventually(func() bool {
 		_, found = mcache.VsCache.AviCacheGet(vsKey)
 		return found
