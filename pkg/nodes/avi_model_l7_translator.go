@@ -128,11 +128,22 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
 					}
 				}
+
+				var addRedirectPolicy bool
 				// Processing the TLS nodes
 				for _, tlssetting := range parsedIng.TlsCollection {
 					// For each host, create a SNI node with the secret giving us the key and cert.
 					// construct a SNI VS node per tls setting which corresponds to one secret
-					sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace}}
+					sniNode := &AviVsNode{
+						Name:         lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName),
+						VHParentName: vsNode[0].Name,
+						Tenant:       utils.ADMIN_NS,
+						IsSNIChild:   true,
+						ServiceMetadata: avicache.ServiceMetadataObj{
+							IngressName: ingName,
+							Namespace:   namespace,
+						},
+					}
 					sniNode.VrfContext = lib.GetVrf()
 					certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 					if certsBuilt {
@@ -142,7 +153,14 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 							vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 						}
 						sniNode.ServiceMetadata = avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: sniNode.VHDomainNames}
+						if addRedirectPolicy == false {
+							addRedirectPolicy = true
+						}
 					}
+				}
+
+				if addRedirectPolicy {
+					o.BuildPolicyRedirectForVS(vsNode, namespace, ingName)
 				}
 
 			}
@@ -510,4 +528,45 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
 
+}
+
+func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, namespace string, ingName string, hostName ...string) {
+	var hostnames []string
+	if len(hostName) > 0 {
+		hostnames = hostName
+	} else {
+		for _, x := range vsNode[0].SniNodes {
+			hostnames = append(hostnames, x.VHDomainNames...)
+		}
+	}
+
+	// TODO: decide format
+	policyname := "redirect-policy-" + vsNode[0].Name
+	myHppMap := AviRedirectPort{
+		Hosts:        hostnames,
+		RedirectPort: 443,
+		StatusCode:   "HTTP_REDIRECT_STATUS_CODE_302",
+		VsPort:       80,
+	}
+
+	redirectPolicy := &AviHttpPolicySetNode{
+		Tenant:        utils.ADMIN_NS,
+		Name:          policyname,
+		RedirectPorts: []AviRedirectPort{myHppMap},
+	}
+
+	policyExists := false
+	for i, j := range vsNode[0].HttpPolicyRefs {
+		if j.Name == redirectPolicy.Name && j.CloudConfigCksum != redirectPolicy.CloudConfigCksum {
+			policyExists = true
+			vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs[:i], vsNode[0].HttpPolicyRefs[i+1:]...)
+			vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, redirectPolicy)
+			break
+		}
+	}
+
+	if !policyExists {
+		redirectPolicy.CalculateCheckSum()
+		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, redirectPolicy)
+	}
 }

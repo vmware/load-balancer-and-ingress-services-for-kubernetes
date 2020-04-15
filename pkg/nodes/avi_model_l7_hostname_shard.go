@@ -285,7 +285,17 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 
-		sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: sniHosts}}
+		sniNode := &AviVsNode{
+			Name:         lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost),
+			VHParentName: vsNode[0].Name,
+			Tenant:       utils.ADMIN_NS,
+			IsSNIChild:   true,
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				IngressName: ingName,
+				Namespace:   namespace,
+				HostNames:   sniHosts,
+			},
+		}
 		sniNode.VrfContext = lib.GetVrf()
 		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 		if certsBuilt {
@@ -294,12 +304,13 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			if !foundSniModel {
 				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 			}
-
+			aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, namespace, ingName, allSniHosts...)
 		}
 		if !utils.HasElem(*modelList, model_name) {
 			*modelList = append(*modelList, model_name)
 		}
 		saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
 	}
+
 	return allSniHosts
 }

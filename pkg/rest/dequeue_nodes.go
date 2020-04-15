@@ -122,6 +122,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var ds_to_delete []avicache.NamespaceName
 	var vsvip_to_delete []avicache.NamespaceName
 	var sni_to_delete []avicache.NamespaceName
+	var pols_to_delete []avicache.NamespaceName
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: vsName}
 	aviVsNode := avimodel.GetAviVS()[0]
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
@@ -129,6 +130,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		var rest_ops []*utils.RestOp
 		pools_to_delete, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, vs_cache_obj, namespace, rest_ops, key)
 		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
+		pols_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
 		vsvip_to_delete, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		utils.AviLog.Info.Printf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, fmt.Sprint(aviVsNode.GetCheckSum()))
@@ -146,6 +148,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		var rest_ops []*utils.RestOp
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 
@@ -190,6 +193,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	} else {
 		var rest_ops []*utils.RestOp
 		rest_ops = rest.VSVipDelete(vsvip_to_delete, namespace, rest_ops, key)
+		rest_ops = rest.HTTPPolicyDelete(pols_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
