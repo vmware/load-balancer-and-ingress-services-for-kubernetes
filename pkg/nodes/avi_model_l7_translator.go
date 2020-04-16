@@ -78,11 +78,20 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			for _, pool := range poolNodes {
 				o.RemovePoolNodeRefs(pool.Name)
 			}
+
 			// First retrieve the FQDNs from the cache and update the model
-			ok, Storedhosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+			ok, storedHosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
 			if ok {
-				RemoveFQDNsFromModel(vsNode[0], Storedhosts, key)
+				RemoveFQDNsFromModel(vsNode[0], storedHosts, key)
 			}
+
+			// Remove http redirect policies
+			for _, node := range vsNode[0].SniNodes {
+				for _, host := range node.VHDomainNames {
+					RemoveRedirectHTTPPolicyInModel(vsNode[0], host, key)
+				}
+			}
+
 			// Update the host mappings for this ingress
 			// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
 			// Fetch all the secrets for this ingress
@@ -94,6 +103,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					RemoveSniInModel(sniNodeName, vsNode, key)
 				}
 			}
+
 			utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %v", key, parsedIng)
 			var hosts []string
 			for host, _ := range parsedIng.IngressHostMap {
@@ -153,16 +163,17 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 							vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 						}
 						sniNode.ServiceMetadata = avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: sniNode.VHDomainNames}
-						if addRedirectPolicy == false {
-							addRedirectPolicy = true
-						}
+						addRedirectPolicy = true
 					}
 				}
 
 				if addRedirectPolicy {
-					o.BuildPolicyRedirectForVS(vsNode, namespace, ingName)
+					var hostnames []string
+					for _, x := range vsNode[0].SniNodes {
+						hostnames = append(hostnames, x.VHDomainNames...)
+					}
+					o.BuildPolicyRedirectForVS(vsNode, hostnames, namespace, ingName, key)
 				}
-
 			}
 		}
 	}
@@ -188,6 +199,13 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	}
 	// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
 	// Fetch all the secrets for this ingress
+
+	for _, node := range vsNode[0].SniNodes {
+		for _, host := range node.VHDomainNames {
+			RemoveRedirectHTTPPolicyInModel(vsNode[0], host, key)
+		}
+	}
+
 	found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 	utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 	if found {
@@ -202,7 +220,8 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 		// Remove these hosts from the overall FQDN list
 		RemoveFQDNsFromModel(vsNode[0], hosts, key)
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: after removing fqdn refs in vs : %s", vsNode[0].VSVIPRefs[0].FQDNs)
+	utils.AviLog.Info.Printf("key: %s, msg: after removing fqdn refs in vs : %s", key, vsNode[0].VSVIPRefs[0].FQDNs)
+
 	// Now remove the secret relationship
 	objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressSecretMappings(ingName)
 	// Remove the hosts mapping for this ingress
@@ -261,7 +280,7 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 				// Check if the checksums are same
 				// The checksums are not same. Replace this sni node
 				modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes[:i], modelSniNodes[0].SniNodes[i+1:]...)
-				utils.AviLog.Info.Printf("key: %s, msg: replaced sni node in model: %s", key, currentSniNodeName)
+				utils.AviLog.Info.Printf("key: %s, msg: deleted sni node in model: %s", key, currentSniNodeName)
 			}
 		}
 	}
@@ -412,7 +431,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 		fqdn := vsName + "." + utils.ADMIN_NS + "." + cloud.(*avicache.AviCloudPropertyCache).NSIpamDNS
 		fqdns = append(fqdns, fqdn)
 	} else {
-		utils.AviLog.Warning.Printf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn")
+		utils.AviLog.Warning.Printf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn", key)
 	}
 	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: utils.ADMIN_NS, FQDNs: fqdns,
 		EastWest: false, VrfContext: vrfcontext}
@@ -530,22 +549,12 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 }
 
-func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, namespace string, ingName string, hostName ...string) {
-	var hostnames []string
-	if len(hostName) > 0 {
-		hostnames = hostName
-	} else {
-		for _, x := range vsNode[0].SniNodes {
-			hostnames = append(hostnames, x.VHDomainNames...)
-		}
-	}
-
-	// TODO: decide format
-	policyname := "redirect-policy-" + vsNode[0].Name
+func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostnames []string, namespace, ingName, key string) {
+	policyname := lib.GetL7HttpRedirPolicy(vsNode[0].Name)
 	myHppMap := AviRedirectPort{
 		Hosts:        hostnames,
 		RedirectPort: 443,
-		StatusCode:   "HTTP_REDIRECT_STATUS_CODE_302",
+		StatusCode:   lib.STATUS_REDIRECT,
 		VsPort:       80,
 	}
 
@@ -555,18 +564,43 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, namespace
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}
 
-	policyExists := false
-	for i, j := range vsNode[0].HttpPolicyRefs {
-		if j.Name == redirectPolicy.Name && j.CloudConfigCksum != redirectPolicy.CloudConfigCksum {
-			policyExists = true
-			vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs[:i], vsNode[0].HttpPolicyRefs[i+1:]...)
-			vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, redirectPolicy)
-			break
-		}
-	}
-
-	if !policyExists {
+	if policyReplaced := FindAndReplaceRedirectHTTPPolicyInModel(vsNode[0], redirectPolicy, key); !policyReplaced {
 		redirectPolicy.CalculateCheckSum()
 		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, redirectPolicy)
+	}
+
+	utils.AviLog.Info.Printf("redirect http policyset: %+v", utils.Stringify(vsNode))
+}
+
+func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, key string) bool {
+	for i, policy := range vsNode.HttpPolicyRefs {
+		if policy.Name == httpPolicy.Name && policy.CloudConfigCksum != httpPolicy.CloudConfigCksum {
+			vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
+			vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, httpPolicy)
+			utils.AviLog.Info.Printf("key: %s, msg: replaced policy %s in model", key, policy.Name)
+			return true
+		}
+	}
+	return false
+}
+
+func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostname, key string) {
+	policyName := lib.GetL7HttpRedirPolicy(vsNode.Name)
+	deletePolicy := false
+	for i, policy := range vsNode.HttpPolicyRefs {
+		if policy.Name == policyName {
+			for _, j := range policy.RedirectPorts {
+				j.Hosts = utils.Remove(j.Hosts, hostname)
+				utils.AviLog.Info.Printf("key: %s, msg: removed host %s from policy %s in model", key, hostname, policy.Name)
+				if len(j.Hosts) == 0 {
+					deletePolicy = true
+				}
+			}
+
+			if deletePolicy {
+				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
+				utils.AviLog.Info.Printf("key: %s, msg: removed policy %s in model", key, policy.Name)
+			}
+		}
 	}
 }

@@ -314,6 +314,7 @@ func TestHostnameCreateSNICacheSync(t *testing.T) {
 	parentCacheObj, _ := parentCache.(*cache.AviVsCache)
 	g.Expect(parentCacheObj.SNIChildCollection).To(gomega.HaveLen(1))
 	g.Expect(parentCacheObj.SNIChildCollection[0]).To(gomega.ContainSubstring("global--foo-with-targets--default--foo.com"))
+	g.Expect(parentCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 
 	sniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
@@ -604,9 +605,11 @@ func TestHostnameDeleteSNICacheSync(t *testing.T) {
 		return found
 	}, 15*time.Second).Should(gomega.Equal(false))
 
-	oldSniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
-	oldSniCacheObj, _ := oldSniCache.(*cache.AviVsCache)
-	g.Expect(oldSniCacheObj.SNIChildCollection).To(gomega.HaveLen(0))
+	// time.Sleep(5 * time.Second)
+	parentSniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+	parentSniCacheObj, _ := parentSniCache.(*cache.AviVsCache)
+	g.Expect(parentSniCacheObj.SNIChildCollection).To(gomega.HaveLen(0))
+	g.Expect(parentSniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(0))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
@@ -618,6 +621,7 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, modelName, true, false)
 
 	mcache := cache.SharedAviObjCache()
+	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-0"}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--foo.com"}
 	sslKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--my-secret"}
 
@@ -638,6 +642,9 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	sniVSCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
 	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
 	g.Expect(sniVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
+	parentVSCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+	parentVSCacheObj, _ := parentVSCache.(*cache.AviVsCache)
+	g.Expect(parentVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 
 	// update Secret
 	secretUpdate := (integrationtest.FakeSecret{
@@ -662,6 +669,9 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(false))
 	_, found := mcache.VsCache.AviCacheGet(sniVSKey)
 	g.Expect(found).To(gomega.Equal(false))
+	parentVSCache, _ = mcache.VsCache.AviCacheGet(parentVSKey)
+	parentVSCacheObj, _ = parentVSCache.(*cache.AviVsCache)
+	g.Expect(parentVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(0))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }

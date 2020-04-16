@@ -242,7 +242,7 @@ func (v *SvcNSCache) RemoveIngressMappings(ingName string) {
 		for _, svc := range svcs {
 			found, ingresses := v.GetSvcToIng(svc)
 			if found {
-				ingresses = Remove(ingresses, ingName)
+				ingresses = utils.Remove(ingresses, ingName)
 				// Update the service mapping
 				v.UpdateSvcToIngMapping(svc, ingresses)
 			}
@@ -262,7 +262,7 @@ func (v *SvcNSCache) RemoveIngressSecretMappings(ingName string) {
 		for _, secret := range secrets {
 			found, ingresses := v.GetSecretToIng(secret)
 			if found {
-				ingresses = Remove(ingresses, ingName)
+				ingresses = utils.Remove(ingresses, ingName)
 				// Update the secret mapping
 				v.UpdateSecretToIngMapping(secret, ingresses)
 			}
@@ -270,14 +270,4 @@ func (v *SvcNSCache) RemoveIngressSecretMappings(ingName string) {
 	}
 	// Remove the ingress from the ingress --> secret map
 	v.DeleteIngToSecretMapping(ingName)
-}
-
-// Candidate for utils package
-func Remove(s []string, r string) []string {
-	for i, v := range s {
-		if v == r {
-			return append(s[:i], s[i+1:]...)
-		}
-	}
-	return s
 }

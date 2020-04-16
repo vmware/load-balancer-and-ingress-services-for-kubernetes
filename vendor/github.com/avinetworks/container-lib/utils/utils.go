@@ -153,7 +153,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 	} else {
 		// The informer factory only allows to initialize 1 namespace filter. Not a set of namespaces.
 		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30, kubeinformers.WithNamespace(namespace))
-   		AviLog.Info.Printf("Initialized informer factory for namespace :%s", namespace)
+		AviLog.Info.Printf("Initialized informer factory for namespace :%s", namespace)
 	}
 	informers := &Informers{}
 	informers.KubeClientIntf = kubeClient
@@ -276,3 +276,11 @@ func ObjKey(obj interface{}) string {
 	return key
 }
 
+func Remove(arr []string, item string) []string {
+	for i, v := range arr {
+		if v == item {
+			return append(arr[:i], arr[i+1:]...)
+		}
+	}
+	return arr
+}

@@ -35,5 +35,6 @@ const (
 	SLOW_RETRY_LAYER          = "SlowRetryLayer"
 	FAST_RETRY_LAYER          = "FastRetryLayer"
 	NOT_FOUND                 = "HTTP code: 404"
+	STATUS_REDIRECT           = "HTTP_REDIRECT_STATUS_CODE_302"
 	SLOW_SYNC_TIME            = 120
 )

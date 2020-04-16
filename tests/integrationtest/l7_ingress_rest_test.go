@@ -293,6 +293,7 @@ func TestCreateSNICacheSync(t *testing.T) {
 	parentCacheObj, _ := parentCache.(*cache.AviVsCache)
 	g.Expect(parentCacheObj.SNIChildCollection).To(gomega.HaveLen(1))
 	g.Expect(parentCacheObj.SNIChildCollection[0]).To(gomega.ContainSubstring("global--foo-with-targets--default--my-secret"))
+	g.Expect(parentCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 
 	sniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
@@ -568,9 +569,10 @@ func TestDeleteSNICacheSync(t *testing.T) {
 		return found
 	}, 15*time.Second).Should(gomega.Equal(false))
 
-	oldSniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
-	oldSniCacheObj, _ := oldSniCache.(*cache.AviVsCache)
-	g.Expect(oldSniCacheObj.SNIChildCollection).To(gomega.HaveLen(0))
+	parentSniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+	parentSniCacheObj, _ := parentSniCache.(*cache.AviVsCache)
+	g.Expect(parentSniCacheObj.SNIChildCollection).To(gomega.HaveLen(0))
+	g.Expect(parentSniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(0))
 
 	TearDownIngressForCacheSyncCheck(t, modelName, g)
 }
