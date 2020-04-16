@@ -1618,10 +1618,12 @@ func TestL7ModelSNI(t *testing.T) {
 		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
 		t.Fatalf("Couldn't find Model for DELETE event %v", modelName)
 	}
+
+	// foo.com and noo.com compute the same hashed shard vs num
 	ingrFake := (integrationtest.FakeIngress{
 		Name:      "foo-with-targets",
 		Namespace: "default",
-		DnsNames:  []string{"foo.com"},
+		DnsNames:  []string{"foo.com", "noo.com"},
 		Ips:       []string{"8.8.8.8"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
@@ -1641,11 +1643,16 @@ func TestL7ModelSNI(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("noo.com"))
+		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1)) // redirect http->https policy
+		g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
+
 		g.Expect(nodes[0].SniNodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
-		g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("global--default--foo.com/foo--foo-with-targets"))
+		g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("foo.com"))
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
@@ -1697,9 +1704,11 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
 		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(0))
+		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(0))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
+
 	// Now create the secret and verify the models.
 	integrationtest.AddSecret("my-secret", "default")
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -1712,6 +1721,7 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
+
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-no-secret", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -1775,6 +1785,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
+
 	// Now create the secret and verify the models.
 	integrationtest.AddSecret("my-secret", "default")
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -1842,6 +1853,7 @@ func TestL7ModelMultiSNI(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
@@ -1852,6 +1864,7 @@ func TestL7ModelMultiSNI(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
+
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -1899,6 +1912,8 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].Hosts).To(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))

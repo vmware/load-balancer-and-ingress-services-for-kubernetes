@@ -306,7 +306,7 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 		sort.Strings(redir.Hosts)
 		checksum = checksum + utils.Hash(utils.Stringify(redir.Hosts))
 	}
-	utils.AviLog.Info.Printf("The HTTP rules during checksum calculation is: %s with checksum: %v", utils.Stringify(v.HppMap), checksum)
+	utils.AviLog.Info.Printf("The HTTP rules during checksum calculation is: %s with checksum: %v", utils.Stringify(v), checksum)
 	v.CloudConfigCksum = checksum
 }
 

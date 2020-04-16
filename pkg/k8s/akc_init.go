@@ -259,7 +259,7 @@ func (c *AviController) FullSyncK8s() {
 					if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
 						modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 						if utils.HasElem(allModels, modelName) {
-							allModels = objects.Remove(allModels, modelName)
+							allModels = utils.Remove(allModels, modelName)
 						}
 						utils.AviLog.Info.Printf("Model published L7 VS during namespace based sync: %s", modelName)
 						nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
@@ -269,7 +269,7 @@ func (c *AviController) FullSyncK8s() {
 				if strings.HasPrefix(vsCacheKey.Name, lib.GetVrf()+"--"+lib.GetNamespaceToSync()) {
 					modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 					if utils.HasElem(allModels, modelName) {
-						allModels = objects.Remove(allModels, modelName)
+						allModels = utils.Remove(allModels, modelName)
 					}
 					utils.AviLog.Info.Printf("Model published L4 VS during namespace based sync: %s", modelName)
 					nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
@@ -277,7 +277,7 @@ func (c *AviController) FullSyncK8s() {
 			} else {
 				modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 				if utils.HasElem(allModels, modelName) {
-					allModels = objects.Remove(allModels, modelName)
+					allModels = utils.Remove(allModels, modelName)
 				}
 				utils.AviLog.Info.Printf("Model published in full sync %s", modelName)
 				nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)

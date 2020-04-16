@@ -122,6 +122,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var ds_to_delete []avicache.NamespaceName
 	var vsvip_to_delete []avicache.NamespaceName
 	var sni_to_delete []avicache.NamespaceName
+	var httppol_to_delete []avicache.NamespaceName
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: vsName}
 	aviVsNode := avimodel.GetAviVS()[0]
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
@@ -129,6 +130,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		var rest_ops []*utils.RestOp
 		pools_to_delete, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, vs_cache_obj, namespace, rest_ops, key)
 		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
+		httppol_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
 		vsvip_to_delete, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		utils.AviLog.Info.Printf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, fmt.Sprint(aviVsNode.GetCheckSum()))
@@ -146,6 +148,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		var rest_ops []*utils.RestOp
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 
@@ -187,14 +190,15 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 			rest.SNINodeDelete(del_sni, namespace, rest_ops, key)
 			rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 		}
-	} else {
-		var rest_ops []*utils.RestOp
-		rest_ops = rest.VSVipDelete(vsvip_to_delete, namespace, rest_ops, key)
-		rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
-		rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
-		rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	}
+
+	var rest_ops []*utils.RestOp
+	rest_ops = rest.VSVipDelete(vsvip_to_delete, namespace, rest_ops, key)
+	rest_ops = rest.HTTPPolicyDelete(httppol_to_delete, namespace, rest_ops, key)
+	rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
+	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
+	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
+	rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 }
 
 func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key string) *avicache.AviVsCache {
@@ -288,7 +292,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						}
 
 					} else {
-						utils.AviLog.Info.Printf("key: %s, msg: deleting %s cache", rest_op.Model, key)
+						utils.AviLog.Info.Printf("key: %s, msg: deleting %s cache", key, rest_op.Model)
 						if rest_op.Model == "Pool" {
 							rest.AviPoolCacheDel(rest_op, aviObjKey, key)
 						} else if rest_op.Model == "VirtualService" {
@@ -713,6 +717,7 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 
 	}
 	utils.AviLog.Info.Printf("The HTTP Policies rest_op is %s", utils.Stringify(rest_ops))
+	utils.AviLog.Info.Printf("key: %s, msg: the http policies to be deleted are: %s", key, cache_http_nodes)
 	return cache_http_nodes, rest_ops
 }
 

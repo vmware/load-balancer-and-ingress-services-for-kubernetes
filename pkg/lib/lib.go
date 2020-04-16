@@ -54,7 +54,6 @@ func GetModelName(namespace, objectName string) string {
 }
 
 // All L4 object names.
-
 func GetL4VSName(svcName, namespace string) string {
 	return GetVrf() + "--" + namespace + "--" + svcName
 }
@@ -86,6 +85,10 @@ func GetL7SharedPGName(vsName string) string {
 
 func GetL7PoolName(priorityLabel, namespace, ingName string) string {
 	return GetVrf() + "--" + priorityLabel + "--" + namespace + "--" + ingName
+}
+
+func GetL7HttpRedirPolicy(vsName string) string {
+	return GetVrf() + "--" + vsName
 }
 
 func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) string {

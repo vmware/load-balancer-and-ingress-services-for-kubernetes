@@ -113,6 +113,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 			sniNodeName := lib.GetSniNodeName(ingName, namespace, secret, hostname)
 			utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
 			RemoveSniInModel(sniNodeName, vsNode, key)
+			RemoveRedirectHTTPPolicyInModel(vsNode[0], hostname, key)
 		}
 	}
 	var hosts []string
@@ -212,8 +213,9 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					modelList = append(modelList, model_name)
 				}
 			}
-			var sniHosts []string
+
 			// Process secure routes next.
+			var sniHosts []string
 			for _, tlssetting := range parsedIng.TlsCollection {
 				locSniHost := sniNodeHostName(tlssetting, ingress, namespace, key, fullsync, sharedQueue, &modelList)
 				sniHosts = append(sniHosts, locSniHost...)
@@ -285,7 +287,17 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 
-		sniNode := &AviVsNode{Name: lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost), VHParentName: vsNode[0].Name, Tenant: utils.ADMIN_NS, IsSNIChild: true, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: sniHosts}}
+		sniNode := &AviVsNode{
+			Name:         lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost),
+			VHParentName: vsNode[0].Name,
+			Tenant:       utils.ADMIN_NS,
+			IsSNIChild:   true,
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				IngressName: ingName,
+				Namespace:   namespace,
+				HostNames:   sniHosts,
+			},
+		}
 		sniNode.VrfContext = lib.GetVrf()
 		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 		if certsBuilt {
@@ -294,12 +306,13 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			if !foundSniModel {
 				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 			}
-
+			aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, allSniHosts, namespace, ingName, key)
 		}
 		if !utils.HasElem(*modelList, model_name) {
 			*modelList = append(*modelList, model_name)
 		}
 		saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
 	}
+
 	return allSniHosts
 }

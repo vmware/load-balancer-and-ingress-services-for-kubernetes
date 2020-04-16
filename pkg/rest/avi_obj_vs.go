@@ -129,6 +129,22 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vs.VsDatascripts = vsdatascripts
 		}
 
+		if len(vs_meta.HttpPolicyRefs) > 0 {
+			var i int32
+			i = 0
+			var httpPolicyCollection []*avimodels.HTTPPolicies
+			for _, http := range vs_meta.HttpPolicyRefs {
+				// Update them on the VS object
+				var j int32
+				j = i + 11
+				i = i + 1
+				httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
+				httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
+				httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
+			}
+			vs.HTTPPolicies = httpPolicyCollection
+		}
+
 		var rest_ops []*utils.RestOp
 
 		var rest_op utils.RestOp
