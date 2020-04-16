@@ -602,14 +602,14 @@ func TestHostnameDeleteSNICacheSync(t *testing.T) {
 	// deleted snivs key should be deleted from parent vs snichildcollection
 	g.Eventually(func() bool {
 		_, found := mcache.VsCache.AviCacheGet(sniVSKey)
-		return found
-	}, 15*time.Second).Should(gomega.Equal(false))
+		parentSniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+		parentSniCacheObj, _ := parentSniCache.(*cache.AviVsCache)
 
-	// time.Sleep(5 * time.Second)
-	parentSniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
-	parentSniCacheObj, _ := parentSniCache.(*cache.AviVsCache)
-	g.Expect(parentSniCacheObj.SNIChildCollection).To(gomega.HaveLen(0))
-	g.Expect(parentSniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(0))
+		if !found && len(parentSniCacheObj.SNIChildCollection) == 0 && len(parentSniCacheObj.HTTPKeyCollection) == 0 {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
