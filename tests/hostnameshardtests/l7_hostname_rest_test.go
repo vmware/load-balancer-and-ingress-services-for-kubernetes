@@ -556,6 +556,10 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		return found
 	}, 10*time.Second).Should(gomega.Equal(false))
 
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(sniVSKey1)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
 	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey1)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
