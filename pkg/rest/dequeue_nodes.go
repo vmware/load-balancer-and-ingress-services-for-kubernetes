@@ -51,13 +51,12 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 	ok, avimodelIntf := objects.SharedAviGraphLister().Get(key)
 	if !ok {
 		utils.AviLog.Warning.Printf("key: %s, msg: no model found for the key", key)
-		return
 	}
 
 	namespace, name := utils.ExtractNamespaceObjectName(key)
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
-	if avimodelIntf == nil {
+	if !ok || avimodelIntf == nil {
 		if vs_cache_obj != nil {
 			utils.AviLog.Info.Printf("key: %s, msg: nil model found, this is a vs deletion case", key)
 			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key)

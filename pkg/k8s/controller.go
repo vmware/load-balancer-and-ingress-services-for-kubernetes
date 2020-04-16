@@ -546,7 +546,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 func isAviConfigMap(obj interface{}) bool {
 	configMap, ok := obj.(*corev1.ConfigMap)
-	if ok && configMap.Namespace == lib.AviNS && configMap.Name == lib.AviConfigMap {
+	if ok && lib.GetNamespaceToSync() != "" {
+		// AKO is running for a particular namespace, look for the Avi config map here
+		if configMap.Name == lib.AviConfigMap {
+			return true
+		}
+	} else if ok && configMap.Namespace == lib.AviNS && configMap.Name == lib.AviConfigMap {
 		return true
 	}
 	return false

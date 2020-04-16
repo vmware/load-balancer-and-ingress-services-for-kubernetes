@@ -56,11 +56,11 @@ func GetModelName(namespace, objectName string) string {
 // All L4 object names.
 
 func GetL4VSName(svcName, namespace string) string {
-	return GetVrf() + "--" + svcName + "--" + namespace
+	return GetVrf() + "--" + namespace + "--" + svcName
 }
 
 func GetL4VSVipName(svcName, namespace string) string {
-	return GetVrf() + "--" + svcName + "--" + namespace
+	return GetVrf() + "--" + namespace + "--" + svcName
 }
 
 func GetL4PoolName(vsName string, port int32) string {
@@ -144,6 +144,14 @@ func GetDefaultIngController() bool {
 		return true
 	}
 	return false
+}
+
+func GetNamespaceToSync() string {
+	namespace := os.Getenv("SYNC_NAMESPACE")
+	if namespace != "" {
+		return namespace
+	}
+	return ""
 }
 
 func GetSubnetIP() string {

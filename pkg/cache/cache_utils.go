@@ -150,6 +150,16 @@ func (c *AviCache) AviCacheGet(k interface{}) (interface{}, bool) {
 	return val, ok
 }
 
+func (c *AviCache) AviCacheGetAllKeys() []interface{} {
+	c.cache_lock.RLock()
+	defer c.cache_lock.RUnlock()
+	var keys []interface{}
+	for k, _ := range c.cache {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 func (c *AviCache) AviCacheGetKeyByUuid(uuid string) (interface{}, bool) {
 	c.cache_lock.RLock()
 	defer c.cache_lock.RUnlock()

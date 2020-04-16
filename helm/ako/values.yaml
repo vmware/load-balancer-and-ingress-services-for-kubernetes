@@ -23,6 +23,7 @@ configs:
   NetworkName: "" # Network Name of the data network
   L7ShardingScheme: "hostname"
   cniPlugin: "" #enum: calico|canal|flannel
+  syncNamespace: "" # if this knob is set, AKO will only sync objects from this namespace. Ingress class gets applied inside it if applicable.
 
 imagePullSecrets: []
 nameOverride: ""

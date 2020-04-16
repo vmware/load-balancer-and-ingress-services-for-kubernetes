@@ -19,3 +19,4 @@ data:
   CIDR: {{ .Values.configs.CIDR | quote }}
   NetworkName: {{ .Values.configs.NetworkName | quote }}
   L7ShardingScheme: {{ .Values.configs.L7ShardingScheme | quote }}
+  syncNamespace: {{ .Values.configs.syncNamespace | quote }}

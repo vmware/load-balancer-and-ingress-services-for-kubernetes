@@ -145,9 +145,16 @@ func RandomSeq(n int) string {
 var informer sync.Once
 var informerInstance *Informers
 
-func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface) *Informers {
+func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface, namespace string) *Informers {
 	cs := kubeClient.ClientSet
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(cs, time.Second*30)
+	var kubeInformerFactory kubeinformers.SharedInformerFactory
+	if namespace == "" {
+		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+	} else {
+		// The informer factory only allows to initialize 1 namespace filter. Not a set of namespaces.
+		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30, kubeinformers.WithNamespace(namespace))
+   		AviLog.Info.Printf("Initialized informer factory for namespace :%s", namespace)
+	}
 	informers := &Informers{}
 	informers.KubeClientIntf = kubeClient
 	for _, informer := range registeredInformers {
@@ -190,6 +197,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args ...map[string]interface{}) *Informers {
 	var oshiftclient oshiftclientset.Interface
 	var instantiateOnce, ok bool = true, true
+	var namespace string
 	if len(args) > 0 {
 		for k, v := range args[0] {
 			switch k {
@@ -203,16 +211,21 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 				if !ok {
 					AviLog.Warning.Printf("arg oshiftclient is not of type oshiftclientset.Interface")
 				}
+			case INFORMERS_NAMESPACE:
+				namespace, ok = v.(string)
+				if !ok {
+					AviLog.Warning.Printf("arg namespace is not of type string")
+				}
 			default:
 				AviLog.Warning.Printf("Unknown Key %s in args", k)
 			}
 		}
 	}
 	if !instantiateOnce {
-		return instantiateInformers(kubeClient, registeredInformers, oshiftclient)
+		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace)
 	}
 	informer.Do(func() {
-		informerInstance = instantiateInformers(kubeClient, registeredInformers, oshiftclient)
+		informerInstance = instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace)
 	})
 	return informerInstance
 }
@@ -262,3 +275,4 @@ func ObjKey(obj interface{}) string {
 
 	return key
 }
+

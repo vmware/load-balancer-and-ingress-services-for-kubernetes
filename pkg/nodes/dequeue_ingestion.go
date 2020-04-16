@@ -63,7 +63,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
 				utils.AviLog.Info.Printf("key: %s, msg: received DELETE event for service", key)
-				model_name := lib.GetModelName(utils.ADMIN_NS, lib.GetVrf()+"--"+name+"--"+namespace)
+				model_name := lib.GetModelName(utils.ADMIN_NS, lib.GetVrf()+"--"+namespace+"--"+name)
 				objects.SharedAviGraphLister().Save(model_name, nil)
 				if !fullsync {
 					bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
