@@ -300,9 +300,10 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	var checksum uint32
 	for _, hpp := range v.HppMap {
-		sort.Strings(hpp.Host)
+		//sort.Strings(hpp.Host)
+
 		sort.Strings(hpp.Path)
-		checksum = checksum + utils.Hash(utils.Stringify(hpp))
+		checksum = checksum + utils.Hash(hpp.Host) + utils.Hash(utils.Stringify(hpp))
 	}
 	for _, redir := range v.RedirectPorts {
 		sort.Strings(redir.Hosts)
@@ -330,7 +331,7 @@ func (v *AviHttpPolicySetNode) CopyNode() AviModelNode {
 }
 
 type AviHostPathPortPoolPG struct {
-	Host          []string
+	Host          string
 	Path          []string
 	Port          uint32
 	Pool          string

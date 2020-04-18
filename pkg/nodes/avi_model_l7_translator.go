@@ -397,28 +397,25 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, hostName ...string) {
 	var httpPolicySet []AviHostPathPortPoolPG
 	for host, paths := range hostpath.Hosts {
-		var hosts []string
 		if len(hostName) > 0 {
 			if hostName[0] != host {
 				// If a hostname is passed to this method, ensure we only process that hostname and nothing else.
 				continue
 			}
 		}
-		hosts = append(hosts, host)
 		// Update the VSVIP with the host information.
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 		}
-		utils.AviLog.Info.Printf("key: %s, hosts to add for http policyset: %s", key, hosts)
-		tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, hosts...)
+		tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, host)
 		for _, path := range paths {
-			httpPGPath := AviHostPathPortPoolPG{Host: hosts}
+			httpPGPath := AviHostPathPortPoolPG{Host: host}
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
 			pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS}
 			httpPGPath.PoolGroup = pgNode.Name
-			httpPGPath.Host = hosts
+			httpPGPath.Host = host
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 
 			tlsNode.PoolGroupRefs = append(tlsNode.PoolGroupRefs, pgNode)
@@ -438,6 +435,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
 		}
 	}
+	tlsNode.CalculateCheckSum()
 	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
 
 }
