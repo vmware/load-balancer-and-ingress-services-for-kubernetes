@@ -45,7 +45,7 @@ func (v *Validator) IsValiddHostName(hostname string) bool {
 			}
 		}
 	}
-	utils.AviLog.Warning.Printf("Didn't find match for hostname :%s Available sub-doimains:%s", hostname, v.subDomains)
+	utils.AviLog.Warning.Printf("Didn't find match for hostname :%s Available sub-domains:%s", hostname, v.subDomains)
 	return false
 }
 
