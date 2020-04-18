@@ -44,6 +44,7 @@ type AviObjectGraph struct {
 	GraphChecksum uint32
 	IsVrf         bool
 	RetryCount    int
+	Validator     *Validator
 	Lock          sync.RWMutex
 }
 
@@ -115,7 +116,8 @@ func (v *AviObjectGraph) CalculateCheckSum() {
 }
 
 func NewAviObjectGraph() *AviObjectGraph {
-	return &AviObjectGraph{}
+	validator := NewNodesValidator()
+	return &AviObjectGraph{Validator: validator}
 }
 
 func (o *AviObjectGraph) AddModelNode(node AviModelNode) {
@@ -306,7 +308,6 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 		sort.Strings(redir.Hosts)
 		checksum = checksum + utils.Hash(utils.Stringify(redir.Hosts))
 	}
-	utils.AviLog.Info.Printf("The HTTP rules during checksum calculation is: %s with checksum: %v", utils.Stringify(v), checksum)
 	v.CloudConfigCksum = checksum
 }
 

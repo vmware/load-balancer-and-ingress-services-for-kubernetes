@@ -1492,7 +1492,10 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient,
 				cloud_obj := &AviCloudPropertyCache{Name: cloud, VType: vtype}
 				if cloud_pol["dns_provider_ref"] != nil {
 					dns_uuid := ExtractPattern(cloud_pol["dns_provider_ref"].(string), "ipamdnsproviderprofile-.*")
-					cloud_obj.NSIpamDNS = c.AviDNSPropertyPopulate(client, dns_uuid)
+					subdomains := c.AviDNSPropertyPopulate(client, dns_uuid)
+					if subdomains != nil {
+						cloud_obj.NSIpamDNS = subdomains
+					}
 
 				} else {
 					utils.AviLog.Warning.Printf("Cloud does not have a dns_provider_ref configured %v", cloud)
@@ -1507,26 +1510,27 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
-	nsDNSIpam string) string {
+	nsDNSIpam string) []string {
 	var rest_response interface{}
+	var dnsSubDomains []string
 	uri := "/api/ipamdnsproviderprofile/"
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
 		utils.AviLog.Warning.Printf("DNSProperty Get uri %v returned err %v", uri, err)
-		return ""
+		return nil
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
 			utils.AviLog.Warning.Printf("DNSProperty Get uri %v returned %v type %T", uri,
 				rest_response, rest_response)
-			return ""
+			return nil
 		}
 		utils.AviLog.Info.Printf("DNSProperty Get uri %v returned %v ", uri,
 			resp["count"])
 		results, ok := resp["results"].([]interface{})
 		if !ok {
 			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T ", resp["results"])
-			return ""
+			return nil
 		}
 		for _, dns_intf := range results {
 			dns_pol, ok := dns_intf.(map[string]interface{})
@@ -1542,14 +1546,14 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
 					dns_ipam := dns_profile_pol["dns_service_domain"].([]interface{})[0].(map[string]interface{})
 					// Pick the first dns profile
 					utils.AviLog.Info.Printf("Found DNS_IPAM: %v", dns_ipam["domain_name"])
-					return dns_ipam["domain_name"].(string)
+					dnsSubDomains = append(dnsSubDomains, dns_ipam["domain_name"].(string))
 				}
 
 			}
 
 		}
 	}
-	return ""
+	return dnsSubDomains
 }
 
 func ExtractPattern(word string, pattern string) string {

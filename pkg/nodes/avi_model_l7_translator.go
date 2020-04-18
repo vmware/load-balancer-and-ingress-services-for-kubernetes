@@ -62,14 +62,14 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				// If the ingress class is not right, let's delete it.
 				o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 			}
-			parsedIng = parseHostPathForIngress(namespace, ingName, ingObj.(*extensionv1beta1.Ingress).Spec, key)
+			parsedIng = o.Validator.ParseHostPathForIngress(namespace, ingName, ingObj.(*extensionv1beta1.Ingress).Spec, key)
 		} else {
 			processIng = filterIngressOnClass(ingObj.(*v1beta1.Ingress))
 			if !processIng {
 				// If the ingress class is not right, let's delete it.
 				o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 			}
-			parsedIng = parseHostPathForIngressCoreV1(namespace, ingName, ingObj.(*v1beta1.Ingress).Spec, key)
+			parsedIng = o.Validator.ParseHostPathForIngressCoreV1(namespace, ingName, ingObj.(*v1beta1.Ingress).Spec, key)
 		}
 		if processIng {
 			// First check if there are pools related to this ingress present in the model already
@@ -286,117 +286,6 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 	}
 }
 
-func parseHostPathForIngress(ns string, ingName string, ingSpec extensionv1beta1.IngressSpec, key string) IngressConfig {
-	// Figure out the service names that are part of this ingress
-
-	ingressConfig := IngressConfig{}
-	hostMap := make(IngressHostMap)
-	defSubdom := GetDefaultSubDomain(ns)
-
-	for _, rule := range ingSpec.Rules {
-		var hostPathMapSvcList []IngressHostPathSvc
-		var hostName string
-		if rule.Host == "" {
-			// The Host field is empty. Generate a hostName using the sub-domain info
-			hostName = ingName + defSubdom
-
-		} else {
-			hostName = rule.Host
-		}
-		if len(hostMap[hostName]) > 0 {
-			hostPathMapSvcList = hostMap[hostName]
-		}
-		for _, path := range rule.IngressRuleValue.HTTP.Paths {
-			hostPathMapSvc := IngressHostPathSvc{}
-			//hostPathMapSvc.Host = hostName
-			hostPathMapSvc.Path = path.Path
-			hostPathMapSvc.ServiceName = path.Backend.ServiceName
-			hostPathMapSvc.Port = path.Backend.ServicePort.IntVal
-			if hostPathMapSvc.Port == 0 {
-				// Default to port 80 if not set in the ingress object
-				hostPathMapSvc.Port = 80
-			}
-			hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
-		}
-		hostMap[hostName] = hostPathMapSvcList
-	}
-
-	var tlsConfigs []TlsSettings
-	for _, tlsSettings := range ingSpec.TLS {
-		tls := TlsSettings{}
-		tlsHostSvcMap := make(IngressHostMap)
-		tls.SecretName = tlsSettings.SecretName
-		for _, host := range tlsSettings.Hosts {
-			hostSvcMap, ok := hostMap[host]
-			if ok {
-				tlsHostSvcMap[host] = hostSvcMap
-				delete(hostMap, host)
-			}
-		}
-		tls.Hosts = tlsHostSvcMap
-		tlsConfigs = append(tlsConfigs, tls)
-	}
-	ingressConfig.TlsCollection = tlsConfigs
-	ingressConfig.IngressHostMap = hostMap
-	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress extensionv1:  %v", key, ingressConfig)
-	return ingressConfig
-}
-
-func parseHostPathForIngressCoreV1(ns string, ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
-	// Figure out the service names that are part of this ingress
-
-	ingressConfig := IngressConfig{}
-	hostMap := make(IngressHostMap)
-	defSubdom := GetDefaultSubDomain(ns)
-
-	for _, rule := range ingSpec.Rules {
-		var hostPathMapSvcList []IngressHostPathSvc
-		var hostName string
-		if rule.Host == "" {
-			// The Host field is empty. Generate a hostName using the sub-domain info
-			hostName = ingName + defSubdom
-		} else {
-			hostName = rule.Host
-		}
-
-		if len(hostMap[hostName]) > 0 {
-			hostPathMapSvcList = hostMap[hostName]
-		}
-		for _, path := range rule.IngressRuleValue.HTTP.Paths {
-			hostPathMapSvc := IngressHostPathSvc{}
-			//hostPathMapSvc.Host = hostName
-			hostPathMapSvc.Path = path.Path
-			hostPathMapSvc.ServiceName = path.Backend.ServiceName
-			hostPathMapSvc.Port = path.Backend.ServicePort.IntVal
-			if hostPathMapSvc.Port == 0 {
-				// Default to port 80 if not set in the ingress object
-				hostPathMapSvc.Port = 80
-			}
-			hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
-		}
-		hostMap[hostName] = hostPathMapSvcList
-	}
-	tlsHostSvcMap := make(IngressHostMap)
-	var tlsConfigs []TlsSettings
-	for _, tlsSettings := range ingSpec.TLS {
-		tls := TlsSettings{}
-		tls.SecretName = tlsSettings.SecretName
-		for _, host := range tlsSettings.Hosts {
-			hostSvcMap, ok := hostMap[host]
-			if ok {
-				tlsHostSvcMap[host] = hostSvcMap
-				delete(hostMap, host)
-			}
-		}
-		tls.Hosts = tlsHostSvcMap
-		tlsConfigs = append(tlsConfigs, tls)
-	}
-	ingressConfig.TlsCollection = tlsConfigs
-	ingressConfig.IngressHostMap = hostMap
-	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress corev1:  %v", key, ingressConfig)
-	return ingressConfig
-}
-
 func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsNode {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
@@ -424,11 +313,15 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	o.ConstructShardVsPGNode(vsName, key, avi_vs_meta)
 	o.ConstructHTTPDataScript(vsName, key, avi_vs_meta)
 	var fqdns []string
-	// Fetch the sub-domain and generate the default fqdn.
-	cache := avicache.SharedAviObjCache()
-	cloud, _ := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
-	if cloud != nil {
-		fqdn := vsName + "." + utils.ADMIN_NS + "." + cloud.(*avicache.AviCloudPropertyCache).NSIpamDNS
+
+	subDomains := GetDefaultSubDomain()
+	if subDomains != nil {
+		var fqdn string
+		if strings.HasPrefix(subDomains[0], ".") {
+			fqdn = vsName + "." + utils.ADMIN_NS + subDomains[0]
+		} else {
+			fqdn = vsName + "." + utils.ADMIN_NS + "." + subDomains[0]
+		}
 		fqdns = append(fqdns, fqdn)
 	} else {
 		utils.AviLog.Warning.Printf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn", key)
@@ -569,7 +462,6 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostnames
 		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, redirectPolicy)
 	}
 
-	utils.AviLog.Info.Printf("redirect http policyset: %+v", utils.Stringify(vsNode))
 }
 
 func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, key string) bool {

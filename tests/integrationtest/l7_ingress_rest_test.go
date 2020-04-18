@@ -38,6 +38,11 @@ const (
 )
 
 func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
+	mcache := cache.SharedAviObjCache()
+	cloud, _ := mcache.CloudKeyCache.AviCacheGet("Default-Cloud")
+	cloudProperty, _ := cloud.(*cache.AviCloudPropertyCache)
+	subdomains := []string{"avi.internal", ".com"}
+	cloudProperty.NSIpamDNS = subdomains
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{

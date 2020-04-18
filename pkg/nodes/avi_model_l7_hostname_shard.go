@@ -133,9 +133,10 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 
 }
 
-func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
+func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
 	var ingObj interface{}
 	var err error
+	o := NewNodesValidator()
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		ingObj, err = utils.GetInformers().ExtV1IngressInformer.Lister().Ingresses(namespace).Get(ingress)
 	} else {
@@ -157,14 +158,14 @@ func hostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 				// If the ingress class is not right, let's delete it.
 				DeletePoolsByHostname(namespace, ingress, key, fullsync, sharedQueue)
 			}
-			parsedIng = parseHostPathForIngress(namespace, ingress, ingObj.(*extensionv1beta1.Ingress).Spec, key)
+			parsedIng = o.ParseHostPathForIngress(namespace, ingress, ingObj.(*extensionv1beta1.Ingress).Spec, key)
 		} else {
 			processIng = filterIngressOnClass(ingObj.(*v1beta1.Ingress))
 			if !processIng {
 				// If the ingress class is not right, let's delete it.
 				DeletePoolsByHostname(namespace, ingress, key, fullsync, sharedQueue)
 			}
-			parsedIng = parseHostPathForIngressCoreV1(namespace, ingress, ingObj.(*v1beta1.Ingress).Spec, key)
+			parsedIng = o.ParseHostPathForIngressCoreV1(namespace, ingress, ingObj.(*v1beta1.Ingress).Spec, key)
 		}
 		if processIng {
 			// Check if this ingress and had any previous mappings, if so - delete them first.

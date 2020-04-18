@@ -34,6 +34,11 @@ import (
 )
 
 func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
+	mcache := cache.SharedAviObjCache()
+	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
+	subdomains := []string{"avi.internal", ".com"}
+	cloudObj.NSIpamDNS = subdomains
+	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 	SetUpTestForIngress(t, modelName)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{

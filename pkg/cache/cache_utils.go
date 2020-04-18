@@ -56,7 +56,7 @@ type AviCloudPropertyCache struct {
 	Name      string
 	VType     string
 	NSIpam    string
-	NSIpamDNS string
+	NSIpamDNS []string
 }
 
 type AviVsCache struct {
@@ -150,12 +150,14 @@ func (c *AviCache) AviCacheGet(k interface{}) (interface{}, bool) {
 	return val, ok
 }
 
-func (c *AviCache) AviCacheGetAllKeys() []interface{} {
+func (c *AviCache) AviCacheGetAllParentVSKeys() []interface{} {
 	c.cache_lock.RLock()
 	defer c.cache_lock.RUnlock()
 	var keys []interface{}
-	for k, _ := range c.cache {
-		keys = append(keys, k)
+	for k, val := range c.cache {
+		if val.(*AviVsCache).ParentVSRef == (NamespaceName{}) {
+			keys = append(keys, k)
+		}
 	}
 	return keys
 }

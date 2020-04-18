@@ -45,7 +45,7 @@
             },
             {
               "num_dns_ip": 1,
-              "domain_name": "prod",
+              "domain_name": ".com",
               "pass_through": true
             },
             {

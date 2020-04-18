@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	avicache "ako/pkg/cache"
@@ -41,9 +42,17 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	// FQDN should come from the cloud. Modify
 	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-	subDomain := GetDefaultSubDomain(svcObj.ObjectMeta.Namespace)
-	fqdn := svcObj.ObjectMeta.Name + subDomain
-	fqdns = append(fqdns, fqdn)
+	subDomains := GetDefaultSubDomain()
+
+	if subDomains != nil {
+		var fqdn string
+		if strings.HasPrefix(subDomains[0], ".") {
+			fqdn = svcObj.ObjectMeta.Name + "." + svcObj.ObjectMeta.Namespace + subDomains[0]
+		} else {
+			fqdn = svcObj.ObjectMeta.Name + "." + svcObj.ObjectMeta.Namespace + "." + subDomains[0]
+		}
+		fqdns = append(fqdns, fqdn)
+	}
 	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: utils.ADMIN_NS,
 		EastWest: false, ServiceMetadata: avicache.ServiceMetadataObj{ServiceName: svcObj.ObjectMeta.Name, Namespace: svcObj.ObjectMeta.Namespace, HostNames: fqdns}}
 
@@ -169,22 +178,22 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 	utils.AviLog.Info.Printf("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 }
 
-func GetDefaultSubDomain(ns string) string {
-	var defSubdom string
+func GetDefaultSubDomain() []string {
 	cache := avicache.SharedAviObjCache()
 	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
 	if !ok || cloud == nil {
 		utils.AviLog.Warning.Printf("Cloud object not found")
-		return ""
+		return nil
 	}
 	cloudProperty, ok := cloud.(*avicache.AviCloudPropertyCache)
 	if !ok {
 		utils.AviLog.Warning.Printf("Cloud property object not found")
-		return ""
+		return nil
 	}
-	defSubdom = cloudProperty.NSIpamDNS
-	if defSubdom != "" && !strings.HasPrefix(defSubdom, ".") {
-		defSubdom = "." + ns + "." + defSubdom
+	if len(cloudProperty.NSIpamDNS) > 0 {
+		sort.Strings(cloudProperty.NSIpamDNS)
+	} else {
+		return nil
 	}
-	return defSubdom
+	return cloudProperty.NSIpamDNS
 }

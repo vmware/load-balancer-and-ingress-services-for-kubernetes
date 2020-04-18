@@ -119,7 +119,7 @@ func TestL7Model(t *testing.T) {
 	ingrFake := (FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
@@ -184,7 +184,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	ingrFake1 := (FakeIngress{
 		Name:        "foo-with-targets1",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
@@ -197,7 +197,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	ingrFake2 := (FakeIngress{
 		Name:        "foo-with-targets2",
 		Namespace:   "default",
-		DnsNames:    []string{"bar.com"},
+		DnsNames:    []string{"bar.com.avi.internal"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
@@ -219,11 +219,11 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--foo-with-targets1") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--foo-with-targets1") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com/foo"))
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			}
 		}
@@ -338,7 +338,7 @@ func TestMultiVSIngress(t *testing.T) {
 	ingrFake := (FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
@@ -360,8 +360,8 @@ func TestMultiVSIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		for _, pool := range nodes[0].PoolRefs {
 			// We should get two pools.
-			if strings.Contains(pool.Name, "foo.com/foo") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			}
 		}
@@ -371,7 +371,7 @@ func TestMultiVSIngress(t *testing.T) {
 	randoming := (FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "randomNamespacethatyeildsdiff",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
@@ -418,7 +418,7 @@ func TestMultiPathIngress(t *testing.T) {
 	ingrFake := (FakeIngress{
 		Name:        "ingress-multipath",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
@@ -437,11 +437,11 @@ func TestMultiPathIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--ingress-multipath") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--ingress-multipath") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com/bar--default--ingress-multipath") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal/bar--default--ingress-multipath") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -450,10 +450,10 @@ func TestMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com/foo--default--ingress-multipath") {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com/bar--default--ingress-multipath") {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-multipath") {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal/bar--default--ingress-multipath") {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -479,7 +479,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 	ingrFake1 := (FakeIngress{
 		Name:        "ingress-multi1",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/foo"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -492,7 +492,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 	ingrFake2 := (FakeIngress{
 		Name:        "ingress-multi2",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -511,11 +511,11 @@ func TestMultiIngressSameHost(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--ingress-multi1") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--ingress-multi1") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com/bar--default--ingress-multi2") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal/bar--default--ingress-multi2") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -524,10 +524,10 @@ func TestMultiIngressSameHost(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com/foo--default--ingress-multi1") {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com/bar--default--ingress-multi2") {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-multi1") {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal/bar--default--ingress-multi2") {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -542,7 +542,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 	VerifyIngressDeletion(t, g, aviModel, 1)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--foo.com/bar--default--ingress-multi2"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--foo.com.avi.internal/bar--default--ingress-multi2"))
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
 	if err != nil {
@@ -561,7 +561,7 @@ func TestMultiHostIngress(t *testing.T) {
 	ingrFake := (FakeIngress{
 		Name:        "ingress-multihost",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com", "bar.com"},
+		DnsNames:    []string{"foo.com.avi.internal", "bar.com.avi.internal"},
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -580,11 +580,11 @@ func TestMultiHostIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--ingress-multihost") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--ingress-multihost") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "bar.com/bar--default--ingress-multihost") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com/bar"))
+			} else if strings.Contains(pool.Name, "bar.com.avi.internal/bar--default--ingress-multihost") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -593,10 +593,10 @@ func TestMultiHostIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com/foo--default--ingress-multihost") {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--bar.com/bar--default--ingress-multihost") {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("bar.com/bar"))
+			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-multihost") {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--bar.com.avi.internal/bar--default--ingress-multihost") {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("bar.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -622,7 +622,7 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 	ingrFake := (FakeIngress{
 		Name:        "ingress-multihost",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com", "foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal", "foo.com.avi.internal"},
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -641,11 +641,11 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--ingress-multihost") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--ingress-multihost") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com/bar--default--ingress-multihost") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal/bar--default--ingress-multihost") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -654,10 +654,10 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com/foo--default--ingress-multihost") {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com/bar--default--ingress-multihost") {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-multihost") {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal/bar--default--ingress-multihost") {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -683,7 +683,7 @@ func TestEditPathIngress(t *testing.T) {
 	ingrFake := (FakeIngress{
 		Name:        "ingress-edit",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/foo"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -704,16 +704,16 @@ func TestEditPathIngress(t *testing.T) {
 			return nodes[0].PoolRefs
 		}, 5*time.Second).Should(gomega.HaveLen(1))
 
-		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("global--foo.com/foo--default--ingress-edit"))
-		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com/foo"))
+		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("global--foo.com.avi.internal/foo--default--ingress-edit"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.ContainSubstring("/api/pool?name=global--foo.com/foo--default--ingress-edit"))
-		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+		g.Expect(*pool.PoolRef).To(gomega.ContainSubstring("/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-edit"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
@@ -722,7 +722,7 @@ func TestEditPathIngress(t *testing.T) {
 	ingrFake = (FakeIngress{
 		Name:        "ingress-edit",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -743,13 +743,13 @@ func TestEditPathIngress(t *testing.T) {
 		}, 5*time.Second).Should(gomega.HaveLen(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("global--foo.com/bar--default--ingress-edit"))
-		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com/bar"))
+		}, 5*time.Second).Should(gomega.Equal("global--foo.com.avi.internal/bar--default--ingress-edit"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--foo.com/bar--default--ingress-edit"))
-		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--foo.com.avi.internal/bar--default--ingress-edit"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
 	}
@@ -771,7 +771,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	ingrFake := (FakeIngress{
 		Name:        "ingress-multipath-edit",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/foo"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -785,7 +785,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	ingrFake = (FakeIngress{
 		Name:        "ingress-multipath-edit",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
@@ -806,11 +806,11 @@ func TestEditMultiPathIngress(t *testing.T) {
 			return nodes[0].PoolRefs
 		}, 5*time.Second).Should(gomega.HaveLen(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--ingress-multipath-edit") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--ingress-multipath-edit") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com/bar--default--ingress-multipath-edit") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal/bar--default--ingress-multipath-edit") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -820,10 +820,10 @@ func TestEditMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--foo.com/foo--default--ingress-multipath-edit" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--foo.com/bar--default--ingress-multipath-edit" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-multipath-edit" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal/bar--default--ingress-multipath-edit" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -834,7 +834,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	ingrFake = (FakeIngress{
 		Name:        "ingress-multipath-edit",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/foo", "/foobar"},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
@@ -856,11 +856,11 @@ func TestEditMultiPathIngress(t *testing.T) {
 			return nodes[0].PoolRefs
 		}, 5*time.Second).Should(gomega.HaveLen(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--ingress-multipath-edit") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--ingress-multipath-edit") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com/foobar--default--ingress-multipath-edit") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foobar"))
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal/foobar--default--ingress-multipath-edit") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foobar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -870,10 +870,10 @@ func TestEditMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--foo.com/foo--default--ingress-multipath-edit" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--foo.com/foobar--default--ingress-multipath-edit" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foobar"))
+			if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-multipath-edit" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal/foobar--default--ingress-multipath-edit" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foobar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -900,7 +900,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	ingrFake1 := (FakeIngress{
 		Name:        "ingress-multi1",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/foo"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -913,7 +913,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	ingrFake2 := (FakeIngress{
 		Name:        "ingress-multi2",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -926,7 +926,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	ingrFake2 = (FakeIngress{
 		Name:        "ingress-multi2",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/foobar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -945,11 +945,11 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--ingress-multi1") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--ingress-multi1") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com/foobar--default--ingress-multi2") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foobar"))
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal/foobar--default--ingress-multi2") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foobar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -958,10 +958,10 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--foo.com/foo--default--ingress-multi1" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--foo.com/foobar--default--ingress-multi2" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foobar"))
+			if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-multi1" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal/foobar--default--ingress-multi2" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foobar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -976,7 +976,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	VerifyIngressDeletion(t, g, aviModel, 1)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--foo.com/foobar--default--ingress-multi2"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--foo.com.avi.internal/foobar--default--ingress-multi2"))
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
 	if err != nil {
@@ -995,7 +995,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 	ingrFake := (FakeIngress{
 		Name:        "ingress-multihost",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com", "bar.com"},
+		DnsNames:    []string{"foo.com.avi.internal", "bar.com.avi.internal"},
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -1008,7 +1008,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 	ingrFake = (FakeIngress{
 		Name:        "ingress-multihost",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com", "foobar.com"},
+		DnsNames:    []string{"foo.com.avi.internal", "foobar.com.avi.internal"},
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -1024,11 +1024,11 @@ func TestEditMultiHostIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com/foo--default--ingress-multihost") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			if strings.Contains(pool.Name, "foo.com.avi.internal/foo--default--ingress-multihost") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foobar.com/bar--default--ingress-multihost") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foobar.com/bar"))
+			} else if strings.Contains(pool.Name, "foobar.com.avi.internal/bar--default--ingress-multihost") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foobar.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -1038,10 +1038,10 @@ func TestEditMultiHostIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--foo.com/foo--default--ingress-multihost" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--foobar.com/bar--default--ingress-multihost" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foobar.com/bar"))
+			if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal/foo--default--ingress-multihost" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=global--foobar.com.avi.internal/bar--default--ingress-multihost" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foobar.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -1210,7 +1210,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 	ingrFake = (FakeIngress{
 		Name:        "ingress-nohost",
 		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
+		DnsNames:    []string{"foo.com.avi.internal"},
 		Paths:       []string{"/bar"},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -1230,15 +1230,15 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("global--foo.com/bar--default--ingress-nohost"))
-		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com/bar"))
+		}, 5*time.Second).Should(gomega.Equal("global--foo.com.avi.internal/bar--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--foo.com/bar--default--ingress-nohost"))
-		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--foo.com.avi.internal/bar--default--ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
 	}

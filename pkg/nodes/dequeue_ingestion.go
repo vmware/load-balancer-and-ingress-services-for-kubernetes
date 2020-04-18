@@ -115,7 +115,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			// The only other shard scheme we support now is hostname sharding.
 			for _, ingress := range ingressNames {
 				utils.AviLog.Info.Printf("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
-				hostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
+				HostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
 			}
 		}
 	}
