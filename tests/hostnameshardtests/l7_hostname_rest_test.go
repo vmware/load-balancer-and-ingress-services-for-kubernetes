@@ -400,7 +400,7 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	modelName := "admin/Shard-VS---global-0"
 	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
 	mcache := cache.SharedAviObjCache()
-
+	integrationtest.AddSecret("my-secret", "default")
 	// update ingress
 	ingressObject := integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
