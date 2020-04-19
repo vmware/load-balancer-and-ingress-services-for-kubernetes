@@ -212,7 +212,7 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
-			utils.AviLog.Info.Printf("key: %s, msg: VS Pool key cache before deletion :%s", key, vs_cache_obj.PoolKeyCollection)
+			utils.AviLog.Info.Printf("key: %s, msg: VsKey: %s, VS Pool key cache before deletion :%s", key, vsKey, vs_cache_obj.PoolKeyCollection)
 			vs_cache_obj.PoolKeyCollection = Remove(vs_cache_obj.PoolKeyCollection, poolKey)
 			utils.AviLog.Info.Printf("key: %s, msg: VS Pool key cache after deletion :%s", key, vs_cache_obj.PoolKeyCollection)
 		}

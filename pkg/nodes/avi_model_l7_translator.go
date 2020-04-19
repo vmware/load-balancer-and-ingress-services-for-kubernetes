@@ -80,7 +80,14 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			}
 
 			// First retrieve the FQDNs from the cache and update the model
-			ok, storedHosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+			ok, hostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+			var storedHosts []string
+			// Mash the list of secure and insecure hosts.
+			for _, hostsbytype := range hostMap {
+				for _, host := range hostsbytype {
+					storedHosts = append(storedHosts, host)
+				}
+			}
 			if ok {
 				RemoveFQDNsFromModel(vsNode[0], storedHosts, key)
 			}
@@ -105,11 +112,16 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			}
 
 			utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %v", key, parsedIng)
-			var hosts []string
+			newHostMap := make(map[string][]string)
 			for host, _ := range parsedIng.IngressHostMap {
-				hosts = append(hosts, host)
+				newHostMap["insecure"] = append(newHostMap["insecure"], host)
 			}
-			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, hosts)
+			for _, tlssetting := range parsedIng.TlsCollection {
+				for sniHost, _ := range tlssetting.Hosts {
+					newHostMap["secure"] = append(newHostMap["insecure"], sniHost)
+				}
+			}
+			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, newHostMap)
 			// PGs are in 'admin' namespace right now.
 			if pgNode != nil {
 				utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(parsedIng))
@@ -215,7 +227,14 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 			RemoveSniInModel(sniNodeName, vsNode, key)
 		}
 	}
-	ok, hosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+	ok, hostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+	var hosts []string
+	// Mash the list of secure and insecure hosts.
+	for _, hostsbytype := range hostMap {
+		for _, host := range hostsbytype {
+			hosts = append(hosts, host)
+		}
+	}
 	if ok {
 		// Remove these hosts from the overall FQDN list
 		RemoveFQDNsFromModel(vsNode[0], hosts, key)
@@ -435,7 +454,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
 		}
 	}
-	tlsNode.CalculateCheckSum()
+	//o.AddModelNode(tlsNode)
 	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
 
 }

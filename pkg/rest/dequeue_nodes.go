@@ -192,14 +192,15 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 			rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 		}
 	}
-
 	var rest_ops []*utils.RestOp
+	vsKey = avicache.NamespaceName{Namespace: namespace, Name: vsName}
 	rest_ops = rest.VSVipDelete(vsvip_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.HTTPPolicyDelete(httppol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
 	rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
+
 }
 
 func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key string) *avicache.AviVsCache {
