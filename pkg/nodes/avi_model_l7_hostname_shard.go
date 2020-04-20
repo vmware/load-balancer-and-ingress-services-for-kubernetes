@@ -90,7 +90,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 	}
 }
 
-func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostname string, paths []string, key string, hostChanged, secure bool) {
+func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostname string, paths []string, key string, removeFqdn, removeRedir, secure bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
@@ -138,13 +138,14 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 			}
 		}
 	}
-	if hostChanged {
-		RemoveRedirectHTTPPolicyInModel(vsNode[0], hostname, key)
+	if removeFqdn {
 		var hosts []string
 		hosts = append(hosts, hostname)
-
 		// Remove these hosts from the overall FQDN list
 		RemoveFQDNsFromModel(vsNode[0], hosts, key)
+	}
+	if removeRedir {
+		RemoveRedirectHTTPPolicyInModel(vsNode[0], hostname, key)
 	}
 
 }
@@ -288,18 +289,46 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 							utils.AviLog.Warning.Printf("key :%s, msg: model not found during delete: %s", key, model_name)
 							continue
 						}
-						hasChanged := true
-						// Check if this hostname has changed or not, if it hasn't changed, then we shouldn't remove the http redir policy
+						// By default remove both redirect and fqdn. So if the host isn't transitioning, then we will remove both.
+						removeFqdn := true
+						removeRedir := true
 						for currentHost, _ := range hostsMap["secure"] {
-							if currentHost == host {
-								hasChanged = false
+							if hostType == "insecure" { // old host was insecure
+								if currentHost == host {
+									// Transition from insecure --> secure
+									removeRedir = false
+									removeFqdn = false
+								}
+							}
+							if hostType == "secure" {
+								if currentHost == host { // old host was secure
+									// Transition from secure --> secure (path changed)
+									removeRedir = false
+									removeFqdn = false
+								}
+							}
+
+						}
+						for currentHost, _ := range hostsMap["insecure"] {
+							if hostType == "secure" { // old host was secure
+								if currentHost == host {
+									// Transition from secure --> insecure
+									removeRedir = true
+									removeFqdn = false
+								}
+							}
+							if hostType == "insecure" { // old host was insecure
+								if currentHost == host {
+									// Transition from insecure --> insecure (path changed)
+									removeFqdn = false
+								}
 							}
 						}
 						// Delete the pool corresponding to this host
 						if hostType == "secure" {
-							aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, hasChanged, true)
+							aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, removeFqdn, removeRedir, true)
 						} else {
-							aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, hasChanged, false)
+							aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, removeFqdn, removeRedir, false)
 
 						}
 						changedModel := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
@@ -368,9 +397,9 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 			}
 			// Delete the pool corresponding to this host
 			if hostType == "secure" {
-				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, true, true)
+				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, true, true, true)
 			} else {
-				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, true, false)
+				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, true, true, false)
 			}
 			ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
 			if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
