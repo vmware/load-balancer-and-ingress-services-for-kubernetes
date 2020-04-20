@@ -17,6 +17,7 @@ package rest
 import (
 	"fmt"
 	"regexp"
+	"sort"
 
 	"ako/pkg/objects"
 
@@ -641,6 +642,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 					vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 					if ok {
 						vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
+						sort.Strings(vsvip_cache_obj.FQDNs)
 						// Cache found. Let's compare the checksums
 						utils.AviLog.Info.Printf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
 						if !vsvip_cache_obj.InvalidData && utils.Hash(utils.Stringify(vsvip_cache_obj.FQDNs)) == vsvip.GetCheckSum() {
