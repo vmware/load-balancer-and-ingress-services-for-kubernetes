@@ -84,7 +84,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			var storedHosts []string
 			// Mash the list of secure and insecure hosts.
 			for _, hostsbytype := range hostMap {
-				for _, host := range hostsbytype {
+				for host, _ := range hostsbytype {
 					storedHosts = append(storedHosts, host)
 				}
 			}
@@ -112,15 +112,19 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			}
 
 			utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %v", key, parsedIng)
-			newHostMap := make(map[string][]string)
-			for host, _ := range parsedIng.IngressHostMap {
-				newHostMap["insecure"] = append(newHostMap["insecure"], host)
+			newHostMap := make(map[string]map[string][]string)
+			insecureHostPathMapArr := make(map[string][]string)
+			for host, pathmap := range parsedIng.IngressHostMap {
+				insecureHostPathMapArr[host] = getPaths(pathmap)
 			}
+			newHostMap["insecure"] = insecureHostPathMapArr
+			secureHostPathMapArr := make(map[string][]string)
 			for _, tlssetting := range parsedIng.TlsCollection {
-				for sniHost, _ := range tlssetting.Hosts {
-					newHostMap["secure"] = append(newHostMap["insecure"], sniHost)
+				for sniHost, paths := range tlssetting.Hosts {
+					secureHostPathMapArr[sniHost] = getPaths(paths)
 				}
 			}
+			newHostMap["secure"] = secureHostPathMapArr
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, newHostMap)
 			// PGs are in 'admin' namespace right now.
 			if pgNode != nil {
@@ -231,7 +235,7 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	var hosts []string
 	// Mash the list of secure and insecure hosts.
 	for _, hostsbytype := range hostMap {
-		for _, host := range hostsbytype {
+		for host, _ := range hostsbytype {
 			hosts = append(hosts, host)
 		}
 	}
@@ -454,7 +458,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
 		}
 	}
-	//o.AddModelNode(tlsNode)
 	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
 
 }
