@@ -56,6 +56,7 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 		routeid += 1
 		aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoute)
 	}
+	aviVrfNode.CalculateCheckSum()
 	o.AddModelNode(aviVrfNode)
 	utils.AviLog.Info.Printf("key: %s, Added vrf node %s\n", key, vrfName)
 	utils.AviLog.Info.Printf("key: %s, Number of static routes %v\n", key, len(aviVrfNode.StaticRoutes))

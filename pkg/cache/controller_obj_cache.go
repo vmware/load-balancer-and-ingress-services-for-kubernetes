@@ -325,9 +325,15 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 		if !strings.HasPrefix(*vsvip.Name, lib.GetVrf()+"--") {
 			continue
 		}
+		var fqdns []string
+		for _, dnsinfo := range vsvip.DNSInfo {
+			fqdns = append(fqdns, *dnsinfo.Fqdn)
+		}
+
 		vsVipCacheObj := AviVSVIPCache{
 			Name:         *vsvip.Name,
 			Uuid:         *vsvip.UUID,
+			FQDNs:        fqdns,
 			LastModified: *vsvip.LastModified,
 		}
 		*vsVipData = append(*vsVipData, vsVipCacheObj)
@@ -367,7 +373,7 @@ func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient,
 				utils.AviLog.Warning.Printf("Wrong data type for vsvip: %s in cache", k)
 			}
 		}
-		utils.AviLog.Info.Printf("Adding key to vsvip cache :%s", k)
+		utils.AviLog.Info.Printf("Adding key to vsvip cache: %s, fqdns: %v", k, vsVipData[i].FQDNs)
 		c.VSVIPCache.AviCacheAdd(k, &vsVipData[i])
 		delete(vsVipCacheData, k)
 	}
