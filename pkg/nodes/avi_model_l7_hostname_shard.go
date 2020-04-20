@@ -90,7 +90,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 	}
 }
 
-func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostname, key string, secure bool) {
+func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostname string, paths []string, key string, hostChanged, secure bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
@@ -100,31 +100,21 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 		poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
 		utils.AviLog.Info.Printf("key: %s, msg: Pool Nodes to delete for ingress:  %s", key, utils.Stringify(poolNodes))
 		for _, pool := range poolNodes {
-			// It might be safe to remove all the pools for this VS for this ingress in one shot.
-			o.RemovePoolNodeRefs(pool.Name)
-		}
-	}
-	// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
-	// Fetch all the secrets for this ingress
-	if secure {
-		found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
-		utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
-		if found {
-			for _, secret := range secrets {
-				sniNodeName := lib.GetSniNodeName(ingName, namespace, secret, hostname)
-				utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
-				RemoveSniInModel(sniNodeName, vsNode, key)
-				RemoveRedirectHTTPPolicyInModel(vsNode[0], hostname, key)
+			// Only delete the pools that belong to the host path combinations.
+			var priorityLabel string
+			for _, path := range paths {
+				if path != "" {
+					priorityLabel = hostname + path
+				} else {
+					priorityLabel = hostname
+				}
+				poolName := lib.GetL7PoolName(priorityLabel, namespace, ingName)
+				if poolName == pool.Name {
+					o.RemovePoolNodeRefs(poolName)
+				}
 			}
+			// It might be safe to remove all the pools for this VS for this ingress in one shot.
 		}
-	}
-	var hosts []string
-	hosts = append(hosts, hostname)
-
-	// Remove these hosts from the overall FQDN list
-	RemoveFQDNsFromModel(vsNode[0], hosts, key)
-	// Reset the PG Node members and rebuild them
-	if !secure {
 		pgName := lib.GetL7SharedPGName(vsName)
 		pgNode := o.GetPoolGroupByName(pgName)
 		pgNode.Members = nil
@@ -132,7 +122,52 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
 		}
+	} else {
+		// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
+		// Fetch all the secrets for this ingress
+		found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
+		utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
+		if found {
+			for _, secret := range secrets {
+				sniNodeName := lib.GetSniNodeName(ingName, namespace, secret, hostname)
+				// This is a bit tricky. We will get the hostname and the paths to be deleted from the sni node.
+				// So first we get the SNI node from memory and we update the pool/pg/httppol of the sninode.
+				// However if this update leads to 0 pools in the sni node, it means the SNI node can be fully deleted.
+				utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
+				o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, paths, vsNode, key)
+			}
+		}
 	}
+	if hostChanged {
+		RemoveRedirectHTTPPolicyInModel(vsNode[0], hostname, key)
+		var hosts []string
+		hosts = append(hosts, hostname)
+
+		// Remove these hosts from the overall FQDN list
+		RemoveFQDNsFromModel(vsNode[0], hosts, key)
+	}
+
+}
+
+func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespace, hostname string, paths []string, vsNode []*AviVsNode, key string) {
+	for _, modelSniNode := range vsNode[0].SniNodes {
+		if currentSniNodeName == modelSniNode.Name {
+			for _, path := range paths {
+				sniPool := lib.GetSniPoolName(ingName, namespace, hostname, path)
+				o.RemovePoolNodeRefsFromSni(sniPool, modelSniNode)
+				pgName := lib.GetSniPGName(ingName, namespace, hostname, path)
+				o.RemovePgNodeRefsFromSni(pgName, modelSniNode)
+				httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path)
+				o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
+
+			}
+			// After going through the paths, if the SNI node does not have any PGs - then delete it.
+			if len(modelSniNode.PoolRefs) == 0 {
+				RemoveSniInModel(currentSniNodeName, vsNode, key)
+			}
+		}
+	}
+
 }
 
 func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
@@ -173,14 +208,26 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 			// Check if this ingress and had any previous mappings, if so - delete them first.
 			storedHostsFound, Storedhosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingress)
 			// Process insecure routes first.
-			hostsMap := make(map[string][]string)
-			var insecureHosts []string
+			hostsMap := make(map[string]map[string][]string)
+			insecureHostPathMapArr := make(map[string][]string)
 			for host, pathsvcmap := range parsedIng.IngressHostMap {
 				if storedHostsFound {
-					// Remove this entry from storedHosts
-					Storedhosts["insecure"] = utils.Remove(Storedhosts["insecure"], host)
+					// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
+					storedPaths, found := Storedhosts["insecure"][host]
+					if found {
+						// TODO: StoredPaths might be empty if the host was not specified with any paths.
+						// Verify the paths and take out the paths that are not need.
+						diffStoredPaths := Difference(storedPaths, getPaths(pathsvcmap))
+						if len(diffStoredPaths) == 0 {
+							// There's no difference between the paths, we should delete the host entry in the stored Map
+							delete(Storedhosts["insecure"], host)
+						} else {
+							// These paths are meant for deletion
+							Storedhosts["insecure"][host] = diffStoredPaths
+						}
+					}
 				}
-				insecureHosts = append(insecureHosts, host)
+				insecureHostPathMapArr[host] = getPaths(pathsvcmap)
 				shardVsName := DeriveHostNameShardVS(host, key)
 				if shardVsName == "" {
 					// If we aren't able to derive the ShardVS name, we should return
@@ -199,26 +246,37 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					modelList = append(modelList, model_name)
 				}
 			}
-			hostsMap["insecure"] = insecureHosts
+			hostsMap["insecure"] = insecureHostPathMapArr
 			// Process secure routes next.
-			var sniHosts []string
+			secureHostPathMapArr := make(map[string][]string)
 			for _, tlssetting := range parsedIng.TlsCollection {
-				locSniHost := sniNodeHostName(tlssetting, ingress, namespace, key, fullsync, sharedQueue, &modelList)
-				sniHosts = append(sniHosts, locSniHost...)
-				if storedHostsFound {
-					for _, hostToRemove := range locSniHost {
-						// Remove this entry from storedHosts
-						Storedhosts["secure"] = utils.Remove(Storedhosts["secure"], hostToRemove)
+				locSniHostMap := sniNodeHostName(tlssetting, ingress, namespace, key, fullsync, sharedQueue, &modelList)
+				for host, newPaths := range locSniHostMap {
+					if storedHostsFound {
+						// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
+						storedPaths, found := Storedhosts["secure"][host]
+						if found {
+							// TODO: StoredPaths might be empty if the host was not specified with any paths.
+							// Verify the paths and take out the paths that are not need.
+							diffStoredPaths := Difference(storedPaths, newPaths)
+							if len(diffStoredPaths) == 0 {
+								// There's no difference between the paths, we should delete the host entry in the stored Map
+								delete(Storedhosts["secure"], host)
+							} else {
+								// These paths are meant for deletion
+								Storedhosts["secure"][host] = diffStoredPaths
+							}
+						}
 					}
+					secureHostPathMapArr[host] = newPaths
 				}
 			}
 			utils.AviLog.Info.Printf("key :%s, msg: Stored hosts: %s", key, Storedhosts)
-			//hosts = append(hosts, sniHosts...)
-			hostsMap["secure"] = sniHosts
+			hostsMap["secure"] = secureHostPathMapArr
 
 			if storedHostsFound {
 				for hostType, hosts := range Storedhosts {
-					for _, host := range hosts {
+					for host, paths := range hosts {
 						shardVsName := DeriveHostNameShardVS(host, key)
 						if shardVsName == "" {
 							// If we aren't able to derive the ShardVS name, we should return
@@ -230,11 +288,18 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 							utils.AviLog.Warning.Printf("key :%s, msg: model not found during delete: %s", key, model_name)
 							continue
 						}
+						hasChanged := true
+						// Check if this hostname has changed or not, if it hasn't changed, then we shouldn't remove the http redir policy
+						for currentHost, _ := range hostsMap["secure"] {
+							if currentHost == host {
+								hasChanged = false
+							}
+						}
 						// Delete the pool corresponding to this host
 						if hostType == "secure" {
-							aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, key, true)
+							aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, hasChanged, true)
 						} else {
-							aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, key, false)
+							aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, hasChanged, false)
 
 						}
 						changedModel := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
@@ -255,6 +320,30 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 	}
 }
 
+// difference returns the elements in `a` that aren't in `b`.
+func Difference(a, b []string) []string {
+	mb := make(map[string]struct{}, len(b))
+	for _, x := range b {
+		mb[x] = struct{}{}
+	}
+	var diff []string
+	for _, x := range a {
+		if _, found := mb[x]; !found {
+			diff = append(diff, x)
+		}
+	}
+	return diff
+}
+
+func getPaths(pathMapArr []IngressHostPathSvc) []string {
+	// Returns a list of paths for a given host
+	var paths []string
+	for _, pathmap := range pathMapArr {
+		paths = append(paths, pathmap.Path)
+	}
+	return paths
+}
+
 func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
 	ok, hostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingress)
 	if !ok {
@@ -264,7 +353,7 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 
 	utils.AviLog.Info.Printf("key :%s, msg: hosts to delete are: :%s", key, hostMap)
 	for hostType, hosts := range hostMap {
-		for _, host := range hosts {
+		for host, paths := range hosts {
 			shardVsName := DeriveHostNameShardVS(host, key)
 
 			if shardVsName == "" {
@@ -279,9 +368,9 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 			}
 			// Delete the pool corresponding to this host
 			if hostType == "secure" {
-				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, key, true)
+				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, true, true)
 			} else {
-				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, key, false)
+				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, namespace, ingress, host, paths, key, true, false)
 			}
 			ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
 			if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
@@ -295,10 +384,12 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 	objects.SharedSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(ingress)
 }
 
-func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) []string {
-	var allSniHosts []string
-	for sniHost, _ := range tlssetting.Hosts {
+func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) map[string][]string {
+	hostPathMap := make(map[string][]string)
+	for sniHost, paths := range tlssetting.Hosts {
+		var allSniHosts []string
 		var sniHosts []string
+		hostPathMap[sniHost] = getPaths(paths)
 		sniHosts = append(sniHosts, sniHost)
 		allSniHosts = append(allSniHosts, sniHost)
 		shardVsName := DeriveHostNameShardVS(sniHost, key)
@@ -306,7 +397,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		// construct a SNI VS node per tls setting which corresponds to one secret
 		if shardVsName == "" {
 			// If we aren't able to derive the ShardVS name, we should return
-			return allSniHosts
+			return hostPathMap
 		}
 		model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
@@ -340,6 +431,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		} else {
 			// Since the cert couldn't be built, remove the sni node from the model
 			RemoveSniInModel(sniNode.Name, vsNode, key)
+			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
 		}
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
@@ -348,5 +440,5 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		}
 	}
 
-	return allSniHosts
+	return hostPathMap
 }
