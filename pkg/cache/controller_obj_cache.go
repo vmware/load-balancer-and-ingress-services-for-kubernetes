@@ -727,31 +727,10 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 			}
 			svc_mdata_intf, ok := vs["service_metadata"]
 			var svc_mdata_obj ServiceMetadataObj
-			var svc_mdata interface{}
-			var svc_mdata_map map[string]interface{}
 			if ok {
 				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
-					&svc_mdata); err == nil {
-					svc_mdata_map, ok = svc_mdata.(map[string]interface{})
-					if !ok {
-						utils.AviLog.Warning.Printf(`resp %v svc_mdata %T has invalid
-								 service_metadata type for vs`, vs, svc_mdata)
-					} else {
-						svcName, ok := svc_mdata_map["svc_name"]
-						if ok {
-							svc_mdata_obj.ServiceName = svcName.(string)
-						} else {
-							utils.AviLog.Warning.Printf(`service_metadata %v 
-									  malformed for vs`, svc_mdata_map)
-						}
-						namespace, ok := svc_mdata_map["namespace"]
-						if ok {
-							svc_mdata_obj.Namespace = namespace.(string)
-						} else {
-							utils.AviLog.Warning.Printf(`service_metadata %v 
-									  malformed for vs`, svc_mdata_map)
-						}
-					}
+					&svc_mdata_obj); err != nil {
+					utils.AviLog.Warning.Printf("Error parsing service metadata during vs cache :%v", err)
 				}
 			}
 			var sni_child_collection []string

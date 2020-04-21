@@ -413,6 +413,8 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				continue
 			}
 		}
+		// Update secret --> hostname mapping
+		objects.SharedSvcLister().IngressMappings(namespace).UpdateSecretToHostNameMapping(secretName, host)
 		// Update the VSVIP with the host information.
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)

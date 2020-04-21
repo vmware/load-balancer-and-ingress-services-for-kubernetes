@@ -36,6 +36,8 @@ func SharedSvcLister() *SvcLister {
 		svclisterinstance.secretIngStore = secretIngStore
 		ingSecretStore := NewObjectStore()
 		svclisterinstance.ingSecretStore = ingSecretStore
+		secretHostNameStore := NewObjectStore()
+		svclisterinstance.secretHostNameStore = secretHostNameStore
 		ingHostStore := NewObjectStore()
 		svclisterinstance.ingHostStore = ingHostStore
 	})
@@ -43,11 +45,12 @@ func SharedSvcLister() *SvcLister {
 }
 
 type SvcLister struct {
-	svcIngStore    *ObjectStore
-	secretIngStore *ObjectStore
-	ingSvcStore    *ObjectStore
-	ingSecretStore *ObjectStore
-	ingHostStore   *ObjectStore
+	svcIngStore         *ObjectStore
+	secretIngStore      *ObjectStore
+	ingSvcStore         *ObjectStore
+	ingSecretStore      *ObjectStore
+	ingHostStore        *ObjectStore
+	secretHostNameStore *ObjectStore
 }
 
 type SvcNSCache struct {
@@ -58,6 +61,7 @@ type SvcNSCache struct {
 	IngNSCache
 	SecretIngNSCache
 	IngHostCache
+	SecretHostNameNSCache
 }
 
 type IngNSCache struct {
@@ -66,6 +70,11 @@ type IngNSCache struct {
 
 type SecretIngNSCache struct {
 	secretIngobjects *ObjectMapStore
+}
+
+type SecretHostNameNSCache struct {
+	SecretLock            sync.RWMutex
+	secretHostNameobjects *ObjectMapStore
 }
 
 type IngHostCache struct {
@@ -77,9 +86,10 @@ func (v *SvcLister) IngressMappings(ns string) *SvcNSCache {
 	namespacedIngSvcObjs := v.ingSvcStore.GetNSStore(ns)
 	namespacedSecretIngObjs := v.secretIngStore.GetNSStore(ns)
 	namespacedIngSecretObjs := v.ingSecretStore.GetNSStore(ns)
+	namespacedSecretHostNameObjs := v.secretHostNameStore.GetNSStore(ns)
 	namespacedIngHostObjs := v.ingHostStore.GetNSStore(ns)
 	return &SvcNSCache{namespace: ns, svcIngobjects: namespacedsvcIngObjs,
-		secretIngObject: namespacedSecretIngObjs, IngNSCache: IngNSCache{ingSvcobjects: namespacedIngSvcObjs},
+		secretIngObject: namespacedSecretIngObjs, IngNSCache: IngNSCache{ingSvcobjects: namespacedIngSvcObjs}, SecretHostNameNSCache: SecretHostNameNSCache{secretHostNameobjects: namespacedSecretHostNameObjs},
 		SecretIngNSCache: SecretIngNSCache{secretIngobjects: namespacedIngSecretObjs}, IngHostCache: IngHostCache{ingHostobjects: namespacedIngHostObjs}}
 }
 
@@ -175,6 +185,58 @@ func (v *SecretIngNSCache) DeleteIngToSecretMapping(ingName string) bool {
 func (v *SecretIngNSCache) UpdateIngToSecretMapping(ingName string, secretList []string) {
 	utils.AviLog.Info.Printf("Updated the ingress mappings with ingress: %s, secrets: %s", ingName, secretList)
 	v.secretIngobjects.AddOrUpdate(ingName, secretList)
+}
+
+//=====All secret to hostname mapping goes here.
+
+func (v *SecretHostNameNSCache) GetSecretToHostname(secretName string) (bool, []string) {
+	found, hostNames := v.secretHostNameobjects.Get(secretName)
+	if !found {
+		return false, make([]string, 0)
+	}
+	return true, hostNames.([]string)
+}
+
+func (v *SecretHostNameNSCache) DeleteSecretToHostNameMapping(secretName string) bool {
+	// Need checks if it's found or not?
+	success := v.secretHostNameobjects.Delete(secretName)
+	return success
+}
+
+func (v *SecretHostNameNSCache) UpdateSecretToHostNameMapping(secretName string, hostName string) {
+	v.SecretLock.Lock()
+	defer v.SecretLock.Unlock()
+	var hostnames []string
+	found := false
+	// Get the list of hostnames for this secret and update the new one.
+	found, hostnames = v.GetSecretToHostname(secretName)
+	if found {
+		if !utils.HasElem(hostnames, hostName) {
+			hostnames = append(hostnames, hostName)
+		}
+	} else {
+		hostnames = []string{hostName}
+	}
+	utils.AviLog.Info.Printf("Updated the secret mappings for secret: %s, hostnames: %s", secretName, hostnames)
+	v.secretHostNameobjects.AddOrUpdate(secretName, hostnames)
+}
+
+func (v *SecretHostNameNSCache) DecrementSecretToHostNameMapping(secretName string, hostName string) []string {
+	v.SecretLock.Lock()
+	defer v.SecretLock.Unlock()
+	var hostnames []string
+	found := false
+	// Get the list of hostnames for this secret and update the new one.
+	found, hostnames = v.GetSecretToHostname(secretName)
+	if found {
+		if utils.HasElem(hostnames, hostName) {
+			hostnames = utils.Remove(hostnames, hostName)
+		}
+	}
+	utils.AviLog.Info.Printf("After Decrement secret: %s, hostnames: %s", secretName, hostnames)
+
+	v.secretHostNameobjects.AddOrUpdate(secretName, hostnames)
+	return hostnames
 }
 
 //=====All ingress to host mapping methods are here.

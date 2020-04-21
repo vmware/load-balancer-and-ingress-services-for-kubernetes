@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 
 	"ako/pkg/objects"
 
@@ -232,7 +233,22 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_op := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
 		rest_ops = append(rest_ops, rest_op)
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
-		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
+		// Check if this ssl key is being referred by any other hostnames. Applies only to hostname based sharding.
+		// Check sharding being used
+		if lib.GetShardScheme() == lib.HOSTNAME_SHARD_SCHEME && len(vs_cache_obj.ServiceMetadataObj.HostNames) == 1 && len(vs_cache_obj.SSLKeyCertCollection) == 1 {
+			keys := strings.Split(vs_cache_obj.SSLKeyCertCollection[0].Name, "--")
+			if len(keys) == 3 {
+				hostnameRefs := objects.SharedSvcLister().IngressMappings(keys[1]).DecrementSecretToHostNameMapping(keys[2], vs_cache_obj.ServiceMetadataObj.HostNames[0])
+				// if hostnamerefs is 0, it means no one else is referencing this secret, we can delete the sslkey
+				if len(hostnameRefs) == 0 {
+					rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
+				}
+			}
+
+		} else {
+			rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
+		}
+
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
