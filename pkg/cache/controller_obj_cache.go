@@ -1094,29 +1094,11 @@ func (c *AviObjCache) AviVSVIPCachePopulate(client *clients.AviClient,
 		}
 		for _, vsvip_intf := range results {
 			vsvip, ok := vsvip_intf.(map[string]interface{})
-			var fqdns []string
 			if !ok {
 				utils.AviLog.Warning.Printf("vsvip_intf not of type map[string] interface{}. Instead of type %T", vsvip_intf)
 				continue
 			}
-			if vsvip["dns_info"] != nil {
-				for _, aRecord := range vsvip["dns_info"].([]interface{}) {
-					aRecordMap, success := aRecord.(map[string]interface{})
-					if success {
-						fqdn, ok := aRecordMap["fqdn"].(string)
-						if ok {
-							fqdns = append(fqdns, fqdn)
-						}
-					}
-				}
-			}
-			vsvip_cache_obj := AviVSVIPCache{Name: vsvip["name"].(string),
-				Tenant: tenant, Uuid: vsvip["uuid"].(string), FQDNs: fqdns,
-			}
 			k := NamespaceName{Namespace: tenant, Name: vsvip["name"].(string)}
-			c.VSVIPCache.AviCacheAdd(k, &vsvip_cache_obj)
-			utils.AviLog.Info.Printf("Added VSVIP cache key %v val %v",
-				k, vsvip_cache_obj)
 			vsvip_key_collection = append(vsvip_key_collection, k)
 
 		}
