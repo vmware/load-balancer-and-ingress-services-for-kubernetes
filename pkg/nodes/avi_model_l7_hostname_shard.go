@@ -456,7 +456,9 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			if !foundSniModel {
 				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 			}
+
 			aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, namespace, ingName, key)
+
 		} else {
 			// Since the cert couldn't be built, remove the sni node from the model
 			RemoveSniInModel(sniNode.Name, vsNode, key)
