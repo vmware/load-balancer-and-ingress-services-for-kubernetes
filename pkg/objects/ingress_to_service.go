@@ -179,13 +179,13 @@ func (v *SecretIngNSCache) UpdateIngToSecretMapping(ingName string, secretList [
 
 //=====All ingress to host mapping methods are here.
 
-func (v *IngHostCache) GetIngToHost(ingName string) (bool, []string) {
+func (v *IngHostCache) GetIngToHost(ingName string) (bool, map[string]map[string][]string) {
 	// Need checks if it's found or not?
 	found, hosts := v.ingHostobjects.Get(ingName)
 	if !found {
-		return false, make([]string, 0)
+		return false, make(map[string]map[string][]string, 0)
 	}
-	return true, hosts.([]string)
+	return true, hosts.(map[string]map[string][]string)
 }
 
 func (v *IngHostCache) DeleteIngToHostMapping(ingName string) bool {
@@ -194,9 +194,9 @@ func (v *IngHostCache) DeleteIngToHostMapping(ingName string) bool {
 	return success
 }
 
-func (v *IngHostCache) UpdateIngToHostMapping(ingName string, hostList []string) {
-	utils.AviLog.Info.Printf("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostList)
-	v.ingHostobjects.AddOrUpdate(ingName, hostList)
+func (v *IngHostCache) UpdateIngToHostMapping(ingName string, hostMap map[string]map[string][]string) {
+	utils.AviLog.Info.Printf("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostMap)
+	v.ingHostobjects.AddOrUpdate(ingName, hostMap)
 }
 
 //===All cross mapping update methods are here.

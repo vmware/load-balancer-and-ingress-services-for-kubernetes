@@ -134,8 +134,9 @@ func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool 
 			return false
 		}
 	}
-	// Right before saving the model, let's reset the retry counter for the graph.
+	// // Right before saving the model, let's reset the retry counter for the graph.
 	aviGraph.SetRetryCounter()
+	aviGraph.CalculateCheckSum()
 	objects.SharedAviGraphLister().Save(model_name, aviGraph)
 	return true
 }

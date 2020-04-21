@@ -80,7 +80,14 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			}
 
 			// First retrieve the FQDNs from the cache and update the model
-			ok, storedHosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+			ok, hostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+			var storedHosts []string
+			// Mash the list of secure and insecure hosts.
+			for _, hostsbytype := range hostMap {
+				for host, _ := range hostsbytype {
+					storedHosts = append(storedHosts, host)
+				}
+			}
 			if ok {
 				RemoveFQDNsFromModel(vsNode[0], storedHosts, key)
 			}
@@ -105,11 +112,20 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			}
 
 			utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %v", key, parsedIng)
-			var hosts []string
-			for host, _ := range parsedIng.IngressHostMap {
-				hosts = append(hosts, host)
+			newHostMap := make(map[string]map[string][]string)
+			insecureHostPathMapArr := make(map[string][]string)
+			for host, pathmap := range parsedIng.IngressHostMap {
+				insecureHostPathMapArr[host] = getPaths(pathmap)
 			}
-			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, hosts)
+			newHostMap["insecure"] = insecureHostPathMapArr
+			secureHostPathMapArr := make(map[string][]string)
+			for _, tlssetting := range parsedIng.TlsCollection {
+				for sniHost, paths := range tlssetting.Hosts {
+					secureHostPathMapArr[sniHost] = getPaths(paths)
+				}
+			}
+			newHostMap["secure"] = secureHostPathMapArr
+			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, newHostMap)
 			// PGs are in 'admin' namespace right now.
 			if pgNode != nil {
 				utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(parsedIng))
@@ -215,7 +231,14 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 			RemoveSniInModel(sniNodeName, vsNode, key)
 		}
 	}
-	ok, hosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+	ok, hostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+	var hosts []string
+	// Mash the list of secure and insecure hosts.
+	for _, hostsbytype := range hostMap {
+		for host, _ := range hostsbytype {
+			hosts = append(hosts, host)
+		}
+	}
 	if ok {
 		// Remove these hosts from the overall FQDN list
 		RemoveFQDNsFromModel(vsNode[0], hosts, key)
@@ -397,28 +420,25 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, hostName ...string) {
 	var httpPolicySet []AviHostPathPortPoolPG
 	for host, paths := range hostpath.Hosts {
-		var hosts []string
 		if len(hostName) > 0 {
 			if hostName[0] != host {
 				// If a hostname is passed to this method, ensure we only process that hostname and nothing else.
 				continue
 			}
 		}
-		hosts = append(hosts, host)
 		// Update the VSVIP with the host information.
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 		}
-		utils.AviLog.Info.Printf("key: %s, hosts to add for http policyset: %s", key, hosts)
-		tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, hosts...)
+		tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, host)
 		for _, path := range paths {
-			httpPGPath := AviHostPathPortPoolPG{Host: hosts}
+			httpPGPath := AviHostPathPortPoolPG{Host: host}
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
 			pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS}
 			httpPGPath.PoolGroup = pgNode.Name
-			httpPGPath.Host = hosts
+			httpPGPath.Host = host
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 
 			tlsNode.PoolGroupRefs = append(tlsNode.PoolGroupRefs, pgNode)

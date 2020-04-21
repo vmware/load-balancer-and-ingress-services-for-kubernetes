@@ -140,6 +140,45 @@ func (o *AviObjectGraph) RemovePoolNodeRefs(poolName string) {
 	}
 }
 
+func (o *AviObjectGraph) RemovePgNodeRefsFromSni(pgName string, sniNode *AviVsNode) {
+
+	for i, pg := range sniNode.PoolGroupRefs {
+		if pg.Name == pgName {
+			utils.AviLog.Info.Printf("Removing pgRef: %s", pgName)
+			sniNode.PoolGroupRefs = append(sniNode.PoolGroupRefs[:i], sniNode.PoolGroupRefs[i+1:]...)
+			break
+		}
+	}
+	utils.AviLog.Info.Printf("After removing the pg nodes are: %s", utils.Stringify(sniNode.PoolGroupRefs))
+
+}
+
+func (o *AviObjectGraph) RemoveHTTPRefsFromSni(httpPol string, sniNode *AviVsNode) {
+
+	for i, pol := range sniNode.HttpPolicyRefs {
+		if pol.Name == httpPol {
+			utils.AviLog.Info.Printf("Removing http pol ref: %s", httpPol)
+			sniNode.HttpPolicyRefs = append(sniNode.HttpPolicyRefs[:i], sniNode.HttpPolicyRefs[i+1:]...)
+			break
+		}
+	}
+	utils.AviLog.Info.Printf("After removing the http policy nodes are: %s", utils.Stringify(sniNode.HttpPolicyRefs))
+
+}
+
+func (o *AviObjectGraph) RemovePoolNodeRefsFromSni(poolName string, sniNode *AviVsNode) {
+
+	for i, pool := range sniNode.PoolRefs {
+		if pool.Name == poolName {
+			utils.AviLog.Info.Printf("Removing pool ref: %s", poolName)
+			sniNode.PoolRefs = append(sniNode.PoolRefs[:i], sniNode.PoolRefs[i+1:]...)
+			break
+		}
+	}
+	utils.AviLog.Info.Printf("After removing the pool ref nodes are: %s", utils.Stringify(sniNode.PoolRefs))
+
+}
+
 func (o *AviObjectGraph) GetOrderedNodes() []AviModelNode {
 	return o.modelNodes
 }
@@ -300,9 +339,8 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	var checksum uint32
 	for _, hpp := range v.HppMap {
-		sort.Strings(hpp.Host)
 		sort.Strings(hpp.Path)
-		checksum = checksum + utils.Hash(utils.Stringify(hpp))
+		checksum = checksum + utils.Hash(hpp.Host) + utils.Hash(utils.Stringify(hpp))
 	}
 	for _, redir := range v.RedirectPorts {
 		sort.Strings(redir.Hosts)
@@ -330,7 +368,7 @@ func (v *AviHttpPolicySetNode) CopyNode() AviModelNode {
 }
 
 type AviHostPathPortPoolPG struct {
-	Host          []string
+	Host          string
 	Path          []string
 	Port          uint32
 	Pool          string
