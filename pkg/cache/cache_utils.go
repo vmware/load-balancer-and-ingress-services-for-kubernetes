@@ -198,3 +198,16 @@ func (c *AviCache) ShallowCopy() map[interface{}]interface{} {
 	}
 	return newMap
 }
+
+func (c *AviCache) ShallowCopyVSes() map[interface{}]interface{} {
+	// Shallow copy, does not dereference the pointers.
+	c.cache_lock.Lock()
+	defer c.cache_lock.Unlock()
+	newMap := make(map[interface{}]interface{})
+	for key, value := range c.cache {
+		if value.(*AviVsCache).ParentVSRef == (NamespaceName{}) {
+			newMap[key] = value
+		}
+	}
+	return newMap
+}

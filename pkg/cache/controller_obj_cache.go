@@ -90,7 +90,7 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	SetVersion(client.AviSession)
 	utils.AviLog.Info.Printf("Refreshing all object cache")
 	c.AviRefreshObjectCache(client, cloud)
-	vsCacheCopy := c.VsCache.ShallowCopy()
+	vsCacheCopy := c.VsCache.ShallowCopyVSes()
 	var allKeys []interface{}
 	for k := range vsCacheCopy {
 		allKeys = append(allKeys, k)
