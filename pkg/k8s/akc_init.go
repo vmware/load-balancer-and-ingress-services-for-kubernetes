@@ -175,6 +175,15 @@ func (c *AviController) FullSync() {
 		for _, key := range allKeys {
 			utils.AviLog.Info.Printf("Found key in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
 			modelName := utils.ADMIN_NS + "/" + key.(avicache.NamespaceName).Name
+
+			//reset retry counter in full sync
+			found, avimodelIntf := objects.SharedAviGraphLister().Get(modelName)
+			if found && avimodelIntf != nil {
+				avimodel, ok := avimodelIntf.(*nodes.AviObjectGraph)
+				if ok {
+					avimodel.SetRetryCounter()
+				}
+			}
 			nodes.PublishKeyToRestLayer(modelName, key.(avicache.NamespaceName).Name, sharedQueue)
 		}
 	}
