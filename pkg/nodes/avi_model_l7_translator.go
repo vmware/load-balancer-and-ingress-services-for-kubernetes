@@ -83,20 +83,16 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			ok, hostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
 			var storedHosts []string
 			// Mash the list of secure and insecure hosts.
-			for _, hostsbytype := range hostMap {
+			for mtype, hostsbytype := range hostMap {
 				for host, _ := range hostsbytype {
+					if mtype == "secure" {
+						RemoveRedirectHTTPPolicyInModel(vsNode[0], host, key)
+					}
 					storedHosts = append(storedHosts, host)
 				}
 			}
 			if ok {
 				RemoveFQDNsFromModel(vsNode[0], storedHosts, key)
-			}
-
-			// Remove http redirect policies
-			for _, node := range vsNode[0].SniNodes {
-				for _, host := range node.VHDomainNames {
-					RemoveRedirectHTTPPolicyInModel(vsNode[0], host, key)
-				}
 			}
 
 			// Update the host mappings for this ingress
@@ -210,12 +206,6 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
 	// Fetch all the secrets for this ingress
 
-	for _, node := range vsNode[0].SniNodes {
-		for _, host := range node.VHDomainNames {
-			RemoveRedirectHTTPPolicyInModel(vsNode[0], host, key)
-		}
-	}
-
 	found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 	utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 	if found {
@@ -228,8 +218,11 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	ok, hostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
 	var hosts []string
 	// Mash the list of secure and insecure hosts.
-	for _, hostsbytype := range hostMap {
+	for mtype, hostsbytype := range hostMap {
 		for host, _ := range hostsbytype {
+			if mtype == "secure" {
+				RemoveRedirectHTTPPolicyInModel(vsNode[0], host, key)
+			}
 			hosts = append(hosts, host)
 		}
 	}
