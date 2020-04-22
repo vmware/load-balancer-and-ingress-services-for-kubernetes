@@ -97,7 +97,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
 		}
 		redirect_action := avimodels.HTTPRedirectAction{}
-		protocol := "HTTP"
+		protocol := "HTTPS"
 		redirect_action.StatusCode = &hppmap.StatusCode
 		redirect_action.Protocol = &protocol
 		redirect_action.Port = &hppmap.RedirectPort

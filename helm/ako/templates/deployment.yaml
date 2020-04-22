@@ -110,16 +110,16 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: subnetIP
-          - name: SUBNET_CIDR
+          - name: SUBNET_PREFIX
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: CIDR
+                key: subnetPrefix
           - name: NETWORK_NAME
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: NetworkName
+                key: networkName
           {{ if .Values.persistentVolumeClaim }}
           - name: USE_PVC
             value: "true"
@@ -130,7 +130,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: L7ShardingScheme
+                key: l7ShardingScheme
           ports:
             - name: http
               containerPort: 80

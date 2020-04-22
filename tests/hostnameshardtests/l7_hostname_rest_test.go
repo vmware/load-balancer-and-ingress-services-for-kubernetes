@@ -220,7 +220,7 @@ func TestHostnameUpdatePoolCacheSync(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
 
 	// Get hold of the pool checksum on CREATE
-	poolName := "global--foo.com/foo--default--foo-with-targets"
+	poolName := "global--foo.com_foo--default--foo-with-targets"
 	mcache := cache.SharedAviObjCache()
 	poolKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: poolName}
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)
@@ -285,8 +285,8 @@ func TestHostnameDeletePoolCacheSync(t *testing.T) {
 	}, 5*time.Second).Should(gomega.ContainSubstring("bar.com"))
 
 	// check that old pool is deleted and new one is created, will have different names
-	oldPoolKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: "global--foo.com/foo--default--foo-with-targets"}
-	newPoolKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: "global--bar.com/foo--default--foo-with-targets"}
+	oldPoolKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: "global--foo.com_foo--default--foo-with-targets"}
+	newPoolKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: "global--bar.com_foo--default--foo-with-targets"}
 	mcache := cache.SharedAviObjCache()
 	g.Eventually(func() bool {
 		_, found := mcache.PoolCache.AviCacheGet(oldPoolKey)
@@ -365,8 +365,8 @@ func TestHostnameUpdateSNICacheSync(t *testing.T) {
 	}
 
 	// verify that a NEW httppolicy set object is created
-	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--foo.com/foo--foo-with-targets"}
-	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--foo.com/bar-updated--foo-with-targets"}
+	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--foo.com_foo--foo-with-targets"}
+	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--foo.com_bar-updated--foo-with-targets"}
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(newHttpPolKey)
 		return found

@@ -19,11 +19,10 @@ configs:
   ingressApi: "corev1" #enum: extensionv1 and corev1 - if not set default to corev1
   defaultIngController: "true"
   subnetIP: "" # Subnet IP of the data network
-  CIDR: "" # CIDR of the data network
-  NetworkName: "" # Network Name of the data network
-  L7ShardingScheme: "hostname"
+  subnetPrefix: "" # Subnet Prefix of the data network
+  networkName: "" # Network Name of the data network
+  l7ShardingScheme: "hostname"
   cniPlugin: "" #enum: calico|canal|flannel
-  syncNamespace: "" # if this knob is set, AKO will only sync objects from this namespace. Ingress class gets applied inside it if applicable.
 
 imagePullSecrets: []
 nameOverride: ""

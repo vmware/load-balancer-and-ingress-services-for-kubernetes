@@ -473,11 +473,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		auto_alloc := true
 		var vips []*avimodels.Vip
 		var vip avimodels.Vip
-		if lib.GetCIDR() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
+		if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
 			utils.AviLog.Warning.Printf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
 			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
 		} else {
-			intCidr, err := strconv.ParseInt(lib.GetCIDR(), 10, 32)
+			intCidr, err := strconv.ParseInt(lib.GetSubnetPrefix(), 10, 32)
 			if err != nil {
 				utils.AviLog.Warning.Printf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
 				intCidr = 24

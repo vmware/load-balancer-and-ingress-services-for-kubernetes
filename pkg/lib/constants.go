@@ -26,7 +26,7 @@ const (
 	INGRESS_CLASS_ANNOT       = "kubernetes.io/ingress.class"
 	AVI_INGRESS_CLASS         = "avi"
 	SUBNET_IP                 = "SUBNET_IP"
-	SUBNET_CIDR               = "SUBNET_CIDR"
+	SUBNET_PREFIX             = "SUBNET_PREFIX"
 	NETWORK_NAME              = "NETWORK_NAME"
 	L7_SHARD_SCHEME           = "L7_SHARD_SCHEME"
 	DEFAULT_SHARD_SCHEME      = "hostname"

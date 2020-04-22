@@ -17,6 +17,7 @@ package lib
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
 )
@@ -84,6 +85,7 @@ func GetL7SharedPGName(vsName string) string {
 }
 
 func GetL7PoolName(priorityLabel, namespace, ingName string) string {
+	priorityLabel = strings.Replace(priorityLabel, "/", "_", 1)
 	return GetVrf() + "--" + priorityLabel + "--" + namespace + "--" + ingName
 }
 
@@ -99,14 +101,17 @@ func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) st
 }
 
 func GetSniPoolName(ingName, namespace, host, path string) string {
+	path = strings.Replace(path, "/", "_", 1)
 	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
 }
 
 func GetSniHttpPolName(ingName, namespace, host, path string) string {
+	path = strings.Replace(path, "/", "_", 1)
 	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
 }
 
 func GetSniPGName(ingName, namespace, host, path string) string {
+	path = strings.Replace(path, "/", "_", 1)
 	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
 }
 
@@ -163,9 +168,9 @@ func GetSubnetIP() string {
 
 }
 
-func GetCIDR() string {
+func GetSubnetPrefix() string {
 	// Additional checks can be performed here.
-	return os.Getenv(SUBNET_CIDR)
+	return os.Getenv(SUBNET_PREFIX)
 
 }
 

@@ -16,7 +16,7 @@ data:
   ingressApi: {{ .Values.configs.ingressApi | quote }}
   defaultIngController: {{ .Values.configs.defaultIngController | quote }}
   subnetIP: {{ .Values.configs.subnetIP | quote }}
-  CIDR: {{ .Values.configs.CIDR | quote }}
-  NetworkName: {{ .Values.configs.NetworkName | quote }}
-  L7ShardingScheme: {{ .Values.configs.L7ShardingScheme | quote }}
+  subnetPrefix: {{ .Values.configs.subnetPrefix | quote }}
+  networkName: {{ .Values.configs.networkName | quote }}
+  l7ShardingScheme: {{ .Values.configs.l7ShardingScheme | quote }}
   syncNamespace: {{ .Values.configs.syncNamespace | quote }}
