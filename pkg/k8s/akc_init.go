@@ -29,6 +29,7 @@ import (
 
 	"github.com/avinetworks/container-lib/utils"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -42,8 +43,11 @@ func PopulateCache() {
 		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
 			utils.CtrlVersion, utils.CloudName)
 	}
+}
+
+func PopulateNodeCache(cs *kubernetes.Clientset) {
 	nodeCache := objects.SharedNodeLister()
-	nodeCache.PopulateAllNodes()
+	nodeCache.PopulateAllNodes(cs)
 }
 
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.

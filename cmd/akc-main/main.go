@@ -88,6 +88,8 @@ func InitializeAKC() {
 	c := k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	k8s.PopulateCache()
+	k8s.PopulateNodeCache(kubeClient)
+
 	ctrlCh := make(chan struct{})
 	c.HandleConfigMap(informers, ctrlCh, stopCh)
 	go c.InitController(informers, ctrlCh, stopCh)

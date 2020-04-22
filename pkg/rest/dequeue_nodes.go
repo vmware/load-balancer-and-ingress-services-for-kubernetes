@@ -274,7 +274,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					if rest_ops[i].Err != nil {
 						utils.AviLog.Warning.Printf("key: %s, msg: problem in processing request for: %s", key, rest_ops[i].Model)
 						// If it's for a SNI child, publish the parent VS's key
-						if avimodel != nil {
+						if avimodel != nil && len(avimodel.GetAviVS()) > 0 {
 							publishKey := avimodel.GetAviVS()[0].Name
 							utils.AviLog.Warning.Printf("key: %s, msg: Retrieved key for Retry:%s", key, publishKey)
 							if avimodel.GetRetryCounter() != 0 {

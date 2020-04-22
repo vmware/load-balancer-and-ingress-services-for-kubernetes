@@ -18,7 +18,8 @@ import (
 	"sync"
 
 	"github.com/avinetworks/container-lib/utils"
-	"k8s.io/apimachinery/pkg/labels"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type K8sNodeStore struct {
@@ -35,9 +36,10 @@ func SharedNodeLister() *K8sNodeStore {
 	return &K8sNodeStore{*nodesStoreInstance}
 }
 
-func (o *K8sNodeStore) PopulateAllNodes() {
-	allNodes, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Everything())
-	for _, node := range allNodes {
-		o.AddOrUpdate(node.Name, node)
+func (o *K8sNodeStore) PopulateAllNodes(cs *kubernetes.Clientset) {
+	allNodes, _ := cs.CoreV1().Nodes().List(metav1.ListOptions{})
+	utils.AviLog.Info.Printf("Got %d nodes", len(allNodes.Items))
+	for _, node := range allNodes.Items {
+		o.AddOrUpdate(node.Name, &node)
 	}
 }
