@@ -200,20 +200,13 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				if vs_cache_obj.HTTPKeyCollection == nil {
-					vs_cache_obj.HTTPKeyCollection = []avicache.NamespaceName{k}
-				} else {
-					if !utils.HasElem(vs_cache_obj.HTTPKeyCollection, k) {
-						vs_cache_obj.HTTPKeyCollection = append(vs_cache_obj.HTTPKeyCollection, k)
-					}
-				}
+				vs_cache_obj.AddToHTTPKeyCollection(k)
 				utils.AviLog.Info.Printf("Modified the VS cache for https object. The cache now is :%v", utils.Stringify(vs_cache_obj))
 			}
 
 		} else {
-			vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
-				HTTPKeyCollection: []avicache.NamespaceName{k}}
-			rest.cache.VsCache.AviCacheAdd(vsKey, &vs_cache_obj)
+			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj.AddToHTTPKeyCollection(k)
 			utils.AviLog.Info.Print(spew.Sprintf("Added VS cache key during http policy update %v val %v\n", vsKey,
 				vs_cache_obj))
 		}
@@ -231,7 +224,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheDel(rest_op *utils.RestOp, vsKey a
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
-			vs_cache_obj.HTTPKeyCollection = Remove(vs_cache_obj.HTTPKeyCollection, httpkey)
+			vs_cache_obj.RemoveFromHTTPKeyCollection(httpkey)
 		}
 	}
 

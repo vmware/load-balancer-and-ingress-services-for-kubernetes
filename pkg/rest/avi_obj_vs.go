@@ -302,13 +302,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			utils.AviLog.Info.Printf("key: %s, msg: extracted the VS key from the uuid :%s", key, vhParentKey)
 			if foundvscache {
 				parentVsObj = rest.getVsCacheObj(vhParentKey.(avicache.NamespaceName), key)
-				if !utils.HasElem(parentVsObj.SNIChildCollection, uuid) {
-					parentVsObj.SNIChildCollection = append(parentVsObj.SNIChildCollection, uuid)
-				}
+				parentVsObj.AddToSNIChildCollection(uuid)
 			} else {
-				vs_cache_obj := avicache.AviVsCache{Name: ExtractVsName(vh_parent_uuid.(string)), Tenant: rest_op.Tenant,
-					SNIChildCollection: []string{uuid}}
-				rest.cache.VsCache.AviCacheAdd(vhParentKey, &vs_cache_obj)
+				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(vh_parent_uuid.(string))}
+				vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(parentKey)
+				vs_cache_obj.AddToSNIChildCollection(uuid)
 				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v\n", key, vhParentKey,
 					vs_cache_obj))
 			}
@@ -435,6 +433,8 @@ func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) *ut
 }
 
 func (rest *RestOperations) findSNIRefAndRemove(snichildkey avicache.NamespaceName, parentVsObj *avicache.AviVsCache, key string) {
+	parentVsObj.VSCacheLock.Lock()
+	defer parentVsObj.VSCacheLock.Unlock()
 	for i, sni_uuid := range parentVsObj.SNIChildCollection {
 		sni_vs_key, ok := rest.cache.VsCache.AviCacheGetKeyByUuid(sni_uuid)
 		if ok {
@@ -652,20 +652,13 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				if vs_cache_obj.VSVipKeyCollection == nil {
-					vs_cache_obj.VSVipKeyCollection = []avicache.NamespaceName{k}
-				} else {
-					if !utils.HasElem(vs_cache_obj.VSVipKeyCollection, k) {
-						vs_cache_obj.VSVipKeyCollection = append(vs_cache_obj.VSVipKeyCollection, k)
-					}
-				}
+				vs_cache_obj.AddToVSVipKeyCollection(k)
 				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 			}
 
 		} else {
-			vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
-				VSVipKeyCollection: []avicache.NamespaceName{k}}
-			rest.cache.VSVIPCache.AviCacheAdd(vsKey, &vs_cache_obj)
+			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj.AddToVSVipKeyCollection(k)
 			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v\n", key, vsKey,
 				vs_cache_obj))
 		}
@@ -684,7 +677,7 @@ func (rest *RestOperations) AviVsVipCacheDel(rest_op *utils.RestOp, vsKey avicac
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				vs_cache_obj.VSVipKeyCollection = Remove(vs_cache_obj.VSVipKeyCollection, vsvipkey)
+				vs_cache_obj.RemoveFromVSVipKeyCollection(vsvipkey)
 			}
 		}
 	}

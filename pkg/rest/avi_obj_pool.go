@@ -163,23 +163,15 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				if vs_cache_obj.PoolKeyCollection == nil {
-					vs_cache_obj.PoolKeyCollection = []avicache.NamespaceName{k}
-				} else {
-					if !utils.HasElem(vs_cache_obj.PoolKeyCollection, k) {
-						utils.AviLog.Info.Printf("key: %s, msg: Before adding pool collection %v and key :%v", key, vs_cache_obj.PoolKeyCollection, k)
-						vs_cache_obj.PoolKeyCollection = append(vs_cache_obj.PoolKeyCollection, k)
-					}
-				}
+				vs_cache_obj.AddToPoolKeyCollection(k)
 				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if svc_mdata_obj.Namespace != "" {
 					UpdateIngressStatus(vs_cache_obj, svc_mdata_obj, key)
 				}
 			}
 		} else {
-			vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
-				PoolKeyCollection: []avicache.NamespaceName{k}}
-			rest.cache.VsCache.AviCacheAdd(vsKey, &vs_cache_obj)
+			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj.AddToPoolKeyCollection(k)
 			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during pool update %v val %v\n", key, vsKey,
 				vs_cache_obj))
 		}
@@ -213,7 +205,7 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
 			utils.AviLog.Info.Printf("key: %s, msg: VsKey: %s, VS Pool key cache before deletion :%s", key, vsKey, vs_cache_obj.PoolKeyCollection)
-			vs_cache_obj.PoolKeyCollection = Remove(vs_cache_obj.PoolKeyCollection, poolKey)
+			vs_cache_obj.RemoveFromPoolKeyCollection(poolKey)
 			utils.AviLog.Info.Printf("key: %s, msg: VS Pool key cache after deletion :%s", key, vs_cache_obj.PoolKeyCollection)
 		}
 	}

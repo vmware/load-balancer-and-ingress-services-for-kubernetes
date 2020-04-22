@@ -119,7 +119,8 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 		var numWorkers uint32
 		numWorkers = 1
 		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
-		graphQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersGraph, WorkqueueName: utils.GraphLayer}
+		numGraphWorkers := lib.GetshardSize()
+		graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
 		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams, slowRetryQParams, fastRetryQParams).GetQueueByName(utils.GraphLayer)
 	} else {
 		// Namespace sharding.

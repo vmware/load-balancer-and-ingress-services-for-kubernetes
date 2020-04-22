@@ -116,20 +116,12 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				if vs_cache_obj.DSKeyCollection == nil {
-					vs_cache_obj.DSKeyCollection = []avicache.NamespaceName{k}
-				} else {
-					if !utils.HasElem(vs_cache_obj.DSKeyCollection, k) {
-						utils.AviLog.Info.Printf("key: %s, msg: before adding datascriptset collection %v and key :%v", key, vs_cache_obj.PoolKeyCollection, k)
-						vs_cache_obj.DSKeyCollection = append(vs_cache_obj.DSKeyCollection, k)
-					}
-				}
+				vs_cache_obj.AddToDSKeyCollection(k)
 				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for Datascriptset Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 			}
 		} else {
-			vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
-				DSKeyCollection: []avicache.NamespaceName{k}}
-			rest.cache.VsCache.AviCacheAdd(vsKey, &vs_cache_obj)
+			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj.AddToDSKeyCollection(k)
 			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during datascriptset update %v val %v\n", key, vsKey,
 				vs_cache_obj))
 		}
@@ -148,7 +140,8 @@ func (rest *RestOperations) AviDSCacheDel(rest_op *utils.RestOp, vsKey avicache.
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
-			vs_cache_obj.DSKeyCollection = Remove(vs_cache_obj.DSKeyCollection, dsKey)
+			vs_cache_obj.RemoveFromDSKeyCollection(dsKey)
+
 		}
 	}
 

@@ -46,7 +46,7 @@ func GetshardSize() uint32 {
 	if ok {
 		return shardSize
 	} else {
-		return 0
+		return 1
 	}
 }
 

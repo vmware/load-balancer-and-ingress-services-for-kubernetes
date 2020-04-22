@@ -128,21 +128,13 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				utils.AviLog.Info.Printf("key: %s, msg: the VS cache before modification by PG creation is :%v", key, utils.Stringify(vs_cache_obj))
-				if vs_cache_obj.PGKeyCollection == nil {
-					vs_cache_obj.PGKeyCollection = []avicache.NamespaceName{k}
-				} else {
-					if !utils.HasElem(vs_cache_obj.PGKeyCollection, k) {
-						vs_cache_obj.PGKeyCollection = append(vs_cache_obj.PGKeyCollection, k)
-					}
-				}
+				vs_cache_obj.AddToPGKeyCollection(k)
 				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for PG collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 			}
 
 		} else {
-			vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
-				PGKeyCollection: []avicache.NamespaceName{k}}
-			rest.cache.VsCache.AviCacheAdd(vsKey, &vs_cache_obj)
+			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj.AddToPGKeyCollection(k)
 			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during poolgroup update %v val %v\n", key, vsKey,
 				vs_cache_obj))
 		}
@@ -160,7 +152,7 @@ func (rest *RestOperations) AviPGCacheDel(rest_op *utils.RestOp, vsKey avicache.
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
-			vs_cache_obj.PGKeyCollection = Remove(vs_cache_obj.PGKeyCollection, pgKey)
+			vs_cache_obj.RemoveFromPGKeyCollection(pgKey)
 		}
 	}
 

@@ -98,20 +98,13 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 				vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 				if found {
 					utils.AviLog.Info.Printf("The VS cache before modification by SSLKeyCert is :%v", utils.Stringify(vs_cache_obj))
-					if vs_cache_obj.SSLKeyCertCollection == nil {
-						vs_cache_obj.SSLKeyCertCollection = []avicache.NamespaceName{k}
-					} else {
-						if !utils.HasElem(vs_cache_obj.SSLKeyCertCollection, k) {
-							vs_cache_obj.SSLKeyCertCollection = append(vs_cache_obj.SSLKeyCertCollection, k)
-						}
-					}
+					vs_cache_obj.AddToSSLKeyCertCollection(k)
 					utils.AviLog.Info.Printf("Modified the VS cache object for SSLKeyCert Collection. The cache now is :%v", utils.Stringify(vs_cache_obj))
 				}
 
 			} else {
-				vs_cache_obj := avicache.AviVsCache{Name: vsKey.Name, Tenant: vsKey.Namespace,
-					SSLKeyCertCollection: []avicache.NamespaceName{k}}
-				rest.cache.VsCache.AviCacheAdd(vsKey, &vs_cache_obj)
+				vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+				vs_cache_obj.AddToSSLKeyCertCollection(k)
 				utils.AviLog.Info.Print(spew.Sprintf("Added VS cache key during SSLKeyCert update %v val %v\n", vsKey,
 					vs_cache_obj))
 			}
@@ -131,7 +124,7 @@ func (rest *RestOperations) AviSSLCacheDel(rest_op *utils.RestOp, vsKey avicache
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				vs_cache_obj.SSLKeyCertCollection = Remove(vs_cache_obj.SSLKeyCertCollection, sslkey)
+				vs_cache_obj.RemoveFromSSLKeyCertCollection(sslkey)
 			}
 		}
 	}

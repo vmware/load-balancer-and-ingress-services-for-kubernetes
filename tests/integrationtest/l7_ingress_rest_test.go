@@ -482,14 +482,14 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret"))
 
-	g.Eventually(func() int {
-		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey2)
-		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
-		if found && ok {
-			return len(sniCacheObj.PoolKeyCollection)
+	g.Eventually(func() bool {
+		sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey2)
+		sniCacheObj, _ = sniCache.(*cache.AviVsCache)
+		if len(sniCacheObj.PoolKeyCollection) == 1 && len(sniCacheObj.SSLKeyCertCollection) == 1 {
+			return true
 		}
-		return 0
-	}, 25*time.Second).Should(gomega.Equal(1))
+		return false
+	}, 25*time.Second).Should(gomega.Equal(true))
 	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey2)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("bar.com"))

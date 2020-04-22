@@ -16,6 +16,8 @@ package cache
 
 import (
 	"sync"
+
+	"github.com/avinetworks/container-lib/utils"
 )
 
 type NamespaceName struct {
@@ -76,6 +78,188 @@ type AviVsCache struct {
 	ServiceMetadataObj   ServiceMetadataObj
 	LastModified         string
 	InvalidData          bool
+	VSCacheLock          sync.RWMutex
+}
+
+func (c *AviCache) AviCacheAddVS(k NamespaceName) *AviVsCache {
+	c.cache_lock.Lock()
+	defer c.cache_lock.Unlock()
+	val, found := c.cache[k]
+	if found {
+		aviVS, ok := val.(*AviVsCache)
+		if ok {
+			return aviVS
+		}
+	}
+	vsObj := AviVsCache{Name: k.Name, Tenant: k.Namespace}
+	c.cache[k] = &vsObj
+	return &vsObj
+}
+
+func (v *AviVsCache) SetPGKeyCollection(keyCollection []NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	v.PGKeyCollection = keyCollection
+}
+
+func Remove(s []NamespaceName, r NamespaceName) []NamespaceName {
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
+		}
+	}
+	return s
+}
+
+func RemoveString(s []string, r string) []string {
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
+		}
+	}
+	return s
+}
+
+func (v *AviVsCache) AddToPGKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.PGKeyCollection == nil {
+		v.PGKeyCollection = []NamespaceName{k}
+	}
+	if !utils.HasElem(v.PGKeyCollection, k) {
+		v.PGKeyCollection = append(v.PGKeyCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromPGKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.PGKeyCollection == nil {
+		return
+	}
+	v.PGKeyCollection = Remove(v.PGKeyCollection, k)
+}
+
+func (v *AviVsCache) AddToVSVipKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.VSVipKeyCollection == nil {
+		v.VSVipKeyCollection = []NamespaceName{k}
+	}
+	if !utils.HasElem(v.VSVipKeyCollection, k) {
+		v.VSVipKeyCollection = append(v.VSVipKeyCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromVSVipKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.VSVipKeyCollection == nil {
+		return
+	}
+	v.VSVipKeyCollection = Remove(v.VSVipKeyCollection, k)
+}
+
+func (v *AviVsCache) AddToPoolKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+
+	if v.PoolKeyCollection == nil {
+		v.PoolKeyCollection = []NamespaceName{k}
+		return
+	}
+	if !utils.HasElem(v.PoolKeyCollection, k) {
+		v.PoolKeyCollection = append(v.PoolKeyCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromPoolKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.PoolKeyCollection == nil {
+		return
+	}
+	v.PoolKeyCollection = Remove(v.PoolKeyCollection, k)
+}
+
+func (v *AviVsCache) AddToDSKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.DSKeyCollection == nil {
+		v.DSKeyCollection = []NamespaceName{k}
+	}
+	if !utils.HasElem(v.DSKeyCollection, k) {
+		v.DSKeyCollection = append(v.DSKeyCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromDSKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.DSKeyCollection == nil {
+		return
+	}
+	v.DSKeyCollection = Remove(v.DSKeyCollection, k)
+}
+
+func (v *AviVsCache) AddToHTTPKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.HTTPKeyCollection == nil {
+		v.HTTPKeyCollection = []NamespaceName{k}
+	}
+	if !utils.HasElem(v.HTTPKeyCollection, k) {
+		v.HTTPKeyCollection = append(v.HTTPKeyCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromHTTPKeyCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.HTTPKeyCollection == nil {
+		return
+	}
+	v.HTTPKeyCollection = Remove(v.HTTPKeyCollection, k)
+}
+
+func (v *AviVsCache) AddToSSLKeyCertCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.SSLKeyCertCollection == nil {
+		v.SSLKeyCertCollection = []NamespaceName{k}
+	}
+	if !utils.HasElem(v.SSLKeyCertCollection, k) {
+		v.SSLKeyCertCollection = append(v.SSLKeyCertCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromSSLKeyCertCollection(k NamespaceName) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.SSLKeyCertCollection == nil {
+		return
+	}
+	v.SSLKeyCertCollection = Remove(v.SSLKeyCertCollection, k)
+}
+
+func (v *AviVsCache) AddToSNIChildCollection(k string) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.SNIChildCollection == nil {
+		v.SNIChildCollection = []string{k}
+	}
+	if !utils.HasElem(v.SNIChildCollection, k) {
+		v.SNIChildCollection = append(v.SNIChildCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromSNIChildCollection(k string) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	if v.SNIChildCollection == nil {
+		return
+	}
+	v.SNIChildCollection = RemoveString(v.SNIChildCollection, k)
 }
 
 type AviSSLCache struct {
