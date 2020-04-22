@@ -405,8 +405,8 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 }
 
 func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, hostName ...string) {
-	var httpPolicySet []AviHostPathPortPoolPG
 	for host, paths := range hostpath.Hosts {
+		var httpPolicySet []AviHostPathPortPoolPG
 		if len(hostName) > 0 {
 			if hostName[0] != host {
 				// If a hostname is passed to this method, ensure we only process that hostname and nothing else.
