@@ -256,4 +256,3 @@ func init() {
 		CloudName = "Default-Cloud"
 	}
 }
-

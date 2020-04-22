@@ -32,7 +32,7 @@ func init() {
 	var err error
 	usePVC := os.Getenv("USE_PVC")
 	if usePVC == "true" {
-		var logpath = os.Getenv("LOG_FILE_NAME")
+		logpath = os.Getenv("LOG_FILE_NAME")
 		if logpath == "" {
 			logpath = DEFAULT_AVI_LOG
 		}
