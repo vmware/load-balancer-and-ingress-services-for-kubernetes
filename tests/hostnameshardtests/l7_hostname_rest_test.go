@@ -678,9 +678,15 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(false))
 	_, found := mcache.VsCache.AviCacheGet(sniVSKey)
 	g.Expect(found).To(gomega.Equal(false))
-	parentVSCache, _ = mcache.VsCache.AviCacheGet(parentVSKey)
-	parentVSCacheObj, _ = parentVSCache.(*cache.AviVsCache)
-	g.Expect(parentVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(0))
+
+	g.Eventually(func() bool {
+		parentVSCache, found := mcache.VsCache.AviCacheGet(parentVSKey)
+		parentVSCacheObj, ok := parentVSCache.(*cache.AviVsCache)
+		if found && ok && len(parentVSCacheObj.HTTPKeyCollection) == 0 {
+			return true
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
@@ -718,7 +724,7 @@ func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 10*time.Second).Should(gomega.Equal(3))
+	}, 20*time.Second).Should(gomega.Equal(3))
 	ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
 	// fake avi controller server returns IP in the form: 10.250.250.1<Shard-VS-NUM>
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))

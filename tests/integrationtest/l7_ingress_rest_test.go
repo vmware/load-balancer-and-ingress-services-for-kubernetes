@@ -294,9 +294,17 @@ func TestCreateSNICacheSync(t *testing.T) {
 		_, found := mcache.VsCache.AviCacheGet(sniVSKey)
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		parentCache, found := mcache.VsCache.AviCacheGet(parentVSKey)
+		parentCacheObj, ok := parentCache.(*cache.AviVsCache)
+		if found && ok && len(parentCacheObj.SNIChildCollection) == 1 {
+			return true
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 	parentCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
 	parentCacheObj, _ := parentCache.(*cache.AviVsCache)
-	g.Expect(parentCacheObj.SNIChildCollection).To(gomega.HaveLen(1))
 	g.Expect(parentCacheObj.SNIChildCollection[0]).To(gomega.ContainSubstring("global--foo-with-targets--default--my-secret"))
 	g.Expect(parentCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 
@@ -483,10 +491,12 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret"))
 
 	g.Eventually(func() bool {
-		sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey2)
-		sniCacheObj, _ = sniCache.(*cache.AviVsCache)
-		if len(sniCacheObj.PoolKeyCollection) == 1 && len(sniCacheObj.SSLKeyCertCollection) == 1 {
-			return true
+		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey2)
+		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
+		if found && ok {
+			if len(sniCacheObj.PoolKeyCollection) == 1 && len(sniCacheObj.SSLKeyCertCollection) == 1 {
+				return true
+			}
 		}
 		return false
 	}, 25*time.Second).Should(gomega.Equal(true))

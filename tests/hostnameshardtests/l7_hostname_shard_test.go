@@ -26,6 +26,7 @@ import (
 	"ako/tests/integrationtest"
 
 	meshutils "github.com/avinetworks/container-lib/utils"
+	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,7 +99,10 @@ func VerifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, 
 		return nodes[0].PoolRefs
 	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
 
-	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(poolCount))
+	g.Eventually(func() []*models.PoolGroupMember {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].PoolGroupRefs[0].Members
+	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
 }
 
 func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, sniCount int) {

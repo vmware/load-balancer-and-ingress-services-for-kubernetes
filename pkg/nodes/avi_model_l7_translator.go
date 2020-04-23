@@ -406,7 +406,6 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 
 func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, hostName ...string) {
 	for host, paths := range hostpath.Hosts {
-		var httpPolicySet []AviHostPathPortPoolPG
 		if len(hostName) > 0 {
 			if hostName[0] != host {
 				// If a hostname is passed to this method, ensure we only process that hostname and nothing else.
@@ -421,6 +420,8 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 		}
 		tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, host)
 		for _, path := range paths {
+			var httpPolicySet []AviHostPathPortPoolPG
+
 			httpPGPath := AviHostPathPortPoolPG{Host: host}
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
