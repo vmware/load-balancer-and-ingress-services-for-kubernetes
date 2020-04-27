@@ -100,11 +100,13 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: ingressApi
+           {{ if .Values.configs.syncNamespace  }}
           - name: SYNC_NAMESPACE
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: syncNamespace
+          {{ end }}
           - name: SUBNET_IP
             valueFrom:
               configMapKeyRef:
