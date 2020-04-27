@@ -370,6 +370,10 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 			if value.(*AviPoolCache).Uuid == uuid {
 				return value.(*AviPoolCache).Name, true
 			}
+		case *AviVSVIPCache:
+			if value.(*AviVSVIPCache).Uuid == uuid {
+				return value.(*AviVSVIPCache).Name, true
+			}
 		}
 	}
 	return nil, false

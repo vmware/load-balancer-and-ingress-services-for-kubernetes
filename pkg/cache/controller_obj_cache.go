@@ -768,8 +768,19 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 				k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vs["name"].(string)}
 				delete(vsCacheCopy, k)
 				var vip string
+				var vsVipKey []NamespaceName
 				if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
 					vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
+				}
+				// Populate the VSVIP cache
+				if vs["vsvip_ref"] != "" {
+					// find the vsvip name from the vsvip cache
+					vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
+					vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
+					if foundVip {
+						vipKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: vsVipName.(string)}
+						vsVipKey = append(vsVipKey, vipKey)
+					}
 				}
 				vs_cache, found := c.VsCache.AviCacheGet(k)
 				if found {
@@ -785,6 +796,9 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 								utils.AviLog.Warning.Printf("Invalid cache data for vs: %s", k)
 								vs_cache_obj.InvalidData = true
 							}
+							if len(vsVipKey) > 0 {
+								vs_cache_obj.VSVipKeyCollection = vsVipKey
+							}
 							vs_cache_obj.LastModified = newLastModified
 							utils.AviLog.Info.Printf("Updated Vs cache k %v val %v",
 								k, vs_cache_obj)
@@ -796,7 +810,9 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 								SNIChildCollection: sni_child_collection,
 								ParentVSRef:        parentVSKey,
 								ServiceMetadataObj: svc_mdata_obj}
-
+							if len(vsVipKey) > 0 {
+								vs_cache_obj.VSVipKeyCollection = vsVipKey
+							}
 							c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 							utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
 								k, vs_cache_obj)
@@ -809,7 +825,9 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 							SNIChildCollection: sni_child_collection,
 							ParentVSRef:        parentVSKey,
 							ServiceMetadataObj: svc_mdata_obj}
-
+						if len(vsVipKey) > 0 {
+							vs_cache_obj.VSVipKeyCollection = vsVipKey
+						}
 						c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 						utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
 							k, vs_cache_obj)
@@ -821,16 +839,17 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 						SNIChildCollection: sni_child_collection,
 						ParentVSRef:        parentVSKey,
 						ServiceMetadataObj: svc_mdata_obj}
-
+					if len(vsVipKey) > 0 {
+						vs_cache_obj.VSVipKeyCollection = vsVipKey
+					}
 					c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 					utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
-						k, vs_cache_obj)
+						k, utils.Stringify(vs_cache_obj))
 				}
 				c.AviHTTPolicyCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 				c.AviPGCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 				c.AviDataScriptPopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 				c.AviSSLKeyCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
-				c.AviVSVIPCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 			}
 		}
 		if resp["next"] != nil {
@@ -919,8 +938,19 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 		if vs["cloud_config_cksum"] != nil {
 			k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vs["name"].(string)}
 			var vip string
+			var vsVipKey []NamespaceName
 			if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
 				vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
+			}
+			// Populate the VSVIP cache
+			if vs["vsvip_ref"] != "" {
+				// find the vsvip name from the vsvip cache
+				vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
+				vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
+				if foundVip {
+					vipKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: vsVipName.(string)}
+					vsVipKey = append(vsVipKey, vipKey)
+				}
 			}
 			vs_cache, found := c.VsCache.AviCacheGet(k)
 			if found {
@@ -931,6 +961,15 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 						vs_cache_obj.CloudConfigCksum = vs["cloud_config_cksum"].(string)
 						vs_cache_obj.SNIChildCollection = sni_child_collection
 						vs_cache_obj.ParentVSRef = parentVSKey
+						newLastModified := vs["_last_modified"].(string)
+						if vs_cache_obj.LastModified != "" && vs_cache_obj.LastModified != newLastModified {
+							utils.AviLog.Warning.Printf("Invalid cache data for vs: %s", k)
+							vs_cache_obj.InvalidData = true
+						}
+						if len(vsVipKey) > 0 {
+							vs_cache_obj.VSVipKeyCollection = vsVipKey
+						}
+						vs_cache_obj.LastModified = newLastModified
 						utils.AviLog.Info.Printf("Updated Vs cache k %v val %v",
 							k, vs_cache_obj)
 					} else {
@@ -941,7 +980,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 							SNIChildCollection: sni_child_collection,
 							ParentVSRef:        parentVSKey,
 							ServiceMetadataObj: svc_mdata_obj}
-
+						if len(vsVipKey) > 0 {
+							vs_cache_obj.VSVipKeyCollection = vsVipKey
+						}
 						c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 						utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
 							k, vs_cache_obj)
@@ -954,7 +995,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 						SNIChildCollection: sni_child_collection,
 						ParentVSRef:        parentVSKey,
 						ServiceMetadataObj: svc_mdata_obj}
-
+					if len(vsVipKey) > 0 {
+						vs_cache_obj.VSVipKeyCollection = vsVipKey
+					}
 					c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 					utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
 						k, vs_cache_obj)
@@ -966,7 +1009,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 					SNIChildCollection: sni_child_collection,
 					ParentVSRef:        parentVSKey,
 					ServiceMetadataObj: svc_mdata_obj}
-
+				if len(vsVipKey) > 0 {
+					vs_cache_obj.VSVipKeyCollection = vsVipKey
+				}
 				c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 				utils.AviLog.Info.Printf("Added Vs cache k %v val %v",
 					k, vs_cache_obj)
@@ -975,7 +1020,6 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 			c.AviPGCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 			c.AviDataScriptPopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 			c.AviSSLKeyCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
-			c.AviVSVIPCachePopulate(client, cloud, vs["uuid"].(string), utils.ADMIN_NS, k)
 		}
 	}
 	return nil
@@ -1058,71 +1102,6 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 				utils.AviLog.Info.Printf("Next page uri for pg: %s", override_uri)
 				nextPage := NextPage{Next_uri: override_uri}
 				c.AviPGCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
-			}
-		}
-	}
-}
-
-func (c *AviObjCache) AviVSVIPCachePopulate(client *clients.AviClient,
-	cloud string, vs_uuid string, tenant string, vsKey NamespaceName, nextPage ...NextPage) {
-	var rest_response interface{}
-	var vsvip_key_collection []NamespaceName
-	var uri string
-	if len(nextPage) == 1 {
-		uri = nextPage[0].Next_uri
-		vsvip_key_collection = nextPage[0].Collection.([]NamespaceName)
-	} else {
-		uri = "/api/vsvip?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
-	}
-	err := client.AviSession.Get(uri, &rest_response)
-	if err != nil {
-		utils.AviLog.Warning.Printf("VSVIP Get uri %v returned err %v", uri, err)
-		return
-	} else {
-		resp, ok := rest_response.(map[string]interface{})
-		if !ok {
-			utils.AviLog.Warning.Printf("VSVIP Get uri %v returned %v type %T", uri,
-				rest_response, rest_response)
-			return
-		}
-		utils.AviLog.Info.Printf("VSVIP Get uri %v returned %v VSVIPs", uri,
-			resp["count"])
-		results, ok := resp["results"].([]interface{})
-		if !ok {
-			utils.AviLog.Warning.Printf("results not of type []interface{} Instead of type %T for VSVIP", resp["results"])
-			return
-		}
-		for _, vsvip_intf := range results {
-			vsvip, ok := vsvip_intf.(map[string]interface{})
-			if !ok {
-				utils.AviLog.Warning.Printf("vsvip_intf not of type map[string] interface{}. Instead of type %T", vsvip_intf)
-				continue
-			}
-			k := NamespaceName{Namespace: tenant, Name: vsvip["name"].(string)}
-			vsvip_key_collection = append(vsvip_key_collection, k)
-
-		}
-		vs_cache, found := c.VsCache.AviCacheGet(vsKey)
-		if found {
-			vs_cache_obj, ok := vs_cache.(*AviVsCache)
-			if !ok {
-				utils.AviLog.Warning.Printf("Unable to cast to VS object: %v", vsKey)
-				return
-			}
-			vs_cache_obj.VSVipKeyCollection = vsvip_key_collection
-		} else {
-			utils.AviLog.Warning.Printf("VS cache not found for key: %v . Unable to update VSVIP collection", vsKey)
-			return
-		}
-		if resp["next"] != nil {
-			// It has a next page, let's recursively call the same method.
-			next_uri := strings.Split(resp["next"].(string), "/api/vsvip")
-			utils.AviLog.Info.Printf("Found next page for vsvip, uri: %s", next_uri)
-			if len(next_uri) > 1 {
-				override_uri := "/api/vsvip" + next_uri[1]
-				utils.AviLog.Info.Printf("Next page uri for vsvip: %s", override_uri)
-				nextPage := NextPage{Next_uri: override_uri}
-				c.AviVSVIPCachePopulate(client, cloud, vs_uuid, tenant, vsKey, nextPage)
 			}
 		}
 	}
