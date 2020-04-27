@@ -280,6 +280,7 @@ type AviPGCache struct {
 	Name             string
 	Tenant           string
 	Uuid             string
+	Members          []string // Collection of pools referred by this PG.
 	CloudConfigCksum string
 	LastModified     string
 	InvalidData      bool
@@ -354,6 +355,20 @@ func (c *AviCache) AviCacheGetKeyByUuid(uuid string) (interface{}, bool) {
 		case *AviVsCache:
 			if value.(*AviVsCache).Uuid == uuid {
 				return key, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
+	c.cache_lock.RLock()
+	defer c.cache_lock.RUnlock()
+	for _, value := range c.cache {
+		switch value.(type) {
+		case *AviPoolCache:
+			if value.(*AviPoolCache).Uuid == uuid {
+				return value.(*AviPoolCache).Name, true
 			}
 		}
 	}
