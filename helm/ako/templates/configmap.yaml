@@ -19,4 +19,6 @@ data:
   subnetPrefix: {{ .Values.configs.subnetPrefix | quote }}
   networkName: {{ .Values.configs.networkName | quote }}
   l7ShardingScheme: {{ .Values.configs.l7ShardingScheme | quote }}
+  {{ if .Values.configs.syncNamespace  }}
   syncNamespace: {{ .Values.configs.syncNamespace | quote }}
+  {{ end }}
