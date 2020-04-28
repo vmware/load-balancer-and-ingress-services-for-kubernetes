@@ -50,6 +50,7 @@ type AviDSCache struct {
 	Name         string
 	Tenant       string
 	Uuid         string
+	PoolGroups   []string
 	LastModified string
 	InvalidData  bool
 }
@@ -301,6 +302,7 @@ type AviHTTPPolicyCache struct {
 	Tenant           string
 	Uuid             string
 	CloudConfigCksum string
+	PoolGroups       []string
 	LastModified     string
 	InvalidData      bool
 }
@@ -373,6 +375,22 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 		case *AviVSVIPCache:
 			if value.(*AviVSVIPCache).Uuid == uuid {
 				return value.(*AviVSVIPCache).Name, true
+			}
+		case *AviSSLCache:
+			if value.(*AviSSLCache).Uuid == uuid {
+				return value.(*AviSSLCache).Name, true
+			}
+		case *AviDSCache:
+			if value.(*AviDSCache).Uuid == uuid {
+				return value.(*AviDSCache).Name, true
+			}
+		case *AviHTTPPolicyCache:
+			if value.(*AviHTTPPolicyCache).Uuid == uuid {
+				return value.(*AviHTTPPolicyCache).Name, true
+			}
+		case *AviPGCache:
+			if value.(*AviPGCache).Uuid == uuid {
+				return value.(*AviPGCache).Name, true
 			}
 		}
 	}
