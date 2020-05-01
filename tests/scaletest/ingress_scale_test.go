@@ -79,7 +79,7 @@ func SetUpHostnameShardTestforIngress(t *testing.T, ns string) {
 	os.Setenv("VRF_CONTEXT", "global")
 	os.Setenv("USE_PVC", "true")
 	integrationtest.CreateSVC(t, ns, "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, ns, "avisvc", false, false)
+	integrationtest.CreateEP(t, ns, "avisvc", false, false, "1.1.1")
 }
 
 func TearDownHostnameShardTestForIngress(t *testing.T, ns string, modeltoPools map[string]map[string]poolData) {
@@ -96,7 +96,7 @@ func TearDownHostnameShardTestForIngress(t *testing.T, ns string, modeltoPools m
 func SetUpTestForIngress(t *testing.T, ns string) string {
 	modelName := "admin/" + avinodes.DeriveNamespacedShardVS(ns, "test")
 	integrationtest.CreateSVC(t, ns, "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, ns, "avisvc", false, false)
+	integrationtest.CreateEP(t, ns, "avisvc", false, false, "1.1.1")
 	return modelName
 }
 

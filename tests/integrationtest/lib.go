@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -510,7 +511,10 @@ if multiPort: True and multiAddress: True
 	1.1.1.4:8081, 1.1.1.5:8081,
 	1.1.1.6:8082
 */
-func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool) {
+func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string) {
+	if addressPrefix == "" {
+		addressPrefix = "1.1.1"
+	}
 	var endpointSubsets []corev1.EndpointSubset
 	numPorts, numAddresses, addressStart := 1, 1, 0
 	if multiPort {
@@ -524,7 +528,7 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 		mPort := 8080 + i
 		var epAddresses []corev1.EndpointAddress
 		for j := 0; j < numAddresses; j++ {
-			epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("1.1.1.%d", addressStart+j+i+1)})
+			epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStart+j+i+1)})
 		}
 		numAddresses = numAddresses - 1
 		addressStart = addressStart + numAddresses
@@ -715,4 +719,25 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, `{"success": "true"}`)
 	}
+}
+
+//UpdateIngress wrapper over ingress update call.
+//internally calls Ingress() for fakeIngress object
+//performs a get for ingress object so it will update only if ingress exists
+func (ing FakeIngress) UpdateIngress() (*extensionv1beta1.Ingress, error) {
+
+	//check if resource already exists
+	ingress, err := KubeClient.ExtensionsV1beta1().Ingresses(ing.Namespace).Get(ing.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	//increment resource version
+	newIngress := ing.Ingress()
+	rv, _ := strconv.Atoi(ingress.ResourceVersion)
+	newIngress.ResourceVersion = strconv.Itoa(rv + 1)
+
+	//update ingress resource
+	updatedIngress, err := KubeClient.ExtensionsV1beta1().Ingresses(newIngress.Namespace).Update(newIngress)
+	return updatedIngress, err
 }

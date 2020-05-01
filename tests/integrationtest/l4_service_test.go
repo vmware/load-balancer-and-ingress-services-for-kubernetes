@@ -39,7 +39,7 @@ import (
 func SetUpTestForSvcLB(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
 	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false)
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
 	PollForCompletion(t, SINGLEPORTMODEL, 5)
 }
 
@@ -58,7 +58,7 @@ func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 func SetUpTestForSvcLBMultiport(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
 	CreateSVC(t, NAMESPACE, MULTIPORTSVC, corev1.ServiceTypeLoadBalancer, true)
-	CreateEP(t, NAMESPACE, MULTIPORTSVC, true, true)
+	CreateEP(t, NAMESPACE, MULTIPORTSVC, true, true, "1.1.1")
 	PollForCompletion(t, MULTIPORTMODEL, 10)
 }
 
@@ -455,7 +455,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 
 		objects.SharedAviGraphLister().Delete(model)
 		CreateSVC(t, NAMESPACE, service, corev1.ServiceTypeLoadBalancer, true)
-		CreateEP(t, NAMESPACE, service, true, true)
+		CreateEP(t, NAMESPACE, service, true, true, "1.1.1")
 	}
 
 	// verify that 30 services are created on the graph and corresponding cache objects

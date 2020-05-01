@@ -79,7 +79,7 @@ func SetUpTestForIngress(t *testing.T, modelName string) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "avisvc", false, false)
+	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
 }
 
 func TearDownTestForIngress(t *testing.T, modelName string) {
@@ -677,6 +677,69 @@ func TestDeleteBackendService(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
+}
+
+func TestUpdateBackendService(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:        "ingress-backend-svc",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal("1.1.1.1"))
+
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+	// Update the service
+
+	integrationtest.CreateSVC(t, "default", "avisvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "avisvc2", false, false, "2.2.2")
+
+	ingrFake1, err = (integrationtest.FakeIngress{
+		Name:        "ingress-backend-svc",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc2",
+	}).UpdateIngress()
+	if err != nil {
+		t.Fatalf("error in updating ingress %s", err)
+	}
+
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		g.Eventually(func() string {
+			_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return *nodes[0].PoolRefs[0].Servers[0].Ip.Addr
+		}, 10*time.Second).Should(gomega.Equal("2.2.2.1"))
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-backend-svc", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DelSVC(t, "default", "avisvc2")
+	integrationtest.DelEP(t, "default", "avisvc2")
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestMultiHostIngress(t *testing.T) {
