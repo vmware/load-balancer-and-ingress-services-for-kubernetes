@@ -49,13 +49,23 @@ func (rest *RestOperations) CleanupVS(key string) {
 
 func (rest *RestOperations) DeQueueNodes(key string) {
 	utils.AviLog.Info.Printf("key: %s, msg: start rest layer sync.", key)
+	namespace, name := utils.ExtractNamespaceObjectName(key)
+	// Let's check if this key is for full sync or partial sync. If it's for full sync, then we additionally populate the cache
+	// values as well.
+	if strings.Contains(name, "@") {
+		// The actual model name
+		name = strings.Split(name, "@")[0]
+		vsCacheKey := avicache.NamespaceName{Namespace: namespace, Name: name}
+		rest.CopyMetaVsToVsCache(vsCacheKey, key)
+		// change the key to not have the fullsync string
+		key = strings.Split(key, "@")[0]
+	}
 	// Got the key from the Graph Layer - let's fetch the model
 	ok, avimodelIntf := objects.SharedAviGraphLister().Get(key)
 	if !ok {
 		utils.AviLog.Warning.Printf("key: %s, msg: no model found for the key", key)
 	}
 
-	namespace, name := utils.ExtractNamespaceObjectName(key)
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
 	if !ok || avimodelIntf == nil {
@@ -216,6 +226,77 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 	}
 	utils.AviLog.Info.Printf("key :%s, msg: vs cache object NOT found for vskey: %s", key, vsKey)
 	return nil
+}
+
+func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, key string) {
+	vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
+	if !ok {
+		// The vsmeta does not have the cache, remove it from the vscache as well.
+		// However, we need to fetch the sni children of this vsKey and clear it from the cache as well.
+		// Fetch the cache to be deleted.
+		vsObjFromCache := rest.getVsCacheObj(vsKey, key)
+		// Get the SNI children keys
+		if vsObjFromCache != nil {
+			for _, sni_uuid := range vsObjFromCache.SNIChildCollection {
+				sniVsKey, ok := rest.cache.VsCache.AviCacheGetKeyByUuid(sni_uuid)
+				if ok {
+					// Remove the SNI children cache
+					rest.cache.VsCache.AviCacheDelete(sniVsKey)
+				}
+			}
+			// Now remove the parent VS.
+			rest.cache.VsCache.AviCacheDelete(vsKey)
+		}
+		return
+	} else {
+		// In this case, just replace the object in the vsCache with the object in VsMeta if lastModified fields are different.
+		// Obtain the cache entry from vsCache
+		vsObjFromCache := rest.getVsCacheObj(vsKey, key)
+		if vsObjFromCache != nil {
+			// Get the SNI children from the metaobject and the actual cache object. Those which are new should get added.
+			// Those which are old should get updated.
+			// Those which are stale should get deleted.
+			oldSniUuids := make([]string, len(vsObjFromCache.SNIChildCollection))
+			copy(oldSniUuids, vsObjFromCache.SNIChildCollection)
+			for _, sniUuid := range vsObjMeta.(*avicache.AviVsCache).SNIChildCollection {
+				sniVsKey, sniOk := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sniUuid)
+				if sniOk {
+					// Obtain the sniVsCache Object from MetaObject
+					sniObjMeta, sniFound := rest.cache.VsCacheMeta.AviCacheGet(sniVsKey)
+					if sniFound {
+						// Update the new cache.
+						rest.cache.VsCache.AviCacheAdd(sniVsKey, sniObjMeta)
+						utils.Remove(oldSniUuids, sniUuid)
+					}
+				}
+			}
+			// Whatever is left in the oldSniUuids - remove them from the vs cache.
+			for _, staleSniUuids := range oldSniUuids {
+				staleSniVsKey, staleSniOk := rest.cache.VsCache.AviCacheGetKeyByUuid(staleSniUuids)
+				if staleSniOk {
+					rest.cache.VsCache.AviCacheDelete(staleSniVsKey)
+				}
+			}
+			// Replace the parent VS if the lastmodified in the 2 objects are different.
+			if vsObjFromCache.LastModified != vsObjMeta.(*avicache.AviVsCache).LastModified {
+				rest.cache.VsCache.AviCacheAdd(vsKey, vsObjMeta)
+			}
+		} else {
+			// Build the SNI cache associated with the VS.
+			for _, sniUuid := range vsObjMeta.(*avicache.AviVsCache).SNIChildCollection {
+				sniVsKey, sniOk := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sniUuid)
+				if sniOk {
+					// Obtain the sniVsCache Object from MetaObject
+					sniObjMeta, sniFound := rest.cache.VsCacheMeta.AviCacheGet(sniVsKey)
+					if sniFound {
+						// Update the new cache.
+						rest.cache.VsCache.AviCacheAdd(sniVsKey, sniObjMeta)
+					}
+				}
+			}
+			rest.cache.VsCache.AviCacheAdd(vsKey, vsObjMeta)
+		}
+	}
 }
 
 func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string) bool {

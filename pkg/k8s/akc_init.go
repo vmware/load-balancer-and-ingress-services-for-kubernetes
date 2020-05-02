@@ -256,7 +256,8 @@ func (c *AviController) FullSyncK8s() {
 	}
 
 	cache := avicache.SharedAviObjCache()
-	vsKeys := cache.VsCache.AviCacheGetAllParentVSKeys()
+	vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
+	utils.AviLog.Info.Printf("Got the VS keys :%s", vsKeys)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	allModelsMap := objects.SharedAviGraphLister().GetAll()
 	var allModels []string

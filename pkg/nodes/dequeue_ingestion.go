@@ -171,6 +171,10 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 
 func PublishKeyToRestLayer(model_name string, key string, sharedQueue *utils.WorkerQueue) {
 	bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
+	if key == "fullsync" {
+		// modify the model name to notify layer 3 about the full sync key
+		model_name = model_name + "@" + "fullsync"
+	}
 	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
 	utils.AviLog.Info.Printf("key: %s, msg: Published key with model_name: %s", key, model_name)
 
