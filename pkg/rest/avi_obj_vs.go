@@ -488,8 +488,15 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			subnet_ip_obj := avimodels.IPAddr{Type: &subnet_atype, Addr: &subnet_addr}
 			subnet_obj := avimodels.IPAddrPrefix{IPAddr: &subnet_ip_obj, Mask: &subnet_mask}
 			networkRef := "/api/network/?name=" + lib.GetNetworkName()
-			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc, Subnet: &subnet_obj, NetworkRef: &networkRef}
+			vip = avimodels.Vip{
+				AutoAllocateIP: &auto_alloc,
+				IPAMNetworkSubnet: &avimodels.IPNetworkSubnet{
+					Subnet:     &subnet_obj,
+					NetworkRef: &networkRef,
+				},
+			}
 		}
+
 		mask := int32(24)
 		addr := "172.18.0.0"
 		atype := "V4"
