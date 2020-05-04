@@ -264,9 +264,9 @@ func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, ke
 					// Obtain the sniVsCache Object from MetaObject
 					sniObjMeta, sniFound := rest.cache.VsCacheMeta.AviCacheGet(sniVsKey)
 					if sniFound {
-						// Update the new cache.
+						// Update the new cache
 						rest.cache.VsCache.AviCacheAdd(sniVsKey, sniObjMeta)
-						utils.Remove(oldSniUuids, sniUuid)
+						oldSniUuids = utils.Remove(oldSniUuids, sniUuid)
 					}
 				}
 			}

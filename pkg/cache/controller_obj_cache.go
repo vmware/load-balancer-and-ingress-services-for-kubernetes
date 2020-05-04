@@ -31,19 +31,16 @@ import (
 )
 
 type AviObjCache struct {
-	VsCache             *AviCache
-	PgCache             *AviCache
-	PgCacheMeta         *AviCache
-	DSCache             *AviCache
-	DSCacheMeta         *AviCache
-	PoolCache           *AviCache
-	CloudKeyCache       *AviCache
-	HTTPPolicyCache     *AviCache
-	HTTPPolicyCacheMeta *AviCache
-	SSLKeyCache         *AviCache
-	VSVIPCache          *AviCache
-	VrfCache            *AviCache
-	VsCacheMeta         *AviCache
+	VsCache         *AviCache
+	PgCache         *AviCache
+	DSCache         *AviCache
+	PoolCache       *AviCache
+	CloudKeyCache   *AviCache
+	HTTPPolicyCache *AviCache
+	SSLKeyCache     *AviCache
+	VSVIPCache      *AviCache
+	VrfCache        *AviCache
+	VsCacheMeta     *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -51,14 +48,11 @@ func NewAviObjCache() *AviObjCache {
 	c.VsCacheMeta = NewAviCache()
 	c.VsCache = NewAviCache()
 	c.PgCache = NewAviCache()
-	c.PgCacheMeta = NewAviCache()
 	c.DSCache = NewAviCache()
-	c.DSCacheMeta = NewAviCache()
 	c.PoolCache = NewAviCache()
 	c.SSLKeyCache = NewAviCache()
 	c.CloudKeyCache = NewAviCache()
 	c.HTTPPolicyCache = NewAviCache()
-	c.HTTPPolicyCacheMeta = NewAviCache()
 	c.VSVIPCache = NewAviCache()
 	c.VrfCache = NewAviCache()
 	return &c
@@ -197,10 +191,10 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 		return
 	}
 	// Get all the PG cache data and copy them.
-	pgCacheData := c.PgCacheMeta.ShallowCopy()
+	pgCacheData := c.PgCache.ShallowCopy()
 	for i, pgCacheObj := range pgData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgCacheObj.Name}
-		oldPGIntf, found := c.PgCacheMeta.AviCacheGet(k)
+		oldPGIntf, found := c.PgCache.AviCacheGet(k)
 		if found {
 			oldPGData, ok := oldPGIntf.(*AviPGCache)
 			if ok {
@@ -213,7 +207,6 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 			}
 		}
 		utils.AviLog.Info.Printf("Adding key to pg cache :%s value :%s", k, pgCacheObj.Uuid)
-		c.PgCacheMeta.AviCacheAdd(k, &pgData[i])
 		// Add the actual pg cache data
 		// Only replace this data if the lastmodifed field varies
 		c.PgCache.AviCacheAdd(k, &pgData[i])
@@ -223,7 +216,6 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 	for key := range pgCacheData {
 		utils.AviLog.Info.Printf("Deleting key from pg cache :%s", key)
 		c.PgCache.AviCacheDelete(key)
-		c.PgCacheMeta.AviCacheDelete(key)
 	}
 }
 
@@ -450,7 +442,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
 			// Find out the uuid of the pool and then corresponding name
 			pgUuid := ExtractUuid(pg, "poolgroup-.*.#")
 			// Search the poolName using this Uuid in the poolcache.
-			pgName, found := c.PgCacheMeta.AviCacheGetNameByUuid(pgUuid)
+			pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 			if found {
 				pgs = append(pgs, pgName.(string))
 			}
@@ -478,13 +470,13 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
 	var DsData []AviDSCache
 	_, err := c.AviPopulateAllDSs(client, cloud, &DsData)
-	dsCacheData := c.DSCacheMeta.ShallowCopy()
+	dsCacheData := c.DSCache.ShallowCopy()
 	if err != nil {
 		return
 	}
 	for i, DsCacheObj := range DsData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: DsCacheObj.Name}
-		oldDSIntf, found := c.DSCacheMeta.AviCacheGet(k)
+		oldDSIntf, found := c.DSCache.AviCacheGet(k)
 		if found {
 			oldDSData, ok := oldDSIntf.(*AviDSCache)
 			if ok {
@@ -497,14 +489,12 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
 			}
 		}
 		utils.AviLog.Info.Printf("Adding key to ds cache :%s", k)
-		c.DSCacheMeta.AviCacheAdd(k, &DsData[i])
 		c.DSCache.AviCacheAdd(k, &DsData[i])
 		delete(dsCacheData, k)
 	}
 	// The data that is left in dsCacheData should be explicitly removed
 	for key := range dsCacheData {
 		utils.AviLog.Info.Printf("Deleting key from ds cache :%s", key)
-		c.DSCacheMeta.AviCacheDelete(key)
 		c.DSCache.AviCacheDelete(key)
 	}
 }
@@ -630,11 +620,11 @@ func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient,
 			for _, dataScript := range vsModel.VsDatascripts {
 				dsUuid := ExtractUuid(*dataScript.VsDatascriptSetRef, "vsdatascriptset-.*.#")
 
-				dsName, foundDs := c.DSCacheMeta.AviCacheGetNameByUuid(dsUuid)
+				dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 				if foundDs {
 					dsKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: dsName.(string)}
 					// Fetch the associated PGs with the DS.
-					dsObj, _ := c.DSCacheMeta.AviCacheGet(dsKey)
+					dsObj, _ := c.DSCache.AviCacheGet(dsKey)
 					for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
 						// For each PG, formulate the key and then populate the pg collection cache
 						pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
@@ -651,7 +641,7 @@ func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient,
 			for _, pg_intf := range vsModel.ServicePoolSelect {
 				pgUuid := ExtractUuid(*pg_intf.ServicePoolGroupRef, "poolgroup-.*.#")
 
-				pgName, foundpg := c.PgCacheMeta.AviCacheGetNameByUuid(pgUuid)
+				pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 				if foundpg {
 					pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName.(string)}
 					poolgroupKeys = append(poolgroupKeys, pgKey)
@@ -665,10 +655,10 @@ func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient,
 
 				httpUuid := ExtractUuid(*http_intf.HTTPPolicySetRef, "httppolicyset-.*.#")
 
-				httpName, foundhttp := c.HTTPPolicyCacheMeta.AviCacheGetNameByUuid(httpUuid)
+				httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 				if foundhttp {
 					httpKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: httpName.(string)}
-					httpObj, _ := c.HTTPPolicyCacheMeta.AviCacheGet(httpKey)
+					httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
 					for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
 						// For each PG, formulate the key and then populate the pg collection cache
 						pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
@@ -714,7 +704,6 @@ func (c *AviObjCache) PopulateVsKeyToCache(client *clients.AviClient,
 	if err != nil {
 		return
 	}
-	utils.AviLog.Info.Printf("VSES :%s", utils.Stringify(vsCacheMeta))
 }
 
 func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient,
@@ -792,7 +781,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 			for _, rule := range httppol.HTTPRequestPolicy.Rules {
 				if rule.SwitchingAction != nil {
 					pgUuid := ExtractUuid(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
-					pgName, found := c.PgCacheMeta.AviCacheGetNameByUuid(pgUuid)
+					pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 					if found {
 						poolGroups = append(poolGroups, pgName.(string))
 					}
@@ -828,10 +817,10 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient,
 	if err != nil {
 		return
 	}
-	httpCacheData := c.HTTPPolicyCacheMeta.ShallowCopy()
+	httpCacheData := c.HTTPPolicyCache.ShallowCopy()
 	for i, HttpPolCacheObj := range HttPolData {
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: HttpPolCacheObj.Name}
-		oldHttppolIntf, found := c.HTTPPolicyCacheMeta.AviCacheGet(k)
+		oldHttppolIntf, found := c.HTTPPolicyCache.AviCacheGet(k)
 		if found {
 			oldHttppolData, ok := oldHttppolIntf.(*AviHTTPPolicyCache)
 			if ok {
@@ -845,14 +834,12 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient,
 		}
 		utils.AviLog.Info.Printf("Adding key to httppol cache :%s", k)
 		c.HTTPPolicyCache.AviCacheAdd(k, &HttPolData[i])
-		c.HTTPPolicyCacheMeta.AviCacheAdd(k, &HttPolData[i])
 		delete(httpCacheData, k)
 	}
 	// The data that is left in httpCacheData should be explicitly removed
 	for key := range httpCacheData {
 		utils.AviLog.Info.Printf("Deleting key from httppol cache :%s", key)
 		c.HTTPPolicyCache.AviCacheDelete(key)
-		c.HTTPPolicyCacheMeta.AviCacheDelete(key)
 	}
 }
 
@@ -1002,11 +989,11 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 						if ok {
 							dsUuid := ExtractUuid(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.#")
 
-							dsName, foundDs := c.DSCacheMeta.AviCacheGetNameByUuid(dsUuid)
+							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 							if foundDs {
 								dsKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: dsName.(string)}
 								// Fetch the associated PGs with the DS.
-								dsObj, _ := c.DSCacheMeta.AviCacheGet(dsKey)
+								dsObj, _ := c.DSCache.AviCacheGet(dsKey)
 								for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
 									// For each PG, formulate the key and then populate the pg collection cache
 									pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
@@ -1026,7 +1013,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 						if ok {
 							pgUuid := ExtractUuid(pgmap["service_pool_group_ref"].(string), "poolgroup-.*.#")
 
-							pgName, foundpg := c.PgCacheMeta.AviCacheGetNameByUuid(pgUuid)
+							pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 							if foundpg {
 								pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName.(string)}
 								poolgroupKeys = append(poolgroupKeys, pgKey)
@@ -1042,10 +1029,10 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 						if ok {
 							httpUuid := ExtractUuid(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
 
-							httpName, foundhttp := c.HTTPPolicyCacheMeta.AviCacheGetNameByUuid(httpUuid)
+							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 							if foundhttp {
 								httpKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: httpName.(string)}
-								httpObj, _ := c.HTTPPolicyCacheMeta.AviCacheGet(httpKey)
+								httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
 								for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
 									// For each PG, formulate the key and then populate the pg collection cache
 									pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
@@ -1180,11 +1167,11 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 					if ok {
 						dsUuid := ExtractUuid(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.#")
 
-						dsName, foundDs := c.DSCacheMeta.AviCacheGetNameByUuid(dsUuid)
+						dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 						if foundDs {
 							dsKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: dsName.(string)}
 							// Fetch the associated PGs with the DS.
-							dsObj, _ := c.DSCacheMeta.AviCacheGet(dsKey)
+							dsObj, _ := c.DSCache.AviCacheGet(dsKey)
 							for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
 								// For each PG, formulate the key and then populate the pg collection cache
 								pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
@@ -1203,10 +1190,10 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
 					if ok {
 						httpUuid := ExtractUuid(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
 
-						httpName, foundhttp := c.HTTPPolicyCacheMeta.AviCacheGetNameByUuid(httpUuid)
+						httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 						if foundhttp {
 							httpKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: httpName.(string)}
-							httpObj, _ := c.HTTPPolicyCacheMeta.AviCacheGet(httpKey)
+							httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
 							for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
 								// For each PG, formulate the key and then populate the pg collection cache
 								pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
@@ -1246,7 +1233,7 @@ func (c *AviObjCache) AviPGPoolCachePopulate(pgName string) []NamespaceName {
 
 	k := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
 	// Find the pools associated with this PG and populate them
-	pgObj, ok := c.PgCacheMeta.AviCacheGet(k)
+	pgObj, ok := c.PgCache.AviCacheGet(k)
 	// Get the members from this and populate the VS ref
 	if ok {
 		for _, poolName := range pgObj.(*AviPGCache).Members {

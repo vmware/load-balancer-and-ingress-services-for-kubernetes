@@ -111,11 +111,26 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
 			}
 		}
-
+		var poolMembers []string
+		if resp["members"] != nil {
+			pools, poolsOk := resp["members"].([]interface{})
+			if poolsOk {
+				for _, poolIntf := range pools {
+					poolmap, _ := poolIntf.(map[string]interface{})
+					poolUuid := avicache.ExtractUuid(poolmap["pool_ref"].(string), "pool-.*.#")
+					// Search the poolName using this Uuid in the poolcache.
+					poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
+					if found {
+						poolMembers = append(poolMembers, poolName.(string))
+					}
+				}
+			}
+		}
 		pg_cache_obj := avicache.AviPGCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			CloudConfigCksum: cksum,
 			LastModified:     lastModifiedStr,
+			Members:          poolMembers,
 		}
 		if lastModifiedStr == "" {
 			pg_cache_obj.InvalidData = true

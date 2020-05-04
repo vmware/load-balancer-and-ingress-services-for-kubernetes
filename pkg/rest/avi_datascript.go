@@ -104,10 +104,20 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 			continue
 		}
 		// Datascript should not have a checksum
-		//cksum := resp["cloud_config_cksum"].(string)
 
+		var poolgroups []string
+		if resp["pool_group_refs"] != nil {
+			pgs, _ := resp["pool_group_refs"].([]interface{})
+			for _, pg := range pgs {
+				pgUuid := avicache.ExtractUuid(pg.(string), "poolgroup-.*.#")
+				pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
+				if found {
+					poolgroups = append(poolgroups, pgName.(string))
+				}
+			}
+		}
 		ds_cache_obj := avicache.AviDSCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid: uuid}
+			Uuid: uuid, PoolGroups: poolgroups}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.DSCache.AviCacheAdd(k, &ds_cache_obj)
