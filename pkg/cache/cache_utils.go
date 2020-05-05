@@ -50,6 +50,7 @@ type AviDSCache struct {
 	Name         string
 	Tenant       string
 	Uuid         string
+	PoolGroups   []string
 	LastModified string
 	InvalidData  bool
 }
@@ -280,6 +281,7 @@ type AviPGCache struct {
 	Name             string
 	Tenant           string
 	Uuid             string
+	Members          []string // Collection of pools referred by this PG.
 	CloudConfigCksum string
 	LastModified     string
 	InvalidData      bool
@@ -300,6 +302,7 @@ type AviHTTPPolicyCache struct {
 	Tenant           string
 	Uuid             string
 	CloudConfigCksum string
+	PoolGroups       []string
 	LastModified     string
 	InvalidData      bool
 }
@@ -354,6 +357,40 @@ func (c *AviCache) AviCacheGetKeyByUuid(uuid string) (interface{}, bool) {
 		case *AviVsCache:
 			if value.(*AviVsCache).Uuid == uuid {
 				return key, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
+	c.cache_lock.RLock()
+	defer c.cache_lock.RUnlock()
+	for _, value := range c.cache {
+		switch value.(type) {
+		case *AviPoolCache:
+			if value.(*AviPoolCache).Uuid == uuid {
+				return value.(*AviPoolCache).Name, true
+			}
+		case *AviVSVIPCache:
+			if value.(*AviVSVIPCache).Uuid == uuid {
+				return value.(*AviVSVIPCache).Name, true
+			}
+		case *AviSSLCache:
+			if value.(*AviSSLCache).Uuid == uuid {
+				return value.(*AviSSLCache).Name, true
+			}
+		case *AviDSCache:
+			if value.(*AviDSCache).Uuid == uuid {
+				return value.(*AviDSCache).Name, true
+			}
+		case *AviHTTPPolicyCache:
+			if value.(*AviHTTPPolicyCache).Uuid == uuid {
+				return value.(*AviHTTPPolicyCache).Name, true
+			}
+		case *AviPGCache:
+			if value.(*AviPGCache).Uuid == uuid {
+				return value.(*AviPGCache).Name, true
 			}
 		}
 	}

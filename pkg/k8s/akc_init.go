@@ -58,19 +58,22 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(utils.AviLog.Info.Printf)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
-
+	firstboot := true
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if isAviConfigMap(obj) {
 				utils.AviLog.Info.Printf("avi k8s configmap created")
 				c.DisableSync = false
-				ctrlCh <- struct{}{}
+				if !firstboot {
+					ctrlCh <- struct{}{}
+				}
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if isAviConfigMap(obj) {
 				utils.AviLog.Info.Printf("avi k8s configmap deleted")
 				c.DisableSync = true
+				firstboot = false
 				c.DeleteModels()
 			}
 		},
@@ -195,6 +198,7 @@ func (c *AviController) FullSync() {
 }
 
 func (c *AviController) FullSyncK8s() {
+	utils.AviLog.Error.Printf("I am only called during first boot")
 	if c.DisableSync {
 		utils.AviLog.Info.Printf("Sync disabled, skipping full sync")
 		return
@@ -256,7 +260,8 @@ func (c *AviController) FullSyncK8s() {
 	}
 
 	cache := avicache.SharedAviObjCache()
-	vsKeys := cache.VsCache.AviCacheGetAllParentVSKeys()
+	vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
+	utils.AviLog.Info.Printf("Got the VS keys :%s", vsKeys)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	allModelsMap := objects.SharedAviGraphLister().GetAll()
 	var allModels []string

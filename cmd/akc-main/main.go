@@ -33,8 +33,6 @@ var (
 )
 
 func main() {
-	flag.Parse()
-	flag.Lookup("logtostderr").Value.Set("true")
 	InitializeAKC()
 }
 

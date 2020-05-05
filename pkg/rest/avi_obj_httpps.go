@@ -184,11 +184,30 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
 			}
 		}
-
+		var pgMembers []string
+		if resp["http_request_policy"] != nil {
+			rules, rulessOk := resp["http_request_policy"].(map[string]interface{})
+			if rulessOk {
+				rulesArr := rules["rules"].([]interface{})
+				for _, ruleIntf := range rulesArr {
+					rulemap, _ := ruleIntf.(map[string]interface{})
+					if rulemap["switching_action"] != nil {
+						switchAction := rulemap["switching_action"].(map[string]interface{})
+						pgUuid := avicache.ExtractUuid(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
+						// Search the poolName using this Uuid in the poolcache.
+						pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
+						if found {
+							pgMembers = append(pgMembers, pgName.(string))
+						}
+					}
+				}
+			}
+		}
 		http_cache_obj := avicache.AviHTTPPolicyCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			CloudConfigCksum: cksum,
 			LastModified:     lastModifiedStr,
+			PoolGroups:       pgMembers,
 		}
 		if lastModifiedStr == "" {
 			http_cache_obj.InvalidData = true
