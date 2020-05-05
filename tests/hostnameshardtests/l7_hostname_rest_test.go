@@ -436,9 +436,9 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	sniCache2, _ := mcache.VsCache.AviCacheGet(sniVSKey2)
 	sniCacheObj2, _ := sniCache2.(*cache.AviVsCache)
 	g.Expect(sniCacheObj1.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj1.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret"))
+	g.Expect(sniCacheObj1.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret--foo.com"))
 	g.Expect(sniCacheObj2.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj2.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2"))
+	g.Expect(sniCacheObj2.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2--bar.com"))
 
 	g.Eventually(func() string {
 		sniCache1, _ := mcache.VsCache.AviCacheGet(sniVSKey1)
@@ -512,7 +512,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret"))
+	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret--foo.com"))
 
 	g.Eventually(func() int {
 		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey2)
@@ -526,7 +526,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("bar.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2"))
+	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2--bar.com"))
 
 	// delete one secret
 	KubeClient.CoreV1().Secrets("default").Delete("my-secret-v2", nil)
@@ -570,7 +570,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret"))
+	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret--foo.com"))
 
 	KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
 	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
@@ -632,7 +632,7 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-0"}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--foo.com"}
-	sslKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--my-secret"}
+	sslKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--my-secret--foo.com"}
 
 	// no ssl key cache would be found since the secret is not yet added
 	g.Eventually(func() bool {

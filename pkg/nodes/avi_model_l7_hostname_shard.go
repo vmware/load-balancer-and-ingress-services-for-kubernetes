@@ -449,7 +449,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			},
 		}
 		sniNode.VrfContext = lib.GetVrf()
-		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
+		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key, sniHost)
 		if certsBuilt {
 			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key, sniHost)
 			foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
