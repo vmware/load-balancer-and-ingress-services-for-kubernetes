@@ -94,9 +94,10 @@ func GetDynamicInformers() *DynamicInformers {
 }
 
 // GetPodCIDR returns the node's configured PodCIDR
-func GetPodCIDR(node *v1.Node) (string, error) {
+func GetPodCIDR(node *v1.Node) ([]string, error) {
 	nodename := node.ObjectMeta.Name
-	podCIDR := node.Spec.PodCIDR // default
+	var podCIDR string
+	var podCIDRs []string
 	dynamicClient := GetDynamicClientSet()
 
 	if GetCNIPlugin() == CALICO_CNI && dynamicClientSet != nil {
@@ -104,7 +105,7 @@ func GetPodCIDR(node *v1.Node) (string, error) {
 		crdList, err := crdClient.List(metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Error.Printf("Error getting CRD %v", err)
-			return "", err
+			return nil, err
 		}
 
 		for _, i := range crdList.Items {
@@ -112,17 +113,28 @@ func GetPodCIDR(node *v1.Node) (string, error) {
 			crdNodeName := crdSpec["node"].(string)
 			if crdNodeName == nodename {
 				podCIDR = crdSpec["cidr"].(string)
-				break
+				if podCIDR == "" {
+					utils.AviLog.Error.Printf("Error in fetching Pod CIDR from BlockAffinity %v", node.ObjectMeta.Name)
+					return nil, errors.New("podcidr not found")
+				}
+
+				if !utils.HasElem(podCIDRs, podCIDR) {
+					podCIDRs = append(podCIDRs, podCIDR)
+				}
 			}
 		}
 
+	} else {
+		podCIDR = node.Spec.PodCIDR
+		if podCIDR == "" {
+			utils.AviLog.Error.Printf("Error in fetching Pod CIDR from NodeSpec %v", node.ObjectMeta.Name)
+			return nil, errors.New("podcidr not found")
+		}
+
+		podCIDRs = append(podCIDRs, node.Spec.PodCIDR)
 	}
 
-	if podCIDR == "" {
-		utils.AviLog.Error.Printf("Error in fetching Pod CIDR for %v", node.ObjectMeta.Name)
-		return "", errors.New("podcidr not found")
-	}
-	return podCIDR, nil
+	return podCIDRs, nil
 }
 
 // GetCNIPlugin returns the user provided CNI plugin - oneof (calico|canal|flannel)

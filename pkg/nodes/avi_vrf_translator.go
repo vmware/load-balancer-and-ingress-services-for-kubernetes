@@ -48,13 +48,13 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 	routeid := 1
 	for _, k := range nodeKeys {
 		node := allNodes[k].(*v1.Node)
-		nodeRoute, err := o.addRouteForNode(node, vrfName, strconv.Itoa(routeid))
+		nodeRoutes, err := o.addRouteForNode(node, vrfName, routeid)
 		if err != nil {
 			utils.AviLog.Error.Printf("key: %s, Error Adding vrf for node %s: %v\n", key, node.Name, err)
 			continue
 		}
-		routeid += 1
-		aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoute)
+		routeid += len(nodeRoutes)
+		aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoutes...)
 	}
 	aviVrfNode.CalculateCheckSum()
 	o.AddModelNode(aviVrfNode)
@@ -63,12 +63,10 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 	return nil
 }
 
-func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName, routeid string) (*models.StaticRoute, error) {
+func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid int) ([]*models.StaticRoute, error) {
 	var nodeIP string
-	var nodeRoute models.StaticRoute
-	nodeRoute = models.StaticRoute{
-		RouteID: &routeid,
-	}
+	var nodeRoutes []*models.StaticRoute
+
 	nodeAddrs := node.Status.Addresses
 	for _, addr := range nodeAddrs {
 		if addr.Type == "InternalIP" {
@@ -80,34 +78,48 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName, routeid string)
 		utils.AviLog.Error.Printf("Error in fetching nodeIP for %v", node.ObjectMeta.Name)
 		return nil, errors.New("nodeip not found")
 	}
-	podCIDR, err := lib.GetPodCIDR(node)
+
+	podCIDRs, err := lib.GetPodCIDR(node)
 	if err != nil {
 		utils.AviLog.Error.Printf("Error in fetching Pod CIDR for %v", node.ObjectMeta.Name)
 		return nil, errors.New("podcidr not found")
 	}
 	nodeipType := "V4"
-	nodeRoute.NextHop = &models.IPAddr{
-		Addr: &nodeIP,
-		Type: &nodeipType,
+
+	for _, podCIDR := range podCIDRs {
+		s := strings.Split(podCIDR, "/")
+		if len(s) != 2 {
+			utils.AviLog.Error.Printf("Error in splitting Pod CIDR for %v", node.ObjectMeta.Name)
+			return nil, errors.New("wrong podcidr")
+		}
+
+		m, err := strconv.Atoi(s[1])
+		if err != nil {
+			utils.AviLog.Error.Printf("Error in getting mask %v", err)
+			return nil, err
+		}
+
+		prefixipType := "V4"
+		mask := int32(m)
+		routeIDString := strconv.Itoa(routeid)
+		nodeRoute := models.StaticRoute{
+			RouteID: &routeIDString,
+			Prefix: &models.IPAddrPrefix{
+				IPAddr: &models.IPAddr{
+					Addr: &s[0],
+					Type: &prefixipType,
+				},
+				Mask: &mask,
+			},
+			NextHop: &models.IPAddr{
+				Addr: &nodeIP,
+				Type: &nodeipType,
+			},
+		}
+
+		nodeRoutes = append(nodeRoutes, &nodeRoute)
+		routeid++
 	}
-	s := strings.Split(podCIDR, "/")
-	if len(s) != 2 {
-		utils.AviLog.Error.Printf("Error in splitting Pod CIDR for %v", node.ObjectMeta.Name)
-		return nil, errors.New("wrong podcidr")
-	}
-	m, err := strconv.Atoi(s[1])
-	if err != nil {
-		utils.AviLog.Error.Printf("Error in getting mask %v", err)
-		return nil, err
-	}
-	prefixipType := "V4"
-	mask := int32(m)
-	nodeRoute.Prefix = &models.IPAddrPrefix{
-		IPAddr: &models.IPAddr{
-			Addr: &s[0],
-			Type: &prefixipType,
-		},
-		Mask: &mask,
-	}
-	return &nodeRoute, nil
+
+	return nodeRoutes, nil
 }
