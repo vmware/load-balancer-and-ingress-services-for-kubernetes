@@ -277,10 +277,7 @@ func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, ke
 					rest.cache.VsCache.AviCacheDelete(staleSniVsKey)
 				}
 			}
-			// Replace the parent VS if the lastmodified in the 2 objects are different.
-			if vsObjFromCache.LastModified != vsObjMeta.(*avicache.AviVsCache).LastModified {
-				rest.cache.VsCache.AviCacheAdd(vsKey, vsObjMeta)
-			}
+			rest.cache.VsCache.AviCacheAdd(vsKey, vsObjMeta)
 		} else {
 			// Build the SNI cache associated with the VS.
 			for _, sniUuid := range vsObjMeta.(*avicache.AviVsCache).SNIChildCollection {
