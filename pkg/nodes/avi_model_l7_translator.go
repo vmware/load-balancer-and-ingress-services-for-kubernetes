@@ -367,7 +367,7 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	return dsScriptNode
 }
 
-func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, secretName string, key string) bool {
+func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, secretName string, key string, sniHost ...string) bool {
 	mClient := utils.GetInformers().ClientSet
 	secretObj, err := mClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil || secretObj == nil {
@@ -382,7 +382,12 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 		utils.AviLog.Info.Printf("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
 		return false
 	}
-	certNode := &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: utils.ADMIN_NS}
+	var certNode *AviTLSKeyCertNode
+	if len(sniHost) > 0 {
+		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), Tenant: utils.ADMIN_NS}
+	} else {
+		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: utils.ADMIN_NS}
+	}
 	keycertMap := secretObj.Data
 	cert, ok := keycertMap[tlsCert]
 	if ok {
@@ -412,8 +417,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				continue
 			}
 		}
-		// Update secret --> hostname mapping
-		objects.SharedSvcLister().IngressMappings(namespace).UpdateSecretToHostNameMapping(secretName, host)
 		// Update the VSVIP with the host information.
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)

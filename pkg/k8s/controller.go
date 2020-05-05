@@ -168,7 +168,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
-			ep = obj.(*corev1.Endpoints)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
 			key := utils.Endpoints + "/" + utils.ObjKey(ep)
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -230,7 +229,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
-			svc = obj.(*corev1.Service)
 			isSvcLb := isServiceLBType(svc)
 			var key string
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
@@ -300,7 +298,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
-			ingress = obj.(*extensionv1beta1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -356,7 +353,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
-			ingress = obj.(*v1beta1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -411,7 +407,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
-			secret = obj.(*corev1.Secret)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 			key := "Secret" + "/" + utils.ObjKey(secret)
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -466,7 +461,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
-			node = obj.(*corev1.Node)
+
 			key := utils.NodeObj + "/" + node.Name
 			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
