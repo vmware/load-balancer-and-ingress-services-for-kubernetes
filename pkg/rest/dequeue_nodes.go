@@ -265,8 +265,11 @@ func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, ke
 					sniObjMeta, sniFound := rest.cache.VsCacheMeta.AviCacheGet(sniVsKey)
 					if sniFound {
 						// Update the new cache
-						rest.cache.VsCache.AviCacheAdd(sniVsKey, sniObjMeta)
-						oldSniUuids = utils.Remove(oldSniUuids, sniUuid)
+						sniCopy, done := sniObjMeta.(*avicache.AviVsCache).GetVSCopy()
+						if done {
+							rest.cache.VsCache.AviCacheAdd(sniVsKey, sniCopy)
+							oldSniUuids = utils.Remove(oldSniUuids, sniUuid)
+						}
 					}
 				}
 			}
@@ -277,7 +280,10 @@ func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, ke
 					rest.cache.VsCache.AviCacheDelete(staleSniVsKey)
 				}
 			}
-			rest.cache.VsCache.AviCacheAdd(vsKey, vsObjMeta)
+			vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
+			if done {
+				rest.cache.VsCache.AviCacheAdd(vsKey, vsCopy)
+			}
 		} else {
 			// Build the SNI cache associated with the VS.
 			for _, sniUuid := range vsObjMeta.(*avicache.AviVsCache).SNIChildCollection {
@@ -287,11 +293,17 @@ func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, ke
 					sniObjMeta, sniFound := rest.cache.VsCacheMeta.AviCacheGet(sniVsKey)
 					if sniFound {
 						// Update the new cache.
-						rest.cache.VsCache.AviCacheAdd(sniVsKey, sniObjMeta)
+						sniCopy, done := sniObjMeta.(*avicache.AviVsCache).GetVSCopy()
+						if done {
+							rest.cache.VsCache.AviCacheAdd(sniVsKey, sniCopy)
+						}
 					}
 				}
 			}
-			rest.cache.VsCache.AviCacheAdd(vsKey, vsObjMeta)
+			vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
+			if done {
+				rest.cache.VsCache.AviCacheAdd(vsKey, vsCopy)
+			}
 		}
 	}
 }
@@ -308,6 +320,23 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 				rest.SNINodeDelete(delSNI, namespace, rest_ops, key)
 			}
 		}
+		rest_op := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
+		rest_ops = append(rest_ops, rest_op)
+		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
+		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
+		return true
+	}
+	return false
+}
+
+func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string) bool {
+	var rest_ops []*utils.RestOp
+
+	if vs_cache_obj != nil {
 		rest_op := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
 		rest_ops = append(rest_ops, rest_op)
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
@@ -560,7 +589,7 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 	sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 	if sni_cache_obj != nil {
 		utils.AviLog.Info.Printf("key: %s, msg: SNI object before delete %s", key, utils.Stringify(sni_cache_obj))
-		rest.deleteVSOper(sni_key, sni_cache_obj, namespace, key)
+		rest.deleteSniVs(sni_key, sni_cache_obj, namespace, key)
 	}
 
 }
