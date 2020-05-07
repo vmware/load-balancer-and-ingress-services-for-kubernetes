@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: custom-backup-pod
+  namespace: avi-system
+spec:
+  containers:
+  - image: avinetworks/server-os
+    name: myfrontend
+    volumeMounts:
+    - mountPath: /log
+      name: mypd
+  volumes:
+  - name: mypd
+    persistentVolumeClaim:
+      claimName: ako-pvc
