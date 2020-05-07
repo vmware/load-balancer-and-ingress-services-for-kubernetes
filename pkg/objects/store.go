@@ -100,7 +100,6 @@ func (o *ObjectMapStore) Delete(objName string) bool {
 		delete(o.ObjectMap, objName)
 		return true
 	}
-	utils.AviLog.Warning.Printf("Object Not found in store. Nothing to delete: %s ", objName)
 	return false
 
 }
@@ -112,7 +111,6 @@ func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
 	if ok {
 		return true, val
 	}
-	utils.AviLog.Warning.Printf("Object Not found in store:  %s ", objName)
 	return false, nil
 
 }

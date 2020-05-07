@@ -31,7 +31,7 @@ func DequeueSlowRetry(vsKey string) {
 	// in which case cache refresh is not required.
 	vsCacheKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: vsKey}
 	vsCache, ok := aviObjCache.VsCache.AviCacheGet(vsCacheKey)
-	var deletedKeys []interface{}
+	var deletedKeys []avicache.NamespaceName
 	if ok {
 		avi_rest_client_pool := avicache.SharedAVIClients()
 		// Randomly pickup a client.
@@ -58,10 +58,10 @@ func DequeueSlowRetry(vsKey string) {
 	// Let's publish the deleted keys as well
 	for _, key := range deletedKeys {
 		// Don't want to re-enqueue the same key again
-		if key.(avicache.NamespaceName).Name != vsKey {
+		if key.Name != vsKey {
 			utils.AviLog.Info.Printf("Found deleted keys in the cache during full sync, re-publishing them to the REST layer: :%s", utils.Stringify(key))
-			modelName := utils.ADMIN_NS + "/" + key.(avicache.NamespaceName).Name
-			nodes.PublishKeyToRestLayer(modelName, key.(avicache.NamespaceName).Name, sharedQueue)
+			modelName := utils.ADMIN_NS + "/" + key.Name
+			nodes.PublishKeyToRestLayer(modelName, key.Name, sharedQueue)
 		}
 	}
 }
@@ -76,7 +76,7 @@ func DequeueFastRetry(vsKey string) {
 	// in which case cache refresh is not required.
 	vsCacheKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: vsKey}
 	vsCache, ok := aviObjCache.VsCache.AviCacheGet(vsCacheKey)
-	var deletedKeys []interface{}
+	var deletedKeys []avicache.NamespaceName
 	if ok {
 		avi_rest_client_pool := avicache.SharedAVIClients()
 		// Randomly pickup a client.
@@ -105,9 +105,9 @@ func DequeueFastRetry(vsKey string) {
 	// Let's publish the deleted keys as well
 	for _, key := range deletedKeys {
 		// Don't want to re-enqueue the same key again
-		if key.(avicache.NamespaceName).Name != vsKey {
+		if key.Name != vsKey {
 			utils.AviLog.Info.Printf("Found deleted keys in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
-			modelName := utils.ADMIN_NS + "/" + key.(avicache.NamespaceName).Name
+			modelName := utils.ADMIN_NS + "/" + key.Name
 			nodes.PublishKeyToRestLayer(modelName, vsKey, sharedQueue)
 		}
 	}

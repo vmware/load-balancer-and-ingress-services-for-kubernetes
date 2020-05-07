@@ -361,13 +361,13 @@ func (c *AviCache) AviCacheGet(k interface{}) (interface{}, bool) {
 	return val, ok
 }
 
-func (c *AviCache) AviCacheGetAllParentVSKeys() []interface{} {
+func (c *AviCache) AviCacheGetAllParentVSKeys() []NamespaceName {
 	c.cache_lock.RLock()
 	defer c.cache_lock.RUnlock()
-	var keys []interface{}
+	var keys []NamespaceName
 	for k, val := range c.cache {
 		if val.(*AviVsCache).ParentVSRef == (NamespaceName{}) {
-			keys = append(keys, k)
+			keys = append(keys, k.(NamespaceName))
 		}
 	}
 	return keys
@@ -462,19 +462,6 @@ func (c *AviCache) ShallowCopy() map[interface{}]interface{} {
 	newMap := make(map[interface{}]interface{})
 	for key, value := range c.cache {
 		newMap[key] = value
-	}
-	return newMap
-}
-
-func (c *AviCache) ShallowCopyVSes() map[interface{}]interface{} {
-	// Shallow copy, does not dereference the pointers.
-	c.cache_lock.Lock()
-	defer c.cache_lock.Unlock()
-	newMap := make(map[interface{}]interface{})
-	for key, value := range c.cache {
-		if value.(*AviVsCache).ParentVSRef == (NamespaceName{}) {
-			newMap[key] = value
-		}
 	}
 	return newMap
 }
