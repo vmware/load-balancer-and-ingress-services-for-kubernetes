@@ -178,12 +178,15 @@ func (c *AviController) FullSync() {
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
 		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-		_, allKeys := avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
+		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
 			utils.CtrlVersion, utils.CloudName)
-		for _, key := range allKeys {
-			utils.AviLog.Info.Printf("Found key in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
-			modelName := utils.ADMIN_NS + "/" + key.(avicache.NamespaceName).Name
-
+		allModelsMap := objects.SharedAviGraphLister().GetAll()
+		var allModels []string
+		for modelName, _ := range allModelsMap.(map[string]interface{}) {
+			allModels = append(allModels, modelName)
+		}
+		for _, modelName := range allModels {
+			utils.AviLog.Info.Printf("Found key in the cache, re-publishing them to the REST layer: :%s", modelName)
 			//reset retry counter in full sync
 			found, avimodelIntf := objects.SharedAviGraphLister().Get(modelName)
 			if found && avimodelIntf != nil {
@@ -192,13 +195,12 @@ func (c *AviController) FullSync() {
 					avimodel.SetRetryCounter()
 				}
 			}
-			nodes.PublishKeyToRestLayer(modelName, key.(avicache.NamespaceName).Name, sharedQueue)
+			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
 	}
 }
 
 func (c *AviController) FullSyncK8s() {
-	utils.AviLog.Error.Printf("I am only called during first boot")
 	if c.DisableSync {
 		utils.AviLog.Info.Printf("Sync disabled, skipping full sync")
 		return
@@ -269,8 +271,7 @@ func (c *AviController) FullSyncK8s() {
 		allModels = append(allModels, modelName)
 	}
 	if len(vsKeys) != 0 {
-		for _, vsKey := range vsKeys {
-			vsCacheKey := vsKey.(avicache.NamespaceName)
+		for _, vsCacheKey := range vsKeys {
 			// Reverse map the model key from this.
 			if lib.GetNamespaceToSync() != "" {
 				shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")

@@ -15,6 +15,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -254,6 +255,12 @@ func (v *AviVsCache) AddToSNIChildCollection(k string) {
 	}
 }
 
+func (v *AviVsCache) ReplaceSNIChildCollection(k []string) {
+	v.VSCacheLock.Lock()
+	defer v.VSCacheLock.Unlock()
+	v.SNIChildCollection = k
+}
+
 func (v *AviVsCache) RemoveFromSNIChildCollection(k string) {
 	v.VSCacheLock.Lock()
 	defer v.VSCacheLock.Unlock()
@@ -313,6 +320,23 @@ type AviVrfCache struct {
 	CloudConfigCksum uint32
 }
 
+func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
+	v.VSCacheLock.RLock()
+	defer v.VSCacheLock.RUnlock()
+	newObj := AviVsCache{}
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		utils.AviLog.Error.Printf("key: %s, Unable to marshal: %s", err)
+		return nil, false
+	}
+	err = json.Unmarshal(bytes, &newObj)
+	if err != nil {
+		utils.AviLog.Error.Printf("key: %s, Unable to Unmarshal src: %s", err)
+		return nil, false
+	}
+	return &newObj, true
+}
+
 /*
  * AviCache provides a one to one cache
  * AviCache for storing objects such as:
@@ -337,14 +361,36 @@ func (c *AviCache) AviCacheGet(k interface{}) (interface{}, bool) {
 	return val, ok
 }
 
-func (c *AviCache) AviCacheGetAllParentVSKeys() []interface{} {
+func (c *AviCache) AviCacheGetAllParentVSKeys() []NamespaceName {
 	c.cache_lock.RLock()
 	defer c.cache_lock.RUnlock()
-	var keys []interface{}
+	var keys []NamespaceName
 	for k, val := range c.cache {
 		if val.(*AviVsCache).ParentVSRef == (NamespaceName{}) {
-			keys = append(keys, k)
+			keys = append(keys, k.(NamespaceName))
 		}
+	}
+	return keys
+}
+
+func (c *AviCache) AviCacheGetAllChildVSForParent(parentVsKey NamespaceName) []string {
+	c.cache_lock.RLock()
+	defer c.cache_lock.RUnlock()
+	var uuids []string
+	for _, val := range c.cache {
+		if val.(*AviVsCache).ParentVSRef == parentVsKey {
+			uuids = append(uuids, val.(*AviVsCache).Uuid)
+		}
+	}
+	return uuids
+}
+
+func (c *AviCache) AviGetAllVSKeys() []NamespaceName {
+	c.cache_lock.RLock()
+	defer c.cache_lock.RUnlock()
+	var keys []NamespaceName
+	for key, _ := range c.cache {
+		keys = append(keys, key.(NamespaceName))
 	}
 	return keys
 }
@@ -416,19 +462,6 @@ func (c *AviCache) ShallowCopy() map[interface{}]interface{} {
 	newMap := make(map[interface{}]interface{})
 	for key, value := range c.cache {
 		newMap[key] = value
-	}
-	return newMap
-}
-
-func (c *AviCache) ShallowCopyVSes() map[interface{}]interface{} {
-	// Shallow copy, does not dereference the pointers.
-	c.cache_lock.Lock()
-	defer c.cache_lock.Unlock()
-	newMap := make(map[interface{}]interface{})
-	for key, value := range c.cache {
-		if value.(*AviVsCache).ParentVSRef == (NamespaceName{}) {
-			newMap[key] = value
-		}
 	}
 	return newMap
 }
