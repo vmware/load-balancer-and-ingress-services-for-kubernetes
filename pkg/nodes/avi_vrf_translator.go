@@ -35,8 +35,8 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 	aviVrfNode := &AviVrfNode{
 		Name: vrfName,
 	}
-	allNodes := objects.SharedNodeLister().GetAllObjectNames()
 
+	allNodes := objects.SharedNodeLister().CopyAllObjects()
 	// We need to sort the node list so that the staticroutes are in same order always
 	var nodeKeys []string
 	for k := range allNodes {

@@ -122,3 +122,13 @@ func (o *ObjectMapStore) GetAllObjectNames() map[string]interface{} {
 	return o.ObjectMap
 
 }
+
+func (o *ObjectMapStore) CopyAllObjects() map[string]interface{} {
+	o.ObjLock.RLock()
+	defer o.ObjLock.RUnlock()
+	CopiedObjMap := make(map[string]interface{})
+	for k, v := range o.ObjectMap {
+		CopiedObjMap[k] = v
+	}
+	return CopiedObjMap
+}
