@@ -286,10 +286,11 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, poolchecksum uint32
+	var dsChecksum, httppolChecksum, sniChecksum, poolchecksum, sslkeyChecksum uint32
 	for _, ds := range v.HTTPDSrefs {
 		dsChecksum += ds.GetCheckSum()
 	}
+
 	for _, pool := range v.PoolRefs {
 		poolchecksum += pool.GetCheckSum()
 	}
@@ -302,9 +303,13 @@ func (v *AviVsNode) CalculateCheckSum() {
 		sniChecksum += sninode.GetCheckSum()
 	}
 
+	for _, sslkeycert := range v.SSLKeyCertRefs {
+		sslkeyChecksum += sslkeycert.GetCheckSum()
+	}
+
 	// A sum of fields for this VS.
 	checksum := dsChecksum + httppolChecksum + sniChecksum + poolchecksum + utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) +
-		utils.Hash(utils.Stringify(portproto))
+		utils.Hash(utils.Stringify(portproto)) + sslkeyChecksum
 	v.CloudConfigCksum = checksum
 }
 
@@ -394,7 +399,7 @@ type AviTLSKeyCertNode struct {
 
 func (v *AviTLSKeyCertNode) CalculateCheckSum() {
 	// A sum of fields for this SSL cert.
-	checksum := utils.Hash(string(v.Key)) + utils.Hash(string(v.Cert))
+	checksum := utils.Hash(string(v.Name)) + utils.Hash(string(v.Key)) + utils.Hash(string(v.Cert))
 	v.CloudConfigCksum = checksum
 }
 
