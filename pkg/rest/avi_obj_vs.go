@@ -358,7 +358,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					// Fetch the pool object from cache and check the service metadata
 					pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
 					if ok {
-						utils.AviLog.Info.Printf("key :%s, msg: found pool :%s, will update status", key, poolkey.Name)
+						utils.AviLog.Info.Printf("key: %s, msg: found pool :%s, will update status", key, poolkey.Name)
 						pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 						if found {
 							if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
@@ -440,7 +440,7 @@ func (rest *RestOperations) findSNIRefAndRemove(snichildkey avicache.NamespaceNa
 		if ok {
 			if sni_vs_key.(avicache.NamespaceName).Name == snichildkey.Name {
 				parentVsObj.SNIChildCollection = append(parentVsObj.SNIChildCollection[:i], parentVsObj.SNIChildCollection[i+1:]...)
-				utils.AviLog.Info.Printf("key: %s, msg: removed sni key :%s", key, snichildkey.Name)
+				utils.AviLog.Info.Printf("key: %s, msg: removed sni key: %s", key, snichildkey.Name)
 				break
 			}
 		}

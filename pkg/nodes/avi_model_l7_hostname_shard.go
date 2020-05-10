@@ -23,8 +23,6 @@ import (
 
 	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
-	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
-	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -172,39 +170,33 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 }
 
 func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
-	var ingObj interface{}
 	var err error
 	o := NewNodesValidator()
-	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		ingObj, err = utils.GetInformers().ExtV1IngressInformer.Lister().Ingresses(namespace).Get(ingress)
-	} else {
-		ingObj, err = utils.GetInformers().CoreV1IngressInformer.Lister().Ingresses(namespace).Get(ingress)
-	}
+	myIng, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(namespace).Get(ingress)
+
 	if err != nil {
-		utils.AviLog.Info.Printf("key :%s, msg: Error :%v", key, err)
+		utils.AviLog.Info.Printf("key: %s, msg: Error :%v", key, err)
 		// Detect a delete condition here.
 		if errors.IsNotFound(err) {
 			DeletePoolsByHostname(namespace, ingress, key, fullsync, sharedQueue)
 		}
 	} else {
+		ingObj, ok := utils.ToNetworkingIngress(myIng)
+		if !ok {
+			utils.AviLog.Error.Printf("Unable to convert obj type interface to networking/v1beta1 ingress")
+		}
+
 		var parsedIng IngressConfig
 		var modelList []string
 		processIng := true
-		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-			processIng = filterIngressOnClassExtV1(ingObj.(*extensionv1beta1.Ingress))
-			if !processIng {
-				// If the ingress class is not right, let's delete it.
-				DeletePoolsByHostname(namespace, ingress, key, fullsync, sharedQueue)
-			}
-			parsedIng = o.ParseHostPathForIngress(namespace, ingress, ingObj.(*extensionv1beta1.Ingress).Spec, key)
-		} else {
-			processIng = filterIngressOnClass(ingObj.(*v1beta1.Ingress))
-			if !processIng {
-				// If the ingress class is not right, let's delete it.
-				DeletePoolsByHostname(namespace, ingress, key, fullsync, sharedQueue)
-			}
-			parsedIng = o.ParseHostPathForIngressCoreV1(namespace, ingress, ingObj.(*v1beta1.Ingress).Spec, key)
+
+		processIng = filterIngressOnClass(ingObj)
+		if !processIng {
+			// If the ingress class is not right, let's delete it.
+			DeletePoolsByHostname(namespace, ingress, key, fullsync, sharedQueue)
 		}
+		parsedIng = o.ParseHostPathForIngress(namespace, ingress, ingObj.Spec, key)
+
 		if processIng {
 			// Check if this ingress and had any previous mappings, if so - delete them first.
 			storedHostsFound, Storedhosts := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingress)
@@ -237,7 +229,7 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 				model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 				if !found || aviModel == nil {
-					utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
+					utils.AviLog.Info.Printf("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
 					aviModel = NewAviObjectGraph()
 					aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 				}
@@ -272,7 +264,7 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					secureHostPathMapArr[host] = newPaths
 				}
 			}
-			utils.AviLog.Info.Printf("key :%s, msg: Stored hosts: %s", key, Storedhosts)
+			utils.AviLog.Info.Printf("key: %s, msg: Stored hosts: %s", key, Storedhosts)
 			hostsMap["secure"] = secureHostPathMapArr
 
 			if storedHostsFound {
@@ -286,7 +278,7 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 						model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 						found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 						if !found || aviModel == nil {
-							utils.AviLog.Warning.Printf("key :%s, msg: model not found during delete: %s", key, model_name)
+							utils.AviLog.Warning.Printf("key: %s, msg: model not found during delete: %s", key, model_name)
 							continue
 						}
 						// By default remove both redirect and fqdn. So if the host isn't transitioning, then we will remove both.
@@ -338,9 +330,10 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					}
 				}
 			}
+
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingress, hostsMap)
 			if !fullsync {
-				utils.AviLog.Info.Printf("key :%s, msg: List of models to publish: %s", key, modelList)
+				utils.AviLog.Info.Printf("key: %s, msg: List of models to publish: %s", key, modelList)
 				for _, modelName := range modelList {
 					PublishKeyToRestLayer(modelName, key, sharedQueue)
 				}
@@ -376,11 +369,11 @@ func getPaths(pathMapArr []IngressHostPathSvc) []string {
 func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
 	ok, hostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingress)
 	if !ok {
-		utils.AviLog.Warning.Printf("key :%s, msg: nothing to delete for ingress: %s", key, ingress)
+		utils.AviLog.Warning.Printf("key: %s, msg: nothing to delete for ingress: %s", key, ingress)
 		return
 	}
 
-	utils.AviLog.Info.Printf("key :%s, msg: hosts to delete are: :%s", key, hostMap)
+	utils.AviLog.Info.Printf("key: %s, msg: hosts to delete are: :%s", key, hostMap)
 	for hostType, hosts := range hostMap {
 		for host, paths := range hosts {
 			shardVsName := DeriveHostNameShardVS(host, key)
@@ -392,7 +385,7 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 			model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 			if !found || aviModel == nil {
-				utils.AviLog.Warning.Printf("key :%s, msg: model not found during delete: %s", key, model_name)
+				utils.AviLog.Warning.Printf("key: %s, msg: model not found during delete: %s", key, model_name)
 				continue
 			}
 			// Delete the pool corresponding to this host
@@ -431,7 +424,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
-			utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
+			utils.AviLog.Info.Printf("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
 			aviModel = NewAviObjectGraph()
 			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 		}

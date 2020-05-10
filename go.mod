@@ -2,7 +2,7 @@ module ako
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/avinetworks/container-lib v0.0.0-20200422085308-b2cf978a39f5
+	github.com/avinetworks/container-lib v0.0.0-20200508071230-c7a9740ba2e5
 	github.com/avinetworks/sdk v0.0.0-20200403054229-39f30c036b56
 	github.com/davecgh/go-spew v1.1.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect

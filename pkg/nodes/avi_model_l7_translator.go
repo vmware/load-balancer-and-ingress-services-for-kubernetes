@@ -24,8 +24,6 @@ import (
 
 	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
-	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
-	"k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -37,13 +35,9 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	defer o.Lock.Unlock()
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
 	utils.AviLog.Info.Printf("key: %s, msg: Building the L7 pools for namespace: %s, ingName: %s", key, namespace, ingName)
-	var err error
-	var ingObj interface{}
-	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		ingObj, err = utils.GetInformers().ExtV1IngressInformer.Lister().Ingresses(namespace).Get(ingName)
-	} else {
-		ingObj, err = utils.GetInformers().CoreV1IngressInformer.Lister().Ingresses(namespace).Get(ingName)
-	}
+
+	myIng, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(namespace).Get(ingName)
+
 	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	vsNode := o.GetAviVS()
@@ -54,23 +48,20 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	if err != nil {
 		o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 	} else {
+		ingObj, ok := utils.ToNetworkingIngress(myIng)
+		if !ok {
+			utils.AviLog.Error.Printf("Unable to convert obj type interface to networking/v1beta1 ingress")
+		}
+
 		var parsedIng IngressConfig
 		processIng := true
-		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-			processIng = filterIngressOnClassExtV1(ingObj.(*extensionv1beta1.Ingress))
-			if !processIng {
-				// If the ingress class is not right, let's delete it.
-				o.DeletePoolForIngress(namespace, ingName, key, vsNode)
-			}
-			parsedIng = o.Validator.ParseHostPathForIngress(namespace, ingName, ingObj.(*extensionv1beta1.Ingress).Spec, key)
-		} else {
-			processIng = filterIngressOnClass(ingObj.(*v1beta1.Ingress))
-			if !processIng {
-				// If the ingress class is not right, let's delete it.
-				o.DeletePoolForIngress(namespace, ingName, key, vsNode)
-			}
-			parsedIng = o.Validator.ParseHostPathForIngressCoreV1(namespace, ingName, ingObj.(*v1beta1.Ingress).Spec, key)
+
+		processIng = filterIngressOnClass(ingObj)
+		if !processIng {
+			// If the ingress class is not right, let's delete it.
+			o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 		}
+		parsedIng = o.Validator.ParseHostPathForIngress(namespace, ingName, ingObj.Spec, key)
 		if processIng {
 			// First check if there are pools related to this ingress present in the model already
 			poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)

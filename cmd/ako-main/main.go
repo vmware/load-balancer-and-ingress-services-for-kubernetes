@@ -67,7 +67,7 @@ func InitializeAKC() {
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
-		lib.GetIngressApi(),
+		utils.IngressInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,

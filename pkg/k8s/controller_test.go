@@ -92,7 +92,16 @@ func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	os.Setenv("INGRESS_API", "extensionv1")
-	registeredInformers := []string{utils.ServiceInformer, utils.EndpointInformer, utils.ExtV1IngressInformer, utils.SecretInformer, utils.NSInformer, utils.NodeInformer, utils.ConfigMapInformer}
+
+	registeredInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		utils.IngressInformer,
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
+	}
 	utils.NewInformers(utils.KubeClientIntf{kubeClient}, registeredInformers)
 	ctrl := SharedAviController()
 	stopCh := utils.SetupSignalHandler()

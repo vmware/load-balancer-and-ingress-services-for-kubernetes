@@ -18,8 +18,6 @@ const (
 	DISABLE_STATIC_ROUTE_SYNC = "DISABLE_STATIC_ROUTE_SYNC"
 	CNI_PLUGIN                = "CNI_PLUGIN"
 	CALICO_CNI                = "calico"
-	INGRESSCOREV1             = "IngressCoreV1"
-	INGRESSEXTV1              = "IngressExtV1"
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
 	AviNS                     = "avi-system"

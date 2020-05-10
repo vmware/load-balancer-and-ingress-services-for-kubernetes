@@ -30,11 +30,14 @@ import (
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	networking "k8s.io/api/networking/v1beta1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
 
 var CtrlVersion string
+var runtimeScheme = k8sruntime.NewScheme()
 
 func init() {
 	//Setting the package-wide version
@@ -42,6 +45,8 @@ func init() {
 	if CtrlVersion == "" {
 		CtrlVersion = "18.2.2"
 	}
+	extensions.AddToScheme(runtimeScheme)
+	networking.AddToScheme(runtimeScheme)
 }
 
 func IsV4(addr string) bool {
@@ -55,10 +60,10 @@ func IsV4(addr string) bool {
 }
 
 /*
- * Port name is either "http" or "http-suffix"
- * Following Istio named port convention
- * https://istio.io/docs/setup/kubernetes/spec-requirements/
- * TODO: Define matching ports in configmap and make it configurable
+* Port name is either "http" or "http-suffix"
+* Following Istio named port convention
+* https://istio.io/docs/setup/kubernetes/spec-requirements/
+* TODO: Define matching ports in configmap and make it configurable
  */
 
 func IsSvcHttp(svc_name string, port int32) bool {
@@ -87,10 +92,10 @@ func AviUrlToObjType(aviurl string) (string, error) {
 }
 
 /*
- * Hash key to pick workqueue & GoRoutine. Hash needs to ensure that K8S
- * objects that map to the same Avi objects hash to the same wq. E.g.
- * Routes that share the same "host" should hash to the same wq, so "host"
- * is the hash key for Routes. For objects like Service, it can be ns:name
+* Hash key to pick workqueue & GoRoutine. Hash needs to ensure that K8S
+* objects that map to the same Avi objects hash to the same wq. E.g.
+* Routes that share the same "host" should hash to the same wq, so "host"
+* is the hash key for Routes. For objects like Service, it can be ns:name
  */
 
 func CrudHashKey(obj_type string, obj interface{}) string {
@@ -173,10 +178,14 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 			informers.NodeInformer = kubeInformerFactory.Core().V1().Nodes()
 		case ConfigMapInformer:
 			informers.ConfigMapInformer = kubeInformerFactory.Core().V1().ConfigMaps()
-		case ExtV1IngressInformer:
-			informers.ExtV1IngressInformer = kubeInformerFactory.Extensions().V1beta1().Ingresses()
-		case CoreV1IngressInformer:
-			informers.CoreV1IngressInformer = kubeInformerFactory.Networking().V1beta1().Ingresses()
+		case IngressInformer:
+			if GetIngressApi() == ExtV1IngressInformer {
+				inginformer, _ := kubeInformerFactory.ForResource(ExtensionsIngress)
+				informers.IngressInformer = inginformer
+			} else {
+				inginformer, _ := kubeInformerFactory.ForResource(NetworkingIngress)
+				informers.IngressInformer = inginformer
+			}
 		case RouteInformer:
 			if ocs != nil {
 				oshiftInformerFactory := oshiftinformers.NewSharedInformerFactory(ocs, time.Second*30)
@@ -188,10 +197,10 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 }
 
 /*
- * Returns a set of informers. By default the informer set would be instantiated once and reused for subsequent calls.
- * Extra arguments can be passed in form of key value pairs.
- * "instanciateOnce" <bool> : If false, then a new set of informers would be returned for each call.
- * "oshiftclient" <oshiftclientset.Interface> : Informer for openshift route has to be registered using openshiftclient
+* Returns a set of informers. By default the informer set would be instantiated once and reused for subsequent calls.
+* Extra arguments can be passed in form of key value pairs.
+* "instanciateOnce" <bool> : If false, then a new set of informers would be returned for each call.
+* "oshiftclient" <oshiftclientset.Interface> : Informer for openshift route has to be registered using openshiftclient
  */
 
 func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args ...map[string]interface{}) *Informers {

@@ -89,7 +89,7 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
-		lib.GetIngressApi(),
+		utils.IngressInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,
@@ -227,26 +227,15 @@ func (c *AviController) FullSyncK8s() {
 			}
 			nodes.DequeueIngestion(key, true)
 		}
-		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-			ingObjs, err := utils.GetInformers().ExtV1IngressInformer.Lister().Ingresses(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
-			if err != nil {
-				utils.AviLog.Error.Printf("Unable to retrieve the ingresses during full sync: %s", err)
-				continue
-			}
-			for _, ingObj := range ingObjs {
-				key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-				nodes.DequeueIngestion(key, true)
-			}
-		} else {
-			ingObjs, err := utils.GetInformers().CoreV1IngressInformer.Lister().Ingresses(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
-			if err != nil {
-				utils.AviLog.Error.Printf("Unable to retrieve the ingresses during full sync: %s", err)
-				continue
-			}
-			for _, ingObj := range ingObjs {
-				key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-				nodes.DequeueIngestion(key, true)
-			}
+
+		ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Error.Printf("Unable to retrieve the ingresses during full sync: %s", err)
+			continue
+		}
+		for _, ingObj := range ingObjs {
+			key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+			nodes.DequeueIngestion(key, true)
 		}
 
 	}

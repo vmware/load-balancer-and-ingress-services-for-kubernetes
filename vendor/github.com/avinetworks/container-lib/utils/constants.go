@@ -31,6 +31,7 @@ const (
 	K8S_TLS_SECRET_KEY            = "tls.key"
 	CoreV1IngressInformer         = "CoreV1IngressInformer"
 	ExtV1IngressInformer          = "ExtV1IngressInformer"
+	IngressInformer               = "IngressInformer"
 	RouteInformer                 = "RouteInformer"
 	NSInformer                    = "NamespaceInformer"
 	L4LBService                   = "L4LBService"

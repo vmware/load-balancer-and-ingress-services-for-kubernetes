@@ -75,11 +75,12 @@ func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 }
 
 func TestMain(m *testing.M) {
+	os.Setenv("INGRESS_API", "extensionv1")
 	KubeClient = k8sfake.NewSimpleClientset()
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
-		utils.ExtV1IngressInformer,
+		utils.IngressInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,

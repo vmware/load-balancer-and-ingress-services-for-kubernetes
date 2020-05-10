@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
-	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/api/networking/v1beta1"
 )
 
@@ -49,78 +48,7 @@ func (v *Validator) IsValiddHostName(hostname string) bool {
 	return false
 }
 
-func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec extensionv1beta1.IngressSpec, key string) IngressConfig {
-	// Figure out the service names that are part of this ingress
-
-	ingressConfig := IngressConfig{}
-	hostMap := make(IngressHostMap)
-	subDomains := GetDefaultSubDomain()
-
-	for _, rule := range ingSpec.Rules {
-		var hostPathMapSvcList []IngressHostPathSvc
-		var hostName string
-		if rule.Host == "" {
-			// The Host field is empty. Generate a hostName using the sub-domain info
-			if subDomains == nil {
-				utils.AviLog.Warning.Printf("No sub-domain configured in cloud")
-				continue
-			} else {
-				// Pick the first sub-domain
-				if strings.HasPrefix(subDomains[0], ".") {
-					hostName = ingName + "." + ns + subDomains[0]
-				} else {
-					hostName = ingName + "." + ns + "." + subDomains[0]
-				}
-			}
-		} else {
-			if !v.IsValiddHostName(rule.Host) {
-				continue
-			}
-			hostName = rule.Host
-		}
-		if len(hostMap[hostName]) > 0 {
-			hostPathMapSvcList = hostMap[hostName]
-		}
-		for _, path := range rule.IngressRuleValue.HTTP.Paths {
-			hostPathMapSvc := IngressHostPathSvc{}
-			hostPathMapSvc.Path = path.Path
-			hostPathMapSvc.ServiceName = path.Backend.ServiceName
-			hostPathMapSvc.Port = path.Backend.ServicePort.IntVal
-			if hostPathMapSvc.Port == 0 {
-				// Default to port 80 if not set in the ingress object
-				hostPathMapSvc.Port = 80
-			}
-			hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
-		}
-
-		hostMap[hostName] = hostPathMapSvcList
-	}
-
-	var tlsConfigs []TlsSettings
-	for _, tlsSettings := range ingSpec.TLS {
-		tls := TlsSettings{}
-		tlsHostSvcMap := make(IngressHostMap)
-		tls.SecretName = tlsSettings.SecretName
-		for _, host := range tlsSettings.Hosts {
-			if !v.IsValiddHostName(host) {
-				continue
-			}
-			hostSvcMap, ok := hostMap[host]
-			if ok {
-				tlsHostSvcMap[host] = hostSvcMap
-				delete(hostMap, host)
-			}
-		}
-		tls.Hosts = tlsHostSvcMap
-		tlsConfigs = append(tlsConfigs, tls)
-	}
-	ingressConfig.TlsCollection = tlsConfigs
-	ingressConfig.IngressHostMap = hostMap
-	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress extensionv1:  %v", key, ingressConfig)
-	return ingressConfig
-}
-
-func (v *Validator) ParseHostPathForIngressCoreV1(ns string, ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
+func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
@@ -166,9 +94,10 @@ func (v *Validator) ParseHostPathForIngressCoreV1(ns string, ingName string, ing
 		}
 		hostMap[hostName] = hostPathMapSvcList
 	}
-	tlsHostSvcMap := make(IngressHostMap)
+
 	var tlsConfigs []TlsSettings
 	for _, tlsSettings := range ingSpec.TLS {
+		tlsHostSvcMap := make(IngressHostMap)
 		tls := TlsSettings{}
 		tls.SecretName = tlsSettings.SecretName
 		for _, host := range tlsSettings.Hosts {
@@ -186,6 +115,6 @@ func (v *Validator) ParseHostPathForIngressCoreV1(ns string, ingName string, ing
 	}
 	ingressConfig.TlsCollection = tlsConfigs
 	ingressConfig.IngressHostMap = hostMap
-	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress corev1:  %v", key, ingressConfig)
+	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig
 }

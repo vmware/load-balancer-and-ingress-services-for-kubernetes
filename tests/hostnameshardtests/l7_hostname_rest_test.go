@@ -33,12 +33,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
+func SetupDomain() {
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
 	subdomains := []string{"avi.internal", ".com"}
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
+}
+
+func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
+	SetupDomain()
 	SetUpTestForIngress(t, modelName)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
@@ -423,21 +427,23 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--foo.com"}
 	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: "global--foo-with-targets--default--bar.com"}
 	g.Eventually(func() bool {
-		_, found1 := mcache.VsCache.AviCacheGet(sniVSKey1)
-		_, found2 := mcache.VsCache.AviCacheGet(sniVSKey2)
-		if found1 && found2 {
+		sniCache1, found1 := mcache.VsCache.AviCacheGet(sniVSKey1)
+		sniCache2, found2 := mcache.VsCache.AviCacheGet(sniVSKey2)
+		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
+		sniCacheObj2, _ := sniCache2.(*cache.AviVsCache)
+		if found1 && found2 &&
+			len(sniCacheObj1.SSLKeyCertCollection) == 1 &&
+			len(sniCacheObj2.SSLKeyCertCollection) == 1 {
 			return true
 		}
 		return false
-	}, 15*time.Second).Should(gomega.Equal(true))
+	}, 20*time.Second).Should(gomega.Equal(true))
 
 	sniCache1, _ := mcache.VsCache.AviCacheGet(sniVSKey1)
 	sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
 	sniCache2, _ := mcache.VsCache.AviCacheGet(sniVSKey2)
 	sniCacheObj2, _ := sniCache2.(*cache.AviVsCache)
-	g.Expect(sniCacheObj1.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj1.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret--foo.com"))
-	g.Expect(sniCacheObj2.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj2.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2--bar.com"))
 
 	g.Eventually(func() string {
@@ -453,6 +459,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/Shard-VS---global-0"
 
+	SetupDomain()
 	SetUpTestForIngress(t, modelName)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
@@ -695,6 +702,7 @@ func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/Shard-VS---global-0"
 
+	SetupDomain()
 	SetUpTestForIngress(t, modelName)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
@@ -748,6 +756,7 @@ func TestHostnameMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	ingressName := fmt.Sprintf("ing-%s", ingressId)
 	pathSuffix := "-" + ingressName + ".com"
 
+	SetupDomain()
 	SetUpTestForIngress(t, modelName)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{

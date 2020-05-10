@@ -28,7 +28,7 @@ import (
 
 	avinodes "ako/pkg/nodes"
 
-	meshutils "github.com/avinetworks/container-lib/utils"
+	utils "github.com/avinetworks/container-lib/utils"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,19 +36,26 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	os.Setenv("INGRESS_API", "extensionv1")
 	KubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer,
-		meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer,
-		meshutils.NodeInformer, meshutils.ConfigMapInformer}
 
-	meshutils.NewInformers(meshutils.KubeClientIntf{KubeClient}, registeredInformers)
+	registeredInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		utils.IngressInformer,
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
+	}
+	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 
 	integrationtest.NewAviFakeClientInstance()
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
-	stopCh := meshutils.SetupSignalHandler()
+	stopCh := utils.SetupSignalHandler()
 	k8s.PopulateCache()
 	ctrlCh := make(chan struct{})
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)

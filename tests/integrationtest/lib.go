@@ -158,14 +158,14 @@ func (ing FakeIngress) Ingress() *extensionv1beta1.Ingress {
 			SecretName: secret,
 		})
 	}
-	for _, ip := range ing.Ips {
+	for i, _ := range ing.Ips {
+		hostname := ""
+		if len(ing.HostNames) >= i+1 {
+			hostname = ing.HostNames[i]
+		}
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
-			IP: ip,
-		})
-	}
-	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
-			Hostname: hostName,
+			IP:       ing.Ips[i],
+			Hostname: hostname,
 		})
 	}
 	return ingress
@@ -619,7 +619,6 @@ func NewAviFakeClientInstance() {
 		os.Setenv("CTRL_PASSWORD", "admin")
 		os.Setenv("CTRL_IPADDRESS", url)
 		os.Setenv("SHARD_VS_SIZE", "LARGE")
-		os.Setenv("INGRESS_API", "extensionv1")
 		os.Setenv("FULL_SYNC_INTERVAL", "600")
 		os.Setenv("SHARD_VS_SIZE", "LARGE")
 

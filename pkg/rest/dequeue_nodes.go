@@ -224,7 +224,7 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 		}
 		return vs_cache_obj
 	}
-	utils.AviLog.Info.Printf("key :%s, msg: vs cache object NOT found for vskey: %s", key, vsKey)
+	utils.AviLog.Info.Printf("key: %s, msg: vs cache object NOT found for vskey: %s", key, vsKey)
 	return nil
 }
 

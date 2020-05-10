@@ -24,7 +24,6 @@ import (
 
 	"github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
-	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -92,24 +91,7 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 }
 
 // Consider an ingress has been updated only if spec/annotation is updated
-func isIngressUpdated(oldIngress, newIngress *extensionv1beta1.Ingress) bool {
-	if oldIngress.ResourceVersion == newIngress.ResourceVersion {
-		return false
-	}
-
-	oldSpecHash := utils.Hash(utils.Stringify(oldIngress.Spec))
-	oldAnnotationHash := utils.Hash(utils.Stringify(oldIngress.Annotations))
-	newSpecHash := utils.Hash(utils.Stringify(newIngress.Spec))
-	newAnnotationHash := utils.Hash(utils.Stringify(newIngress.Annotations))
-
-	if oldSpecHash != newSpecHash || oldAnnotationHash != newAnnotationHash {
-		return true
-	}
-
-	return false
-}
-
-func isCorev1IngressUpdated(oldIngress, newIngress *v1beta1.Ingress) bool {
+func isIngressUpdated(oldIngress, newIngress *v1beta1.Ingress) bool {
 	if oldIngress.ResourceVersion == newIngress.ResourceVersion {
 		return false
 	}
@@ -186,7 +168,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.Endpoints + "/" + utils.ObjKey(cep)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Info.Printf("key :%s, msg: UPDATE", key)
+				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
 			}
 		},
 	}
@@ -272,7 +254,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for ingress add")
 				return
 			}
-			ingress := obj.(*extensionv1beta1.Ingress)
+			ingress, ok := utils.ToNetworkingIngress(obj)
+			if !ok {
+				utils.AviLog.Error.Printf("Unable to convert obj type interface to networking/v1beta1 ingress")
+			}
+
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -284,62 +270,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for ingress delete")
 				return
 			}
-			ingress, ok := obj.(*extensionv1beta1.Ingress)
-			if !ok {
-				// endpoints was deleted but its final state is unrecorded.
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Error.Printf("couldn't get object from tombstone %#v", obj)
-					return
-				}
-				ingress, ok = tombstone.Obj.(*extensionv1beta1.Ingress)
-				if !ok {
-					utils.AviLog.Error.Printf("Tombstone contained object that is not an Ingress: %#v", obj)
-					return
-				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			key := utils.Ingress + "/" + utils.ObjKey(ingress)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for ingress update")
-				return
-			}
-			oldobj := old.(*extensionv1beta1.Ingress)
-			ingress := cur.(*extensionv1beta1.Ingress)
-			if isIngressUpdated(oldobj, ingress) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-				key := utils.Ingress + "/" + utils.ObjKey(ingress)
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Info.Printf("key: %s, msg: UPDATE", key)
-			}
-		},
-	}
-
-	corev1ing_event_handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for corev1 ingress add")
-				return
-			}
-			ingress := obj.(*v1beta1.Ingress)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			key := utils.Ingress + "/" + utils.ObjKey(ingress)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Info.Printf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for corev1 ingress delete")
-				return
-			}
-			ingress, ok := obj.(*v1beta1.Ingress)
+			ingress, ok := utils.ToNetworkingIngress(obj)
 			if !ok {
 				// endpoints was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -361,12 +292,16 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for corev1 ingress update")
+				utils.AviLog.Trace.Printf("Sync disabled, skipping sync for ingress update")
 				return
 			}
-			oldobj := old.(*v1beta1.Ingress)
-			ingress := cur.(*v1beta1.Ingress)
-			if isCorev1IngressUpdated(oldobj, ingress) {
+			oldobj, okOld := utils.ToNetworkingIngress(old)
+			ingress, okNew := utils.ToNetworkingIngress(cur)
+			if !okOld || !okNew {
+				utils.AviLog.Error.Printf("Unable to convert obj type interface to networking/v1beta1 ingress")
+			}
+
+			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -526,11 +461,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	c.informers.EpInformer.Informer().AddEventHandler(ep_event_handler)
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
-	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		c.informers.ExtV1IngressInformer.Informer().AddEventHandler(ingress_event_handler)
-	} else {
-		c.informers.CoreV1IngressInformer.Informer().AddEventHandler(corev1ing_event_handler)
-	}
+	c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
 	c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
 		utils.AviLog.Info.Printf("Static route sync disabled, skipping node informers")
@@ -555,11 +486,7 @@ func isAviConfigMap(obj interface{}) bool {
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
-	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		go c.informers.ExtV1IngressInformer.Informer().Run(stopCh)
-	} else {
-		go c.informers.CoreV1IngressInformer.Informer().Run(stopCh)
-	}
+	go c.informers.IngressInformer.Informer().Run(stopCh)
 	go c.informers.SecretInformer.Informer().Run(stopCh)
 	go c.informers.NodeInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
@@ -568,32 +495,17 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
 	}
 
-	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		if !cache.WaitForCacheSync(stopCh,
-			c.informers.EpInformer.Informer().HasSynced,
-			c.informers.ServiceInformer.Informer().HasSynced,
-			c.informers.ExtV1IngressInformer.Informer().HasSynced,
-			c.informers.SecretInformer.Informer().HasSynced,
-			c.informers.NodeInformer.Informer().HasSynced,
-			c.informers.NSInformer.Informer().HasSynced,
-		) {
-			runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-		} else {
-			utils.AviLog.Info.Print("Caches synced")
-		}
+	if !cache.WaitForCacheSync(stopCh,
+		c.informers.EpInformer.Informer().HasSynced,
+		c.informers.ServiceInformer.Informer().HasSynced,
+		c.informers.IngressInformer.Informer().HasSynced,
+		c.informers.SecretInformer.Informer().HasSynced,
+		c.informers.NodeInformer.Informer().HasSynced,
+		c.informers.NSInformer.Informer().HasSynced,
+	) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
-		if !cache.WaitForCacheSync(stopCh,
-			c.informers.EpInformer.Informer().HasSynced,
-			c.informers.ServiceInformer.Informer().HasSynced,
-			c.informers.CoreV1IngressInformer.Informer().HasSynced,
-			c.informers.SecretInformer.Informer().HasSynced,
-			c.informers.NodeInformer.Informer().HasSynced,
-			c.informers.NSInformer.Informer().HasSynced,
-		) {
-			runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-		} else {
-			utils.AviLog.Info.Print("Caches synced")
-		}
+		utils.AviLog.Info.Print("Caches synced")
 	}
 }
 

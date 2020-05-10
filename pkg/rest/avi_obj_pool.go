@@ -184,7 +184,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 
 func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	poolKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
-	utils.AviLog.Info.Printf("key: %s, msg: deleting pool with key :%s", key, poolKey)
+	utils.AviLog.Info.Printf("key: %s, msg: deleting pool with key: %s", key, poolKey)
 	// Fetch the pool's cache data and obtain the service metadata
 	pool_cache, found := rest.cache.PoolCache.AviCacheGet(poolKey)
 	if found {

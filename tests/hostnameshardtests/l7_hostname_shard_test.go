@@ -25,7 +25,7 @@ import (
 	"ako/pkg/objects"
 	"ako/tests/integrationtest"
 
-	meshutils "github.com/avinetworks/container-lib/utils"
+	utils "github.com/avinetworks/container-lib/utils"
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -34,9 +34,19 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	os.Setenv("INGRESS_API", "extensionv1")
 	KubeClient = k8sfake.NewSimpleClientset()
-	registeredInformers := []string{meshutils.ServiceInformer, meshutils.EndpointInformer, meshutils.ExtV1IngressInformer, meshutils.SecretInformer, meshutils.NSInformer, meshutils.NodeInformer, meshutils.ConfigMapInformer}
-	meshutils.NewInformers(meshutils.KubeClientIntf{KubeClient}, registeredInformers)
+
+	registeredInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		utils.IngressInformer,
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
+	}
+	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -47,7 +57,7 @@ func TestMain(m *testing.M) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
-	stopCh := meshutils.SetupSignalHandler()
+	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
 	go ctrl.InitController(informers, ctrlCh, stopCh)

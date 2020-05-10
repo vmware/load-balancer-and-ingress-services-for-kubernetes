@@ -37,12 +37,16 @@ const (
 	TLSINGRESS = "tls-ingress"
 )
 
-func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
+func SetupSubdomain() {
 	mcache := cache.SharedAviObjCache()
 	cloud, _ := mcache.CloudKeyCache.AviCacheGet("Default-Cloud")
 	cloudProperty, _ := cloud.(*cache.AviCloudPropertyCache)
 	subdomains := []string{"avi.internal", ".com"}
 	cloudProperty.NSIpamDNS = subdomains
+}
+
+func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
+	SetupSubdomain()
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{
@@ -440,6 +444,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/Shard-VS---global-6"
 
+	SetupSubdomain()
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{
@@ -476,18 +481,19 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("xyz.com"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey1)
 		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
-		if found && ok {
-			return len(sniCacheObj.PoolKeyCollection)
+		if found && ok &&
+			len(sniCacheObj.PoolKeyCollection) == 1 &&
+			len(sniCacheObj.SSLKeyCertCollection) == 1 {
+			return true
 		}
-		return 0
-	}, 10*time.Second).Should(gomega.Equal(1))
+		return false
+	}, 15*time.Second).Should(gomega.Equal(true))
 	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey1)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
-	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret"))
 
 	g.Eventually(func() bool {
@@ -676,6 +682,7 @@ func TestMultiHostIngressStatusCheck(t *testing.T) {
 	modelName := "admin/Shard-VS---global-6"
 	ingressName := "foo-with-targets-2"
 
+	SetupSubdomain()
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{
@@ -722,6 +729,7 @@ func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	modelName := "admin/Shard-VS---global-6"
 	ingressName := "foo-with-targets-3"
 
+	SetupSubdomain()
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{

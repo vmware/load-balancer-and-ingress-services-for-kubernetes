@@ -20,9 +20,8 @@ import (
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
+	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
-	extensioninformers "k8s.io/client-go/informers/extensions/v1beta1"
-	networking "k8s.io/client-go/informers/networking/v1beta1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -56,16 +55,15 @@ type KubeClientIntf struct {
 }
 
 type Informers struct {
-	ConfigMapInformer     coreinformers.ConfigMapInformer
-	ServiceInformer       coreinformers.ServiceInformer
-	EpInformer            coreinformers.EndpointsInformer
-	PodInformer           coreinformers.PodInformer
-	NSInformer            coreinformers.NamespaceInformer
-	SecretInformer        coreinformers.SecretInformer
-	ExtV1IngressInformer  extensioninformers.IngressInformer
-	RouteInformer         oshiftinformers.RouteInformer
-	NodeInformer          coreinformers.NodeInformer
-	CoreV1IngressInformer networking.IngressInformer // New ingress API
+	ConfigMapInformer coreinformers.ConfigMapInformer
+	ServiceInformer   coreinformers.ServiceInformer
+	EpInformer        coreinformers.EndpointsInformer
+	PodInformer       coreinformers.PodInformer
+	NSInformer        coreinformers.NamespaceInformer
+	SecretInformer    coreinformers.SecretInformer
+	RouteInformer     oshiftinformers.RouteInformer
+	NodeInformer      coreinformers.NodeInformer
+	IngressInformer   informers.GenericInformer
 	KubeClientIntf
 }
 
@@ -107,7 +105,7 @@ type NamespaceName struct {
 }
 
 /*
- * Meta data passed to Avi Rest Crud by Ep Crud
+* Meta data passed to Avi Rest Crud by Ep Crud
  */
 
 type AviPoolMetaServer struct {
@@ -166,7 +164,7 @@ type K8sAviVsMeta struct {
 }
 
 /*
- * Obj cache
+* Obj cache
  */
 
 type AviPoolCache struct {

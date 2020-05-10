@@ -4,7 +4,7 @@ GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
-REL_PATH_AKO=ako/cmd/akc-main
+REL_PATH_AKO=ako/cmd/ako-main
 
 
 .PHONY:all

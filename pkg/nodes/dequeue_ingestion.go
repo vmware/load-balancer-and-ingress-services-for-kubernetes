@@ -98,10 +98,10 @@ func DequeueIngestion(key string, fullsync bool) {
 			for _, ingress := range ingressNames {
 				// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 				// does not allow cross tenant ingress references.
-				utils.AviLog.Info.Printf("key :%s, msg: evaluating ingress: %s", key, ingress)
+				utils.AviLog.Info.Printf("key: %s, msg: evaluating ingress: %s", key, ingress)
 				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 				if !found || aviModel == nil {
-					utils.AviLog.Info.Printf("key :%s, msg: model not found, generating new model with name: %s", key, model_name)
+					utils.AviLog.Info.Printf("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
 					aviModel = NewAviObjectGraph()
 					aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 				}
@@ -126,7 +126,7 @@ func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool 
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
 		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
-		utils.AviLog.Info.Printf("key :%s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
+		utils.AviLog.Info.Printf("key: %s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
 		utils.AviLog.Info.Printf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
 		if prevChecksum == presentChecksum {
