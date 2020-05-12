@@ -117,7 +117,7 @@ func GetSniPGName(ingName, namespace, host, path string) string {
 
 func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) string {
 	if len(sniHostName) > 0 {
-		return GetVrf() + "--" + namespace + "--" + secret + "--" + sniHostName[0]
+		return GetVrf() + "--" + sniHostName[0]
 	}
 	return GetVrf() + "--" + namespace + "--" + secret
 }

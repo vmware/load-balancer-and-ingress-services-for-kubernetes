@@ -256,9 +256,9 @@ func DeriveHostNameShardVS(hostname string, key string) string {
 
 	shardVsPrefix := GetShardVSName(key)
 	if shardSize != 0 {
-		utils.AviLog.Warning.Printf("key: %s, msg: hostname for sharding: %s", key, hostname)
+		utils.AviLog.Info.Printf("key: %s, msg: hostname for sharding: %s", key, hostname)
 		vsNum = utils.Bkt(hostname, shardSize)
-		utils.AviLog.Warning.Printf("key: %s, msg: VS number: %v", key, vsNum)
+		utils.AviLog.Info.Printf("key: %s, msg: VS number: %v", key, vsNum)
 	} else {
 		utils.AviLog.Warning.Printf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
 		return ""

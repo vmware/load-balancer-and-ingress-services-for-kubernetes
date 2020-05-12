@@ -328,7 +328,7 @@ func TestHostnameCreateSNICacheSync(t *testing.T) {
 	sniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.ContainSubstring("global--default--my-secret"))
+	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.ContainSubstring("global--foo.com"))
 	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.HTTPKeyCollection[0].Name).To(gomega.ContainSubstring("global--default--foo.com"))
 	g.Expect(sniCacheObj.ParentVSRef).To(gomega.Equal(parentVSKey))
@@ -443,8 +443,8 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
 	sniCache2, _ := mcache.VsCache.AviCacheGet(sniVSKey2)
 	sniCacheObj2, _ := sniCache2.(*cache.AviVsCache)
-	g.Expect(sniCacheObj1.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret--foo.com"))
-	g.Expect(sniCacheObj2.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2--bar.com"))
+	g.Expect(sniCacheObj1.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--foo.com"))
+	g.Expect(sniCacheObj2.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--bar.com"))
 
 	g.Eventually(func() string {
 		sniCache1, _ := mcache.VsCache.AviCacheGet(sniVSKey1)
@@ -470,7 +470,7 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 		sniCache1, found1 := mcache.VsCache.AviCacheGet(sniVSKey1)
 		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
 		if found1 &&
-			len(sniCacheObj1.SSLKeyCertCollection) == 2 && len(sniCacheObj1.HTTPKeyCollection) == 2 {
+			len(sniCacheObj1.SSLKeyCertCollection) == 1 && len(sniCacheObj1.HTTPKeyCollection) == 2 {
 			return true
 		}
 		return false
@@ -545,7 +545,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret--foo.com"))
+	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--foo.com"))
 
 	g.Eventually(func() int {
 		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey2)
@@ -559,7 +559,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("bar.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret-v2--bar.com"))
+	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--bar.com"))
 
 	// delete one secret
 	KubeClient.CoreV1().Secrets("default").Delete("my-secret-v2", nil)
@@ -603,7 +603,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--default--my-secret--foo.com"))
+	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("global--foo.com"))
 
 	KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
 	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
@@ -665,7 +665,7 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "Shard-VS---global-0"}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo.com"}
-	sslKey := cache.NamespaceName{Namespace: "admin", Name: "global--default--my-secret--foo.com"}
+	sslKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo.com"}
 
 	// no ssl key cache would be found since the secret is not yet added
 	g.Eventually(func() bool {
@@ -680,7 +680,7 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(true))
+	}, 10*time.Second).Should(gomega.Equal(true))
 	sniVSCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
 	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
 	g.Expect(sniVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))

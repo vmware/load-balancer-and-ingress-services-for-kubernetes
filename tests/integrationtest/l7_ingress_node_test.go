@@ -15,6 +15,7 @@
 package integrationtest
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -1084,15 +1085,16 @@ func TestNoHostIngress(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
-		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--ingress-nohost.default.avi.internal_foo--default--ingress-nohost"))
-		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/foo"))
+		fmt.Println(nodes[0].PoolRefs[0].Name)
+		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--ingress-nohost.default.com_foo--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.avi.internal_foo--default--ingress-nohost"))
-		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/foo"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.com_foo--default--ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
 	}
@@ -1145,15 +1147,15 @@ func TestEditNoHostIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("global--ingress-nohost.default.avi.internal_bar--default--ingress-nohost"))
-		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/bar"))
+		}, 5*time.Second).Should(gomega.Equal("global--ingress-nohost.default.com_bar--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/bar"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.avi.internal_bar--default--ingress-nohost"))
-		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/bar"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.com_bar--default--ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/bar"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
 	}
@@ -1194,15 +1196,15 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("global--ingress-nohost.default.avi.internal_foo--default--ingress-nohost"))
-		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/foo"))
+		}, 5*time.Second).Should(gomega.Equal("global--ingress-nohost.default.com_foo--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.avi.internal_foo--default--ingress-nohost"))
-		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.avi.internal/foo"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.com_foo--default--ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
 	}
@@ -1279,11 +1281,11 @@ func TestNoHostMultiPathIngress(t *testing.T) {
 
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "nohost-multipath.default.avi.internal_foo--default--nohost-multipath") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.avi.internal/foo"))
+			if strings.Contains(pool.Name, "nohost-multipath.default.com_foo--default--nohost-multipath") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "nohost-multipath.default.avi.internal_bar--default--nohost-multipath") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.avi.internal/bar"))
+			} else if strings.Contains(pool.Name, "nohost-multipath.default.com_bar--default--nohost-multipath") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -1293,10 +1295,10 @@ func TestNoHostMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.avi.internal_foo--default--nohost-multipath" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.avi.internal/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.avi.internal_bar--default--nohost-multipath" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.avi.internal/bar"))
+			if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.com_foo--default--nohost-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.com_bar--default--nohost-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
@@ -1354,11 +1356,11 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "nohost-multipath.default.avi.internal_foo--default--nohost-multipath") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.avi.internal/foo"))
+			if strings.Contains(pool.Name, "nohost-multipath.default.com_foo--default--nohost-multipath") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "nohost-multipath.default.avi.internal_foobar--default--nohost-multipath") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.avi.internal/foobar"))
+			} else if strings.Contains(pool.Name, "nohost-multipath.default.com_foobar--default--nohost-multipath") {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foobar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
 				t.Fatalf("unexpected pool: %s", pool.Name)
@@ -1368,10 +1370,10 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.avi.internal_foo--default--nohost-multipath" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.avi.internal/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.avi.internal_foobar--default--nohost-multipath" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.avi.internal/foobar"))
+			if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.com_foo--default--nohost-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.com_foobar--default--nohost-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foobar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
 			}
