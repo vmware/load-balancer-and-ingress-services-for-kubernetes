@@ -395,8 +395,14 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 		return false
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
-
-	tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
+	// If this SSLCertRef is already present don't add it.
+	if len(sniHost) > 0 {
+		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), certNode.GetCheckSum()) {
+			tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
+		}
+	} else {
+		tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
+	}
 	return true
 }
 
@@ -412,20 +418,22 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 		}
-		tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, host)
+		if !utils.HasElem(tlsNode.VHDomainNames, host) {
+			tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, host)
+		}
 		for _, path := range paths {
 			var httpPolicySet []AviHostPathPortPoolPG
 
 			httpPGPath := AviHostPathPortPoolPG{Host: host}
-			httpPGPath.Path = append(httpPGPath.Path, path.Path)
+			if path.Path != "" {
+				httpPGPath.Path = append(httpPGPath.Path, path.Path)
+			}
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
 			pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS}
 			httpPGPath.PoolGroup = pgNode.Name
 			httpPGPath.Host = host
 			httpPolicySet = append(httpPolicySet, httpPGPath)
-
-			tlsNode.PoolGroupRefs = append(tlsNode.PoolGroupRefs, pgNode)
 
 			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), Tenant: utils.ADMIN_NS}
 			poolNode.VrfContext = lib.GetVrf()
@@ -436,10 +444,17 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
 
-			tlsNode.PoolRefs = append(tlsNode.PoolRefs, poolNode)
+			if tlsNode.CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
+				tlsNode.PoolGroupRefs = append(tlsNode.PoolGroupRefs, pgNode)
+			}
+			if tlsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
+				tlsNode.PoolRefs = append(tlsNode.PoolRefs, poolNode)
+			}
 			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
 			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: utils.ADMIN_NS}
-			tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
+			if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
+				tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
+			}
 		}
 	}
 	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)

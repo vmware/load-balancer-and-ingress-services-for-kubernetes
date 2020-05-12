@@ -124,6 +124,14 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 		// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
 		// Fetch all the secrets for this ingress
 		found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
+		// Remove the ingress from the hostmap
+		hostMapOk, ingressHostMap := SharedHostNameLister().Get(hostname)
+		if hostMapOk {
+			// Replace the ingress map for this host.
+			keyToRemove := namespace + "/" + ingName
+			delete(ingressHostMap.HostNameMap, keyToRemove)
+			SharedHostNameLister().Save(hostname, ingressHostMap)
+		}
 		utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 		if found {
 			for _, secret := range secrets {
@@ -158,11 +166,12 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 				o.RemovePgNodeRefsFromSni(pgName, modelSniNode)
 				httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path)
 				o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
-
 			}
 			// After going through the paths, if the SNI node does not have any PGs - then delete it.
 			if len(modelSniNode.PoolRefs) == 0 {
 				RemoveSniInModel(currentSniNodeName, vsNode, key)
+				// Remove the snihost mapping
+				SharedHostNameLister().Delete(hostname)
 			}
 		}
 	}
@@ -412,6 +421,18 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		var allSniHosts []string
 		var sniHosts []string
 		hostPathMap[sniHost] = getPaths(paths)
+		hostMap := HostNamePathSecrets{paths: getPaths(paths), secretName: tlssetting.SecretName}
+		found, ingressHostMap := SharedHostNameLister().Get(sniHost)
+		if found {
+			// Replace the ingress map for this host.
+			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
+			ingressHostMap.GetIngressesForHostName(sniHost)
+		} else {
+			// Create the map
+			ingressHostMap = NewSecureHostNameMapProp()
+			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
+		}
+		SharedHostNameLister().Save(sniHost, ingressHostMap)
 		sniHosts = append(sniHosts, sniHost)
 		allSniHosts = append(allSniHosts, sniHost)
 		shardVsName := DeriveHostNameShardVS(sniHost, key)
@@ -430,16 +451,29 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 
-		sniNode := &AviVsNode{
-			Name:         lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost),
-			VHParentName: vsNode[0].Name,
-			Tenant:       utils.ADMIN_NS,
-			IsSNIChild:   true,
-			ServiceMetadata: avicache.ServiceMetadataObj{
-				IngressName: ingName,
-				Namespace:   namespace,
-				HostNames:   sniHosts,
-			},
+		if len(vsNode) < 1 {
+			return nil
+		}
+		sniNode := vsNode[0].GetSniNodeForName(lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost))
+		if sniNode == nil {
+			sniNode = &AviVsNode{
+				Name:         lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost),
+				VHParentName: vsNode[0].Name,
+				Tenant:       utils.ADMIN_NS,
+				IsSNIChild:   true,
+				ServiceMetadata: avicache.ServiceMetadataObj{
+					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
+					Namespace:            namespace,
+					HostNames:            sniHosts,
+				},
+			}
+		} else {
+			// The SNI node exists, just update the svc metadata
+			sniNode.ServiceMetadata = avicache.ServiceMetadataObj{
+				NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
+				Namespace:            namespace,
+				HostNames:            sniHosts,
+			}
 		}
 		sniNode.VrfContext = lib.GetVrf()
 		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key, sniHost)
@@ -449,13 +483,21 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			if !foundSniModel {
 				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 			}
-
 			aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, namespace, ingName, key)
 
 		} else {
-			// Since the cert couldn't be built, remove the sni node from the model
-			RemoveSniInModel(sniNode.Name, vsNode, key)
-			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
+			hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
+			if hostMapOk {
+				// Replace the ingress map for this host.
+				keyToRemove := namespace + "/" + ingName
+				delete(ingressHostMap.HostNameMap, keyToRemove)
+				SharedHostNameLister().Save(sniHost, ingressHostMap)
+			}
+			// Since the cert couldn't be built, check if this SNI is affected by only in ingress if so remove the sni node from the model
+			if len(ingressHostMap.GetIngressesForHostName(sniHost)) == 0 {
+				RemoveSniInModel(sniNode.Name, vsNode, key)
+				RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
+			}
 		}
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)

@@ -16,6 +16,7 @@ package rest
 
 import (
 	"errors"
+	"strings"
 
 	core "k8s.io/api/core/v1"
 
@@ -26,7 +27,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicache.ServiceMetadataObj, key string, retryNum ...int) error {
+func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
+	var err error
+	if len(svc_mdata_obj.NamespaceIngressName) > 0 {
+		// This is SNI with hostname sharding.
+		for _, ingressns := range svc_mdata_obj.NamespaceIngressName {
+			ingressArr := strings.Split(ingressns, "/")
+			if len(ingressArr) != 2 {
+				return errors.New("key: %s, msg: UpdateIngressStatus IngressNamespace format not correct")
+			}
+			err = updateObject(ingressArr[0], ingressArr[1], svc_mdata_obj.HostNames, vs_cache_obj, key)
+		}
+	} else {
+		err = updateObject(svc_mdata_obj.Namespace, svc_mdata_obj.IngressName, svc_mdata_obj.HostNames, vs_cache_obj, key)
+	}
+
+	return err
+}
+
+func updateObject(namespace, ingressname string, hostnames []string, vs_cache_obj *avicache.AviVsCache, key string, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
@@ -34,15 +53,13 @@ func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicac
 			return errors.New("key: %s, msg: UpdateIngressStatus retried 3 times, aborting")
 		}
 	}
-
-	mClient := utils.GetInformers().ClientSet
 	var ingObj interface{}
 	var err error
-
+	mClient := utils.GetInformers().ClientSet
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		ingObj, err = mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName, metav1.GetOptions{})
+		ingObj, err = mClient.ExtensionsV1beta1().Ingresses(namespace).Get(ingressname, metav1.GetOptions{})
 	} else {
-		ingObj, err = mClient.NetworkingV1beta1().Ingresses(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName, metav1.GetOptions{})
+		ingObj, err = mClient.NetworkingV1beta1().Ingresses(namespace).Get(ingressname, metav1.GetOptions{})
 	}
 	if err != nil {
 		utils.AviLog.Warning.Printf("key: %s, msg: Could not get the ingress object for UpdateStatus :%s", key, err)
@@ -63,7 +80,7 @@ func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicac
 	utils.AviLog.Info.Printf("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
 		var matchFound bool
-		for _, host := range svc_mdata_obj.HostNames {
+		for _, host := range hostnames {
 			if mIngress.Status.LoadBalancer.Ingress[i].Hostname == host {
 				matchFound = true
 			}
@@ -74,7 +91,7 @@ func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicac
 		}
 	}
 	// Handle fresh hostname update
-	for _, host := range svc_mdata_obj.HostNames {
+	for _, host := range hostnames {
 		lbIngress := core.LoadBalancerIngress{
 			IP:       vs_cache_obj.Vip,
 			Hostname: host,
@@ -102,17 +119,16 @@ func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicac
 			utils.AviLog.Error.Printf("Unable to convert obj type interface to extensions/v1beta1 ingress")
 		}
 
-		response, err = mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).UpdateStatus(mIng)
+		response, err = mClient.ExtensionsV1beta1().Ingresses(namespace).UpdateStatus(mIng)
 	} else {
-		response, err = mClient.NetworkingV1beta1().Ingresses(svc_mdata_obj.Namespace).UpdateStatus(mIngress)
+		response, err = mClient.NetworkingV1beta1().Ingresses(namespace).UpdateStatus(mIngress)
 	}
 	if err != nil {
 		utils.AviLog.Error.Printf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
-		return UpdateIngressStatus(vs_cache_obj, svc_mdata_obj, key, retry+1)
+		return updateObject(namespace, ingressname, hostnames, vs_cache_obj, key, retry+1)
 	}
-
 	utils.AviLog.Info.Printf("key:%s, msg: Successfully updated the ingress status: %v", key, utils.Stringify(response))
-	return nil
+	return err
 }
 
 func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, retryNum ...int) error {

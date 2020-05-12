@@ -275,6 +275,65 @@ func (v *AviVsNode) GetCheckSum() uint32 {
 	return v.CloudConfigCksum
 }
 
+func (v *AviVsNode) GetSniNodeForName(sniNodeName string) *AviVsNode {
+	for _, sni := range v.SniNodes {
+		if sni.Name == sniNodeName {
+			return sni
+		}
+	}
+	return nil
+}
+
+func (o *AviVsNode) CheckSSLCertNodeNameNChecksum(sslNodeName string, checksum uint32) bool {
+	for _, sslCert := range o.SSLKeyCertRefs {
+		if sslCert.Name == sslNodeName {
+			//Check if their checksums are same
+			if sslCert.GetCheckSum() == checksum {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (o *AviVsNode) CheckPGNameNChecksum(pgNodeName string, checksum uint32) bool {
+	for _, pg := range o.PoolGroupRefs {
+		if pg.Name == pgNodeName {
+			//Check if their checksums are same
+			if pg.GetCheckSum() == checksum {
+				return false
+			} else {
+				return true
+			}
+		}
+	}
+	return true
+}
+
+func (o *AviVsNode) CheckPoolNChecksum(poolNodeName string, checksum uint32) bool {
+	for _, pool := range o.PoolRefs {
+		if pool.Name == poolNodeName {
+			//Check if their checksums are same
+			if pool.GetCheckSum() == checksum {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (o *AviVsNode) CheckHttpPolNameNChecksum(httpNodeName string, checksum uint32) bool {
+	for _, http := range o.HttpPolicyRefs {
+		if http.Name == httpNodeName {
+			//Check if their checksums are same
+			if http.GetCheckSum() == checksum {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (v *AviVsNode) GetNodeType() string {
 	// Calculate checksum and return
 	return "VirtualServiceNode"
@@ -687,4 +746,47 @@ type TlsSettings struct {
 type IngressConfig struct {
 	TlsCollection []TlsSettings
 	IngressHostMap
+}
+
+type SecureHostNameMapProp struct {
+	// This method is only used in case of hostname based sharding. Hostname sharding uses a single thread in layer 2
+	// Hence locking is avoided. Secondly, hostname based shards are agnostic of namespaces, hence namespaces are kept only as a
+	// naming constuct. Only used for secure hosts.
+	// hostname1(this is persisted in the store) --> ingress1 + ns --> path: [/foo, /bar], secrets: [secret1]
+	// 			 --> ingress2 + ns --> path: [/baz], secrets: [secret3]
+	HostNameMap map[string]HostNamePathSecrets
+}
+
+func NewSecureHostNameMapProp() SecureHostNameMapProp {
+	hostNameMap := SecureHostNameMapProp{HostNameMap: make(map[string]HostNamePathSecrets)}
+	return hostNameMap
+}
+
+func (h *SecureHostNameMapProp) GetPathsForHostName(hostname string) []string {
+	var paths []string
+	for _, v := range h.HostNameMap {
+		paths = append(paths, v.paths...)
+	}
+	return paths
+}
+
+func (h *SecureHostNameMapProp) GetIngressesForHostName(hostname string) []string {
+	var ingresses []string
+	for k, _ := range h.HostNameMap {
+		ingresses = append(ingresses, k)
+	}
+	return ingresses
+}
+
+func (h *SecureHostNameMapProp) GetSecretsForHostName(hostname string) []string {
+	var secrets []string
+	for _, v := range h.HostNameMap {
+		secrets = append(secrets, v.secretName)
+	}
+	return secrets
+}
+
+type HostNamePathSecrets struct {
+	secretName string
+	paths      []string
 }

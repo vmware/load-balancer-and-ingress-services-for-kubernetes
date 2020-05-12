@@ -41,10 +41,11 @@ type AviPoolCache struct {
 }
 
 type ServiceMetadataObj struct {
-	IngressName string   `json:"ingress_name"`
-	Namespace   string   `json:"namespace"`
-	HostNames   []string `json:"hostnames"`
-	ServiceName string   `json:"svc_name"`
+	NamespaceIngressName []string `json:"namespace_ingress_name"`
+	IngressName          string   `json:"ingress_name"`
+	Namespace            string   `json:"namespace"`
+	HostNames            []string `json:"hostnames"`
+	ServiceName          string   `json:"svc_name"`
 }
 
 type AviDSCache struct {

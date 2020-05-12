@@ -1695,11 +1695,6 @@ func TestL7ModelSNI(t *testing.T) {
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, _ := objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
-		t.Fatalf("Couldn't find Model for DELETE event %v", modelName)
-	}
 
 	// foo.com and noo.com compute the same hashed shard vs num
 	ingrFake := (integrationtest.FakeIngress{
@@ -1876,7 +1871,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return len(nodes[0].SniNodes)
-		}, 10*time.Second).Should(gomega.Equal(2))
+		}, 10*time.Second).Should(gomega.Equal(1))
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(nodes[0].SniNodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
 	} else {

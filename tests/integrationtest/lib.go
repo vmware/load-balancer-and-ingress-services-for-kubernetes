@@ -99,7 +99,7 @@ func AddSecret(secretName string, namespace string) {
 		Namespace: namespace,
 		Name:      secretName,
 	}).Secret()
-	KubeClient.CoreV1().Secrets("default").Create(fakeSecret)
+	KubeClient.CoreV1().Secrets(namespace).Create(fakeSecret)
 }
 
 // Fake ingress

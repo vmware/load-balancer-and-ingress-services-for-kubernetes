@@ -175,11 +175,9 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 	east_west := false
 	var app_prof string
-	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
-		app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_APP_PROFILE
-	} else {
-		app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE
-	}
+
+	app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE
+
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
 	vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
@@ -316,7 +314,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		vs_cache, ok := rest.cache.VsCache.AviCacheGet(k)
 		var svc_mdata_obj avicache.ServiceMetadataObj
 		if resp["service_metadata"] != nil {
-			utils.AviLog.Warning.Printf("key:%s, msg: Service Metadata: %s", key, resp["service_metadata"])
+			utils.AviLog.Info.Printf("key:%s, msg: Service Metadata: %s", key, resp["service_metadata"])
 			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
 				&svc_mdata_obj); err != nil {
 				utils.AviLog.Warning.Printf("Error parsing service metadata :%v", err)
@@ -349,7 +347,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 					// This service needs an update of the status
 					UpdateL4LBStatus(vs_cache_obj, svc_mdata_obj, key)
-				} else if svc_mdata_obj.IngressName != "" && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
+				} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
 					UpdateIngressStatus(parentVsObj, svc_mdata_obj, key)
 				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.

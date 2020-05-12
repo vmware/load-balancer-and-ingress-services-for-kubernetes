@@ -95,7 +95,7 @@ func GetL7HttpRedirPolicy(vsName string) string {
 
 func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) string {
 	if len(sniHostName) > 0 {
-		return GetVrf() + "--" + ingName + "--" + namespace + "--" + sniHostName[0]
+		return GetVrf() + "--" + sniHostName[0]
 	}
 	return GetVrf() + "--" + ingName + "--" + namespace + "--" + secret
 }
