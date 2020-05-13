@@ -1395,15 +1395,18 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
 				utils.AviLog.Warning.Printf("dns_intf not of type map[string] interface{}. Instead of type %T", dns_intf)
 				continue
 			}
-			if dns_pol["uuid"] == nsDNSIpam {
 
+			if dns_pol["uuid"] == nsDNSIpam {
 				dns_profile := dns_pol["internal_profile"]
 				dns_profile_pol, dns_found := dns_profile.(map[string]interface{})
+
 				if dns_found {
-					dns_ipam := dns_profile_pol["dns_service_domain"].([]interface{})[0].(map[string]interface{})
-					// Pick the first dns profile
-					utils.AviLog.Info.Printf("Found DNS_IPAM: %v", dns_ipam["domain_name"])
-					dnsSubDomains = append(dnsSubDomains, dns_ipam["domain_name"].(string))
+					// Support multiple dns profiles.
+					for _, dns_prof := range dns_profile_pol["dns_service_domain"].([]interface{}) {
+						dns_ipam := dns_prof.(map[string]interface{})
+						utils.AviLog.Info.Printf("Found DNS_IPAM: %v", dns_ipam["domain_name"])
+						dnsSubDomains = append(dnsSubDomains, dns_ipam["domain_name"].(string))
+					}
 				}
 
 			}

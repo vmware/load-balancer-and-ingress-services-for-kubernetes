@@ -398,7 +398,13 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 	// If this SSLCertRef is already present don't add it.
 	if len(sniHost) > 0 {
 		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), certNode.GetCheckSum()) {
-			tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
+			if len(tlsNode.SSLKeyCertRefs) == 1 {
+				// Overwrite if the secrets are different.
+				tlsNode.SSLKeyCertRefs[0] = certNode
+				utils.AviLog.Warning.Printf("key: %s, msg: Duplicate secrets detected for the same hostname, overwrote the secret for hostname %s, with contents of secret :%s in ns: %s", key, sniHost[0], secretName, namespace)
+			} else {
+				tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
+			}
 		}
 	} else {
 		tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)

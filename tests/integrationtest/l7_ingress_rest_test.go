@@ -361,7 +361,7 @@ func TestUpdateSNICacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(newHttpPolKey)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 20*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(oldHttpPolKey)
