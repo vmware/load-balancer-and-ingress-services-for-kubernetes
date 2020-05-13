@@ -21,6 +21,8 @@ import (
 	"ako/pkg/k8s"
 	"ako/pkg/lib"
 
+	"github.com/avinetworks/container-lib/api"
+	"github.com/avinetworks/container-lib/api/models"
 	"github.com/avinetworks/container-lib/utils"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -33,7 +35,17 @@ var (
 )
 
 func main() {
+	go InitializeAKCApi()
 	InitializeAKC()
+}
+
+func InitializeAKCApi() {
+	akoApi := &api.ApiServer{
+		Port:   "8080",
+		Models: []models.ApiModel{},
+	}
+
+	akoApi.InitApi()
 }
 
 func InitializeAKC() {

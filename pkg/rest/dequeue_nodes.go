@@ -26,6 +26,7 @@ import (
 	"ako/pkg/lib"
 	"ako/pkg/nodes"
 
+	"github.com/avinetworks/container-lib/api/models"
 	"github.com/avinetworks/container-lib/utils"
 )
 
@@ -361,6 +362,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
 			if err != nil {
 				utils.AviLog.Warning.Printf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
+				models.RestStatus.UpdateAviApiRestStatus("", err)
 				for i := len(rest_ops) - 1; i >= 0; i-- {
 					// Go over each of the failed requests and enqueue them to the worker queue for retry.
 					if rest_ops[i].Err != nil {
@@ -378,6 +380,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					}
 				}
 			} else {
+				models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
 				utils.AviLog.Info.Printf("key: %s, msg: rest call executed successfully, will update cache", key)
 				// Add to local obj caches
 				for _, rest_op := range rest_ops {

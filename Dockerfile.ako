@@ -9,4 +9,5 @@ RUN GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -o $GOPATH/bin/akc -mod=vendo
 
 FROM photon:latest
 COPY --from=build /go/bin/akc .
+EXPOSE 80
 ENTRYPOINT ["./akc"]

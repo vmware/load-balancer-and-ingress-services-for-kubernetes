@@ -15,11 +15,13 @@
 package cache
 
 import (
+	"errors"
 	"os"
 	"sync"
 
 	"ako/pkg/lib"
 
+	"github.com/avinetworks/container-lib/api/models"
 	"github.com/avinetworks/container-lib/utils"
 )
 
@@ -29,6 +31,8 @@ var clientonce sync.Once
 // This class is in control of AKC. It uses utils from the common project.
 func SharedAVIClients() *utils.AviRestClientPool {
 	var err error
+	var connectionStatus string
+
 	ctrlUsername := os.Getenv("CTRL_USERNAME")
 	ctrlPassword := os.Getenv("CTRL_PASSWORD")
 	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
@@ -40,15 +44,25 @@ func SharedAVIClients() *utils.AviRestClientPool {
 		shardSize := lib.GetshardSize()
 		if shardSize != 0 {
 			if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
-				AviClientInstance, err = utils.NewAviRestClientPool(shardSize,
-					ctrlIpAddress, ctrlUsername, ctrlPassword)
+				AviClientInstance, err = utils.NewAviRestClientPool(
+					shardSize,
+					ctrlIpAddress,
+					ctrlUsername,
+					ctrlPassword,
+				)
+				connectionStatus = utils.AVIAPI_CONNECTED
 				if err != nil {
+					connectionStatus = utils.AVIAPI_DISCONNECTED
 					utils.AviLog.Error.Print("AVI controller initilization failed")
 				}
 			}
 		} else {
-			utils.AviLog.Error.Print("Unable to initialize the Avi controller because the shard vs size is indeterministic")
+			connectionStatus = utils.AVIAPI_DISCONNECTED
+			err = errors.New("Unable to initialize the Avi controller because the shard vs size is indeterministic")
+			utils.AviLog.Error.Print(err)
 		}
 	}
+
+	models.RestStatus.UpdateAviApiRestStatus(connectionStatus, err)
 	return AviClientInstance
 }

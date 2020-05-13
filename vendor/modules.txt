@@ -1,4 +1,6 @@
-# github.com/avinetworks/container-lib v0.0.0-20200508071230-c7a9740ba2e5
+# github.com/avinetworks/container-lib v0.0.0-20200510080335-b1176e58fba8
+github.com/avinetworks/container-lib/api
+github.com/avinetworks/container-lib/api/models
 github.com/avinetworks/container-lib/utils
 # github.com/avinetworks/sdk v0.0.0-20200403054229-39f30c036b56
 github.com/avinetworks/sdk/go/clients
@@ -33,6 +35,8 @@ github.com/google/gofuzz
 github.com/googleapis/gnostic/OpenAPIv2
 github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions
+# github.com/gorilla/mux v1.7.4
+github.com/gorilla/mux
 # github.com/hashicorp/golang-lru v0.5.1
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru

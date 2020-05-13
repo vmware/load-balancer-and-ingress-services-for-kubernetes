@@ -32,7 +32,6 @@ endif
 ifndef BUILD_TIME
 	$(eval BUILD_TIME=$(shell date +%Y-%m-%d_%H:%M:%S_%Z))
 endif
-
 	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" -f Dockerfile.ako .
 
 

@@ -139,6 +139,12 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
         
       {{- with .Values.nodeSelector }}
       nodeSelector:
