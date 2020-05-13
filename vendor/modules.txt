@@ -1,4 +1,4 @@
-# github.com/avinetworks/container-lib v0.0.0-20200510080335-b1176e58fba8
+# github.com/avinetworks/container-lib v0.0.0-20200513162737-1d526e43e41a
 github.com/avinetworks/container-lib/api
 github.com/avinetworks/container-lib/api/models
 github.com/avinetworks/container-lib/utils
@@ -74,6 +74,17 @@ github.com/openshift/client-go/route/informers/externalversions/route/v1
 github.com/openshift/client-go/route/listers/route/v1
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
+# go.uber.org/atomic v1.6.0
+go.uber.org/atomic
+# go.uber.org/multierr v1.5.0
+go.uber.org/multierr
+# go.uber.org/zap v1.15.0
+go.uber.org/zap
+go.uber.org/zap/buffer
+go.uber.org/zap/internal/bufferpool
+go.uber.org/zap/internal/color
+go.uber.org/zap/internal/exit
+go.uber.org/zap/zapcore
 # golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553

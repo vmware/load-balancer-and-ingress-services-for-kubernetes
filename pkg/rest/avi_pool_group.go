@@ -69,33 +69,33 @@ func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *ut
 	path := "/api/poolgroup/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
-	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: PG DELETE Restop %v \n", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: PG DELETE Restop %v \n", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
 
 func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for PG err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for PG err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "poolgroup", key)
 	if ok != nil || resp_elems == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: unable to find pool group obj in resp %v", key, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, msg: unable to find pool group obj in resp %v", key, rest_op.Response)
 		return errors.New("poolgroup not found")
 	}
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: name not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: name not present in response %v", key, resp)
 			continue
 		}
 
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: Uuid not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: Uuid not present in response %v", key, resp)
 			continue
 		}
 
@@ -104,11 +104,11 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		var lastModifiedStr string
 		lastModifiedIntf, ok := resp["_last_modified"]
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: last_modified not present in response %v", key, resp)
 		} else {
 			lastModifiedStr, ok = lastModifiedIntf.(string)
 			if !ok {
-				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+				utils.AviLog.Warnf("key: %s, msg: last_modified is not of type string", key)
 			}
 		}
 		var poolMembers []string
@@ -144,16 +144,16 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
 				vs_cache_obj.AddToPGKeyCollection(k)
-				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for PG collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
+				utils.AviLog.Infof("key: %s, msg: modified the VS cache object for PG collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 			}
 
 		} else {
 			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPGKeyCollection(k)
-			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during poolgroup update %v val %v\n", key, vsKey,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during poolgroup update %v val %v\n", key, vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added PG cache k %v val %v\n", key, k,
+		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added PG cache k %v val %v\n", key, k,
 			pg_cache_obj))
 	}
 

@@ -28,11 +28,11 @@ import (
 
 func (rest *RestOperations) AviVrfGet(key, uuid, name string) *avimodels.VrfContext {
 	if rest.aviRestPoolClient == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: aviRestPoolClient not initialized\n", key)
+		utils.AviLog.Warnf("key: %s, msg: aviRestPoolClient not initialized\n", key)
 		return nil
 	}
 	if len(rest.aviRestPoolClient.AviClient) < 1 {
-		utils.AviLog.Warning.Printf("key: %s, msg: client in aviRestPoolClient not initialized\n", key)
+		utils.AviLog.Warnf("key: %s, msg: client in aviRestPoolClient not initialized\n", key)
 		return nil
 	}
 	client := rest.aviRestPoolClient.AviClient[0]
@@ -40,7 +40,7 @@ func (rest *RestOperations) AviVrfGet(key, uuid, name string) *avimodels.VrfCont
 
 	rawData, err := client.AviSession.GetRaw(uri)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Vrf Get uri %v returned err %v", uri, err)
+		utils.AviLog.Warnf("Vrf Get uri %v returned err %v", uri, err)
 		return nil
 	}
 	vrf := avimodels.VrfContext{}
@@ -70,23 +70,23 @@ func (rest *RestOperations) getVrfCacheObj(vrfName string) *avicache.AviVrfCache
 	if found {
 		vrfCacheObj, ok := vrfCache.(*avicache.AviVrfCache)
 		if !ok {
-			utils.AviLog.Warning.Printf("Vrf object for %s found. Cannot cast. Not doing anything\n", vrfName)
+			utils.AviLog.Warnf("Vrf object for %s found. Cannot cast. Not doing anything\n", vrfName)
 			return nil
 		}
 		return vrfCacheObj
 	}
-	utils.AviLog.Info.Printf("vrf cache object NOT found for vrf name: %s", vrfName)
+	utils.AviLog.Infof("vrf cache object NOT found for vrf name: %s", vrfName)
 	return nil
 }
 
 func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache.NamespaceName, key string) error {
 	if (restOp.Err != nil) || (restOp.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for vrfcontext, err: %s, response: %s", key, restOp.Err, restOp.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for vrfcontext, err: %s, response: %s", key, restOp.Err, restOp.Response)
 		return errors.New("Errored rest_op")
 	}
 	respElems, ok := RestRespArrToObjByType(restOp, "vrfcontext", key)
 	if ok != nil || respElems == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: unable to find vrfcontext obj in resp %v", key, restOp.Response)
+		utils.AviLog.Warnf("key: %s, msg: unable to find vrfcontext obj in resp %v", key, restOp.Response)
 		return errors.New("vrfcontext not found")
 	}
 	vrfName := vrfKey.Name
@@ -97,12 +97,12 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 	for _, resp := range respElems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: wrong object type %T for name in vrf %s\n", key, resp["name"], vrfName)
+			utils.AviLog.Warnf("key: %s, msg: wrong object type %T for name in vrf %s\n", key, resp["name"], vrfName)
 			continue
 		}
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: wrong object type %T for uuid in vrf %s\n", key, resp["uuid"], vrfName)
+			utils.AviLog.Warnf("key: %s, msg: wrong object type %T for uuid in vrf %s\n", key, resp["uuid"], vrfName)
 			continue
 		}
 		if resp["static_routes"] == nil {
@@ -110,12 +110,12 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 		} else {
 			staticRoutesIntf, ok := resp["static_routes"].([]interface{})
 			if !ok {
-				utils.AviLog.Warning.Printf("key: %s, msg: wrong object type %T for staticroutes in staticroutes %s\n", key, resp["staticroutes"], vrfName)
+				utils.AviLog.Warnf("key: %s, msg: wrong object type %T for staticroutes in staticroutes %s\n", key, resp["staticroutes"], vrfName)
 				continue
 			}
 			staticRoutes = lib.StaticRoutesIntfToObj(staticRoutesIntf)
 			if len(staticRoutes) == 0 {
-				utils.AviLog.Trace.Printf("key: %s, no static routes found for vrf %s\n", key, vrfName)
+				utils.AviLog.Debugf("key: %s, no static routes found for vrf %s\n", key, vrfName)
 				continue
 			}
 		}

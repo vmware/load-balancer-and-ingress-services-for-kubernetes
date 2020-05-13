@@ -75,14 +75,14 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vipref := "/api/vsvip/?name=" + vs_meta.VSVIPRefs[0].Name
 			vs.VsvipRef = &vipref
 		} else {
-			utils.AviLog.Warning.Printf("key: %s, msg: unable to set the vsvip reference")
+			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference")
 		}
 		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
 		vs.TenantRef = &tenant
 
 		if vs_meta.SNIParent {
 			// This is a SNI parent
-			utils.AviLog.Info.Printf("key: %s, msg: vs %s is a SNI Parent", key, vs_meta.Name)
+			utils.AviLog.Infof("key: %s, msg: vs %s is a SNI Parent", key, vs_meta.Name)
 			vh_parent := utils.VS_TYPE_VH_PARENT
 			vs.Type = &vh_parent
 		}
@@ -92,19 +92,19 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			port := pp.Port
 			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL}
 			if pp.Protocol == utils.TCP {
-				utils.AviLog.Info.Printf("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
+				utils.AviLog.Infof("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
 				port := pp.Port
 				var sproto string
 				sproto = "PROTOCOL_TYPE_TCP_PROXY"
 				pg_name := FindPoolGroupForPort(vs_meta.TCPPoolGroupRefs, port)
 				if pg_name != "" {
-					utils.AviLog.Info.Printf("key: %s, msg: TCP ports for VS creation returned PG: %s", key, pg_name)
+					utils.AviLog.Infof("key: %s, msg: TCP ports for VS creation returned PG: %s", key, pg_name)
 					pg_ref := "/api/poolgroup/?name=" + pg_name
 					sps := avimodels.ServicePoolSelector{ServicePoolGroupRef: &pg_ref,
 						ServicePort: &port, ServiceProtocol: &sproto}
 					vs.ServicePoolSelect = append(vs.ServicePoolSelect, &sps)
 				} else {
-					utils.AviLog.Info.Printf("key: %s, msg: TCP ports for VS creation returned no matching PGs", key)
+					utils.AviLog.Infof("key: %s, msg: TCP ports for VS creation returned no matching PGs", key)
 				}
 
 			} else if pp.Protocol == utils.UDP && vs_meta.NetworkProfile == "System-TCP-Proxy" {
@@ -251,26 +251,26 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for VS, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for VS, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "virtualservice", key)
 	if ok != nil || resp_elems == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: unable to find vs obj in resp %v", key, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, msg: unable to find vs obj in resp %v", key, rest_op.Response)
 		return errors.New("vs not found")
 	}
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: name not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: name not present in response %v", key, resp)
 			return errors.New("Name not present in response")
 		}
 
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: Uuid not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: Uuid not present in response %v", key, resp)
 			return errors.New("Uuid not present in response")
 		}
 
@@ -279,11 +279,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		var lastModifiedStr string
 		lastModifiedIntf, ok := resp["_last_modified"]
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: last_modified not present in response %v", key, resp)
 		} else {
 			lastModifiedStr, ok = lastModifiedIntf.(string)
 			if !ok {
-				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+				utils.AviLog.Warnf("key: %s, msg: last_modified is not of type string", key)
 			}
 		}
 
@@ -293,11 +293,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		if found_parent {
 			// the uuid is expected to be in the format: "https://IP:PORT/api/virtualservice/virtualservice-88fd9718-f4f9-4e2b-9552-d31336330e0e#mygateway"
 			vs_uuid := avicache.ExtractUuid(vh_parent_uuid.(string), "virtualservice-.*.#")
-			utils.AviLog.Info.Printf("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
+			utils.AviLog.Infof("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
 			// Now let's get the VS key from this uuid
 			var foundvscache bool
 			vhParentKey, foundvscache = rest.cache.VsCache.AviCacheGetKeyByUuid(vs_uuid)
-			utils.AviLog.Info.Printf("key: %s, msg: extracted the VS key from the uuid :%s", key, vhParentKey)
+			utils.AviLog.Infof("key: %s, msg: extracted the VS key from the uuid :%s", key, vhParentKey)
 			if foundvscache {
 				parentVsObj = rest.getVsCacheObj(vhParentKey.(avicache.NamespaceName), key)
 				parentVsObj.AddToSNIChildCollection(uuid)
@@ -305,7 +305,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(vh_parent_uuid.(string))}
 				vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(parentKey)
 				vs_cache_obj.AddToSNIChildCollection(uuid)
-				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v\n", key, vhParentKey,
+				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v\n", key, vhParentKey,
 					vs_cache_obj))
 			}
 		}
@@ -314,10 +314,10 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		vs_cache, ok := rest.cache.VsCache.AviCacheGet(k)
 		var svc_mdata_obj avicache.ServiceMetadataObj
 		if resp["service_metadata"] != nil {
-			utils.AviLog.Info.Printf("key:%s, msg: Service Metadata: %s", key, resp["service_metadata"])
+			utils.AviLog.Infof("key:%s, msg: Service Metadata: %s", key, resp["service_metadata"])
 			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
 				&svc_mdata_obj); err != nil {
-				utils.AviLog.Warning.Printf("Error parsing service metadata :%v", err)
+				utils.AviLog.Warnf("Error parsing service metadata :%v", err)
 			}
 		}
 		if ok {
@@ -326,7 +326,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				if vipExists && len(vsvip) > 0 {
 					vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
 					vs_cache_obj.Vip = vip
-					utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated vsvip to the cache: %s", key, vip))
+					utils.AviLog.Info(spew.Sprintf("key: %s, msg: updated vsvip to the cache: %s", key, vip))
 				}
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
@@ -342,7 +342,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					vs_cache_obj.InvalidData = false
 				}
 
-				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
+				utils.AviLog.Info(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 					// This service needs an update of the status
@@ -356,7 +356,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					// Fetch the pool object from cache and check the service metadata
 					pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
 					if ok {
-						utils.AviLog.Info.Printf("key: %s, msg: found pool :%s, will update status", key, poolkey.Name)
+						utils.AviLog.Infof("key: %s, msg: found pool :%s, will update status", key, poolkey.Name)
 						pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 						if found {
 							if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
@@ -377,14 +377,14 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			if vipExists && len(vsvip) > 0 {
 				vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
 				vs_cache_obj.Vip = vip
-				utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
+				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
 			}
 			if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 				// This service needs an update of the status
 				UpdateL4LBStatus(&vs_cache_obj, svc_mdata_obj, key)
 			}
 			rest.cache.VsCache.AviCacheAdd(k, &vs_cache_obj)
-			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key %v val %v\n", key, k,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key %v val %v\n", key, k,
 				vs_cache_obj))
 		}
 
@@ -410,12 +410,12 @@ func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op 
 			if len(vs_cache_obj.VSVipKeyCollection) > 0 {
 				vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
 				vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
-				utils.AviLog.Info.Printf("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
+				utils.AviLog.Infof("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
 			}
 		}
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: deleting vs cache for key: %s", key, vsKey)
+	utils.AviLog.Infof("key: %s, msg: deleting vs cache for key: %s", key, vsKey)
 	rest.cache.VsCache.AviCacheDelete(vsKey)
 
 	return nil
@@ -425,7 +425,7 @@ func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) *ut
 	path := "/api/virtualservice/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "VirtualService", Version: utils.CtrlVersion}
-	utils.AviLog.Info.Print(spew.Sprintf("VirtualService DELETE Restop %v \n",
+	utils.AviLog.Info(spew.Sprintf("VirtualService DELETE Restop %v \n",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -438,7 +438,7 @@ func (rest *RestOperations) findSNIRefAndRemove(snichildkey avicache.NamespaceNa
 		if ok {
 			if sni_vs_key.(avicache.NamespaceName).Name == snichildkey.Name {
 				parentVsObj.SNIChildCollection = append(parentVsObj.SNIChildCollection[:i], parentVsObj.SNIChildCollection[i+1:]...)
-				utils.AviLog.Info.Printf("key: %s, msg: removed sni key: %s", key, snichildkey.Name)
+				utils.AviLog.Infof("key: %s, msg: removed sni key: %s", key, snichildkey.Name)
 				break
 			}
 		}
@@ -472,12 +472,12 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		var vips []*avimodels.Vip
 		var vip avimodels.Vip
 		if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
-			utils.AviLog.Warning.Printf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
+			utils.AviLog.Warnf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
 			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
 		} else {
 			intCidr, err := strconv.ParseInt(lib.GetSubnetPrefix(), 10, 32)
 			if err != nil {
-				utils.AviLog.Warning.Printf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
+				utils.AviLog.Warnf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
 				intCidr = 24
 			}
 			subnet_mask := int32(intCidr)
@@ -531,7 +531,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
-		utils.AviLog.Info.Printf("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
+		utils.AviLog.Infof("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
@@ -540,13 +540,13 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 				if strings.Contains(err.Error(), VSVIP_NOTFOUND) {
 					// Clear the cache for this key
 					rest.cache.VSVIPCache.AviCacheDelete(vsvip_key)
-					utils.AviLog.Warning.Printf("key: %s, Removed the vsvip object from the cache", key)
+					utils.AviLog.Warnf("key: %s, Removed the vsvip object from the cache", key)
 					rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
 						Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
 					return &rest_op, nil
 				}
 				// If it's not nil, return an error.
-				utils.AviLog.Warning.Printf("key: %s, Error in vsvip GET operation :%s", key, err)
+				utils.AviLog.Warnf("key: %s, Error in vsvip GET operation :%s", key, err)
 				return nil, err
 			}
 			for i, fqdn := range vsvip_meta.FQDNs {
@@ -578,11 +578,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 
 func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVip, error) {
 	if rest.aviRestPoolClient == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: aviRestPoolClient during vsvip not initialized\n", key)
+		utils.AviLog.Warnf("key: %s, msg: aviRestPoolClient during vsvip not initialized\n", key)
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
 	if len(rest.aviRestPoolClient.AviClient) < 1 {
-		utils.AviLog.Warning.Printf("key: %s, msg: client in aviRestPoolClient during vsvip not initialized\n", key)
+		utils.AviLog.Warnf("key: %s, msg: client in aviRestPoolClient during vsvip not initialized\n", key)
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
 	client := rest.aviRestPoolClient.AviClient[0]
@@ -590,7 +590,7 @@ func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVi
 
 	rawData, err := client.AviSession.GetRaw(uri)
 	if err != nil {
-		utils.AviLog.Warning.Printf("VsVip Get uri %v returned err %v", uri, err)
+		utils.AviLog.Warnf("VsVip Get uri %v returned err %v", uri, err)
 		return nil, err
 	}
 	vsvip := avimodels.VsVip{}
@@ -603,44 +603,44 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 	path := "/api/vsvip/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "VsVip", Version: utils.CtrlVersion}
-	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v \n", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v \n", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
 
 func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for vsvip err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for vsvip err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored vsvip rest_op")
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "vsvip", key)
 	if ok != nil || resp_elems == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: unable to find vsvip obj in resp %v", key, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, msg: unable to find vsvip obj in resp %v", key, rest_op.Response)
 		return errors.New("vsvip not found")
 	}
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: vsvip name not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: vsvip name not present in response %v", key, resp)
 			continue
 		}
 
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: vsvip Uuid not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: vsvip Uuid not present in response %v", key, resp)
 			continue
 		}
 
 		var lastModifiedStr string
 		lastModifiedIntf, ok := resp["_last_modified"]
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: last_modified not present in response %v", key, resp)
 		} else {
 			lastModifiedStr, ok = lastModifiedIntf.(string)
 			if !ok {
-				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+				utils.AviLog.Warnf("key: %s, msg: last_modified is not of type string", key)
 			}
 		}
 
@@ -658,16 +658,16 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
 				vs_cache_obj.AddToVSVipKeyCollection(k)
-				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
+				utils.AviLog.Infof("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 			}
 
 		} else {
 			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToVSVipKeyCollection(k)
-			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v\n", key, vsKey,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v\n", key, vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v\n", key, k,
+		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v\n", key, k,
 			vsvip_cache_obj))
 	}
 

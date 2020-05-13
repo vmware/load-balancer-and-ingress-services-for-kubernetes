@@ -604,7 +604,7 @@ func NewAviFakeClientInstance() {
 		AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			url := r.URL.EscapedPath()
-			utils.AviLog.Info.Printf("[fakeAPI]: %s %s\n", r.Method, url)
+			utils.AviLog.Infof("[fakeAPI]: %s %s\n", r.Method, url)
 
 			if FakeServerMiddleware != nil {
 				FakeServerMiddleware(w, r)

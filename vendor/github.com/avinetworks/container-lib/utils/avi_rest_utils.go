@@ -38,7 +38,7 @@ func SharedAVIClients() *AviRestClientPool {
 	ctrlPassword := os.Getenv("CTRL_PASSWORD")
 	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
 	if ctrlUsername == "" || ctrlPassword == "" || ctrlIpAddress == "" {
-		AviLog.Error.Panic(`AVI controller information missing. Update them in kubernetes secret or via environment variables.`)
+		AviLog.Fatal(`AVI controller information missing. Update them in kubernetes secret or via environment variables.`)
 	}
 	clientonce.Do(func() {
 		AviClientInstance, _ = NewAviRestClientPool(NumWorkersGraph,
@@ -55,7 +55,7 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 		aviClient, err := clients.NewAviClient(api_ep, username,
 			session.SetPassword(password), session.SetInsecure)
 		if err != nil {
-			AviLog.Warning.Printf("NewAviClient returned err %v", err)
+			AviLog.Warnf("NewAviClient returned err %v", err)
 			return &p, err
 		}
 
@@ -84,11 +84,11 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 		case RestDelete:
 			op.Err = c.AviSession.Delete(op.Path)
 		default:
-			AviLog.Error.Printf("Unknown RestOp %v", op.Method)
+			AviLog.Errorf("Unknown RestOp %v", op.Method)
 			op.Err = fmt.Errorf("Unknown RestOp %v", op.Method)
 		}
 		if op.Err != nil {
-			AviLog.Warning.Printf(`RestOp method %v path %v tenant %v Obj %s 
+			AviLog.Warnf(`RestOp method %v path %v tenant %v Obj %s 
                     returned err %v`, op.Method, op.Path, op.Tenant,
 				spew.Sprint(op.Obj), Stringify(op.Response))
 			for j := i + 1; j < len(rest_ops); j++ {
@@ -98,7 +98,7 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 			err := &WebSyncError{err: op.Err, operation: string(op.Method)}
 			return err
 		} else {
-			AviLog.Info.Printf(`RestOp method %v path %v tenant %v response %v`,
+			AviLog.Infof(`RestOp method %v path %v tenant %v response %v`,
 				op.Method, op.Path, op.Tenant, Stringify(op.Response))
 		}
 	}
@@ -125,7 +125,7 @@ func AviModelToUrl(model string) string {
 	case "VSDataScriptSet":
 		return "/api/vsdatascriptset"
 	default:
-		AviLog.Warning.Printf("Unknown model %v", model)
+		AviLog.Warnf("Unknown model %v", model)
 		return ""
 	}
 }

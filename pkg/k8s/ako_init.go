@@ -54,15 +54,15 @@ func PopulateNodeCache(cs *kubernetes.Clientset) {
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}) {
 	cs := k8sinfo.Cs
-	utils.AviLog.Info.Printf("Creating event broadcaster for handling configmap")
+	utils.AviLog.Infof("Creating event broadcaster for handling configmap")
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(utils.AviLog.Info.Printf)
+	eventBroadcaster.StartLogging(utils.AviLog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 	firstboot := true
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if isAviConfigMap(obj) {
-				utils.AviLog.Info.Printf("avi k8s configmap created")
+				utils.AviLog.Infof("avi k8s configmap created")
 				c.DisableSync = false
 				if !firstboot {
 					ctrlCh <- struct{}{}
@@ -71,7 +71,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 		},
 		DeleteFunc: func(obj interface{}) {
 			if isAviConfigMap(obj) {
-				utils.AviLog.Info.Printf("avi k8s configmap deleted")
+				utils.AviLog.Infof("avi k8s configmap deleted")
 				c.DisableSync = true
 				firstboot = false
 				c.DeleteModels()
@@ -136,7 +136,7 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 	if err != nil {
-		utils.AviLog.Error.Printf("Cannot convert full sync interval value to integer, pls correct the value and restart AKC. Error: %s", err)
+		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKC. Error: %s", err)
 	} else {
 		// First boot sync
 		c.FullSyncK8s()
@@ -186,7 +186,7 @@ func (c *AviController) FullSync() {
 			allModels = append(allModels, modelName)
 		}
 		for _, modelName := range allModels {
-			utils.AviLog.Info.Printf("Found key in the cache, re-publishing them to the REST layer: :%s", modelName)
+			utils.AviLog.Infof("Found key in the cache, re-publishing them to the REST layer: :%s", modelName)
 			//reset retry counter in full sync
 			found, avimodelIntf := objects.SharedAviGraphLister().Get(modelName)
 			if found && avimodelIntf != nil {
@@ -202,19 +202,19 @@ func (c *AviController) FullSync() {
 
 func (c *AviController) FullSyncK8s() {
 	if c.DisableSync {
-		utils.AviLog.Info.Printf("Sync disabled, skipping full sync")
+		utils.AviLog.Infof("Sync disabled, skipping full sync")
 		return
 	}
 	// List all the kubernetes resources
 	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Error.Printf("Unable to list the namespaces")
+		utils.AviLog.Errorf("Unable to list the namespaces")
 		return
 	}
 	for _, nsObj := range namespaces {
 		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
 		if err != nil {
-			utils.AviLog.Error.Printf("Unable to retrieve the services during full sync: %s", err)
+			utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
 			continue
 		}
 		for _, svcObj := range svcObjs {
@@ -230,7 +230,7 @@ func (c *AviController) FullSyncK8s() {
 
 		ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
 		if err != nil {
-			utils.AviLog.Error.Printf("Unable to retrieve the ingresses during full sync: %s", err)
+			utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
 			continue
 		}
 		for _, ingObj := range ingObjs {
@@ -241,7 +241,7 @@ func (c *AviController) FullSyncK8s() {
 	}
 
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
-		utils.AviLog.Info.Printf("Static route sync disabled, skipping node informers")
+		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
 		nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
 		for _, node := range nodeObjects {
@@ -252,7 +252,7 @@ func (c *AviController) FullSyncK8s() {
 
 	cache := avicache.SharedAviObjCache()
 	vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
-	utils.AviLog.Info.Printf("Got the VS keys :%s", vsKeys)
+	utils.AviLog.Infof("Got the VS keys :%s", vsKeys)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	allModelsMap := objects.SharedAviGraphLister().GetAll()
 	var allModels []string
@@ -270,7 +270,7 @@ func (c *AviController) FullSyncK8s() {
 						if utils.HasElem(allModels, modelName) {
 							allModels = utils.Remove(allModels, modelName)
 						}
-						utils.AviLog.Info.Printf("Model published L7 VS during namespace based sync: %s", modelName)
+						utils.AviLog.Infof("Model published L7 VS during namespace based sync: %s", modelName)
 						nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 					}
 				}
@@ -280,7 +280,7 @@ func (c *AviController) FullSyncK8s() {
 					if utils.HasElem(allModels, modelName) {
 						allModels = utils.Remove(allModels, modelName)
 					}
-					utils.AviLog.Info.Printf("Model published L4 VS during namespace based sync: %s", modelName)
+					utils.AviLog.Infof("Model published L4 VS during namespace based sync: %s", modelName)
 					nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 				}
 			} else {
@@ -288,14 +288,14 @@ func (c *AviController) FullSyncK8s() {
 				if utils.HasElem(allModels, modelName) {
 					allModels = utils.Remove(allModels, modelName)
 				}
-				utils.AviLog.Info.Printf("Model published in full sync %s", modelName)
+				utils.AviLog.Infof("Model published in full sync %s", modelName)
 				nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 			}
 		}
 	}
 	// Now also publish the newly generated models (if any)
 	// Publish all the models to REST layer.
-	utils.AviLog.Info.Printf("Newly generated models that do not exist in cache %s", utils.Stringify(allModels))
+	utils.AviLog.Infof("Newly generated models that do not exist in cache %s", utils.Stringify(allModels))
 	if allModels != nil {
 		for _, modelName := range allModels {
 			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)

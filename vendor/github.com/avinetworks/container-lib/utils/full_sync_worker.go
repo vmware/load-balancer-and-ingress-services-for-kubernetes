@@ -39,11 +39,11 @@ func NewFullSyncThread(interval time.Duration) *FullSyncThread {
 func (w *FullSyncThread) Run() {
 	defer close(w.ShutdownChan)
 	time.Sleep(w.Interval)
-	AviLog.Info.Printf("Started the Full Sync Worker")
+	AviLog.Infof("Started the Full Sync Worker")
 	for {
 		select {
 		case <-w.ShutdownChan:
-			AviLog.Info.Printf("Shutting down full sync go routine")
+			AviLog.Infof("Shutting down full sync go routine")
 			return
 		case <-w.QuickSyncChan:
 			// First the regular sync function - that syncs the cache

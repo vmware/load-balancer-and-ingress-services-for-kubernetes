@@ -79,7 +79,7 @@ func ToNetworkingIngress(obj interface{}) (*networking.Ingress, bool) {
 	if inExtension {
 		ing, err := fromExtensions(oldVersion)
 		if err != nil {
-			AviLog.Warning.Printf("unexpected error converting Ingress from extensions package: %v", err)
+			AviLog.Warnf("unexpected error converting Ingress from extensions package: %v", err)
 			return nil, false
 		}
 
@@ -99,7 +99,7 @@ func ToExtensionIngress(obj interface{}) (*extension.Ingress, bool) {
 	if inExtension {
 		ing, err := fromNetworking(oldVersion)
 		if err != nil {
-			AviLog.Warning.Printf("unexpected error converting Ingress from networking package: %v", err)
+			AviLog.Warnf("unexpected error converting Ingress from networking package: %v", err)
 			return nil, false
 		}
 

@@ -25,7 +25,7 @@ func StaticRoutesIntfToObj(staticRoutesIntf []interface{}) []*avimodels.StaticRo
 	for _, staticRouteIf := range staticRoutesIntf {
 		staticRouteMap, ok := staticRouteIf.(map[string]interface{})
 		if !ok {
-			utils.AviLog.Warning.Printf("object type %T did not match for StaticRoute\n", staticRouteIf)
+			utils.AviLog.Warnf("object type %T did not match for StaticRoute\n", staticRouteIf)
 			continue
 		}
 		staticRoute := avimodels.StaticRoute{}
@@ -35,34 +35,34 @@ func StaticRoutesIntfToObj(staticRoutesIntf []interface{}) []*avimodels.StaticRo
 				if disableGatewayMonitor, ok := val.(bool); ok {
 					staticRoute.DisableGatewayMonitor = &disableGatewayMonitor
 				} else {
-					utils.AviLog.Warning.Printf("wrong object type %T for disableGatewayMonitor in staticRoute\n", val)
+					utils.AviLog.Warnf("wrong object type %T for disableGatewayMonitor in staticRoute\n", val)
 				}
 			case "if_name":
 				if ifName, ok := val.(string); ok {
 					staticRoute.IfName = &ifName
 				} else {
-					utils.AviLog.Warning.Printf("wrong object type %T for ifName in staticRoute\n", val)
+					utils.AviLog.Warnf("wrong object type %T for ifName in staticRoute\n", val)
 				}
 			case "next_hop":
 				if nextHop, ok := val.(map[string]interface{}); ok {
 					staticRoute.NextHop = IPAddrIntfToObj(nextHop)
 				} else {
-					utils.AviLog.Warning.Printf("wrong object type %T for nextHop in staticRoute\n", val)
+					utils.AviLog.Warnf("wrong object type %T for nextHop in staticRoute\n", val)
 				}
 			case "prefix":
 				if prefix, ok := val.(map[string]interface{}); ok {
 					staticRoute.Prefix = IAddrPrefixIntfToObj(prefix)
 				} else {
-					utils.AviLog.Warning.Printf("wrong object type %T for prefix in staticRoute\n", val)
+					utils.AviLog.Warnf("wrong object type %T for prefix in staticRoute\n", val)
 				}
 			case "route_id":
 				if routeId, ok := val.(string); ok {
 					staticRoute.RouteID = &routeId
 				} else {
-					utils.AviLog.Warning.Printf("wrong object type %T for routeId in staticRoute\n", val)
+					utils.AviLog.Warnf("wrong object type %T for routeId in staticRoute\n", val)
 				}
 			default:
-				utils.AviLog.Warning.Printf("Unknown key %s in staticRoute\n", key)
+				utils.AviLog.Warnf("Unknown key %s in staticRoute\n", key)
 			}
 		}
 		staticRoutes = append(staticRoutes, &staticRoute)
@@ -78,16 +78,16 @@ func IPAddrIntfToObj(ipAddrIntf map[string]interface{}) *avimodels.IPAddr {
 			if addr, ok := val.(string); ok {
 				ipAddr.Addr = &addr
 			} else {
-				utils.AviLog.Warning.Printf("wrong object type %T for addr in IPAddr\n", val)
+				utils.AviLog.Warnf("wrong object type %T for addr in IPAddr\n", val)
 			}
 		case "type":
 			if addrType, ok := val.(string); ok {
 				ipAddr.Type = &addrType
 			} else {
-				utils.AviLog.Warning.Printf("wrong object type %T for type in IPAddr\n", val)
+				utils.AviLog.Warnf("wrong object type %T for type in IPAddr\n", val)
 			}
 		default:
-			utils.AviLog.Warning.Printf("Unknown key %s in IPAddr\n", key)
+			utils.AviLog.Warnf("Unknown key %s in IPAddr\n", key)
 		}
 	}
 	return &ipAddr
@@ -101,17 +101,17 @@ func IAddrPrefixIntfToObj(ipAddrPrefixIntf map[string]interface{}) *avimodels.IP
 			if ipaddr, ok := val.(map[string]interface{}); ok {
 				ipAddrPrefix.IPAddr = IPAddrIntfToObj(ipaddr)
 			} else {
-				utils.AviLog.Warning.Printf("wrong object type %T for IPAddr in IPAddrPrefix\n", val)
+				utils.AviLog.Warnf("wrong object type %T for IPAddr in IPAddrPrefix\n", val)
 			}
 		case "mask":
 			if mask, ok := val.(float64); ok {
 				mask32 := int32(mask)
 				ipAddrPrefix.Mask = &mask32
 			} else {
-				utils.AviLog.Warning.Printf("wrong object type %T for Mask in IPAddrPrefix\n", val)
+				utils.AviLog.Warnf("wrong object type %T for Mask in IPAddrPrefix\n", val)
 			}
 		default:
-			utils.AviLog.Warning.Printf("Unknown key %s in IPAddrPefix\n", key)
+			utils.AviLog.Warnf("Unknown key %s in IPAddrPefix\n", key)
 		}
 	}
 	return &ipAddrPrefix

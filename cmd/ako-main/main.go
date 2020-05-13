@@ -53,28 +53,28 @@ func InitializeAKC() {
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		utils.AviLog.Warning.Printf("We are not running inside kubernetes cluster. %s", err.Error())
+		utils.AviLog.Warnf("We are not running inside kubernetes cluster. %s", err.Error())
 	} else {
-		utils.AviLog.Info.Println("We are running inside kubernetes cluster. Won't use kubeconfig files.")
+		utils.AviLog.Info("We are running inside kubernetes cluster. Won't use kubeconfig files.")
 		kubeCluster = true
 	}
 
 	if kubeCluster == false {
 		cfg, err = clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-		utils.AviLog.Info.Printf("master: %s", masterURL)
+		utils.AviLog.Infof("master: %s", masterURL)
 		if err != nil {
-			utils.AviLog.Error.Fatalf("Error building kubeconfig: %s", err.Error())
+			utils.AviLog.Fatalf("Error building kubeconfig: %s", err.Error())
 		}
 	}
 
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Error while creating dynamic client %v", err)
+		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		utils.AviLog.Error.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 	registeredInformers := []string{
 		utils.ServiceInformer,

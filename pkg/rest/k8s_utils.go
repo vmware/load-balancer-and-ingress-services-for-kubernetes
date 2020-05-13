@@ -62,13 +62,13 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 		ingObj, err = mClient.NetworkingV1beta1().Ingresses(namespace).Get(ingressname, metav1.GetOptions{})
 	}
 	if err != nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: Could not get the ingress object for UpdateStatus :%s", key, err)
+		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for UpdateStatus :%s", key, err)
 		return err
 	}
 
 	mIngress, ok := utils.ToNetworkingIngress(ingObj)
 	if !ok {
-		utils.AviLog.Error.Printf("Unable to convert obj type interface to networking/v1beta1 ingress")
+		utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
 	}
 
 	// Clean up all hosts that are not part of the ingress spec.
@@ -77,7 +77,7 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 		hostListIng = append(hostListIng, rule.Host)
 	}
 	// If we find a hostname in the present update, let's first remove it from the existing status.
-	utils.AviLog.Info.Printf("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
+	utils.AviLog.Infof("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
 		var matchFound bool
 		for _, host := range hostnames {
@@ -98,7 +98,7 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 		}
 		mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress, lbIngress)
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: status after update: %v", key, mIngress.Status.LoadBalancer.Ingress)
+	utils.AviLog.Infof("key: %s, msg: status after update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
 		var matchFound bool
 		for _, host := range hostListIng {
@@ -116,7 +116,7 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		mIng, ok := utils.ToExtensionIngress(mIngress)
 		if !ok {
-			utils.AviLog.Error.Printf("Unable to convert obj type interface to extensions/v1beta1 ingress")
+			utils.AviLog.Errorf("Unable to convert obj type interface to extensions/v1beta1 ingress")
 		}
 
 		response, err = mClient.ExtensionsV1beta1().Ingresses(namespace).UpdateStatus(mIng)
@@ -124,10 +124,10 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 		response, err = mClient.NetworkingV1beta1().Ingresses(namespace).UpdateStatus(mIngress)
 	}
 	if err != nil {
-		utils.AviLog.Error.Printf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
+		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
 		return updateObject(namespace, ingressname, hostnames, vs_cache_obj, key, retry+1)
 	}
-	utils.AviLog.Info.Printf("key:%s, msg: Successfully updated the ingress status: %v", key, utils.Stringify(response))
+	utils.AviLog.Infof("key:%s, msg: Successfully updated the ingress status: %v", key, utils.Stringify(response))
 	return err
 }
 
@@ -151,16 +151,16 @@ func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, 
 	}
 
 	if err != nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: Could not get the ingress object for DeleteStatus :%s", key, err)
+		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus :%s", key, err)
 		return err
 	}
 
 	mIngress, ok := utils.ToNetworkingIngress(ingObj)
 	if !ok {
-		utils.AviLog.Error.Printf("Unable to convert obj type interface to networking/v1beta1 ingress")
+		utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
 	}
 
-	utils.AviLog.Info.Printf("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
+	utils.AviLog.Infof("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 
 	for i, status := range mIngress.Status.LoadBalancer.Ingress {
 		for _, host := range svc_mdata_obj.HostNames {
@@ -169,13 +169,13 @@ func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, 
 			}
 		}
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: status after update: %v", key, mIngress.Status.LoadBalancer.Ingress)
+	utils.AviLog.Infof("key: %s, msg: status after update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 
 	var response interface{}
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		mIng, ok := utils.ToExtensionIngress(mIngress)
 		if !ok {
-			utils.AviLog.Error.Printf("Unable to convert obj type interface to extensions/v1beta1 ingress")
+			utils.AviLog.Errorf("Unable to convert obj type interface to extensions/v1beta1 ingress")
 		}
 
 		response, err = mClient.ExtensionsV1beta1().Ingresses(mIngress.Namespace).UpdateStatus(mIng)
@@ -183,11 +183,11 @@ func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, 
 		response, err = mClient.NetworkingV1beta1().Ingresses(svc_mdata_obj.Namespace).UpdateStatus(mIngress)
 	}
 	if err != nil {
-		utils.AviLog.Error.Printf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
+		utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
 		return DeleteIngressStatus(svc_mdata_obj, key, retry+1)
 	}
 
-	utils.AviLog.Info.Printf("key:%s, msg: Successfully deleted the ingress status: %v", key, utils.Stringify(response))
+	utils.AviLog.Infof("key:%s, msg: Successfully deleted the ingress status: %v", key, utils.Stringify(response))
 	return nil
 }
 
@@ -195,7 +195,7 @@ func UpdateL4LBStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicache.
 	mClient := utils.GetInformers().ClientSet
 	mLb, err := mClient.CoreV1().Services(svc_mdata_obj.Namespace).Get(svc_mdata_obj.ServiceName, metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: there was a problem in updating the service status :%s", key, err)
+		utils.AviLog.Warnf("key: %s, msg: there was a problem in updating the service status :%s", key, err)
 		return err
 	}
 	if len(svc_mdata_obj.HostNames) != 1 {
@@ -213,9 +213,9 @@ func UpdateL4LBStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicache.
 	}
 	response, err := mClient.CoreV1().Services(svc_mdata_obj.Namespace).UpdateStatus(mLb)
 	if err != nil {
-		utils.AviLog.Error.Printf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
+		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
 		return err
 	}
-	utils.AviLog.Info.Printf("key:%s, msg: Successfully updated the loadbalancer status: %v", key, utils.Stringify(response))
+	utils.AviLog.Infof("key:%s, msg: Successfully updated the loadbalancer status: %v", key, utils.Stringify(response))
 	return nil
 }

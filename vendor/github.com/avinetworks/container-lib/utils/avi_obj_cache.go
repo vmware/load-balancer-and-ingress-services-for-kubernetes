@@ -73,25 +73,25 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 	err = client.AviSession.Get(uri, &rest_response)
 
 	if err != nil {
-		AviLog.Warning.Printf(`Pool Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`Pool Get uri %v returned err %v`, uri, err)
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`Pool Get uri %v returned %v type %T`, uri,
+			AviLog.Warnf(`Pool Get uri %v returned %v type %T`, uri,
 				rest_response, rest_response)
 		} else {
-			AviLog.Info.Printf("Pool Get uri %v returned %v pools", uri,
+			AviLog.Infof("Pool Get uri %v returned %v pools", uri,
 				resp["count"])
 			results, ok := resp["results"].([]interface{})
 			if !ok {
-				AviLog.Warning.Printf(`results not of type []interface{}
+				AviLog.Warnf(`results not of type []interface{}
 								 Instead of type %T`, resp["results"])
 				return nil
 			}
 			for _, pool_intf := range results {
 				pool, ok := pool_intf.(map[string]interface{})
 				if !ok {
-					AviLog.Warning.Printf(`pool_intf not of type map[string]
+					AviLog.Warnf(`pool_intf not of type map[string]
 									 interface{}. Instead of type %T`, pool_intf)
 					continue
 				}
@@ -101,20 +101,20 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 						&svc_mdata); err == nil {
 						svc_mdata_map, ok = svc_mdata.(map[string]interface{})
 						if !ok {
-							AviLog.Warning.Printf(`resp %v svc_mdata %T has invalid
+							AviLog.Warnf(`resp %v svc_mdata %T has invalid
 									 service_metadata type`, pool, svc_mdata)
 						} else {
 							crkhey, ok := svc_mdata_map["crud_hash_key"]
 							if ok {
 								svc_mdata_obj.CrudHashKey = crkhey.(string)
 							} else {
-								AviLog.Warning.Printf(`service_metadata %v 
+								AviLog.Warnf(`service_metadata %v 
 										  malformed`, svc_mdata_map)
 							}
 						}
 					}
 				} else {
-					AviLog.Warning.Printf("service_metadata %v malformed", pool)
+					AviLog.Warnf("service_metadata %v malformed", pool)
 					// Not caching a pool with malformed metadata?
 					continue
 				}
@@ -122,11 +122,11 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 				var tenant string
 				url, err := url.Parse(pool["tenant_ref"].(string))
 				if err != nil {
-					AviLog.Warning.Printf(`Error parsing tenant_ref %v in 
+					AviLog.Warnf(`Error parsing tenant_ref %v in 
 											   pool %v`, pool["tenant_ref"], pool)
 					continue
 				} else if url.Fragment == "" {
-					AviLog.Warning.Printf(`Error extracting name tenant_ref %v 
+					AviLog.Warnf(`Error extracting name tenant_ref %v 
 										 in pool %v`, pool["tenant_ref"], pool)
 					continue
 				} else {
@@ -143,7 +143,7 @@ func (c *AviObjCache) AviPoolCachePopulate(client *clients.AviClient,
 
 				c.PoolCache.AviCacheAdd(k, &pool_cache_obj)
 				pool_key_collection = append(pool_key_collection, k)
-				AviLog.Info.Printf("Added Pool cache key %v val %v",
+				AviLog.Infof("Added Pool cache key %v val %v",
 					k, pool_cache_obj)
 			}
 		}
@@ -179,25 +179,25 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 	err := client.AviSession.Get(uri, &rest_response)
 
 	if err != nil {
-		AviLog.Warning.Printf(`Vs Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`Vs Get uri %v returned err %v`, uri, err)
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`Vs Get uri %v returned %v type %T`, uri,
+			AviLog.Warnf(`Vs Get uri %v returned %v type %T`, uri,
 				rest_response, rest_response)
 		} else {
-			AviLog.Info.Printf("Vs Get uri %v returned %v vses", uri,
+			AviLog.Infof("Vs Get uri %v returned %v vses", uri,
 				resp["count"])
 			results, ok := resp["results"].([]interface{})
 			if !ok {
-				AviLog.Warning.Printf(`results not of type []interface{}
+				AviLog.Warnf(`results not of type []interface{}
 							 Instead of type %T`, resp["results"])
 				return
 			}
 			for _, vs_intf := range results {
 				vs, ok := vs_intf.(map[string]interface{})
 				if !ok {
-					AviLog.Warning.Printf(`vs_intf not of type map[string]
+					AviLog.Warnf(`vs_intf not of type map[string]
 								 interface{}. Instead of type %T`, vs_intf)
 					continue
 				}
@@ -207,14 +207,14 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 						&svc_mdata); err == nil {
 						svc_mdata_map, ok = svc_mdata.(map[string]interface{})
 						if !ok {
-							AviLog.Warning.Printf(`resp %v svc_mdata %T has invalid
+							AviLog.Warnf(`resp %v svc_mdata %T has invalid
 								 service_metadata type`, vs, svc_mdata)
 						} else {
 							crkhey, ok := svc_mdata_map["crud_hash_key"]
 							if ok {
 								svc_mdata_obj.CrudHashKey = crkhey.(string)
 							} else {
-								AviLog.Warning.Printf(`service_metadata %v 
+								AviLog.Warnf(`service_metadata %v 
 									  malformed`, svc_mdata_map)
 							}
 						}
@@ -223,11 +223,11 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 				var tenant string
 				url, err := url.Parse(vs["tenant_ref"].(string))
 				if err != nil {
-					AviLog.Warning.Printf(`Error parsing tenant_ref %v in 
+					AviLog.Warnf(`Error parsing tenant_ref %v in 
 										   vs %v`, vs["tenant_ref"], vs)
 					continue
 				} else if url.Fragment == "" {
-					AviLog.Warning.Printf(`Error extracting name tenant_ref %v 
+					AviLog.Warnf(`Error extracting name tenant_ref %v 
 									 in vs %v`, vs["tenant_ref"], vs)
 					continue
 				} else {
@@ -254,7 +254,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 					k := NamespaceName{Namespace: tenant, Name: vs["name"].(string)}
 					c.VsCache.AviCacheAdd(k, &vs_cache_obj)
 
-					AviLog.Info.Printf("Added Vs cache k %v val %v",
+					AviLog.Infof("Added Vs cache k %v val %v",
 						k, vs_cache_obj)
 				}
 			}
@@ -273,25 +273,25 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 	uri := "/api/poolgroup?include_name=true&cloud_ref.name=" + cloud + "&referred_by=virtualservice:" + vs_uuid
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
-		AviLog.Warning.Printf(`PG Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`PG Get uri %v returned err %v`, uri, err)
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`PG Get uri %v returned %v type %T`, uri,
+			AviLog.Warnf(`PG Get uri %v returned %v type %T`, uri,
 				rest_response, rest_response)
 		} else {
-			AviLog.Info.Printf("PG Get uri %v returned %v PGs", uri,
+			AviLog.Infof("PG Get uri %v returned %v PGs", uri,
 				resp["count"])
 			results, ok := resp["results"].([]interface{})
 			if !ok {
-				AviLog.Warning.Printf(`results not of type []interface{}
+				AviLog.Warnf(`results not of type []interface{}
 								 Instead of type %T for PGs`, resp["results"])
 				return nil
 			}
 			for _, pg_intf := range results {
 				pg, ok := pg_intf.(map[string]interface{})
 				if !ok {
-					AviLog.Warning.Printf(`pg_intf not of type map[string]
+					AviLog.Warnf(`pg_intf not of type map[string]
 									 interface{}. Instead of type %T`, pg_intf)
 					continue
 				}
@@ -301,14 +301,14 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 						&svc_mdata); err == nil {
 						svc_mdata_map, ok = svc_mdata.(map[string]interface{})
 						if !ok {
-							AviLog.Warning.Printf(`resp %v svc_mdata %T has invalid
+							AviLog.Warnf(`resp %v svc_mdata %T has invalid
 									 service_metadata type for PGs`, pg, svc_mdata)
 						} else {
 							crkhey, ok := svc_mdata_map["crud_hash_key"]
 							if ok {
 								svc_mdata_obj.CrudHashKey = crkhey.(string)
 							} else {
-								AviLog.Warning.Printf(`service_metadata %v
+								AviLog.Warnf(`service_metadata %v
 										  malformed`, svc_mdata_map)
 							}
 						}
@@ -318,11 +318,11 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 				var tenant string
 				url, err := url.Parse(pg["tenant_ref"].(string))
 				if err != nil {
-					AviLog.Warning.Printf(`Error parsing tenant_ref %v in
+					AviLog.Warnf(`Error parsing tenant_ref %v in
 											   PG %v`, pg["tenant_ref"], pg)
 					continue
 				} else if url.Fragment == "" {
-					AviLog.Warning.Printf(`Error extracting name tenant_ref %v
+					AviLog.Warnf(`Error extracting name tenant_ref %v
 										 in PG %v`, pg["tenant_ref"], pg)
 					continue
 				} else {
@@ -335,7 +335,7 @@ func (c *AviObjCache) AviPGCachePopulate(client *clients.AviClient,
 					ServiceMetadata:  svc_mdata_obj}
 				k := NamespaceName{Namespace: tenant, Name: pg["name"].(string)}
 				c.PgCache.AviCacheAdd(k, &pg_cache_obj)
-				AviLog.Info.Printf("Added PG cache key %v val %v",
+				AviLog.Infof("Added PG cache key %v val %v",
 					k, pg_cache_obj)
 				pg_key_collection = append(pg_key_collection, k)
 			}
@@ -351,25 +351,25 @@ func (c *AviObjCache) AviHTTPPolicyCachePopulate(client *clients.AviClient,
 	uri := "/api/httppolicyset?include_name=true&referred_by=virtualservice:" + vs_uuid
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
-		AviLog.Warning.Printf(`HTTPPolicySet Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`HTTPPolicySet Get uri %v returned err %v`, uri, err)
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`HTTPPolicySet Get uri %v returned %v type %T`, uri,
+			AviLog.Warnf(`HTTPPolicySet Get uri %v returned %v type %T`, uri,
 				rest_response, rest_response)
 		} else {
-			AviLog.Info.Printf("HTTPPolicySet Get uri %v returned %v HTTP Policies", uri,
+			AviLog.Infof("HTTPPolicySet Get uri %v returned %v HTTP Policies", uri,
 				resp["count"])
 			results, ok := resp["results"].([]interface{})
 			if !ok {
-				AviLog.Warning.Printf(`results not of type []interface{}
+				AviLog.Warnf(`results not of type []interface{}
 								 Instead of type %T for HTTP Policies`, resp["results"])
 				return nil
 			}
 			for _, http_intf := range results {
 				http_pol, ok := http_intf.(map[string]interface{})
 				if !ok {
-					AviLog.Warning.Printf(`http_intf not of type map[string]
+					AviLog.Warnf(`http_intf not of type map[string]
 									 interface{}. Instead of type %T`, http_intf)
 					continue
 				}
@@ -377,11 +377,11 @@ func (c *AviObjCache) AviHTTPPolicyCachePopulate(client *clients.AviClient,
 				var tenant string
 				url, err := url.Parse(http_pol["tenant_ref"].(string))
 				if err != nil {
-					AviLog.Warning.Printf(`Error parsing tenant_ref %v in
+					AviLog.Warnf(`Error parsing tenant_ref %v in
 											   HTTP Policy %v`, http_pol["tenant_ref"], http_pol)
 					continue
 				} else if url.Fragment == "" {
-					AviLog.Warning.Printf(`Error extracting name tenant_ref %v
+					AviLog.Warnf(`Error extracting name tenant_ref %v
 										 in HTTP Policy set %v`, http_pol["tenant_ref"], http_pol)
 					continue
 				} else {
@@ -395,7 +395,7 @@ func (c *AviObjCache) AviHTTPPolicyCachePopulate(client *clients.AviClient,
 					}
 					k := NamespaceName{Namespace: tenant, Name: http_pol["name"].(string)}
 					c.HTTPCache.AviCacheAdd(k, &http_cache_obj)
-					AviLog.Info.Printf("Added HTTP Policy cache key %v val %v",
+					AviLog.Infof("Added HTTP Policy cache key %v val %v",
 						k, http_cache_obj)
 					http_key_collection = append(http_key_collection, k)
 				}
@@ -412,25 +412,25 @@ func (c *AviObjCache) AviSSLKeyAndCertPopulate(client *clients.AviClient,
 	uri := "/api/sslkeyandcertificate?include_name=true&referred_by=virtualservice:" + vs_uuid
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
-		AviLog.Warning.Printf(`SSLKeyAndCert Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`SSLKeyAndCert Get uri %v returned err %v`, uri, err)
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`SSLKeyAndCert Get uri %v returned %v type %T`, uri,
+			AviLog.Warnf(`SSLKeyAndCert Get uri %v returned %v type %T`, uri,
 				rest_response, rest_response)
 		} else {
-			AviLog.Info.Printf("SSLKeyAndCert Get uri %v returned %v SSLKeys.", uri,
+			AviLog.Infof("SSLKeyAndCert Get uri %v returned %v SSLKeys.", uri,
 				resp["count"])
 			results, ok := resp["results"].([]interface{})
 			if !ok {
-				AviLog.Warning.Printf(`results not of type []interface{}
+				AviLog.Warnf(`results not of type []interface{}
 								 Instead of type %T for SSLKeys`, resp["results"])
 				return nil
 			}
 			for _, ssl_intf := range results {
 				ssl_pol, ok := ssl_intf.(map[string]interface{})
 				if !ok {
-					AviLog.Warning.Printf(`ssl_intf not of type map[string]
+					AviLog.Warnf(`ssl_intf not of type map[string]
 									 interface{}. Instead of type %T`, ssl_intf)
 					continue
 				}
@@ -438,15 +438,15 @@ func (c *AviObjCache) AviSSLKeyAndCertPopulate(client *clients.AviClient,
 				var tenant string
 				url, err := url.Parse(ssl_pol["tenant_ref"].(string))
 				if err != nil {
-					AviLog.Warning.Printf(`Error parsing tenant_ref %v in
+					AviLog.Warnf(`Error parsing tenant_ref %v in
 					SSLKeyAndCert %v`, ssl_pol["tenant_ref"], ssl_pol)
 					continue
 				} else if url.Fragment == "" {
-					AviLog.Warning.Printf(`Error extracting name tenant_ref %v
+					AviLog.Warnf(`Error extracting name tenant_ref %v
 										 in SSLKeyAndCert set %v`, ssl_pol["tenant_ref"], ssl_pol)
 					continue
 				} else {
-					AviLog.Info.Printf("URL FRAGMENT :%s tenant_ref: %s", url, ssl_pol["tenant_ref"])
+					AviLog.Infof("URL FRAGMENT :%s tenant_ref: %s", url, ssl_pol["tenant_ref"])
 					tenant = url.Fragment
 				}
 				if ssl_pol != nil {
@@ -454,7 +454,7 @@ func (c *AviObjCache) AviSSLKeyAndCertPopulate(client *clients.AviClient,
 						Tenant: tenant, Uuid: ssl_pol["uuid"].(string)}
 					k := NamespaceName{Namespace: tenant, Name: ssl_pol["name"].(string)}
 					c.SSLKeyCache.AviCacheAdd(k, &ssl_cache_obj)
-					AviLog.Info.Printf("Added SSLKeyAndCert cache key %v val %v",
+					AviLog.Infof("Added SSLKeyAndCert cache key %v val %v",
 						k, ssl_cache_obj)
 					ssl_key_collection = append(ssl_key_collection, k)
 				}
@@ -470,42 +470,42 @@ func (c *AviObjCache) IstioMutualSSLKeyCert(client *clients.AviClient,
 	uri := "/api/sslkeyandcertificate?include_name=true"
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
-		AviLog.Warning.Printf(`IstioMutualSSLKeyCert Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`IstioMutualSSLKeyCert Get uri %v returned err %v`, uri, err)
 		return
 	}
 	resp, ok := rest_response.(map[string]interface{})
 	if !ok {
-		AviLog.Warning.Printf(`IstioMutualSSLKeyCert Get uri %v returned %v type %T`, uri,
+		AviLog.Warnf(`IstioMutualSSLKeyCert Get uri %v returned %v type %T`, uri,
 			rest_response, rest_response)
 		return
 	}
-	AviLog.Info.Printf("IstioMutualSSLKeyCert Get uri %v returned %v SSLKeys", uri,
+	AviLog.Infof("IstioMutualSSLKeyCert Get uri %v returned %v SSLKeys", uri,
 		resp["count"])
 	results, ok := resp["results"].([]interface{})
 	if !ok {
-		AviLog.Warning.Printf(`results not of type []interface{}
+		AviLog.Warnf(`results not of type []interface{}
 								 Instead of type %T for SSLKeys`, resp["results"])
 	}
 	for _, ssl_intf := range results {
 		ssl_pol, ok := ssl_intf.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`ssl_intf not of type map[string]
+			AviLog.Warnf(`ssl_intf not of type map[string]
 									 interface{}. Instead of type %T`, ssl_intf)
 			continue
 		}
 		if !strings.Contains(ssl_pol["name"].(string), "istio.default") {
 			// Don't parse non-istio.default secrets.
-			AviLog.Info.Printf("Skipping SSL Key cert with name :%s", ssl_pol["name"].(string))
+			AviLog.Infof("Skipping SSL Key cert with name :%s", ssl_pol["name"].(string))
 			continue
 		}
 		var tenant string
 		url, err := url.Parse(ssl_pol["tenant_ref"].(string))
 		if err != nil {
-			AviLog.Warning.Printf(`Error parsing tenant_ref %v in
+			AviLog.Warnf(`Error parsing tenant_ref %v in
 					IstioMutualSSLKeyCert %v`, ssl_pol["tenant_ref"], ssl_pol)
 			continue
 		} else if url.Fragment == "" {
-			AviLog.Warning.Printf(`Error extracting name tenant_ref %v
+			AviLog.Warnf(`Error extracting name tenant_ref %v
 										 in IstioMutualSSLKeyCert set %v`, ssl_pol["tenant_ref"], ssl_pol)
 			continue
 		} else {
@@ -516,7 +516,7 @@ func (c *AviObjCache) IstioMutualSSLKeyCert(client *clients.AviClient,
 				Tenant: tenant, Uuid: ssl_pol["uuid"].(string)}
 			k := NamespaceName{Namespace: tenant, Name: ssl_pol["name"].(string)}
 			c.SSLKeyCache.AviCacheAdd(k, &ssl_cache_obj)
-			AviLog.Info.Printf("Added IstioMutualSSLKeyCert cache key %v val %v",
+			AviLog.Infof("Added IstioMutualSSLKeyCert cache key %v val %v",
 				k, ssl_cache_obj)
 		}
 
@@ -530,26 +530,26 @@ func (c *AviObjCache) IstioMutualPkiProfile(client *clients.AviClient,
 	uri := "/api/pkiprofile?include_name=true"
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
-		AviLog.Warning.Printf(`IstioMutualPkiProfile Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`IstioMutualPkiProfile Get uri %v returned err %v`, uri, err)
 		return
 	}
 	resp, ok := rest_response.(map[string]interface{})
 	if !ok {
-		AviLog.Warning.Printf(`IstioMutualPkiProfile Get uri %v returned %v type %T`, uri,
+		AviLog.Warnf(`IstioMutualPkiProfile Get uri %v returned %v type %T`, uri,
 			rest_response, rest_response)
 		return
 	}
-	AviLog.Info.Printf("IstioMutualPkiProfile Get uri %v returned %v PkiProfile", uri,
+	AviLog.Infof("IstioMutualPkiProfile Get uri %v returned %v PkiProfile", uri,
 		resp["count"])
 	results, ok := resp["results"].([]interface{})
 	if !ok {
-		AviLog.Warning.Printf(`results not of type []interface{}
+		AviLog.Warnf(`results not of type []interface{}
 								 Instead of type %T for PkiProfile`, resp["results"])
 	}
 	for _, pki_intf := range results {
 		pki_pro, ok := pki_intf.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`pki_intf not of type map[string]
+			AviLog.Warnf(`pki_intf not of type map[string]
 									 interface{}. Instead of type %T`, pki_intf)
 			continue
 		}
@@ -557,11 +557,11 @@ func (c *AviObjCache) IstioMutualPkiProfile(client *clients.AviClient,
 		var tenant string
 		url, err := url.Parse(pki_pro["tenant_ref"].(string))
 		if err != nil {
-			AviLog.Warning.Printf(`Error parsing tenant_ref %v in
+			AviLog.Warnf(`Error parsing tenant_ref %v in
 					IstioMutualPkiProfile %v`, pki_pro["tenant_ref"], pki_pro)
 			continue
 		} else if url.Fragment == "" {
-			AviLog.Warning.Printf(`Error extracting name tenant_ref %v
+			AviLog.Warnf(`Error extracting name tenant_ref %v
 										 in IstioMutualPkiProfile set %v`, pki_pro["tenant_ref"], pki_pro)
 			continue
 		} else {
@@ -572,7 +572,7 @@ func (c *AviObjCache) IstioMutualPkiProfile(client *clients.AviClient,
 				Tenant: tenant, Uuid: pki_pro["uuid"].(string)}
 			k := NamespaceName{Namespace: tenant, Name: pki_pro["name"].(string)}
 			c.PkiProfileCache.AviCacheAdd(k, &pki_cache_obj)
-			AviLog.Info.Printf("Added IstioMutualPkiProfile cache key %v val %v",
+			AviLog.Infof("Added IstioMutualPkiProfile cache key %v val %v",
 				k, pki_cache_obj)
 		}
 	}
@@ -585,24 +585,24 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient,
 	uri := "/api/cloud"
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
-		AviLog.Warning.Printf(`CloudProperties Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`CloudProperties Get uri %v returned err %v`, uri, err)
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`CloudProperties Get uri %v returned %v type %T`, uri,
+			AviLog.Warnf(`CloudProperties Get uri %v returned %v type %T`, uri,
 				rest_response, rest_response)
 		} else {
-			AviLog.Info.Printf("CloudProperties Get uri %v returned %v ", uri,
+			AviLog.Infof("CloudProperties Get uri %v returned %v ", uri,
 				resp["count"])
 			results, ok := resp["results"].([]interface{})
 			if !ok {
-				AviLog.Warning.Printf(`results not of type []interface{}
+				AviLog.Warnf(`results not of type []interface{}
 								 Instead of type %T `, resp["results"])
 			}
 			for _, cloud_intf := range results {
 				cloud_pol, ok := cloud_intf.(map[string]interface{})
 				if !ok {
-					AviLog.Warning.Printf(`cloud_intf not of type map[string]
+					AviLog.Warnf(`cloud_intf not of type map[string]
 									 interface{}. Instead of type %T`, cloud_intf)
 					continue
 				}
@@ -615,7 +615,7 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient,
 						cloud_obj.NSIpamDNS = c.AviDNSPropertyPopulate(client, dns_uuid)
 					}
 					c.CloudKeyCache.AviCacheAdd(cloud, cloud_obj)
-					AviLog.Info.Printf("Added CloudKeyCache cache key %v val %v",
+					AviLog.Infof("Added CloudKeyCache cache key %v val %v",
 						cloud, cloud_obj)
 				}
 			}
@@ -629,25 +629,25 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
 	uri := "/api/ipamdnsproviderprofile/"
 	err := client.AviSession.Get(uri, &rest_response)
 	if err != nil {
-		AviLog.Warning.Printf(`DNSProperty Get uri %v returned err %v`, uri, err)
+		AviLog.Warnf(`DNSProperty Get uri %v returned err %v`, uri, err)
 		return ""
 	} else {
 		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
-			AviLog.Warning.Printf(`DNSProperty Get uri %v returned %v type %T`, uri,
+			AviLog.Warnf(`DNSProperty Get uri %v returned %v type %T`, uri,
 				rest_response, rest_response)
 		} else {
-			AviLog.Info.Printf("DNSProperty Get uri %v returned %v ", uri,
+			AviLog.Infof("DNSProperty Get uri %v returned %v ", uri,
 				resp["count"])
 			results, ok := resp["results"].([]interface{})
 			if !ok {
-				AviLog.Warning.Printf(`results not of type []interface{}
+				AviLog.Warnf(`results not of type []interface{}
 								 Instead of type %T `, resp["results"])
 			}
 			for _, dns_intf := range results {
 				dns_pol, ok := dns_intf.(map[string]interface{})
 				if !ok {
-					AviLog.Warning.Printf(`dns_intf not of type map[string]
+					AviLog.Warnf(`dns_intf not of type map[string]
 									 interface{}. Instead of type %T`, dns_intf)
 					continue
 				}
@@ -658,7 +658,7 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
 					if dns_found {
 						dns_ipam := dns_profile_pol["dns_service_domain"].([]interface{})[0].(map[string]interface{})
 						// Pick the first dns profile
-						AviLog.Info.Printf("Found DNS_IPAM: %v", dns_ipam["domain_name"])
+						AviLog.Infof("Found DNS_IPAM: %v", dns_ipam["domain_name"])
 						return dns_ipam["domain_name"].(string)
 					}
 

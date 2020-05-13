@@ -39,7 +39,7 @@ type AviGraphLister struct {
 }
 
 func (a *AviGraphLister) Save(vsName string, aviGraph interface{}) {
-	utils.AviLog.Info.Printf("Saving Model :%s", vsName)
+	utils.AviLog.Infof("Saving Model :%s", vsName)
 	a.AviGraphStore.AddOrUpdate(vsName, aviGraph)
 }
 

@@ -28,20 +28,20 @@ func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) 
 		resp_arr, ok := rest_op.Response.([]interface{})
 
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: response has unknown type %T", key, rest_op.Response)
+			utils.AviLog.Warnf("key: %s, msg: response has unknown type %T", key, rest_op.Response)
 			return nil, errors.New("Malformed response")
 		}
 
 		for _, resp_elem := range resp_arr {
 			resp, ok := resp_elem.(map[string]interface{})
 			if !ok {
-				utils.AviLog.Warning.Printf("key: %s, msg: response has unknown type %T", key, resp_elem)
+				utils.AviLog.Warnf("key: %s, msg: response has unknown type %T", key, resp_elem)
 				continue
 			}
 
 			avi_url, ok := resp["url"].(string)
 			if !ok {
-				utils.AviLog.Warning.Printf("key: %s, msg:url not present in response %v", key, resp)
+				utils.AviLog.Warnf("key: %s, msg:url not present in response %v", key, resp)
 				continue
 			}
 

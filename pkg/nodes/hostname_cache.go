@@ -38,7 +38,7 @@ type HostNameLister struct {
 }
 
 func (a *HostNameLister) Save(hostname string, hsGraph SecureHostNameMapProp) {
-	utils.AviLog.Info.Printf("Saving hostname map :%s", hostname)
+	utils.AviLog.Infof("Saving hostname map :%s", hostname)
 	a.HostNameStore.AddOrUpdate(hostname, hsGraph)
 }
 

@@ -44,7 +44,7 @@ func (v *Validator) IsValiddHostName(hostname string) bool {
 			}
 		}
 	}
-	utils.AviLog.Warning.Printf("Didn't find match for hostname :%s Available sub-domains:%s", hostname, v.subDomains)
+	utils.AviLog.Warnf("Didn't find match for hostname :%s Available sub-domains:%s", hostname, v.subDomains)
 	return false
 }
 
@@ -60,7 +60,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 		var hostName string
 		if rule.Host == "" {
 			if subDomains == nil {
-				utils.AviLog.Warning.Printf("No sub-domain configured in cloud")
+				utils.AviLog.Warnf("No sub-domain configured in cloud")
 				continue
 			} else {
 				// The Host field is empty. Generate a hostName using the sub-domain info
@@ -115,6 +115,6 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 	}
 	ingressConfig.TlsCollection = tlsConfigs
 	ingressConfig.IngressHostMap = hostMap
-	utils.AviLog.Info.Printf("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))
+	utils.AviLog.Infof("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig
 }

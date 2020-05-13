@@ -133,7 +133,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		}
 	}
 
-	utils.AviLog.Info.Print(spew.Sprintf("HTTPPolicySet Restop %v AviHttpPolicySetMeta %v\n",
+	utils.AviLog.Info(spew.Sprintf("HTTPPolicySet Restop %v AviHttpPolicySetMeta %v\n",
 		rest_op, *hps_meta))
 	return &rest_op
 }
@@ -142,33 +142,33 @@ func (rest *RestOperations) AviHttpPolicyDel(uuid string, tenant string, key str
 	path := "/api/httppolicyset/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
-	utils.AviLog.Info.Print(spew.Sprintf("HTTP Policy Set DELETE Restop %v \n",
+	utils.AviLog.Info(spew.Sprintf("HTTP Policy Set DELETE Restop %v \n",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
 
 func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for httppolicyset, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for httppolicyset, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "httppolicyset", key)
 	if ok != nil || resp_elems == nil {
-		utils.AviLog.Warning.Printf("Unable to find HTTP Policy Set obj in resp %v", rest_op.Response)
+		utils.AviLog.Warnf("Unable to find HTTP Policy Set obj in resp %v", rest_op.Response)
 		return errors.New("HTTP Policy Set object not found")
 	}
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("Name not present in response %v", resp)
+			utils.AviLog.Warnf("Name not present in response %v", resp)
 			continue
 		}
 
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("Uuid not present in response %v", resp)
+			utils.AviLog.Warnf("Uuid not present in response %v", resp)
 			continue
 		}
 
@@ -177,11 +177,11 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 		var lastModifiedStr string
 		lastModifiedIntf, ok := resp["_last_modified"]
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: last_modified not present in response %v", key, resp)
 		} else {
 			lastModifiedStr, ok = lastModifiedIntf.(string)
 			if !ok {
-				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+				utils.AviLog.Warnf("key: %s, msg: last_modified is not of type string", key)
 			}
 		}
 		var pgMembers []string
@@ -220,16 +220,16 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
 				vs_cache_obj.AddToHTTPKeyCollection(k)
-				utils.AviLog.Info.Printf("Modified the VS cache for https object. The cache now is :%v", utils.Stringify(vs_cache_obj))
+				utils.AviLog.Infof("Modified the VS cache for https object. The cache now is :%v", utils.Stringify(vs_cache_obj))
 			}
 
 		} else {
 			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToHTTPKeyCollection(k)
-			utils.AviLog.Info.Print(spew.Sprintf("Added VS cache key during http policy update %v val %v\n", vsKey,
+			utils.AviLog.Info(spew.Sprintf("Added VS cache key during http policy update %v val %v\n", vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info.Print(spew.Sprintf("Added Http Policy Set cache k %v val %v\n", k,
+		utils.AviLog.Info(spew.Sprintf("Added Http Policy Set cache k %v val %v\n", k,
 			http_cache_obj))
 	}
 

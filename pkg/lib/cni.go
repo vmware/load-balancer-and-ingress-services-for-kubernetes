@@ -50,7 +50,7 @@ func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 
 	ds, err := dynamic.NewForConfig(config)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Error while creating dynamic client %v", err)
+		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
 		return nil, err
 	}
 	if dynamicClientSet == nil {
@@ -62,7 +62,7 @@ func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 // GetDynamicClientSet returns dynamic client set instance
 func GetDynamicClientSet() dynamic.Interface {
 	if dynamicClientSet == nil {
-		utils.AviLog.Warning.Print("Cannot retrieve the dynamic informers since it's not initialized yet.")
+		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
 		return nil
 	}
 	return dynamicClientSet
@@ -87,7 +87,7 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 // GetDynamicInformers returns DynamicInformers instance
 func GetDynamicInformers() *DynamicInformers {
 	if dynamicInformerInstance == nil {
-		utils.AviLog.Warning.Print("Cannot retrieve the dynamic informers since it's not initialized yet.")
+		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
 		return nil
 	}
 	return dynamicInformerInstance
@@ -104,7 +104,7 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 		crdClient := dynamicClient.Resource(CalicoBlockaffinityGVR)
 		crdList, err := crdClient.List(metav1.ListOptions{})
 		if err != nil {
-			utils.AviLog.Error.Printf("Error getting CRD %v", err)
+			utils.AviLog.Errorf("Error getting CRD %v", err)
 			return nil, err
 		}
 
@@ -114,7 +114,7 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 			if crdNodeName == nodename {
 				podCIDR = crdSpec["cidr"].(string)
 				if podCIDR == "" {
-					utils.AviLog.Error.Printf("Error in fetching Pod CIDR from BlockAffinity %v", node.ObjectMeta.Name)
+					utils.AviLog.Errorf("Error in fetching Pod CIDR from BlockAffinity %v", node.ObjectMeta.Name)
 					return nil, errors.New("podcidr not found")
 				}
 
@@ -127,7 +127,7 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 	} else {
 		podCIDR = node.Spec.PodCIDR
 		if podCIDR == "" {
-			utils.AviLog.Error.Printf("Error in fetching Pod CIDR from NodeSpec %v", node.ObjectMeta.Name)
+			utils.AviLog.Errorf("Error in fetching Pod CIDR from NodeSpec %v", node.ObjectMeta.Name)
 			return nil, errors.New("podcidr not found")
 		}
 

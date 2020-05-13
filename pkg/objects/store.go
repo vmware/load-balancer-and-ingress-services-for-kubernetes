@@ -58,7 +58,7 @@ func (store *ObjectStore) DeleteNSStore(nsName string) bool {
 		delete(store.NSObjectMap, nsName)
 		return true
 	}
-	utils.AviLog.Warning.Printf("Namespace: %s not found, nothing to delete returning false", nsName)
+	utils.AviLog.Warnf("Namespace: %s not found, nothing to delete returning false", nsName)
 	return false
 
 }

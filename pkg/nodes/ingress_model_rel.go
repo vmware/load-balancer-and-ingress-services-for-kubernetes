@@ -70,12 +70,12 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 	} else {
 		ingObj, ok := utils.ToNetworkingIngress(myIng)
 		if !ok {
-			utils.AviLog.Error.Printf("Unable to convert obj type interface to networking/v1beta1 ingress")
+			utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
 		}
 
 		services := parseServicesForIngress(ingObj.Spec, key)
 		for _, svc := range services {
-			utils.AviLog.Info.Printf("key: %s, msg: updating ingress relationship for service:  %s", key, svc)
+			utils.AviLog.Infof("key: %s, msg: updating ingress relationship for service:  %s", key, svc)
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
 		}
 		secrets := parseSecretsForIngress(ingObj.Spec, key)
@@ -101,7 +101,7 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 		}
 	}
 	_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
-	utils.AviLog.Info.Printf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
+	utils.AviLog.Infof("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	if len(ingresses) == 0 {
 		return nil, false
 	}
@@ -110,13 +110,13 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 
 func EPToIng(epName string, namespace string, key string) ([]string, bool) {
 	ingresses, found := SvcToIng(epName, namespace, key)
-	utils.AviLog.Info.Printf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
+	utils.AviLog.Infof("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	return ingresses, found
 }
 
 func SecretToIng(secretName string, namespace string, key string) ([]string, bool) {
 	ok, ingNames := objects.SharedSvcLister().IngressMappings(namespace).GetSecretToIng(secretName)
-	utils.AviLog.Info.Printf("key:%s, msg: Ingresses associated with the secret are: %s", key, ingNames)
+	utils.AviLog.Infof("key:%s, msg: Ingresses associated with the secret are: %s", key, ingNames)
 	if ok {
 		return ingNames, true
 	}
@@ -131,7 +131,7 @@ func parseServicesForIngress(ingSpec v1beta1.IngressSpec, key string) []string {
 			services = append(services, path.Backend.ServiceName)
 		}
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: total services retrieved  from corev1:  %s", key, services)
+	utils.AviLog.Infof("key: %s, msg: total services retrieved  from corev1:  %s", key, services)
 	return services
 }
 
@@ -141,7 +141,7 @@ func parseSecretsForIngress(ingSpec v1beta1.IngressSpec, key string) []string {
 	for _, tlsSettings := range ingSpec.TLS {
 		secrets = append(secrets, tlsSettings.SecretName)
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: total secrets retrieved from corev1:  %s", key, secrets)
+	utils.AviLog.Infof("key: %s, msg: total secrets retrieved from corev1:  %s", key, secrets)
 	return secrets
 }
 

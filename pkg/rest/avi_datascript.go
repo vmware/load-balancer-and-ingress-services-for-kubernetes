@@ -64,7 +64,7 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 		}
 	}
 
-	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: ds Restop %v DatascriptData %v\n", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: ds Restop %v DatascriptData %v\n", key,
 		utils.Stringify(rest_op), *ds_meta))
 	return &rest_op
 }
@@ -73,34 +73,34 @@ func (rest *RestOperations) AviDSDel(uuid string, tenant string, key string) *ut
 	path := "/api/vsdatascriptset/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
-	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: DS DELETE Restop %v \n", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: DS DELETE Restop %v \n", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
 
 func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for datascriptset err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for datascriptset err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "vsdatascriptset", key)
-	utils.AviLog.Warning.Printf("The datascriptset object response %v", rest_op.Response)
+	utils.AviLog.Warnf("The datascriptset object response %v", rest_op.Response)
 	if ok != nil || resp_elems == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: unable to find datascriptset obj in resp %v", key, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, msg: unable to find datascriptset obj in resp %v", key, rest_op.Response)
 		return errors.New("datascriptset not found")
 	}
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: DS Name not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: DS Name not present in response %v", key, resp)
 			continue
 		}
 
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: DS Uuid not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: DS Uuid not present in response %v", key, resp)
 			continue
 		}
 		// Datascript should not have a checksum
@@ -127,15 +127,15 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
 				vs_cache_obj.AddToDSKeyCollection(k)
-				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for Datascriptset Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
+				utils.AviLog.Infof("key: %s, msg: modified the VS cache object for Datascriptset Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 			}
 		} else {
 			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToDSKeyCollection(k)
-			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during datascriptset update %v val %v\n", key, vsKey,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during datascriptset update %v val %v\n", key, vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added Datascriptset cache k %v val %v\n", key, k,
+		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added Datascriptset cache k %v val %v\n", key, k,
 			ds_cache_obj))
 	}
 
@@ -144,7 +144,7 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 
 func (rest *RestOperations) AviDSCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	dsKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
-	utils.AviLog.Info.Printf("Deleting DS: %s", dsKey)
+	utils.AviLog.Infof("Deleting DS: %s", dsKey)
 	rest.cache.DSCache.AviCacheDelete(dsKey)
 	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
 	if ok {

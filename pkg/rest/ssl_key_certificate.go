@@ -56,33 +56,33 @@ func (rest *RestOperations) AviSSLKeyCertDel(uuid string, tenant string) *utils.
 	path := "/api/sslkeyandcertificate/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
-	utils.AviLog.Info.Print(spew.Sprintf("SSLCertKey DELETE Restop %v \n",
+	utils.AviLog.Info(spew.Sprintf("SSLCertKey DELETE Restop %v \n",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
 
 func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for sslkeycert, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for sslkeycert, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "sslkeyandcertificate", key)
 	if ok != nil || resp_elems == nil {
-		utils.AviLog.Warning.Printf("Unable to find SSLKeyCert obj in resp %v", rest_op.Response)
+		utils.AviLog.Warnf("Unable to find SSLKeyCert obj in resp %v", rest_op.Response)
 		return errors.New("SSLKeyCert not found")
 	}
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("Name not present in response %v", resp)
+			utils.AviLog.Warnf("Name not present in response %v", resp)
 			continue
 		}
 
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("Uuid not present in response %v", resp)
+			utils.AviLog.Warnf("Uuid not present in response %v", resp)
 			continue
 		}
 
@@ -97,18 +97,18 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			if ok {
 				vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 				if found {
-					utils.AviLog.Info.Printf("The VS cache before modification by SSLKeyCert is :%v", utils.Stringify(vs_cache_obj))
+					utils.AviLog.Infof("The VS cache before modification by SSLKeyCert is :%v", utils.Stringify(vs_cache_obj))
 					vs_cache_obj.AddToSSLKeyCertCollection(k)
-					utils.AviLog.Info.Printf("Modified the VS cache object for SSLKeyCert Collection. The cache now is :%v", utils.Stringify(vs_cache_obj))
+					utils.AviLog.Infof("Modified the VS cache object for SSLKeyCert Collection. The cache now is :%v", utils.Stringify(vs_cache_obj))
 				}
 
 			} else {
 				vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
 				vs_cache_obj.AddToSSLKeyCertCollection(k)
-				utils.AviLog.Info.Print(spew.Sprintf("Added VS cache key during SSLKeyCert update %v val %v\n", vsKey,
+				utils.AviLog.Info(spew.Sprintf("Added VS cache key during SSLKeyCert update %v val %v\n", vsKey,
 					vs_cache_obj))
 			}
-			utils.AviLog.Info.Print(spew.Sprintf("Added SSLKeyCert cache k %v val %v\n", k,
+			utils.AviLog.Info(spew.Sprintf("Added SSLKeyCert cache k %v val %v\n", k,
 				ssl_cache_obj))
 		}
 	}

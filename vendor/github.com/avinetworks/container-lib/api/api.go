@@ -39,10 +39,10 @@ func (a *ApiServer) SetRouter() *mux.Router {
 
 			if _, ok := routerMap[routerMapKey]; !ok {
 				routerMap[routerMapKey] = true
-				utils.AviLog.Info.Printf("Setting route for %s %s", o.Method, o.Route)
+				utils.AviLog.Infof("Setting route for %s %s", o.Method, o.Route)
 				router.HandleFunc(o.Route, o.Handler).Methods(o.Method)
 			} else {
-				utils.AviLog.Warning.Printf("Route for %s %s already exists", o.Method, o.Route)
+				utils.AviLog.Warnf("Route for %s %s already exists", o.Method, o.Route)
 			}
 		}
 	}
@@ -66,9 +66,9 @@ func (a *ApiServer) InitApi() {
 	router := a.SetRouter()
 	port := a.Port
 
-	utils.AviLog.Info.Printf("API server now running on port %s", port)
+	utils.AviLog.Infof("API server now running on port %s", port)
 	if err := http.ListenAndServe(":"+port, router); err != nil {
-		utils.AviLog.Error.Printf("Error initializing AKO api server: %+v", err)
+		utils.AviLog.Errorf("Error initializing AKO api server: %+v", err)
 		return
 	}
 }

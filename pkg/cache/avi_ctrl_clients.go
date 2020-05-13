@@ -37,7 +37,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	ctrlPassword := os.Getenv("CTRL_PASSWORD")
 	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
 	if ctrlUsername == "" || ctrlPassword == "" || ctrlIpAddress == "" {
-		utils.AviLog.Error.Panic("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
+		utils.AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
 	}
 
 	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
@@ -53,13 +53,13 @@ func SharedAVIClients() *utils.AviRestClientPool {
 				connectionStatus = utils.AVIAPI_CONNECTED
 				if err != nil {
 					connectionStatus = utils.AVIAPI_DISCONNECTED
-					utils.AviLog.Error.Print("AVI controller initilization failed")
+					utils.AviLog.Error("AVI controller initilization failed")
 				}
 			}
 		} else {
 			connectionStatus = utils.AVIAPI_DISCONNECTED
 			err = errors.New("Unable to initialize the Avi controller because the shard vs size is indeterministic")
-			utils.AviLog.Error.Print(err)
+			utils.AviLog.Error(err)
 		}
 	}
 

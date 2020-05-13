@@ -85,16 +85,16 @@ func NewWorkQueue(num_workers uint32, workerQueueName string, slowSyncTime ...in
 
 func (c *WorkerQueue) Run(stopCh <-chan struct{}) error {
 	//defer runtime.HandleCrash()
-	AviLog.Info.Printf("Starting workers to drain the %s layer queues", c.WorkqueueName)
+	AviLog.Infof("Starting workers to drain the %s layer queues", c.WorkqueueName)
 	if c.SyncFunc == nil {
 		// This is a bad situation, the sync function is required.
-		AviLog.Error.Fatalf("Sync function is not set for workqueue: %s", c.WorkqueueName)
+		AviLog.Fatalf("Sync function is not set for workqueue: %s", c.WorkqueueName)
 		return nil
 	}
 	for i := uint32(0); i < c.NumWorkers; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
-	AviLog.Info.Printf("Started the workers for: %s", c.WorkqueueName)
+	AviLog.Infof("Started the workers for: %s", c.WorkqueueName)
 
 	return nil
 }
@@ -102,7 +102,7 @@ func (c *WorkerQueue) StopWorkers(stopCh <-chan struct{}) {
 	for i := uint32(0); i < c.NumWorkers; i++ {
 		c.Workqueue[i].ShutDown()
 	}
-	AviLog.Info.Printf("Shutting down the workers for %s", c.WorkqueueName)
+	AviLog.Infof("Shutting down the workers for %s", c.WorkqueueName)
 }
 
 // runWorker is a long-running function that will continually call the
@@ -119,7 +119,7 @@ func (c *WorkerQueue) runWorker() {
 		}
 	}
 	c.workerIdMutex.Unlock()
-	AviLog.Info.Printf("Worker id %d", workerId)
+	AviLog.Infof("Worker id %d", workerId)
 	for c.processNextWorkItem(workerId) {
 	}
 	c.workerIdMutex.Lock()
@@ -163,7 +163,7 @@ func (c *WorkerQueue) processSingleWorkItem(worker_id uint32) bool {
 		// Run the syncToAvi, passing it the ev resource to be synced.
 		err := c.SyncFunc(ev)
 		if err != nil {
-			AviLog.Error.Printf("There was an error while syncing the key: %s", ev)
+			AviLog.Errorf("There was an error while syncing the key: %s", ev)
 		}
 		c.Workqueue[worker_id].Forget(obj)
 

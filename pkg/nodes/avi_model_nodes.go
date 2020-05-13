@@ -60,19 +60,19 @@ func (v *AviObjectGraph) GetCopy(key string) (*AviObjectGraph, bool) {
 	newModel := AviObjectGraph{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Error.Printf("key: %s, Unable to marshal: %s", key, err)
+		utils.AviLog.Errorf("key: %s, Unable to marshal: %s", key, err)
 		return nil, false
 	}
 	err = json.Unmarshal(bytes, &newModel)
 	if err != nil {
-		utils.AviLog.Error.Printf("key: %s, Unable to Unmarshal src: %s", key, err)
+		utils.AviLog.Errorf("key: %s, Unable to Unmarshal src: %s", key, err)
 		return nil, false
 	}
 	for _, node := range v.GetOrderedNodes() {
 		newModel.AddModelNode(node.CopyNode())
 	}
 	newModel.SetRetryCounter(v.RetryCount)
-	utils.AviLog.Info.Printf("key: %s, nodes copied from model: %d", key, len(newModel.modelNodes))
+	utils.AviLog.Infof("key: %s, nodes copied from model: %d", key, len(newModel.modelNodes))
 	return &newModel, true
 }
 
@@ -129,13 +129,13 @@ func (o *AviObjectGraph) RemovePoolNodeRefs(poolName string) {
 		if node.GetNodeType() == "VirtualServiceNode" {
 			for i, pool := range node.(*AviVsNode).PoolRefs {
 				if pool.Name == poolName {
-					utils.AviLog.Info.Printf("Removing poolref: %s", poolName)
-					utils.AviLog.Info.Printf("Before removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
+					utils.AviLog.Infof("Removing poolref: %s", poolName)
+					utils.AviLog.Infof("Before removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
 					node.(*AviVsNode).PoolRefs = append(node.(*AviVsNode).PoolRefs[:i], node.(*AviVsNode).PoolRefs[i+1:]...)
 					break
 				}
 			}
-			utils.AviLog.Info.Printf("After removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
+			utils.AviLog.Infof("After removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
 		}
 	}
 }
@@ -144,12 +144,12 @@ func (o *AviObjectGraph) RemovePgNodeRefsFromSni(pgName string, sniNode *AviVsNo
 
 	for i, pg := range sniNode.PoolGroupRefs {
 		if pg.Name == pgName {
-			utils.AviLog.Info.Printf("Removing pgRef: %s", pgName)
+			utils.AviLog.Infof("Removing pgRef: %s", pgName)
 			sniNode.PoolGroupRefs = append(sniNode.PoolGroupRefs[:i], sniNode.PoolGroupRefs[i+1:]...)
 			break
 		}
 	}
-	utils.AviLog.Info.Printf("After removing the pg nodes are: %s", utils.Stringify(sniNode.PoolGroupRefs))
+	utils.AviLog.Infof("After removing the pg nodes are: %s", utils.Stringify(sniNode.PoolGroupRefs))
 
 }
 
@@ -157,12 +157,12 @@ func (o *AviObjectGraph) RemoveHTTPRefsFromSni(httpPol string, sniNode *AviVsNod
 
 	for i, pol := range sniNode.HttpPolicyRefs {
 		if pol.Name == httpPol {
-			utils.AviLog.Info.Printf("Removing http pol ref: %s", httpPol)
+			utils.AviLog.Infof("Removing http pol ref: %s", httpPol)
 			sniNode.HttpPolicyRefs = append(sniNode.HttpPolicyRefs[:i], sniNode.HttpPolicyRefs[i+1:]...)
 			break
 		}
 	}
-	utils.AviLog.Info.Printf("After removing the http policy nodes are: %s", utils.Stringify(sniNode.HttpPolicyRefs))
+	utils.AviLog.Infof("After removing the http policy nodes are: %s", utils.Stringify(sniNode.HttpPolicyRefs))
 
 }
 
@@ -170,12 +170,12 @@ func (o *AviObjectGraph) RemovePoolNodeRefsFromSni(poolName string, sniNode *Avi
 
 	for i, pool := range sniNode.PoolRefs {
 		if pool.Name == poolName {
-			utils.AviLog.Info.Printf("Removing pool ref: %s", poolName)
+			utils.AviLog.Infof("Removing pool ref: %s", poolName)
 			sniNode.PoolRefs = append(sniNode.PoolRefs[:i], sniNode.PoolRefs[i+1:]...)
 			break
 		}
 	}
-	utils.AviLog.Info.Printf("After removing the pool ref nodes are: %s", utils.Stringify(sniNode.PoolRefs))
+	utils.AviLog.Infof("After removing the pool ref nodes are: %s", utils.Stringify(sniNode.PoolRefs))
 
 }
 
@@ -209,11 +209,11 @@ func (v *AviVrfNode) CopyNode() AviModelNode {
 	newNode := AviVrfNode{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to marshal AviVrfNode: %s", err)
+		utils.AviLog.Warnf("Unable to marshal AviVrfNode: %s", err)
 	}
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to unmarshal AviVrfNode: %s", err)
+		utils.AviLog.Warnf("Unable to unmarshal AviVrfNode: %s", err)
 	}
 	return &newNode
 }
@@ -376,11 +376,11 @@ func (v *AviVsNode) CopyNode() AviModelNode {
 	newNode := AviVsNode{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to marshal AviVsNode: %s", err)
+		utils.AviLog.Warnf("Unable to marshal AviVsNode: %s", err)
 	}
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to unmarshal AviVsNode: %s", err)
+		utils.AviLog.Warnf("Unable to unmarshal AviVsNode: %s", err)
 	}
 	return &newNode
 }
@@ -422,11 +422,11 @@ func (v *AviHttpPolicySetNode) CopyNode() AviModelNode {
 	newNode := AviHttpPolicySetNode{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to marshal AviHttpPolicySetNode: %s", err)
+		utils.AviLog.Warnf("Unable to marshal AviHttpPolicySetNode: %s", err)
 	}
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to unmarshal AviHttpPolicySetNode: %s", err)
+		utils.AviLog.Warnf("Unable to unmarshal AviHttpPolicySetNode: %s", err)
 	}
 	return &newNode
 }
@@ -476,11 +476,11 @@ func (v *AviTLSKeyCertNode) CopyNode() AviModelNode {
 	newNode := AviTLSKeyCertNode{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to marshal AviTLSKeyCertNode: %s", err)
+		utils.AviLog.Warnf("Unable to marshal AviTLSKeyCertNode: %s", err)
 	}
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to unmarshal AviTLSKeyCertNode: %s", err)
+		utils.AviLog.Warnf("Unable to unmarshal AviTLSKeyCertNode: %s", err)
 	}
 	return &newNode
 }
@@ -527,11 +527,11 @@ func (v *AviVSVIPNode) CopyNode() AviModelNode {
 	newNode := AviVSVIPNode{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to marshal AviVSVIPNode: %s", err)
+		utils.AviLog.Warnf("Unable to marshal AviVSVIPNode: %s", err)
 	}
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to unmarshal AviVSVIPNode: %s", err)
+		utils.AviLog.Warnf("Unable to unmarshal AviVSVIPNode: %s", err)
 	}
 	return &newNode
 }
@@ -566,7 +566,7 @@ func (o *AviObjectGraph) GetPoolGroupByName(pgName string) *AviPoolGroupNode {
 		pg, ok := model.(*AviPoolGroupNode)
 		if ok {
 			if pg.Name == pgName {
-				utils.AviLog.Info.Printf("Found PG with name: %s", pg.Name)
+				utils.AviLog.Infof("Found PG with name: %s", pg.Name)
 				return pg
 			}
 		}
@@ -582,11 +582,11 @@ func (v *AviPoolGroupNode) CopyNode() AviModelNode {
 	newNode := AviPoolGroupNode{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to marshal AviPoolGroupNode: %s", err)
+		utils.AviLog.Warnf("Unable to marshal AviPoolGroupNode: %s", err)
 	}
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to unmarshal AviPoolGroupNode: %s", err)
+		utils.AviLog.Warnf("Unable to unmarshal AviPoolGroupNode: %s", err)
 	}
 	return &newNode
 }
@@ -620,11 +620,11 @@ func (v *AviHTTPDataScriptNode) CopyNode() AviModelNode {
 	newNode := AviHTTPDataScriptNode{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to marshal AviHTTPDataScriptNode: %s", err)
+		utils.AviLog.Warnf("Unable to marshal AviHTTPDataScriptNode: %s", err)
 	}
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to unmarshal AviHTTPDataScriptNode: %s", err)
+		utils.AviLog.Warnf("Unable to unmarshal AviHTTPDataScriptNode: %s", err)
 	}
 	return &newNode
 }
@@ -690,11 +690,11 @@ func (v *AviPoolNode) CopyNode() AviModelNode {
 	newNode := AviPoolNode{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to marshal AviPoolNode: %s", err)
+		utils.AviLog.Warnf("Unable to marshal AviPoolNode: %s", err)
 	}
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
-		utils.AviLog.Warning.Printf("Unable to unmarshal AviPoolNode: %s", err)
+		utils.AviLog.Warnf("Unable to unmarshal AviPoolNode: %s", err)
 	}
 	return &newNode
 }
@@ -716,7 +716,7 @@ func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string)
 		if model.GetNodeType() == "VirtualServiceNode" {
 			for _, pool := range model.(*AviVsNode).PoolRefs {
 				if pool.IngressName == ingName && tenant == pool.ServiceMetadata.Namespace {
-					utils.AviLog.Info.Printf("Found Pool with name: %s Adding...", pool.IngressName)
+					utils.AviLog.Infof("Found Pool with name: %s Adding...", pool.IngressName)
 					aviPool = append(aviPool, pool)
 				}
 			}

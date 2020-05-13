@@ -81,7 +81,7 @@ func IsSvcHttp(svc_name string, port int32) bool {
 func AviUrlToObjType(aviurl string) (string, error) {
 	url, err := url.Parse(aviurl)
 	if err != nil {
-		AviLog.Warning.Printf("aviurl %v parse error", aviurl)
+		AviLog.Warnf("aviurl %v parse error", aviurl)
 		return "", err
 	}
 
@@ -114,7 +114,7 @@ func CrudHashKey(obj_type string, obj interface{}) string {
 		ns = ing.Namespace
 		name = ing.Name
 	default:
-		AviLog.Error.Printf("Unknown obj_type %s obj %v", obj_type, obj)
+		AviLog.Errorf("Unknown obj_type %s obj %v", obj_type, obj)
 		return ":"
 	}
 	return ns + ":" + name
@@ -158,7 +158,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 	} else {
 		// The informer factory only allows to initialize 1 namespace filter. Not a set of namespaces.
 		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30, kubeinformers.WithNamespace(namespace))
-		AviLog.Info.Printf("Initialized informer factory for namespace :%s", namespace)
+		AviLog.Infof("Initialized informer factory for namespace :%s", namespace)
 	}
 	informers := &Informers{}
 	informers.KubeClientIntf = kubeClient
@@ -213,20 +213,20 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 			case INFORMERS_INSTANTIATE_ONCE:
 				instantiateOnce, ok = v.(bool)
 				if !ok {
-					AviLog.Warning.Printf("arg instantiateOnce is not of type bool")
+					AviLog.Warnf("arg instantiateOnce is not of type bool")
 				}
 			case INFORMERS_OPENSHIFT_CLIENT:
 				oshiftclient, ok = v.(oshiftclientset.Interface)
 				if !ok {
-					AviLog.Warning.Printf("arg oshiftclient is not of type oshiftclientset.Interface")
+					AviLog.Warnf("arg oshiftclient is not of type oshiftclientset.Interface")
 				}
 			case INFORMERS_NAMESPACE:
 				namespace, ok = v.(string)
 				if !ok {
-					AviLog.Warning.Printf("arg namespace is not of type string")
+					AviLog.Warnf("arg namespace is not of type string")
 				}
 			default:
-				AviLog.Warning.Printf("Unknown Key %s in args", k)
+				AviLog.Warnf("Unknown Key %s in args", k)
 			}
 		}
 	}
@@ -241,7 +241,7 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 
 func GetInformers() *Informers {
 	if informerInstance == nil {
-		AviLog.Error.Fatal("Cannot retrieve the informers since it's not initialized yet.")
+		AviLog.Fatal("Cannot retrieve the informers since it's not initialized yet.")
 		return nil
 	}
 	return informerInstance
@@ -279,7 +279,7 @@ func HasElem(s interface{}, elem interface{}) bool {
 func ObjKey(obj interface{}) string {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
-		AviLog.Warning.Print(err)
+		AviLog.Warn(err)
 	}
 
 	return key

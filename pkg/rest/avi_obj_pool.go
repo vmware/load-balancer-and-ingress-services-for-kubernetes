@@ -86,7 +86,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		}
 	}
 
-	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: pool Restop %v K8sAviPoolMeta %v\n", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: pool Restop %v K8sAviPoolMeta %v\n", key,
 		utils.Stringify(rest_op), *pool_meta))
 	return &rest_op
 }
@@ -95,34 +95,34 @@ func (rest *RestOperations) AviPoolDel(uuid string, tenant string, key string) *
 	path := "/api/pool/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "Pool", Version: utils.CtrlVersion}
-	utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: pool DELETE Restop %v \n", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: pool DELETE Restop %v \n", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
 
 func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warning.Printf("key: %s, rest_op has err or no reponse for POOL, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for POOL, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "pool", key)
-	utils.AviLog.Warning.Printf("key: %s, msg: the pool object response %v", key, rest_op.Response)
+	utils.AviLog.Warnf("key: %s, msg: the pool object response %v", key, rest_op.Response)
 	if ok != nil || resp_elems == nil {
-		utils.AviLog.Warning.Printf("key: %s, msg: unable to find pool obj in resp %v", key, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, msg: unable to find pool obj in resp %v", key, rest_op.Response)
 		return errors.New("pool not found")
 	}
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: Name not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: Name not present in response %v", key, resp)
 			continue
 		}
 
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: uuid not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: uuid not present in response %v", key, resp)
 			continue
 		}
 		cksum := resp["cloud_config_cksum"].(string)
@@ -131,18 +131,18 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 		if resp["service_metadata"] != nil {
 			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
 				&svc_mdata_obj); err != nil {
-				utils.AviLog.Warning.Printf("Error parsing service metadata :%v", err)
+				utils.AviLog.Warnf("Error parsing service metadata :%v", err)
 			}
 		}
 
 		var lastModifiedStr string
 		lastModifiedIntf, ok := resp["_last_modified"]
 		if !ok {
-			utils.AviLog.Warning.Printf("key: %s, msg: last_modified not present in response %v", key, resp)
+			utils.AviLog.Warnf("key: %s, msg: last_modified not present in response %v", key, resp)
 		} else {
 			lastModifiedStr, ok = lastModifiedIntf.(string)
 			if !ok {
-				utils.AviLog.Warning.Printf("key: %s, msg: last_modified is not of type string", key)
+				utils.AviLog.Warnf("key: %s, msg: last_modified is not of type string", key)
 			}
 		}
 
@@ -164,7 +164,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
 				vs_cache_obj.AddToPoolKeyCollection(k)
-				utils.AviLog.Info.Printf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
+				utils.AviLog.Infof("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if svc_mdata_obj.Namespace != "" {
 					UpdateIngressStatus(vs_cache_obj, svc_mdata_obj, key)
 				}
@@ -172,10 +172,10 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 		} else {
 			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPoolKeyCollection(k)
-			utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: added VS cache key during pool update %v val %v\n", key, vsKey,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during pool update %v val %v\n", key, vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info.Print(spew.Sprintf("key: %s, msg: Added Pool cache k %v val %v\n", key, k,
+		utils.AviLog.Info(spew.Sprintf("key: %s, msg: Added Pool cache k %v val %v\n", key, k,
 			pool_cache_obj))
 	}
 
@@ -184,7 +184,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 
 func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	poolKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
-	utils.AviLog.Info.Printf("key: %s, msg: deleting pool with key: %s", key, poolKey)
+	utils.AviLog.Infof("key: %s, msg: deleting pool with key: %s", key, poolKey)
 	// Fetch the pool's cache data and obtain the service metadata
 	pool_cache, found := rest.cache.PoolCache.AviCacheGet(poolKey)
 	if found {
@@ -193,7 +193,7 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 			err := DeleteIngressStatus(pool_cache_obj.ServiceMetadataObj, key)
 			if k8serror.IsNotFound(err) {
 				// Just log and get away
-				utils.AviLog.Info.Printf("key: %s, msg: ingress already deleted, nothing to update in status", key)
+				utils.AviLog.Infof("key: %s, msg: ingress already deleted, nothing to update in status", key)
 			}
 		}
 	}
@@ -204,9 +204,9 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
-			utils.AviLog.Info.Printf("key: %s, msg: VsKey: %s, VS Pool key cache before deletion :%s", key, vsKey, vs_cache_obj.PoolKeyCollection)
+			utils.AviLog.Infof("key: %s, msg: VsKey: %s, VS Pool key cache before deletion :%s", key, vsKey, vs_cache_obj.PoolKeyCollection)
 			vs_cache_obj.RemoveFromPoolKeyCollection(poolKey)
-			utils.AviLog.Info.Printf("key: %s, msg: VS Pool key cache after deletion :%s", key, vs_cache_obj.PoolKeyCollection)
+			utils.AviLog.Infof("key: %s, msg: VS Pool key cache after deletion :%s", key, vs_cache_obj.PoolKeyCollection)
 		}
 	}
 

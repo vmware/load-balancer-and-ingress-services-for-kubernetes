@@ -327,12 +327,12 @@ func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
 	newObj := AviVsCache{}
 	bytes, err := json.Marshal(v)
 	if err != nil {
-		utils.AviLog.Error.Printf("key: %s, Unable to marshal: %s", err)
+		utils.AviLog.Errorf("key: %s, Unable to marshal: %s", err)
 		return nil, false
 	}
 	err = json.Unmarshal(bytes, &newObj)
 	if err != nil {
-		utils.AviLog.Error.Printf("key: %s, Unable to Unmarshal src: %s", err)
+		utils.AviLog.Errorf("key: %s, Unable to Unmarshal src: %s", err)
 		return nil, false
 	}
 	return &newObj, true

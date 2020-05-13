@@ -34,7 +34,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
-	utils.AviLog.Info.Printf("key: %s, msg: Building the L7 pools for namespace: %s, ingName: %s", key, namespace, ingName)
+	utils.AviLog.Infof("key: %s, msg: Building the L7 pools for namespace: %s, ingName: %s", key, namespace, ingName)
 
 	myIng, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(namespace).Get(ingName)
 
@@ -42,7 +42,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	pgNode := o.GetPoolGroupByName(pgName)
 	vsNode := o.GetAviVS()
 	if len(vsNode) != 1 {
-		utils.AviLog.Warning.Printf("key: %s, msg: more than one vs in model.", key)
+		utils.AviLog.Warnf("key: %s, msg: more than one vs in model.", key)
 		return
 	}
 	if err != nil {
@@ -50,7 +50,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	} else {
 		ingObj, ok := utils.ToNetworkingIngress(myIng)
 		if !ok {
-			utils.AviLog.Error.Printf("Unable to convert obj type interface to networking/v1beta1 ingress")
+			utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
 		}
 
 		var parsedIng IngressConfig
@@ -65,7 +65,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		if processIng {
 			// First check if there are pools related to this ingress present in the model already
 			poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
-			utils.AviLog.Info.Printf("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
+			utils.AviLog.Infof("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
 			for _, pool := range poolNodes {
 				o.RemovePoolNodeRefs(pool.Name)
 			}
@@ -90,7 +90,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
 			// Fetch all the secrets for this ingress
 			found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
-			utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
+			utils.AviLog.Infof("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 			if found {
 				for _, secret := range secrets {
 					sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
@@ -98,7 +98,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				}
 			}
 
-			utils.AviLog.Info.Printf("key: %s, msg: parsedIng value: %v", key, parsedIng)
+			utils.AviLog.Infof("key: %s, msg: parsedIng value: %v", key, parsedIng)
 			newHostMap := make(map[string]map[string][]string)
 			insecureHostPathMapArr := make(map[string][]string)
 			for host, pathmap := range parsedIng.IngressHostMap {
@@ -115,7 +115,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, newHostMap)
 			// PGs are in 'admin' namespace right now.
 			if pgNode != nil {
-				utils.AviLog.Info.Printf("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(parsedIng))
+				utils.AviLog.Infof("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(parsedIng))
 				// Processsing insecure ingress
 				for host, val := range parsedIng.IngressHostMap {
 					if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
@@ -137,7 +137,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						}
 						poolNode.CalculateCheckSum()
 						o.AddModelNode(poolNode)
-						utils.AviLog.Info.Printf("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
+						utils.AviLog.Infof("key: %s, msg: the pools before append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
 						vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
 					}
 				}
@@ -185,11 +185,11 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 
 func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vsNode []*AviVsNode) {
 	// A case, where we detected in Layer 2 that the ingress has been deleted.
-	utils.AviLog.Info.Printf("key: %s, msg: ingress not found:  %s", key, ingName)
+	utils.AviLog.Infof("key: %s, msg: ingress not found:  %s", key, ingName)
 
 	// Fetch the ingress pools that are present in the model and delete them.
 	poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
-	utils.AviLog.Info.Printf("key: %s, msg: Pool Nodes to delete for ingress:  %s", key, utils.Stringify(poolNodes))
+	utils.AviLog.Infof("key: %s, msg: Pool Nodes to delete for ingress:  %s", key, utils.Stringify(poolNodes))
 
 	for _, pool := range poolNodes {
 		o.RemovePoolNodeRefs(pool.Name)
@@ -198,11 +198,11 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	// Fetch all the secrets for this ingress
 
 	found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
-	utils.AviLog.Info.Printf("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
+	utils.AviLog.Infof("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 	if found {
 		for _, secret := range secrets {
 			sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
-			utils.AviLog.Info.Printf("key: %s, msg: sni node to delete :%s", key, sniNodeName)
+			utils.AviLog.Infof("key: %s, msg: sni node to delete :%s", key, sniNodeName)
 			RemoveSniInModel(sniNodeName, vsNode, key)
 		}
 	}
@@ -221,7 +221,7 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 		// Remove these hosts from the overall FQDN list
 		RemoveFQDNsFromModel(vsNode[0], hosts, key)
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: after removing fqdn refs in vs : %s", key, vsNode[0].VSVIPRefs[0].FQDNs)
+	utils.AviLog.Infof("key: %s, msg: after removing fqdn refs in vs : %s", key, vsNode[0].VSVIPRefs[0].FQDNs)
 
 	// Now remove the secret relationship
 	objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressSecretMappings(ingName)
@@ -234,7 +234,7 @@ func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
 	if len(vsNode.VSVIPRefs) > 0 {
 		newFQDNs := make([]string, len(vsNode.VSVIPRefs[0].FQDNs))
 		copy(newFQDNs, vsNode.VSVIPRefs[0].FQDNs)
-		utils.AviLog.Info.Printf("key: %s, msg: found fqdn refs in vs : %s", key, vsNode.VSVIPRefs[0].FQDNs)
+		utils.AviLog.Infof("key: %s, msg: found fqdn refs in vs : %s", key, vsNode.VSVIPRefs[0].FQDNs)
 		for _, host := range hosts {
 			var i int
 			for _, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
@@ -265,7 +265,7 @@ func FindAndReplaceSniInModel(currentSniNode *AviVsNode, modelSniNodes []*AviVsN
 					// The checksums are not same. Replace this sni node
 					modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes[:i], modelSniNodes[0].SniNodes[i+1:]...)
 					modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes, currentSniNode)
-					utils.AviLog.Info.Printf("key: %s, msg: replaced sni node in model: %s", key, currentSniNode.Name)
+					utils.AviLog.Infof("key: %s, msg: replaced sni node in model: %s", key, currentSniNode.Name)
 				}
 				return true
 			}
@@ -281,7 +281,7 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 				// Check if the checksums are same
 				// The checksums are not same. Replace this sni node
 				modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes[:i], modelSniNodes[0].SniNodes[i+1:]...)
-				utils.AviLog.Info.Printf("key: %s, msg: deleted sni node in model: %s", key, currentSniNodeName)
+				utils.AviLog.Infof("key: %s, msg: deleted sni node in model: %s", key, currentSniNodeName)
 			}
 		}
 	}
@@ -325,7 +325,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 		}
 		fqdns = append(fqdns, fqdn)
 	} else {
-		utils.AviLog.Warning.Printf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn", key)
+		utils.AviLog.Warnf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn", key)
 	}
 	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: utils.ADMIN_NS, FQDNs: fqdns,
 		EastWest: false, VrfContext: vrfcontext}
@@ -370,7 +370,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 				objects.SharedSvcLister().IngressMappings(namespace).DeleteSecretToIngMapping(secretName)
 			}
 		}
-		utils.AviLog.Info.Printf("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
+		utils.AviLog.Infof("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
 		return false
 	}
 	var certNode *AviTLSKeyCertNode
@@ -384,24 +384,24 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 	if ok {
 		certNode.Cert = cert
 	} else {
-		utils.AviLog.Info.Printf("key: %s, msg: certificate not found for secret: %s", key, secretObj.Name)
+		utils.AviLog.Infof("key: %s, msg: certificate not found for secret: %s", key, secretObj.Name)
 		return false
 	}
 	tlsKey, keyfound := keycertMap[utils.K8S_TLS_SECRET_KEY]
 	if keyfound {
 		certNode.Key = tlsKey
 	} else {
-		utils.AviLog.Info.Printf("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
+		utils.AviLog.Infof("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
 		return false
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
+	utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	// If this SSLCertRef is already present don't add it.
 	if len(sniHost) > 0 {
 		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), certNode.GetCheckSum()) {
 			if len(tlsNode.SSLKeyCertRefs) == 1 {
 				// Overwrite if the secrets are different.
 				tlsNode.SSLKeyCertRefs[0] = certNode
-				utils.AviLog.Warning.Printf("key: %s, msg: Duplicate secrets detected for the same hostname, overwrote the secret for hostname %s, with contents of secret :%s in ns: %s", key, sniHost[0], secretName, namespace)
+				utils.AviLog.Warnf("key: %s, msg: Duplicate secrets detected for the same hostname, overwrote the secret for hostname %s, with contents of secret :%s in ns: %s", key, sniHost[0], secretName, namespace)
 			} else {
 				tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
 			}
@@ -463,7 +463,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			}
 		}
 	}
-	utils.AviLog.Info.Printf("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
+	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
 
 }
 
@@ -494,7 +494,7 @@ func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviH
 		if policy.Name == httpPolicy.Name && policy.CloudConfigCksum != httpPolicy.CloudConfigCksum {
 			if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
 				policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
-				utils.AviLog.Info.Printf("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
+				utils.AviLog.Infof("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
 			}
 			return true
 		}
@@ -509,14 +509,14 @@ func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostname, key string) {
 		if policy.Name == policyName {
 			// one redirect policy per shard vs
 			policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
-			utils.AviLog.Info.Printf("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policy.Name, policy.RedirectPorts[0].Hosts)
+			utils.AviLog.Infof("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policy.Name, policy.RedirectPorts[0].Hosts)
 			if len(policy.RedirectPorts[0].Hosts) == 0 {
 				deletePolicy = true
 			}
 
 			if deletePolicy {
 				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
-				utils.AviLog.Info.Printf("key: %s, msg: removed policy %s in model", key, policy.Name)
+				utils.AviLog.Infof("key: %s, msg: removed policy %s in model", key, policy.Name)
 			}
 		}
 	}
