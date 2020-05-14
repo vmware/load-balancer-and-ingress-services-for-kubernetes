@@ -97,7 +97,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			if ok {
 				vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 				if found {
-					utils.AviLog.Infof("The VS cache before modification by SSLKeyCert is :%v", utils.Stringify(vs_cache_obj))
+					utils.AviLog.Debugf("The VS cache before modification by SSLKeyCert is :%v", utils.Stringify(vs_cache_obj))
 					vs_cache_obj.AddToSSLKeyCertCollection(k)
 					utils.AviLog.Infof("Modified the VS cache object for SSLKeyCert Collection. The cache now is :%v", utils.Stringify(vs_cache_obj))
 				}

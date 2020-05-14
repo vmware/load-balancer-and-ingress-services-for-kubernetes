@@ -88,7 +88,7 @@ func (v *AviObjectGraph) GetCopy(key string) (*AviObjectGraph, bool) {
 		newModel.AddModelNode(node.CopyNode())
 	}
 	newModel.SetRetryCounter(v.RetryCount)
-	utils.AviLog.Infof("key: %s, nodes copied from model: %d", key, len(newModel.modelNodes))
+	utils.AviLog.Debugf("key: %s, nodes copied from model: %d", key, len(newModel.modelNodes))
 	return &newModel, true
 }
 
@@ -146,13 +146,13 @@ func (o *AviObjectGraph) RemovePoolNodeRefs(poolName string) {
 		if node.GetNodeType() == "VirtualServiceNode" {
 			for i, pool := range node.(*AviVsNode).PoolRefs {
 				if pool.Name == poolName {
-					utils.AviLog.Infof("Removing poolref: %s", poolName)
-					utils.AviLog.Infof("Before removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
+					utils.AviLog.Debugf("Removing poolref: %s", poolName)
+					utils.AviLog.Debugf("Before removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
 					node.(*AviVsNode).PoolRefs = append(node.(*AviVsNode).PoolRefs[:i], node.(*AviVsNode).PoolRefs[i+1:]...)
 					break
 				}
 			}
-			utils.AviLog.Infof("After removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
+			utils.AviLog.Debugf("After removing the pool nodes are: %s", utils.Stringify(node.(*AviVsNode).PoolRefs))
 		}
 	}
 }
@@ -161,12 +161,12 @@ func (o *AviObjectGraph) RemovePgNodeRefsFromSni(pgName string, sniNode *AviVsNo
 
 	for i, pg := range sniNode.PoolGroupRefs {
 		if pg.Name == pgName {
-			utils.AviLog.Infof("Removing pgRef: %s", pgName)
+			utils.AviLog.Debugf("Removing pgRef: %s", pgName)
 			sniNode.PoolGroupRefs = append(sniNode.PoolGroupRefs[:i], sniNode.PoolGroupRefs[i+1:]...)
 			break
 		}
 	}
-	utils.AviLog.Infof("After removing the pg nodes are: %s", utils.Stringify(sniNode.PoolGroupRefs))
+	utils.AviLog.Debugf("After removing the pg nodes are: %s", utils.Stringify(sniNode.PoolGroupRefs))
 
 }
 
@@ -174,12 +174,12 @@ func (o *AviObjectGraph) RemoveHTTPRefsFromSni(httpPol string, sniNode *AviVsNod
 
 	for i, pol := range sniNode.HttpPolicyRefs {
 		if pol.Name == httpPol {
-			utils.AviLog.Infof("Removing http pol ref: %s", httpPol)
+			utils.AviLog.Debugf("Removing http pol ref: %s", httpPol)
 			sniNode.HttpPolicyRefs = append(sniNode.HttpPolicyRefs[:i], sniNode.HttpPolicyRefs[i+1:]...)
 			break
 		}
 	}
-	utils.AviLog.Infof("After removing the http policy nodes are: %s", utils.Stringify(sniNode.HttpPolicyRefs))
+	utils.AviLog.Debugf("After removing the http policy nodes are: %s", utils.Stringify(sniNode.HttpPolicyRefs))
 
 }
 
@@ -187,12 +187,12 @@ func (o *AviObjectGraph) RemovePoolNodeRefsFromSni(poolName string, sniNode *Avi
 
 	for i, pool := range sniNode.PoolRefs {
 		if pool.Name == poolName {
-			utils.AviLog.Infof("Removing pool ref: %s", poolName)
+			utils.AviLog.Debugf("Removing pool ref: %s", poolName)
 			sniNode.PoolRefs = append(sniNode.PoolRefs[:i], sniNode.PoolRefs[i+1:]...)
 			break
 		}
 	}
-	utils.AviLog.Infof("After removing the pool ref nodes are: %s", utils.Stringify(sniNode.PoolRefs))
+	utils.AviLog.Debugf("After removing the pool ref nodes are: %s", utils.Stringify(sniNode.PoolRefs))
 
 }
 
@@ -589,7 +589,7 @@ func (o *AviObjectGraph) GetPoolGroupByName(pgName string) *AviPoolGroupNode {
 		pg, ok := model.(*AviPoolGroupNode)
 		if ok {
 			if pg.Name == pgName {
-				utils.AviLog.Infof("Found PG with name: %s", pg.Name)
+				utils.AviLog.Debugf("Found PG with name: %s", pg.Name)
 				return pg
 			}
 		}
@@ -741,7 +741,7 @@ func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string)
 		if model.GetNodeType() == "VirtualServiceNode" {
 			for _, pool := range model.(*AviVsNode).PoolRefs {
 				if pool.IngressName == ingName && tenant == pool.ServiceMetadata.Namespace {
-					utils.AviLog.Infof("Found Pool with name: %s Adding...", pool.IngressName)
+					utils.AviLog.Debugf("Found Pool with name: %s Adding...", pool.IngressName)
 					aviPool = append(aviPool, pool)
 				}
 			}

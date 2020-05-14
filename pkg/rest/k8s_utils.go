@@ -112,28 +112,28 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 		}
 	}
 
-	var response interface{}
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		mIng, ok := utils.ToExtensionIngress(mIngress)
 		if !ok {
 			utils.AviLog.Errorf("Unable to convert obj type interface to extensions/v1beta1 ingress")
 		}
 
-		response, err = mClient.ExtensionsV1beta1().Ingresses(namespace).UpdateStatus(mIng)
+		_, err = mClient.ExtensionsV1beta1().Ingresses(namespace).UpdateStatus(mIng)
 	} else {
-		response, err = mClient.NetworkingV1beta1().Ingresses(namespace).UpdateStatus(mIngress)
+		_, err = mClient.NetworkingV1beta1().Ingresses(namespace).UpdateStatus(mIngress)
 	}
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
 		return updateObject(namespace, ingressname, hostnames, vs_cache_obj, key, retry+1)
 	}
-	utils.AviLog.Infof("key:%s, msg: Successfully updated the ingress status: %v", key, utils.Stringify(response))
+	utils.AviLog.Infof("key:%s, msg: Successfully updated the ingress status of ingress: %s ns: %s", key, ingressname, namespace)
 	return err
 }
 
 func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {
+		utils.AviLog.Infof("key:%s, msg: Retrying to update the ingress status", key)
 		retry = retryNum[0]
 		if retry >= 2 {
 			return errors.New("key: %s, msg: DeleteIngressStatus retried 3 times, aborting")

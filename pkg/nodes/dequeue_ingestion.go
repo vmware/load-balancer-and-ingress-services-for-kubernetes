@@ -31,14 +31,14 @@ func DequeueIngestion(key string, fullsync bool) {
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
 	ingressFound := false
 	var ingressNames []string
-	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
+	utils.AviLog.Debugf("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
 
 	// if we get update for object of type k8s node, create vrf graph
 	if objType == utils.NodeObj {
-		utils.AviLog.Infof("key: %s, msg: processing node obj", key)
+		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, false)
 		return
 	}
@@ -62,7 +62,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				}
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
-				utils.AviLog.Infof("key: %s, msg: received DELETE event for service", key)
+				utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
 				model_name := lib.GetModelName(utils.ADMIN_NS, lib.GetVrf()+"--"+namespace+"--"+name)
 				objects.SharedAviGraphLister().Save(model_name, nil)
 				if !fullsync {
@@ -73,7 +73,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else if objType == utils.Endpoints {
 			svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 			if err != nil {
-				utils.AviLog.Infof("key: %s, msg: there was an error in retrieving the service for endpoint", key)
+				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
 				return
 			}
 			if svcObj.Spec.Type == utils.LoadBalancer {
@@ -98,7 +98,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			for _, ingress := range ingressNames {
 				// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 				// does not allow cross tenant ingress references.
-				utils.AviLog.Infof("key: %s, msg: evaluating ingress: %s", key, ingress)
+				utils.AviLog.Debugf("key: %s, msg: evaluating ingress: %s", key, ingress)
 				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 				if !found || aviModel == nil {
 					utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
@@ -114,7 +114,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else {
 			// The only other shard scheme we support now is hostname sharding.
 			for _, ingress := range ingressNames {
-				utils.AviLog.Infof("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
+				utils.AviLog.Debugf("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
 				HostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
 			}
 		}
@@ -122,15 +122,15 @@ func DequeueIngestion(key string, fullsync bool) {
 }
 
 func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool {
-	utils.AviLog.Infof("key: %s, msg: Evaluating model :%s", key, model_name)
+	utils.AviLog.Debugf("key: %s, msg: Evaluating model :%s", key, model_name)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 	if found && aviModel != nil {
 		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
-		utils.AviLog.Infof("key: %s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
+		utils.AviLog.Debugf("key: %s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
-		utils.AviLog.Infof("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
+		utils.AviLog.Debugf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
 		if prevChecksum == presentChecksum {
-			utils.AviLog.Infof("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
+			utils.AviLog.Debugf("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
 			return false
 		}
 	}
@@ -142,13 +142,13 @@ func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool 
 }
 
 func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsync bool) {
-	utils.AviLog.Infof("key: %s, Got node Object %s\n", key, nodename)
+	utils.AviLog.Debugf("key: %s, Got node Object %s\n", key, nodename)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
 	if err == nil {
 		utils.AviLog.Debugf("key: %s, Node Object %v\n", key, nodeObj)
 		objects.SharedNodeLister().AddOrUpdate(nodename, nodeObj)
 	} else if errors.IsNotFound(err) {
-		utils.AviLog.Infof("key: %s, msg: Node Deleted\n", key)
+		utils.AviLog.Debugf("key: %s, msg: Node Deleted\n", key)
 		objects.SharedNodeLister().Delete(nodename)
 	} else {
 		utils.AviLog.Errorf("key: %s, msg: Error getting node: %v\n", key, err)
@@ -256,9 +256,9 @@ func DeriveHostNameShardVS(hostname string, key string) string {
 
 	shardVsPrefix := GetShardVSName(key)
 	if shardSize != 0 {
-		utils.AviLog.Infof("key: %s, msg: hostname for sharding: %s", key, hostname)
+		utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
 		vsNum = utils.Bkt(hostname, shardSize)
-		utils.AviLog.Infof("key: %s, msg: VS number: %v", key, vsNum)
+		utils.AviLog.Debugf("key: %s, msg: VS number: %v", key, vsNum)
 	} else {
 		utils.AviLog.Warnf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
 		return ""

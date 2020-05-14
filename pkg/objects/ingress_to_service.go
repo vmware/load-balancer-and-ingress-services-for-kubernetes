@@ -107,12 +107,12 @@ func (v *SvcNSCache) GetSvcToIng(svcName string) (bool, []string) {
 func (v *SvcNSCache) DeleteSvcToIngMapping(svcName string) bool {
 	// Need checks if it's found or not?
 	success := v.svcIngobjects.Delete(svcName)
-	utils.AviLog.Infof("Deleted the service mappings for svc: %s", svcName)
+	utils.AviLog.Debugf("Deleted the service mappings for svc: %s", svcName)
 	return success
 }
 
 func (v *SvcNSCache) UpdateSvcToIngMapping(svcName string, ingressList []string) {
-	utils.AviLog.Infof("Updated the service mappings with svc: %s, ingresses: %s", svcName, ingressList)
+	utils.AviLog.Debugf("Updated the service mappings with svc: %s, ingresses: %s", svcName, ingressList)
 	v.svcIngobjects.AddOrUpdate(svcName, ingressList)
 }
 
@@ -130,12 +130,12 @@ func (v *SvcNSCache) GetSecretToIng(secretName string) (bool, []string) {
 func (v *SvcNSCache) DeleteSecretToIngMapping(secretName string) bool {
 	// Need checks if it's found or not?
 	success := v.secretIngObject.Delete(secretName)
-	utils.AviLog.Infof("Deleted the ingress mappings for secret: %s", secretName)
+	utils.AviLog.Debugf("Deleted the ingress mappings for secret: %s", secretName)
 	return success
 }
 
 func (v *SvcNSCache) UpdateSecretToIngMapping(secretName string, ingressList []string) {
-	utils.AviLog.Infof("Updated the secret mappings with secret: %s, ingresses: %s", secretName, ingressList)
+	utils.AviLog.Debugf("Updated the secret mappings with secret: %s, ingresses: %s", secretName, ingressList)
 	v.secretIngObject.AddOrUpdate(secretName, ingressList)
 }
 
@@ -157,7 +157,7 @@ func (v *IngNSCache) DeleteIngToSvcMapping(ingName string) bool {
 }
 
 func (v *IngNSCache) UpdateIngToSvcMapping(ingName string, svcList []string) {
-	utils.AviLog.Infof("Updated the ingress mappings with ingress: %s, svcs: %s", ingName, svcList)
+	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, svcs: %s", ingName, svcList)
 	v.ingSvcobjects.AddOrUpdate(ingName, svcList)
 }
 
@@ -183,7 +183,7 @@ func (v *SecretIngNSCache) DeleteIngToSecretMapping(ingName string) bool {
 }
 
 func (v *SecretIngNSCache) UpdateIngToSecretMapping(ingName string, secretList []string) {
-	utils.AviLog.Infof("Updated the ingress mappings with ingress: %s, secrets: %s", ingName, secretList)
+	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, secrets: %s", ingName, secretList)
 	v.secretIngobjects.AddOrUpdate(ingName, secretList)
 }
 
@@ -217,7 +217,7 @@ func (v *SecretHostNameNSCache) UpdateSecretToHostNameMapping(secretName string,
 	} else {
 		hostnames = []string{hostName}
 	}
-	utils.AviLog.Infof("Updated the secret mappings for secret: %s, hostnames: %s", secretName, hostnames)
+	utils.AviLog.Debugf("Updated the secret mappings for secret: %s, hostnames: %s", secretName, hostnames)
 	v.secretHostNameobjects.AddOrUpdate(secretName, hostnames)
 }
 
@@ -233,7 +233,7 @@ func (v *SecretHostNameNSCache) DecrementSecretToHostNameMapping(secretName stri
 			hostnames = utils.Remove(hostnames, hostName)
 		}
 	}
-	utils.AviLog.Infof("After Decrement secret: %s, hostnames: %s", secretName, hostnames)
+	utils.AviLog.Debugf("After Decrement secret: %s, hostnames: %s", secretName, hostnames)
 
 	v.secretHostNameobjects.AddOrUpdate(secretName, hostnames)
 	return hostnames
@@ -266,7 +266,7 @@ func (v *IngHostCache) DeleteIngToHostMapping(ingName string) bool {
 }
 
 func (v *IngHostCache) UpdateIngToHostMapping(ingName string, hostMap map[string]map[string][]string) {
-	utils.AviLog.Infof("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostMap)
+	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostMap)
 	v.ingHostobjects.AddOrUpdate(ingName, hostMap)
 }
 
@@ -298,7 +298,7 @@ func (v *SvcNSCache) UpdateIngressSecretsMappings(ingName string, secret string)
 	_, secrets := v.GetIngToSecret(ingName)
 	if !utils.HasElem(secrets, secret) {
 		secrets = append(secrets, secret)
-		utils.AviLog.Infof("Updated the ingress: %s to secrets: %s", ingName, secrets)
+		utils.AviLog.Debugf("Updated the ingress: %s to secrets: %s", ingName, secrets)
 		v.UpdateIngToSecretMapping(ingName, secrets)
 	}
 }

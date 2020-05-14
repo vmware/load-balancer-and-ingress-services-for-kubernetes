@@ -82,7 +82,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 
 		if vs_meta.SNIParent {
 			// This is a SNI parent
-			utils.AviLog.Infof("key: %s, msg: vs %s is a SNI Parent", key, vs_meta.Name)
+			utils.AviLog.Debugf("key: %s, msg: vs %s is a SNI Parent", key, vs_meta.Name)
 			vh_parent := utils.VS_TYPE_VH_PARENT
 			vs.Type = &vh_parent
 		}
@@ -92,13 +92,13 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			port := pp.Port
 			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL}
 			if pp.Protocol == utils.TCP {
-				utils.AviLog.Infof("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
+				utils.AviLog.Debugf("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
 				port := pp.Port
 				var sproto string
 				sproto = "PROTOCOL_TYPE_TCP_PROXY"
 				pg_name := FindPoolGroupForPort(vs_meta.TCPPoolGroupRefs, port)
 				if pg_name != "" {
-					utils.AviLog.Infof("key: %s, msg: TCP ports for VS creation returned PG: %s", key, pg_name)
+					utils.AviLog.Debugf("key: %s, msg: TCP ports for VS creation returned PG: %s", key, pg_name)
 					pg_ref := "/api/poolgroup/?name=" + pg_name
 					sps := avimodels.ServicePoolSelector{ServicePoolGroupRef: &pg_ref,
 						ServicePort: &port, ServiceProtocol: &sproto}
@@ -293,7 +293,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		if found_parent {
 			// the uuid is expected to be in the format: "https://IP:PORT/api/virtualservice/virtualservice-88fd9718-f4f9-4e2b-9552-d31336330e0e#mygateway"
 			vs_uuid := avicache.ExtractUuid(vh_parent_uuid.(string), "virtualservice-.*.#")
-			utils.AviLog.Infof("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
+			utils.AviLog.Debugf("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
 			// Now let's get the VS key from this uuid
 			var foundvscache bool
 			vhParentKey, foundvscache = rest.cache.VsCache.AviCacheGetKeyByUuid(vs_uuid)
@@ -410,7 +410,7 @@ func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op 
 			if len(vs_cache_obj.VSVipKeyCollection) > 0 {
 				vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
 				vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
-				utils.AviLog.Infof("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
+				utils.AviLog.Debugf("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
 			}
 		}
@@ -531,7 +531,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
-		utils.AviLog.Infof("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
+		utils.AviLog.Debugf("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
@@ -658,7 +658,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
 				vs_cache_obj.AddToVSVipKeyCollection(k)
-				utils.AviLog.Infof("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
+				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 			}
 
 		} else {

@@ -133,7 +133,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		}
 	}
 
-	utils.AviLog.Info(spew.Sprintf("HTTPPolicySet Restop %v AviHttpPolicySetMeta %v\n",
+	utils.AviLog.Debug(spew.Sprintf("HTTPPolicySet Restop %v AviHttpPolicySetMeta %v\n",
 		rest_op, *hps_meta))
 	return &rest_op
 }
@@ -142,7 +142,7 @@ func (rest *RestOperations) AviHttpPolicyDel(uuid string, tenant string, key str
 	path := "/api/httppolicyset/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("HTTP Policy Set DELETE Restop %v \n",
+	utils.AviLog.Debug(spew.Sprintf("HTTP Policy Set DELETE Restop %v \n",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -220,16 +220,16 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
 				vs_cache_obj.AddToHTTPKeyCollection(k)
-				utils.AviLog.Infof("Modified the VS cache for https object. The cache now is :%v", utils.Stringify(vs_cache_obj))
+				utils.AviLog.Debugf("Modified the VS cache for https object. The cache now is :%v", utils.Stringify(vs_cache_obj))
 			}
 
 		} else {
 			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToHTTPKeyCollection(k)
-			utils.AviLog.Info(spew.Sprintf("Added VS cache key during http policy update %v val %v\n", vsKey,
+			utils.AviLog.Debug(spew.Sprintf("Added VS cache key during http policy update %v val %v\n", vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info(spew.Sprintf("Added Http Policy Set cache k %v val %v\n", k,
+		utils.AviLog.Debug(spew.Sprintf("Added Http Policy Set cache k %v val %v\n", k,
 			http_cache_obj))
 	}
 
