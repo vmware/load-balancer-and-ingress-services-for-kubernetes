@@ -1,4 +1,4 @@
-# github.com/avinetworks/container-lib v0.0.0-20200513162737-1d526e43e41a
+# github.com/avinetworks/container-lib v0.0.0-20200513181034-05ee12b49354
 github.com/avinetworks/container-lib/api
 github.com/avinetworks/container-lib/api/models
 github.com/avinetworks/container-lib/utils

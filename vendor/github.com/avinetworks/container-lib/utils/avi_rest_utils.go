@@ -98,13 +98,12 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 			err := &WebSyncError{err: op.Err, operation: string(op.Method)}
 			return err
 		} else {
-			AviLog.Infof(`RestOp method %v path %v tenant %v response %v`,
+			AviLog.Debugf(`RestOp method %v path %v tenant %v response %v`,
 				op.Method, op.Path, op.Tenant, Stringify(op.Response))
 		}
 	}
 	return nil
 }
-
 
 func AviModelToUrl(model string) string {
 	switch model {
