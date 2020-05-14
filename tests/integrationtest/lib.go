@@ -92,10 +92,10 @@ func (secret FakeSecret) Secret() *corev1.Secret {
 	}
 }
 
-func AddSecret(secretName string, namespace string) {
+func AddSecret(secretName string, namespace string, cert string, key string) {
 	fakeSecret := (FakeSecret{
-		Cert:      "tlsCert",
-		Key:       "tlsKey",
+		Cert:      cert,
+		Key:       key,
 		Namespace: namespace,
 		Name:      secretName,
 	}).Secret()

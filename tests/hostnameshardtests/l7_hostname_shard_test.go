@@ -752,6 +752,120 @@ func TestUpdateBackendService(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
+func TestL2ChecksumsUpdate(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
+	//create ingress with tls secret
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:      "ingress-chksum",
+		Namespace: "default",
+		DnsNames:  []string{"foo.com"},
+		Ips:       []string{"8.8.8.8"},
+		Paths:     []string{"/foo"},
+		HostNames: []string{"v1"},
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo.com"},
+		},
+		ServiceName: "avisvc",
+	}).Ingress()
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	initCheckSums := make(map[string]uint32)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		initCheckSums["nodes[0]"] = nodes[0].CloudConfigCksum
+
+		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
+		initCheckSums["nodes[0].SniNodes[0]"] = nodes[0].SniNodes[0].CloudConfigCksum
+
+		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
+		initCheckSums["nodes[0].SniNodes[0].PoolRefs[0]"] = nodes[0].SniNodes[0].PoolRefs[0].CloudConfigCksum
+
+		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
+		initCheckSums["nodes[0].SniNodes[0].SSLKeyCertRefs[0]"] = nodes[0].SniNodes[0].SSLKeyCertRefs[0].CloudConfigCksum
+
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
+		initCheckSums["nodes[0].SniNodes[0].HttpPolicyRefs[0]"] = nodes[0].SniNodes[0].HttpPolicyRefs[0].CloudConfigCksum
+
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+
+	integrationtest.CreateSVC(t, "default", "avisvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "avisvc2", false, false, "2.2.2")
+	integrationtest.AddSecret("my-secret-new", "default", "tlsCert-new", "tlsKey")
+
+	ingrFake1, err = (integrationtest.FakeIngress{
+		Name:      "ingress-chksum",
+		Namespace: "default",
+		DnsNames:  []string{"foo.com"},
+		Ips:       []string{"8.8.8.8"},
+		//to update httppolicyref checksum
+		Paths:     []string{"/bar"},
+		HostNames: []string{"v1"},
+		TlsSecretDNS: map[string][]string{
+			//to update tls secret checksum
+			"my-secret-new": []string{"foo.com"},
+		},
+		//to update poolref checksum
+		ServiceName: "avisvc2",
+	}).UpdateIngress()
+
+	if err != nil {
+		t.Fatalf("error in updating ingress %s", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
+
+		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
+		g.Eventually(func() uint32 {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return nodes[0].SniNodes[0].CloudConfigCksum
+		}, 5*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SniNodes[0]"]))
+
+		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
+		g.Eventually(func() uint32 {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return nodes[0].SniNodes[0].PoolRefs[0].CloudConfigCksum
+		}, 5*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SniNodes[0].PoolRefs[0]"]))
+
+		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
+		g.Eventually(func() uint32 {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return nodes[0].SniNodes[0].SSLKeyCertRefs[0].CloudConfigCksum
+		}, 5*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SniNodes[0].SSLKeyCertRefs[0]"]))
+
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
+		g.Eventually(func() uint32 {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return nodes[0].SniNodes[0].HttpPolicyRefs[0].CloudConfigCksum
+		}, 5*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SniNodes[0].HttpPolicyRefs[0]"]))
+
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-chksum", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DelSVC(t, "default", "avisvc2")
+	integrationtest.DelEP(t, "default", "avisvc2")
+	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
+	KubeClient.CoreV1().Secrets("default").Delete("my-secret-new", nil)
+	VerifySNIIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, modelName)
+}
+
 func TestMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/Shard-VS---global-0"
@@ -1690,7 +1804,7 @@ func TestScaleEndpoints(t *testing.T) {
 
 func TestL7ModelSNI(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	modelName := "admin/Shard-VS---global-0"
 	SetUpTestForIngress(t, modelName)
 
@@ -1787,7 +1901,7 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 	}
 
 	// Now create the secret and verify the models.
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		g.Eventually(func() int {
@@ -1864,7 +1978,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 	}
 
 	// Now create the secret and verify the models.
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		// Check if the secret affected both the models.
@@ -1904,7 +2018,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 
 func TestL7ModelMultiSNI(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	modelName := "admin/Shard-VS---global-0"
 	SetUpTestForIngress(t, modelName)
 
@@ -1955,8 +2069,8 @@ func TestL7ModelMultiSNI(t *testing.T) {
 func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 	// This test covers creating multiple SNI nodes via multiple secrets.
 	g := gomega.NewGomegaWithT(t)
-	integrationtest.AddSecret("my-secret", "default")
-	integrationtest.AddSecret("my-secret2", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
 	// Clean up any earlier models.
 	modelName := "admin/Shard-VS---global-1"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -2056,8 +2170,8 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 
 func TestL7WrongSubDomainMultiSNI(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	integrationtest.AddSecret("my-secret", "default")
-	integrationtest.AddSecret("my-secret2", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
 	modelName := "admin/Shard-VS---global-1"
 	SetUpTestForIngress(t, modelName)
 

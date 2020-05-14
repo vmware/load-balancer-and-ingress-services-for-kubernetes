@@ -55,7 +55,7 @@ func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, w
 		ServiceName: "avisvc",
 	}
 	if withSecret {
-		integrationtest.AddSecret("my-secret", "default")
+		integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	}
 	if tlsIngress {
 		ingressObject.TlsSecretDNS = map[string][]string{
@@ -404,7 +404,7 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	modelName := "admin/Shard-VS---global-0"
 	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
 	mcache := cache.SharedAviObjCache()
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	// update ingress
 	ingressObject := integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -417,7 +417,7 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 			"my-secret-v2": []string{"bar.com"},
 		},
 	}
-	integrationtest.AddSecret("my-secret-v2", "default")
+	integrationtest.AddSecret("my-secret-v2", "default", "tlsCert", "tlsKey")
 	ingrFake := ingressObject.Ingress()
 	ingrFake.ResourceVersion = "2"
 	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrFake); err != nil {
@@ -461,7 +461,7 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 			"my-secret": []string{"foo.com"},
 		},
 	}
-	integrationtest.AddSecret("my-secret", "red")
+	integrationtest.AddSecret("my-secret", "red", "tlsCert", "tlsKey")
 	ingrFake = ingressObject.Ingress()
 	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("red").Create(ingrFake); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
@@ -499,8 +499,8 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 			"my-secret-v2": []string{"bar.com"},
 		},
 	}
-	integrationtest.AddSecret("my-secret-v2", "default")
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret-v2", "default", "tlsCert", "tlsKey")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 
 	ingrFake := ingressObject.Ingress()
 	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
@@ -674,7 +674,7 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(false))
 
 	// add Secret
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 
 	// ssl key should be created now and must be attached to the sni vs cache
 	g.Eventually(func() bool {
@@ -742,8 +742,8 @@ func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
 			"my-secret-v2": []string{"bar.com"},
 		},
 	}
-	integrationtest.AddSecret("my-secret-v2", "default")
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret-v2", "default", "tlsCert", "tlsKey")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	ingressObject2 := integrationtest.FakeIngress{
 		Name:        "foo-with-targets-2",
 		Namespace:   "default",
@@ -821,7 +821,7 @@ func TestHostnameMultiHostUpdateIngressStatusCheck(t *testing.T) {
 			"my-secret": []string{"foo" + pathSuffix},
 		},
 	}
-	integrationtest.AddSecret("my-secret", "default")
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	ingrFake := ingressObject.Ingress()
 	if _, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)

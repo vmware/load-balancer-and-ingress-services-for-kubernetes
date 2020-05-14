@@ -18,6 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 
 	avicache "ako/pkg/cache"
@@ -25,6 +27,20 @@ import (
 	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
 )
+
+/*
+DELIM : String Delimiter for when concatenating strings before hashing
+
+(short) distinguish ab+c from a+bc, (a,b,c are strings)
+
+(long) Concatenating strings and calculating hash once instead of hashing individual
+strings and adding the resultant hashes should reduce hash collisions
+But simply concatenating brings up its own issues.
+For eg. two pairs of strings ("abcde", "fgh") and ("abc", "defgh")
+give the same result when concatenated ie "abcdefgh" and thus hash collision
+Therefore we add a delimiter when concatenating to distinguish "abcde:fgh" from "abc:defgh"
+*/
+const delim = ":"
 
 type AviModelNode interface {
 	//Each AVIModelNode represents a AVI API object.
@@ -109,10 +125,11 @@ func (v *AviObjectGraph) DecrementRetryCounter() {
 
 func (v *AviObjectGraph) CalculateCheckSum() {
 	// A sum of fields for this model.
-	v.GraphChecksum = 0
+	chksumStr := ""
 	for _, model := range v.modelNodes {
-		v.GraphChecksum = v.GraphChecksum + model.GetCheckSum()
+		chksumStr += strconv.Itoa(int(model.GetCheckSum())) + delim
 	}
+	v.GraphChecksum = utils.Hash(chksumStr)
 }
 
 func NewAviObjectGraph() *AviObjectGraph {
@@ -201,7 +218,7 @@ func (v *AviVrfNode) GetNodeType() string {
 
 func (v *AviVrfNode) CalculateCheckSum() {
 	// A sum of fields for this vrf.
-	checksum := utils.Hash(v.Name) + utils.Hash(utils.Stringify(v.StaticRoutes))
+	checksum := utils.Hash(v.Name + delim + utils.Stringify(v.StaticRoutes))
 	v.CloudConfigCksum = checksum
 }
 
@@ -345,30 +362,34 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, poolchecksum, sslkeyChecksum uint32
+	chksumStr := ""
+
 	for _, ds := range v.HTTPDSrefs {
-		dsChecksum += ds.GetCheckSum()
+		chksumStr += strconv.Itoa(int(ds.GetCheckSum())) + delim
 	}
 
 	for _, pool := range v.PoolRefs {
-		poolchecksum += pool.GetCheckSum()
+		chksumStr += strconv.Itoa(int(pool.GetCheckSum())) + delim
 	}
 
 	for _, httppol := range v.HttpPolicyRefs {
-		httppolChecksum += httppol.GetCheckSum()
+		chksumStr += strconv.Itoa(int(httppol.GetCheckSum())) + delim
 	}
 
 	for _, sninode := range v.SniNodes {
-		sniChecksum += sninode.GetCheckSum()
+		chksumStr += strconv.Itoa(int(sninode.GetCheckSum())) + delim
 	}
 
 	for _, sslkeycert := range v.SSLKeyCertRefs {
-		sslkeyChecksum += sslkeycert.GetCheckSum()
+		chksumStr += strconv.Itoa(int(sslkeycert.GetCheckSum())) + delim
 	}
-
-	// A sum of fields for this VS.
-	checksum := dsChecksum + httppolChecksum + sniChecksum + poolchecksum + utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) +
-		utils.Hash(utils.Stringify(portproto)) + sslkeyChecksum
+	for _, vsvipref := range v.VSVIPRefs {
+		vsvipref.CalculateCheckSum()
+	}
+	chksumStr += v.ApplicationProfile + delim
+	chksumStr += v.NetworkProfile + delim
+	chksumStr += utils.Stringify(portproto)
+	checksum := utils.Hash(chksumStr)
 	v.CloudConfigCksum = checksum
 }
 
@@ -402,14 +423,16 @@ func (v *AviHttpPolicySetNode) GetCheckSum() uint32 {
 func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	var checksum uint32
+	var chksumStr string
 	for _, hpp := range v.HppMap {
 		sort.Strings(hpp.Path)
-		checksum = checksum + utils.Hash(hpp.Host) + utils.Hash(utils.Stringify(hpp))
+		chksumStr += hpp.Host + delim + utils.Stringify(hpp) + delim
 	}
 	for _, redir := range v.RedirectPorts {
 		sort.Strings(redir.Hosts)
-		checksum = checksum + utils.Hash(utils.Stringify(redir.Hosts))
+		chksumStr += (utils.Stringify(redir.Hosts)) + delim
 	}
+	checksum = utils.Hash(chksumStr)
 	v.CloudConfigCksum = checksum
 }
 
@@ -458,7 +481,7 @@ type AviTLSKeyCertNode struct {
 
 func (v *AviTLSKeyCertNode) CalculateCheckSum() {
 	// A sum of fields for this SSL cert.
-	checksum := utils.Hash(string(v.Name)) + utils.Hash(string(v.Key)) + utils.Hash(string(v.Cert))
+	checksum := utils.Hash(string(v.Name) + delim + string(v.Key) + delim + string(v.Cert))
 	v.CloudConfigCksum = checksum
 }
 
@@ -676,9 +699,11 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	})
 
 	// A sum of fields for this Pool.
-	checksum := utils.Hash(v.Protocol) + utils.Hash(fmt.Sprint(v.Port)) + utils.Hash(v.PortName) + utils.Hash(utils.Stringify(servers)) +
-		utils.Hash(utils.Stringify(v.LbAlgorithm)) + utils.Hash(utils.Stringify(v.SSLProfileRef)) + utils.Hash(utils.Stringify(v.ServerClientCert)) +
-		utils.Hash(utils.Stringify(v.PkiProfile)) + utils.Hash(utils.Stringify(v.PriorityLabel))
+
+	chksumStr := fmt.Sprintf(strings.Join([]string{v.Protocol, fmt.Sprint(v.Port), v.PortName, utils.Stringify(servers),
+		utils.Stringify(v.LbAlgorithm), utils.Stringify(v.SSLProfileRef), utils.Stringify(v.ServerClientCert),
+		utils.Stringify(v.PkiProfile), utils.Stringify(v.PriorityLabel)}[:], delim))
+	checksum := utils.Hash(chksumStr)
 	v.CloudConfigCksum = checksum
 }
 
