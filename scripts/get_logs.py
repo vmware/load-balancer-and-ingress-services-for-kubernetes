@@ -7,15 +7,17 @@ import yaml
 import time
 import warnings
 from datetime import datetime
+import logging
 warnings.filterwarnings("ignore")
 encoding = 'utf-8'
 
 def getLogFolderName(args):
-    return args.cluster + "-"+ args.helmChart + "-" + str(datetime.now().strftime("%Y-%m-%d-%H%M%S"))
+    return args.cluster + "-"+ args.helmchart + "-" + str(datetime.now().strftime("%Y-%m-%d-%H%M%S"))
 
 def pvHelper(args) : 
     # Take details of PV and PVC from the ako pod helm chart
-    helmResult = subprocess.check_output("helm get all %s -n %s" %(args.helmChart,args.namespace) , shell=True)
+    helmResult = subprocess.check_output("helm get all %s -n %s" %(args.helmchart,args.namespace) , shell=True)
+    logging.info("helm get all %s -n %s" %(args.helmchart,args.namespace))
     helmResult = helmResult.decode(encoding)
     listhelmResult = helmResult.split("---")
     for output in listhelmResult:
@@ -33,12 +35,15 @@ def findPVCName(templateSpec, args):
     except KeyError:
         print("Persistent Volume for pod is not defined\nReading logs directly from the pod\n")
         folderName = getLogFolderName(args)
+        logging.info("Creating directory %s" %folderName)
         output = subprocess.check_output("mkdir %s" %folderName, shell=True)
+        logging.info("kubectl logs %s -n %s --since %s > %s/log-file" %(findPodName(args),args.namespace,args.since,folderName))
         output = subprocess.check_output("kubectl logs %s -n %s --since %s > %s/log-file" %(findPodName(args),args.namespace,args.since,folderName) , shell=True)
         getConfigMap(args,folderName)
+        logging.info("Zipping directory %s" %folderName)
         shutil.make_archive(folderName, 'zip', folderName)
-        print("Success, Logs zipped into %s.zip\n" %folderName)
         output = subprocess.check_output("rm -r %s" %folderName, shell=True)
+        print("\nSuccess, Logs zipped into %s.zip\n" %folderName)
         return "no pvc"
     
 def findPVMount(templateSpec):
@@ -59,7 +64,8 @@ def editDeploymentFile(pvcName,pvMount,args):
     yaml.dump(deploymentDict, pod)
 
 def findPodName(args):
-    Pods = subprocess.check_output("kubectl get pod -n %s -l app.kubernetes.io/instance=%s" %(args.namespace, args.helmChart) , shell=True)
+    logging.info("kubectl get pod -n %s -l app.kubernetes.io/instance=%s" %(args.namespace, args.helmchart))
+    Pods = subprocess.check_output("kubectl get pod -n %s -l app.kubernetes.io/instance=%s" %(args.namespace, args.helmchart) , shell=True)
     Pods = Pods.decode(encoding)
     newLine = Pods.splitlines()[1]
     podName = newLine.split(' ')[0]
@@ -67,12 +73,14 @@ def findPodName(args):
 
 
 def getConfigMap(args,folderName):
+    logging.info("kubectl get cm -n %s -o yaml > %s/config-map.yaml" %(args.namespace,folderName))
     subprocess.check_output("kubectl get cm -n %s -o yaml > %s/config-map.yaml" %(args.namespace,folderName), shell=True)
 
 def zipLogFile (args):
     podName = findPodName(args)
     try:
         #Find details of the Ako pod
+        logging.info("kubectl describe pod %s -n %s" %(podName,args.namespace))
         statusOfAkoPod =  subprocess.check_output("kubectl describe pod %s -n %s" %(podName,args.namespace) , shell=True)
         statusOfAkoPod =  statusOfAkoPod.decode(encoding)
     except:
@@ -92,14 +100,17 @@ def zipLogFile (args):
     if (re.findall("Status: *Running", statusOfAkoPod)):
         #If ako pod is running, copy the log file to zip it
         try:
+            logging.info("Creating directory %s" %folderName)
             output = subprocess.check_output("mkdir %s" %folderName, shell=True)
+            logging.info("kubectl cp %s/%s:%s %s" %(args.namespace,podName,pvMount[1:],folderName))
             output = subprocess.check_output("kubectl cp %s/%s:%s %s" %(args.namespace,podName,pvMount[1:],folderName), shell=True)
             getConfigMap(args,folderName)
         except:
             print("Error is cp of ako pod\n")
             return 0
+        logging.info("Zipping directory %s" %folderName)
         shutil.make_archive(folderName, 'zip', folderName)
-        print("Success, Logs zipped into %s.zip\n" %folderName)
+        print("\nSuccess, Logs zipped into %s.zip\n" %folderName)
         output = subprocess.check_output("rm -r %s" %folderName, shell=True)
         return 1
     #If ako pod isnt running, then create backup pod named "mypod"
@@ -107,6 +118,7 @@ def zipLogFile (args):
         #Creation of "mypod"
         editDeploymentFile(pvcName,pvMount,args)
         try:
+            logging.info("kubectl apply -f pod.yaml")
             podCreated = subprocess.check_output("kubectl apply -f pod.yaml", shell=True)
         except:
             return 0
@@ -114,6 +126,7 @@ def zipLogFile (args):
         #Wait for "mypod" to start running
         while(1):
             try:
+                logging.info("kubectl describe pod custom-backup-pod -n %s" %args.namespace)
                 statusOfBackupPod =  subprocess.check_output("kubectl describe pod custom-backup-pod -n %s" %args.namespace , shell=True)
                 statusOfBackupPod = statusOfBackupPod.decode(encoding)
             except: 
@@ -121,14 +134,18 @@ def zipLogFile (args):
             if (re.findall("Status: *Running", statusOfBackupPod)):
                 #Once "mypod" is running, copy the log file to zip it
                 print("Backup pod \'custom-backup-pod\' started\n")
+                logging.info("Creating directory %s" %folderName)
                 output = subprocess.check_output("mkdir %s" %folderName, shell=True)
+                logging.info("kubectl cp %s/custom-backup-pod:%s %s" %(args.namespace,pvMount[1:],folderName))
                 output = subprocess.check_output("kubectl cp %s/custom-backup-pod:%s %s" %(args.namespace,pvMount[1:],folderName),shell=True)
                 getConfigMap(args,folderName)
+                logging.info("Zipping directory %s" %folderName)
                 shutil.make_archive(folderName, 'zip', folderName)
                 output = subprocess.check_output("rm -r %s" %folderName, shell=True)
-                print("Success, Logs zipped into %s.zip\n" %folderName)
+                print("\nSuccess, Logs zipped into %s.zip\n" %folderName)
                 #Clean up
                 print("Deleting backup pod and pod.yaml...\n")
+                logging.info("kubectl delete pod custom-backup-pod -n %s" %args.namespace)
                 backupPodDeletion =  subprocess.check_output("kubectl delete pod custom-backup-pod -n %s" %args.namespace , shell=True)
                 backupPodDeletion =  subprocess.check_output("rm pod.yaml", shell= True)
                 return 1
@@ -142,17 +159,18 @@ if __name__ == "__main__":
     #Parsing cli arguments
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-n', '--namespace', help='Namespace in which the ako pod is present' )
-    parser.add_argument('-helmChart', '--helmChart', help='Helm Chart name' )
-    parser.add_argument('-cluster', '--cluster', help='Cluster name' )
-    parser.add_argument('-wait', '--wait', default= 10, help='Number of seconds to wait for the backup pod to start running before exiting\nDefault is 10 seconds' )
-    parser.add_argument('-since', '--since',default='24h', help='For pods not having persistent volume storage the logs since a given time duration can be fetched.\nExample : mention the time as 2s(for 2 seconds) or 4m(for 4 mins) or 24h(for 24 hours)\nDefault is taken to be 24h' )
+    parser.add_argument('-H', '--helmchart', help='Helm Chart name' )
+    parser.add_argument('-c', '--cluster', help='Cluster name' )
+    parser.add_argument('-w', '--wait', default= 10, help='Number of seconds to wait for the backup pod to start running before exiting\nDefault is 10 seconds' )
+    parser.add_argument('-s', '--since',default='24h', help='For pods not having persistent volume storage the logs since a given time duration can be fetched.\nExample : mention the time as 2s(for 2 seconds) or 4m(for 4 mins) or 24h(for 24 hours)\nDefault is taken to be 24h' )
     args = parser.parse_args()
 
-    if (not args.helmChart or not args.namespace or not args.cluster):
-        print("Scripts requires arguments\nTry \'python3 get_logs.py --help\' for more info")
+
+    logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+
+    if (not args.helmchart or not args.namespace or not args.cluster):
+        print("Scripts requires arguments\nTry \'python3 get_logs.py --help\' for more info\n\n")
         exit()
 
-    
-
     if(zipLogFile(args)==0):
-        print("\nError getting log file\n")
+        print("Error getting log file\n\n")
