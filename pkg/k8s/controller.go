@@ -470,17 +470,17 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	}
 }
 
-func isAviConfigMap(obj interface{}) bool {
+func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if ok && lib.GetNamespaceToSync() != "" {
 		// AKO is running for a particular namespace, look for the Avi config map here
 		if configMap.Name == lib.AviConfigMap {
-			return true
+			return configMap, true
 		}
 	} else if ok && configMap.Namespace == lib.AviNS && configMap.Name == lib.AviConfigMap {
-		return true
+		return configMap, true
 	}
-	return false
+	return nil, false
 }
 
 func (c *AviController) Start(stopCh <-chan struct{}) {
