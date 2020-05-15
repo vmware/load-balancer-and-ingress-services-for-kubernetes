@@ -61,16 +61,28 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	firstboot := true
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if isAviConfigMap(obj) {
+			if cm, ok := validateAviConfigMap(obj); ok {
 				utils.AviLog.Infof("avi k8s configmap created")
+				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
 				c.DisableSync = false
 				if !firstboot {
 					ctrlCh <- struct{}{}
 				}
 			}
 		},
+		UpdateFunc: func(old, obj interface{}) {
+			cm, ok := validateAviConfigMap(obj)
+			oldcm, oldok := validateAviConfigMap(old)
+			if ok && oldok {
+				// if resourceversions and loglevel change, set new loglevel
+				if oldcm.ResourceVersion != cm.ResourceVersion &&
+					oldcm.Data[lib.LOG_LEVEL] != cm.Data[lib.LOG_LEVEL] {
+					utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+				}
+			}
+		},
 		DeleteFunc: func(obj interface{}) {
-			if isAviConfigMap(obj) {
+			if _, ok := validateAviConfigMap(obj); ok {
 				utils.AviLog.Infof("avi k8s configmap deleted")
 				c.DisableSync = true
 				firstboot = false

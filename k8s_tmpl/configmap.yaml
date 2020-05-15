@@ -14,3 +14,4 @@ data:
   cloudName: "Default-Cloud"
   vrfRefName: "global"
   disableStaticRouteSync: "false"
+  logLevel: "INFO" # one of INFO, DEBUG, WARN, ERROR

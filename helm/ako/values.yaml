@@ -23,6 +23,7 @@ configs:
   networkName: "" # Network Name of the data network
   l7ShardingScheme: "hostname"
   cniPlugin: "" #enum: calico|canal|flannel
+  logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
 
 imagePullSecrets: []
 nameOverride: ""

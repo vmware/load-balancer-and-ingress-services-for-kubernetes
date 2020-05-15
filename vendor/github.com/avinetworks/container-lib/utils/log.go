@@ -23,14 +23,14 @@ import (
 )
 
 const (
-	TraceLevel = zapcore.DebugLevel
+	DebugLevel = zapcore.DebugLevel
 	InfoLevel  = zapcore.InfoLevel
 	WarnLevel  = zapcore.WarnLevel
 	ErrorLevel = zapcore.ErrorLevel
 )
 
 var LogLevelMap = map[string]zapcore.Level{
-	"TRACE": TraceLevel,
+	"DEBUG": DebugLevel,
 	"INFO":  InfoLevel,
 	"WARN":  WarnLevel,
 	"ERROR": ErrorLevel,

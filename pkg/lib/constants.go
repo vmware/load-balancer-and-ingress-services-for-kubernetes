@@ -35,4 +35,5 @@ const (
 	NOT_FOUND                 = "HTTP code: 404"
 	STATUS_REDIRECT           = "HTTP_REDIRECT_STATUS_CODE_302"
 	SLOW_SYNC_TIME            = 120
+	LOG_LEVEL                 = "logLevel"
 )
