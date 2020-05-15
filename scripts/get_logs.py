@@ -33,7 +33,7 @@ def findPVCName(templateSpec, args):
         pvcName = templateSpec['volumes'][0]['persistentVolumeClaim']['claimName']
         return pvcName
     except KeyError:
-        print("Persistent Volume for pod is not defined\nReading logs directly from the pod\n")
+        logging.info("Persistent Volume for pod is not defined\nReading logs directly from the pod")
         folderName = getLogFolderName(args)
         logging.info("Creating directory %s" %folderName)
         output = subprocess.check_output("mkdir %s" %folderName, shell=True)
@@ -42,6 +42,7 @@ def findPVCName(templateSpec, args):
         getConfigMap(args,folderName)
         logging.info("Zipping directory %s" %folderName)
         shutil.make_archive(folderName, 'zip', folderName)
+        logging.info("Clean up: rm -r %s" %folderName)
         output = subprocess.check_output("rm -r %s" %folderName, shell=True)
         print("\nSuccess, Logs zipped into %s.zip\n" %folderName)
         return "no pvc"
@@ -110,12 +111,14 @@ def zipLogFile (args):
             return 0
         logging.info("Zipping directory %s" %folderName)
         shutil.make_archive(folderName, 'zip', folderName)
-        print("\nSuccess, Logs zipped into %s.zip\n" %folderName)
+        logging.info("Clean up: rm -r %s" %folderName)
         output = subprocess.check_output("rm -r %s" %folderName, shell=True)
+        print("\nSuccess, Logs zipped into %s.zip\n" %folderName)
         return 1
     #If ako pod isnt running, then create backup pod named "mypod"
     else:
         #Creation of "mypod"
+        logging.info("Creating backup pod as ako pod isn't running")
         editDeploymentFile(pvcName,pvMount,args)
         try:
             logging.info("kubectl apply -f pod.yaml")
@@ -133,7 +136,7 @@ def zipLogFile (args):
                 return 0
             if (re.findall("Status: *Running", statusOfBackupPod)):
                 #Once "mypod" is running, copy the log file to zip it
-                print("Backup pod \'custom-backup-pod\' started\n")
+                print("\nBackup pod \'custom-backup-pod\' started\n")
                 logging.info("Creating directory %s" %folderName)
                 output = subprocess.check_output("mkdir %s" %folderName, shell=True)
                 logging.info("kubectl cp %s/custom-backup-pod:%s %s" %(args.namespace,pvMount[1:],folderName))
@@ -141,13 +144,15 @@ def zipLogFile (args):
                 getConfigMap(args,folderName)
                 logging.info("Zipping directory %s" %folderName)
                 shutil.make_archive(folderName, 'zip', folderName)
-                output = subprocess.check_output("rm -r %s" %folderName, shell=True)
-                print("\nSuccess, Logs zipped into %s.zip\n" %folderName)
                 #Clean up
-                print("Deleting backup pod and pod.yaml...\n")
-                logging.info("kubectl delete pod custom-backup-pod -n %s" %args.namespace)
+                logging.info("Clean up: kubectl delete pod custom-backup-pod -n %s" %args.namespace)
                 backupPodDeletion =  subprocess.check_output("kubectl delete pod custom-backup-pod -n %s" %args.namespace , shell=True)
+                logging.info("Clean up: rm pod.yaml")
                 backupPodDeletion =  subprocess.check_output("rm pod.yaml", shell= True)
+                logging.info("Clean up: rm -r %s" %folderName)
+                output = subprocess.check_output("rm -r %s" %folderName, shell=True)
+
+                print("\nSuccess, Logs zipped into %s.zip\n" %folderName)
                 return 1
             time.sleep(2)
             if time.time()>timeout:
