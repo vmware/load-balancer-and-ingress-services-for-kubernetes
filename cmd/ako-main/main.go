@@ -97,11 +97,10 @@ func InitializeAKC() {
 	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
-	k8s.PopulateCache()
-	k8s.PopulateNodeCache(kubeClient)
-
 	ctrlCh := make(chan struct{})
 	c.HandleConfigMap(informers, ctrlCh, stopCh)
+	k8s.PopulateCache()
+	k8s.PopulateNodeCache(kubeClient)
 	go c.InitController(informers, ctrlCh, stopCh)
 	<-stopCh
 	close(ctrlCh)

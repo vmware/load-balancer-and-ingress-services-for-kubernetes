@@ -98,14 +98,14 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	c.AviRefreshObjectCache(client, cloud)
 	vsCacheCopy := c.VsCacheMeta.AviCacheGetAllParentVSKeys()
 	allVsKeys := c.VsCacheMeta.AviGetAllVSKeys()
-	c.AviObjVSCachePopulate(client, cloud, allVsKeys)
+	c.AviObjVSCachePopulate(client, cloud, &allVsKeys)
 	// Populate the SNI VS keys to their respective parents
 	c.PopulateVsMetaCache()
 	// Delete all the VS keys that are left in the copy.
 	for _, key := range allVsKeys {
 		utils.AviLog.Debugf("Removing vs key from cache: %s", key)
 		// We want to synthesize these keys to layer 3.
-		Remove(vsCacheCopy, key)
+		vsCacheCopy = Remove(vsCacheCopy, key)
 		c.VsCacheMeta.AviCacheDelete(key)
 	}
 	c.AviCloudPropertiesPopulate(client, cloud)
@@ -343,6 +343,7 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 				utils.AviLog.Warnf("Wrong data type for pool: %s in cache", k)
 			}
 		}
+		utils.AviLog.Debugf("Adding key to pool cache :%s value :%s", k, poolCacheObj.Uuid)
 		c.PoolCache.AviCacheAdd(k, &poolsData[i])
 		delete(poolCacheData, k)
 	}
@@ -950,7 +951,7 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 }
 
 func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
-	cloud string, vsCacheCopy []NamespaceName, override_uri ...NextPage) error {
+	cloud string, vsCacheCopy *[]NamespaceName, override_uri ...NextPage) error {
 	var rest_response interface{}
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	var uri string
@@ -1015,7 +1016,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 			}
 			if vs["cloud_config_cksum"] != nil {
 				k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vs["name"].(string)}
-				Remove(vsCacheCopy, k)
+				*vsCacheCopy = Remove(*vsCacheCopy, k)
 				var vip string
 				var vsVipKey []NamespaceName
 				var sslKeys []NamespaceName

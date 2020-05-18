@@ -152,10 +152,14 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 	} else {
 		// First boot sync
 		c.FullSyncK8s()
-		worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
-		worker.SyncFunction = c.FullSync
-		worker.QuickSyncFunction = c.FullSyncK8s
-		go worker.Run()
+		if interval != 0 {
+			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
+			worker.SyncFunction = c.FullSync
+			worker.QuickSyncFunction = c.FullSyncK8s
+			go worker.Run()
+		} else {
+			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
+		}
 	}
 	c.SetupEventHandlers(informers)
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
