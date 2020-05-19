@@ -41,7 +41,7 @@ func main() {
 
 func InitializeAKCApi() {
 	akoApi := &api.ApiServer{
-		Port:   "8080",
+		Port:   "80",
 		Models: []models.ApiModel{},
 	}
 
