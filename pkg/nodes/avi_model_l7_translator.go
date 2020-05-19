@@ -462,7 +462,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			}
 		}
 	}
-	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups to tlsNode: %v", key, tlsNode.GetCheckSum())
+	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. tlsNodeChecksum for tlsNode :%s is :%v", key, tlsNode.Name, tlsNode.GetCheckSum())
 
 }
 
