@@ -257,18 +257,16 @@ func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
 }
 
 func FindAndReplaceSniInModel(currentSniNode *AviVsNode, modelSniNodes []*AviVsNode, key string) bool {
-	if len(modelSniNodes[0].SniNodes) > 0 {
-		for i, modelSniNode := range modelSniNodes[0].SniNodes {
-			if currentSniNode.Name == modelSniNode.Name {
-				// Check if the checksums are same
-				if !(modelSniNode.GetCheckSum() == currentSniNode.GetCheckSum()) {
-					// The checksums are not same. Replace this sni node
-					modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes[:i], modelSniNodes[0].SniNodes[i+1:]...)
-					modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes, currentSniNode)
-					utils.AviLog.Infof("key: %s, msg: replaced sni node in model: %s", key, currentSniNode.Name)
-				}
-				return true
+	for i, modelSniNode := range modelSniNodes[0].SniNodes {
+		if currentSniNode.Name == modelSniNode.Name {
+			// Check if the checksums are same
+			if !(modelSniNode.GetCheckSum() == currentSniNode.GetCheckSum()) {
+				// The checksums are not same. Replace this sni node
+				modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes[:i], modelSniNodes[0].SniNodes[i+1:]...)
+				modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes, currentSniNode)
+				utils.AviLog.Infof("key: %s, msg: replaced sni node in model: %s", key, currentSniNode.Name)
 			}
+			return true
 		}
 	}
 	return false
@@ -403,7 +401,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 				tlsNode.SSLKeyCertRefs[0] = certNode
 				utils.AviLog.Warnf("key: %s, msg: Duplicate secrets detected for the same hostname, overwrote the secret for hostname %s, with contents of secret :%s in ns: %s", key, sniHost[0], secretName, namespace)
 			} else {
-				tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
+				tlsNode.ReplaceSniSSLRefInSNINode(certNode, key)
 			}
 		}
 	} else {
@@ -451,19 +449,20 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
 
 			if tlsNode.CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
-				tlsNode.PoolGroupRefs = append(tlsNode.PoolGroupRefs, pgNode)
+				tlsNode.ReplaceSniPGInSNINode(pgNode, key)
 			}
 			if tlsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
-				tlsNode.PoolRefs = append(tlsNode.PoolRefs, poolNode)
+				// Replace the poolNode.
+				tlsNode.ReplaceSniPoolInSNINode(poolNode, key)
 			}
 			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
 			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: utils.ADMIN_NS}
 			if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
-				tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
+				tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
 			}
 		}
 	}
-	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups to tlsNode: %s", key, tlsNode.Name)
+	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. tlsNodeChecksum for tlsNode :%s is :%v", key, tlsNode.Name, tlsNode.GetCheckSum())
 
 }
 

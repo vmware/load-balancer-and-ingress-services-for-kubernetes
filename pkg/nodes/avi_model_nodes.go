@@ -339,6 +339,62 @@ func (o *AviVsNode) CheckPoolNChecksum(poolNodeName string, checksum uint32) boo
 	return true
 }
 
+func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string) {
+	for i, pool := range o.PoolRefs {
+		if pool.Name == newPoolNode.Name {
+			o.PoolRefs = append(o.PoolRefs[:i], o.PoolRefs[i+1:]...)
+			o.PoolRefs = append(o.PoolRefs, newPoolNode)
+			utils.AviLog.Infof("key: %s, msg: replaced sni pool in model: %s Pool name: %s", key, o.Name, pool.Name)
+			return
+		}
+	}
+	// If we have reached here it means we haven't found a match. Just append the pool.
+	o.PoolRefs = append(o.PoolRefs, newPoolNode)
+	return
+}
+
+func (o *AviVsNode) ReplaceSniPGInSNINode(newPGNode *AviPoolGroupNode, key string) {
+	for i, pg := range o.PoolGroupRefs {
+		if pg.Name == newPGNode.Name {
+			o.PoolGroupRefs = append(o.PoolGroupRefs[:i], o.PoolGroupRefs[i+1:]...)
+			o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
+			utils.AviLog.Infof("key: %s, msg: replaced sni pg in model: %s Pool name: %s", key, o.Name, pg.Name)
+			return
+		}
+	}
+	// If we have reached here it means we haven't found a match. Just append.
+	o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
+	return
+}
+
+func (o *AviVsNode) ReplaceSniHTTPRefInSNINode(newHttpNode *AviHttpPolicySetNode, key string) {
+	for i, http := range o.HttpPolicyRefs {
+		if http.Name == newHttpNode.Name {
+			o.HttpPolicyRefs = append(o.HttpPolicyRefs[:i], o.HttpPolicyRefs[i+1:]...)
+			o.HttpPolicyRefs = append(o.HttpPolicyRefs, newHttpNode)
+			utils.AviLog.Infof("key: %s, msg: replaced sni http in model: %s Pool name: %s", key, o.Name, http.Name)
+			return
+		}
+	}
+	// If we have reached here it means we haven't found a match. Just append.
+	o.HttpPolicyRefs = append(o.HttpPolicyRefs, newHttpNode)
+	return
+}
+
+func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key string) {
+	for i, ssl := range o.SSLKeyCertRefs {
+		if ssl.Name == newSslNode.Name {
+			o.SSLKeyCertRefs = append(o.SSLKeyCertRefs[:i], o.SSLKeyCertRefs[i+1:]...)
+			o.SSLKeyCertRefs = append(o.SSLKeyCertRefs, newSslNode)
+			utils.AviLog.Infof("key: %s, msg: replaced sni ssl in model: %s Pool name: %s", key, o.Name, ssl.Name)
+			return
+		}
+	}
+	// If we have reached here it means we haven't found a match. Just append.
+	o.SSLKeyCertRefs = append(o.SSLKeyCertRefs, newSslNode)
+	return
+}
+
 func (o *AviVsNode) CheckHttpPolNameNChecksum(httpNodeName string, checksum uint32) bool {
 	for _, http := range o.HttpPolicyRefs {
 		if http.Name == httpNodeName {
@@ -697,7 +753,6 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	sort.Slice(servers, func(i, j int) bool {
 		return *servers[i].Ip.Addr < *servers[j].Ip.Addr
 	})
-
 	// A sum of fields for this Pool.
 
 	chksumStr := fmt.Sprintf(strings.Join([]string{v.Protocol, fmt.Sprint(v.Port), v.PortName, utils.Stringify(servers),
