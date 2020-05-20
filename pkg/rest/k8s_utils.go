@@ -159,13 +159,21 @@ func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, 
 	if !ok {
 		utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
 	}
-
+	var hostListIng []string
+	for _, rule := range mIngress.Spec.Rules {
+		hostListIng = append(hostListIng, rule.Host)
+	}
 	utils.AviLog.Infof("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 
 	for i, status := range mIngress.Status.LoadBalancer.Ingress {
 		for _, host := range svc_mdata_obj.HostNames {
 			if status.Hostname == host {
-				mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
+				// Check if this host is still present in the spec, if so - don't delete it
+				if !utils.HasElem(hostListIng, host) {
+					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
+				} else {
+					utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the ingress: %v", key, host)
+				}
 			}
 		}
 	}
