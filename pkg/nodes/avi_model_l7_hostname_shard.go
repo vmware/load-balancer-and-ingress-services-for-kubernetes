@@ -93,6 +93,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 	defer o.Lock.Unlock()
 
 	vsNode := o.GetAviVS()
+	keepSni := false
 	if !secure {
 		// Fetch the ingress pools that are present in the model and delete them.
 		poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
@@ -140,23 +141,23 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 				// So first we get the SNI node from memory and we update the pool/pg/httppol of the sninode.
 				// However if this update leads to 0 pools in the sni node, it means the SNI node can be fully deleted.
 				utils.AviLog.Infof("key: %s, msg: sni node to delete :%s", key, sniNodeName)
-				o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, paths, vsNode, key)
+				keepSni = o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, paths, vsNode, key)
 			}
 		}
 	}
-	if removeFqdn {
+	if removeFqdn && !keepSni {
 		var hosts []string
 		hosts = append(hosts, hostname)
 		// Remove these hosts from the overall FQDN list
 		RemoveFQDNsFromModel(vsNode[0], hosts, key)
 	}
-	if removeRedir {
+	if removeRedir && !keepSni {
 		RemoveRedirectHTTPPolicyInModel(vsNode[0], hostname, key)
 	}
 
 }
 
-func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespace, hostname string, paths []string, vsNode []*AviVsNode, key string) {
+func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespace, hostname string, paths []string, vsNode []*AviVsNode, key string) bool {
 	for _, modelSniNode := range vsNode[0].SniNodes {
 		if currentSniNodeName == modelSniNode.Name {
 			for _, path := range paths {
@@ -172,9 +173,11 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 				RemoveSniInModel(currentSniNodeName, vsNode, key)
 				// Remove the snihost mapping
 				SharedHostNameLister().Delete(hostname)
+				return false
 			}
 		}
 	}
+	return true
 
 }
 
