@@ -41,7 +41,10 @@ func UpdateIngressStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicac
 	} else {
 		err = updateObject(svc_mdata_obj.Namespace, svc_mdata_obj.IngressName, svc_mdata_obj.HostNames, vs_cache_obj, key)
 	}
-
+	
+	if err != nil {
+		utils.AviLog.Error(err)
+	}
 	return err
 }
 
