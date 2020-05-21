@@ -16,6 +16,7 @@ package rest
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -101,6 +102,10 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 }
 
 func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObjectGraph) {
+	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+		utils.AviLog.Debugf("key: %s, msg: static route sync disabled\n", key)
+		return
+	}
 	vrfNode := avimodel.GetAviVRF()
 	if len(vrfNode) != 1 {
 		utils.AviLog.Warnf("key: %s, msg: Number of vrf nodes is not one\n", key)

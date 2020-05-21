@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
 
 	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
@@ -218,8 +219,7 @@ func (v *AviVrfNode) GetNodeType() string {
 
 func (v *AviVrfNode) CalculateCheckSum() {
 	// A sum of fields for this vrf.
-	checksum := utils.Hash(v.Name + delim + utils.Stringify(v.StaticRoutes))
-	v.CloudConfigCksum = checksum
+	v.CloudConfigCksum = lib.VrfChecksum(v.Name, v.StaticRoutes)
 }
 
 func (v *AviVrfNode) CopyNode() AviModelNode {

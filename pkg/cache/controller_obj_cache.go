@@ -71,10 +71,6 @@ func SharedAviObjCache() *AviObjCache {
 	return cacheInstance
 }
 
-func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
-	return (utils.Hash(vrfName) + utils.Hash(utils.Stringify(staticRoutes)))
-}
-
 func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient,
 	cloud string) {
 	c.PopulatePoolsToCache(client, cloud)
@@ -939,7 +935,7 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		vrfList = append(vrfList, &vrf)
 
 		vrfName := *vrf.Name
-		checksum := VrfChecksum(vrfName, vrf.StaticRoutes)
+		checksum := lib.VrfChecksum(vrfName, vrf.StaticRoutes)
 		vrfCacheObj := AviVrfCache{
 			Name:             vrfName,
 			Uuid:             *vrf.UUID,

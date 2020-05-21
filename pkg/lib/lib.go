@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
+	"github.com/avinetworks/sdk/go/models"
 )
 
 var IngressApiMap = map[string]string{
@@ -181,4 +182,8 @@ func GetNetworkName() string {
 	// Additional checks can be performed here.
 	return os.Getenv(NETWORK_NAME)
 
+}
+
+func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
+	return (utils.Hash(vrfName) + utils.Hash(utils.Stringify(staticRoutes)))
 }

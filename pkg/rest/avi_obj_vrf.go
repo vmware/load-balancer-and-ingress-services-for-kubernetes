@@ -119,7 +119,7 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 				continue
 			}
 		}
-		checksum = avicache.VrfChecksum(name, staticRoutes)
+		checksum = lib.VrfChecksum(name, staticRoutes)
 		vrfCacheObj := avicache.AviVrfCache{Name: name, Uuid: uuid, CloudConfigCksum: checksum}
 		rest.cache.VrfCache.AviCacheAdd(vrfKey, vrfCacheObj)
 	}
