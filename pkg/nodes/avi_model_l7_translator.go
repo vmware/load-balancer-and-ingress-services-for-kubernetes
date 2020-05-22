@@ -130,7 +130,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 							priorityLabel = host
 						}
 						hostSlice = append(hostSlice, host)
-						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: hostSlice}}
+						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), IngressName: ingName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: hostSlice}}
 						poolNode.VrfContext = lib.GetVrf()
 						if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 							poolNode.Servers = servers
@@ -149,7 +149,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					sniNode := &AviVsNode{
 						Name:         lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName),
 						VHParentName: vsNode[0].Name,
-						Tenant:       utils.ADMIN_NS,
+						Tenant:       lib.GetTenant(),
 						IsSNIChild:   true,
 						ServiceMetadata: avicache.ServiceMetadataObj{
 							IngressName: ingName,
@@ -291,7 +291,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	var avi_vs_meta *AviVsNode
 
 	// This is a shared VS - always created in the admin namespace for now.
-	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: utils.ADMIN_NS,
+	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: lib.GetTenant(),
 		EastWest: false, SharedVS: true}
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
@@ -317,15 +317,15 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	if subDomains != nil {
 		var fqdn string
 		if strings.HasPrefix(subDomains[0], ".") {
-			fqdn = vsName + "." + utils.ADMIN_NS + subDomains[0]
+			fqdn = vsName + "." + lib.GetTenant() + subDomains[0]
 		} else {
-			fqdn = vsName + "." + utils.ADMIN_NS + "." + subDomains[0]
+			fqdn = vsName + "." + lib.GetTenant() + "." + subDomains[0]
 		}
 		fqdns = append(fqdns, fqdn)
 	} else {
 		utils.AviLog.Warnf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn", key)
 	}
-	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: utils.ADMIN_NS, FQDNs: fqdns,
+	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: lib.GetTenant(), FQDNs: fqdns,
 		EastWest: false, VrfContext: vrfcontext}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	return avi_vs_meta
@@ -333,7 +333,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 
 func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNode *AviVsNode) *AviPoolGroupNode {
 	pgName := lib.GetL7SharedPGName(vsName)
-	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS, ImplicitPriorityLabel: true}
+	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant(), ImplicitPriorityLabel: true}
 	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
 	o.AddModelNode(pgNode)
 	return pgNode
@@ -347,7 +347,7 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	poolGroupRefs = append(poolGroupRefs, pgName)
 	dsName := lib.GetL7InsecureDSName(vsName)
 	script := &DataScript{Script: scriptStr, Evt: evt}
-	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: utils.ADMIN_NS, DataScript: script, PoolGroupRefs: poolGroupRefs}
+	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: lib.GetTenant(), DataScript: script, PoolGroupRefs: poolGroupRefs}
 	if len(dsScriptNode.PoolGroupRefs) > 0 {
 		dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "POOLGROUP", dsScriptNode.PoolGroupRefs[0], 1)
 	}
@@ -373,9 +373,9 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 	}
 	var certNode *AviTLSKeyCertNode
 	if len(sniHost) > 0 {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), Tenant: utils.ADMIN_NS}
+		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), Tenant: lib.GetTenant()}
 	} else {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: utils.ADMIN_NS}
+		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: lib.GetTenant()}
 	}
 	keycertMap := secretObj.Data
 	cert, ok := keycertMap[tlsCert]
@@ -434,12 +434,12 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			}
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
-			pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS}
+			pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 			httpPGPath.PoolGroup = pgNode.Name
 			httpPGPath.Host = host
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 
-			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), Tenant: utils.ADMIN_NS}
+			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), Tenant: lib.GetTenant()}
 			poolNode.VrfContext = lib.GetVrf()
 
 			if servers := PopulateServers(poolNode, namespace, path.ServiceName, key); servers != nil {
@@ -456,7 +456,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				tlsNode.ReplaceSniPoolInSNINode(poolNode, key)
 			}
 			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
-			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: utils.ADMIN_NS}
+			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
 			if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
 				tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
 			}
@@ -476,7 +476,7 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostname 
 	}
 
 	redirectPolicy := &AviHttpPolicySetNode{
-		Tenant:        utils.ADMIN_NS,
+		Tenant:        lib.GetTenant(),
 		Name:          policyname,
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}

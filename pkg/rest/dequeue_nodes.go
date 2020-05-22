@@ -128,7 +128,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 		return
 	}
 	restOps = append(restOps, restOp)
-	vrfKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: vrfName}
+	vrfKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vrfName}
 	utils.AviLog.Debugf("key: %s, msg: Executing rest for vrf %s\n", key, vrfName)
 	utils.AviLog.Debugf("key: %s, msg: restops %v\n", key, *restOp)
 	rest.ExecuteRestAndPopulateCache(restOps, vrfKey, avimodel, key)

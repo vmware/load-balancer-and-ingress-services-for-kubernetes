@@ -131,6 +131,15 @@ func GetVrf() string {
 	return vrfcontext
 }
 
+func GetTenant() string {
+	// tenant := os.Getenv("CTRL_TENANT")
+	// if tenant == "" {
+	// 	tenant = utils.ADMIN_NS
+	// }
+	tenant := utils.ADMIN_NS
+	return tenant
+}
+
 func GetIngressApi() string {
 	ingressApi := os.Getenv(INGRESS_API)
 	ingressApi, ok := IngressApiMap[ingressApi]

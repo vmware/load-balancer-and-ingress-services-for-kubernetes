@@ -374,7 +374,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			node := obj.(*corev1.Node)
 			key := utils.NodeObj + "/" + node.Name
-			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
@@ -398,7 +398,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 
 			key := utils.NodeObj + "/" + node.Name
-			bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
@@ -411,7 +411,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			node := cur.(*corev1.Node)
 			key := utils.NodeObj + "/" + node.Name
 			if isNodeUpdated(oldobj, node) {
-				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			} else {
@@ -435,7 +435,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 				key := utils.NodeObj + "/" + specJSON["name"]
-				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			},
 			DeleteFunc: func(obj interface{}) {
@@ -451,7 +451,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 				key := utils.NodeObj + "/" + specJSON["name"]
-				bkt := utils.Bkt(utils.ADMIN_NS, numWorkers)
+				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			},
 		}

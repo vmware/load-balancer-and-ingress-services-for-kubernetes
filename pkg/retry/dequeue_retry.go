@@ -29,7 +29,7 @@ func DequeueSlowRetry(vsKey string) {
 	aviObjCache := avicache.SharedAviObjCache()
 	// Fetch the VS UUID from the cache. If the VS UUID is not found, it's a POST call retry,
 	// in which case cache refresh is not required.
-	vsCacheKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: vsKey}
+	vsCacheKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsKey}
 	vsCache, ok := aviObjCache.VsCache.AviCacheGet(vsCacheKey)
 	var deletedKeys []avicache.NamespaceName
 	if ok {
@@ -53,14 +53,14 @@ func DequeueSlowRetry(vsKey string) {
 	}
 	// At this point, we can re-enqueue the key back to the rest layer.
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	modelName := utils.ADMIN_NS + "/" + vsKey
+	modelName := lib.GetTenant() + "/" + vsKey
 	nodes.PublishKeyToRestLayer(modelName, vsKey, sharedQueue)
 	// Let's publish the deleted keys as well
 	for _, key := range deletedKeys {
 		// Don't want to re-enqueue the same key again
 		if key.Name != vsKey {
 			utils.AviLog.Infof("Found deleted keys in the cache during full sync, re-publishing them to the REST layer: :%s", utils.Stringify(key))
-			modelName := utils.ADMIN_NS + "/" + key.Name
+			modelName := lib.GetTenant() + "/" + key.Name
 			nodes.PublishKeyToRestLayer(modelName, key.Name, sharedQueue)
 		}
 	}
@@ -74,7 +74,7 @@ func DequeueFastRetry(vsKey string) {
 	aviObjCache := avicache.SharedAviObjCache()
 	// Fetch the VS UUID from the cache. If the VS UUID is not found, it's a POST call retry,
 	// in which case cache refresh is not required.
-	vsCacheKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: vsKey}
+	vsCacheKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsKey}
 	vsCache, ok := aviObjCache.VsCache.AviCacheGet(vsCacheKey)
 	var deletedKeys []avicache.NamespaceName
 	if ok {
@@ -100,14 +100,14 @@ func DequeueFastRetry(vsKey string) {
 	}
 	// At this point, we can re-enqueue the key back to the rest layer.
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	modelName := utils.ADMIN_NS + "/" + vsKey
+	modelName := lib.GetTenant() + "/" + vsKey
 	nodes.PublishKeyToRestLayer(modelName, vsKey, sharedQueue)
 	// Let's publish the deleted keys as well
 	for _, key := range deletedKeys {
 		// Don't want to re-enqueue the same key again
 		if key.Name != vsKey {
 			utils.AviLog.Infof("Found deleted keys in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
-			modelName := utils.ADMIN_NS + "/" + key.Name
+			modelName := lib.GetTenant() + "/" + key.Name
 			nodes.PublishKeyToRestLayer(modelName, vsKey, sharedQueue)
 		}
 	}

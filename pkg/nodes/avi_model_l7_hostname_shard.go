@@ -67,7 +67,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
 			}
 
-			poolNode := &AviPoolNode{Name: poolName, IngressName: ingName, Tenant: utils.ADMIN_NS, PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: storedHosts}}
+			poolNode := &AviPoolNode{Name: poolName, IngressName: ingName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: storedHosts}}
 			poolNode.VrfContext = lib.GetVrf()
 			if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
 				poolNode.Servers = servers
@@ -238,7 +238,7 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 					// If we aren't able to derive the ShardVS name, we should return
 					return
 				}
-				model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
+				model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 				if !found || aviModel == nil {
 					utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
@@ -287,7 +287,7 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 							// If we aren't able to derive the ShardVS name, we should return
 							return
 						}
-						model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
+						model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 						found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 						if !found || aviModel == nil {
 							utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, model_name)
@@ -394,7 +394,7 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 				// If we aren't able to derive the ShardVS name, we should return
 				return
 			}
-			model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
+			model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 			if !found || aviModel == nil {
 				utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, model_name)
@@ -445,7 +445,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			// If we aren't able to derive the ShardVS name, we should return
 			return hostPathMap
 		}
-		model_name := lib.GetModelName(utils.ADMIN_NS, shardVsName)
+		model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
@@ -462,7 +462,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			sniNode = &AviVsNode{
 				Name:         lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost),
 				VHParentName: vsNode[0].Name,
-				Tenant:       utils.ADMIN_NS,
+				Tenant:       lib.GetTenant(),
 				IsSNIChild:   true,
 				ServiceMetadata: avicache.ServiceMetadataObj{
 					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),

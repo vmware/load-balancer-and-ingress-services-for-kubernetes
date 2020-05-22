@@ -53,7 +53,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		}
 		fqdns = append(fqdns, fqdn)
 	}
-	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: utils.ADMIN_NS,
+	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: lib.GetTenant(),
 		EastWest: false, ServiceMetadata: avicache.ServiceMetadataObj{ServiceName: svcObj.ObjectMeta.Name, Namespace: svcObj.ObjectMeta.Namespace, HostNames: fqdns}}
 
 	vrfcontext := lib.GetVrf()
@@ -77,7 +77,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	}
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
-	vsVipNode := &AviVSVIPNode{Name: vsVipName, Tenant: utils.ADMIN_NS,
+	vsVipNode := &AviVSVIPNode{Name: vsVipName, Tenant: lib.GetTenant(),
 		FQDNs: fqdns, EastWest: false, VrfContext: vrfcontext}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
@@ -89,9 +89,9 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		filterPort := portProto.Port
 		pgName := lib.GetL4PGName(vsNode.Name, filterPort)
 
-		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: utils.ADMIN_NS, Port: fmt.Sprint(filterPort)}
+		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant(), Port: fmt.Sprint(filterPort)}
 		// For TCP - the PG to Pool relationship is 1x1
-		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: utils.ADMIN_NS, Protocol: portProto.Protocol, PortName: portProto.Name}
+		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: lib.GetTenant(), Protocol: portProto.Protocol, PortName: portProto.Name}
 		poolNode.VrfContext = lib.GetVrf()
 
 		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {

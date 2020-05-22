@@ -61,7 +61,7 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 	path := "/api/vrfcontext/" + vrfCacheObj.Uuid
 	vrf.StaticRoutes = vrfNode.StaticRoutes
 	restOp := utils.RestOp{Path: path, Method: utils.RestPut, Obj: vrf,
-		Tenant: utils.ADMIN_NS, Model: "VrfContext", Version: utils.CtrlVersion}
+		Tenant: lib.GetTenant(), Model: "VrfContext", Version: utils.CtrlVersion}
 	return &restOp
 }
 
