@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -126,11 +125,12 @@ func (v *AviObjectGraph) DecrementRetryCounter() {
 
 func (v *AviObjectGraph) CalculateCheckSum() {
 	// A sum of fields for this model.
-	chksumStr := ""
+	v.GraphChecksum = 0
 	for _, model := range v.modelNodes {
-		chksumStr += strconv.Itoa(int(model.GetCheckSum())) + delim
+		//chksumStr += strconv.Itoa(int(model.GetCheckSum())) + delim
+		v.GraphChecksum = v.GraphChecksum + model.GetCheckSum()
+
 	}
-	v.GraphChecksum = utils.Hash(chksumStr)
 }
 
 func NewAviObjectGraph() *AviObjectGraph {
@@ -418,34 +418,33 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	chksumStr := ""
+	var dsChecksum, httppolChecksum, sniChecksum, poolchecksum, sslkeyChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
-		chksumStr += strconv.Itoa(int(ds.GetCheckSum())) + delim
+		dsChecksum += ds.GetCheckSum()
 	}
 
 	for _, pool := range v.PoolRefs {
-		chksumStr += strconv.Itoa(int(pool.GetCheckSum())) + delim
+		poolchecksum += pool.GetCheckSum()
 	}
 
 	for _, httppol := range v.HttpPolicyRefs {
-		chksumStr += strconv.Itoa(int(httppol.GetCheckSum())) + delim
+		httppolChecksum += httppol.GetCheckSum()
 	}
 
 	for _, sninode := range v.SniNodes {
-		chksumStr += strconv.Itoa(int(sninode.GetCheckSum())) + delim
+		sniChecksum += sninode.GetCheckSum()
 	}
 
 	for _, sslkeycert := range v.SSLKeyCertRefs {
-		chksumStr += strconv.Itoa(int(sslkeycert.GetCheckSum())) + delim
+		sslkeyChecksum += sslkeycert.GetCheckSum()
 	}
 	for _, vsvipref := range v.VSVIPRefs {
 		vsvipref.CalculateCheckSum()
 	}
-	chksumStr += v.ApplicationProfile + delim
-	chksumStr += v.NetworkProfile + delim
-	chksumStr += utils.Stringify(portproto)
-	checksum := utils.Hash(chksumStr)
+	checksum := dsChecksum + httppolChecksum + sniChecksum + poolchecksum + utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) +
+		utils.Hash(utils.Stringify(portproto)) + sslkeyChecksum
+
 	v.CloudConfigCksum = checksum
 }
 
@@ -479,16 +478,14 @@ func (v *AviHttpPolicySetNode) GetCheckSum() uint32 {
 func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	var checksum uint32
-	var chksumStr string
 	for _, hpp := range v.HppMap {
 		sort.Strings(hpp.Path)
-		chksumStr += hpp.Host + delim + utils.Stringify(hpp) + delim
+		checksum = checksum + utils.Hash(hpp.Host) + utils.Hash(utils.Stringify(hpp))
 	}
 	for _, redir := range v.RedirectPorts {
 		sort.Strings(redir.Hosts)
-		chksumStr += (utils.Stringify(redir.Hosts)) + delim
+		checksum = checksum + utils.Hash(utils.Stringify(redir.Hosts))
 	}
-	checksum = utils.Hash(chksumStr)
 	v.CloudConfigCksum = checksum
 }
 
