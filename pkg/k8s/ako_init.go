@@ -200,7 +200,7 @@ func (c *AviController) FullSync() {
 			allModels = append(allModels, modelName)
 		}
 		for _, modelName := range allModels {
-			utils.AviLog.Infof("Found key in the cache, re-publishing them to the REST layer: :%s", modelName)
+			utils.AviLog.Debugf("Reseting retry counter during full sync for model :%s", modelName)
 			//reset retry counter in full sync
 			found, avimodelIntf := objects.SharedAviGraphLister().Get(modelName)
 			if found && avimodelIntf != nil {
