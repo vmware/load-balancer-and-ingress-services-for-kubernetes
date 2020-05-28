@@ -53,14 +53,28 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v\n", key, node.Name, err)
 			continue
 		}
-		routeid += len(nodeRoutes)
-		aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoutes...)
+		if !findRoutePrefix(nodeRoutes, aviVrfNode.StaticRoutes, key) {
+			aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoutes...)
+			routeid += len(nodeRoutes)
+		}
 	}
 	aviVrfNode.CalculateCheckSum()
 	o.AddModelNode(aviVrfNode)
 	utils.AviLog.Infof("key: %s, Added vrf node %s\n", key, vrfName)
 	utils.AviLog.Infof("key: %s, Number of static routes %v\n", key, len(aviVrfNode.StaticRoutes))
 	return nil
+}
+
+func findRoutePrefix(nodeRoutes, aviRoutes []*models.StaticRoute, key string) bool {
+	for _, noderoute := range nodeRoutes {
+		for _, vrfroute := range aviRoutes {
+			if *vrfroute.Prefix.IPAddr.Addr == *noderoute.Prefix.IPAddr.Addr {
+				utils.AviLog.Errorf("key: %s, msg: static route prefix %s already exits", key, *vrfroute.Prefix.IPAddr.Addr)
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid int) ([]*models.StaticRoute, error) {
