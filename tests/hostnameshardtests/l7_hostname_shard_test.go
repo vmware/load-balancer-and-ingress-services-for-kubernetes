@@ -16,6 +16,7 @@ package hostnameshardtests
 
 import (
 	"os"
+	"sort"
 	"testing"
 	"time"
 
@@ -816,7 +817,6 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 		//to update poolref checksum
 		ServiceName: "avisvc2",
 	}).UpdateIngress()
-
 	if err != nil {
 		t.Fatalf("error in updating ingress %s", err)
 	}
@@ -861,6 +861,155 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 	integrationtest.DelEP(t, "default", "avisvc2")
 	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
 	KubeClient.CoreV1().Secrets("default").Delete("my-secret-new", nil)
+	VerifySNIIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, modelName)
+}
+
+func TestSniHttpPolicy(t *testing.T) {
+	/*
+		-> Create Ingress with TLS key/secret and 2 paths
+		-> Verify removing path works by updating Ingress with single path
+		-> Verify adding path works by updating Ingress with 2 new paths
+	*/
+
+	g := gomega.NewGomegaWithT(t)
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:      "ingress-shp",
+		Namespace: "default",
+		DnsNames:  []string{"foo.com"},
+		Ips:       []string{"8.8.8.8"},
+		Paths:     []string{"/foo", "/bar"},
+		HostNames: []string{"v1"},
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo.com"},
+		},
+		ServiceName: "avisvc",
+	}).IngressMultiPath()
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Eventually(len(nodes), 30*time.Second).Should(gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes), gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs), gomega.Equal(2))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs), gomega.Equal(1))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
+				nodes[0].SniNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0]}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"/bar", "/foo"}))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].SniNodes[0].HttpPolicyRefs[0].Name,
+				nodes[0].SniNodes[0].HttpPolicyRefs[1].Name}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"global--default--foo.com_bar--ingress-shp",
+			"global--default--foo.com_foo--ingress-shp"}))
+
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+
+	ingrFake1, err = (integrationtest.FakeIngress{
+		Name:      "ingress-shp",
+		Namespace: "default",
+		DnsNames:  []string{"foo.com"},
+		Ips:       []string{"8.8.8.8"},
+		Paths:     []string{"/foo"},
+		HostNames: []string{"v1"},
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo.com"},
+		},
+		ServiceName: "avisvc",
+	}).UpdateIngress()
+	if err != nil {
+		t.Fatalf("error in updating ingress %s", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() int {
+		found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		if found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].SniNodes[0].HttpPolicyRefs)
+		} else {
+			return 0
+		}
+	}, 30*time.Second).Should(gomega.Equal(1))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0], gomega.Equal("/foo"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name, gomega.Equal("global--default--foo.com_foo--ingress-shp"))
+	g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs), gomega.Equal(1))
+
+	ingrFake1, err = (integrationtest.FakeIngress{
+		Name:      "ingress-shp",
+		Namespace: "default",
+		DnsNames:  []string{"foo.com"},
+		Ips:       []string{"8.8.8.8"},
+		Paths:     []string{"/foo", "/bar", "/baz"},
+		HostNames: []string{"v1"},
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo.com"},
+		},
+		ServiceName: "avisvc",
+	}).UpdateIngress()
+	if err != nil {
+		t.Fatalf("error in updating ingress %s", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	g.Eventually(func() int {
+		found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		if found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].SniNodes[0].HttpPolicyRefs)
+		} else {
+			return 0
+		}
+	}, 30*time.Second).Should(gomega.Equal(3))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+	g.Expect(func() []string {
+		p := []string{
+			nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
+			nodes[0].SniNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0],
+			nodes[0].SniNodes[0].HttpPolicyRefs[2].HppMap[0].Path[0]}
+		sort.Strings(p)
+		return p
+	}, gomega.Equal([]string{"/bar", "/baz", "/foo"}))
+	g.Expect(func() []string {
+		p := []string{
+			nodes[0].SniNodes[0].HttpPolicyRefs[0].Name,
+			nodes[0].SniNodes[0].HttpPolicyRefs[1].Name,
+			nodes[0].SniNodes[0].HttpPolicyRefs[2].Name}
+		sort.Strings(p)
+		return p
+	}, gomega.Equal([]string{"global--default--foo.com_bar--ingress-shp",
+		"global--default--foo.com_baz--ingress-shp",
+		"global--default--foo.com_foo--ingress-shp"}))
+	g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs), gomega.Equal(1))
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-shp", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
 	VerifySNIIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, modelName)

@@ -305,6 +305,12 @@ func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 		})
 	}
 
+	for secret, hosts := range ing.TlsSecretDNS {
+		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
+			Hosts:      hosts,
+			SecretName: secret,
+		})
+	}
 	for _, ip := range ing.Ips {
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
 			IP: ip,
@@ -732,7 +738,7 @@ func (ing FakeIngress) UpdateIngress() (*extensionv1beta1.Ingress, error) {
 	}
 
 	//increment resource version
-	newIngress := ing.Ingress()
+	newIngress := ing.IngressMultiPath() //Maybe we should replace Ingress() with IngressMultiPath() completely
 	rv, _ := strconv.Atoi(ingress.ResourceVersion)
 	newIngress.ResourceVersion = strconv.Itoa(rv + 1)
 
