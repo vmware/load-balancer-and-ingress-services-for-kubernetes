@@ -174,6 +174,8 @@ func PublishKeyToRestLayer(model_name string, key string, sharedQueue *utils.Wor
 	if key == "fullsync" {
 		// modify the model name to notify layer 3 about the full sync key
 		model_name = model_name + "@" + "fullsync"
+	} else if key == "retry" {
+		model_name = model_name + "@" + "retry"
 	}
 	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
 	utils.AviLog.Infof("key: %s, msg: Published key with model_name: %s", key, model_name)

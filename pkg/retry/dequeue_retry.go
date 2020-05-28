@@ -14,101 +14,23 @@
 package retry
 
 import (
-	avicache "ako/pkg/cache"
-	"ako/pkg/lib"
 	"ako/pkg/nodes"
-	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
 )
 
 func DequeueSlowRetry(vsKey string) {
 	// Retrieve the Key and note the time.
-	utils.AviLog.Infof("Retrieved the key: %s", vsKey)
-	// Fetch the cache for this VS key
-	aviObjCache := avicache.SharedAviObjCache()
-	// Fetch the VS UUID from the cache. If the VS UUID is not found, it's a POST call retry,
-	// in which case cache refresh is not required.
-	vsCacheKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsKey}
-	vsCache, ok := aviObjCache.VsCache.AviCacheGet(vsCacheKey)
-	var deletedKeys []avicache.NamespaceName
-	if ok {
-		avi_rest_client_pool := avicache.SharedAVIClients()
-		// Randomly pickup a client.
-		if len(avi_rest_client_pool.AviClient) > 0 {
-			vsCacheObj, found := vsCache.(*avicache.AviVsCache)
-			if found {
-				utils.AviLog.Infof("Refreshing cache for: %s", vsCacheObj.Uuid)
-				// Let's check if this VS also has a SNI Child - in which we will refresh that cache as well.
-				err := aviObjCache.AviObjOneVSCachePopulate(avi_rest_client_pool.AviClient[0], utils.CloudName, vsCacheObj.Uuid)
-				if err != nil && strings.Contains(err.Error(), lib.NOT_FOUND) {
-					// Assume something really bad has happened, run a refresh on the entire cache.
-					utils.AviLog.Warnf("VS not found, something bad happened, refreshing the entire cache: %s", vsCacheObj.Uuid)
-					deletedKeys, _ = aviObjCache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
-					utils.AviLog.Infof("Deleting cache for: %s, object not present in controller", vsCacheObj.Uuid)
-					aviObjCache.VsCache.AviCacheDelete(vsCacheKey)
-				}
-			}
-		}
-	}
-	// At this point, we can re-enqueue the key back to the rest layer.
+	utils.AviLog.Infof("Retrieved the key for slow retry : %s", vsKey)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	modelName := lib.GetTenant() + "/" + vsKey
-	nodes.PublishKeyToRestLayer(modelName, vsKey, sharedQueue)
-	// Let's publish the deleted keys as well
-	for _, key := range deletedKeys {
-		// Don't want to re-enqueue the same key again
-		if key.Name != vsKey {
-			utils.AviLog.Infof("Found deleted keys in the cache during full sync, re-publishing them to the REST layer: :%s", utils.Stringify(key))
-			modelName := lib.GetTenant() + "/" + key.Name
-			nodes.PublishKeyToRestLayer(modelName, key.Name, sharedQueue)
-		}
-	}
+	modelName := utils.ADMIN_NS + "/" + vsKey
+	nodes.PublishKeyToRestLayer(modelName, "retry", sharedQueue)
 }
 
 func DequeueFastRetry(vsKey string) {
-	// Identical to the slow retry for now, we can make them different as we test out more scenarios.
-	// Retrieve the Key and note the time.
 	utils.AviLog.Infof("Retrieved the key for fast retry: %s", vsKey)
-	// Fetch the cache for this VS key
-	aviObjCache := avicache.SharedAviObjCache()
-	// Fetch the VS UUID from the cache. If the VS UUID is not found, it's a POST call retry,
-	// in which case cache refresh is not required.
-	vsCacheKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsKey}
-	vsCache, ok := aviObjCache.VsCache.AviCacheGet(vsCacheKey)
-	var deletedKeys []avicache.NamespaceName
-	if ok {
-		avi_rest_client_pool := avicache.SharedAVIClients()
-		// Randomly pickup a client.
-		if len(avi_rest_client_pool.AviClient) > 0 {
-			vsCacheObj, found := vsCache.(*avicache.AviVsCache)
-			if found {
-				// If we are here, refresh the Pool/PG/DS/SSL cache
-				aviObjCache.AviRefreshObjectCache(avi_rest_client_pool.AviClient[0], utils.CloudName)
-				utils.AviLog.Infof("Refreshing cache for: %s", vsCacheObj.Uuid)
-				// Let's check if this VS also has a SNI Child - in which we will refresh that cache as well.
-				err := aviObjCache.AviObjOneVSCachePopulate(avi_rest_client_pool.AviClient[0], utils.CloudName, vsCacheObj.Uuid)
-				if err != nil && strings.Contains(err.Error(), lib.NOT_FOUND) {
-					// Assume something really bad has happened, run a refresh on the entire cache.
-					utils.AviLog.Warnf("VS not found, something bad happened, refreshing the entire cache: %s", vsCacheObj.Uuid)
-					deletedKeys, _ = aviObjCache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
-					utils.AviLog.Infof("Deleting cache for: %s, object not present in controller", vsCacheObj.Uuid)
-					aviObjCache.VsCache.AviCacheDelete(vsCacheKey)
-				}
-			}
-		}
-	}
-	// At this point, we can re-enqueue the key back to the rest layer.
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	modelName := lib.GetTenant() + "/" + vsKey
-	nodes.PublishKeyToRestLayer(modelName, vsKey, sharedQueue)
-	// Let's publish the deleted keys as well
-	for _, key := range deletedKeys {
-		// Don't want to re-enqueue the same key again
-		if key.Name != vsKey {
-			utils.AviLog.Infof("Found deleted keys in the cache, re-publishing them to the REST layer: :%s", utils.Stringify(key))
-			modelName := lib.GetTenant() + "/" + key.Name
-			nodes.PublishKeyToRestLayer(modelName, vsKey, sharedQueue)
-		}
-	}
+	modelName := utils.ADMIN_NS + "/" + vsKey
+	nodes.PublishKeyToRestLayer(modelName, "retry", sharedQueue)
+
 }

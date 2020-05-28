@@ -244,6 +244,7 @@ type WebSyncError struct {
 
 func (e *WebSyncError) Error() string  { return fmt.Sprintf("Error during %s: %v", e.operation, e.err) }
 func (e *SkipSyncError) Error() string { return e.Msg }
+func (e *WebSyncError) GetWebAPIError() error { return e.err }
 
 var CloudName string
 

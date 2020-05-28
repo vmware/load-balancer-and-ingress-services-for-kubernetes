@@ -83,6 +83,11 @@ func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient,
 	//c.PopulateVsKeyToCache(client, cloud)
 }
 
+func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient,
+	cloud string) {
+	c.AviCloudPropertiesPopulate(client, cloud)
+}
+
 func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	version string, cloud string) ([]NamespaceName, []NamespaceName) {
 	// Populate the VS cache
@@ -604,6 +609,321 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
 		}
 	}
 	return SslData, result.Count, nil
+}
+
+func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
+	cloud string, objName string) error {
+	var uri string
+	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+
+	uri = "/api/sslkeyandcertificate?name=" + objName + "&created_by=" + akcUser
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for sslkeyandcertificate %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal sslkeyandcertificate data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		sslkey := models.SSLKeyAndCertificate{}
+		err = json.Unmarshal(elems[i], &sslkey)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal sslkeyandcertificate data, err: %v", err)
+			continue
+		}
+		if sslkey.Name == nil || sslkey.UUID == nil {
+			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(sslkey))
+			continue
+		}
+		//Only cache a SSL keys that belongs to this AKO.
+		if !strings.HasPrefix(*sslkey.Name, lib.GetVrf()+"--") {
+			continue
+		}
+		sslCacheObj := AviSSLCache{
+			Name: *sslkey.Name,
+			Uuid: *sslkey.UUID,
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *sslkey.Name}
+		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
+		utils.AviLog.Debugf("Adding sslkey to Cache during refresh %s\n", k)
+	}
+	return nil
+}
+
+func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
+	cloud string, objName string) error {
+	var uri string
+	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+
+	uri = "/api/pool?name=" + objName + "&created_by=" + akcUser
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for pool %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal pool data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		pool := models.Pool{}
+		err = json.Unmarshal(elems[i], &pool)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal pool data, err: %v", err)
+			continue
+		}
+
+		if pool.Name == nil || pool.UUID == nil || pool.CloudConfigCksum == nil {
+			utils.AviLog.Warnf("Incomplete pool data unmarshalled, %s", utils.Stringify(pool))
+			continue
+		}
+		//Only cache a Pool that belongs to this AKO.
+		if !strings.HasPrefix(*pool.Name, lib.GetVrf()+"--") {
+			continue
+		}
+		poolCacheObj := AviPoolCache{
+			Name:             *pool.Name,
+			Uuid:             *pool.UUID,
+			CloudConfigCksum: *pool.CloudConfigCksum,
+			LastModified:     *pool.LastModified,
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pool.Name}
+		c.PoolCache.AviCacheAdd(k, &poolCacheObj)
+		utils.AviLog.Debugf("Adding pool to Cache during refresh %s\n", k)
+	}
+	return nil
+}
+
+func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
+	cloud string, objName string) error {
+	var uri string
+	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+
+	uri = "/api/vsdatascript?name=" + objName + "&created_by=" + akcUser
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for vsdatascript %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal vsdatascript data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		ds := models.VSDataScriptSet{}
+		err = json.Unmarshal(elems[i], &ds)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal datascript data, err: %v", err)
+			continue
+		}
+		if ds.Name == nil || ds.UUID == nil {
+			utils.AviLog.Warnf("Incomplete Datascript data unmarshalled, %s", utils.Stringify(ds))
+			continue
+		}
+		//Only cache a DS that belongs to this AKO.
+		if !strings.HasPrefix(*ds.Name, lib.GetVrf()+"--") {
+			continue
+		}
+		var pgs []string
+		for _, pg := range ds.PoolGroupRefs {
+			// Parse each pool and populate inside pools.
+			// Find out the uuid of the pool and then corresponding name
+			pgUuid := ExtractUuid(pg, "poolgroup-.*.#")
+			// Search the poolName using this Uuid in the poolcache.
+			pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
+			if found {
+				pgs = append(pgs, pgName.(string))
+			}
+		}
+		dsCacheObj := AviDSCache{
+			Name:       *ds.Name,
+			Uuid:       *ds.UUID,
+			PoolGroups: pgs,
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *ds.Name}
+		c.DSCache.AviCacheAdd(k, &dsCacheObj)
+		utils.AviLog.Debugf("Adding ds to Cache during refresh %s\n", k)
+	}
+	return nil
+}
+
+func (c *AviObjCache) AviPopulateOnePGCache(client *clients.AviClient,
+	cloud string, objName string) error {
+	var uri string
+	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+
+	uri = "/api/poolgroup?name=" + objName + "&created_by=" + akcUser
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for poolgroup %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal poolgroup data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		pg := models.PoolGroup{}
+		err = json.Unmarshal(elems[i], &pg)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal pg data, err: %v", err)
+			continue
+		}
+
+		if pg.Name == nil || pg.UUID == nil || pg.CloudConfigCksum == nil {
+			utils.AviLog.Warnf("Incomplete pg data unmarshalled, %s", utils.Stringify(pg))
+			continue
+		}
+		//Only cache a PG that belongs to this AKO.
+		if !strings.HasPrefix(*pg.Name, lib.GetVrf()+"--") {
+			continue
+		}
+		var pools []string
+		for _, member := range pg.Members {
+			// Parse each pool and populate inside pools.
+			// Find out the uuid of the pool and then corresponding name
+			poolUuid := ExtractUuid(*member.PoolRef, "pool-.*.#")
+			// Search the poolName using this Uuid in the poolcache.
+			poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
+			if found {
+				pools = append(pools, poolName.(string))
+			}
+		}
+		pgCacheObj := AviPGCache{
+			Name:             *pg.Name,
+			Uuid:             *pg.UUID,
+			CloudConfigCksum: *pg.CloudConfigCksum,
+			LastModified:     *pg.LastModified,
+			Members:          pools,
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pg.Name}
+		c.PgCache.AviCacheAdd(k, &pgCacheObj)
+		utils.AviLog.Debugf("Adding pg to Cache during refresh %s\n", k)
+	}
+	return nil
+}
+
+func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
+	cloud string, objName string) error {
+	var uri string
+
+	uri = "/api/vsvip?name=" + objName + "&cloud_ref.name=" + cloud
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for vsvip %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal vsvip data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		vsvip := models.VsVip{}
+		err = json.Unmarshal(elems[i], &vsvip)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal vsvip data, err: %v", err)
+			continue
+		}
+
+		if vsvip.Name == nil || vsvip.UUID == nil {
+			utils.AviLog.Warnf("Incomplete vsvip data unmarshalled, %s", utils.Stringify(vsvip))
+			continue
+		}
+		if !strings.HasPrefix(*vsvip.Name, lib.GetVrf()+"--") {
+			continue
+		}
+		var fqdns []string
+		for _, dnsinfo := range vsvip.DNSInfo {
+			fqdns = append(fqdns, *dnsinfo.Fqdn)
+		}
+
+		vsVipCacheObj := AviVSVIPCache{
+			Name:         *vsvip.Name,
+			Uuid:         *vsvip.UUID,
+			FQDNs:        fqdns,
+			LastModified: *vsvip.LastModified,
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *vsvip.Name}
+		c.VSVIPCache.AviCacheAdd(k, &vsVipCacheObj)
+		utils.AviLog.Debugf("Adding vsvip to Cache during refresh %s\n", k)
+	}
+	return nil
+}
+
+func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
+	cloud string, objName string) error {
+	var uri string
+	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+	uri = "/api/httppolicyset?include_name=true" + "&created_by=" + akcUser
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for httppol %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal httppol data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		httppol := models.HTTPPolicySet{}
+		err = json.Unmarshal(elems[i], &httppol)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal httppolicyset data, err: %v", err)
+			continue
+		}
+		if httppol.Name == nil || httppol.UUID == nil || httppol.CloudConfigCksum == nil {
+			utils.AviLog.Warnf("Incomplete http policy data unmarshalled, %s", utils.Stringify(httppol))
+			continue
+		}
+		//Only cache a http policies that belongs to this AKO.
+		if !strings.HasPrefix(*httppol.Name, lib.GetVrf()+"--") {
+			continue
+		}
+		// Fetch the pgs associated with the http policyset object
+		var poolGroups []string
+		if httppol.HTTPRequestPolicy != nil {
+			for _, rule := range httppol.HTTPRequestPolicy.Rules {
+				if rule.SwitchingAction != nil {
+					pgUuid := ExtractUuid(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
+					pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
+					if found {
+						poolGroups = append(poolGroups, pgName.(string))
+					}
+				}
+			}
+		}
+		httpPolCacheObj := AviHTTPPolicyCache{
+			Name:             *httppol.Name,
+			Uuid:             *httppol.UUID,
+			CloudConfigCksum: *httppol.CloudConfigCksum,
+			PoolGroups:       poolGroups,
+			LastModified:     *httppol.LastModified,
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *httppol.Name}
+		c.HTTPPolicyCache.AviCacheAdd(k, &httpPolCacheObj)
+		utils.AviLog.Debugf("Adding httppolicy to Cache during refresh %s\n", k)
+	}
+	return nil
 }
 
 // This method is just added for future here. We can't use it until they expose the DB extensions on the virtualservice object
@@ -1144,147 +1464,194 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 }
 
 func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
-	cloud string, vs_uuid string) error {
-	var vs_intf interface{}
+	cloud string, vsName string) error {
+	// This method should be called only from layer-3 during a retry.
+	var rest_response interface{}
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	var uri string
 
-	uri = "/api/virtualservice/" + vs_uuid + "?include_name=true&cloud_ref.name=" + cloud + "&vrf_context_ref.name=" + lib.GetVrf() + "&created_by=" + akcUser
+	uri = "/api/virtualservice?name=" + vsName + "&cloud_ref.name=" + cloud + "&vrf_context_ref.name=" + lib.GetVrf() + "&created_by=" + akcUser
 
-	err := AviGet(client, uri, &vs_intf)
+	utils.AviLog.Debugf("Refreshing cache for vs uri: %s", uri)
+	err := AviGet(client, uri, &rest_response)
 	if err != nil {
 		utils.AviLog.Warnf("Vs Get uri %v returned err %v", uri, err)
 		return err
 	} else {
-		vs, ok := vs_intf.(map[string]interface{})
+		resp, ok := rest_response.(map[string]interface{})
 		if !ok {
-			utils.AviLog.Warnf("vs_intf not of type map[string] interface{}. Instead of type %T", vs_intf)
-			return errors.New("VS object is corrupted")
+			utils.AviLog.Warnf("Vs Get uri %v returned %v type %T", uri,
+				rest_response, rest_response)
+			return errors.New("VS type is wrong")
 		}
-		svc_mdata_intf, ok := vs["service_metadata"]
-		var svc_mdata_obj ServiceMetadataObj
-		if ok {
-			if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
-				&svc_mdata_obj); err != nil {
-				utils.AviLog.Warnf("Error parsing service metadata during vs cache :%v", err)
-			}
+		utils.AviLog.Debugf("Vs Get uri %v returned %v vses", uri,
+			resp["count"])
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: vsName}
+		objCount, _ := resp["count"]
+		if objCount == 0.0 {
+			utils.AviLog.Debugf("Empty response removing VS meta :%s", k)
+			// Count is 0 delete the VS.
+			c.VsCacheMeta.AviCacheDelete(k)
+			return nil
 		}
-		var sni_child_collection []string
-		vh_child, found := vs["vh_child_vs_uuid"]
-		if found {
-			for _, child := range vh_child.([]interface{}) {
-				sni_child_collection = append(sni_child_collection, child.(string))
-			}
-
+		results, ok := resp["results"].([]interface{})
+		if !ok {
+			utils.AviLog.Warnf("results not of type []interface{} Instead of type %T", resp["results"])
+			return errors.New("Results are not of right type for VS")
 		}
-		vs_parent_ref, foundParent := vs["vh_parent_vs_ref"]
-		var parentVSKey NamespaceName
-		if foundParent {
-			vs_uuid := ExtractUuid(vs_parent_ref.(string), "virtualservice-.*.#")
-			utils.AviLog.Debugf("extracted the vs uuid from parent ref during cache population: %s", vs_uuid)
-			// Now let's get the VS key from this uuid
-			vsKey, gotVS := c.VsCacheLocal.AviCacheGetKeyByUuid(vs_uuid)
-			if gotVS {
-				parentVSKey = vsKey.(NamespaceName)
-			}
-
-		}
-		if vs["cloud_config_cksum"] != nil {
-			k := NamespaceName{Namespace: lib.GetTenant(), Name: vs["name"].(string)}
-			var vip string
-			var vsVipKey []NamespaceName
-			var sslKeys []NamespaceName
-			var dsKeys []NamespaceName
-			var httpKeys []NamespaceName
-			var poolgroupKeys []NamespaceName
-			var poolKeys []NamespaceName
-			if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
-				vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
-			}
-			// Populate the VSVIP cache
-			if vs["vsvip_ref"] != nil {
-				// find the vsvip name from the vsvip cache
-				vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
-				vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
-				if foundVip {
-					vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
-					vsVipKey = append(vsVipKey, vipKey)
+		for _, vs_intf := range results {
+			vs, ok := vs_intf.(map[string]interface{})
+			svc_mdata_intf, ok := vs["service_metadata"]
+			var svc_mdata_obj ServiceMetadataObj
+			if ok {
+				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
+					&svc_mdata_obj); err != nil {
+					utils.AviLog.Warnf("Error parsing service metadata during vs cache :%v", err)
 				}
 			}
-			if vs["ssl_key_and_certificate_refs"] != nil {
-				for _, ssl := range vs["ssl_key_and_certificate_refs"].([]interface{}) {
-					// find the sslkey name from the ssl key cache
-					sslUuid := ExtractUuid(ssl.(string), "sslkeyandcertificate-.*.#")
-					sslName, foundssl := c.SSLKeyCache.AviCacheGetNameByUuid(sslUuid)
-					if foundssl {
-						sslKey := NamespaceName{Namespace: lib.GetTenant(), Name: sslName.(string)}
-						sslKeys = append(sslKeys, sslKey)
+			var sni_child_collection []string
+			vh_child, found := vs["vh_child_vs_uuid"]
+			if found {
+				for _, child := range vh_child.([]interface{}) {
+					sni_child_collection = append(sni_child_collection, child.(string))
+				}
+
+			}
+			vs_parent_ref, foundParent := vs["vh_parent_vs_ref"]
+			var parentVSKey NamespaceName
+			if foundParent {
+				vs_uuid := ExtractUuidWithoutHash(vs_parent_ref.(string), "virtualservice-.*.")
+				utils.AviLog.Debugf("extracted the vs uuid from parent ref during cache population: %s", vs_uuid)
+				// Now let's get the VS key from this uuid
+				vsKey, gotVS := c.VsCache.AviCacheGetKeyByUuid(vs_uuid)
+				if gotVS {
+					parentVSKey = vsKey.(NamespaceName)
+				}
+
+			}
+			if vs["cloud_config_cksum"] != nil {
+				var vip string
+				var vsVipKey []NamespaceName
+				var sslKeys []NamespaceName
+				var dsKeys []NamespaceName
+				var httpKeys []NamespaceName
+				var poolgroupKeys []NamespaceName
+				var poolKeys []NamespaceName
+				if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
+					vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
+				}
+				// Populate the VSVIP cache
+				if vs["vsvip_ref"] != nil {
+					// find the vsvip name from the vsvip cache
+					vsVipUuid := ExtractUuidWithoutHash(vs["vsvip_ref"].(string), "vsvip-.*.")
+					vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
+					if foundVip {
+						vipKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: vsVipName.(string)}
+						vsVipKey = append(vsVipKey, vipKey)
 					}
 				}
-			}
-			if vs["vs_datascripts"] != nil {
-				for _, ds_intf := range vs["vs_datascripts"].([]interface{}) {
-					// find the sslkey name from the ssl key cache
-					dsmap, ok := ds_intf.(map[string]interface{})
-					if ok {
-						dsUuid := ExtractUuid(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.#")
-
-						dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
-						if foundDs {
-							dsKey := NamespaceName{Namespace: lib.GetTenant(), Name: dsName.(string)}
-							// Fetch the associated PGs with the DS.
-							dsObj, _ := c.DSCache.AviCacheGet(dsKey)
-							for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
-								// For each PG, formulate the key and then populate the pg collection cache
-								pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
-								poolgroupKeys = append(poolgroupKeys, pgKey)
-								poolKeys = c.AviPGPoolCachePopulate(pgName)
-							}
-							dsKeys = append(dsKeys, dsKey)
+				if vs["ssl_key_and_certificate_refs"] != nil {
+					for _, ssl := range vs["ssl_key_and_certificate_refs"].([]interface{}) {
+						// find the sslkey name from the ssl key cache
+						sslUuid := ExtractUuidWithoutHash(ssl.(string), "sslkeyandcertificate-.*.")
+						sslName, foundssl := c.SSLKeyCache.AviCacheGetNameByUuid(sslUuid)
+						if foundssl {
+							sslKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: sslName.(string)}
+							sslKeys = append(sslKeys, sslKey)
 						}
 					}
 				}
-			}
-			if vs["http_policies"] != nil {
-				for _, http_intf := range vs["http_policies"].([]interface{}) {
-					// find the sslkey name from the ssl key cache
-					httpmap, ok := http_intf.(map[string]interface{})
-					if ok {
-						httpUuid := ExtractUuid(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
+				if vs["vs_datascripts"] != nil {
+					for _, ds_intf := range vs["vs_datascripts"].([]interface{}) {
+						// find the sslkey name from the ssl key cache
+						dsmap, ok := ds_intf.(map[string]interface{})
+						if ok {
+							dsUuid := ExtractUuidWithoutHash(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.")
 
-						httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
-						if foundhttp {
-							httpKey := NamespaceName{Namespace: lib.GetTenant(), Name: httpName.(string)}
-							httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
-							for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
-								// For each PG, formulate the key and then populate the pg collection cache
-								pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
-								poolgroupKeys = append(poolgroupKeys, pgKey)
-								poolKeys = c.AviPGPoolCachePopulate(pgName)
+							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
+							if foundDs {
+								dsKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: dsName.(string)}
+								// Fetch the associated PGs with the DS.
+								dsObj, _ := c.DSCache.AviCacheGet(dsKey)
+								for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
+									// For each PG, formulate the key and then populate the pg collection cache
+									pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
+									poolgroupKeys = append(poolgroupKeys, pgKey)
+									poolKeys = c.AviPGPoolCachePopulate(pgName)
+								}
+								dsKeys = append(dsKeys, dsKey)
 							}
-							httpKeys = append(httpKeys, httpKey)
 						}
 					}
 				}
+				// Handle L4 vs - pg references
+				if vs["service_pool_select"] != nil {
+					for _, pg_intf := range vs["service_pool_select"].([]interface{}) {
+						// find the sslkey name from the ssl key cache
+						pgmap, ok := pg_intf.(map[string]interface{})
+						if ok {
+							pgUuid := ExtractUuidWithoutHash(pgmap["service_pool_group_ref"].(string), "poolgroup-.*.")
+
+							pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
+							if foundpg {
+								pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName.(string)}
+								poolgroupKeys = append(poolgroupKeys, pgKey)
+								poolKeys = c.AviPGPoolCachePopulate(pgName.(string))
+							}
+						}
+					}
+				}
+				if vs["http_policies"] != nil {
+					for _, http_intf := range vs["http_policies"].([]interface{}) {
+						// find the sslkey name from the ssl key cache
+						httpmap, ok := http_intf.(map[string]interface{})
+						if ok {
+							httpUuid := ExtractUuidWithoutHash(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.")
+
+							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
+							if foundhttp {
+								httpKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: httpName.(string)}
+								httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
+								for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
+									// For each PG, formulate the key and then populate the pg collection cache
+									pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
+									poolgroupKeys = append(poolgroupKeys, pgKey)
+									poolKeys = c.AviPGPoolCachePopulate(pgName)
+								}
+								httpKeys = append(httpKeys, httpKey)
+							}
+						}
+					}
+				}
+				// Populate the vscache meta object here.
+				vsMetaObj := AviVsCache{
+					Name:                 vs["name"].(string),
+					Uuid:                 vs["uuid"].(string),
+					VSVipKeyCollection:   vsVipKey,
+					HTTPKeyCollection:    httpKeys,
+					DSKeyCollection:      dsKeys,
+					SSLKeyCertCollection: sslKeys,
+					PGKeyCollection:      poolgroupKeys,
+					PoolKeyCollection:    poolKeys,
+					Vip:                  vip,
+					CloudConfigCksum:     vs["cloud_config_cksum"].(string),
+					SNIChildCollection:   sni_child_collection,
+					ParentVSRef:          parentVSKey,
+					ServiceMetadataObj:   svc_mdata_obj,
+				}
+				c.VsCacheMeta.AviCacheAdd(k, &vsMetaObj)
+				vs_cache, found := c.VsCache.AviCacheGet(parentVSKey)
+				if found {
+					parentVsObj, ok := vs_cache.(*AviVsCache)
+					if !ok {
+						utils.AviLog.Warnf("key: %s, msg: invalid vs object found.", parentVSKey)
+					} else {
+						parentVsObj.AddToSNIChildCollection(vs["uuid"].(string))
+						utils.AviLog.Infof("Updated Parents VS :%s", utils.Stringify(parentVsObj))
+					}
+				}
+				utils.AviLog.Debugf("Added VS during refresh with cache key :%v", utils.Stringify(vsMetaObj))
 			}
-			// Populate the vscache meta object here.
-			vsMetaObj := AviVsCache{
-				Name:                 vs["name"].(string),
-				Uuid:                 vs["uuid"].(string),
-				VSVipKeyCollection:   vsVipKey,
-				HTTPKeyCollection:    httpKeys,
-				DSKeyCollection:      dsKeys,
-				SSLKeyCertCollection: sslKeys,
-				PGKeyCollection:      poolgroupKeys,
-				PoolKeyCollection:    poolKeys,
-				Vip:                  vip,
-				CloudConfigCksum:     vs["cloud_config_cksum"].(string),
-				SNIChildCollection:   sni_child_collection,
-				ParentVSRef:          parentVSKey,
-				ServiceMetadataObj:   svc_mdata_obj,
-			}
-			c.VsCacheLocal.AviCacheAdd(k, &vsMetaObj)
-			utils.AviLog.Debugf("Added VS cache key :%s", k)
 		}
 	}
 	return nil
@@ -1427,6 +1794,15 @@ func ExtractUuid(word, pattern string) string {
 	result := r.FindAllString(word, -1)
 	if len(result) == 1 {
 		return result[0][:len(result[0])-1]
+	}
+	return ""
+}
+
+func ExtractUuidWithoutHash(word, pattern string) string {
+	r, _ := regexp.Compile(pattern)
+	result := r.FindAllString(word, -1)
+	if len(result) == 1 {
+		return result[0][:len(result[0])]
 	}
 	return ""
 }

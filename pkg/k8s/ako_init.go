@@ -193,9 +193,7 @@ func (c *AviController) FullSync() {
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
-		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
-			utils.CtrlVersion, utils.CloudName)
+		avi_obj_cache.AviCacheRefresh(avi_rest_client_pool.AviClient[0], utils.CloudName)
 		allModelsMap := objects.SharedAviGraphLister().GetAll()
 		var allModels []string
 		for modelName, _ := range allModelsMap.(map[string]interface{}) {
@@ -211,7 +209,8 @@ func (c *AviController) FullSync() {
 					avimodel.SetRetryCounter()
 				}
 			}
-			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+			// Not publishing the model anymore to layer since we don't want to support full sync for now.
+			//nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
 	}
 }

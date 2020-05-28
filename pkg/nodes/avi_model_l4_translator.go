@@ -118,7 +118,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, key s
 	// Find the servers that match the port.
 	epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
 	if err != nil {
-		utils.AviLog.Infof("key: %s, msg: error while retrieving endpoints", key)
+		utils.AviLog.Warnf("key: %s, msg: error while retrieving endpoints: %s", key, err)
 		return nil
 	}
 	var pool_meta []AviPoolMetaServer

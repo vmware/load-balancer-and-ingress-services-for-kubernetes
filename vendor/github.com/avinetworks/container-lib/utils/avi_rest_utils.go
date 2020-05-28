@@ -105,6 +105,7 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 	return nil
 }
 
+
 func AviModelToUrl(model string) string {
 	switch model {
 	case "Pool":

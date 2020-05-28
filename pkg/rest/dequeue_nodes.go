@@ -29,6 +29,9 @@ import (
 
 	"github.com/avinetworks/container-lib/api/models"
 	"github.com/avinetworks/container-lib/utils"
+	"github.com/avinetworks/sdk/go/clients"
+	avimodels "github.com/avinetworks/sdk/go/models"
+	"github.com/avinetworks/sdk/go/session"
 )
 
 type RestOperations struct {
@@ -56,9 +59,12 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 	// values as well.
 	if strings.Contains(name, "@") {
 		// The actual model name
-		name = strings.Split(name, "@")[0]
+		nameToken := strings.Split(name, "@")
+		name = nameToken[0]
 		vsCacheKey := avicache.NamespaceName{Namespace: namespace, Name: name}
-		rest.CopyMetaVsToVsCache(vsCacheKey, key)
+		if nameToken[1] == "fullsync" {
+			rest.CopyMetaVsToVsCache(vsCacheKey, key)
+		}
 		// change the key to not have the fullsync string
 		key = strings.Split(key, "@")[0]
 	}
@@ -236,6 +242,17 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 }
 
 func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, key string) {
+	// TODO (sudswas): If we want to support full sync with VS cache refresh, uncomment the code below.
+	// shardSize := lib.GetshardSize()
+	// aviObjCache := avicache.SharedAviObjCache()
+	// if shardSize != 0 {
+	// 	bkt := utils.Bkt(key, shardSize)
+	// 	utils.AviLog.Debugf("key: %s, msg: processing in rest queue number: %v", key, bkt)
+	// 	if len(rest.aviRestPoolClient.AviClient) > 0 {
+	// 		aviclient := rest.aviRestPoolClient.AviClient[bkt]
+	// 		aviObjCache.AviObjOneVSCachePopulate(aviclient, utils.CloudName, vsKey.Name)
+	// 	}
+	// }
 	vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	if !ok {
 		// The vsmeta does not have the cache, remove it from the vscache as well.
@@ -360,6 +377,7 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, sslKey ...utils.NamespaceName) {
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
 	shardSize := lib.GetshardSize()
+	var fastRetry, retry bool
 	if shardSize != 0 {
 		bkt := utils.Bkt(key, shardSize)
 		utils.AviLog.Debugf("key: %s, msg: processing in rest queue number: %v", key, bkt)
@@ -367,70 +385,89 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			aviclient := rest.aviRestPoolClient.AviClient[bkt]
 			err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
 			if err != nil {
+				var publishKey string
+				if len(avimodel.GetAviVS()) > 0 {
+					publishKey = avimodel.GetAviVS()[0].Name
+				}
 				utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
 				models.RestStatus.UpdateAviApiRestStatus("", err)
 				for i := len(rest_ops) - 1; i >= 0; i-- {
 					// Go over each of the failed requests and enqueue them to the worker queue for retry.
 					if rest_ops[i].Err != nil {
-						utils.AviLog.Warnf("key: %s, msg: problem in processing request for: %s", key, rest_ops[i].Model)
 						// If it's for a SNI child, publish the parent VS's key
 						if avimodel != nil && len(avimodel.GetAviVS()) > 0 {
-							publishKey := avimodel.GetAviVS()[0].Name
-							utils.AviLog.Warnf("key: %s, msg: Retrieved key for Retry:%s", key, publishKey)
+							utils.AviLog.Warnf("key: %s, msg: Retrieved key for Retry:%s, object: %s", key, publishKey, rest_ops[i].ObjName)
 							if avimodel.GetRetryCounter() != 0 {
-								PublishKeyToRetryLayer(publishKey, key, rest_ops[i].Err.Error())
+								aviError, ok := rest_ops[i].Err.(session.AviError)
+								if !ok {
+									utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
+									continue
+								}
+								retry = true
+								fastRetry = fastRetry || rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key)
+							} else {
+								utils.AviLog.Warnf("key: %s, msg: retry count exhausted, skipping", key)
 							}
 						} else {
 							utils.AviLog.Warnf("key: %s, msg: Avi model not set", key)
 						}
+					} else {
+						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
 					}
+				}
+				if retry {
+					rest.PublishKeyToRetryLayer(publishKey, aviclient, key, fastRetry)
 				}
 			} else {
 				models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
 				utils.AviLog.Debugf("key: %s, msg: rest call executed successfully, will update cache", key)
 				// Add to local obj caches
 				for _, rest_op := range rest_ops {
-					if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
-						utils.AviLog.Infof("key: %s, msg: creating/updating %s cache", key, rest_op.Model)
-						if rest_op.Model == "Pool" {
-							rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "VirtualService" {
-							rest.AviVsCacheAdd(rest_op, key)
-						} else if rest_op.Model == "PoolGroup" {
-							rest.AviPGCacheAdd(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "VSDataScriptSet" {
-							rest.AviDSCacheAdd(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "HTTPPolicySet" {
-							rest.AviHTTPPolicyCacheAdd(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "SSLKeyAndCertificate" {
-							rest.AviSSLKeyCertAdd(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "VrfContext" {
-							rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "VsVip" {
-							rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
-						}
-
-					} else {
-						utils.AviLog.Infof("key: %s, msg: deleting %s cache", key, rest_op.Model)
-						if rest_op.Model == "Pool" {
-							rest.AviPoolCacheDel(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "VirtualService" {
-							rest.AviVsCacheDel(aviObjKey, rest_op, key)
-						} else if rest_op.Model == "PoolGroup" {
-							rest.AviPGCacheDel(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "HTTPPolicySet" {
-							rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "SSLKeyAndCertificate" {
-							rest.AviSSLCacheDel(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "VsVip" {
-							rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
-						} else if rest_op.Model == "VSDataScriptSet" {
-							rest.AviDSCacheDel(rest_op, aviObjKey, key)
-						}
-					}
+					rest.PopulateOneCache(rest_op, aviObjKey, key)
 				}
 
 			}
+		}
+	}
+}
+
+func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey avicache.NamespaceName, key string) {
+	if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
+		utils.AviLog.Infof("key: %s, msg: creating/updating %s cache", key, rest_op.Model)
+		if rest_op.Model == "Pool" {
+			rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "VirtualService" {
+			rest.AviVsCacheAdd(rest_op, key)
+		} else if rest_op.Model == "PoolGroup" {
+			rest.AviPGCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "VSDataScriptSet" {
+			rest.AviDSCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "HTTPPolicySet" {
+			rest.AviHTTPPolicyCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "SSLKeyAndCertificate" {
+			rest.AviSSLKeyCertAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "VrfContext" {
+			rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "VsVip" {
+			rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
+		}
+
+	} else {
+		utils.AviLog.Infof("key: %s, msg: deleting %s cache", key, rest_op.Model)
+		if rest_op.Model == "Pool" {
+			rest.AviPoolCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "VirtualService" {
+			rest.AviVsCacheDel(aviObjKey, rest_op, key)
+		} else if rest_op.Model == "PoolGroup" {
+			rest.AviPGCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "HTTPPolicySet" {
+			rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "SSLKeyAndCertificate" {
+			rest.AviSSLCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "VsVip" {
+			rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "VSDataScriptSet" {
+			rest.AviDSCacheDel(rest_op, aviObjKey, key)
 		}
 	}
 }
@@ -449,21 +486,207 @@ func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName
 	return restOps
 }
 
-func PublishKeyToRetryLayer(vs_key string, key string, errorStr string) {
+func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, c *clients.AviClient, key string, fastRetry bool) {
 	var bkt uint32
 	bkt = 0
-	// SDK does not give us a error status code, so let's extract it.
-	statuscode := ExtractStatusCode(errorStr)
-	utils.AviLog.Infof("key: %s, msg: Status code retrieved: %s", key, statuscode)
-	if statuscode == "500" || statuscode == "501" || statuscode == "502" || statuscode == "503" {
+	if !fastRetry {
 		slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
-		slowRetryQueue.Workqueue[bkt].AddRateLimited(vs_key)
-		utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, vs_key)
-	} else if statuscode == "404" || statuscode == "400" || statuscode == "409" { // Will account for more error codes.
+		slowRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
+		utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, parentVsKey)
+	} else { // Will account for more error codes.
 		fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
-		fastRetryQueue.Workqueue[bkt].AddRateLimited(vs_key)
-		utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, vs_key)
+		fastRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
+		utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, parentVsKey)
 	}
+}
+
+func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObjKey avicache.NamespaceName, rest_op *utils.RestOp, aviError session.AviError, c *clients.AviClient, avimodel *nodes.AviObjectGraph, key string) bool {
+
+	var fastRetry bool
+	statuscode := aviError.HttpStatusCode
+	errorStr := aviError.Error()
+	utils.AviLog.Warnf("key: %s, msg: problem in processing request for: %s", key, rest_op.Model)
+	utils.AviLog.Infof("key: %s, msg: error str: %s", key, errorStr)
+	aviObjCache := avicache.SharedAviObjCache()
+
+	if statuscode >= 500 && statuscode < 599 {
+		fastRetry = false
+	} else if statuscode >= 400 && statuscode < 499 { // Will account for more error codes.*/
+		fastRetry = true
+		// 404 means the object exists in our cache but not on the controller.
+		if statuscode == 404 {
+			switch rest_op.Model {
+			case "Pool":
+				var poolObjName string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					poolObjName = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.Pool).Name
+				case avimodels.Pool:
+					poolObjName = *rest_op.Obj.(avimodels.Pool).Name
+				}
+				rest_op.ObjName = poolObjName
+				rest.AviPoolCacheDel(rest_op, aviObjKey, key)
+			case "PoolGroup":
+				var pgObjName string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					pgObjName = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.PoolGroup).Name
+				case avimodels.PoolGroup:
+					pgObjName = *rest_op.Obj.(avimodels.PoolGroup).Name
+				}
+				rest_op.ObjName = pgObjName
+				if strings.Contains(errorStr, "Pool object not found!") {
+					// PG error with pool object not found.
+					aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
+					// After the refresh - get the members
+					pgKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: pgObjName}
+					pgCache, ok := rest.cache.PgCache.AviCacheGet(pgKey)
+					if ok {
+						pgCacheObj, _ := pgCache.(*avicache.AviPGCache)
+						// Iterate the pools
+						vsNode := avimodel.GetAviVS()[0]
+						var pools []string
+						for _, pgNode := range vsNode.PoolGroupRefs {
+							if pgNode.Name == pgObjName {
+								for _, poolInModel := range pgNode.Members {
+									poolToken := strings.Split(*poolInModel.PoolRef, "?name=")
+									if len(poolToken) > 1 {
+										pools = append(pools, poolToken[1])
+									}
+								}
+							}
+						}
+						utils.AviLog.Debugf("key: %s, msg: pools in model during retry: %s", key, pools)
+						// Find out pool members that exist in the model but do not exist in the cache and delete them.
+
+						poolsCopy := make([]string, len(pools))
+						copy(poolsCopy, pools)
+						for _, poolName := range pgCacheObj.Members {
+							if utils.HasElem(pools, poolName) {
+								poolsCopy = utils.Remove(poolsCopy, poolName)
+							}
+						}
+						// Whatever is left it in poolsCopy - remove them from the avi pools cache
+						for _, poolsToDel := range poolsCopy {
+							rest_op.ObjName = poolsToDel
+							utils.AviLog.Debugf("key: %s, msg: deleting pool from cache due to pool not found %s", key, poolsToDel)
+							rest.AviPoolCacheDel(rest_op, aviObjKey, key)
+						}
+					} else {
+						utils.AviLog.Infof("key: %s, msg: PG object not found during retry pgname: %s", key, pgObjName)
+					}
+				}
+				rest.AviPGCacheDel(rest_op, aviObjKey, key)
+			case "VsVip":
+				var VsVip string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					VsVip = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.VsVip).Name
+				case avimodels.VsVip:
+					VsVip = *rest_op.Obj.(avimodels.VsVip).Name
+				}
+				rest_op.ObjName = VsVip
+				rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
+			case "HTTPPolicySet":
+				var HTTPPolicySet string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					HTTPPolicySet = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.HTTPPolicySet).Name
+				case avimodels.HTTPPolicySet:
+					HTTPPolicySet = *rest_op.Obj.(avimodels.HTTPPolicySet).Name
+				}
+				rest_op.ObjName = HTTPPolicySet
+				rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
+			case "SSLKeyAndCertificate":
+				var SSLKeyAndCertificate string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					SSLKeyAndCertificate = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.SSLKeyAndCertificate).Name
+				case avimodels.SSLKeyAndCertificate:
+					SSLKeyAndCertificate = *rest_op.Obj.(avimodels.SSLKeyAndCertificate).Name
+				}
+				rest_op.ObjName = SSLKeyAndCertificate
+				rest.AviSSLCacheDel(rest_op, aviObjKey, key)
+			case "VirtualService":
+				rest.AviVsCacheDel(aviObjKey, rest_op, key)
+			case "VSDataScriptSet":
+				var VSDataScriptSet string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					VSDataScriptSet = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.VSDataScriptSet).Name
+				case avimodels.VSDataScriptSet:
+					VSDataScriptSet = *rest_op.Obj.(avimodels.VSDataScriptSet).Name
+				}
+				rest_op.ObjName = VSDataScriptSet
+				rest.AviDSCacheDel(rest_op, aviObjKey, key)
+			}
+		}
+		// TODO (sudswas): if error code 400 happens, it means layer 2's model has issue - can re-trigger a model eval in that case?
+		// If it's 409 it refers to a conflict. That means the cache should be refreshed for the particular object.
+		if statuscode == 409 {
+			utils.AviLog.Infof("key: %s, msg: Confict for object: %s of type :%s", key, rest_op.ObjName, rest_op.Model)
+			switch rest_op.Model {
+			case "Pool":
+				var poolObjName string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					poolObjName = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.Pool).Name
+				case avimodels.Pool:
+					poolObjName = *rest_op.Obj.(avimodels.Pool).Name
+				}
+				aviObjCache.AviPopulateOnePoolCache(c, utils.CloudName, poolObjName)
+			case "PoolGroup":
+				var pgObjName string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					pgObjName = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.PoolGroup).Name
+				case avimodels.PoolGroup:
+					pgObjName = *rest_op.Obj.(avimodels.PoolGroup).Name
+				}
+				aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
+			case "VsVip":
+				var VsVip string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					VsVip = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.VsVip).Name
+				case avimodels.VsVip:
+					VsVip = *rest_op.Obj.(avimodels.VsVip).Name
+				}
+				aviObjCache.AviPopulateOneVsVipCache(c, utils.CloudName, VsVip)
+			case "HTTPPolicySet":
+				var HTTPPolicySet string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					HTTPPolicySet = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.HTTPPolicySet).Name
+				case avimodels.HTTPPolicySet:
+					HTTPPolicySet = *rest_op.Obj.(avimodels.HTTPPolicySet).Name
+				}
+				aviObjCache.AviPopulateOneVsHttpPolCache(c, utils.CloudName, HTTPPolicySet)
+			case "SSLKeyAndCertificate":
+				var SSLKeyAndCertificate string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					SSLKeyAndCertificate = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.SSLKeyAndCertificate).Name
+				case avimodels.SSLKeyAndCertificate:
+					SSLKeyAndCertificate = *rest_op.Obj.(avimodels.SSLKeyAndCertificate).Name
+				}
+				aviObjCache.AviPopulateOneSSLCache(c, utils.CloudName, SSLKeyAndCertificate)
+			case "VirtualService":
+				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name)
+			case "VSDataScriptSet":
+				var VSDataScriptSet string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					VSDataScriptSet = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.VSDataScriptSet).Name
+				case avimodels.VSDataScript:
+					VSDataScriptSet = *rest_op.Obj.(avimodels.VSDataScriptSet).Name
+				}
+				aviObjCache.AviPopulateOneVsDSCache(c, utils.CloudName, VSDataScriptSet)
+			}
+		}
+	}
+
+	return fastRetry
 }
 
 //Candidate for container-lib

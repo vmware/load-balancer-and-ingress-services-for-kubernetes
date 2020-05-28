@@ -1,7 +1,7 @@
 module ako
 
 require (
-	github.com/avinetworks/container-lib v0.0.0-20200515161337-3602acb28670
+	github.com/avinetworks/container-lib v0.0.0-20200526075318-697ca23904d6
 	github.com/avinetworks/sdk v0.0.0-20200403054229-39f30c036b56
 	github.com/davecgh/go-spew v1.1.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect

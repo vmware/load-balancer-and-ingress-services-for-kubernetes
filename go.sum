@@ -26,6 +26,8 @@ github.com/avinetworks/container-lib v0.0.0-20200513181034-05ee12b49354 h1:14+Uh
 github.com/avinetworks/container-lib v0.0.0-20200513181034-05ee12b49354/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
 github.com/avinetworks/container-lib v0.0.0-20200515161337-3602acb28670 h1:4lp4F4WBV776QQ+cyvPNI7ZUheS2ayIA2anBnjd8vZw=
 github.com/avinetworks/container-lib v0.0.0-20200515161337-3602acb28670/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
+github.com/avinetworks/container-lib v0.0.0-20200526075318-697ca23904d6 h1:bwU6/kqO5I5DRlnc94A0sX+k+4Ibm+WsqSLIgnd3qHY=
+github.com/avinetworks/container-lib v0.0.0-20200526075318-697ca23904d6/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
 github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792 h1:WVdw/DU0e+zGRpb5QAmrj4qNwqbhvbsJEQh6MbO2ryg=
 github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
 github.com/avinetworks/sdk v0.0.0-20200403054229-39f30c036b56 h1:QqmQr5PaEH6Xrc0g3L+UpuFDH6C1aY8/ax9Jv7GeACA=
@@ -35,6 +37,7 @@ github.com/avinetworks/sdk v0.0.0-20200429175110-f8210c93398c h1:n1B0Oh2u2fxT+kY
 github.com/avinetworks/sdk v0.0.0-20200504134009-25d2fc9e5f09 h1:d1CK3DyxiqXFqW3DBfmXs94Avblpib6eiiiZyg+3RiA=
 github.com/avinetworks/sdk v0.0.0-20200508030428-39711daba9d1 h1:4S7N+wwz267C6bNOidxmuBVTxRdTLkIVPzZdVhff0Q8=
 github.com/avinetworks/sdk v0.0.0-20200519040937-251b501d5a8a h1:C4QCK4KYpxBj1JimtcSsSvniQSSlDnEq3+omUAk54RE=
+github.com/avinetworks/sdk v0.0.0-20200522033656-f37e8cfc8e02 h1:uxqZzVWVLbS56C/Lv41o22Ptd/Jo/DT+2E+qBK+9Ris=
 github.com/davecgh/go-spew v0.0.0-20151105211317-5215b55f46b2/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -146,6 +149,7 @@ github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298/go.mod h1:6rzn
 github.com/openshift/client-go v3.9.0+incompatible h1:13k3Ok0B7TA2hA3bQW2aFqn6y04JaJWdk7ITTyg+Ek0=
 github.com/openshift/client-go v3.9.0+incompatible/go.mod h1:6rzn+JTr7+WYS2E1TExP4gByoABxMznR6y2SnUIkmxk=
 github.com/peterbourgon/diskv v2.0.1+incompatible/go.mod h1:uqqh8zWWbv1HBMNONnaR/tNboyR3/BZd58JJSHlUSCU=
+github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v0.0.0-20151028094244-d8ed2627bdf0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
