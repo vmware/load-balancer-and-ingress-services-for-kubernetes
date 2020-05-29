@@ -106,7 +106,17 @@ func TestHostnameCreateIngressCacheSync(t *testing.T) {
 	g.Expect(vsCacheObj.DSKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(vsCacheObj.SSLKeyCertCollection).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	if err := KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
+	// make sure that ingress deletion is synced in cache, then delete the model
+	g.Eventually(func() int {
+		vsCache, _ := mcache.VsCache.AviCacheGet(vsKey)
+		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
+		return len(vsCacheObj.PoolKeyCollection)
+	}, 10*time.Second).Should(gomega.Equal(0))
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestHostnameIngressStatusCheck(t *testing.T) {
