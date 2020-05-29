@@ -73,6 +73,9 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
 		}
 
+		// simple validator check for duplicate hostpaths, logs Warning if duplicates found
+		validateSpecFromHostnameCache(key, ingObj.Namespace, ingObj.Name, ingObj.Spec)
+
 		services := parseServicesForIngress(ingObj.Spec, key)
 		for _, svc := range services {
 			utils.AviLog.Debugf("key: %s, msg: updating ingress relationship for service:  %s", key, svc)

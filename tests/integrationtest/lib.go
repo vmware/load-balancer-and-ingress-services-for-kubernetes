@@ -714,10 +714,16 @@ func inArray(a []string, b string) bool {
 // for GET objects list API. GET /api/virtualservice returns from virtualservice_mock.json and so on
 func FeedMockCollectionData(w http.ResponseWriter, r *http.Request) {
 	mockFilePath := "../avimockobjects"
-	url := r.URL.EscapedPath() // url = //api/<object>
-	object := strings.Split(strings.Trim(url, "/"), "/")
-	if len(object) > 1 && r.Method == "GET" {
-		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, object[1]))
+	url := r.URL.EscapedPath() // url = //api/<object>/:objectId
+	splitURL := strings.Split(strings.Trim(url, "/"), "/")
+	if r.Method == "GET" {
+		var data []byte
+		if len(splitURL) == 2 {
+			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1]))
+		} else if len(splitURL) == 3 {
+			// with uuid
+			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))
+		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, string(data))
 	} else if strings.Contains(url, "login") {

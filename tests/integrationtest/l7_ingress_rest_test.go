@@ -37,7 +37,7 @@ const (
 	TLSINGRESS = "tls-ingress"
 )
 
-func SetupSubdomain() {
+func SetupDomain() {
 	mcache := cache.SharedAviObjCache()
 	cloud, _ := mcache.CloudKeyCache.AviCacheGet("Default-Cloud")
 	cloudProperty, _ := cloud.(*cache.AviCloudPropertyCache)
@@ -46,7 +46,7 @@ func SetupSubdomain() {
 }
 
 func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
-	SetupSubdomain()
+	SetupDomain()
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{
@@ -444,7 +444,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/Shard-VS---global-6"
 
-	SetupSubdomain()
+	SetupDomain()
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{
@@ -689,7 +689,7 @@ func TestMultiHostIngressStatusCheck(t *testing.T) {
 	modelName := "admin/Shard-VS---global-6"
 	ingressName := "foo-with-targets-2"
 
-	SetupSubdomain()
+	SetupDomain()
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{
@@ -736,7 +736,7 @@ func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	modelName := "admin/Shard-VS---global-6"
 	ingressName := "foo-with-targets-3"
 
-	SetupSubdomain()
+	SetupDomain()
 	SetUpTestForIngress(t, modelName)
 	PollForCompletion(t, modelName, 5)
 	ingressObject := FakeIngress{

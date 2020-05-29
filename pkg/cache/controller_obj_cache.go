@@ -86,8 +86,8 @@ func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient, cloud string) {
 	c.AviCloudPropertiesPopulate(client, cloud)
 }
 
-func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
-	version string, cloud string) ([]NamespaceName, []NamespaceName) {
+
+func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version string, cloud string) ([]NamespaceName, []NamespaceName) {
 	SetTenant := session.SetTenant(lib.GetTenant())
 	SetTenant(client.AviSession)
 	SetVersion := session.SetVersion(version)
@@ -149,8 +149,7 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
-	cloud string, pgData *[]AviPGCache, override_uri ...NextPage) (*[]AviPGCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string, pgData *[]AviPGCache, override_uri ...NextPage) (*[]AviPGCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(override_uri) == 1 {
@@ -221,9 +220,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient,
 	return pgData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
-	cloud string) {
-
+func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud string) {
 	var pgData []AviPGCache
 	c.AviPopulateAllPGs(client, cloud, &pgData)
 
@@ -256,8 +253,7 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
-	cloud string, poolData *[]AviPoolCache, override_uri ...NextPage) (*[]AviPoolCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud string, poolData *[]AviPoolCache, override_uri ...NextPage) (*[]AviPoolCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 
@@ -317,8 +313,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 	return poolData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
 	var poolsData []AviPoolCache
 	c.AviPopulateAllPools(client, cloud, &poolsData)
 
@@ -348,8 +343,7 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
-	cloud string, vsVipData *[]AviVSVIPCache, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
+func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud string, vsVipData *[]AviVSVIPCache, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
 	var uri string
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
@@ -411,8 +405,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 	return vsVipData, nil
 }
 
-func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient,
-	cloud string) {
+func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud string) {
 	var vsVipData []AviVSVIPCache
 	c.AviPopulateAllVSVips(client, cloud, &vsVipData)
 
@@ -442,8 +435,7 @@ func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient,
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
-	cloud string, DsData *[]AviDSCache, nextPage ...NextPage) (*[]AviDSCache, int, error) {
+func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string, DsData *[]AviDSCache, nextPage ...NextPage) (*[]AviDSCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(nextPage) == 1 {
@@ -511,8 +503,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
 	return DsData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
 	var DsData []AviDSCache
 	c.AviPopulateAllDSs(client, cloud, &DsData)
 	dsCacheData := c.DSCache.ShallowCopy()
@@ -541,8 +532,7 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient,
-	cloud string, SslData *[]AviSSLCache, nextPage ...NextPage) (*[]AviSSLCache, int, error) {
+func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud string, SslData *[]AviSSLCache, nextPage ...NextPage) (*[]AviSSLCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(nextPage) == 1 {
@@ -914,8 +904,7 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 }
 
 // This method is just added for future here. We can't use it until they expose the DB extensions on the virtualservice object
-func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient,
-	cloud string, vsData *[]AviVsCache, nextPage ...NextPage) (*[]AviVsCache, error) {
+func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient, cloud string, vsData *[]AviVsCache, nextPage ...NextPage) (*[]AviVsCache, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(nextPage) == 1 {
@@ -1062,8 +1051,7 @@ func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient,
 }
 
 // This method is just added for future here. We can't use it until they expose the DB extensions on the virtualservice object
-func (c *AviObjCache) PopulateVsKeyToCache(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulateVsKeyToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
 	var vsCacheMeta []AviVsCache
 	_, err := c.AviPopulateAllVSMeta(client, cloud, &vsCacheMeta)
 	if err != nil {
@@ -1071,8 +1059,7 @@ func (c *AviObjCache) PopulateVsKeyToCache(client *clients.AviClient,
 	}
 }
 
-func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
 	var SslKeyData []AviSSLCache
 	c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
 	sslCacheData := c.SSLKeyCache.ShallowCopy()
@@ -1101,8 +1088,7 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient,
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
-	cloud string, httpPolicyData *[]AviHTTPPolicyCache, nextPage ...NextPage) (*[]AviHTTPPolicyCache, int, error) {
+func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cloud string, httpPolicyData *[]AviHTTPPolicyCache, nextPage ...NextPage) (*[]AviHTTPPolicyCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	if len(nextPage) == 1 {
@@ -1175,8 +1161,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient,
 	return httpPolicyData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient,
-	cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
 	var HttPolData []AviHTTPPolicyCache
 	_, count, err := c.AviPopulateAllHttpPolicySets(client, cloud, &HttPolData)
 	if err != nil || len(HttPolData) != count {
@@ -1249,8 +1234,7 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 	}
 }
 
-func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
-	cloud string, vsCacheCopy *[]NamespaceName, override_uri ...NextPage) error {
+func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud string, vsCacheCopy *[]NamespaceName, override_uri ...NextPage) error {
 	var rest_response interface{}
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	var uri string
@@ -1446,8 +1430,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient,
 	return nil
 }
 
-func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient,
-	cloud string, vsName string) error {
+func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud string, vsName string) error {
 	// This method should be called only from layer-3 during a retry.
 	var rest_response interface{}
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
@@ -1656,110 +1639,104 @@ func (c *AviObjCache) AviPGPoolCachePopulate(pgName string) []NamespaceName {
 	return poolKeyCollection
 }
 
-func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient,
-	cloud string) {
+func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, cloudName string) {
 	vtype := os.Getenv("CLOUD_VTYPE")
 	if vtype == "" {
 		// Default to vcenter.
 		vtype = "CLOUD_VCENTER"
 	}
-	var rest_response interface{}
-	uri := "/api/cloud"
 
-	err := AviGet(client, uri, &rest_response)
+	uri := "/api/cloud/?name=" + cloudName
+	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("CloudProperties Get uri %v returned err %v", uri, err)
-	} else {
-		resp, ok := rest_response.(map[string]interface{})
-		if !ok {
-			utils.AviLog.Warnf("CloudProperties Get uri %v returned %v type %T", uri,
-				rest_response, rest_response)
-			return
-		}
-		utils.AviLog.Debugf("CloudProperties Get uri %v returned %v ", uri,
-			resp["count"])
-		results, ok := resp["results"].([]interface{})
-		if !ok {
-			utils.AviLog.Warnf("results not of type []interface{} Instead of type %T ", resp["results"])
-			return
-		}
-		for _, cloud_intf := range results {
-			cloud_pol, ok := cloud_intf.(map[string]interface{})
-			if !ok {
-				utils.AviLog.Warnf("cloud_intf not of type map[string] interface{}. Instead of type %T", cloud_intf)
-				continue
-			}
-
-			if cloud == cloud_pol["name"] {
-
-				cloud_obj := &AviCloudPropertyCache{Name: cloud, VType: vtype}
-				if cloud_pol["dns_provider_ref"] != nil {
-					dns_uuid := ExtractPattern(cloud_pol["dns_provider_ref"].(string), "ipamdnsproviderprofile-.*")
-					subdomains := c.AviDNSPropertyPopulate(client, dns_uuid)
-					if subdomains != nil {
-						cloud_obj.NSIpamDNS = subdomains
-					}
-
-				} else {
-					utils.AviLog.Warnf("Cloud does not have a dns_provider_ref configured %v", cloud)
-				}
-				c.CloudKeyCache.AviCacheAdd(cloud, cloud_obj)
-				utils.AviLog.Debugf("Added CloudKeyCache cache key %v val %v",
-					cloud, cloud_obj)
-			}
-
-		}
+		return
 	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return
+	}
+
+	if result.Count != 1 {
+		utils.AviLog.Errorf("Cloud details not found for cloud name: %s", cloudName)
+		return
+	}
+
+	cloud := models.Cloud{}
+	if err = json.Unmarshal(elems[0], &cloud); err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+	}
+
+	cloud_obj := &AviCloudPropertyCache{Name: cloudName, VType: vtype}
+	if cloud.DNSProviderRef == nil {
+		utils.AviLog.Warnf("Cloud does not have a dns_provider_ref configured %v", cloudName)
+		return
+	}
+	dns_uuid := ExtractPattern(*cloud.DNSProviderRef, "ipamdnsproviderprofile-.*")
+	subdomains := c.AviDNSPropertyPopulate(client, dns_uuid)
+	if subdomains != nil {
+		cloud_obj.NSIpamDNS = subdomains
+	}
+
+	if cloud.IPAMProviderRef == nil {
+		utils.AviLog.Warnf("Cloud does not have a ipam_provider_ref configured %v", cloudName)
+		return
+	}
+	ipam_uuid := ExtractPattern(*cloud.IPAMProviderRef, "ipamdnsproviderprofile-.*")
+	ipam := c.AviIPAMPropertyPopulate(client, ipam_uuid)
+	if ipam != "" {
+		cloud_obj.NSIpam = ipam
+	}
+
+	c.CloudKeyCache.AviCacheAdd(cloudName, cloud_obj)
+	utils.AviLog.Debugf("Added CloudKeyCache cache key %v val %v", cloudName, cloud_obj)
+	return
 }
 
-func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
-	nsDNSIpam string) []string {
-	var rest_response interface{}
-	var dnsSubDomains []string
-	uri := "/api/ipamdnsproviderprofile/"
+func (c *AviObjCache) AviIPAMPropertyPopulate(client *clients.AviClient, ipamUUID string) string {
+	var ipamProvider models.IPAMDNSProviderProfile
+	uri := "/api/ipamdnsproviderprofile/" + ipamUUID
 
-	err := AviGet(client, uri, &rest_response)
+	err := AviGet(client, uri, &ipamProvider)
+	if err != nil {
+		utils.AviLog.Warnf("IPAMProperty Get uri %v returned err %v", uri, err)
+		return ""
+	}
+
+	ipamName := *ipamProvider.Name
+	utils.AviLog.Infof("IPAMProperty Get uri %v returned %v %+v", uri, ipamName, *ipamProvider.AllocateIPInVrf)
+
+	if !(*ipamProvider.AllocateIPInVrf) {
+		utils.AviLog.Warnf("IPAMProperty allocate_ip_in_vrf set to false for ipam %v", ipamName)
+		return ""
+	}
+
+	return ipamName
+}
+
+func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID string) []string {
+	var dnsProvider models.IPAMDNSProviderProfile
+	var dnsSubDomains []string
+	uri := "/api/ipamdnsproviderprofile/" + dnsUUID
+
+	err := AviGet(client, uri, &dnsProvider)
 	if err != nil {
 		utils.AviLog.Warnf("DNSProperty Get uri %v returned err %v", uri, err)
 		return nil
-	} else {
-		resp, ok := rest_response.(map[string]interface{})
-		if !ok {
-			utils.AviLog.Warnf("DNSProperty Get uri %v returned %v type %T", uri,
-				rest_response, rest_response)
-			return nil
-		}
-		utils.AviLog.Debugf("DNSProperty Get uri %v returned %v ", uri,
-			resp["count"])
-		results, ok := resp["results"].([]interface{})
-		if !ok {
-			utils.AviLog.Warnf("results not of type []interface{} Instead of type %T ", resp["results"])
-			return nil
-		}
-		for _, dns_intf := range results {
-			dns_pol, ok := dns_intf.(map[string]interface{})
-			if !ok {
-				utils.AviLog.Warnf("dns_intf not of type map[string] interface{}. Instead of type %T", dns_intf)
-				continue
-			}
-
-			if dns_pol["uuid"] == nsDNSIpam {
-				dns_profile := dns_pol["internal_profile"]
-				dns_profile_pol, dns_found := dns_profile.(map[string]interface{})
-
-				if dns_found {
-					// Support multiple dns profiles.
-					for _, dns_prof := range dns_profile_pol["dns_service_domain"].([]interface{}) {
-						dns_ipam := dns_prof.(map[string]interface{})
-						utils.AviLog.Debugf("Found DNS_IPAM: %v", dns_ipam["domain_name"])
-						dnsSubDomains = append(dnsSubDomains, dns_ipam["domain_name"].(string))
-					}
-				}
-
-			}
-
-		}
 	}
+
+	utils.AviLog.Debugf("DNSProperty Get uri %v returned %v ", uri, dnsProvider.Name)
+
+	dnsProfile := dnsProvider.InternalProfile
+	// Support multiple dns profiles.
+	for _, dnsProf := range dnsProfile.DNSServiceDomain {
+		utils.AviLog.Debugf("Found DNS_IPAM: %v", *dnsProf.DomainName)
+		dnsSubDomains = append(dnsSubDomains, *dnsProf.DomainName)
+	}
+
 	return dnsSubDomains
 }
 

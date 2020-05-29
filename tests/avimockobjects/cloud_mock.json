@@ -1,5 +1,5 @@
 {
-    "count": 2,
+    "count": 1,
     "results": [
       {
         "oshiftk8s_configuration": {
@@ -81,34 +81,6 @@
         "east_west_ipam_provider_ref": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-be7aa26d-3bc8-4213-9f73-b23b4e1d9c39",
         "prefer_static_routes": false,
         "license_type": "LIC_CORES"
-      },
-      {
-        "uuid": "cloud-dea3b358-9f83-4b46-a7c9-2cf7597b9c51",
-        "vtype": "CLOUD_VCENTER",
-        "license_tier": "ENTERPRISE_18",
-        "_last_modified": "1577537845137719",
-        "enable_vip_static_routes": false,
-        "url": "https://10.52.3.116:9443/api/cloud/cloud-dea3b358-9f83-4b46-a7c9-2cf7597b9c51",
-        "ip6_autocfg_enabled": false,
-        "tenant_ref": "https://10.52.3.116:9443/api/tenant/admin",
-        "dns_resolution_on_se": false,
-        "dhcp_enabled": false,
-        "state_based_dns_registration": true,
-        "prefer_static_routes": false,
-        "autoscale_polling_interval": 60,
-        "license_type": "LIC_CORES",
-        "ipam_provider_ref": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-d49243f3-65f3-4cd1-b93a-e0ec41df409e",
-        "apic_mode": false,
-        "vcenter_configuration": {
-          "username": "root",
-          "datacenter": "Engineering",
-          "management_network": "https://10.52.3.116:9443/api/vimgrnwruntime/dvportgroup-992-cloud-dea3b358-9f83-4b46-a7c9-2cf7597b9c51",
-          "privilege": "WRITE_ACCESS",
-          "vcenter_url": "10.10.2.7",
-          "password": "<sensitive>"
-        },
-        "mtu": 1500,
-        "name": "vcenter"
       }
     ]
   }

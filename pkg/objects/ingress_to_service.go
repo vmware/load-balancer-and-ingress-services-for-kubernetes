@@ -27,19 +27,14 @@ var svconce sync.Once
 
 func SharedSvcLister() *SvcLister {
 	svconce.Do(func() {
-		svcIngStore := NewObjectStore()
-		svclisterinstance = &SvcLister{}
-		svclisterinstance.svcIngStore = svcIngStore
-		ingSvcStore := NewObjectStore()
-		svclisterinstance.ingSvcStore = ingSvcStore
-		secretIngStore := NewObjectStore()
-		svclisterinstance.secretIngStore = secretIngStore
-		ingSecretStore := NewObjectStore()
-		svclisterinstance.ingSecretStore = ingSecretStore
-		secretHostNameStore := NewObjectStore()
-		svclisterinstance.secretHostNameStore = secretHostNameStore
-		ingHostStore := NewObjectStore()
-		svclisterinstance.ingHostStore = ingHostStore
+		svclisterinstance = &SvcLister{
+			svcIngStore:         NewObjectStore(),
+			ingSvcStore:         NewObjectStore(),
+			secretIngStore:      NewObjectStore(),
+			ingSecretStore:      NewObjectStore(),
+			secretHostNameStore: NewObjectStore(),
+			ingHostStore:        NewObjectStore(),
+		}
 	})
 	return svclisterinstance
 }
@@ -82,15 +77,23 @@ type IngHostCache struct {
 }
 
 func (v *SvcLister) IngressMappings(ns string) *SvcNSCache {
-	namespacedsvcIngObjs := v.svcIngStore.GetNSStore(ns)
-	namespacedIngSvcObjs := v.ingSvcStore.GetNSStore(ns)
-	namespacedSecretIngObjs := v.secretIngStore.GetNSStore(ns)
-	namespacedIngSecretObjs := v.ingSecretStore.GetNSStore(ns)
-	namespacedSecretHostNameObjs := v.secretHostNameStore.GetNSStore(ns)
-	namespacedIngHostObjs := v.ingHostStore.GetNSStore(ns)
-	return &SvcNSCache{namespace: ns, svcIngobjects: namespacedsvcIngObjs,
-		secretIngObject: namespacedSecretIngObjs, IngNSCache: IngNSCache{ingSvcobjects: namespacedIngSvcObjs}, SecretHostNameNSCache: SecretHostNameNSCache{secretHostNameobjects: namespacedSecretHostNameObjs},
-		SecretIngNSCache: SecretIngNSCache{secretIngobjects: namespacedIngSecretObjs}, IngHostCache: IngHostCache{ingHostobjects: namespacedIngHostObjs}}
+	return &SvcNSCache{
+		namespace:       ns,
+		svcIngobjects:   v.svcIngStore.GetNSStore(ns),
+		secretIngObject: v.secretIngStore.GetNSStore(ns),
+		IngNSCache: IngNSCache{
+			ingSvcobjects: v.ingSvcStore.GetNSStore(ns),
+		},
+		SecretHostNameNSCache: SecretHostNameNSCache{
+			secretHostNameobjects: v.secretHostNameStore.GetNSStore(ns),
+		},
+		SecretIngNSCache: SecretIngNSCache{
+			secretIngobjects: v.ingSecretStore.GetNSStore(ns),
+		},
+		IngHostCache: IngHostCache{
+			ingHostobjects: v.ingHostStore.GetNSStore(ns),
+		},
+	}
 }
 
 //=====All service to ingress mapping methods are here.
@@ -260,7 +263,6 @@ func (v *IngHostCache) GetIngToHost(ingName string) (bool, map[string]map[string
 }
 
 func (v *IngHostCache) DeleteIngToHostMapping(ingName string) bool {
-	// Need checks if it's found or not?
 	success := v.ingHostobjects.Delete(ingName)
 	return success
 }

@@ -26,24 +26,28 @@ var hsonce sync.Once
 
 func SharedHostNameLister() *HostNameLister {
 	hsonce.Do(func() {
-		HostNameStore := objects.NewObjectMapStore()
-		hostNameLister = &HostNameLister{}
-		hostNameLister.HostNameStore = HostNameStore
+		hostNameLister = &HostNameLister{
+			secureHostNameStore: objects.NewObjectMapStore(),
+			HostNamePathStore: HostNamePathStore{
+				hostNamePathStore: objects.NewObjectMapStore(),
+			},
+		}
 	})
 	return hostNameLister
 }
 
 type HostNameLister struct {
-	HostNameStore *objects.ObjectMapStore
+	secureHostNameStore *objects.ObjectMapStore
+	HostNamePathStore
 }
 
 func (a *HostNameLister) Save(hostname string, hsGraph SecureHostNameMapProp) {
 	utils.AviLog.Infof("Saving hostname map :%s", hostname)
-	a.HostNameStore.AddOrUpdate(hostname, hsGraph)
+	a.secureHostNameStore.AddOrUpdate(hostname, hsGraph)
 }
 
 func (a *HostNameLister) Get(hostname string) (bool, SecureHostNameMapProp) {
-	ok, obj := a.HostNameStore.Get(hostname)
+	ok, obj := a.secureHostNameStore.Get(hostname)
 	if !ok {
 		return ok, SecureHostNameMapProp{}
 	}
@@ -51,6 +55,50 @@ func (a *HostNameLister) Get(hostname string) (bool, SecureHostNameMapProp) {
 }
 
 func (a *HostNameLister) Delete(hostname string) {
-	a.HostNameStore.Delete(hostname)
+	a.secureHostNameStore.Delete(hostname)
+}
 
+// thread safe for namespace based sharding in case of same hostname in different namespaces
+// cache sample: foo.com/path1 -> [ns1/ingress1]
+type HostNamePathStore struct {
+	sync.RWMutex
+	hostNamePathStore *objects.ObjectMapStore
+}
+
+func (h *HostNamePathStore) GetHostPathStore(hostpath string) (bool, []string) {
+	ok, obj := h.hostNamePathStore.Get(hostpath)
+	if !ok {
+		return false, []string{}
+	}
+	return true, obj.([]string)
+}
+
+func (h *HostNamePathStore) SaveHostPathStore(hostpath string, data string) {
+	h.Lock()
+	defer h.Unlock()
+	found, obj := h.GetHostPathStore(hostpath)
+	if found && !utils.HasElem(obj, data) {
+		obj = append(obj, data)
+	} else {
+		obj = []string{data}
+	}
+	h.hostNamePathStore.AddOrUpdate(hostpath, obj)
+}
+
+func (h *HostNamePathStore) RemoveHostPathStore(hostpath string, data string) {
+	h.Lock()
+	defer h.Unlock()
+	found, obj := h.GetHostPathStore(hostpath)
+	if found && utils.HasElem(obj, data) {
+		obj = utils.Remove(obj, data)
+		h.hostNamePathStore.AddOrUpdate(hostpath, obj)
+	}
+
+	if len(obj) == 0 {
+		h.DeleteHostPathStore(hostpath)
+	}
+}
+
+func (h *HostNamePathStore) DeleteHostPathStore(hostpath string) {
+	h.hostNamePathStore.Delete(hostpath)
 }

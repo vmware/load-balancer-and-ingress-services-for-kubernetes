@@ -272,7 +272,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			ingress, ok := utils.ToNetworkingIngress(obj)
 			if !ok {
-				// endpoints was deleted but its final state is unrecorded.
+				// ingress was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 				if !ok {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)

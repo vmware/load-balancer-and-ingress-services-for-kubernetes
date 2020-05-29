@@ -343,11 +343,39 @@ func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, shar
 				}
 			}
 
+			// hostNamePathStore cache operation
+			_, oldHostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingress)
+			updateHostPathCache(namespace, ingress, oldHostMap, hostsMap)
+
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingress, hostsMap)
 			if !fullsync {
 				utils.AviLog.Infof("key: %s, msg: List of models to publish: %s", key, modelList)
 				for _, modelName := range modelList {
 					PublishKeyToRestLayer(modelName, key, sharedQueue)
+				}
+			}
+		}
+	}
+}
+
+func updateHostPathCache(ns, ingress string, oldHostMap, newHostMap map[string]map[string][]string) {
+	mmapval := ns + "/" + ingress
+
+	// remove from oldHostMap
+	for _, oldMap := range oldHostMap {
+		for host, paths := range oldMap {
+			for _, path := range paths {
+				SharedHostNameLister().RemoveHostPathStore(host+path, mmapval)
+			}
+		}
+	}
+
+	// add from newHostMap
+	if newHostMap != nil {
+		for _, newMap := range newHostMap {
+			for host, paths := range newMap {
+				for _, path := range paths {
+					SharedHostNameLister().SaveHostPathStore(host+path, mmapval)
 				}
 			}
 		}
@@ -371,7 +399,7 @@ func Difference(a, b []string) []string {
 
 func getPaths(pathMapArr []IngressHostPathSvc) []string {
 	// Returns a list of paths for a given host
-	var paths []string
+	paths := []string{}
 	for _, pathmap := range pathMapArr {
 		paths = append(paths, pathmap.Path)
 	}
@@ -416,6 +444,9 @@ func DeletePoolsByHostname(namespace, ingress, key string, fullsync bool, shared
 	objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressSecretMappings(ingress)
 	// Remove the hosts mapping for this ingress
 	objects.SharedSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(ingress)
+
+	// remove hostpath mappings
+	updateHostPathCache(namespace, ingress, hostMap, nil)
 }
 
 func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) map[string][]string {

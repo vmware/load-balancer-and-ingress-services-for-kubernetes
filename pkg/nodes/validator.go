@@ -48,6 +48,22 @@ func (v *Validator) IsValiddHostName(hostname string) bool {
 	return false
 }
 
+func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec v1beta1.IngressSpec) {
+	nsIngress := ns + "/" + ingName
+	for _, rule := range ingSpec.Rules {
+		for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
+			hostpath := rule.Host + svcPath.Path
+
+			found, val := SharedHostNameLister().GetHostPathStore(hostpath)
+			if found && len(val) > 0 && val[0] != nsIngress {
+				// TODO: push in ako apiserver
+				utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s: %s in ingresses: %+v", key, nsIngress, hostpath, utils.Stringify(val))
+			}
+		}
+	}
+	return
+}
+
 func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 

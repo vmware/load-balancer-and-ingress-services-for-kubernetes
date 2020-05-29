@@ -1063,6 +1063,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 func TestNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	model_Name := "admin/Shard-VS---global-6"
+	SetupDomain()
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{

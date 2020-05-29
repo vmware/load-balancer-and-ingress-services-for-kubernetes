@@ -21,11 +21,10 @@ import (
 	"sort"
 	"strings"
 
-	"ako/pkg/objects"
-
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
 	"ako/pkg/nodes"
+	"ako/pkg/objects"
 
 	"github.com/avinetworks/container-lib/api/models"
 	"github.com/avinetworks/container-lib/utils"
@@ -84,7 +83,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
 		if avimodel == nil {
-			utils.AviLog.Debugf("Enpty Model found, skipping")
+			utils.AviLog.Debugf("Empty Model found, skipping")
 			return
 		}
 		avimodel, ok = avimodel.GetCopy(key)

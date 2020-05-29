@@ -112,6 +112,11 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 				}
 			}
 			newHostMap["secure"] = secureHostPathMapArr
+
+			// hostNamePathStore cache operation
+			_, oldHostMap := objects.SharedSvcLister().IngressMappings(namespace).GetIngToHost(ingName)
+			updateHostPathCache(namespace, ingName, oldHostMap, newHostMap)
+
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngToHostMapping(ingName, newHostMap)
 			// PGs are in 'admin' namespace right now.
 			if pgNode != nil {
@@ -228,31 +233,20 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	// Remove the hosts mapping for this ingress
 	objects.SharedSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(ingName)
 
+	// remove hostpath mappings
+	updateHostPathCache(namespace, ingName, hostMap, nil)
 }
 
 func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
 	if len(vsNode.VSVIPRefs) > 0 {
-		newFQDNs := make([]string, len(vsNode.VSVIPRefs[0].FQDNs))
-		copy(newFQDNs, vsNode.VSVIPRefs[0].FQDNs)
-		utils.AviLog.Infof("key: %s, msg: found fqdn refs in vs : %s", key, vsNode.VSVIPRefs[0].FQDNs)
-		for _, host := range hosts {
-			var i int
-			for _, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
-				if fqdn != host {
-					// Gather this entry in the new list
-					if len(newFQDNs) == 0 {
-						break
-					}
-					newFQDNs[i] = fqdn
-					i++
-				}
-			}
-			// Empty unsed bytes.
-			if len(newFQDNs) != 0 {
-				newFQDNs = newFQDNs[:i]
+		for i, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
+			if utils.HasElem(hosts, fqdn) {
+				// remove logic conainer-lib candidate
+				vsNode.VSVIPRefs[0].FQDNs[i] = vsNode.VSVIPRefs[0].FQDNs[len(vsNode.VSVIPRefs[0].FQDNs)-1]
+				vsNode.VSVIPRefs[0].FQDNs[len(vsNode.VSVIPRefs[0].FQDNs)-1] = ""
+				vsNode.VSVIPRefs[0].FQDNs = vsNode.VSVIPRefs[0].FQDNs[:len(vsNode.VSVIPRefs[0].FQDNs)-1]
 			}
 		}
-		vsNode.VSVIPRefs[0].FQDNs = newFQDNs
 	}
 }
 
@@ -276,10 +270,9 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 	if len(modelSniNodes[0].SniNodes) > 0 {
 		for i, modelSniNode := range modelSniNodes[0].SniNodes {
 			if currentSniNodeName == modelSniNode.Name {
-				// Check if the checksums are same
-				// The checksums are not same. Replace this sni node
 				modelSniNodes[0].SniNodes = append(modelSniNodes[0].SniNodes[:i], modelSniNodes[0].SniNodes[i+1:]...)
 				utils.AviLog.Infof("key: %s, msg: deleted sni node in model: %s", key, currentSniNodeName)
+				return
 			}
 		}
 	}
