@@ -226,11 +226,8 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient,
 	cloud string) {
 
 	var pgData []AviPGCache
-	_, count, err := c.AviPopulateAllPGs(client, cloud, &pgData)
-	if err != nil || len(pgData) != count {
-		utils.AviLog.Warnf("Incomplete data received, skipping full sync for pgs. Count: %v, pgsdata: %v", count, len(pgData))
-		return
-	}
+	c.AviPopulateAllPGs(client, cloud, &pgData)
+
 	// Get all the PG cache data and copy them.
 	pgCacheData := c.PgCache.ShallowCopy()
 	for i, pgCacheObj := range pgData {
@@ -324,11 +321,8 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient,
 func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
 	var poolsData []AviPoolCache
-	_, count, err := c.AviPopulateAllPools(client, cloud, &poolsData)
-	if err != nil || len(poolsData) != count {
-		utils.AviLog.Warnf("Incomplete data received, skipping full sync for pools. Count: %v, poolsdata: %v", count, len(poolsData))
-		return
-	}
+	c.AviPopulateAllPools(client, cloud, &poolsData)
+
 	poolCacheData := c.PoolCache.ShallowCopy()
 	for i, poolCacheObj := range poolsData {
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: poolCacheObj.Name}
@@ -421,11 +415,8 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient,
 func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient,
 	cloud string) {
 	var vsVipData []AviVSVIPCache
-	_, err := c.AviPopulateAllVSVips(client, cloud, &vsVipData)
-	if err != nil {
-		utils.AviLog.Warnf("Incomplete data received, skipping full sync for vsvip.")
-		return
-	}
+	c.AviPopulateAllVSVips(client, cloud, &vsVipData)
+
 	vsVipCacheData := c.VSVIPCache.ShallowCopy()
 	for i, vsVipCacheObj := range vsVipData {
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipCacheObj.Name}
@@ -524,11 +515,8 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient,
 func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
 	var DsData []AviDSCache
-	_, count, err := c.AviPopulateAllDSs(client, cloud, &DsData)
+	c.AviPopulateAllDSs(client, cloud, &DsData)
 	dsCacheData := c.DSCache.ShallowCopy()
-	if err != nil || len(DsData) != count {
-		return
-	}
 	for i, DsCacheObj := range DsData {
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: DsCacheObj.Name}
 		oldDSIntf, found := c.DSCache.AviCacheGet(k)
@@ -1087,11 +1075,7 @@ func (c *AviObjCache) PopulateVsKeyToCache(client *clients.AviClient,
 func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient,
 	cloud string, override_uri ...NextPage) {
 	var SslKeyData []AviSSLCache
-	_, count, err := c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
-	if err != nil || len(SslKeyData) != count {
-		utils.AviLog.Warnf("Incomplete data received, skipping full sync for sslkeycert. Count: %v, ssldata: %v", count, len(SslKeyData))
-		return
-	}
+	c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
 	sslCacheData := c.SSLKeyCache.ShallowCopy()
 	for i, SslKeyCacheObj := range SslKeyData {
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: SslKeyCacheObj.Name}
