@@ -123,12 +123,17 @@ func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) stri
 	return GetVrf() + "--" + namespace + "--" + secret
 }
 
+var VRFContext string
+
+func SetVrf(vrf string) {
+	VRFContext = vrf
+}
+
 func GetVrf() string {
-	vrfcontext := os.Getenv(utils.VRF_CONTEXT)
-	if vrfcontext == "" {
-		vrfcontext = utils.GlobalVRF
+	if VRFContext == "" {
+		return utils.GlobalVRF
 	}
-	return vrfcontext
+	return VRFContext
 }
 
 func GetTenant() string {
@@ -176,21 +181,35 @@ func GetNamespaceToSync() string {
 }
 
 func GetSubnetIP() string {
-	// Additional checks can be performed here.
-	return os.Getenv(SUBNET_IP)
-
+	subnetIP := os.Getenv(SUBNET_IP)
+	if subnetIP != "" {
+		return subnetIP
+	}
+	return ""
 }
 
 func GetSubnetPrefix() string {
-	// Additional checks can be performed here.
-	return os.Getenv(SUBNET_PREFIX)
-
+	subnetPrefix := os.Getenv(SUBNET_PREFIX)
+	if subnetPrefix != "" {
+		return subnetPrefix
+	}
+	return ""
 }
 
 func GetNetworkName() string {
-	// Additional checks can be performed here.
-	return os.Getenv(NETWORK_NAME)
+	networkName := os.Getenv(NETWORK_NAME)
+	if networkName != "" {
+		return networkName
+	}
+	return ""
+}
 
+func GetDomain() string {
+	subDomain := os.Getenv(DEFAULT_DOMAIN)
+	if subDomain != "" {
+		return subDomain
+	}
+	return ""
 }
 
 func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {

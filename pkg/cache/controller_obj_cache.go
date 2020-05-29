@@ -71,8 +71,7 @@ func SharedAviObjCache() *AviObjCache {
 	return cacheInstance
 }
 
-func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient,
-	cloud string) {
+func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient, cloud string) {
 	c.PopulatePoolsToCache(client, cloud)
 	c.PopulatePgDataToCache(client, cloud)
 	c.PopulateDSDataToCache(client, cloud)
@@ -83,18 +82,18 @@ func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient,
 	//c.PopulateVsKeyToCache(client, cloud)
 }
 
-func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient,
-	cloud string) {
+func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient, cloud string) {
 	c.AviCloudPropertiesPopulate(client, cloud)
 }
 
 func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	version string, cloud string) ([]NamespaceName, []NamespaceName) {
-	// Populate the VS cache
 	SetTenant := session.SetTenant(lib.GetTenant())
 	SetTenant(client.AviSession)
 	SetVersion := session.SetVersion(version)
 	SetVersion(client.AviSession)
+
+	// Populate the VS cache
 	utils.AviLog.Infof("Refreshing all object cache")
 	c.AviRefreshObjectCache(client, cloud)
 	vsCacheCopy := c.VsCacheMeta.AviCacheGetAllParentVSKeys()
@@ -1762,6 +1761,50 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient,
 		}
 	}
 	return dnsSubDomains
+}
+
+func ValidateUserInput(client *clients.AviClient) bool {
+	// add other validation logics here -> return check1 && check2 && ...
+	return setVRFFromNetwork(client)
+}
+
+func setVRFFromNetwork(client *clients.AviClient) bool {
+	networkName := lib.GetNetworkName()
+	if networkName == "" {
+		utils.AviLog.Error("networkName not specified")
+		return false
+	}
+
+	uri := "/api/network/?include_name&name=" + networkName
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+		return false
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
+
+	if result.Count == 0 {
+		utils.AviLog.Warn("No networks found for networkName: %s", networkName)
+		return false
+	}
+
+	network := models.Network{}
+	err = json.Unmarshal(elems[0], &network)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
+
+	vrfRef := *network.VrfContextRef
+	vrfName := strings.Split(vrfRef, "#")[1]
+	utils.AviLog.Infof("Setting VRF %s found from network %s", vrfName, networkName)
+	lib.SetVrf(vrfName)
+	return true
 }
 
 func ExtractPattern(word string, pattern string) string {

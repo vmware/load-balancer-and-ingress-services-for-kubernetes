@@ -37,6 +37,7 @@ import (
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
+	os.Setenv("NETWORK_NAME", "net123")
 	KubeClient = k8sfake.NewSimpleClientset()
 
 	registeredInformers := []string{

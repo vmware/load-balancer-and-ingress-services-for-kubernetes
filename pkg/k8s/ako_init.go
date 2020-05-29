@@ -28,6 +28,7 @@ import (
 	"ako/pkg/retry"
 
 	"github.com/avinetworks/container-lib/utils"
+	"github.com/avinetworks/sdk/go/clients"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -59,12 +60,19 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	eventBroadcaster.StartLogging(utils.AviLog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 	firstboot := true
+
+	var client *clients.AviClient
+	avi_rest_client_pool := avicache.SharedAVIClients()
+	if len(avi_rest_client_pool.AviClient) > 0 {
+		client = avi_rest_client_pool.AviClient[0]
+	}
+
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if cm, ok := validateAviConfigMap(obj); ok {
 				utils.AviLog.Infof("avi k8s configmap created")
 				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
-				c.DisableSync = false
+				c.DisableSync = !avicache.ValidateUserInput(client)
 				if !firstboot {
 					ctrlCh <- struct{}{}
 				}
@@ -188,7 +196,6 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 }
 
 func (c *AviController) FullSync() {
-	//func FullSync() {
 	avi_rest_client_pool := avicache.SharedAVIClients()
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.

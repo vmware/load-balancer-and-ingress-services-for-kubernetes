@@ -12,6 +12,6 @@ data:
   shardVSNum: "8"  # The shardVSSize is ignored if this value is set
   fullSyncFrequency: "300" # Value in seconds
   cloudName: "Default-Cloud"
-  vrfRefName: "global"
+  defaultDomain: ""
   disableStaticRouteSync: "false"
   logLevel: "INFO" # one of INFO, DEBUG, WARN, ERROR

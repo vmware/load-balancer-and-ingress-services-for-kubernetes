@@ -37,7 +37,7 @@ endif
 
 .PHONY: test
 test:
-	$(GOTEST) -mod=vendor -v ./pkg/k8s -failfast
+	$(GOTEST) -mod=vendor -v ./tests/k8stest -failfast
 .PHONY: int_test
 int_test:
 	$(GOTEST) -mod=vendor -v ./tests/integrationtest -failfast

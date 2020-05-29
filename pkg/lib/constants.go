@@ -27,6 +27,7 @@ const (
 	SUBNET_PREFIX             = "SUBNET_PREFIX"
 	NETWORK_NAME              = "NETWORK_NAME"
 	L7_SHARD_SCHEME           = "L7_SHARD_SCHEME"
+	DEFAULT_DOMAIN            = "DEFAULT_DOMAIN"
 	DEFAULT_SHARD_SCHEME      = "hostname"
 	HOSTNAME_SHARD_SCHEME     = "hostname"
 	NAMESPACE_SHARD_SCHEME    = "namespace"

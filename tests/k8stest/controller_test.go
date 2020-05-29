@@ -11,9 +11,11 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package k8s
+package k8stest
 
 import (
+	"ako/pkg/k8s"
+	"ako/tests/integrationtest"
 	"os"
 	"testing"
 	"time"
@@ -34,7 +36,7 @@ import (
 var kubeClient *k8sfake.Clientset
 var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
-var ctrl AviController
+var ctrl *k8s.AviController
 
 func syncFuncForTest(key string) error {
 	keyChan <- key
@@ -83,15 +85,10 @@ func addConfigMap(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	setUp()
-	ret := m.Run()
-	os.Exit(ret)
-}
-
-func setUp() {
 	kubeClient = k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	os.Setenv("INGRESS_API", "extensionv1")
+	os.Setenv("NETWORK_NAME", "net123")
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -103,14 +100,19 @@ func setUp() {
 		utils.ConfigMapInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{kubeClient}, registeredInformers)
-	ctrl := SharedAviController()
+
+	integrationtest.NewAviFakeClientInstance()
+	defer integrationtest.AviFakeClientInstance.Close()
+
+	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	ctrl.Start(stopCh)
 	keyChan = make(chan string)
 	ctrlCh := make(chan struct{})
-	ctrl.HandleConfigMap(K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh)
-	ctrl.SetupEventHandlers(K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
+	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh)
+	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)
+	os.Exit(m.Run())
 }
 
 func TestAviConfigMap(t *testing.T) {

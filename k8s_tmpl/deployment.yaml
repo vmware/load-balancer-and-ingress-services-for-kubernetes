@@ -60,11 +60,11 @@ spec:
             configMapKeyRef:
               name: avi-k8s-config
               key: cloudName
-        - name: VRF_CONTEXT
+        - name: DEFAULT_DOMAIN
           valueFrom:
             configMapKeyRef:
               name: avi-k8s-config
-              key: vrfRefName
+              key: defaultDomain
         - name: DISABLE_STATIC_ROUTE_SYNC
           valueFrom:
             configMapKeyRef:
