@@ -385,7 +385,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
 			if err != nil {
 				var publishKey string
-				if len(avimodel.GetAviVS()) > 0 {
+				if avimodel != nil && len(avimodel.GetAviVS()) > 0 {
 					publishKey = avimodel.GetAviVS()[0].Name
 				}
 				utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
