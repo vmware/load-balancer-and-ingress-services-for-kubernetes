@@ -219,23 +219,7 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 	return GraphSchema{}, false
 }
 
-func DeriveNamespacedShardVS(namespace string, key string) string {
-	// Read the value of the num_shards from the environment variable.
-	var vsNum uint32
-	shardSize := lib.GetshardSize()
-	shardVsPrefix := GetShardVSName(key)
-	if shardSize != 0 {
-		vsNum = utils.Bkt(namespace, shardSize)
-	} else {
-		utils.AviLog.Warnf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
-		return ""
-	}
-	// Derive the right VS for this update.
-	vsName := shardVsPrefix + fmt.Sprint(vsNum)
-	return vsName
-}
-
-func GetShardVSName(key string) string {
+func GetShardVSPrefix(key string) string {
 	shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")
 	vrfName := lib.GetVrf()
 	cloudName := os.Getenv("CLOUD_NAME")
@@ -247,25 +231,36 @@ func GetShardVSName(key string) string {
 			shardVsPrefix = cloudName + "--" + vrfName + "-"
 		}
 	}
-	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, shardVsPrefix)
+	utils.AviLog.Infof("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }
 
-func DeriveHostNameShardVS(hostname string, key string) string {
-	// Read the value of the num_shards from the environment variable.
+func GetShardVSName(s string, key string) string {
 	var vsNum uint32
 	shardSize := lib.GetshardSize()
-
-	shardVsPrefix := GetShardVSName(key)
+	shardVsPrefix := GetShardVSPrefix(key)
 	if shardSize != 0 {
-		utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
-		vsNum = utils.Bkt(hostname, shardSize)
+		vsNum = utils.Bkt(s, shardSize)
 		utils.AviLog.Debugf("key: %s, msg: VS number: %v", key, vsNum)
 	} else {
 		utils.AviLog.Warnf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
 		return ""
 	}
-	// Derive the right VS for this update.
 	vsName := shardVsPrefix + fmt.Sprint(vsNum)
+	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
+	return vsName
+}
+
+func DeriveHostNameShardVS(hostname string, key string) string {
+	// Read the value of the num_shards from the environment variable.
+	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
+	vsName := GetShardVSName(hostname, key)
+	return vsName
+}
+
+func DeriveNamespacedShardVS(namespace string, key string) string {
+	// Read the value of the num_shards from the environment variable.
+	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, namespace)
+	vsName := GetShardVSName(namespace, key)
 	return vsName
 }
