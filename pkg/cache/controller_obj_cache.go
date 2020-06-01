@@ -86,7 +86,6 @@ func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient, cloud string) {
 	c.AviCloudPropertiesPopulate(client, cloud)
 }
 
-
 func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version string, cloud string) ([]NamespaceName, []NamespaceName) {
 	SetTenant := session.SetTenant(lib.GetTenant())
 	SetTenant(client.AviSession)
@@ -1741,14 +1740,18 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 }
 
 func ValidateUserInput(client *clients.AviClient) bool {
-	// add other validation logics here -> return check1 && check2 && ...
-	return setVRFFromNetwork(client)
+	// add other step0 validation logics here -> isValid := check1 && check2 && ...
+	isValid := setVRFFromNetwork(client)
+	if !isValid {
+		utils.AviLog.Warn("Invalid input detected, syncing will be disabled.")
+	}
+	return isValid
 }
 
 func setVRFFromNetwork(client *clients.AviClient) bool {
 	networkName := lib.GetNetworkName()
 	if networkName == "" {
-		utils.AviLog.Error("networkName not specified")
+		utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")
 		return false
 	}
 

@@ -28,7 +28,7 @@ func Respond(w http.ResponseWriter, data interface{}) {
 
 func LogApi(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		AviLog.Infof("%s: %s", r.Method, r.RequestURI)
+		AviLog.Debugf("%s: %s", r.Method, r.RequestURI)
 
 		next.ServeHTTP(w, r)
 		return
