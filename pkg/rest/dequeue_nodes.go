@@ -672,6 +672,16 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				aviObjCache.AviPopulateOneSSLCache(c, utils.CloudName, SSLKeyAndCertificate)
 			case "VirtualService":
 				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name)
+				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
+				if !ok {
+					// Object deleted
+					utils.AviLog.Warnf("key: %s, msg: VS object already deleted during retry")
+				} else {
+					vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
+					if done {
+						rest.cache.VsCache.AviCacheAdd(aviObjKey, vsCopy)
+					}
+				}
 			case "VSDataScriptSet":
 				var VSDataScriptSet string
 				switch rest_op.Obj.(type) {
@@ -828,9 +838,19 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 			if shardSize != 0 {
 				bkt := utils.Bkt(key, shardSize)
 				utils.AviLog.Warnf("key: %s, msg: corrupted sni cache found, retrying in bkt: %v", key, bkt)
-				if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
+				if len(rest.aviRestPoolClient.AviClient) > 0 {
 					aviclient := rest.aviRestPoolClient.AviClient[bkt]
 					aviObjCache.AviObjOneVSCachePopulate(aviclient, utils.CloudName, del_sni.Name)
+					vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(sni_key)
+					if !ok {
+						// Object deleted
+						utils.AviLog.Warnf("key: %s, msg: SNI object already deleted")
+						return
+					}
+					vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
+					if done {
+						rest.cache.VsCache.AviCacheAdd(sni_key, vsCopy)
+					}
 				}
 				// Retry
 				sni_cache_obj = rest.getVsCacheObj(sni_key, key)

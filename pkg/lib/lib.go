@@ -135,6 +135,9 @@ func SetVrfUuid(uuid string) {
 }
 
 func GetVrfUuid() string {
+	if VRFUuid == "" {
+		utils.AviLog.Warnf("VRF uuid not set")
+	}
 	return VRFUuid
 }
 
