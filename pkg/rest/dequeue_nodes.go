@@ -820,6 +820,22 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 	sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 	if sni_cache_obj != nil {
 		utils.AviLog.Debugf("key: %s, msg: SNI object before delete %s", key, utils.Stringify(sni_cache_obj))
+		// Verify that this object has all the related objects, if not do a manual refresh before delete.
+		if len(sni_cache_obj.HTTPKeyCollection) < 1 || len(sni_cache_obj.PGKeyCollection) < 1 || len(sni_cache_obj.PoolKeyCollection) < 1 {
+			// Some relationships are missing, do a manual refresh of the VS cache.
+			aviObjCache := avicache.SharedAviObjCache()
+			shardSize := lib.GetshardSize()
+			if shardSize != 0 {
+				bkt := utils.Bkt(key, shardSize)
+				utils.AviLog.Warnf("key: %s, msg: corrupted sni cache found, retrying in bkt: %v", key, bkt)
+				if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
+					aviclient := rest.aviRestPoolClient.AviClient[bkt]
+					aviObjCache.AviObjOneVSCachePopulate(aviclient, utils.CloudName, del_sni.Name)
+				}
+				// Retry
+				sni_cache_obj = rest.getVsCacheObj(sni_key, key)
+			}
+		}
 		rest.deleteSniVs(sni_key, sni_cache_obj, namespace, key)
 	}
 

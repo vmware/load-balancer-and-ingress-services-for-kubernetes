@@ -124,9 +124,18 @@ func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) stri
 }
 
 var VRFContext string
+var VRFUuid string
 
 func SetVrf(vrf string) {
 	VRFContext = vrf
+}
+
+func SetVrfUuid(uuid string) {
+	VRFUuid = uuid
+}
+
+func GetVrfUuid() string {
+	return VRFUuid
 }
 
 func GetVrf() string {
