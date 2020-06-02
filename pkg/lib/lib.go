@@ -124,9 +124,21 @@ func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) stri
 }
 
 var VRFContext string
+var VRFUuid string
 
 func SetVrf(vrf string) {
 	VRFContext = vrf
+}
+
+func SetVrfUuid(uuid string) {
+	VRFUuid = uuid
+}
+
+func GetVrfUuid() string {
+	if VRFUuid == "" {
+		utils.AviLog.Warnf("VRF uuid not set")
+	}
+	return VRFUuid
 }
 
 func GetVrf() string {

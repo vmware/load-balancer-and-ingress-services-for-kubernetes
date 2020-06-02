@@ -155,6 +155,8 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 	graphQueue.Run(stopCh)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
+	// Set up the workers but don't start draining them.
+	c.SetupEventHandlers(informers)
 	if err != nil {
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKC. Error: %s", err)
 	} else {
@@ -169,7 +171,6 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
 		}
 	}
-	c.SetupEventHandlers(informers)
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer
 	ingestionQueue.Run(stopCh)
