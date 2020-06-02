@@ -116,12 +116,11 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 			staticRoutes = lib.StaticRoutesIntfToObj(staticRoutesIntf)
 			if len(staticRoutes) == 0 {
 				utils.AviLog.Debugf("key: %s, no static routes found for vrf %s\n", key, vrfName)
-				continue
 			}
 		}
 		checksum = lib.VrfChecksum(name, staticRoutes)
 		vrfCacheObj := avicache.AviVrfCache{Name: name, Uuid: uuid, CloudConfigCksum: checksum}
-		rest.cache.VrfCache.AviCacheAdd(vrfKey, vrfCacheObj)
+		rest.cache.VrfCache.AviCacheAdd(vrfName, &vrfCacheObj)
 	}
 	return nil
 }

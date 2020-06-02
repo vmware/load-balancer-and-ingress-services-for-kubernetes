@@ -332,19 +332,20 @@ func (c *AviController) DeleteModels() {
 	allModels := objects.SharedAviGraphLister().GetAll()
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	for modelName, avimodelIntf := range allModels.(map[string]interface{}) {
-		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
-		// for vrf, delete all static routes
-		if avimodel.IsVrf {
-			newAviModel := nodes.NewAviObjectGraph()
-			newAviModel.IsVrf = true
-			aviVrfNode := &nodes.AviVrfNode{
-				Name: lib.GetVrf(),
+		objects.SharedAviGraphLister().Save(modelName, nil)
+		if avimodelIntf != nil {
+			avimodel := avimodelIntf.(*nodes.AviObjectGraph)
+			// for vrf, delete all static routes
+			if avimodel.IsVrf {
+				newAviModel := nodes.NewAviObjectGraph()
+				newAviModel.IsVrf = true
+				aviVrfNode := &nodes.AviVrfNode{
+					Name: lib.GetVrf(),
+				}
+				newAviModel.AddModelNode(aviVrfNode)
+				newAviModel.CalculateCheckSum()
+				objects.SharedAviGraphLister().Save(modelName, newAviModel)
 			}
-			newAviModel.AddModelNode(aviVrfNode)
-			newAviModel.CalculateCheckSum()
-			objects.SharedAviGraphLister().Save(modelName, newAviModel)
-		} else {
-			objects.SharedAviGraphLister().Save(modelName, nil)
 		}
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
