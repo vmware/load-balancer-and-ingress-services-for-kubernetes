@@ -343,8 +343,10 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 				rest.SNINodeDelete(delSNI, namespace, rest_ops, key)
 			}
 		}
-		rest_op := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
-		rest_ops = append(rest_ops, rest_op)
+		rest_op, ok := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
+		if ok {
+			rest_ops = append(rest_ops, rest_op)
+		}
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
@@ -360,8 +362,10 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 	var rest_ops []*utils.RestOp
 
 	if vs_cache_obj != nil {
-		rest_op := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
-		rest_ops = append(rest_ops, rest_op)
+		rest_op, ok := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
+		if ok {
+			rest_ops = append(rest_ops, rest_op)
+		}
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)

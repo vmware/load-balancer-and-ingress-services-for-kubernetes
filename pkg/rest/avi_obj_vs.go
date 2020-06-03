@@ -149,7 +149,10 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 
 		var rest_op utils.RestOp
 		var path string
-		if rest_method == utils.RestPut {
+
+		// VS objects cache can be created by other objects and they would just set VS name and not uud
+		// Do a POST call in that case
+		if rest_method == utils.RestPut && cache_obj.Uuid != "" {
 			path = "/api/virtualservice/" + cache_obj.Uuid
 			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: vs,
 				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
@@ -421,13 +424,17 @@ func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op 
 	return nil
 }
 
-func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) *utils.RestOp {
+func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) (*utils.RestOp, bool) {
+	if uuid == "" {
+		utils.AviLog.Warnf("key: %s, msg: empty uuid for VS, skipping delete", key)
+		return nil, false
+	}
 	path := "/api/virtualservice/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "VirtualService", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("VirtualService DELETE Restop %v \n",
-		utils.Stringify(rest_op)))
-	return &rest_op
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v \n",
+		key, utils.Stringify(rest_op)))
+	return &rest_op, true
 }
 
 func (rest *RestOperations) findSNIRefAndRemove(snichildkey avicache.NamespaceName, parentVsObj *avicache.AviVsCache, key string) {
