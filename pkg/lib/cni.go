@@ -86,7 +86,7 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 
 // GetDynamicInformers returns DynamicInformers instance
 func GetDynamicInformers() *DynamicInformers {
-	if dynamicInformerInstance == nil {
+	if dynamicInformerInstance == nil && GetCNIPlugin() == CALICO_CNI {
 		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
 		return nil
 	}

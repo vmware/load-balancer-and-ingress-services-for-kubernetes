@@ -52,7 +52,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
 			if !isServiceDelete(name, namespace, key) {
-				utils.AviLog.Warnf("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
+				utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
 				model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)

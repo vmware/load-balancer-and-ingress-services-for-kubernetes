@@ -1734,13 +1734,6 @@ func (c *AviObjCache) AviIPAMPropertyPopulate(client *clients.AviClient, ipamUUI
 	}
 
 	ipamName := *ipamProvider.Name
-	utils.AviLog.Infof("IPAMProperty Get uri %v returned %v %+v", uri, ipamName, *ipamProvider.AllocateIPInVrf)
-
-	if !(*ipamProvider.AllocateIPInVrf) {
-		utils.AviLog.Warnf("IPAMProperty allocate_ip_in_vrf set to false for ipam %v", ipamName)
-		return ""
-	}
-
 	return ipamName
 }
 
