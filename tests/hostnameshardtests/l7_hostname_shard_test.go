@@ -1016,6 +1016,65 @@ func TestSniHttpPolicy(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
+func TestFullSyncCacheNoOp(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	modelName := "admin/Shard-VS---global-0"
+	SetUpTestForIngress(t, modelName)
+	//create multipath ingress with tls secret
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:      "ingress-fsno",
+		Namespace: "default",
+		DnsNames:  []string{"foo.com"},
+		Ips:       []string{"8.8.8.8"},
+		Paths:     []string{"/foo", "/bar"},
+		HostNames: []string{"v1"},
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo.com"},
+		},
+		ServiceName: "avisvc",
+	}).IngressMultiPath()
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake1)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "global--foo.com"}
+
+	//store old chksum
+	mcache := cache.SharedAviObjCache()
+	oldSniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	oldSniCacheObj, _ := oldSniCache.(*cache.AviVsCache)
+	oldChksum := oldSniCacheObj.CloudConfigCksum
+
+	//call fullsync
+	ctrl.FullSync()
+	ctrl.FullSyncK8s()
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	//compare with new chksum
+	g.Eventually(func() string {
+		mcache := cache.SharedAviObjCache()
+		newSniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+		newSniCacheObj, _ := newSniCache.(*cache.AviVsCache)
+		if newSniCacheObj != nil {
+			return newSniCacheObj.CloudConfigCksum
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal(oldChksum))
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-fsno", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
+	VerifySNIIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, modelName)
+}
+
 func TestMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/Shard-VS---global-0"
