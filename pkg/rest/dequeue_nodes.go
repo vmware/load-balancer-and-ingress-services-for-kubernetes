@@ -332,10 +332,11 @@ func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, ke
 
 func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string) bool {
 	var rest_ops []*utils.RestOp
-
+	sni_vs_keys := make([]string, len(vs_cache_obj.SNIChildCollection))
+	copy(sni_vs_keys, vs_cache_obj.SNIChildCollection)
 	if vs_cache_obj != nil {
 		// VS delete should delete everything together.
-		for _, sni_uuid := range vs_cache_obj.SNIChildCollection {
+		for _, sni_uuid := range sni_vs_keys {
 			sniVsKey, ok := rest.cache.VsCache.AviCacheGetKeyByUuid(sni_uuid)
 			if ok {
 				delSNI := sniVsKey.(avicache.NamespaceName)
