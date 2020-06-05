@@ -498,13 +498,13 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		g.Eventually(func() interface{} {
 			found, aviModel = objects.SharedAviGraphLister().Get(model)
 			return aviModel
-		}, 25*time.Second).Should(gomega.BeNil())
+		}, 40*time.Second).Should(gomega.BeNil())
 
 		vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: strings.TrimPrefix(model, AVINAMESPACE+"/")}
 		g.Eventually(func() bool {
 			_, found = mcache.VsCache.AviCacheGet(vsKey)
 			return found
-		}, 25*time.Second).Should(gomega.Equal(false))
+		}, 40*time.Second).Should(gomega.Equal(false))
 	}
 
 	// verifying whether the first service created still has the corresponding cache entry
@@ -512,6 +512,6 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found = mcache.VsCache.AviCacheGet(vsKey)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 	TearDownTestForSvcLB(t, g)
 }
