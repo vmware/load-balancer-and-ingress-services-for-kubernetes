@@ -34,7 +34,7 @@ const VSVIP_NOTFOUND = "VsVip object not found"
 
 func FindPoolGroupForPort(pgList []*nodes.AviPoolGroupNode, portToSearch int32) string {
 	for _, pg := range pgList {
-		if pg.Port == fmt.Sprint(portToSearch) {
+		if pg.Port == strconv.Itoa(int(portToSearch)) {
 			return pg.Name
 		}
 	}
@@ -51,7 +51,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		// TODO use PoolGroup and use policies if there are > 1 pool, etc.
 		name := vs_meta.Name
 		cksum := vs_meta.CloudConfigCksum
-		checksumstr := fmt.Sprint(cksum)
+		checksumstr := strconv.Itoa(int(cksum))
 		cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 		cloudRef := "/api/cloud?name=" + utils.CloudName
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
@@ -173,7 +173,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
 	name := vs_meta.Name
 	cksum := vs_meta.CloudConfigCksum
-	checksumstr := fmt.Sprint(cksum)
+	checksumstr := strconv.Itoa(int(cksum))
 	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 
 	east_west := false

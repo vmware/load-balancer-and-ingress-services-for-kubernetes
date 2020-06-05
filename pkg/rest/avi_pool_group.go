@@ -16,6 +16,7 @@ package rest
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/nodes"
@@ -28,7 +29,7 @@ import (
 func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, cache_obj *avicache.AviPGCache, key string) *utils.RestOp {
 	name := pg_meta.Name
 	cksum := pg_meta.CloudConfigCksum
-	cksumString := fmt.Sprint(cksum)
+	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pg_meta.Tenant)
 	members := pg_meta.Members
 	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR

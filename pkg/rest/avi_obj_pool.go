@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/nodes"
@@ -30,7 +31,7 @@ import (
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
 	name := pool_meta.Name
 	cksum := pool_meta.CloudConfigCksum
-	cksumString := fmt.Sprint(cksum)
+	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pool_meta.Tenant)
 	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)

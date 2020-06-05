@@ -15,8 +15,8 @@
 package lib
 
 import (
-	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -65,11 +65,11 @@ func GetL4VSVipName(svcName, namespace string) string {
 }
 
 func GetL4PoolName(vsName string, port int32) string {
-	return vsName + "--" + fmt.Sprint(port)
+	return vsName + "--" + strconv.Itoa(int(port))
 }
 
 func GetL4PGName(vsName string, port int32) string {
-	return vsName + "--" + fmt.Sprint(port)
+	return vsName + "--" + strconv.Itoa(int(port))
 }
 
 // All L7 object names.

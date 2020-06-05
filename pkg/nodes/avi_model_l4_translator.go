@@ -17,6 +17,7 @@ package nodes
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	avicache "ako/pkg/cache"
@@ -92,7 +93,7 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		filterPort := portProto.Port
 		pgName := lib.GetL4PGName(vsNode.Name, filterPort)
 
-		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant(), Port: fmt.Sprint(filterPort)}
+		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant(), Port: strconv.Itoa(int(filterPort))}
 		// For TCP - the PG to Pool relationship is 1x1
 		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: lib.GetTenant(), Protocol: portProto.Protocol, PortName: portProto.Name}
 		poolNode.VrfContext = lib.GetVrf()

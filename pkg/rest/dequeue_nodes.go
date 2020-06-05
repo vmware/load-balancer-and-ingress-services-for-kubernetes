@@ -14,10 +14,10 @@
 package rest
 
 import (
-	"fmt"
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	avicache "ako/pkg/cache"
@@ -155,11 +155,11 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		httppol_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
 		vsvip_to_delete, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
-		utils.AviLog.Debugf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, fmt.Sprint(aviVsNode.GetCheckSum()))
-		if vs_cache_obj.CloudConfigCksum == fmt.Sprint(aviVsNode.GetCheckSum()) {
+		utils.AviLog.Debugf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, strconv.Itoa(int(aviVsNode.GetCheckSum())))
+		if vs_cache_obj.CloudConfigCksum == strconv.Itoa(int(aviVsNode.GetCheckSum())) {
 			utils.AviLog.Debugf("key: %s, msg: the checksums are same for vs %s, not doing anything", key, vs_cache_obj.Name)
 		} else {
-			utils.AviLog.Debugf("key: %s, msg: the stored checksum for vs is %v, and the obtained checksum for VS is: %v", key, vs_cache_obj.CloudConfigCksum, fmt.Sprint(aviVsNode.GetCheckSum()))
+			utils.AviLog.Debugf("key: %s, msg: the stored checksum for vs is %v, and the obtained checksum for VS is: %v", key, vs_cache_obj.CloudConfigCksum, strconv.Itoa(int(aviVsNode.GetCheckSum())))
 			// The checksums are different, so it should be a PUT call.
 			restOp := rest.AviVsBuild(aviVsNode, utils.RestPut, vs_cache_obj, key)
 			rest_ops = append(rest_ops, restOp...)
@@ -795,7 +795,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 						pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
 						// Cache found. Let's compare the checksums
 						utils.AviLog.Debugf("key: %s, msg: poolcache: %v", key, pool_cache_obj)
-						if pool_cache_obj.CloudConfigCksum == fmt.Sprint(pool.GetCheckSum()) {
+						if pool_cache_obj.CloudConfigCksum == strconv.Itoa(int(pool.GetCheckSum())) {
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for pool %s, not doing anything", key, pool.Name)
 						} else {
 							utils.AviLog.Debugf("key: %s, msg: the checksums are different for pool %s, operation: PUT", key, pool.Name)
@@ -880,7 +880,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 			sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 			if sni_cache_obj != nil {
 				// Cache found. Let's compare the checksums
-				if sni_cache_obj.CloudConfigCksum == fmt.Sprint(sni_node.GetCheckSum()) {
+				if sni_cache_obj.CloudConfigCksum == strconv.Itoa(int(sni_node.GetCheckSum())) {
 					utils.AviLog.Debugf("key: %s, msg: the checksums are same for sni child %s, not doing anything", key, sni_node.Name)
 				} else {
 					sni_pools_to_delete, rest_ops = rest.PoolCU(sni_node.PoolRefs, sni_cache_obj, namespace, rest_ops, key)
@@ -940,7 +940,7 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 					if ok {
 						pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
 						// Cache found. Let's compare the checksums
-						if pg_cache_obj.CloudConfigCksum == fmt.Sprint(pg.GetCheckSum()) {
+						if pg_cache_obj.CloudConfigCksum == strconv.Itoa(int(pg.GetCheckSum())) {
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for PG %s, not doing anything", key, pg_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.
@@ -1074,7 +1074,7 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 					cache_http_nodes = Remove(cache_http_nodes, http_key)
 					http_cache_obj, _ := http_cache.(*avicache.AviHTTPPolicyCache)
 					// Cache found. Let's compare the checksums
-					if http_cache_obj.CloudConfigCksum == fmt.Sprint(http.GetCheckSum()) {
+					if http_cache_obj.CloudConfigCksum == strconv.Itoa(int(http.GetCheckSum())) {
 						utils.AviLog.Debugf("The checksums are same for HTTP cache obj %s, not doing anything", http_cache_obj.Name)
 					} else {
 						// The checksums are different, so it should be a PUT call.

@@ -17,6 +17,7 @@ package rest
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/nodes"
@@ -30,7 +31,7 @@ import (
 func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode, cache_obj *avicache.AviHTTPPolicyCache, key string) *utils.RestOp {
 	name := hps_meta.Name
 	cksum := hps_meta.CloudConfigCksum
-	cksumString := fmt.Sprint(cksum)
+	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
 	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
 

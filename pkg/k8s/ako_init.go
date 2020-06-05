@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	"github.com/avinetworks/container-lib/utils"
 	"github.com/avinetworks/sdk/go/clients"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -67,6 +69,9 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 		client = avi_rest_client_pool.AviClient[0]
 	}
 
+	// sets VRF to be used based on networkName
+	avicache.ValidateUserInput(client)
+
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if cm, ok := validateAviConfigMap(obj); ok {
@@ -100,7 +105,15 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	}
 
 	c.informers.ConfigMapInformer.Informer().AddEventHandler(configMapEventHandler)
+
 	go c.informers.ConfigMapInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh,
+		c.informers.ConfigMapInformer.Informer().HasSynced,
+	) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced")
+	}
 }
 
 func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {

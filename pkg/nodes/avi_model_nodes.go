@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -752,7 +753,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	})
 	// A sum of fields for this Pool.
 
-	chksumStr := fmt.Sprintf(strings.Join([]string{v.Protocol, fmt.Sprint(v.Port), v.PortName, utils.Stringify(servers),
+	chksumStr := fmt.Sprintf(strings.Join([]string{v.Protocol, strconv.Itoa(int(v.Port)), v.PortName, utils.Stringify(servers),
 		utils.Stringify(v.LbAlgorithm), utils.Stringify(v.SSLProfileRef), utils.Stringify(v.ServerClientCert),
 		utils.Stringify(v.PkiProfile), utils.Stringify(v.PriorityLabel)}[:], delim))
 	checksum := utils.Hash(chksumStr)

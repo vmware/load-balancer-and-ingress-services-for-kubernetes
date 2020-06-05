@@ -1790,7 +1790,7 @@ func setVRFFromNetwork(client *clients.AviClient) bool {
 	}
 
 	if result.Count == 0 {
-		utils.AviLog.Warn("No networks found for networkName: %s", networkName)
+		utils.AviLog.Warnf("No networks found for networkName: %s", networkName)
 		return false
 	}
 
