@@ -137,7 +137,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						hostSlice = append(hostSlice, host)
 						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), IngressName: ingName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: hostSlice}}
 						poolNode.VrfContext = lib.GetVrf()
-						if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
+						if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 							poolNode.Servers = servers
 						}
 						poolNode.CalculateCheckSum()
@@ -435,7 +435,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), Tenant: lib.GetTenant()}
 			poolNode.VrfContext = lib.GetVrf()
 
-			if servers := PopulateServers(poolNode, namespace, path.ServiceName, key); servers != nil {
+			if servers := PopulateServers(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
 			}
 			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)

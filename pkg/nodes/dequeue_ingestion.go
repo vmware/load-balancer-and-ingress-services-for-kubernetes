@@ -47,6 +47,21 @@ func DequeueIngestion(key string, fullsync bool) {
 		// If it's an ingress related change, let's process that.
 		ingressNames, ingressFound = schema.GetParentIngresses(name, namespace, key)
 	}
+	if objType == utils.Service {
+		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
+		found, _ := objects.SharedlbLister().Get(namespace + "/" + name)
+		// This service is found in the LB list - this means it's a transition from LB to clusterIP or NodePort.
+		if found {
+			objects.SharedlbLister().Delete(namespace + "/" + name)
+			utils.AviLog.Infof("key: %s, msg: service transitioned from type loadbalancer to ClusterIP or NodePort, will delete model", name)
+			model_name := lib.GetModelName(lib.GetTenant(), lib.GetVrf()+"--"+namespace+"--"+name)
+			objects.SharedAviGraphLister().Save(model_name, nil)
+			if !fullsync {
+				bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
+				sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
+			}
+		}
+	}
 	if !ingressFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
@@ -56,9 +71,25 @@ func DequeueIngestion(key string, fullsync bool) {
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
 				model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+				// Save the LB service in memory
+				objects.SharedlbLister().Save(namespace+"/"+name, name)
 				ok := saveAviModel(model_name, aviModelGraph, key)
 				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 					PublishKeyToRestLayer(model_name, key, sharedQueue)
+				}
+				found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
+				if found {
+					// This is transition from clusterIP to service of type LB
+					objects.SharedClusterIpLister().Delete(namespace + "/" + name)
+				}
+				affectedIngs, _ := SvcToIng(name, namespace, key)
+				if lib.GetShardScheme() != lib.NAMESPACE_SHARD_SCHEME {
+					for _, ingress := range affectedIngs {
+						utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
+						HostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
+					}
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: transition from ClusterIP to service of type LB is not supported in namespace based shard", key)
 				}
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.

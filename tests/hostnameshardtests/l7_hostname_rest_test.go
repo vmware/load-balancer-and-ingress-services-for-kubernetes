@@ -267,7 +267,40 @@ func TestHostnameUpdatePoolCacheSync(t *testing.T) {
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.Not(gomega.Equal(oldPoolCksum)))
-
+	// If we transition the service from clusterIP to Loadbalancer - pools' servers should get deleted.
+	svcExample := (integrationtest.FakeService{
+		Name:         "avisvc",
+		Namespace:    "default",
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	svcExample.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services("default").Update(svcExample)
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	g.Eventually(func() []avinodes.AviPoolMetaServer {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		vs := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return vs[0].PoolRefs[0].Servers
+	}, 15*time.Second).Should(gomega.HaveLen(0))
+	// If we transition the service from Loadbalancer to clusterIP - pools' servers should get populated.
+	svcExample = (integrationtest.FakeService{
+		Name:         "avisvc",
+		Namespace:    "default",
+		Type:         corev1.ServiceTypeClusterIP,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	svcExample.ResourceVersion = "4"
+	_, err = KubeClient.CoreV1().Services("default").Update(svcExample)
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	g.Eventually(func() []avinodes.AviPoolMetaServer {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		vs := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return vs[0].PoolRefs[0].Servers
+	}, 15*time.Second).Should(gomega.HaveLen(2))
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 

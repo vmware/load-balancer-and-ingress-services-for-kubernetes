@@ -69,7 +69,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 
 			poolNode := &AviPoolNode{Name: poolName, IngressName: ingName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: storedHosts}}
 			poolNode.VrfContext = lib.GetVrf()
-			if servers := PopulateServers(poolNode, namespace, obj.ServiceName, key); servers != nil {
+			if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
 			}
 			poolNode.CalculateCheckSum()

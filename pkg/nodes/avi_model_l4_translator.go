@@ -21,6 +21,7 @@ import (
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
+	"ako/pkg/objects"
 
 	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
@@ -97,7 +98,7 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: lib.GetTenant(), Protocol: portProto.Protocol, PortName: portProto.Name}
 		poolNode.VrfContext = lib.GetVrf()
 
-		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, key); servers != nil {
+		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
 			poolNode.Servers = servers
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
@@ -117,8 +118,16 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 	}
 }
 
-func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, key string) []AviPoolMetaServer {
+func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
 	// Find the servers that match the port.
+	if ingress {
+		// If it's an ingress case, check if the service of type clusterIP or not.
+		found, _ := objects.SharedClusterIpLister().Get(ns + "/" + serviceName)
+		if !found {
+			utils.AviLog.Warnf("key: %s, msg: service pointed by the ingress object is not of type ClusterIP", key)
+			return nil
+		}
+	}
 	epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error while retrieving endpoints: %s", key, err)

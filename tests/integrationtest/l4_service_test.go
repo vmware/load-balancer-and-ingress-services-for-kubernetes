@@ -124,7 +124,41 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 		g.Expect(nodes[0].TCPPoolGroupRefs).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(1))
 	}
+	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
+	svcExample := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeClusterIP,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	svcExample.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(svcExample)
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("global--%s--%s", NAMESPACE, SINGLEPORTSVC)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		return found
+	}, 15*time.Second).Should(gomega.Equal(false))
+	// If we transition the service from clusterIP to Loadbalancer - vs should get ceated
+	svcExample = (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	svcExample.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(svcExample)
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
 
+	g.Eventually(func() bool {
+		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		return found
+	}, 15*time.Second).Should(gomega.Equal(true))
 	TearDownTestForSvcLB(t, g)
 }
 
