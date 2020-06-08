@@ -81,15 +81,15 @@ func DequeueIngestion(key string, fullsync bool) {
 				if found {
 					// This is transition from clusterIP to service of type LB
 					objects.SharedClusterIpLister().Delete(namespace + "/" + name)
-				}
-				affectedIngs, _ := SvcToIng(name, namespace, key)
-				if lib.GetShardScheme() != lib.NAMESPACE_SHARD_SCHEME {
-					for _, ingress := range affectedIngs {
-						utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
-						HostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
+					affectedIngs, _ := SvcToIng(name, namespace, key)
+					if lib.GetShardScheme() != lib.NAMESPACE_SHARD_SCHEME {
+						for _, ingress := range affectedIngs {
+							utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
+							HostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
+						}
+					} else {
+						utils.AviLog.Warnf("key: %s, msg: transition from ClusterIP to service of type LB is not supported in namespace based shard for ingress pool changes", key)
 					}
-				} else {
-					utils.AviLog.Warnf("key: %s, msg: transition from ClusterIP to service of type LB is not supported in namespace based shard", key)
 				}
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
