@@ -171,7 +171,7 @@ func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan str
 	// Set up the workers but don't start draining them.
 	c.SetupEventHandlers(informers)
 	if err != nil {
-		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKC. Error: %s", err)
+		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
 	} else {
 		// First boot sync
 		c.FullSyncK8s()
