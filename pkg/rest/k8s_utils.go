@@ -230,3 +230,24 @@ func UpdateL4LBStatus(vs_cache_obj *avicache.AviVsCache, svc_mdata_obj avicache.
 	utils.AviLog.Infof("key:%s, msg: Successfully updated the loadbalancer status: %v", key, utils.Stringify(response))
 	return nil
 }
+
+func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
+	mClient := utils.GetInformers().ClientSet
+	mLb, err := mClient.CoreV1().Services(svc_mdata_obj.Namespace).Get(svc_mdata_obj.ServiceName, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the service status :%s", key, err)
+		return err
+	}
+	mLb.Status = core.ServiceStatus{
+		LoadBalancer: core.LoadBalancerStatus{
+			Ingress: []core.LoadBalancerIngress{},
+		},
+	}
+	response, err := mClient.CoreV1().Services(svc_mdata_obj.Namespace).UpdateStatus(mLb)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
+		return err
+	}
+	utils.AviLog.Infof("key:%s, msg: Successfully reset the loadbalancer status: %v", key, utils.Stringify(response))
+	return nil
+}

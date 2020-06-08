@@ -414,6 +414,10 @@ func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op 
 				vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
 				vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
 				utils.AviLog.Debugf("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
+				// Reset the LB status field as well.
+				if vs_cache_obj.ServiceMetadataObj.ServiceName != "" && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
+					DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
+				}
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
 			}
 		}
