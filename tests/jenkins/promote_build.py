@@ -123,7 +123,7 @@ def _setup_logging():
 
 
 
-def _execute_shell_command(cmd_str_list, cwd=None, env=None, quiet=True):
+def _execute_shell_command(cmd_str_list, cwd=None, env=None, quiet=True, use_bash=True):
     """ Executes the shell command
     :param cmd_str_list: list of ansible-playbook command string, including extra options
     :param cwd: current working directory from where the playbook is to be executed
@@ -139,8 +139,13 @@ def _execute_shell_command(cmd_str_list, cwd=None, env=None, quiet=True):
     if env:
         kargs['env'] = env
 
-    logging.debug("Executing shell - {}".format(' '.join(cmd_str_list)))
-    p = subprocess.Popen(cmd_str_list, **kargs)
+
+    cmd_list = cmd_str_list
+    if use_bash:
+        cmd_list = ['bash'] + cmd_list
+
+    logging.debug("Executing shell - {}".format(' '.join(cmd_list)))
+    p = subprocess.Popen(cmd_list, **kargs)
     out, err = p.communicate()
     if out is not None:
         out = out.decode()
@@ -280,7 +285,7 @@ def _get_root_archival_location():
     if and only if it is not stale
     """
     cmd_string = "timeout 10s df -h {}".format(ROOT_FOLDER_BUILDS_ARCHIVAL)
-    out, err = _execute_shell_command(cmd_string.split())
+    out, err = _execute_shell_command(cmd_string.split(), use_bash=False)
     if err or not out:
         msg = "Could not stat Root archival folder {}".format(
                 ROOT_FOLDER_BUILDS_ARCHIVAL)
@@ -656,7 +661,7 @@ def _delete_tag(tag_name, ignore_errors=True):
     :return None
     """
     tag_local_delete = "git tag --delete {}".format(tag_name)
-    out_local, err_local = _execute_shell_command(tag_local_delete.split())
+    out_local, err_local = _execute_shell_command(tag_local_delete.split(), use_bash=False)
     if not err_local:
         logging.info("Deleted tag {} from local successfully".format(tag_name))
         tag_remote_delete = 'git push -f https://{}:{}@{} :refs/tags/{}'.format(
@@ -701,7 +706,7 @@ def _create_push_tag(tag_name, commit, message):
         raise Exception("To create annotated tags, message param cannot be empty or None")
 
     tag_local_create = 'git tag -a -f {} {} -m "{}"'.format(tag_name, commit, message)
-    out_local, err_local = _execute_shell_command(tag_local_create.split())
+    out_local, err_local = _execute_shell_command(tag_local_create.split(), use_bash=False)
 
     if not err_local:
         logging.debug("Tag {} against commit {} was successfully created locally".format(
