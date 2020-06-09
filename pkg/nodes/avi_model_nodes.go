@@ -419,14 +419,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, poolchecksum, sslkeyChecksum uint32
+	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		dsChecksum += ds.GetCheckSum()
-	}
-
-	for _, pool := range v.PoolRefs {
-		poolchecksum += pool.GetCheckSum()
 	}
 
 	for _, httppol := range v.HttpPolicyRefs {
@@ -443,7 +439,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 	for _, vsvipref := range v.VSVIPRefs {
 		vsvipref.CalculateCheckSum()
 	}
-	checksum := dsChecksum + httppolChecksum + sniChecksum + poolchecksum + utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) +
+	checksum := dsChecksum + httppolChecksum + sniChecksum + utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) +
 		utils.Hash(utils.Stringify(portproto)) + sslkeyChecksum
 
 	v.CloudConfigCksum = checksum
