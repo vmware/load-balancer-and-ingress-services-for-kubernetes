@@ -70,23 +70,33 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 	if oldNode.ResourceVersion == newNode.ResourceVersion {
 		return false
 	}
+	var oldaddr, newaddr string
 
 	oldAddrs := oldNode.Status.Addresses
 	newAddrs := newNode.Status.Addresses
 	if len(oldAddrs) != len(newAddrs) {
 		return true
 	}
-	if len(oldAddrs) == 1 && len(newAddrs) == 1 {
-		if oldAddrs[0].Address != newAddrs[0].Address {
-			return true
-		}
-		if oldAddrs[0].Type != newAddrs[0].Type {
-			return true
-		}
-		if oldNode.Spec.PodCIDR != newNode.Spec.PodCIDR {
-			return true
+
+	for _, addr := range oldAddrs {
+		if addr.Type == "InternalIP" {
+			oldaddr = addr.Address
+			break
 		}
 	}
+	for _, addr := range newAddrs {
+		if addr.Type == "InternalIP" {
+			newaddr = addr.Address
+			break
+		}
+	}
+	if oldaddr != newaddr {
+		return true
+	}
+	if oldNode.Spec.PodCIDR != newNode.Spec.PodCIDR {
+		return true
+	}
+
 	return false
 }
 
