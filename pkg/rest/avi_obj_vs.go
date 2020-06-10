@@ -420,6 +420,11 @@ func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op 
 				}
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
 			}
+
+			// SNI VS deletion related ingress status update
+			if len(vs_cache_obj.ServiceMetadataObj.HostNames) > 0 {
+				DeleteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
+			}
 		}
 	}
 	utils.AviLog.Infof("key: %s, msg: deleting vs cache for key: %s", key, vsKey)

@@ -767,6 +767,27 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
+func TestHostnameDeleteSecretSecureIngressStatusCheck(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/Shard-VS---cluster-0"
+	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 30*time.Second).Should(gomega.Equal(1))
+
+	// post this SNI VS should get deleted, and ingress status must be updated accordingly
+	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 30*time.Second).Should(gomega.Equal(0))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
 func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/Shard-VS---global-0"
