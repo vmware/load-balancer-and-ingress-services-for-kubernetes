@@ -26,7 +26,7 @@ deps:
 .PHONY: docker
 docker:
 ifndef BUILD_TAG
-	$(eval BUILD_TAG=$(shell ./tests/jenkins/get_build_version.sh "dummy" 0))
+	$(eval BUILD_TAG=$(shell ./hack/jenkins/get_build_version.sh "dummy" 0))
 endif
 
 ifndef BUILD_TIME
