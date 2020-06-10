@@ -57,10 +57,10 @@ SYMLINK_PATTERN = {
 FILE_LOCATION_BASE_BUILD_NUMBER = 'base_build_num'
 
 # File location of version file, relative to the GIT workspace
-FILE_LOCATION_BUILD_VERSION = 'tests/jenkins/get_build_version.sh'
+FILE_LOCATION_BUILD_VERSION = 'hack/jenkins/get_build_version.sh'
 
 # File location of version file, relative to the GIT workspace
-FILE_LOCATION_BRANCH_VERSION = 'tests/jenkins/get_branch_version.sh'
+FILE_LOCATION_BRANCH_VERSION = 'hack/jenkins/get_branch_version.sh'
 
 # File location of the builds_details.json file, relative to the branch's
 # builds archival location
