@@ -123,8 +123,8 @@ func RemoveString(s []string, r string) []string {
 }
 
 func (v *AviVsCache) AddToPGKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.PGKeyCollection == nil {
 		v.PGKeyCollection = []NamespaceName{k}
 	}
@@ -134,8 +134,8 @@ func (v *AviVsCache) AddToPGKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) RemoveFromPGKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.PGKeyCollection == nil {
 		return
 	}
@@ -143,8 +143,8 @@ func (v *AviVsCache) RemoveFromPGKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) AddToVSVipKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.VSVipKeyCollection == nil {
 		v.VSVipKeyCollection = []NamespaceName{k}
 	}
@@ -154,8 +154,8 @@ func (v *AviVsCache) AddToVSVipKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) RemoveFromVSVipKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.VSVipKeyCollection == nil {
 		return
 	}
@@ -163,8 +163,8 @@ func (v *AviVsCache) RemoveFromVSVipKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) AddToPoolKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 
 	if v.PoolKeyCollection == nil {
 		v.PoolKeyCollection = []NamespaceName{k}
@@ -176,8 +176,8 @@ func (v *AviVsCache) AddToPoolKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) RemoveFromPoolKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.PoolKeyCollection == nil {
 		return
 	}
@@ -185,8 +185,8 @@ func (v *AviVsCache) RemoveFromPoolKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) AddToDSKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.DSKeyCollection == nil {
 		v.DSKeyCollection = []NamespaceName{k}
 	}
@@ -196,8 +196,8 @@ func (v *AviVsCache) AddToDSKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) RemoveFromDSKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.DSKeyCollection == nil {
 		return
 	}
@@ -205,8 +205,8 @@ func (v *AviVsCache) RemoveFromDSKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) AddToHTTPKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.HTTPKeyCollection == nil {
 		v.HTTPKeyCollection = []NamespaceName{k}
 	}
@@ -216,8 +216,8 @@ func (v *AviVsCache) AddToHTTPKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) RemoveFromHTTPKeyCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.HTTPKeyCollection == nil {
 		return
 	}
@@ -225,8 +225,8 @@ func (v *AviVsCache) RemoveFromHTTPKeyCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) AddToSSLKeyCertCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.SSLKeyCertCollection == nil {
 		v.SSLKeyCertCollection = []NamespaceName{k}
 	}
@@ -236,8 +236,8 @@ func (v *AviVsCache) AddToSSLKeyCertCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) RemoveFromSSLKeyCertCollection(k NamespaceName) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.SSLKeyCertCollection == nil {
 		return
 	}
@@ -245,8 +245,8 @@ func (v *AviVsCache) RemoveFromSSLKeyCertCollection(k NamespaceName) {
 }
 
 func (v *AviVsCache) AddToSNIChildCollection(k string) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.SNIChildCollection == nil {
 		v.SNIChildCollection = []string{k}
 	}
@@ -256,14 +256,14 @@ func (v *AviVsCache) AddToSNIChildCollection(k string) {
 }
 
 func (v *AviVsCache) ReplaceSNIChildCollection(k []string) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	v.SNIChildCollection = k
 }
 
 func (v *AviVsCache) RemoveFromSNIChildCollection(k string) {
-	v.VSCacheLock.Lock()
-	defer v.VSCacheLock.Unlock()
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
 	if v.SNIChildCollection == nil {
 		return
 	}

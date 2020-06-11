@@ -53,19 +53,6 @@ func (rest *RestOperations) CleanupVS(key string) {
 func (rest *RestOperations) DeQueueNodes(key string) {
 	utils.AviLog.Debugf("key: %s, msg: start rest layer sync.", key)
 	namespace, name := utils.ExtractNamespaceObjectName(key)
-	// Let's check if this key is for full sync or partial sync. If it's for full sync, then we additionally populate the cache
-	// values as well.
-	if strings.Contains(name, "@") {
-		// The actual model name
-		nameToken := strings.Split(name, "@")
-		name = nameToken[0]
-		vsCacheKey := avicache.NamespaceName{Namespace: namespace, Name: name}
-		if nameToken[1] == "fullsync" {
-			rest.CopyMetaVsToVsCache(vsCacheKey, key)
-		}
-		// change the key to not have the fullsync string
-		key = strings.Split(key, "@")[0]
-	}
 	// Got the key from the Graph Layer - let's fetch the model
 	ok, avimodelIntf := objects.SharedAviGraphLister().Get(key)
 	if !ok {
@@ -183,7 +170,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	}
 	if vs_cache_obj != nil {
 		for _, sni_uuid := range vs_cache_obj.SNIChildCollection {
-			sni_vs_key, ok := rest.cache.VsCache.AviCacheGetKeyByUuid(sni_uuid)
+			sni_vs_key, ok := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sni_uuid)
 			if ok {
 				sni_to_delete = append(sni_to_delete, sni_vs_key.(avicache.NamespaceName))
 			} else {
@@ -226,7 +213,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 }
 
 func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key string) *avicache.AviVsCache {
-	vs_cache, found := rest.cache.VsCache.AviCacheGet(vsKey)
+	vs_cache, found := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	if found {
 		vs_cache_obj, ok := vs_cache.(*avicache.AviVsCache)
 		if !ok {
@@ -239,97 +226,6 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 	return nil
 }
 
-func (rest *RestOperations) CopyMetaVsToVsCache(vsKey avicache.NamespaceName, key string) {
-	// TODO (sudswas): If we want to support full sync with VS cache refresh, uncomment the code below.
-	// shardSize := lib.GetshardSize()
-	// aviObjCache := avicache.SharedAviObjCache()
-	// if shardSize != 0 {
-	// 	bkt := utils.Bkt(key, shardSize)
-	// 	utils.AviLog.Debugf("key: %s, msg: processing in rest queue number: %v", key, bkt)
-	// 	if len(rest.aviRestPoolClient.AviClient) > 0 {
-	// 		aviclient := rest.aviRestPoolClient.AviClient[bkt]
-	// 		aviObjCache.AviObjOneVSCachePopulate(aviclient, utils.CloudName, vsKey.Name)
-	// 	}
-	// }
-	vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
-	if !ok {
-		// The vsmeta does not have the cache, remove it from the vscache as well.
-		// However, we need to fetch the sni children of this vsKey and clear it from the cache as well.
-		// Fetch the cache to be deleted.
-		vsObjFromCache := rest.getVsCacheObj(vsKey, key)
-		// Get the SNI children keys
-		if vsObjFromCache != nil {
-			for _, sni_uuid := range vsObjFromCache.SNIChildCollection {
-				sniVsKey, ok := rest.cache.VsCache.AviCacheGetKeyByUuid(sni_uuid)
-				if ok {
-					// Remove the SNI children cache
-					rest.cache.VsCache.AviCacheDelete(sniVsKey)
-				}
-			}
-			// Now remove the parent VS.
-			rest.cache.VsCache.AviCacheDelete(vsKey)
-		}
-		return
-	} else {
-		// In this case, just replace the object in the vsCache with the object in VsMeta if lastModified fields are different.
-		// Obtain the cache entry from vsCache
-		vsObjFromCache := rest.getVsCacheObj(vsKey, key)
-		if vsObjFromCache != nil {
-			// Get the SNI children from the metaobject and the actual cache object. Those which are new should get added.
-			// Those which are old should get updated.
-			// Those which are stale should get deleted.
-			oldSniUuids := make([]string, len(vsObjFromCache.SNIChildCollection))
-			copy(oldSniUuids, vsObjFromCache.SNIChildCollection)
-			for _, sniUuid := range vsObjMeta.(*avicache.AviVsCache).SNIChildCollection {
-				sniVsKey, sniOk := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sniUuid)
-				if sniOk {
-					// Obtain the sniVsCache Object from MetaObject
-					sniObjMeta, sniFound := rest.cache.VsCacheMeta.AviCacheGet(sniVsKey)
-					if sniFound {
-						// Update the new cache
-						sniCopy, done := sniObjMeta.(*avicache.AviVsCache).GetVSCopy()
-						if done {
-							rest.cache.VsCache.AviCacheAdd(sniVsKey, sniCopy)
-							oldSniUuids = utils.Remove(oldSniUuids, sniUuid)
-						}
-					}
-				}
-			}
-			// Whatever is left in the oldSniUuids - remove them from the vs cache.
-			for _, staleSniUuids := range oldSniUuids {
-				staleSniVsKey, staleSniOk := rest.cache.VsCache.AviCacheGetKeyByUuid(staleSniUuids)
-				if staleSniOk {
-					rest.cache.VsCache.AviCacheDelete(staleSniVsKey)
-				}
-			}
-			vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
-			if done {
-				rest.cache.VsCache.AviCacheAdd(vsKey, vsCopy)
-			}
-		} else {
-			// Build the SNI cache associated with the VS.
-			for _, sniUuid := range vsObjMeta.(*avicache.AviVsCache).SNIChildCollection {
-				sniVsKey, sniOk := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sniUuid)
-				if sniOk {
-					// Obtain the sniVsCache Object from MetaObject
-					sniObjMeta, sniFound := rest.cache.VsCacheMeta.AviCacheGet(sniVsKey)
-					if sniFound {
-						// Update the new cache.
-						sniCopy, done := sniObjMeta.(*avicache.AviVsCache).GetVSCopy()
-						if done {
-							rest.cache.VsCache.AviCacheAdd(sniVsKey, sniCopy)
-						}
-					}
-				}
-			}
-			vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
-			if done {
-				rest.cache.VsCache.AviCacheAdd(vsKey, vsCopy)
-			}
-		}
-	}
-}
-
 func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string) bool {
 	var rest_ops []*utils.RestOp
 	sni_vs_keys := make([]string, len(vs_cache_obj.SNIChildCollection))
@@ -337,7 +233,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 	if vs_cache_obj != nil {
 		// VS delete should delete everything together.
 		for _, sni_uuid := range sni_vs_keys {
-			sniVsKey, ok := rest.cache.VsCache.AviCacheGetKeyByUuid(sni_uuid)
+			sniVsKey, ok := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sni_uuid)
 			if ok {
 				delSNI := sniVsKey.(avicache.NamespaceName)
 				rest.SNINodeDelete(delSNI, namespace, rest_ops, key)
@@ -406,8 +302,10 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 									utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
 									continue
 								}
+								var toBeRetried bool
 								retry = true
-								fastRetry = fastRetry || rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key)
+								retry, toBeRetried = rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key)
+								fastRetry = fastRetry || toBeRetried
 							} else {
 								utils.AviLog.Warnf("key: %s, msg: retry count exhausted, skipping", key)
 							}
@@ -503,11 +401,12 @@ func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, c *client
 	}
 }
 
-func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObjKey avicache.NamespaceName, rest_op *utils.RestOp, aviError session.AviError, c *clients.AviClient, avimodel *nodes.AviObjectGraph, key string) bool {
+func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObjKey avicache.NamespaceName, rest_op *utils.RestOp, aviError session.AviError, c *clients.AviClient, avimodel *nodes.AviObjectGraph, key string) (bool, bool) {
 
 	var fastRetry bool
 	statuscode := aviError.HttpStatusCode
 	errorStr := aviError.Error()
+	retry := true
 	utils.AviLog.Warnf("key: %s, msg: problem in processing request for: %s", key, rest_op.Model)
 	utils.AviLog.Infof("key: %s, msg: error str: %s", key, errorStr)
 	aviObjCache := avicache.SharedAviObjCache()
@@ -623,10 +522,11 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				rest_op.ObjName = VSDataScriptSet
 				rest.AviDSCacheDel(rest_op, aviObjKey, key)
 			}
-		}
-		// TODO (sudswas): if error code 400 happens, it means layer 2's model has issue - can re-trigger a model eval in that case?
-		// If it's 409 it refers to a conflict. That means the cache should be refreshed for the particular object.
-		if statuscode == 409 {
+		} else if statuscode == 409 {
+
+			// TODO (sudswas): if error code 400 happens, it means layer 2's model has issue - can re-trigger a model eval in that case?
+			// If it's 409 it refers to a conflict. That means the cache should be refreshed for the particular object.
+
 			utils.AviLog.Infof("key: %s, msg: Confict for object: %s of type :%s", key, rest_op.ObjName, rest_op.Model)
 			switch rest_op.Model {
 			case "Pool":
@@ -679,11 +579,11 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
 				if !ok {
 					// Object deleted
-					utils.AviLog.Warnf("key: %s, msg: VS object already deleted during retry")
+					utils.AviLog.Warnf("key: %s, msg: VS object already deleted during retry", key)
 				} else {
 					vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
 					if done {
-						rest.cache.VsCache.AviCacheAdd(aviObjKey, vsCopy)
+						rest.cache.VsCacheMeta.AviCacheAdd(aviObjKey, vsCopy)
 					}
 				}
 			case "VSDataScriptSet":
@@ -696,10 +596,14 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				}
 				aviObjCache.AviPopulateOneVsDSCache(c, utils.CloudName, VSDataScriptSet)
 			}
+		} else {
+			// We don't want to handle any other error code like 400 etc.
+			utils.AviLog.Infof("key: %s, msg: Detected an error code that we don't support, not going to retry", statuscode)
+			retry = false
 		}
 	}
 
-	return fastRetry
+	return retry, fastRetry
 }
 
 //Candidate for container-lib
@@ -853,7 +757,7 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 					}
 					vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
 					if done {
-						rest.cache.VsCache.AviCacheAdd(sni_key, vsCopy)
+						rest.cache.VsCacheMeta.AviCacheAdd(sni_key, vsCopy)
 					}
 				}
 				// Retry
