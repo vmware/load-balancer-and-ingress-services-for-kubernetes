@@ -11,6 +11,7 @@ data:
   shardVSPrefix: {{ .Values.configs.shardVSPrefix | quote }}
   fullSyncFrequency: {{ .Values.configs.fullSyncFrequency | quote }}
   cloudName: {{ .Values.configs.cloudName | quote }}
+  clusterName: {{ .Values.configs.clusterName | quote }}
   defaultDomain: {{ .Values.configs.defaultDomain | quote }}
   disableStaticRouteSync: {{ .Values.configs.disableStaticRouteSync | quote }}
   ingressApi: {{ .Values.configs.ingressApi | quote }}

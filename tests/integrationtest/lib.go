@@ -50,8 +50,8 @@ const (
 	MULTIPORTSVC    = "testsvcmulti"                       // multi port service name
 	NAMESPACE       = "red-ns"                             // namespace
 	AVINAMESPACE    = "admin"                              // avi namespace
-	SINGLEPORTMODEL = "admin/global--red-ns--testsvc"      // single port model name
-	MULTIPORTMODEL  = "admin/global--red-ns--testsvcmulti" // multi port model name
+	SINGLEPORTMODEL = "admin/cluster--red-ns-testsvc"      // single port model name
+	MULTIPORTMODEL  = "admin/cluster--red-ns-testsvcmulti" // multi port model name
 	RANDOMUUID      = "random-uuid"                        // random avi object uuid
 )
 
@@ -658,13 +658,13 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 			// handle sni child, fill in vs parent ref
 			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
 				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
-				shardVSNum = strings.Split(parentVSName, "global-")[1]
+				shardVSNum = strings.Split(parentVSName, "cluster-")[1]
 
 				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 
 			} else if strings.Contains(rName, "Shard-VS") {
-				shardVSNum = strings.Split(rName, "global-")[1]
+				shardVSNum = strings.Split(rName, "cluster-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else {
 				vipAddress = "10.250.250.250"

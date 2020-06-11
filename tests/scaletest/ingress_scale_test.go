@@ -38,6 +38,9 @@ import (
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("NETWORK_NAME", "net123")
+	os.Setenv("CLUSTER_NAME", "cluster")
+	os.Setenv("CLOUD_NAME", "Default-Cloud")
+	os.Setenv("SHARD_VS_PREFIX", "Shard-VS---cluster-")
 	KubeClient = k8sfake.NewSimpleClientset()
 
 	registeredInformers := []string{
@@ -84,7 +87,6 @@ func AddConfigMap() {
 
 func SetUpHostnameShardTestforIngress(t *testing.T, ns string) {
 	os.Setenv("L7_SHARD_SCHEME", "hostname")
-	os.Setenv("VRF_CONTEXT", "global")
 	os.Setenv("USE_PVC", "true")
 	integrationtest.CreateSVC(t, ns, "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, ns, "avisvc", false, false, "1.1.1")
@@ -233,7 +235,7 @@ func generatePoolData(t *testing.T, ns string, count int, hostSuffix, ingrSuffix
 	for i := 0; i < count; i++ {
 		host := fmt.Sprintf("%d-%s", i, hostSuffix)
 		ingrname := fmt.Sprintf("%d-%s", i, ingrSuffix)
-		poolname := "global--" + host + strings.Replace(path, "/", "_", 1) + "--" + ns + "--" + ingrname
+		poolname := "cluster--" + host + strings.Replace(path, "/", "_", 1) + "-" + ns + "-" + ingrname
 		priority := host + path
 		pooldata[poolname] = poolData{
 			ingressName: ingrname,
@@ -275,7 +277,7 @@ func generatePoolDataMultiPath(t *testing.T, ns string, count, pathCount int, ho
 		ingrname := fmt.Sprintf("%d-%s", i, ingrSuffix)
 		ingrdata[ingrname] = ingrData{ingressName: ingrname, hosts: []string{host}}
 		for _, path := range paths {
-			poolname := "global--" + host + strings.Replace(path, "/", "_", 1) + "--" + ns + "--" + ingrname
+			poolname := "cluster--" + host + strings.Replace(path, "/", "_", 1) + "-" + ns + "-" + ingrname
 			priority := host + path
 			pooldata[poolname] = poolData{
 				ingressName: ingrname,
@@ -316,7 +318,7 @@ func generatePoolDataMultiHost(t *testing.T, ns string, count, hostCount int, ho
 			host := fmt.Sprintf("%s-%d", baseHost, j)
 			hosts = append(hosts, host)
 			paths = append(paths, path)
-			poolname := "global--" + host + strings.Replace(path, "/", "_", 1) + "--" + ns + "--" + ingrname
+			poolname := "cluster--" + host + strings.Replace(path, "/", "_", 1) + "-" + ns + "-" + ingrname
 			priority := host + path
 			pooldata[poolname] = poolData{
 				ingressName: ingrname,
@@ -816,7 +818,7 @@ func nIngressCreateTestHostnameShard(t *testing.T, count, timeout int) {
 		host := ingr.hosts[0]
 		path := ingr.paths[0]
 		modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-		poolname := "global--" + host + strings.Replace(path, "/", "_", 1) + "--" + ns + "--" + ingrname
+		poolname := "cluster--" + host + strings.Replace(path, "/", "_", 1) + "-" + ns + "-" + ingrname
 		if modelToPools[modelname] == nil {
 			modelToPools[modelname] = make(map[string]poolData)
 		}
@@ -845,7 +847,7 @@ func nIngressUpdateTestHostnameShard(t *testing.T, count, timeout, retry int) {
 		host := ingr.hosts[0]
 		path := ingr.paths[0]
 		modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-		poolname := "global--" + host + strings.Replace(path, "/", "_", 1) + "--" + ns + "--" + ingrname
+		poolname := "cluster--" + host + strings.Replace(path, "/", "_", 1) + "-" + ns + "-" + ingrname
 		if modelToPools[modelname] == nil {
 			modelToPools[modelname] = make(map[string]poolData)
 		}
@@ -873,7 +875,7 @@ func nIngressMultihostHostnameShardCreateTest(t *testing.T, ingrCount, hostCount
 			host := ingr.hosts[i]
 			path := ingr.paths[i]
 			modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-			poolname := "global--" + host + strings.Replace(path, "/", "_", 1) + "--" + ns + "--" + ingrname
+			poolname := "cluster--" + host + strings.Replace(path, "/", "_", 1) + "-" + ns + "-" + ingrname
 			if modelToPools[modelname] == nil {
 				modelToPools[modelname] = make(map[string]poolData)
 			}
@@ -905,7 +907,7 @@ func nIngressMultihostHostnameShardUpdateTest(t *testing.T, ingrCount, hostCount
 			host := ingr.hosts[i]
 			path := ingr.paths[i]
 			modelname := "admin/" + avinodes.DeriveHostNameShardVS(host, "test")
-			poolname := "global--" + host + strings.Replace(path, "/", "_", 1) + "--" + ns + "--" + ingrname
+			poolname := "cluster--" + host + strings.Replace(path, "/", "_", 1) + "-" + ns + "-" + ingrname
 			if modelToPools[modelname] == nil {
 				modelToPools[modelname] = make(map[string]poolData)
 			}

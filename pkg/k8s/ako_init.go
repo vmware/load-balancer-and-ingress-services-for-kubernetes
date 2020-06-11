@@ -310,8 +310,8 @@ func (c *AviController) FullSyncK8s() {
 						nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 					}
 				}
-				// For namespace based syncs, the L4 VSes would be named: vrfName + "--" + namespace
-				if strings.HasPrefix(vsCacheKey.Name, lib.GetVrf()+"--"+lib.GetNamespaceToSync()) {
+				// For namespace based syncs, the L4 VSes would be named: clusterName + "--" + namespace
+				if strings.HasPrefix(vsCacheKey.Name, lib.GetClusterName()+"--"+lib.GetNamespaceToSync()) {
 					modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 					if utils.HasElem(allModels, modelName) {
 						allModels = utils.Remove(allModels, modelName)

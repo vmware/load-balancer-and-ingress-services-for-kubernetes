@@ -57,70 +57,70 @@ func GetModelName(namespace, objectName string) string {
 
 // All L4 object names.
 func GetL4VSName(svcName, namespace string) string {
-	return GetVrf() + "--" + namespace + "--" + svcName
+	return GetClusterName() + "--" + namespace + "-" + svcName
 }
 
 func GetL4VSVipName(svcName, namespace string) string {
-	return GetVrf() + "--" + namespace + "--" + svcName
+	return GetClusterName() + "--" + namespace + "-" + svcName
 }
 
 func GetL4PoolName(vsName string, port int32) string {
-	return vsName + "--" + strconv.Itoa(int(port))
+	return vsName + "-" + strconv.Itoa(int(port))
 }
 
 func GetL4PGName(vsName string, port int32) string {
-	return vsName + "--" + strconv.Itoa(int(port))
+	return vsName + "-" + strconv.Itoa(int(port))
 }
 
 // All L7 object names.
 func GetVsVipName(vsName string) string {
-	return GetVrf() + "--" + vsName
+	return GetClusterName() + "--" + vsName
 }
 
 func GetL7InsecureDSName(vsName string) string {
-	return GetVrf() + "--" + vsName
+	return GetClusterName() + "--" + vsName
 }
 
 func GetL7SharedPGName(vsName string) string {
-	return GetVrf() + "--" + vsName
+	return GetClusterName() + "--" + vsName
 }
 
 func GetL7PoolName(priorityLabel, namespace, ingName string) string {
 	priorityLabel = strings.Replace(priorityLabel, "/", "_", 1)
-	return GetVrf() + "--" + priorityLabel + "--" + namespace + "--" + ingName
+	return GetClusterName() + "--" + priorityLabel + "-" + namespace + "-" + ingName
 }
 
 func GetL7HttpRedirPolicy(vsName string) string {
-	return GetVrf() + "--" + vsName
+	return GetClusterName() + "--" + vsName
 }
 
 func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) string {
 	if len(sniHostName) > 0 {
-		return GetVrf() + "--" + sniHostName[0]
+		return GetClusterName() + "--" + sniHostName[0]
 	}
-	return GetVrf() + "--" + ingName + "--" + namespace + "--" + secret
+	return GetClusterName() + "--" + ingName + "-" + namespace + "-" + secret
 }
 
 func GetSniPoolName(ingName, namespace, host, path string) string {
 	path = strings.Replace(path, "/", "_", 1)
-	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
+	return GetClusterName() + "--" + namespace + "-" + host + path + "-" + ingName
 }
 
 func GetSniHttpPolName(ingName, namespace, host, path string) string {
 	path = strings.Replace(path, "/", "_", 1)
-	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
+	return GetClusterName() + "--" + namespace + "-" + host + path + "-" + ingName
 }
 
 func GetSniPGName(ingName, namespace, host, path string) string {
 	path = strings.Replace(path, "/", "_", 1)
-	return GetVrf() + "--" + namespace + "--" + host + path + "--" + ingName
+	return GetClusterName() + "--" + namespace + "-" + host + path + "-" + ingName
 }
 
 func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) string {
 	if len(sniHostName) > 0 {
-		return GetVrf() + "--" + sniHostName[0]
+		return GetClusterName() + "--" + sniHostName[0]
 	}
-	return GetVrf() + "--" + namespace + "--" + secret
+	return GetClusterName() + "--" + namespace + "-" + secret
 }
 
 var VRFContext string
@@ -220,6 +220,14 @@ func GetDomain() string {
 	subDomain := os.Getenv(DEFAULT_DOMAIN)
 	if subDomain != "" {
 		return subDomain
+	}
+	return ""
+}
+
+func GetClusterName() string {
+	clusterName := os.Getenv(CLUSTER_NAME)
+	if clusterName != "" {
+		return clusterName
 	}
 	return ""
 }

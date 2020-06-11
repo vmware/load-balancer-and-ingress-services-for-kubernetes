@@ -85,6 +85,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: cloudName
+          - name: CLUSTER_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: clusterName
           - name: DEFAULT_DOMAIN
             valueFrom:
               configMapKeyRef:
