@@ -139,7 +139,7 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.PgCache.AviCacheAdd(k, &pg_cache_obj)
 		// Update the VS object
-		vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
@@ -148,7 +148,7 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 			}
 
 		} else {
-			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPGKeyCollection(k)
 			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during poolgroup update %v val %v\n", key, vsKey,
 				vs_cache_obj))
@@ -163,7 +163,7 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 func (rest *RestOperations) AviPGCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	pgKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	rest.cache.PgCache.AviCacheDelete(pgKey)
-	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+	vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {

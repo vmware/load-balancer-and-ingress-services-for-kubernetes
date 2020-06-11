@@ -29,7 +29,6 @@ import (
 	"ako/pkg/retry"
 
 	"github.com/avinetworks/container-lib/utils"
-	"github.com/avinetworks/sdk/go/clients"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -43,6 +42,7 @@ func PopulateCache() {
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
+		avicache.SetVRFFromNetwork(avi_rest_client_pool.AviClient[0])
 		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
 			utils.CtrlVersion, utils.CloudName)
 	}
@@ -63,21 +63,12 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 	firstboot := true
 
-	var client *clients.AviClient
-	avi_rest_client_pool := avicache.SharedAVIClients()
-	if len(avi_rest_client_pool.AviClient) > 0 {
-		client = avi_rest_client_pool.AviClient[0]
-	}
-
-	// sets VRF to be used based on networkName
-	avicache.ValidateUserInput(client)
-
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if cm, ok := validateAviConfigMap(obj); ok {
 				utils.AviLog.Infof("avi k8s configmap created")
 				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
-				c.DisableSync = !avicache.ValidateUserInput(client)
+				c.DisableSync = !avicache.ValidateUserInput()
 				if !firstboot {
 					ctrlCh <- struct{}{}
 				}

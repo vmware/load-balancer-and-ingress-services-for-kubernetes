@@ -96,7 +96,7 @@ func TestCreateIngressCacheSync(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-6"}
-	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
 	}
@@ -173,12 +173,12 @@ func TestCreateIngressWithFaultCacheSync(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-6"}
 	g.Eventually(func() int {
-		vsCache, _ := mcache.VsCache.AviCacheGet(vsKey)
+		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
 		return len(vsCacheObj.PoolKeyCollection)
 	}, 5*time.Second).Should(gomega.Equal(1))
 
-	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
 	}
@@ -295,24 +295,24 @@ func TestCreateSNICacheSync(t *testing.T) {
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo-with-targets-default-my-secret"}
 
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(sniVSKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		return found
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
-		parentCache, found := mcache.VsCache.AviCacheGet(parentVSKey)
+		parentCache, found := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 		parentCacheObj, ok := parentCache.(*cache.AviVsCache)
 		if found && ok && len(parentCacheObj.SNIChildCollection) == 1 {
 			return true
 		}
 		return false
 	}, 30*time.Second).Should(gomega.Equal(true))
-	parentCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+	parentCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 	parentCacheObj, _ := parentCache.(*cache.AviVsCache)
 	g.Expect(parentCacheObj.SNIChildCollection[0]).To(gomega.ContainSubstring("cluster--foo-with-targets-default-my-secret"))
 	g.Expect(parentCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 
-	sniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	sniCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.ContainSubstring("cluster--default-my-secret"))
@@ -333,10 +333,10 @@ func TestUpdateSNICacheSync(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo-with-targets-default-my-secret"}
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(sniVSKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(true))
-	oldSniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	oldSniCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	oldSniCacheObj, _ := oldSniCache.(*cache.AviVsCache)
 
 	ingressUpdate := (FakeIngress{
@@ -370,14 +370,14 @@ func TestUpdateSNICacheSync(t *testing.T) {
 
 	// verify same vs cksum
 	g.Eventually(func() string {
-		sniVSCache, found := mcache.VsCache.AviCacheGet(sniVSKey)
+		sniVSCache, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		sniVSCacheObj, ok := sniVSCache.(*cache.AviVsCache)
 		if found && ok {
 			return sniVSCacheObj.CloudConfigCksum
 		}
 		return "456def"
 	}, 15*time.Second).Should(gomega.Equal(oldSniCacheObj.CloudConfigCksum))
-	sniVSCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	sniVSCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
 	g.Expect(sniVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
@@ -414,8 +414,8 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo-with-targets-default-my-secret"}
 	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo-with-targets-default-my-secret-v2"}
 	g.Eventually(func() bool {
-		_, found1 := mcache.VsCache.AviCacheGet(sniVSKey1)
-		_, found2 := mcache.VsCache.AviCacheGet(sniVSKey2)
+		_, found1 := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
+		_, found2 := mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
 		if found1 && found2 {
 			return true
 		}
@@ -423,13 +423,13 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	}, 15*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() int {
-		sniCache1, _ := mcache.VsCache.AviCacheGet(sniVSKey1)
+		sniCache1, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
 		return len(sniCacheObj1.SSLKeyCertCollection)
 	}, 30*time.Second).Should(gomega.Equal(1))
 
 	g.Eventually(func() string {
-		sniCache2, _ := mcache.VsCache.AviCacheGet(sniVSKey2)
+		sniCache2, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
 		sniCacheObj2, _ := sniCache2.(*cache.AviVsCache)
 		if len(sniCacheObj2.SSLKeyCertCollection) > 0 {
 			return sniCacheObj2.SSLKeyCertCollection[0].Name
@@ -473,16 +473,16 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo-with-targets-default-my-secret-v2"}
 
 	g.Eventually(func() int {
-		sniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+		sniCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 		sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 		return len(sniCacheObj.PoolKeyCollection)
 	}, 30*time.Second).Should(gomega.Equal(1))
-	sniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+	sniCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 	sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("xyz.com"))
 
 	g.Eventually(func() bool {
-		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey1)
+		sniCache, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
 		if found && ok &&
 			len(sniCacheObj.PoolKeyCollection) == 1 &&
@@ -491,13 +491,13 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		}
 		return false
 	}, 15*time.Second).Should(gomega.Equal(true))
-	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey1)
+	sniCache, _ = mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("cluster--default-my-secret"))
 
 	g.Eventually(func() bool {
-		sniCache, found := mcache.VsCache.AviCacheGet(sniVSKey2)
+		sniCache, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
 		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
 		if found && ok {
 			if len(sniCacheObj.PoolKeyCollection) == 1 && len(sniCacheObj.SSLKeyCertCollection) == 1 {
@@ -506,7 +506,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		}
 		return false
 	}, 25*time.Second).Should(gomega.Equal(true))
-	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey2)
+	sniCache, _ = mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("bar.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
@@ -532,18 +532,18 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	}
 
 	g.Eventually(func() int {
-		sniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+		sniCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 		sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 		return len(sniCacheObj.PoolKeyCollection)
 	}, 30*time.Second).Should(gomega.Equal(2))
 
 	// should not be found
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(sniVSKey2)
+		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
 		return found
 	}, 30*time.Second).Should(gomega.Equal(false))
 
-	sniCache, _ = mcache.VsCache.AviCacheGet(sniVSKey1)
+	sniCache, _ = mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
@@ -553,7 +553,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
 	KubeClient.CoreV1().Secrets("default").Delete("my-secret", nil)
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(sniVSKey1)
+		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(false))
 	TearDownTestForIngress(t, modelName)
@@ -586,12 +586,12 @@ func TestDeleteSNICacheSync(t *testing.T) {
 	// verify that sni vs is deleted, but the parent vs is not
 	// deleted snivs key should be deleted from parent vs snichildcollection
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(sniVSKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(false))
 
 	g.Eventually(func() bool {
-		parentSniCache, _ := mcache.VsCache.AviCacheGet(parentVSKey)
+		parentSniCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 		parentSniCacheObj, _ := parentSniCache.(*cache.AviVsCache)
 		if len(parentSniCacheObj.SNIChildCollection) != 0 {
 			return false
@@ -629,7 +629,7 @@ func TestCUDSecretCacheSync(t *testing.T) {
 		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(true))
-	sniVSCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	sniVSCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
 	g.Expect(sniVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 
@@ -654,7 +654,7 @@ func TestCUDSecretCacheSync(t *testing.T) {
 		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
-	_, found := mcache.VsCache.AviCacheGet(sniVSKey)
+	_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	g.Expect(found).To(gomega.Equal(false))
 
 	TearDownIngressForCacheSyncCheck(t, modelName, g)
@@ -669,7 +669,7 @@ func TestIngressStatusCheck(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-6"}
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(true))
 

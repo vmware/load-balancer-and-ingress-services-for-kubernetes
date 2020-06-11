@@ -93,7 +93,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 		rest.cache.SSLKeyCache.AviCacheAdd(k, &ssl_cache_obj)
 		// Update the VS object
 		if vsKey != (avicache.NamespaceName{}) {
-			vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+			vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 			if ok {
 				vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 				if found {
@@ -103,7 +103,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 				}
 
 			} else {
-				vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 				vs_cache_obj.AddToSSLKeyCertCollection(k)
 				utils.AviLog.Info(spew.Sprintf("Added VS cache key during SSLKeyCert update %v val %v\n", vsKey,
 					vs_cache_obj))
@@ -120,7 +120,7 @@ func (rest *RestOperations) AviSSLCacheDel(rest_op *utils.RestOp, vsKey avicache
 	sslkey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	rest.cache.SSLKeyCache.AviCacheDelete(sslkey)
 	if vsKey != (avicache.NamespaceName{}) {
-		vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {

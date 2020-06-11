@@ -159,7 +159,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.PoolCache.AviCacheAdd(k, &pool_cache_obj)
 		// Update the VS object
-		vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
@@ -170,7 +170,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				}
 			}
 		} else {
-			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPoolKeyCollection(k)
 			utils.AviLog.Debug(spew.Sprintf("key: %s, msg: added VS cache key during pool update %v val %v\n", key, vsKey,
 				vs_cache_obj))
@@ -185,7 +185,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	// Delete the pool from the vs cache as well.
 	poolKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
-	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+	vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	isSNI := false
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)

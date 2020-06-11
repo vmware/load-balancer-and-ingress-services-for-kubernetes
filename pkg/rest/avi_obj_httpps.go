@@ -216,7 +216,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.HTTPPolicyCache.AviCacheAdd(k, &http_cache_obj)
-		vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
@@ -225,7 +225,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 			}
 
 		} else {
-			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToHTTPKeyCollection(k)
 			utils.AviLog.Debug(spew.Sprintf("Added VS cache key during http policy update %v val %v\n", vsKey,
 				vs_cache_obj))
@@ -240,7 +240,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 func (rest *RestOperations) AviHTTPPolicyCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	httpkey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	rest.cache.HTTPPolicyCache.AviCacheDelete(httpkey)
-	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+	vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
