@@ -32,7 +32,6 @@ import (
 )
 
 type AviObjCache struct {
-	VsCache         *AviCache
 	PgCache         *AviCache
 	DSCache         *AviCache
 	PoolCache       *AviCache
@@ -49,7 +48,6 @@ func NewAviObjCache() *AviObjCache {
 	c := AviObjCache{}
 	c.VsCacheMeta = NewAviCache()
 	c.VsCacheLocal = NewAviCache()
-	c.VsCache = NewAviCache()
 	c.PgCache = NewAviCache()
 	c.DSCache = NewAviCache()
 	c.PoolCache = NewAviCache()
@@ -1493,7 +1491,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				vs_uuid := ExtractUuidWithoutHash(vs_parent_ref.(string), "virtualservice-.*.")
 				utils.AviLog.Debugf("extracted the vs uuid from parent ref during cache population: %s", vs_uuid)
 				// Now let's get the VS key from this uuid
-				vsKey, gotVS := c.VsCache.AviCacheGetKeyByUuid(vs_uuid)
+				vsKey, gotVS := c.VsCacheMeta.AviCacheGetKeyByUuid(vs_uuid)
 				if gotVS {
 					parentVSKey = vsKey.(NamespaceName)
 				}
@@ -1610,7 +1608,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 					ServiceMetadataObj:   svc_mdata_obj,
 				}
 				c.VsCacheMeta.AviCacheAdd(k, &vsMetaObj)
-				vs_cache, found := c.VsCache.AviCacheGet(parentVSKey)
+				vs_cache, found := c.VsCacheMeta.AviCacheGet(parentVSKey)
 				if found {
 					parentVsObj, ok := vs_cache.(*AviVsCache)
 					if !ok {
@@ -1750,9 +1748,9 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 	return dnsSubDomains
 }
 
-func ValidateUserInput(client *clients.AviClient) bool {
+func ValidateUserInput() bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
-	isValid := checkRequiredValuesYaml() && setVRFFromNetwork(client)
+	isValid := checkRequiredValuesYaml()
 	if !isValid {
 		utils.AviLog.Warn("Invalid input detected, syncing will be disabled.")
 	}
@@ -1779,7 +1777,7 @@ func checkRequiredValuesYaml() bool {
 	return true
 }
 
-func setVRFFromNetwork(client *clients.AviClient) bool {
+func SetVRFFromNetwork(client *clients.AviClient) bool {
 	networkName := lib.GetNetworkName()
 	if networkName == "" {
 		utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")

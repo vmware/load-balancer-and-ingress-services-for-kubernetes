@@ -1040,7 +1040,7 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 
 	//store old chksum
 	mcache := cache.SharedAviObjCache()
-	oldSniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+	oldSniCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	oldSniCacheObj, _ := oldSniCache.(*cache.AviVsCache)
 	oldChksum := oldSniCacheObj.CloudConfigCksum
 
@@ -1054,7 +1054,7 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 	//compare with new chksum
 	g.Eventually(func() string {
 		mcache := cache.SharedAviObjCache()
-		newSniCache, _ := mcache.VsCache.AviCacheGet(sniVSKey)
+		newSniCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		newSniCacheObj, _ := newSniCache.(*cache.AviVsCache)
 		if newSniCacheObj != nil {
 			return newSniCacheObj.CloudConfigCksum
