@@ -50,7 +50,7 @@ func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", SINGLEPORTSVC, NAMESPACE)}
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
@@ -69,7 +69,7 @@ func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", MULTIPORTSVC, NAMESPACE)}
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
@@ -142,7 +142,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(false))
 	// If we transition the service from clusterIP to Loadbalancer - vs should get ceated
@@ -159,7 +159,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 	}
 
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(true))
 	TearDownTestForSvcLB(t, g)
@@ -305,7 +305,7 @@ func TestCreateServiceLBCacheSync(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
-	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
 	} else {
@@ -323,7 +323,7 @@ func TestCreateServiceLBCacheSync(t *testing.T) {
 
 	TearDownTestForSvcLB(t, g)
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 10*time.Second).Should(gomega.Equal(false))
 }
@@ -369,10 +369,10 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
 	g.Eventually(func() bool {
-		_, found := mcache.VsCache.AviCacheGet(vsKey)
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
-	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
 	} else {
@@ -399,7 +399,7 @@ func TestCreateMultiportServiceLBCacheSync(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)}
-	vsCache, found := mcache.VsCache.AviCacheGet(vsKey)
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
 	}
@@ -514,7 +514,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 
 		vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: strings.TrimPrefix(model, AVINAMESPACE+"/")}
 		g.Eventually(func() bool {
-			_, found = mcache.VsCache.AviCacheGet(vsKey)
+			_, found = mcache.VsCacheMeta.AviCacheGet(vsKey)
 			return found
 		}, 15*time.Second).Should(gomega.Equal(true))
 	}
@@ -539,7 +539,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 
 		vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: strings.TrimPrefix(model, AVINAMESPACE+"/")}
 		g.Eventually(func() bool {
-			_, found = mcache.VsCache.AviCacheGet(vsKey)
+			_, found = mcache.VsCacheMeta.AviCacheGet(vsKey)
 			return found
 		}, 40*time.Second).Should(gomega.Equal(false))
 	}
@@ -547,7 +547,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	// verifying whether the first service created still has the corresponding cache entry
 	vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
 	g.Eventually(func() bool {
-		_, found = mcache.VsCache.AviCacheGet(vsKey)
+		_, found = mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 40*time.Second).Should(gomega.Equal(true))
 	TearDownTestForSvcLB(t, g)

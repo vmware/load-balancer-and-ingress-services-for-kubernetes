@@ -122,7 +122,7 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.DSCache.AviCacheAdd(k, &ds_cache_obj)
 		// Update the VS object
-		vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
@@ -130,7 +130,7 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Datascriptset Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 			}
 		} else {
-			vs_cache_obj := rest.cache.VsCache.AviCacheAddVS(vsKey)
+			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToDSKeyCollection(k)
 			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during datascriptset update %v val %v\n", key, vsKey,
 				vs_cache_obj))
@@ -146,7 +146,7 @@ func (rest *RestOperations) AviDSCacheDel(rest_op *utils.RestOp, vsKey avicache.
 	dsKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	utils.AviLog.Debugf("Deleting DS: %s", dsKey)
 	rest.cache.DSCache.AviCacheDelete(dsKey)
-	vs_cache, ok := rest.cache.VsCache.AviCacheGet(vsKey)
+	vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
