@@ -32,8 +32,6 @@ import (
 
 func SetUpTestForIngress(t *testing.T, model_Name string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("CLOUD_NAME", "Shard-VS-")
-	os.Setenv("VRF_CONTEXT", "global")
 	os.Setenv("L7_SHARD_SCHEME", "namespace")
 	objects.SharedAviGraphLister().Delete(model_Name)
 	CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
@@ -42,8 +40,6 @@ func SetUpTestForIngress(t *testing.T, model_Name string) {
 
 func TearDownTestForIngress(t *testing.T, model_Name string) {
 	os.Setenv("SHARD_VS_SIZE", "")
-	os.Setenv("CLOUD_NAME", "")
-	os.Setenv("VRF_CONTEXT", "")
 
 	objects.SharedAviGraphLister().Delete(model_Name)
 	DelSVC(t, "default", "avisvc")
@@ -108,7 +104,7 @@ func TestNoModel(t *testing.T) {
 func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	PollForCompletion(t, model_Name, 5)
@@ -135,7 +131,7 @@ func TestL7Model(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 	} else {
 		t.Fatalf("Could not find model: %v", err)
@@ -152,10 +148,8 @@ func TestL7Model(t *testing.T) {
 func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("CLOUD_NAME", "Shard-VS-")
-	os.Setenv("VRF_CONTEXT", "global")
 
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	objects.SharedAviGraphLister().Delete(model_Name)
 	svcExample := (FakeService{
 		Name:         "avisvc",
@@ -213,14 +207,14 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].SharedVS).To(gomega.Equal(true))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--foo-with-targets1") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-foo-with-targets1") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -249,7 +243,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
@@ -273,7 +267,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 
@@ -294,7 +288,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 
@@ -313,7 +307,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		// Delete the model.
 		objects.SharedAviGraphLister().Delete(model_Name)
@@ -333,7 +327,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 func TestMultiVSIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -354,7 +348,7 @@ func TestMultiVSIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
@@ -378,13 +372,13 @@ func TestMultiVSIngress(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	_, err = KubeClient.ExtensionsV1beta1().Ingresses("randomNamespacethatyeildsdiff").Create(randoming)
-	model_Name = "admin/Shard-VS---global-5"
+	model_Name = "admin/cluster--Shared-L7-5"
 	PollForCompletion(t, model_Name, 5)
 	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
@@ -413,7 +407,7 @@ func TestMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -434,14 +428,14 @@ func TestMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--ingress-multipath") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-ingress-multipath") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com.avi.internal_bar--default--ingress-multipath") {
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal_bar-default-ingress-multipath") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -451,9 +445,9 @@ func TestMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-multipath") {
+			if strings.Contains(*pool.PoolRef, "/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-multipath") {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal_bar--default--ingress-multipath") {
+			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=cluster--foo.com.avi.internal_bar-default-ingress-multipath") {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -474,7 +468,7 @@ func TestMultiPathIngress(t *testing.T) {
 func TestMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake1 := (FakeIngress{
@@ -508,14 +502,14 @@ func TestMultiIngressSameHost(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--ingress-multi1") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-ingress-multi1") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com.avi.internal_bar--default--ingress-multi2") {
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal_bar-default-ingress-multi2") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -525,9 +519,9 @@ func TestMultiIngressSameHost(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-multi1") {
+			if strings.Contains(*pool.PoolRef, "/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-multi1") {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal_bar--default--ingress-multi2") {
+			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=cluster--foo.com.avi.internal_bar-default-ingress-multi2") {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -543,7 +537,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 	VerifyIngressDeletion(t, g, aviModel, 1)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--foo.com.avi.internal_bar--default--ingress-multi2"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com.avi.internal_bar-default-ingress-multi2"))
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
 	if err != nil {
@@ -556,7 +550,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 
 func TestMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -577,14 +571,14 @@ func TestMultiHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--ingress-multihost") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-ingress-multihost") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "bar.com.avi.internal_bar--default--ingress-multihost") {
+			} else if strings.Contains(pool.Name, "bar.com.avi.internal_bar-default-ingress-multihost") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("bar.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -594,9 +588,9 @@ func TestMultiHostIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-multihost") {
+			if strings.Contains(*pool.PoolRef, "/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-multihost") {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--bar.com.avi.internal_bar--default--ingress-multihost") {
+			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=cluster--bar.com.avi.internal_bar-default-ingress-multihost") {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("bar.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -617,7 +611,7 @@ func TestMultiHostIngress(t *testing.T) {
 
 func TestMultiHostSameHostNameIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -638,14 +632,14 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--ingress-multihost") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-ingress-multihost") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com.avi.internal_bar--default--ingress-multihost") {
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal_bar-default-ingress-multihost") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -655,9 +649,9 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-multihost") {
+			if strings.Contains(*pool.PoolRef, "/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-multihost") {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=global--foo.com.avi.internal_bar--default--ingress-multihost") {
+			} else if strings.Contains(*pool.PoolRef, "/api/pool?name=cluster--foo.com.avi.internal_bar-default-ingress-multihost") {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -678,7 +672,7 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 
 func TestEditPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -699,13 +693,13 @@ func TestEditPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
 		}, 5*time.Second).Should(gomega.HaveLen(1))
 
-		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("global--foo.com.avi.internal_foo--default--ingress-edit"))
+		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("cluster--foo.com.avi.internal_foo-default-ingress-edit"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
@@ -713,7 +707,7 @@ func TestEditPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.ContainSubstring("/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-edit"))
+		g.Expect(*pool.PoolRef).To(gomega.ContainSubstring("/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-edit"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 
 	} else {
@@ -737,19 +731,19 @@ func TestEditPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
 		}, 5*time.Second).Should(gomega.HaveLen(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("global--foo.com.avi.internal_bar--default--ingress-edit"))
+		}, 5*time.Second).Should(gomega.Equal("cluster--foo.com.avi.internal_bar-default-ingress-edit"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--foo.com.avi.internal_bar--default--ingress-edit"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com.avi.internal_bar-default-ingress-edit"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
@@ -766,7 +760,7 @@ func TestEditPathIngress(t *testing.T) {
 
 func TestEditMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -800,17 +794,17 @@ func TestEditMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		//g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
 		}, 5*time.Second).Should(gomega.HaveLen(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--ingress-multipath-edit") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-ingress-multipath-edit") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com.avi.internal_bar--default--ingress-multipath-edit") {
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal_bar-default-ingress-multipath-edit") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -821,9 +815,9 @@ func TestEditMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-multipath-edit" {
+			if *pool.PoolRef == "/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-multipath-edit" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal_bar--default--ingress-multipath-edit" {
+			} else if *pool.PoolRef == "/api/pool?name=cluster--foo.com.avi.internal_bar-default-ingress-multipath-edit" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -851,16 +845,16 @@ func TestEditMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
 		}, 5*time.Second).Should(gomega.HaveLen(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--ingress-multipath-edit") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-ingress-multipath-edit") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com.avi.internal_foobar--default--ingress-multipath-edit") {
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal_foobar-default-ingress-multipath-edit") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foobar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -871,9 +865,9 @@ func TestEditMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-multipath-edit" {
+			if *pool.PoolRef == "/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-multipath-edit" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal_foobar--default--ingress-multipath-edit" {
+			} else if *pool.PoolRef == "/api/pool?name=cluster--foo.com.avi.internal_foobar-default-ingress-multipath-edit" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foobar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -895,7 +889,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 func TestEditMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_name := "admin/Shard-VS---global-6"
+	model_name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_name)
 
 	ingrFake1 := (FakeIngress{
@@ -942,14 +936,14 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--ingress-multi1") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-ingress-multi1") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foo.com.avi.internal_foobar--default--ingress-multi2") {
+			} else if strings.Contains(pool.Name, "foo.com.avi.internal_foobar-default-ingress-multi2") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foobar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -959,9 +953,9 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-multi1" {
+			if *pool.PoolRef == "/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-multi1" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal_foobar--default--ingress-multi2" {
+			} else if *pool.PoolRef == "/api/pool?name=cluster--foo.com.avi.internal_foobar-default-ingress-multi2" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foobar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -977,7 +971,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	VerifyIngressDeletion(t, g, aviModel, 1)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--foo.com.avi.internal_foobar--default--ingress-multi2"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com.avi.internal_foobar-default-ingress-multi2"))
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multi2", nil)
 	if err != nil {
@@ -990,7 +984,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 
 func TestEditMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -1021,14 +1015,14 @@ func TestEditMultiHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo--default--ingress-multihost") {
+			if strings.Contains(pool.Name, "foo.com.avi.internal_foo-default-ingress-multihost") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "foobar.com.avi.internal_bar--default--ingress-multihost") {
+			} else if strings.Contains(pool.Name, "foobar.com.avi.internal_bar-default-ingress-multihost") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foobar.com.avi.internal/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -1039,9 +1033,9 @@ func TestEditMultiHostIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--foo.com.avi.internal_foo--default--ingress-multihost" {
+			if *pool.PoolRef == "/api/pool?name=cluster--foo.com.avi.internal_foo-default-ingress-multihost" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--foobar.com.avi.internal_bar--default--ingress-multihost" {
+			} else if *pool.PoolRef == "/api/pool?name=cluster--foobar.com.avi.internal_bar-default-ingress-multihost" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foobar.com.avi.internal/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -1062,7 +1056,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 
 func TestNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetupDomain()
 	SetUpTestForIngress(t, model_Name)
 
@@ -1083,18 +1077,18 @@ func TestNoHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		fmt.Println(nodes[0].PoolRefs[0].Name)
-		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("global--ingress-nohost.default.com_foo--default--ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.com_foo--default--ingress-nohost"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
@@ -1111,7 +1105,7 @@ func TestNoHostIngress(t *testing.T) {
 
 func TestEditNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -1143,19 +1137,19 @@ func TestEditNoHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("global--ingress-nohost.default.com_bar--default--ingress-nohost"))
+		}, 5*time.Second).Should(gomega.Equal("cluster--ingress-nohost.default.com_bar-default-ingress-nohost"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/bar"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.com_bar--default--ingress-nohost"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=cluster--ingress-nohost.default.com_bar-default-ingress-nohost"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/bar"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
@@ -1172,7 +1166,7 @@ func TestEditNoHostIngress(t *testing.T) {
 
 func TestEditNoHostToHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -1192,19 +1186,19 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("global--ingress-nohost.default.com_foo--default--ingress-nohost"))
+		}, 5*time.Second).Should(gomega.Equal("cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--ingress-nohost.default.com_foo--default--ingress-nohost"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
@@ -1228,19 +1222,19 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("global--foo.com.avi.internal_bar--default--ingress-nohost"))
+		}, 5*time.Second).Should(gomega.Equal("cluster--foo.com.avi.internal_bar-default-ingress-nohost"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
 		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=global--foo.com.avi.internal_bar--default--ingress-nohost"))
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com.avi.internal_bar-default-ingress-nohost"))
 		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 	} else {
 		t.Fatalf("Could not find model: %s", model_Name)
@@ -1257,7 +1251,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 
 func TestNoHostMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -1277,15 +1271,15 @@ func TestNoHostMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "nohost-multipath.default.com_foo--default--nohost-multipath") {
+			if strings.Contains(pool.Name, "nohost-multipath.default.com_foo-default-nohost-multipath") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "nohost-multipath.default.com_bar--default--nohost-multipath") {
+			} else if strings.Contains(pool.Name, "nohost-multipath.default.com_bar-default-nohost-multipath") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/bar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -1296,9 +1290,9 @@ func TestNoHostMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.com_foo--default--nohost-multipath" {
+			if *pool.PoolRef == "/api/pool?name=cluster--nohost-multipath.default.com_foo-default-nohost-multipath" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.com_bar--default--nohost-multipath" {
+			} else if *pool.PoolRef == "/api/pool?name=cluster--nohost-multipath.default.com_bar-default-nohost-multipath" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/bar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
@@ -1320,7 +1314,7 @@ func TestNoHostMultiPathIngress(t *testing.T) {
 
 func TestEditNoHostMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	model_Name := "admin/Shard-VS---global-6"
+	model_Name := "admin/cluster--Shared-L7-6"
 	SetUpTestForIngress(t, model_Name)
 
 	ingrFake := (FakeIngress{
@@ -1352,15 +1346,15 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
-			if strings.Contains(pool.Name, "nohost-multipath.default.com_foo--default--nohost-multipath") {
+			if strings.Contains(pool.Name, "nohost-multipath.default.com_foo-default-nohost-multipath") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foo"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if strings.Contains(pool.Name, "nohost-multipath.default.com_foobar--default--nohost-multipath") {
+			} else if strings.Contains(pool.Name, "nohost-multipath.default.com_foobar-default-nohost-multipath") {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foobar"))
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 			} else {
@@ -1371,9 +1365,9 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.com_foo--default--nohost-multipath" {
+			if *pool.PoolRef == "/api/pool?name=cluster--nohost-multipath.default.com_foo-default-nohost-multipath" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=global--nohost-multipath.default.com_foobar--default--nohost-multipath" {
+			} else if *pool.PoolRef == "/api/pool?name=cluster--nohost-multipath.default.com_foobar-default-nohost-multipath" {
 				g.Expect(*pool.PriorityLabel).To(gomega.Equal("nohost-multipath.default.com/foobar"))
 			} else {
 				t.Fatalf("unexpected pool: %s", *pool.PoolRef)

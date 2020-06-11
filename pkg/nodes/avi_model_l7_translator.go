@@ -87,7 +87,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			}
 
 			// Update the host mappings for this ingress
-			// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
+			// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace-secretname
 			// Fetch all the secrets for this ingress
 			found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 			utils.AviLog.Infof("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
@@ -199,7 +199,7 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	for _, pool := range poolNodes {
 		o.RemovePoolNodeRefs(pool.Name)
 	}
-	// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
+	// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace-secretname
 	// Fetch all the secrets for this ingress
 
 	found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)

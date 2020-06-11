@@ -11,9 +11,9 @@ image:
 configs:
   controllerVersion: "18.2.8"
   shardVSSize: "LARGE"
-  shardVSPrefix: ""
   fullSyncFrequency: "300"
   cloudName: "Default-Cloud"
+  clusterName: ""
   defaultDomain: ""
   disableStaticRouteSync: "false"
   ingressApi: "corev1" #enum: extensionv1 and corev1 - if not set default to corev1

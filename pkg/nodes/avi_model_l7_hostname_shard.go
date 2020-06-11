@@ -122,7 +122,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
 		}
 	} else {
-		// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace--secretname
+		// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace-secretname
 		// Fetch all the secrets for this ingress
 		found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 		// Remove the ingress from the hostmap

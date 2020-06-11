@@ -89,6 +89,8 @@ func TestMain(m *testing.M) {
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("NETWORK_NAME", "net123")
+	os.Setenv("CLUSTER_NAME", "cluster")
+	os.Setenv("CLOUD_NAME", "Default-Cloud")
 
 	registeredInformers := []string{
 		utils.ServiceInformer,

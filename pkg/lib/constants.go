@@ -28,6 +28,7 @@ const (
 	NETWORK_NAME              = "NETWORK_NAME"
 	L7_SHARD_SCHEME           = "L7_SHARD_SCHEME"
 	DEFAULT_DOMAIN            = "DEFAULT_DOMAIN"
+	CLUSTER_NAME              = "CLUSTER_NAME"
 	DEFAULT_SHARD_SCHEME      = "hostname"
 	HOSTNAME_SHARD_SCHEME     = "hostname"
 	NAMESPACE_SHARD_SCHEME    = "namespace"
@@ -37,4 +38,5 @@ const (
 	STATUS_REDIRECT           = "HTTP_REDIRECT_STATUS_CODE_302"
 	SLOW_SYNC_TIME            = 120
 	LOG_LEVEL                 = "logLevel"
+	ShardVSPrefix             = "Shared-L7"
 )
