@@ -299,7 +299,7 @@ func (c *AviController) FullSyncK8s() {
 		for _, vsCacheKey := range vsKeys {
 			// Reverse map the model key from this.
 			if lib.GetNamespaceToSync() != "" {
-				shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")
+				shardVsPrefix := lib.ShardVSPrefix
 				if shardVsPrefix != "" {
 					if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
 						modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
@@ -311,7 +311,7 @@ func (c *AviController) FullSyncK8s() {
 					}
 				}
 				// For namespace based syncs, the L4 VSes would be named: clusterName + "--" + namespace
-				if strings.HasPrefix(vsCacheKey.Name, lib.GetClusterName()+"--"+lib.GetNamespaceToSync()) {
+				if strings.HasPrefix(vsCacheKey.Name, lib.GetNamePrefix()+lib.GetNamespaceToSync()) {
 					modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 					if utils.HasElem(allModels, modelName) {
 						allModels = utils.Remove(allModels, modelName)

@@ -38,4 +38,5 @@ const (
 	STATUS_REDIRECT           = "HTTP_REDIRECT_STATUS_CODE_302"
 	SLOW_SYNC_TIME            = 120
 	LOG_LEVEL                 = "logLevel"
+	ShardVSPrefix             = "Shared-L7"
 )

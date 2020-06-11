@@ -150,12 +150,11 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string, pgData *[]AviPGCache, override_uri ...NextPage) (*[]AviPGCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-	namePrefix := lib.GetClusterName() + "--"
 
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/poolgroup?" + "name.contains=" + namePrefix + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akcUser
+		uri = "/api/poolgroup?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akcUser
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -253,12 +252,11 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud str
 func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud string, poolData *[]AviPoolCache, override_uri ...NextPage) (*[]AviPoolCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-	namePrefix := lib.GetClusterName() + "--"
 
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/pool?" + "name.contains=" + namePrefix + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akcUser
+		uri = "/api/pool?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akcUser
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -340,12 +338,11 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud stri
 
 func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud string, vsVipData *[]AviVSVIPCache, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
 	var uri string
-	namePrefix := lib.GetClusterName() + "--"
 
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/vsvip?" + "name.contains=" + namePrefix + "&include_name=true&cloud_ref.name=" + cloud
+		uri = "/api/vsvip?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true&cloud_ref.name=" + cloud
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -433,12 +430,11 @@ func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud 
 func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string, DsData *[]AviDSCache, nextPage ...NextPage) (*[]AviDSCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-	namePrefix := lib.GetClusterName() + "--"
 
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/vsdatascriptset?" + "name.contains=" + namePrefix + "&include_name=true&created_by=" + akcUser
+		uri = "/api/vsdatascriptset?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true&created_by=" + akcUser
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -529,12 +525,11 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud str
 func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud string, SslData *[]AviSSLCache, nextPage ...NextPage) (*[]AviSSLCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-	namePrefix := lib.GetClusterName() + "--"
 
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/sslkeyandcertificate?" + "name.contains=" + namePrefix + "&created_by=" + akcUser
+		uri = "/api/sslkeyandcertificate?" + "name.contains=" + lib.GetNamePrefix() + "&created_by=" + akcUser
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -611,7 +606,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 			continue
 		}
 		//Only cache a SSL keys that belongs to this AKO.
-		if !strings.HasPrefix(*sslkey.Name, lib.GetClusterName()+"--") {
+		if !strings.HasPrefix(*sslkey.Name, lib.GetNamePrefix()) {
 			continue
 		}
 		sslCacheObj := AviSSLCache{
@@ -656,7 +651,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 			continue
 		}
 		//Only cache a Pool that belongs to this AKO.
-		if !strings.HasPrefix(*pool.Name, lib.GetClusterName()+"--") {
+		if !strings.HasPrefix(*pool.Name, lib.GetNamePrefix()) {
 			continue
 		}
 		poolCacheObj := AviPoolCache{
@@ -702,7 +697,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 			continue
 		}
 		//Only cache a DS that belongs to this AKO.
-		if !strings.HasPrefix(*ds.Name, lib.GetClusterName()+"--") {
+		if !strings.HasPrefix(*ds.Name, lib.GetNamePrefix()) {
 			continue
 		}
 		var pgs []string
@@ -759,7 +754,7 @@ func (c *AviObjCache) AviPopulateOnePGCache(client *clients.AviClient,
 			continue
 		}
 		//Only cache a PG that belongs to this AKO.
-		if !strings.HasPrefix(*pg.Name, lib.GetClusterName()+"--") {
+		if !strings.HasPrefix(*pg.Name, lib.GetNamePrefix()) {
 			continue
 		}
 		var pools []string
@@ -816,7 +811,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			utils.AviLog.Warnf("Incomplete vsvip data unmarshalled, %s", utils.Stringify(vsvip))
 			continue
 		}
-		if !strings.HasPrefix(*vsvip.Name, lib.GetClusterName()+"--") {
+		if !strings.HasPrefix(*vsvip.Name, lib.GetNamePrefix()) {
 			continue
 		}
 		var fqdns []string
@@ -867,7 +862,7 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 			continue
 		}
 		//Only cache a http policies that belongs to this AKO.
-		if !strings.HasPrefix(*httppol.Name, lib.GetClusterName()+"--") {
+		if !strings.HasPrefix(*httppol.Name, lib.GetNamePrefix()) {
 			continue
 		}
 		// Fetch the pgs associated with the http policyset object
@@ -901,12 +896,11 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient, cloud string, vsData *[]AviVsCache, nextPage ...NextPage) (*[]AviVsCache, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-	namePrefix := lib.GetClusterName() + "--"
 
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/virtualservice?include_name=true&cloud_ref.name=" + cloud + "&name.contains=" + namePrefix + "&created_by=" + akcUser
+		uri = "/api/virtualservice?include_name=true&cloud_ref.name=" + cloud + "&name.contains=" + lib.GetNamePrefix() + "&created_by=" + akcUser
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -1087,12 +1081,11 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud str
 func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cloud string, httpPolicyData *[]AviHTTPPolicyCache, nextPage ...NextPage) (*[]AviHTTPPolicyCache, int, error) {
 	var uri string
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-	namePrefix := lib.GetClusterName() + "--"
 
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/httppolicyset?" + "name.contains=" + namePrefix + "&include_name=true" + "&created_by=" + akcUser
+		uri = "/api/httppolicyset?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true" + "&created_by=" + akcUser
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -1234,13 +1227,12 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud string, vsCacheCopy *[]NamespaceName, override_uri ...NextPage) error {
 	var rest_response interface{}
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-	namePrefix := lib.GetClusterName() + "--"
 	var uri string
 	httpCacheRefreshCount := 1 // Refresh count for http cache is attempted once per page
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/virtualservice?include_name=true&cloud_ref.name=" + cloud + "&name.contains=" + namePrefix + "&created_by=" + akcUser
+		uri = "/api/virtualservice?include_name=true&cloud_ref.name=" + cloud + "&name.contains=" + lib.GetNamePrefix() + "&created_by=" + akcUser
 	}
 
 	err := AviGet(client, uri, &rest_response)
@@ -1446,10 +1438,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 	// This method should be called only from layer-3 during a retry.
 	var rest_response interface{}
 	akcUser := utils.OSHIFT_K8S_CLOUD_CONNECTOR
-	namePrefix := lib.GetClusterName() + "--"
 	var uri string
 
-	uri = "/api/virtualservice?name=" + vsName + "&cloud_ref.name=" + cloud + "&name.contains=" + namePrefix + "&created_by=" + akcUser
+	uri = "/api/virtualservice?name=" + vsName + "&cloud_ref.name=" + cloud + "&name.contains=" + lib.GetNamePrefix() + "&created_by=" + akcUser
 
 	utils.AviLog.Debugf("Refreshing cache for vs uri: %s", uri)
 	err := AviGet(client, uri, &rest_response)
@@ -1770,10 +1761,15 @@ func ValidateUserInput(client *clients.AviClient) bool {
 
 func checkRequiredValuesYaml() bool {
 	clusterName := lib.GetClusterName()
+	re := regexp.MustCompile("^[a-zA-Z0-9-_]*$")
 	if clusterName == "" {
 		utils.AviLog.Error("Required param clusterName not specified, syncing will be disabled")
 		return false
+	} else if len(clusterName) > 32 || !re.MatchString(clusterName) {
+		utils.AviLog.Error("clusterName must consist of alphanumeric characters or '-'/'_' (max 32 chars), syncing will be disabled")
+		return false
 	}
+	lib.SetNamePrefix()
 
 	cloudName := os.Getenv("CLOUD_NAME")
 	if cloudName == "" {

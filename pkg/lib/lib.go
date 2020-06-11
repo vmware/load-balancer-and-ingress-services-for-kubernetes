@@ -39,7 +39,15 @@ var shardSizeMap = map[string]uint32{
 	"SMALL":  1,
 }
 
-var onlyOneSignalHandler = make(chan struct{})
+var NamePrefix string
+
+func SetNamePrefix() {
+	NamePrefix = GetClusterName() + "--"
+}
+
+func GetNamePrefix() string {
+	return NamePrefix
+}
 
 func GetshardSize() uint32 {
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
@@ -57,11 +65,11 @@ func GetModelName(namespace, objectName string) string {
 
 // All L4 object names.
 func GetL4VSName(svcName, namespace string) string {
-	return GetClusterName() + "--" + namespace + "-" + svcName
+	return NamePrefix + namespace + "-" + svcName
 }
 
 func GetL4VSVipName(svcName, namespace string) string {
-	return GetClusterName() + "--" + namespace + "-" + svcName
+	return NamePrefix + namespace + "-" + svcName
 }
 
 func GetL4PoolName(vsName string, port int32) string {
@@ -74,53 +82,53 @@ func GetL4PGName(vsName string, port int32) string {
 
 // All L7 object names.
 func GetVsVipName(vsName string) string {
-	return GetClusterName() + "--" + vsName
+	return vsName
 }
 
 func GetL7InsecureDSName(vsName string) string {
-	return GetClusterName() + "--" + vsName
+	return vsName
 }
 
 func GetL7SharedPGName(vsName string) string {
-	return GetClusterName() + "--" + vsName
+	return vsName
 }
 
 func GetL7PoolName(priorityLabel, namespace, ingName string) string {
 	priorityLabel = strings.Replace(priorityLabel, "/", "_", 1)
-	return GetClusterName() + "--" + priorityLabel + "-" + namespace + "-" + ingName
+	return NamePrefix + priorityLabel + "-" + namespace + "-" + ingName
 }
 
 func GetL7HttpRedirPolicy(vsName string) string {
-	return GetClusterName() + "--" + vsName
+	return vsName
 }
 
 func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) string {
 	if len(sniHostName) > 0 {
-		return GetClusterName() + "--" + sniHostName[0]
+		return NamePrefix + sniHostName[0]
 	}
-	return GetClusterName() + "--" + ingName + "-" + namespace + "-" + secret
+	return NamePrefix + ingName + "-" + namespace + "-" + secret
 }
 
 func GetSniPoolName(ingName, namespace, host, path string) string {
 	path = strings.Replace(path, "/", "_", 1)
-	return GetClusterName() + "--" + namespace + "-" + host + path + "-" + ingName
+	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
 func GetSniHttpPolName(ingName, namespace, host, path string) string {
 	path = strings.Replace(path, "/", "_", 1)
-	return GetClusterName() + "--" + namespace + "-" + host + path + "-" + ingName
+	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
 func GetSniPGName(ingName, namespace, host, path string) string {
 	path = strings.Replace(path, "/", "_", 1)
-	return GetClusterName() + "--" + namespace + "-" + host + path + "-" + ingName
+	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
 func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) string {
 	if len(sniHostName) > 0 {
-		return GetClusterName() + "--" + sniHostName[0]
+		return NamePrefix + sniHostName[0]
 	}
-	return GetClusterName() + "--" + namespace + "-" + secret
+	return NamePrefix + namespace + "-" + secret
 }
 
 var VRFContext string

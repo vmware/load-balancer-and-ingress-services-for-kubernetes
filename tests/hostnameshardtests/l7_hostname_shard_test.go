@@ -39,7 +39,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("NETWORK_NAME", "net123")
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
-	os.Setenv("SHARD_VS_PREFIX", "Shard-VS---cluster-")
 	KubeClient = k8sfake.NewSimpleClientset()
 
 	registeredInformers := []string{
@@ -130,7 +129,7 @@ func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{
 func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -161,7 +160,7 @@ func TestL7Model(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
-	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 
 	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
@@ -177,7 +176,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	objects.SharedAviGraphLister().Delete(modelName)
 	svcExample := (integrationtest.FakeService{
 		Name:         "avisvc",
@@ -235,7 +234,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].SharedVS).To(gomega.Equal(true))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
@@ -271,7 +270,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
@@ -295,7 +294,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
@@ -310,14 +309,14 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	modelName = "admin/Shard-VS---cluster-1"
+	modelName = "admin/cluster--Shared-L7-1"
 	integrationtest.PollForCompletion(t, modelName, 5)
 	// We should be able to get one model now in the queue
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 
@@ -336,7 +335,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		// Delete the model.
 		objects.SharedAviGraphLister().Delete(modelName)
@@ -356,7 +355,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 func TestMultiVSIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -377,7 +376,7 @@ func TestMultiVSIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
@@ -405,7 +404,7 @@ func TestMultiVSIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
@@ -437,7 +436,7 @@ func TestMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -458,7 +457,7 @@ func TestMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
@@ -498,7 +497,7 @@ func TestMultiPathIngress(t *testing.T) {
 func TestMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -532,7 +531,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
@@ -581,7 +580,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 func TestDeleteBackendService(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -615,7 +614,7 @@ func TestDeleteBackendService(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
@@ -650,7 +649,7 @@ func TestDeleteBackendService(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 
@@ -691,7 +690,7 @@ func TestDeleteBackendService(t *testing.T) {
 
 func TestUpdateBackendService(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-backend-svc",
@@ -755,7 +754,7 @@ func TestUpdateBackendService(t *testing.T) {
 func TestL2ChecksumsUpdate(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 	//create ingress with tls secret
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -874,7 +873,7 @@ func TestSniHttpPolicy(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:      "ingress-shp",
@@ -1017,7 +1016,7 @@ func TestSniHttpPolicy(t *testing.T) {
 func TestFullSyncCacheNoOp(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 	//create multipath ingress with tls secret
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1075,7 +1074,7 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 
 func TestMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1096,7 +1095,7 @@ func TestMultiHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		for _, pool := range nodes[0].PoolRefs {
@@ -1120,14 +1119,14 @@ func TestMultiHostIngress(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	modelName = "admin/Shard-VS---cluster-1"
+	modelName = "admin/cluster--Shared-L7-1"
 
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		for _, pool := range nodes[0].PoolRefs {
@@ -1162,7 +1161,7 @@ func TestMultiHostIngress(t *testing.T) {
 
 func TestMultiHostSameHostNameIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1183,7 +1182,7 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
@@ -1223,7 +1222,7 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 
 func TestEditPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1244,7 +1243,7 @@ func TestEditPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
@@ -1282,7 +1281,7 @@ func TestEditPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
@@ -1311,7 +1310,7 @@ func TestEditPathIngress(t *testing.T) {
 
 func TestEditMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1345,7 +1344,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		//g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		g.Eventually(func() []*avinodes.AviPoolNode {
@@ -1396,7 +1395,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
@@ -1440,7 +1439,7 @@ func TestEditMultiPathIngress(t *testing.T) {
 func TestEditMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_name := "admin/Shard-VS---cluster-0"
+	model_name := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, model_name)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1487,7 +1486,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
@@ -1535,7 +1534,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 
 func TestEditMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1566,7 +1565,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		for _, pool := range nodes[0].PoolRefs {
@@ -1591,12 +1590,12 @@ func TestEditMultiHostIngress(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	modelName = "admin/Shard-VS---cluster-3"
+	modelName = "admin/cluster--Shared-L7-3"
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		for _, pool := range nodes[0].PoolRefs {
@@ -1632,7 +1631,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 
 func TestNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-2"
+	modelName := "admin/cluster--Shared-L7-2"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1652,7 +1651,7 @@ func TestNoHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
@@ -1679,7 +1678,7 @@ func TestNoHostIngress(t *testing.T) {
 
 func TestEditNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-2"
+	modelName := "admin/cluster--Shared-L7-2"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1710,7 +1709,7 @@ func TestEditNoHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
@@ -1739,7 +1738,7 @@ func TestEditNoHostIngress(t *testing.T) {
 
 func TestEditNoHostToHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-2"
+	modelName := "admin/cluster--Shared-L7-2"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1759,7 +1758,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
@@ -1792,7 +1791,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() int {
 			return len(nodes[0].PoolRefs)
@@ -1802,12 +1801,12 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
-	modelName = "admin/Shard-VS---cluster-1"
+	modelName = "admin/cluster--Shared-L7-1"
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() int {
 			return len(nodes[0].PoolRefs)
@@ -1827,7 +1826,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 
 func TestEditNoHostMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-3"
+	modelName := "admin/cluster--Shared-L7-3"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1859,7 +1858,7 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
@@ -1903,7 +1902,7 @@ func TestEditNoHostMultiPathIngress(t *testing.T) {
 func TestScaleEndpoints(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1937,7 +1936,7 @@ func TestScaleEndpoints(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].PoolRefs {
@@ -1970,7 +1969,7 @@ func TestScaleEndpoints(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
 
@@ -2012,7 +2011,7 @@ func TestScaleEndpoints(t *testing.T) {
 func TestL7ModelSNI(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -2039,7 +2038,7 @@ func TestL7ModelSNI(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("noo.com"))
@@ -2069,7 +2068,7 @@ func TestL7ModelSNI(t *testing.T) {
 
 func TestL7ModelNoSecretToSecret(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -2098,7 +2097,7 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
 		g.Expect(nodes[0].VHDomainNames).To(gomega.HaveLen(0))
@@ -2132,7 +2131,7 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 
 func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -2177,7 +2176,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
 	} else {
@@ -2226,7 +2225,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 func TestL7ModelMultiSNI(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	modelName := "admin/Shard-VS---cluster-0"
+	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -2249,7 +2248,7 @@ func TestL7ModelMultiSNI(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
@@ -2279,9 +2278,9 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
 	// Clean up any earlier models.
-	modelName := "admin/Shard-VS---cluster-1"
+	modelName := "admin/cluster--Shared-L7-1"
 	objects.SharedAviGraphLister().Delete(modelName)
-	modelName = "admin/Shard-VS---cluster-0"
+	modelName = "admin/cluster--Shared-L7-0"
 	objects.SharedAviGraphLister().Delete(modelName)
 	SetUpTestForIngress(t, modelName)
 
@@ -2308,7 +2307,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].Hosts).To(gomega.HaveLen(2))
@@ -2351,7 +2350,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	modelName = "admin/Shard-VS---cluster-1"
+	modelName = "admin/cluster--Shared-L7-1"
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		g.Eventually(func() int {
@@ -2379,7 +2378,7 @@ func TestL7WrongSubDomainMultiSNI(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
-	modelName := "admin/Shard-VS---cluster-1"
+	modelName := "admin/cluster--Shared-L7-1"
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -2422,7 +2421,7 @@ func TestL7WrongSubDomainMultiSNI(t *testing.T) {
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shard-VS"))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].PoolGroupRefs)).To(gomega.Equal(1))

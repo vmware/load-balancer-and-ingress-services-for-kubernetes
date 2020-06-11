@@ -663,8 +663,8 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 
-			} else if strings.Contains(rName, "Shard-VS") {
-				shardVSNum = strings.Split(rName, "cluster-")[1]
+			} else if strings.Contains(rName, "Shared-L7") {
+				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else {
 				vipAddress = "10.250.250.250"

@@ -16,7 +16,6 @@ package nodes
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"ako/pkg/lib"
@@ -54,7 +53,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		if found {
 			objects.SharedlbLister().Delete(namespace + "/" + name)
 			utils.AviLog.Infof("key: %s, msg: service transitioned from type loadbalancer to ClusterIP or NodePort, will delete model", name)
-			model_name := lib.GetModelName(lib.GetTenant(), lib.GetClusterName()+"--"+namespace+"-"+name)
+			model_name := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+name)
 			objects.SharedAviGraphLister().Save(model_name, nil)
 			if !fullsync {
 				bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
@@ -94,7 +93,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			} else {
 				// This is a DELETE event. The avi graph is set to nil.
 				utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
-				model_name := lib.GetModelName(lib.GetTenant(), lib.GetClusterName()+"--"+namespace+"-"+name)
+				model_name := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+name)
 				objects.SharedAviGraphLister().Save(model_name, nil)
 				if !fullsync {
 					bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
@@ -251,10 +250,8 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 }
 
 func GetShardVSPrefix(key string) string {
-	shardVsPrefix := os.Getenv("SHARD_VS_PREFIX")
-	if shardVsPrefix == "" {
-		shardVsPrefix = utils.CloudName + "--" + lib.GetClusterName() + "-"
-	}
+	// sample prefix: clusterName--Shared-L7-
+	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-"
 	utils.AviLog.Infof("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }
