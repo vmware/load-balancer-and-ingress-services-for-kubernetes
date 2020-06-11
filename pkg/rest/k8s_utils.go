@@ -133,7 +133,30 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 	return err
 }
 
-func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, retryNum ...int) error {
+func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, isVSDelete bool, key string) error {
+	var err error
+	if len(svc_mdata_obj.NamespaceIngressName) > 0 {
+		// This is SNI with hostname sharding.
+		for _, ingressns := range svc_mdata_obj.NamespaceIngressName {
+			ingressArr := strings.Split(ingressns, "/")
+			if len(ingressArr) != 2 {
+				return errors.New("key: %s, msg: DeleteIngressStatus IngressNamespace format not correct")
+			}
+			svc_mdata_obj.Namespace = ingressArr[0]
+			svc_mdata_obj.IngressName = ingressArr[1]
+			err = deleteObject(svc_mdata_obj, key, isVSDelete)
+		}
+	} else {
+		err = deleteObject(svc_mdata_obj, key, isVSDelete)
+	}
+
+	if err != nil {
+		utils.AviLog.Error(err)
+	}
+	return err
+}
+
+func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDelete bool, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("key:%s, msg: Retrying to update the ingress status", key)
@@ -172,7 +195,7 @@ func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, 
 		for _, host := range svc_mdata_obj.HostNames {
 			if status.Hostname == host {
 				// Check if this host is still present in the spec, if so - don't delete it
-				if !utils.HasElem(hostListIng, host) {
+				if !utils.HasElem(hostListIng, host) || isVSDelete {
 					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 				} else {
 					utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the ingress: %v", key, host)
@@ -195,7 +218,7 @@ func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string, 
 	}
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
-		return DeleteIngressStatus(svc_mdata_obj, key, retry+1)
+		return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
 	}
 
 	utils.AviLog.Infof("key:%s, msg: Successfully deleted the ingress status: %v", key, utils.Stringify(response))

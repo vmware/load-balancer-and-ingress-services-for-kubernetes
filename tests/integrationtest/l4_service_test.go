@@ -484,7 +484,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	SetUpTestForSvcLB(t)
 
 	// create 30 more multiport service of type loadbalancer
-	numScale := 30
+	numScale := 20
 	for i := 0; i < numScale; i++ {
 		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)

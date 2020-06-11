@@ -206,7 +206,7 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 				isSNI = true
 			}
 			if !isSNI {
-				err := DeleteIngressStatus(pool_cache_obj.ServiceMetadataObj, key)
+				err := DeleteIngressStatus(pool_cache_obj.ServiceMetadataObj, false, key)
 				if k8serror.IsNotFound(err) {
 					// Just log and get away
 					utils.AviLog.Infof("key: %s, msg: ingress already deleted, nothing to update in status", key)
