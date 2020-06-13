@@ -357,7 +357,7 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 		if rest_op.Model == "Pool" {
 			rest.AviPoolCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VirtualService" {
-			rest.AviVsCacheDel(aviObjKey, rest_op, key)
+			rest.AviVsCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "PoolGroup" {
 			rest.AviPGCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "HTTPPolicySet" {
@@ -509,7 +509,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				rest_op.ObjName = SSLKeyAndCertificate
 				rest.AviSSLCacheDel(rest_op, aviObjKey, key)
 			case "VirtualService":
-				rest.AviVsCacheDel(aviObjKey, rest_op, key)
+				rest.AviVsCacheDel(rest_op, aviObjKey, key)
 			case "VSDataScriptSet":
 				var VSDataScriptSet string
 				switch rest_op.Obj.(type) {
