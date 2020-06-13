@@ -1655,12 +1655,6 @@ func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud st
 }
 
 func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, cloudName string) {
-	vtype := os.Getenv("CLOUD_VTYPE")
-	if vtype == "" {
-		// Default to vcenter.
-		vtype = "CLOUD_VCENTER"
-	}
-
 	uri := "/api/cloud/?name=" + cloudName
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1685,6 +1679,7 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 		utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
 	}
 
+	vtype := *cloud.Vtype
 	cloud_obj := &AviCloudPropertyCache{Name: cloudName, VType: vtype}
 	if cloud.DNSProviderRef == nil {
 		utils.AviLog.Warnf("Cloud does not have a dns_provider_ref configured %v", cloudName)
@@ -1707,7 +1702,7 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	}
 
 	c.CloudKeyCache.AviCacheAdd(cloudName, cloud_obj)
-	utils.AviLog.Debugf("Added CloudKeyCache cache key %v val %v", cloudName, cloud_obj)
+	utils.AviLog.Infof("Added CloudKeyCache cache key %v val %v", cloudName, cloud_obj)
 	return
 }
 
@@ -1741,7 +1736,7 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 	dnsProfile := dnsProvider.InternalProfile
 	// Support multiple dns profiles.
 	for _, dnsProf := range dnsProfile.DNSServiceDomain {
-		utils.AviLog.Debugf("Found DNS_IPAM: %v", *dnsProf.DomainName)
+		utils.AviLog.Debugf("Found DNS Domain name: %v", *dnsProf.DomainName)
 		dnsSubDomains = append(dnsSubDomains, *dnsProf.DomainName)
 	}
 
