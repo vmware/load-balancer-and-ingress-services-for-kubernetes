@@ -35,6 +35,8 @@ import (
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
 
+	"github.com/avinetworks/container-lib/api"
+	apimodels "github.com/avinetworks/container-lib/api/models"
 	"github.com/avinetworks/container-lib/utils"
 	corev1 "k8s.io/api/core/v1"
 
@@ -581,6 +583,15 @@ func DelEP(t *testing.T, ns string, Name string) {
 	if err != nil {
 		t.Fatalf("error in deleting Endpoint: %v", err)
 	}
+}
+
+func InitializeFakeAKOAPIServer() {
+	utils.AviLog.Infof("Initializing Fake AKO API server")
+	akoApi := &api.ApiServer{
+		Models: []apimodels.ApiModel{},
+	}
+
+	akoApi.InitFakeApi()
 }
 
 var AviFakeClientInstance *httptest.Server

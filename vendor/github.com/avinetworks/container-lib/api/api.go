@@ -51,10 +51,10 @@ func (a *ApiServer) SetRouter() *mux.Router {
 	return router
 }
 
-func (a *ApiServer) InitApi() {
+func (a *ApiServer) initModels() {
 	// add common models in ApiServer
 	genericModels := []models.ApiModel{
-		&models.RestStatus,
+		models.RestStatus,
 	}
 	a.Models = append(a.Models, genericModels...)
 
@@ -62,7 +62,10 @@ func (a *ApiServer) InitApi() {
 	for _, model := range a.Models {
 		model.InitModel()
 	}
+}
 
+func (a *ApiServer) InitApi() {
+	a.initModels()
 	router := a.SetRouter()
 	port := a.Port
 
@@ -71,4 +74,11 @@ func (a *ApiServer) InitApi() {
 		utils.AviLog.Errorf("Error initializing AKO api server: %+v", err)
 		return
 	}
+}
+
+// InitFakeApi only initializes the models, and does not run the server on a port
+func (a *ApiServer) InitFakeApi() {
+	a.initModels()
+	utils.AviLog.Infof("Fake API server now running on port %s", a.Port)
+	return
 }

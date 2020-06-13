@@ -38,6 +38,7 @@ const (
 	LoadBalancer                  = "LoadBalancer"
 	Endpoints                     = "Endpoints"
 	Ingress                       = "Ingress"
+	OshiftRoute                   = "OshiftRoute"
 	Service                       = "Service"
 	HTTP                          = "HTTP"
 	HeaderMethod                  = ":method"

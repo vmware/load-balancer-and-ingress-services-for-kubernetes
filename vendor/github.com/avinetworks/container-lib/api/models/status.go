@@ -35,7 +35,7 @@ type RestStatusError struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-var RestStatus StatusModel
+var RestStatus *StatusModel
 var reststatusonce sync.Once
 
 // StatusModel implements ApiModel
@@ -45,7 +45,7 @@ type StatusModel struct {
 
 func (a *StatusModel) InitModel() {
 	reststatusonce.Do(func() {
-		RestStatus = StatusModel{
+		RestStatus = &StatusModel{
 			AviApi: AviApiRestStatus{
 				ConnectionStatus: utils.AVIAPI_INITIATING,
 				Errors:           []RestStatusError{},
@@ -61,7 +61,7 @@ func (a *StatusModel) ApiOperationMap() []OperationMap {
 		Route:  "/api/status",
 		Method: "GET",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
-			response := RestStatus
+			response := &RestStatus
 			utils.Respond(w, response)
 		},
 	}

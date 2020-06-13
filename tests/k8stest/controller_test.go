@@ -103,6 +103,8 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{kubeClient}, registeredInformers)
 
+	integrationtest.InitializeFakeAKOAPIServer()
+
 	integrationtest.NewAviFakeClientInstance()
 	defer integrationtest.AviFakeClientInstance.Close()
 

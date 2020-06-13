@@ -57,6 +57,9 @@ func TestMain(m *testing.M) {
 	subdomains := []string{"avi.internal", ".com"}
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
+
+	integrationtest.InitializeFakeAKOAPIServer()
+
 	integrationtest.NewAviFakeClientInstance()
 	defer integrationtest.AviFakeClientInstance.Close()
 

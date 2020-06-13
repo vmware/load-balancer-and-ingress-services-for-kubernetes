@@ -54,6 +54,8 @@ func TestMain(m *testing.M) {
 	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 
+	integrationtest.InitializeFakeAKOAPIServer()
+
 	integrationtest.NewAviFakeClientInstance()
 	defer integrationtest.AviFakeClientInstance.Close()
 
