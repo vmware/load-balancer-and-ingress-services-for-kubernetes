@@ -195,7 +195,7 @@ func GetDefaultSubDomain() []string {
 	cache := avicache.SharedAviObjCache()
 	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
 	if !ok || cloud == nil {
-		utils.AviLog.Warnf("Cloud object not found")
+		utils.AviLog.Warnf("Cloud object %s not found in cache", utils.CloudName)
 		return nil
 	}
 	cloudProperty, ok := cloud.(*avicache.AviCloudPropertyCache)
