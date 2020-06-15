@@ -531,7 +531,7 @@ type AviTLSKeyCertNode struct {
 
 func (v *AviTLSKeyCertNode) CalculateCheckSum() {
 	// A sum of fields for this SSL cert.
-	checksum := utils.Hash(string(v.Name) + string(v.Cert))
+	checksum := lib.SSLKeyCertChecksum(v.Name, string(v.Cert))
 	v.CloudConfigCksum = checksum
 }
 
