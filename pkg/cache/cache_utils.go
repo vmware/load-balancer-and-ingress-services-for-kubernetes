@@ -271,12 +271,12 @@ func (v *AviVsCache) RemoveFromSNIChildCollection(k string) {
 }
 
 type AviSSLCache struct {
-	Name   string
-	Tenant string
-	Uuid   string
-	//CloudConfigCksum string
-	LastModified string
-	InvalidData  bool
+	Name             string
+	Tenant           string
+	Uuid             string
+	CloudConfigCksum uint32
+	LastModified     string
+	InvalidData      bool
 }
 
 type NextPage struct {

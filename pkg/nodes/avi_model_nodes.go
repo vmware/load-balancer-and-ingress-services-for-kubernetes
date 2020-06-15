@@ -531,7 +531,7 @@ type AviTLSKeyCertNode struct {
 
 func (v *AviTLSKeyCertNode) CalculateCheckSum() {
 	// A sum of fields for this SSL cert.
-	checksum := utils.Hash(string(v.Name) + delim + string(v.Key) + delim + string(v.Cert))
+	checksum := utils.Hash(string(v.Name) + string(v.Cert))
 	v.CloudConfigCksum = checksum
 }
 
@@ -808,6 +808,7 @@ type IngressHostPathSvc struct {
 	ServiceName string
 	Path        string
 	Port        int32
+	PortName    string
 }
 
 type IngressHostMap map[string][]IngressHostPathSvc

@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
 	"ako/pkg/nodes"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -85,9 +86,17 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			utils.AviLog.Warnf("Uuid not present in response %v", resp)
 			continue
 		}
-
+		cert, ok := resp["certificate"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Warnf("Certificate not present in response %v", resp)
+			continue
+		}
+		var checksum uint32
+		if cert["certificate"] != nil {
+			checksum = lib.SSLKeyCertChecksum(name, cert["certificate"].(string))
+		}
 		ssl_cache_obj := avicache.AviSSLCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid: uuid}
+			Uuid: uuid, CloudConfigCksum: checksum}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.SSLKeyCache.AviCacheAdd(k, &ssl_cache_obj)

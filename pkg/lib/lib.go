@@ -243,3 +243,7 @@ func GetClusterName() string {
 func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
 	return (utils.Hash(vrfName) + utils.Hash(utils.Stringify(staticRoutes)))
 }
+
+func SSLKeyCertChecksum(sslName string, certificate string) uint32 {
+	return utils.Hash(sslName + certificate)
+}

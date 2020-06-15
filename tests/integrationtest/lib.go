@@ -117,7 +117,7 @@ type FakeIngress struct {
 	TlsSecretDNS map[string][]string
 }
 
-func (ing FakeIngress) Ingress() *extensionv1beta1.Ingress {
+func (ing FakeIngress) Ingress(multiport ...bool) *extensionv1beta1.Ingress {
 	ingress := &extensionv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ing.Namespace,
@@ -138,21 +138,54 @@ func (ing FakeIngress) Ingress() *extensionv1beta1.Ingress {
 		if len(ing.Paths) > i {
 			path = ing.Paths[i]
 		}
-		ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
-			Host: dnsName,
-			IngressRuleValue: extensionv1beta1.IngressRuleValue{
-				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
-						Path: path,
-						Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-							Type:   intstr.Int,
-							IntVal: 8080,
-						}},
-					},
+		if len(multiport) > 0 {
+			ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+				Host: dnsName,
+				IngressRuleValue: extensionv1beta1.IngressRuleValue{
+					HTTP: &extensionv1beta1.HTTPIngressRuleValue{
+						Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+							Path: "/foo",
+							Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+								Type:   intstr.String,
+								StrVal: "foo0",
+							}},
+						},
+						},
 					},
 				},
-			},
-		})
+			})
+			ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+				Host: dnsName,
+				IngressRuleValue: extensionv1beta1.IngressRuleValue{
+					HTTP: &extensionv1beta1.HTTPIngressRuleValue{
+						Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+							Path: "/bar",
+							Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+								Type:   intstr.String,
+								StrVal: "foo1",
+							}},
+						},
+						},
+					},
+				},
+			})
+		} else {
+			ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+				Host: dnsName,
+				IngressRuleValue: extensionv1beta1.IngressRuleValue{
+					HTTP: &extensionv1beta1.HTTPIngressRuleValue{
+						Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+							Path: path,
+							Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+								Type:   intstr.Int,
+								IntVal: 8080,
+							}},
+						},
+						},
+					},
+				},
+			})
+		}
 	}
 	for secret, hosts := range ing.TlsSecretDNS {
 		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
