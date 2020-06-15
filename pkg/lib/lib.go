@@ -269,3 +269,7 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 	}
 	return allInformers
 }
+
+func SSLKeyCertChecksum(sslName string, certificate string) uint32 {
+	return utils.Hash(sslName + certificate)
+}

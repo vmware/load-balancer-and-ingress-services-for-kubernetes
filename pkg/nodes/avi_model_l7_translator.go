@@ -135,7 +135,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 							priorityLabel = host
 						}
 						hostSlice = append(hostSlice, host)
-						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), IngressName: ingName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: hostSlice}}
+						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), PortName: obj.PortName, IngressName: ingName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: hostSlice}}
 						poolNode.VrfContext = lib.GetVrf()
 						if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 							poolNode.Servers = servers
@@ -432,7 +432,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			httpPGPath.Host = host
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 
-			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), Tenant: lib.GetTenant()}
+			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), PortName: path.PortName, Tenant: lib.GetTenant()}
 			poolNode.VrfContext = lib.GetVrf()
 
 			if servers := PopulateServers(poolNode, namespace, path.ServiceName, true, key); servers != nil {
@@ -448,6 +448,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				// Replace the poolNode.
 				tlsNode.ReplaceSniPoolInSNINode(poolNode, key)
 			}
+			o.AddModelNode(poolNode)
 			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
 			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
 			if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
