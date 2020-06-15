@@ -396,7 +396,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 	return nil
 }
 
-func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op *utils.RestOp, key string) error {
+func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	// Delete the SNI Child ref
 	vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	if ok {
@@ -421,9 +421,14 @@ func (rest *RestOperations) AviVsCacheDel(vsKey avicache.NamespaceName, rest_op 
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
 			}
 
-			// SNI VS deletion related ingress status update
 			if len(vs_cache_obj.ServiceMetadataObj.HostNames) > 0 {
+				// SNI VS deletion related ingress status update
 				DeleteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
+			} else {
+				// Shared VS deletion related ingress status update
+				for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+					rest.DeletePoolIngressStatus(poolKey, true, key)
+				}
 			}
 		}
 	}

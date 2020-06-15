@@ -186,7 +186,6 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 	// Delete the pool from the vs cache as well.
 	poolKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
-	isSNI := false
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
@@ -197,16 +196,21 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 	}
 	utils.AviLog.Debugf("key: %s, msg: deleting pool with key: %s", key, poolKey)
 	// Fetch the pool's cache data and obtain the service metadata
+	rest.DeletePoolIngressStatus(poolKey, false, key)
+	// Now delete the cache.
+	rest.cache.PoolCache.AviCacheDelete(poolKey)
+
+	return nil
+}
+
+func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceName, isVSDelete bool, key string) {
 	pool_cache, found := rest.cache.PoolCache.AviCacheGet(poolKey)
 	if found {
 		pool_cache_obj, success := pool_cache.(*avicache.AviPoolCache)
 		if success {
-			if pool_cache_obj.ServiceMetadataObj.IngressName == "" {
-				// SNI VSes use the VS object metadata
-				isSNI = true
-			}
-			if !isSNI {
-				err := DeleteIngressStatus(pool_cache_obj.ServiceMetadataObj, false, key)
+			if pool_cache_obj.ServiceMetadataObj.IngressName != "" {
+				// SNI VSes use the VS object metadata, delete ingress status for others
+				err := DeleteIngressStatus(pool_cache_obj.ServiceMetadataObj, isVSDelete, key)
 				if k8serror.IsNotFound(err) {
 					// Just log and get away
 					utils.AviLog.Infof("key: %s, msg: ingress already deleted, nothing to update in status", key)
@@ -214,8 +218,4 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 			}
 		}
 	}
-	// Now delete the cache.
-	rest.cache.PoolCache.AviCacheDelete(poolKey)
-
-	return nil
 }
