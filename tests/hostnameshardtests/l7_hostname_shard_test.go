@@ -502,7 +502,6 @@ func TestMultiPortServiceIngress(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	//SetUpTestForIngress(t, modelName)
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, true)
 	integrationtest.CreateEP(t, "default", "avisvc", true, true, "1.1.1")
