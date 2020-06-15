@@ -43,8 +43,11 @@ func PopulateCache() {
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
 		avicache.SetVRFFromNetwork(avi_rest_client_pool.AviClient[0])
-		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0],
-			utils.CtrlVersion, utils.CloudName)
+		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
+
+		// once the l3 cache is populated, we can call the updatestatus functions from here
+		restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
+		restlayer.SyncIngressStatus()
 	}
 }
 
