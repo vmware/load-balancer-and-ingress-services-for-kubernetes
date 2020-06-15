@@ -783,18 +783,16 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 			utils.AviLog.Debugf("key: %s, msg: the cache sni nodes are: %v", key, cache_sni_nodes)
 			sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 			if sni_cache_obj != nil {
-				// Cache found. Let's compare the checksums
-				if sni_cache_obj.CloudConfigCksum == strconv.Itoa(int(sni_node.GetCheckSum())) {
-					utils.AviLog.Debugf("key: %s, msg: the checksums are same for sni child %s, not doing anything", key, sni_node.Name)
-				} else {
-					sni_pools_to_delete, rest_ops = rest.PoolCU(sni_node.PoolRefs, sni_cache_obj, namespace, rest_ops, key)
-					sni_pgs_to_delete, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, sni_cache_obj, namespace, rest_ops, key)
-					http_policies_to_delete, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, sni_cache_obj, namespace, rest_ops, key)
-					sslkey_cert_delete, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, sni_cache_obj, namespace, rest_ops, key)
-					utils.AviLog.Debugf("key: %s, msg: the checksums are different for sni child %s, operation: PUT", key, sni_node.Name)
-					// The checksums are different, so it should be a PUT call.
+				sni_pools_to_delete, rest_ops = rest.PoolCU(sni_node.PoolRefs, sni_cache_obj, namespace, rest_ops, key)
+				sni_pgs_to_delete, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, sni_cache_obj, namespace, rest_ops, key)
+				http_policies_to_delete, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, sni_cache_obj, namespace, rest_ops, key)
+				sslkey_cert_delete, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, sni_cache_obj, namespace, rest_ops, key)
+				// The checksums are different, so it should be a PUT call.
+				if sni_cache_obj.CloudConfigCksum != strconv.Itoa(int(sni_node.GetCheckSum())) {
 					restOp := rest.AviVsBuild(sni_node, utils.RestPut, sni_cache_obj, key)
 					rest_ops = append(rest_ops, restOp...)
+					utils.AviLog.Infof("key: %s, msg: the checksums are different for sni child %s, operation: PUT", key, sni_node.Name)
+
 				}
 			}
 		} else {
@@ -1035,12 +1033,13 @@ func (rest *RestOperations) SSLKeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode
 				if ok {
 					cache_ssl_nodes = Remove(cache_ssl_nodes, ssl_key)
 					ssl_cache_obj, _ := ssl_cache.(*avicache.AviSSLCache)
-
-					// The checksums are different, so it should be a PUT call.
-
-					restOp := rest.AviSSLBuild(ssl, ssl_cache_obj)
-					rest_ops = append(rest_ops, restOp)
-
+					if ssl_cache_obj.CloudConfigCksum == ssl.GetCheckSum() {
+						utils.AviLog.Debugf("The checksums are same for SSL cache obj %s, not doing anything", ssl_cache_obj.Name)
+					} else {
+						// The checksums are different, so it should be a PUT call.
+						restOp := rest.AviSSLBuild(ssl, ssl_cache_obj)
+						rest_ops = append(rest_ops, restOp)
+					}
 				}
 			} else {
 				// Not found - it should be a POST call.

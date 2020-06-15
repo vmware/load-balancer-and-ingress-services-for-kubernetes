@@ -497,6 +497,70 @@ func TestMultiPathIngress(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
+func TestMultiPortServiceIngress(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	var err error
+
+	modelName := "admin/cluster--Shared-L7-0"
+	objects.SharedAviGraphLister().Delete(modelName)
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, true)
+	integrationtest.CreateEP(t, "default", "avisvc", true, true, "1.1.1")
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "ingress-multipath",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).Ingress(true)
+
+	_, err = KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolRefs {
+			if pool.Name == "cluster--foo.com_foo-default-ingress-multipath" {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+				g.Expect(pool.Port).To(gomega.Equal(int32(8080)))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(3))
+			} else if pool.Name == "cluster--foo.com_bar-default-ingress-multipath" {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+				g.Expect(pool.Port).To(gomega.Equal(int32(8081)))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(2))
+			} else {
+				t.Fatalf("unexpected pool: %s", pool.Name)
+			}
+		}
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
+			if *pool.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-ingress-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=cluster--foo.com_bar-default-ingress-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			} else {
+				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
+			}
+		}
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-multipath", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, modelName)
+}
+
 func TestMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
