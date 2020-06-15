@@ -21,6 +21,10 @@ import (
 
 	"github.com/avinetworks/container-lib/utils"
 	"github.com/avinetworks/sdk/go/models"
+
+	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 var IngressApiMap = map[string]string{
@@ -242,4 +246,26 @@ func GetClusterName() string {
 
 func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
 	return (utils.Hash(vrfName) + utils.Hash(utils.Stringify(staticRoutes)))
+}
+
+func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Clientset) []string {
+	//allInformers := []string{}
+	allInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.NodeInformer,
+		utils.ConfigMapInformer,
+	}
+	informerTimeout := int64(120)
+	_, err := oclient.RouteV1().Routes("").List(metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+	if err == nil {
+		// Openshift cluster with route support, we will just add route informer
+		allInformers = append(allInformers, utils.RouteInformer)
+	} else {
+		// Kubernetes cluster
+		allInformers = append(allInformers, utils.IngressInformer)
+	}
+	return allInformers
 }

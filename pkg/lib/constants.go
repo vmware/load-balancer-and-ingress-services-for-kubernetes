@@ -39,4 +39,8 @@ const (
 	SLOW_SYNC_TIME            = 120
 	LOG_LEVEL                 = "logLevel"
 	ShardVSPrefix             = "Shared-L7"
+	PolicyAllow               = "ALLOW"
+	PolicyNone                = "NONE"
+	PolicyEdgeTerm            = "EDGE"
+	PolicyRedirect            = "REDIRECT"
 )

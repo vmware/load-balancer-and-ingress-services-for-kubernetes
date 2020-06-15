@@ -182,6 +182,9 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 }
 
 func HostNameShardAndPublish(ingress, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
+	if utils.GetInformers().IngressInformer == nil {
+		return
+	}
 	var err error
 	o := NewNodesValidator()
 	myIng, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(namespace).Get(ingress)

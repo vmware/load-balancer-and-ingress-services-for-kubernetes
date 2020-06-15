@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
+	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/api/networking/v1beta1"
 )
 
@@ -130,6 +131,26 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 		tlsConfigs = append(tlsConfigs, tls)
 	}
 	ingressConfig.TlsCollection = tlsConfigs
+	ingressConfig.IngressHostMap = hostMap
+	utils.AviLog.Infof("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))
+	return ingressConfig
+}
+
+func (v *Validator) ParseHostPathForRoute(ns string, ingName string, routeSpec routev1.RouteSpec, key string) IngressConfig {
+	ingressConfig := IngressConfig{}
+	hostMap := make(IngressHostMap)
+
+	hostName := routeSpec.Host
+
+	hostPathMapSvc := IngressHostPathSvc{}
+	hostPathMapSvc.Path = routeSpec.Path
+	hostPathMapSvc.ServiceName = routeSpec.To.Name
+
+	var hostPathMapSvcList []IngressHostPathSvc
+	hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
+
+	hostMap[hostName] = hostPathMapSvcList
+
 	ingressConfig.IngressHostMap = hostMap
 	utils.AviLog.Infof("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig

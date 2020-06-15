@@ -808,6 +808,7 @@ type IngressHostPathSvc struct {
 	ServiceName string
 	Path        string
 	Port        int32
+	weight      int32 //required for alternate backends in openshift route
 }
 
 type IngressHostMap map[string][]IngressHostPathSvc

@@ -120,6 +120,10 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 }
 
 func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
+	var allPort bool
+	if poolNode.Port == 0 && poolNode.PortName == "" {
+		allPort = true
+	}
 	// Find the servers that match the port.
 	if ingress {
 		// If it's an ingress case, check if the service of type clusterIP or not.
@@ -137,6 +141,9 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	var pool_meta []AviPoolMetaServer
 	for _, ss := range epObj.Subsets {
 		port_match := false
+		if allPort {
+			port_match = true
+		}
 		for _, epp := range ss.Ports {
 			if poolNode.PortName == epp.Name {
 				port_match = true

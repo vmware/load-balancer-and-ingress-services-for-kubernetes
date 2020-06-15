@@ -25,6 +25,9 @@ import (
 var svclisterinstance *SvcLister
 var svconce sync.Once
 
+var oshiftroutesvclister *SvcLister
+var routesvconce sync.Once
+
 func SharedSvcLister() *SvcLister {
 	svconce.Do(func() {
 		svclisterinstance = &SvcLister{
@@ -37,6 +40,20 @@ func SharedSvcLister() *SvcLister {
 		}
 	})
 	return svclisterinstance
+}
+
+func OshiftRouteSvcLister() *SvcLister {
+	routesvconce.Do(func() {
+		oshiftroutesvclister = &SvcLister{
+			svcIngStore:         NewObjectStore(),
+			ingSvcStore:         NewObjectStore(),
+			secretIngStore:      NewObjectStore(),
+			ingSecretStore:      NewObjectStore(),
+			secretHostNameStore: NewObjectStore(),
+			ingHostStore:        NewObjectStore(),
+		}
+	})
+	return oshiftroutesvclister
 }
 
 type SvcLister struct {
@@ -57,6 +74,15 @@ type SvcNSCache struct {
 	SecretIngNSCache
 	IngHostCache
 	SecretHostNameNSCache
+}
+
+// stores path/policies for a hostname
+// policies can be of various types for both secure and insecure hosts
+type RouteIngrhost struct {
+	Hostname       string
+	InsecurePolicy string // none, redirect, allow
+	SecurePolicy   string // edge, reencrypt, passthrough
+	Paths          []string
 }
 
 type IngNSCache struct {
@@ -164,10 +190,6 @@ func (v *IngNSCache) UpdateIngToSvcMapping(ingName string, svcList []string) {
 	v.ingSvcobjects.AddOrUpdate(ingName, svcList)
 }
 
-func (v *IngNSCache) UpdatedIngressMappings(ingName string, svcList []string) {
-	v.UpdateIngToSvcMapping(ingName, svcList)
-}
-
 //=====All ingress to secret mapping methods are here.
 
 func (v *SecretIngNSCache) GetIngToSecret(ingName string) (bool, []string) {
@@ -242,17 +264,6 @@ func (v *SecretHostNameNSCache) DecrementSecretToHostNameMapping(secretName stri
 	return hostnames
 }
 
-//=====All ingress to host mapping methods are here.
-/*
-{
-	"secure": {
-		"host1": ["path1", "path2"]
-	}
-	"insecure": {
-		"host2": ["path1", "path2"]
-	}
-}
-*/
 func (v *IngHostCache) GetIngToHost(ingName string) (bool, map[string]map[string][]string) {
 	// Need checks if it's found or not?
 	found, hosts := v.ingHostobjects.Get(ingName)
@@ -260,6 +271,19 @@ func (v *IngHostCache) GetIngToHost(ingName string) (bool, map[string]map[string
 		return false, make(map[string]map[string][]string, 0)
 	}
 	return true, hosts.(map[string]map[string][]string)
+}
+
+func (v *IngHostCache) GetRouteIngToHost(ingName string) (bool, map[string]*RouteIngrhost) {
+	found, hosts := v.ingHostobjects.Get(ingName)
+	if !found {
+		return false, make(map[string]*RouteIngrhost)
+	}
+	return true, hosts.(map[string]*RouteIngrhost)
+}
+
+func (v *IngHostCache) UpdateRouteIngToHostMapping(ingName string, hostMap map[string]*RouteIngrhost) {
+	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostMap)
+	v.ingHostobjects.AddOrUpdate(ingName, hostMap)
 }
 
 func (v *IngHostCache) DeleteIngToHostMapping(ingName string) bool {

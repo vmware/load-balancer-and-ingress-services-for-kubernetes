@@ -107,25 +107,16 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	}
 }
 
-func (c *AviController) InitController(informers K8sinformers, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
+func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
 	// set up signals so we handle the first shutdown signal gracefully
 	var worker *utils.FullSyncThread
-	registeredInformers := []string{
-		utils.ServiceInformer,
-		utils.EndpointInformer,
-		utils.IngressInformer,
-		utils.SecretInformer,
-		utils.NSInformer,
-		utils.NodeInformer,
-		utils.ConfigMapInformer,
-	}
+	informersArg := make(map[string]interface{})
+	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = informers.OshiftClient
 	if lib.GetNamespaceToSync() != "" {
-		namespaceMap := make(map[string]interface{})
-		namespaceMap[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
-		c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, namespaceMap)
-	} else {
-		c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers)
+		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
+
+	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
 	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient)
 
 	c.Start(stopCh)
@@ -255,14 +246,28 @@ func (c *AviController) FullSyncK8s() {
 			nodes.DequeueIngestion(key, true)
 		}
 
-		ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-			continue
+		if utils.GetInformers().IngressInformer != nil {
+			ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+				continue
+			}
+			for _, ingObj := range ingObjs {
+				key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+				nodes.DequeueIngestion(key, true)
+			}
 		}
-		for _, ingObj := range ingObjs {
-			key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-			nodes.DequeueIngestion(key, true)
+		if utils.GetInformers().RouteInformer != nil {
+			ingObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
+				continue
+			}
+			for _, ingObj := range ingObjs {
+				// to do move to container-lib
+				key := utils.OshiftRoute + "/" + utils.ObjKey(ingObj)
+				nodes.DequeueIngestion(key, true)
+			}
 		}
 
 	}

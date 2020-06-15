@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 	k8s.PopulateCache()
 	ctrlCh := make(chan struct{})
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
-	go ctrl.InitController(informers, ctrlCh, stopCh)
+	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh)
 	AddConfigMap()
 	integrationtest.KubeClient = KubeClient
 

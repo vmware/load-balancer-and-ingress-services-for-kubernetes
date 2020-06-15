@@ -28,8 +28,8 @@ import (
 func DequeueIngestion(key string, fullsync bool) {
 	// The key format expected here is: objectType/Namespace/ObjKey
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
-	ingressFound := false
-	var ingressNames []string
+	var ingressFound, routeFound bool
+	var ingressNames, routeNames []string
 	utils.AviLog.Debugf("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
@@ -41,10 +41,15 @@ func DequeueIngestion(key string, fullsync bool) {
 		processNodeObj(key, name, sharedQueue, false)
 		return
 	}
+
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if valid {
 		// If it's an ingress related change, let's process that.
-		ingressNames, ingressFound = schema.GetParentIngresses(name, namespace, key)
+		if utils.GetInformers().IngressInformer != nil && schema.GetParentIngresses != nil {
+			ingressNames, ingressFound = schema.GetParentIngresses(name, namespace, key)
+		} else if utils.GetInformers().RouteInformer != nil && schema.GetParentRoutes != nil {
+			routeNames, routeFound = schema.GetParentRoutes(name, namespace, key)
+		}
 	}
 	if objType == utils.Service {
 		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
@@ -61,6 +66,18 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	}
+
+	if routeFound {
+		utils.AviLog.Infof("key: %s, msg: route found: %v", key, routeNames)
+		if lib.GetShardScheme() == lib.HOSTNAME_SHARD_SCHEME {
+			for _, route := range routeNames {
+				utils.AviLog.Infof("key: %s, msg: processing route: %s", route)
+				HostNameShardAndPublishV2(utils.OshiftRoute, route, namespace, key, fullsync, sharedQueue)
+			}
+		}
+		return
+	}
+
 	if !ingressFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
@@ -84,7 +101,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					if lib.GetShardScheme() != lib.NAMESPACE_SHARD_SCHEME {
 						for _, ingress := range affectedIngs {
 							utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
-							HostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
+							HostNameShardAndPublishV2(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
 						}
 					} else {
 						utils.AviLog.Warnf("key: %s, msg: transition from ClusterIP to service of type LB is not supported in namespace based shard for ingress pool changes", key)
@@ -145,7 +162,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			// The only other shard scheme we support now is hostname sharding.
 			for _, ingress := range ingressNames {
 				utils.AviLog.Debugf("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
-				HostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
+				HostNameShardAndPublishV2(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
 			}
 		}
 	}

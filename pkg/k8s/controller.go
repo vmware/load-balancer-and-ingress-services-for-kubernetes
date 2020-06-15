@@ -23,6 +23,8 @@ import (
 	"ako/pkg/lib"
 
 	"github.com/avinetworks/container-lib/utils"
+	routev1 "github.com/openshift/api/route/v1"
+	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -51,6 +53,7 @@ type AviController struct {
 type K8sinformers struct {
 	Cs            kubernetes.Interface
 	DynamicClient dynamic.Interface
+	OshiftClient  oshiftclient.Interface
 }
 
 func SharedAviController() *AviController {
@@ -116,6 +119,77 @@ func isIngressUpdated(oldIngress, newIngress *v1beta1.Ingress) bool {
 	}
 
 	return false
+}
+
+// Consider a route has been updated only if spec/annotation is updated
+func isRouteUpdated(oldRoute, newRoute *routev1.Route) bool {
+	if oldRoute.ResourceVersion == newRoute.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldRoute.Spec))
+	newSpecHash := utils.Hash(utils.Stringify(newRoute.Spec))
+
+	if oldSpecHash != newSpecHash {
+		return true
+	}
+
+	return false
+}
+
+func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
+	routeEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			route := obj.(*routev1.Route)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
+			//To Do: Add to container-lib
+			//key := utils.Route + "/" + utils.ObjKey(route)
+			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint delete")
+				return
+			}
+			route, ok := obj.(*routev1.Route)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				route, ok = tombstone.Obj.(*routev1.Route)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an Route: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
+			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint update")
+				return
+			}
+			oldRoute := old.(*routev1.Route)
+			newRoute := cur.(*routev1.Route)
+			if isRouteUpdated(oldRoute, newRoute) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
+				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
+		},
+	}
+	return routeEventHandler
 }
 
 func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
@@ -471,12 +545,19 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	c.informers.EpInformer.Informer().AddEventHandler(ep_event_handler)
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
-	c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
+	if c.informers.IngressInformer != nil {
+		c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
+	}
 	c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
 		c.informers.NodeInformer.Informer().AddEventHandler(node_event_handler)
+	}
+
+	if c.informers.RouteInformer != nil {
+		routeEventHandler := AddRouteEventHandler(numWorkers, c)
+		c.informers.RouteInformer.Informer().AddEventHandler(routeEventHandler)
 	}
 }
 
@@ -496,7 +577,12 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
-	go c.informers.IngressInformer.Informer().Run(stopCh)
+	if c.informers.IngressInformer != nil {
+		go c.informers.IngressInformer.Informer().Run(stopCh)
+	}
+	if c.informers.RouteInformer != nil {
+		go c.informers.RouteInformer.Informer().Run(stopCh)
+	}
 	go c.informers.SecretInformer.Informer().Run(stopCh)
 	go c.informers.NodeInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
@@ -505,14 +591,21 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
 	}
 
-	if !cache.WaitForCacheSync(stopCh,
+	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
-		c.informers.IngressInformer.Informer().HasSynced,
 		c.informers.SecretInformer.Informer().HasSynced,
 		c.informers.NodeInformer.Informer().HasSynced,
 		c.informers.NSInformer.Informer().HasSynced,
-	) {
+	}
+	if c.informers.RouteInformer != nil {
+		informersList = append(informersList, c.informers.RouteInformer.Informer().HasSynced)
+	}
+	if c.informers.IngressInformer != nil {
+		informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
+	}
+
+	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced")

@@ -19,6 +19,7 @@ import (
 	"ako/pkg/objects"
 
 	"github.com/avinetworks/container-lib/utils"
+	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -27,6 +28,7 @@ var (
 	Service = GraphSchema{
 		Type:               "Service",
 		GetParentIngresses: SvcToIng,
+		GetParentRoutes:    SvcToIng,
 	}
 	Ingress = GraphSchema{
 		Type:               "Ingress",
@@ -35,25 +37,58 @@ var (
 	Endpoint = GraphSchema{
 		Type:               "Endpoints",
 		GetParentIngresses: EPToIng,
+		GetParentRoutes:    EPToIng,
 	}
 	Secret = GraphSchema{
 		Type:               "Secret",
 		GetParentIngresses: SecretToIng,
+		GetParentRoutes:    SecretToIng,
+	}
+	Route = GraphSchema{
+		Type:            utils.OshiftRoute,
+		GetParentRoutes: RouteChanges,
 	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		Service,
 		Endpoint,
 		Secret,
+		Route,
 	}
 )
 
 type GraphSchema struct {
 	Type               string
 	GetParentIngresses func(string, string, string) ([]string, bool)
+	GetParentRoutes    func(string, string, string) ([]string, bool)
 }
 
 type GraphDescriptor []GraphSchema
+
+var SvcListerForRoutes struct {
+	SvcListerForRoute map[string]objects.SvcLister
+}
+
+func RouteChanges(routeName string, namespace string, key string) ([]string, bool) {
+	var routes []string
+	routes = append(routes, routeName)
+	routeObj, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).Get(routeName)
+	if err != nil {
+		// Detect a delete condition here.
+		if errors.IsNotFound(err) {
+			// Remove all the Ingress to Services mapping.
+			// Remove the references of this ingress from the Services
+			objects.OshiftRouteSvcLister().IngressMappings(namespace).RemoveIngressMappings(routeName)
+		}
+	} else {
+		services := parseServicesForRoute(routeObj.Spec, key)
+		for _, svc := range services {
+			utils.AviLog.Debugf("key: %s, msg: updating route relationship for service:  %s", key, svc)
+			objects.OshiftRouteSvcLister().IngressMappings(namespace).UpdateIngressMappings(routeName, svc)
+		}
+	}
+	return routes, true
+}
 
 func IngressChanges(ingName string, namespace string, key string) ([]string, bool) {
 	var ingresses []string
@@ -124,6 +159,19 @@ func SecretToIng(secretName string, namespace string, key string) ([]string, boo
 		return ingNames, true
 	}
 	return nil, false
+}
+
+func parseServicesForRoute(routeSpec routev1.RouteSpec, key string) []string {
+	// Figure out the service names that are part of this route
+	var services []string
+
+	services = append(services, routeSpec.To.Name)
+	for _, ab := range routeSpec.AlternateBackends {
+		services = append(services, ab.Name)
+	}
+
+	utils.AviLog.Debugf("key: %s, msg: total services retrieved  from route:  %v", key, services)
+	return services
 }
 
 func parseServicesForIngress(ingSpec v1beta1.IngressSpec, key string) []string {

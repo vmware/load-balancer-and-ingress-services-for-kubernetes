@@ -24,6 +24,7 @@ import (
 	"github.com/avinetworks/container-lib/api"
 	"github.com/avinetworks/container-lib/api/models"
 	"github.com/avinetworks/container-lib/utils"
+	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -76,32 +77,32 @@ func InitializeAKC() {
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
-	registeredInformers := []string{
-		utils.ServiceInformer,
-		utils.EndpointInformer,
-		utils.IngressInformer,
-		utils.SecretInformer,
-		utils.NSInformer,
-		utils.NodeInformer,
-		utils.ConfigMapInformer,
+
+	oshiftClient, err := oshiftclient.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Warnf("Error in creating openshift clientset")
 	}
+
+	registeredInformers := lib.InformersToRegister(oshiftClient, kubeClient)
+
+	informersArg := make(map[string]interface{})
+	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = oshiftClient
+
 	if lib.GetNamespaceToSync() != "" {
-		namespaceMap := make(map[string]interface{})
-		namespaceMap[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
-		utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, namespaceMap)
-	} else {
-		utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
+		utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	}
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient)
 
-	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
+	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
 	c := k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	c.HandleConfigMap(informers, ctrlCh, stopCh)
 	k8s.PopulateCache()
 	k8s.PopulateNodeCache(kubeClient)
-	go c.InitController(informers, ctrlCh, stopCh)
+	go c.InitController(informers, registeredInformers, ctrlCh, stopCh)
 	<-stopCh
 	close(ctrlCh)
 }
