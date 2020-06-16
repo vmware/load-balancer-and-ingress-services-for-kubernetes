@@ -280,11 +280,18 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 			continue
 		}
 
+		svc_mdata_intf := *pool.ServiceMetadata
+		var svc_mdata_obj ServiceMetadataObj
+		if err := json.Unmarshal([]byte(svc_mdata_intf), &svc_mdata_obj); err != nil {
+			utils.AviLog.Warnf("Error parsing service metadata during pool cache :%v", err)
+		}
+
 		poolCacheObj := AviPoolCache{
-			Name:             *pool.Name,
-			Uuid:             *pool.UUID,
-			CloudConfigCksum: *pool.CloudConfigCksum,
-			LastModified:     *pool.LastModified,
+			Name:               *pool.Name,
+			Uuid:               *pool.UUID,
+			CloudConfigCksum:   *pool.CloudConfigCksum,
+			ServiceMetadataObj: svc_mdata_obj,
+			LastModified:       *pool.LastModified,
 		}
 		*poolData = append(*poolData, poolCacheObj)
 	}
@@ -656,11 +663,19 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 		if !strings.HasPrefix(*pool.Name, lib.GetNamePrefix()) {
 			continue
 		}
+
+		svc_mdata_intf := *pool.ServiceMetadata
+		var svc_mdata_obj ServiceMetadataObj
+		if err := json.Unmarshal([]byte(svc_mdata_intf), &svc_mdata_obj); err != nil {
+			utils.AviLog.Warnf("Error parsing service metadata during pool cache :%v", err)
+		}
+
 		poolCacheObj := AviPoolCache{
-			Name:             *pool.Name,
-			Uuid:             *pool.UUID,
-			CloudConfigCksum: *pool.CloudConfigCksum,
-			LastModified:     *pool.LastModified,
+			Name:               *pool.Name,
+			Uuid:               *pool.UUID,
+			CloudConfigCksum:   *pool.CloudConfigCksum,
+			ServiceMetadataObj: svc_mdata_obj,
+			LastModified:       *pool.LastModified,
 		}
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pool.Name}
 		c.PoolCache.AviCacheAdd(k, &poolCacheObj)
