@@ -102,6 +102,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 			hostPathMapSvc.Path = path.Path
 			hostPathMapSvc.ServiceName = path.Backend.ServiceName
 			hostPathMapSvc.Port = path.Backend.ServicePort.IntVal
+			hostPathMapSvc.PortName = path.Backend.ServicePort.StrVal
 			if hostPathMapSvc.Port == 0 {
 				// Default to port 80 if not set in the ingress object
 				hostPathMapSvc.Port = 80
