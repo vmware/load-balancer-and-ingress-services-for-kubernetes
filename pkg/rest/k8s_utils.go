@@ -79,41 +79,41 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 	for _, rule := range mIngress.Spec.Rules {
 		hostListIng = append(hostListIng, rule.Host)
 	}
+
+	noOP := false
+	for _, status := range mIngress.Status.LoadBalancer.Ingress {
+		if status.IP == vs_cache_obj.Vip && utils.HasElem(hostnames, status.Hostname) {
+			utils.AviLog.Debugf("key: %s, msg: No changes detected in ingress status. Hostnames: %+v VsCache: %+v", hostnames, utils.Stringify(vs_cache_obj))
+			noOP = true
+		}
+	}
+
 	// If we find a hostname in the present update, let's first remove it from the existing status.
 	utils.AviLog.Infof("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
-		var matchFound bool
-		for _, host := range hostnames {
-			if mIngress.Status.LoadBalancer.Ingress[i].Hostname == host {
-				matchFound = true
-			}
-		}
-		if matchFound {
-			// Remove this host from the status.
+		if utils.HasElem(hostnames, mIngress.Status.LoadBalancer.Ingress[i].Hostname) && !noOP {
 			mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 		}
 	}
+
 	// Handle fresh hostname update
-	for _, host := range hostnames {
-		lbIngress := core.LoadBalancerIngress{
-			IP:       vs_cache_obj.Vip,
-			Hostname: host,
+	if !noOP {
+		for _, host := range hostnames {
+			lbIngress := core.LoadBalancerIngress{
+				IP:       vs_cache_obj.Vip,
+				Hostname: host,
+			}
+			mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress, lbIngress)
 		}
-		mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress, lbIngress)
+	}
+
+	// remove the host from status which is not in spec
+	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
+		if !utils.HasElem(hostListIng, mIngress.Status.LoadBalancer.Ingress[i].Hostname) {
+			mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
+		}
 	}
 	utils.AviLog.Infof("key: %s, msg: status after update: %v", key, mIngress.Status.LoadBalancer.Ingress)
-	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
-		var matchFound bool
-		for _, host := range hostListIng {
-			if mIngress.Status.LoadBalancer.Ingress[i].Hostname == host {
-				matchFound = true
-			}
-		}
-		if !matchFound {
-			// Remove this host from the status.
-			mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
-		}
-	}
 
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		mIng, ok := utils.ToExtensionIngress(mIngress)
@@ -273,4 +273,60 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 	}
 	utils.AviLog.Infof("key:%s, msg: Successfully reset the loadbalancer status: %v", key, utils.Stringify(response))
 	return nil
+}
+
+// SyncIngressStatus gets data from L3 cache and does a status update on the ingress objects
+// based on the service metadata objects it finds in the cache
+// This is executed once AKO is done with populating the L3 cache in reboot scenarios
+func (rest *RestOperations) SyncIngressStatus() {
+	vsKeys := rest.cache.VsCacheMeta.AviGetAllVSKeys()
+	utils.AviLog.Debugf("Ingress status sync for vsKeys %+v", utils.Stringify(vsKeys))
+
+	for _, vsKey := range vsKeys {
+		vsCache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
+		if !ok {
+			continue
+		}
+
+		vsCacheObj, found := vsCache.(*avicache.AviVsCache)
+		if !found {
+			continue
+		}
+
+		parentVsKey := vsCacheObj.ParentVSRef
+		if parentVsKey != (avicache.NamespaceName{}) {
+			// secure VSes handler
+			parentVs, found := rest.cache.VsCacheMeta.AviCacheGet(parentVsKey)
+			if !found {
+				continue
+			}
+
+			vsSvcMetadataObj := vsCacheObj.ServiceMetadataObj
+			parentVsObj, _ := parentVs.(*avicache.AviVsCache)
+			if (vsSvcMetadataObj.IngressName != "" || len(vsSvcMetadataObj.NamespaceIngressName) > 0) && vsSvcMetadataObj.Namespace != "" && parentVsObj != nil {
+				// sni VS
+				UpdateIngressStatus(parentVsObj, vsSvcMetadataObj, "syncstatus")
+			}
+		} else {
+			// insecure VSes handler
+			for _, poolKey := range vsCacheObj.PoolKeyCollection {
+				poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey)
+				if !ok {
+					continue
+				}
+
+				poolCacheObj, found := poolCache.(*avicache.AviPoolCache)
+				if !found {
+					continue
+				}
+
+				// insecure pools
+				if poolCacheObj.ServiceMetadataObj.Namespace != "" {
+					UpdateIngressStatus(vsCacheObj, poolCacheObj.ServiceMetadataObj, "syncstatus")
+				}
+			}
+		}
+	}
+
+	return
 }
