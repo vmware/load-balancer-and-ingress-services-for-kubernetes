@@ -49,7 +49,13 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	if subDomains != nil {
 		var fqdn string
 
-		// subDomains[0] would either have the defaultSubDomain value (specified in values.yaml)
+		// honour defaultSubDomain from values.yaml if specified
+		defaultSubDomain := lib.GetDomain()
+		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
+			subDomains = []string{defaultSubDomain}
+		}
+
+		// subDomains[0] would either have the defaultSubDomain value
 		// or would default to the first dns subdomain it gets from the dns profile
 		if strings.HasPrefix(subDomains[0], ".") {
 			fqdn = svcObj.ObjectMeta.Name + "." + svcObj.ObjectMeta.Namespace + subDomains[0]
@@ -209,13 +215,6 @@ func GetDefaultSubDomain() []string {
 	if !ok {
 		utils.AviLog.Warnf("Cloud property object not found")
 		return nil
-	}
-
-	// honour defaultSubDomain from values.yaml if specified
-	defaultSubDomain := lib.GetDomain()
-	if defaultSubDomain != "" && utils.HasElem(cloudProperty.NSIpamDNS, defaultSubDomain) {
-		nsIpamDNS := []string{defaultSubDomain}
-		return nsIpamDNS
 	}
 
 	if len(cloudProperty.NSIpamDNS) > 0 {
