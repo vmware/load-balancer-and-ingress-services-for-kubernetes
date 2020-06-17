@@ -38,7 +38,6 @@ func NewFullSyncThread(interval time.Duration) *FullSyncThread {
 
 func (w *FullSyncThread) Run() {
 	defer close(w.ShutdownChan)
-	time.Sleep(w.Interval)
 	AviLog.Infof("Started the Full Sync Worker")
 	for {
 		select {

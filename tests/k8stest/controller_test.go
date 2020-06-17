@@ -17,6 +17,7 @@ import (
 	"ako/pkg/k8s"
 	"ako/tests/integrationtest"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,7 +39,7 @@ var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
 
-func syncFuncForTest(key string) error {
+func syncFuncForTest(key string, wg *sync.WaitGroup) error {
 	keyChan <- key
 	return nil
 }
@@ -67,8 +68,10 @@ func waitAndverify(t *testing.T, key string) {
 
 func setupQueue(stopCh <-chan struct{}) {
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	wgIngestion := &sync.WaitGroup{}
+
 	ingestionQueue.SyncFunc = syncFuncForTest
-	ingestionQueue.Run(stopCh)
+	ingestionQueue.Run(stopCh, wgIngestion)
 }
 
 func addConfigMap(t *testing.T) {
@@ -113,7 +116,8 @@ func TestMain(m *testing.M) {
 	ctrl.Start(stopCh)
 	keyChan = make(chan string)
 	ctrlCh := make(chan struct{})
-	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh)
+	quickSyncCh := make(chan struct{})
+	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh, quickSyncCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)
 	os.Exit(m.Run())
