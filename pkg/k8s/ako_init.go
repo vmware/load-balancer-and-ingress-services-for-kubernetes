@@ -42,7 +42,6 @@ func PopulateCache() {
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
-		avicache.SetVRFFromNetwork(avi_rest_client_pool.AviClient[0])
 		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
 
 		// once the l3 cache is populated, we can call the updatestatus functions from here
@@ -60,6 +59,15 @@ func PopulateNodeCache(cs *kubernetes.Clientset) {
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}) {
 	cs := k8sinfo.Cs
+	aviClientPool := avicache.SharedAVIClients()
+	if len(aviClientPool.AviClient) < 1 {
+		c.DisableSync = true
+		utils.AviLog.Errorf("could not get client to connect to Avi Controller, disabling sync")
+		return
+	}
+	aviclient := aviClientPool.AviClient[0]
+	c.DisableSync = !avicache.ValidateUserInput(aviclient)
+
 	utils.AviLog.Infof("Creating event broadcaster for handling configmap")
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(utils.AviLog.Infof)
@@ -71,7 +79,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			if cm, ok := validateAviConfigMap(obj); ok {
 				utils.AviLog.Infof("avi k8s configmap created")
 				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
-				c.DisableSync = !avicache.ValidateUserInput()
+				c.DisableSync = !avicache.ValidateUserInput(aviclient)
 				if !firstboot {
 					ctrlCh <- struct{}{}
 				}

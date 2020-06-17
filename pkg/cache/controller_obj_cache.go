@@ -1762,9 +1762,9 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 	return dnsSubDomains
 }
 
-func ValidateUserInput() bool {
+func ValidateUserInput(client *clients.AviClient) bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
-	isValid := checkRequiredValuesYaml()
+	isValid := checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client)
 	if !isValid {
 		utils.AviLog.Warn("Invalid input detected, syncing will be disabled.")
 	}
@@ -1791,7 +1791,7 @@ func checkRequiredValuesYaml() bool {
 	return true
 }
 
-func SetVRFFromNetwork(client *clients.AviClient) bool {
+func CheckAndSetVRFFromNetwork(client *clients.AviClient) bool {
 	networkName := lib.GetNetworkName()
 	if networkName == "" {
 		utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")
