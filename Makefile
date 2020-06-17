@@ -42,6 +42,7 @@ test:
 int_test:
 	$(GOTEST) -mod=vendor -v ./tests/integrationtest -failfast
 	$(GOTEST) -mod=vendor -v ./tests/hostnameshardtests -failfast
+	$(GOTEST) -mod=vendor -v ./tests/oshiftroutetests -failfast
 
 .PHONY: scale_test
 scale_test:

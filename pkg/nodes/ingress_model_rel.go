@@ -28,7 +28,7 @@ var (
 	Service = GraphSchema{
 		Type:               "Service",
 		GetParentIngresses: SvcToIng,
-		GetParentRoutes:    SvcToIng,
+		GetParentRoutes:    SvcToRoute,
 	}
 	Ingress = GraphSchema{
 		Type:               "Ingress",
@@ -37,7 +37,7 @@ var (
 	Endpoint = GraphSchema{
 		Type:               "Endpoints",
 		GetParentIngresses: EPToIng,
-		GetParentRoutes:    EPToIng,
+		GetParentRoutes:    EPToRoute,
 	}
 	Secret = GraphSchema{
 		Type:               "Secret",
@@ -88,6 +88,29 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 		}
 	}
 	return routes, true
+}
+
+func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
+	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	if err != nil && errors.IsNotFound(err) {
+		// Garbage collect the svc if no route references exist
+		_, routes := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
+		if len(routes) == 0 {
+			objects.SharedSvcLister().IngressMappings(namespace).DeleteSvcToIngMapping(svcName)
+		}
+	}
+	_, routes := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
+	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved:  %v", key, routes)
+	if len(routes) == 0 {
+		return nil, false
+	}
+	return routes, true
+}
+
+func EPToRoute(epName string, namespace string, key string) ([]string, bool) {
+	routes, found := SvcToRoute(epName, namespace, key)
+	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved:  %v", key, routes)
+	return routes, found
 }
 
 func IngressChanges(ingName string, namespace string, key string) ([]string, bool) {
