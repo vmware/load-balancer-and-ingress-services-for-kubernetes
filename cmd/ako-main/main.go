@@ -17,6 +17,8 @@ package main
 import (
 	"flag"
 	"os"
+	"sync"
+	"time"
 
 	"ako/pkg/k8s"
 	"ako/pkg/lib"
@@ -99,12 +101,36 @@ func InitializeAKC() {
 	c := k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
-	c.HandleConfigMap(informers, ctrlCh, stopCh)
+	quickSyncCh := make(chan struct{})
+	c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	k8s.PopulateCache()
 	k8s.PopulateNodeCache(kubeClient)
-	go c.InitController(informers, registeredInformers, ctrlCh, stopCh)
+	waitGroupMap := make(map[string]*sync.WaitGroup)
+	wgIngestion := &sync.WaitGroup{}
+	waitGroupMap["ingestion"] = wgIngestion
+	wgFastRetry := &sync.WaitGroup{}
+	waitGroupMap["fastretry"] = wgFastRetry
+	wgGraph := &sync.WaitGroup{}
+	waitGroupMap["graph"] = wgGraph
+	go c.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	<-stopCh
 	close(ctrlCh)
+	timeoutChan := make(chan struct{})
+	// Timeout after 10 seconds.
+	timeout := 10 * time.Second
+	go func() {
+		defer close(timeoutChan)
+		wgIngestion.Wait()
+		wgGraph.Wait()
+		wgFastRetry.Wait()
+	}()
+	select {
+	case <-timeoutChan:
+		return
+	case <-time.After(timeout):
+		return
+	}
+
 }
 
 func init() {

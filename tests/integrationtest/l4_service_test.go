@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -101,8 +102,16 @@ func TestMain(m *testing.M) {
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
-	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
-	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh)
+	quickSyncCh := make(chan struct{})
+	waitGroupMap := make(map[string]*sync.WaitGroup)
+	wgIngestion := &sync.WaitGroup{}
+	waitGroupMap["ingestion"] = wgIngestion
+	wgFastRetry := &sync.WaitGroup{}
+	waitGroupMap["fastretry"] = wgFastRetry
+	wgGraph := &sync.WaitGroup{}
+	waitGroupMap["graph"] = wgGraph
+	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	AddConfigMap()
 	os.Exit(m.Run())
 }

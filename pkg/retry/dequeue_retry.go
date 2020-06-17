@@ -19,14 +19,6 @@ import (
 	"github.com/avinetworks/container-lib/utils"
 )
 
-func DequeueSlowRetry(vsKey string) {
-	// Retrieve the Key and note the time.
-	utils.AviLog.Infof("Retrieved the key for slow retry : %s", vsKey)
-	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	modelName := utils.ADMIN_NS + "/" + vsKey
-	nodes.PublishKeyToRestLayer(modelName, "retry", sharedQueue)
-}
-
 func DequeueFastRetry(vsKey string) {
 	utils.AviLog.Infof("Retrieved the key for fast retry: %s", vsKey)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)

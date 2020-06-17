@@ -19,6 +19,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	avicache "ako/pkg/cache"
@@ -57,7 +58,7 @@ func PopulateNodeCache(cs *kubernetes.Clientset) {
 
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
-func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}) {
+func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) {
 	cs := k8sinfo.Cs
 	aviClientPool := avicache.SharedAVIClients()
 	if len(aviClientPool.AviClient) < 1 {
@@ -81,7 +82,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
 				c.DisableSync = !avicache.ValidateUserInput(aviclient)
 				if !firstboot {
-					ctrlCh <- struct{}{}
+					quickSyncCh <- struct{}{}
 				}
 			}
 		},
@@ -118,7 +119,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	}
 }
 
-func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
+func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
 	// set up signals so we handle the first shutdown signal gracefully
 	var worker *utils.FullSyncThread
 	informersArg := make(map[string]interface{})
@@ -129,7 +130,15 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
 	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient)
-
+	var ingestionwg *sync.WaitGroup
+	var graphwg *sync.WaitGroup
+	var fastretrywg *sync.WaitGroup
+	if len(waitGroupMap) > 0 {
+		// Fetch all the waitgroups
+		ingestionwg, _ = waitGroupMap[0]["ingestion"]
+		graphwg, _ = waitGroupMap[0]["graph"]
+		fastretrywg, _ = waitGroupMap[0]["fastretry"]
+	}
 	c.Start(stopCh)
 	/** Sequence:
 	  1. Initialize the graph layer queue.
@@ -151,14 +160,16 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		numGraphWorkers := lib.GetshardSize()
 		graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
 		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams, slowRetryQParams, fastRetryQParams).GetQueueByName(utils.GraphLayer)
+
 	} else {
 		// Namespace sharding.
 		ingestionQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersIngestion, WorkqueueName: utils.ObjectIngestionLayer}
 		graphQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersGraph, WorkqueueName: utils.GraphLayer}
 		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams, slowRetryQParams, fastRetryQParams).GetQueueByName(utils.GraphLayer)
 	}
+
 	graphQueue.SyncFunc = SyncFromNodesLayer
-	graphQueue.Run(stopCh)
+	graphQueue.Run(stopCh, graphwg)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 	// Set up the workers but don't start draining them.
@@ -177,29 +188,30 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
 		}
 	}
+
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer
-	ingestionQueue.Run(stopCh)
-	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
-	slowRetryQueue.SyncFunc = SyncFromSlowRetryLayer
-	slowRetryQueue.Run(stopCh)
+	ingestionQueue.Run(stopCh, ingestionwg)
+
 	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
 	fastRetryQueue.SyncFunc = SyncFromFastRetryLayer
-	fastRetryQueue.Run(stopCh)
+	fastRetryQueue.Run(stopCh, fastretrywg)
+LABEL:
 	for {
 		select {
-		case <-ctrlCh:
+		case <-quickSyncCh:
 			worker.QuickSync()
-		case <-stopCh:
-			break
+		case <-ctrlCh:
+			break LABEL
 		}
 	}
-
 	if worker != nil {
 		worker.Shutdown()
 	}
+
 	ingestionQueue.StopWorkers(stopCh)
 	graphQueue.StopWorkers(stopCh)
+	fastRetryQueue.StopWorkers(stopCh)
 }
 
 func (c *AviController) FullSync() {
@@ -373,7 +385,7 @@ func (c *AviController) DeleteModels() {
 	}
 }
 
-func SyncFromIngestionLayer(key string) error {
+func SyncFromIngestionLayer(key string, wg *sync.WaitGroup) error {
 	// This method will do all necessary graph calculations on the Graph Layer
 	// Let's route the key to the graph layer.
 	// NOTE: There's no error propagation from the graph layer back to the workerqueue. We will evaluate
@@ -383,17 +395,12 @@ func SyncFromIngestionLayer(key string) error {
 	return nil
 }
 
-func SyncFromSlowRetryLayer(key string) error {
-	retry.DequeueSlowRetry(key)
-	return nil
-}
-
-func SyncFromFastRetryLayer(key string) error {
+func SyncFromFastRetryLayer(key string, wg *sync.WaitGroup) error {
 	retry.DequeueFastRetry(key)
 	return nil
 }
 
-func SyncFromNodesLayer(key string) error {
+func SyncFromNodesLayer(key string, wg *sync.WaitGroup) error {
 	cache := avicache.SharedAviObjCache()
 	aviclient := avicache.SharedAVIClients()
 	restlayer := rest.NewRestOperations(cache, aviclient)
