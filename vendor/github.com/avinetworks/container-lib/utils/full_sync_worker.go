@@ -66,3 +66,4 @@ func (w *FullSyncThread) Shutdown() {
 func (w *FullSyncThread) QuickSync() {
 	w.QuickSyncChan <- "quicksync"
 }
+

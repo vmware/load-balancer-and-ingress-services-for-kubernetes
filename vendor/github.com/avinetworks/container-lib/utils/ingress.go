@@ -19,22 +19,14 @@ import (
 
 	extension "k8s.io/api/extensions/v1beta1"
 	networking "k8s.io/api/networking/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
 )
 
 var IngressApiMap = map[string]string{
 	"corev1":      CoreV1IngressInformer,
 	"extensionv1": ExtV1IngressInformer,
-}
-
-// GetIngressApi reads the INGRESS_API environment variable
-func GetIngressApi() string {
-	ingressApi := os.Getenv("INGRESS_API")
-	ingressApi, ok := IngressApiMap[ingressApi]
-	if !ok {
-		return CoreV1IngressInformer
-	}
-	return ingressApi
 }
 
 var (
@@ -50,6 +42,27 @@ var (
 		Resource: "ingresses",
 	}
 )
+
+func GetIngressApi(kc kubernetes.Interface) string {
+	ingressAPI := os.Getenv("INGRESS_API")
+	if ingressAPI != "" {
+		ingressAPI, ok := IngressApiMap[ingressAPI]
+		if !ok {
+			return CoreV1IngressInformer
+		}
+		return ingressAPI
+	}
+
+	var timeout int64
+	timeout = 120
+
+	_, ingErr := kc.NetworkingV1beta1().Ingresses("").List(metav1.ListOptions{TimeoutSeconds: &timeout})
+	if ingErr != nil {
+		AviLog.Infof("networkingv1 ingresses not found, setting informer for extensionsv1: %v", ingErr)
+		return ExtV1IngressInformer
+	}
+	return CoreV1IngressInformer
+}
 
 func fromExtensions(old *extension.Ingress) (*networking.Ingress, error) {
 	networkingIngress := &networking.Ingress{}

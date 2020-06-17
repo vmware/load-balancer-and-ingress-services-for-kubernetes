@@ -64,6 +64,7 @@ type Informers struct {
 	RouteInformer     oshiftinformers.RouteInformer
 	NodeInformer      coreinformers.NodeInformer
 	IngressInformer   informers.GenericInformer
+	IngressVersion    string
 	KubeClientIntf
 }
 
