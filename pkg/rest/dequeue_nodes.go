@@ -389,15 +389,9 @@ func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName
 func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, c *clients.AviClient, key string, fastRetry bool) {
 	var bkt uint32
 	bkt = 0
-	if !fastRetry {
-		slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
-		slowRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
-		utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, parentVsKey)
-	} else { // Will account for more error codes.
-		fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
-		fastRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
-		utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, parentVsKey)
-	}
+	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
+	fastRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
+	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, parentVsKey)
 }
 
 func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObjKey avicache.NamespaceName, rest_op *utils.RestOp, aviError session.AviError, c *clients.AviClient, avimodel *nodes.AviObjectGraph, key string) (bool, bool) {
@@ -411,7 +405,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 	aviObjCache := avicache.SharedAviObjCache()
 
 	if statuscode >= 500 && statuscode < 599 {
-		fastRetry = false
+		fastRetry = true
 	} else if statuscode >= 400 && statuscode < 499 { // Will account for more error codes.*/
 		fastRetry = true
 		// 404 means the object exists in our cache but not on the controller.

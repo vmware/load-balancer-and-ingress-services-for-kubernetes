@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -64,7 +63,7 @@ type WorkerQueue struct {
 	WorkqueueName string
 	workerIdMutex sync.Mutex
 	workerId      uint32
-	SyncFunc      func(string) error
+	SyncFunc      func(string, *sync.WaitGroup) error
 	SlowSyncTime  int
 }
 
@@ -83,8 +82,7 @@ func NewWorkQueue(num_workers uint32, workerQueueName string, slowSyncTime ...in
 	return queue
 }
 
-func (c *WorkerQueue) Run(stopCh <-chan struct{}) error {
-	//defer runtime.HandleCrash()
+func (c *WorkerQueue) Run(stopCh <-chan struct{}, wg *sync.WaitGroup) error {
 	AviLog.Infof("Starting workers to drain the %s layer queues", c.WorkqueueName)
 	if c.SyncFunc == nil {
 		// This is a bad situation, the sync function is required.
@@ -92,10 +90,10 @@ func (c *WorkerQueue) Run(stopCh <-chan struct{}) error {
 		return nil
 	}
 	for i := uint32(0); i < c.NumWorkers; i++ {
-		go wait.Until(c.runWorker, time.Second, stopCh)
+		wg.Add(1)
+		go c.runWorker(wg)
 	}
 	AviLog.Infof("Started the workers for: %s", c.WorkqueueName)
-
 	return nil
 }
 func (c *WorkerQueue) StopWorkers(stopCh <-chan struct{}) {
@@ -108,7 +106,8 @@ func (c *WorkerQueue) StopWorkers(stopCh <-chan struct{}) {
 // runWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue. Pick a worker_id from worker_id mask
-func (c *WorkerQueue) runWorker() {
+func (c *WorkerQueue) runWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
 	workerId := uint32(0xffffffff)
 	c.workerIdMutex.Lock()
 	for i := uint32(0); i < c.NumWorkers; i++ {
@@ -120,23 +119,24 @@ func (c *WorkerQueue) runWorker() {
 	}
 	c.workerIdMutex.Unlock()
 	AviLog.Infof("Worker id %d", workerId)
-	for c.processNextWorkItem(workerId) {
+	for c.processNextWorkItem(workerId, wg) {
 	}
+	AviLog.Infof("Shutting down the workers for :%v", workerId)
 	c.workerIdMutex.Lock()
 	c.workerId = c.workerId | (uint32(1) << workerId)
 	c.workerIdMutex.Unlock()
 }
 
-func (c *WorkerQueue) processNextWorkItem(worker_id uint32) bool {
+func (c *WorkerQueue) processNextWorkItem(worker_id uint32, wg *sync.WaitGroup) bool {
 	if c.SlowSyncTime != 0 {
 		timer := time.NewTimer(time.Duration(c.SlowSyncTime) * time.Second)
 		<-timer.C
-		return c.processBatchedItems(worker_id)
+		return c.processBatchedItems(worker_id, wg)
 	}
-	return c.processSingleWorkItem(worker_id)
+	return c.processSingleWorkItem(worker_id, wg)
 }
 
-func (c *WorkerQueue) processSingleWorkItem(worker_id uint32) bool {
+func (c *WorkerQueue) processSingleWorkItem(worker_id uint32, wg *sync.WaitGroup) bool {
 	obj, shutdown := c.Workqueue[worker_id].Get()
 	if shutdown {
 		return false
@@ -161,7 +161,7 @@ func (c *WorkerQueue) processSingleWorkItem(worker_id uint32) bool {
 			return nil
 		}
 		// Run the syncToAvi, passing it the ev resource to be synced.
-		err := c.SyncFunc(ev)
+		err := c.SyncFunc(ev, wg)
 		if err != nil {
 			AviLog.Errorf("There was an error while syncing the key: %s", ev)
 		}
@@ -176,11 +176,11 @@ func (c *WorkerQueue) processSingleWorkItem(worker_id uint32) bool {
 	return true
 }
 
-func (c *WorkerQueue) processBatchedItems(worker_id uint32) bool {
+func (c *WorkerQueue) processBatchedItems(worker_id uint32, wg *sync.WaitGroup) bool {
 	length := c.Workqueue[worker_id].Len()
 	var overallStatus bool
 	for i := 0; i < length; i++ {
-		overallStatus = c.processSingleWorkItem(worker_id)
+		overallStatus = c.processSingleWorkItem(worker_id, wg)
 		// Break if there's a problem in processing.
 		if !overallStatus {
 			return overallStatus
