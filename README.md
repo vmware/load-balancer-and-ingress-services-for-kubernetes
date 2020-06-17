@@ -1,8 +1,8 @@
-# Avi Kubernetes Controller
+# Avi Kubernetes Operator
 
 ## Architecture
 
-The Avi K8s Controller (AKC) is a layered collection of independent interoperable units
+The Avi K8s Operator (AKO) is a layered collection of independent interoperable units
 that are used in conjunction to provide L4-L7 load balancing for applications deployed
 in a kubernetes cluster for north-south traffic.
 
@@ -12,20 +12,20 @@ functionality of an ingress controller and a layer 4 load balancer.
 
 ![Alt text](AKO.jpg?raw=true "Title")
 
-## Run AKC
+## Run AKO
 
-AKC runs as a POD inside the kubernetes cluster.
+AKO runs as a POD inside the kubernetes cluster.
 
 #### Pre-requisites
 
-To Run AKC you need the following pre-requisites:
+To Run AKO you need the following pre-requisites:
  - ***Step 1***: An Avi Controller with a vCenter cloud.
 
  - ***Step 2***: If your POD CIDRs are not routable:
     - Create a VRF context object in Avi for the kubernetes controller.
     - Get the name the PG network which the kubernetes nodes are part of. 
     
-      *NOTE: If you are using AKC for test puposes you can use the `global` vrf but you cannot manage multiple kubernetes clusters in the same cloud with this setting.*
+      *NOTE: If you are using AKO for test puposes you can use the `global` vrf but you cannot manage multiple kubernetes clusters in the same cloud with this setting.*
     - Configure this PG network with the vrf mentioned in the previous step using the Avi CLI.
     - Make sure this PG network is part of the NS IPAM configured in the vCenter cloud.
 
@@ -42,9 +42,11 @@ To Run AKC you need the following pre-requisites:
 
 *Step 2:* Clone this repository, go inside the `helm` directory and run:
 
-    helm install ./akc --name my-akc-release --namespace=avi-system --set configs.controllerIP=10.10.10.10
+    helm install ./ako --name my-ako-release --namespace=avi-system --set configs.controllerIP=10.10.10.10
 
-Use the `helm/akc/values.yaml` to edit values related to Avi configuration. Values and their corresponding index can be found [here](#parameters) 
+Use the `helm/ako/values.yaml` to edit values related to Avi configuration. For information regarding configurable parameters to be provided in `values.yaml` during AKO install, please refer [AKO helm chart params](https://github.com/avinetworks/avi-helm-charts#parameters)
+
+Detailed descriptions for these params are provided in [Description of tunables of AKO](https://github.com/avinetworks/avi-helm-charts/blob/master/docs/values.md)
 
 
 #### Uninstall using *helm*
@@ -54,33 +56,16 @@ Simply run:
 
 *Step1:*
 
-    helm delete my-akc-release -n avi-system
+    helm delete my-ako-release -n avi-system
  
 *Step 2:* 
 
     kubectl delete ns avi-system
 
-## Parameters
-
-
-The following table lists the configurable parameters of the AKC chart and their default values.
-
-| **Parameter**                                   | **Description**                                         | **Default**                                                           |
-|---------------------------------------------|-----------------------------------------------------|-------------------------------------------------------------------|
-| `configs.controllerVersion`                      | Avi Controller version                       | 18.2.7                                                            |
-| `configs.controllerIP`                         | Specify Avi controller IP    | `nil`      |
-| `configs.shardVSSize`                   | Shard VS size enum values: LARGE, MEDIUM, SMALL     | LARGE      |
-| `configs.fullSyncFrequency`                       | Full sync frequency       | 300                                                            |
-| `configs.cloudName`                            | Name of the VCenter cloud managed in Avi                              | Default-Cloud                                                       |
-| `configs.vrfRefName`                          | VRF context name to be used for the kubernetes cluster                                  | global                                                 |
-| `avicredentials.username`                                 | Avi controller username                                  | admin                                                      |
-| `avicredentials.password`                          | Avi controller password                          | admin                                                    |
-| `image.repository`                         | Specify docker-registry that has the akc image    | 100.64.86.10:5443/avi-k8s-controller      |
-
 
 ## Build and Test
 
-AKC can be built as a docker container using the `make` command. Simply clone the repository
+AKO can be built as a docker container using the `make` command. Simply clone the repository
 and run:
 
     make docker
