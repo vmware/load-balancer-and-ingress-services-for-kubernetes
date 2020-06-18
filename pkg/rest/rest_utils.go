@@ -23,10 +23,8 @@ import (
 
 func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) ([]map[string]interface{}, error) {
 	var resp_elems []map[string]interface{}
-
 	if rest_op.Method == utils.RestPost {
 		resp_arr, ok := rest_op.Response.([]interface{})
-
 		if !ok {
 			utils.AviLog.Warnf("key: %s, msg: response has unknown type %T", key, rest_op.Response)
 			return nil, errors.New("Malformed response")
