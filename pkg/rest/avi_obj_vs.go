@@ -159,6 +159,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			rest_ops = append(rest_ops, &rest_op)
 
 		} else {
+			rest_method = utils.RestPost
 			macro := utils.AviRestObjMacro{ModelName: "VirtualService", Data: vs}
 			path = "/api/macro"
 			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: macro,
