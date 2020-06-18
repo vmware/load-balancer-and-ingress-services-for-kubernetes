@@ -80,21 +80,24 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			utils.AviLog.Warnf("Name not present in response %v", resp)
 			continue
 		}
-
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
 			utils.AviLog.Warnf("Uuid not present in response %v", resp)
 			continue
 		}
-		cert, ok := resp["certificate"].(map[string]interface{})
+		_, ok = resp["certificate"].(map[string]interface{})
 		if !ok {
 			utils.AviLog.Warnf("Certificate not present in response %v", resp)
 			continue
 		}
-		var checksum uint32
-		if cert["certificate"] != nil {
-			checksum = lib.SSLKeyCertChecksum(name, cert["certificate"].(string))
+		var SSLKeyAndCertificate string
+		switch rest_op.Obj.(type) {
+		case utils.AviRestObjMacro:
+			SSLKeyAndCertificate = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.SSLKeyAndCertificate).Certificate.Certificate
+		case avimodels.SSLKeyAndCertificate:
+			SSLKeyAndCertificate = *rest_op.Obj.(avimodels.SSLKeyAndCertificate).Certificate.Certificate
 		}
+		checksum := lib.SSLKeyCertChecksum(name, SSLKeyAndCertificate)
 		ssl_cache_obj := avicache.AviSSLCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid, CloudConfigCksum: checksum}
 
