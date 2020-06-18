@@ -1798,7 +1798,7 @@ func CheckAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		return false
 	}
 
-	uri := "/api/network/?include_name&name=" + networkName
+	uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
