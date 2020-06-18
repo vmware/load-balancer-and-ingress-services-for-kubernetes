@@ -89,7 +89,7 @@ func updateObject(namespace, ingressname string, hostnames []string, vs_cache_ob
 	}
 
 	// If we find a hostname in the present update, let's first remove it from the existing status.
-	utils.AviLog.Infof("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
+	utils.AviLog.Debugf("key: %s, msg: status before update: %v", key, mIngress.Status.LoadBalancer.Ingress)
 	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
 		if utils.HasElem(hostnames, mIngress.Status.LoadBalancer.Ingress[i].Hostname) && !noOP {
 			mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
