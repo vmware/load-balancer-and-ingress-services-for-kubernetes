@@ -57,10 +57,11 @@ var AKOUser string
 
 func SetAKOUser() {
 	AKOUser = "ako-" + GetClusterName()
+	utils.AviLog.Infof("Setting AKOUser: %s for Avi Objects", AKOUser)
 }
 
 func GetAKOUser() string {
-	return NamePrefix
+	return AKOUser
 }
 
 func GetshardSize() uint32 {
