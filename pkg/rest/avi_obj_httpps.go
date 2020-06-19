@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
 	"ako/pkg/nodes"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -33,7 +34,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	cksum := hps_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
-	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+	cr := lib.AKOUser
 
 	http_req_pol := avimodels.HTTPRequestPolicy{}
 	hps := avimodels.HTTPPolicySet{Name: &name, CloudConfigCksum: &cksumString,

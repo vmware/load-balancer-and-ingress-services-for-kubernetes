@@ -49,6 +49,16 @@ func GetNamePrefix() string {
 	return NamePrefix
 }
 
+var AKOUser string
+
+func SetAKOUser() {
+	AKOUser = "ako-" + GetClusterName()
+}
+
+func GetAKOUser() string {
+	return NamePrefix
+}
+
 func GetshardSize() uint32 {
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
 	shardSize, ok := shardSizeMap[shardVsSize]

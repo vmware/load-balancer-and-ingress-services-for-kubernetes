@@ -32,7 +32,7 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", ssl_node.Tenant)
 	certificate := string(ssl_node.Cert)
 	key := string(ssl_node.Key)
-	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+	cr := lib.AKOUser
 	sslkeycert := avimodels.SSLKeyAndCertificate{Name: &name,
 		CreatedBy: &cr, TenantRef: &tenant, Certificate: &avimodels.SSLCertificate{Certificate: &certificate}, Key: &key}
 	// TODO other fields like cloud_ref and lb algo
