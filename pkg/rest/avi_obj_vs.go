@@ -52,7 +52,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		name := vs_meta.Name
 		cksum := vs_meta.CloudConfigCksum
 		checksumstr := strconv.Itoa(int(cksum))
-		cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+		cr := lib.AKOUser
 		cloudRef := "/api/cloud?name=" + utils.CloudName
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
@@ -175,7 +175,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	name := vs_meta.Name
 	cksum := vs_meta.CloudConfigCksum
 	checksumstr := strconv.Itoa(int(cksum))
-	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+	cr := lib.AKOUser
 
 	east_west := false
 	var app_prof string
@@ -476,7 +476,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	var rest_op utils.RestOp
 
 	if cache_obj != nil {
-
 		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name)
 		if err != nil {
 			return nil, err

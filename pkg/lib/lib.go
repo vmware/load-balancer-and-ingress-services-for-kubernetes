@@ -49,6 +49,17 @@ func GetNamePrefix() string {
 	return NamePrefix
 }
 
+var AKOUser string
+
+func SetAKOUser() {
+	AKOUser = "ako-" + GetClusterName()
+	utils.AviLog.Infof("Setting AKOUser: %s for Avi Objects", AKOUser)
+}
+
+func GetAKOUser() string {
+	return AKOUser
+}
+
 func GetshardSize() uint32 {
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
 	shardSize, ok := shardSizeMap[shardVsSize]

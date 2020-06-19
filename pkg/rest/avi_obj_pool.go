@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
 	"ako/pkg/nodes"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -33,7 +34,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	cksum := pool_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pool_meta.Tenant)
-	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+	cr := lib.AKOUser
 	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	cloudRef := "/api/cloud?name=" + utils.CloudName

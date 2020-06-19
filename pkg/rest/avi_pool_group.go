@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
 	"ako/pkg/nodes"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -32,7 +33,7 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pg_meta.Tenant)
 	members := pg_meta.Members
-	cr := utils.OSHIFT_K8S_CLOUD_CONNECTOR
+	cr := lib.AKOUser
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 
 	pg := avimodels.PoolGroup{Name: &name, CloudConfigCksum: &cksumString,
