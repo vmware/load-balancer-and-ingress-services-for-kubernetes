@@ -403,12 +403,18 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
+			hostFoundInParentPool := false
 			parent_vs_cache, parent_ok := rest.cache.VsCacheMeta.AviCacheGet(vs_cache_obj.ParentVSRef)
 			if parent_ok {
 				parent_vs_cache_obj, parent_found := parent_vs_cache.(*avicache.AviVsCache)
 				if parent_found {
 					// Find the SNI child and then remove
 					rest.findSNIRefAndRemove(vsKey, parent_vs_cache_obj, key)
+
+					// if we find a L7Shared pool that has the secure VS host then don't delete status
+					// update is also not required since the shard would not change, IP should remain same
+					hostname := vs_cache_obj.ServiceMetadataObj.HostNames[0]
+					hostFoundInParentPool = rest.isHostPresentInSharedPool(hostname, parent_vs_cache_obj, key)
 				}
 			}
 			if len(vs_cache_obj.VSVipKeyCollection) > 0 {
@@ -424,7 +430,9 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 
 			if len(vs_cache_obj.ServiceMetadataObj.HostNames) > 0 {
 				// SNI VS deletion related ingress status update
-				DeleteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
+				if !hostFoundInParentPool {
+					DeleteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
+				}
 			} else {
 				// Shared VS deletion related ingress status update
 				for _, poolKey := range vs_cache_obj.PoolKeyCollection {
@@ -465,6 +473,20 @@ func (rest *RestOperations) findSNIRefAndRemove(snichildkey avicache.NamespaceNa
 			}
 		}
 	}
+}
+
+func (rest *RestOperations) isHostPresentInSharedPool(hostname string, parentVs *avicache.AviVsCache, key string) bool {
+	for _, poolKey := range parentVs.PoolKeyCollection {
+		if poolCache, found := rest.cache.PoolCache.AviCacheGet(poolKey); found {
+			if pool, ok := poolCache.(*avicache.AviPoolCache); ok &&
+				utils.HasElem(pool.ServiceMetadataObj.HostNames, hostname) {
+				utils.AviLog.Debugf("key: %s, msg: hostname %v present in parentVS %s pool collection, will skip ingress status delete",
+					key, parentVs.Name, hostname)
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
