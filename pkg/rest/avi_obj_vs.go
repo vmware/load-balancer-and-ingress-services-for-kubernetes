@@ -665,8 +665,30 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			}
 		}
 
+		var vsvipFQDNs []string
+		if _, found := resp["dns_info"]; found {
+			if allDNSInfo, ok := resp["dns_info"].([]interface{}); ok {
+				for _, dnsInfoIntf := range allDNSInfo {
+					dnsinfo, valid := dnsInfoIntf.(map[string]interface{})
+					if !valid {
+						utils.AviLog.Infof("key: %s, msg: invalid type for dns_info in vsvip: %s", key, name)
+						continue
+					}
+					fqdnIntf, valid := dnsinfo["fqdn"]
+					if !valid {
+						utils.AviLog.Infof("key: %s, msg: fqdn not found for dns_info in vsvip: %s", key, name)
+						continue
+					}
+					fqdn, valid := fqdnIntf.(string)
+					if valid {
+						vsvipFQDNs = append(vsvipFQDNs, fqdn)
+					}
+				}
+			}
+		}
+
 		vsvip_cache_obj := avicache.AviVSVIPCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid: uuid, LastModified: lastModifiedStr}
+			Uuid: uuid, LastModified: lastModifiedStr, FQDNs: vsvipFQDNs}
 		if lastModifiedStr == "" {
 			vsvip_cache_obj.InvalidData = true
 		}
