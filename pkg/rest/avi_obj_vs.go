@@ -480,9 +480,18 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		if err != nil {
 			return nil, err
 		}
-		for i, _ := range vsvip_meta.FQDNs {
+		for i, fqdn := range vsvip_meta.FQDNs {
 			dns_info := avimodels.DNSInfo{Fqdn: &vsvip_meta.FQDNs[i]}
-			dns_info_arr = append(dns_info_arr, &dns_info)
+			foundFQDN := false
+			// Verify this FQDN is already in the list or not.
+			for _, dns := range dns_info_arr {
+				if *dns.Fqdn == fqdn {
+					foundFQDN = true
+				}
+			}
+			if !foundFQDN {
+				dns_info_arr = append(dns_info_arr, &dns_info)
+			}
 		}
 		vsvip.DNSInfo = dns_info_arr
 		path = "/api/vsvip/" + cache_obj.Uuid
