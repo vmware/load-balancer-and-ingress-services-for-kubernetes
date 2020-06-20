@@ -33,6 +33,7 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pg_meta.Tenant)
 	members := pg_meta.Members
+	members = rest.SanitizePGMembers(pg_meta.Members, key)
 	cr := lib.AKOUser
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 
@@ -64,6 +65,24 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	}
 
 	return &rest_op
+}
+
+func (rest *RestOperations) SanitizePGMembers(Members []*avimodels.PoolGroupMember, key string) []*avimodels.PoolGroupMember {
+	// This method iterates over the pg members and removes any duplicate.
+	var newList []string
+	var pgmemberscopy []*avimodels.PoolGroupMember
+	pgmemberscopy = make([]*avimodels.PoolGroupMember, len(Members))
+	copy(pgmemberscopy, Members)
+	for i, member := range Members {
+		if utils.HasElem(newList, member.PoolRef) {
+			// Duplicate detected, remove it from the copy
+			pgmemberscopy = append(pgmemberscopy[:i], pgmemberscopy[i+1:]...)
+			utils.AviLog.Warnf("key: %s, msg: detected duplicate poolref :%s", key, member.PoolRef)
+		} else {
+			newList = append(newList, *member.PoolRef)
+		}
+	}
+	return pgmemberscopy
 }
 
 func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *utils.RestOp {
