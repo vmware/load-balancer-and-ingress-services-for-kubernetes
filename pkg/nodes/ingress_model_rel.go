@@ -227,6 +227,7 @@ func filterIngressOnClass(ingress *v1beta1.Ingress) bool {
 		if ok && ingClass == lib.AVI_INGRESS_CLASS {
 			return true
 		} else {
+			utils.AviLog.Infof("AKO is not running as the default ingress controller. Not processing the ingress :%s . Please annotate the ingress class as 'avi'", ingress.Name)
 			return false
 		}
 	} else {
@@ -234,6 +235,7 @@ func filterIngressOnClass(ingress *v1beta1.Ingress) bool {
 		annotations := ingress.GetAnnotations()
 		ingClass, ok := annotations[lib.INGRESS_CLASS_ANNOT]
 		if ok && ingClass != lib.AVI_INGRESS_CLASS {
+			utils.AviLog.Infof("AKO is the default ingress controller but not processing the ingress :%s since ingress class is set to : %s", ingress.Name, ingClass)
 			return false
 		} else {
 			return true
