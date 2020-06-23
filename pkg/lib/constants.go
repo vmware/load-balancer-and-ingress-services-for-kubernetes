@@ -39,4 +39,5 @@ const (
 	SLOW_SYNC_TIME            = 120
 	LOG_LEVEL                 = "logLevel"
 	ShardVSPrefix             = "Shared-L7"
+	DeleteConfig              = "deleteConfig"
 )
