@@ -24,6 +24,7 @@ configs:
   l7ShardingScheme: "hostname"
   cniPlugin: "" #enum: calico|canal|flannel
   logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
+  deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI
 
 imagePullSecrets: []
 nameOverride: ""

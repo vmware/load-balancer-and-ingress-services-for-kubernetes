@@ -43,4 +43,5 @@ const (
 	PolicyNone                = "NONE"
 	PolicyEdgeTerm            = "EDGE"
 	PolicyRedirect            = "REDIRECT"
+	DeleteConfig              = "deleteConfig"
 )

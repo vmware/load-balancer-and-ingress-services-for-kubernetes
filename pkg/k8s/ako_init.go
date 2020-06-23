@@ -30,6 +30,7 @@ import (
 	"ako/pkg/retry"
 
 	"github.com/avinetworks/container-lib/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -56,6 +57,25 @@ func PopulateNodeCache(cs *kubernetes.Clientset) {
 	nodeCache.PopulateAllNodes(cs)
 }
 
+func delConfigFromData(data map[string]string) bool {
+	if val, ok := data[lib.DeleteConfig]; ok {
+		if val == "true" {
+			utils.AviLog.Infof("deleteConfig set in configmap, sync would be disabled")
+			return true
+		}
+	}
+	return false
+}
+
+func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
+	cm, err := cs.CoreV1().ConfigMaps(lib.AviNS).Get(lib.AviConfigMap, metav1.GetOptions{})
+	if err == nil {
+		return delConfigFromData(cm.Data)
+	}
+	utils.AviLog.Warnf("Ignoring error while reading configmap: %v", err)
+	return false
+}
+
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) {
@@ -67,7 +87,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 		return
 	}
 	aviclient := aviClientPool.AviClient[0]
-	c.DisableSync = !avicache.ValidateUserInput(aviclient)
+	c.DisableSync = !avicache.ValidateUserInput(aviclient) || deleteConfigFromConfigmap(cs)
 
 	utils.AviLog.Infof("Creating event broadcaster for handling configmap")
 	eventBroadcaster := record.NewBroadcaster()
@@ -77,11 +97,17 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if cm, ok := validateAviConfigMap(obj); ok {
-				utils.AviLog.Infof("avi k8s configmap created")
-				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
-				c.DisableSync = !avicache.ValidateUserInput(aviclient)
-				if !firstboot {
+			cm, ok := validateAviConfigMap(obj)
+			if !ok {
+				return
+			}
+			utils.AviLog.Infof("avi k8s configmap created")
+			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
+			if !firstboot && avicache.ValidateUserInput(aviclient) {
+				if delConfigFromData(cm.Data) {
+					c.DeleteModels()
+				} else {
 					quickSyncCh <- struct{}{}
 				}
 			}
@@ -89,20 +115,36 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 		UpdateFunc: func(old, obj interface{}) {
 			cm, ok := validateAviConfigMap(obj)
 			oldcm, oldok := validateAviConfigMap(old)
-			if ok && oldok {
-				// if resourceversions and loglevel change, set new loglevel
-				if oldcm.ResourceVersion != cm.ResourceVersion &&
-					oldcm.Data[lib.LOG_LEVEL] != cm.Data[lib.LOG_LEVEL] {
-					utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+			if !ok || !oldok {
+				return
+			}
+			if oldcm.ResourceVersion == cm.ResourceVersion {
+				return
+			}
+			// if resourceversions and loglevel change, set new loglevel
+			if oldcm.Data[lib.LOG_LEVEL] != cm.Data[lib.LOG_LEVEL] {
+				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+			}
+
+			if oldcm.Data[lib.DeleteConfig] == cm.Data[lib.DeleteConfig] {
+				return
+			}
+			// if DeleteConfig value has changed, then check if we need to enable/disable sync
+			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
+			if avicache.ValidateUserInput(aviclient) {
+				if delConfigFromData(cm.Data) {
+					c.DeleteModels()
+				} else {
+					quickSyncCh <- struct{}{}
 				}
 			}
+
 		},
 		DeleteFunc: func(obj interface{}) {
 			if _, ok := validateAviConfigMap(obj); ok {
-				utils.AviLog.Infof("avi k8s configmap deleted")
+				utils.AviLog.Warnf("avi k8s configmap deleted, disabling sync")
 				c.DisableSync = true
 				firstboot = false
-				c.DeleteModels()
 			}
 		},
 	}
