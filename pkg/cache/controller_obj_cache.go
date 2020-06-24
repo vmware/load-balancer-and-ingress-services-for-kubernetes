@@ -29,6 +29,7 @@ import (
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type AviObjCache struct {
@@ -1791,6 +1792,19 @@ func checkRequiredValuesYaml() bool {
 		utils.AviLog.Error("Required param cloudName not specified, syncing will be disabled")
 		return false
 	}
+
+	// check if config map exists
+	k8sClient := utils.GetInformers().ClientSet
+	aviCMNamespace := lib.AviNS
+	if lib.GetNamespaceToSync() != "" {
+		aviCMNamespace = lib.GetNamespaceToSync()
+	}
+	_, err := k8sClient.CoreV1().ConfigMaps(aviCMNamespace).Get(lib.AviConfigMap, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Configmap %s/%s not found, error: %v, syncing will be disabled", lib.AviNS, lib.AviConfigMap, err)
+		return false
+	}
+
 	return true
 }
 
