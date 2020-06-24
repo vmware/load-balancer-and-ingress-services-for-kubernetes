@@ -72,8 +72,8 @@ func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 	if err == nil {
 		return delConfigFromData(cm.Data)
 	}
-	utils.AviLog.Warnf("Ignoring error while reading configmap: %v", err)
-	return false
+	utils.AviLog.Warnf("error while reading configmap, sync would be disabled: %v", err)
+	return true
 }
 
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
