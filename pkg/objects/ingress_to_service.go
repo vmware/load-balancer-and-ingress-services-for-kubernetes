@@ -83,6 +83,7 @@ type RouteIngrhost struct {
 	InsecurePolicy string // none, redirect, allow
 	SecurePolicy   string // edge, reencrypt, passthrough
 	Paths          []string
+	PathSvc        map[string][]string //list of services for a path, used for alternate backend
 }
 
 type IngNSCache struct {

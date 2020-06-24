@@ -16,9 +16,9 @@ package oshiftroutetests
 
 import (
 	"os"
+	"sync"
 	"testing"
 	"time"
-	"sync"
 
 	"ako/pkg/cache"
 	"ako/pkg/k8s"
@@ -228,7 +228,7 @@ func TestRouteNoPath(t *testing.T) {
 		return len(pool.Servers)
 	}, 10*time.Second).Should(gomega.Equal(1))
 
-	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com-default-foo"))
+	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com-default-foo-avisvc"))
 	g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com"))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
@@ -252,7 +252,7 @@ func TestRouteDefaultPath(t *testing.T) {
 		return len(pool.Servers)
 	}, 10*time.Second).Should(gomega.Equal(1))
 
-	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_foo-default-foo"))
+	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-avisvc"))
 	g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
@@ -296,7 +296,7 @@ func TestRouteBadService(t *testing.T) {
 
 	aviModel := ValidateModelCommon(t, g)
 	pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
-	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_foo-default-foo"))
+	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-badsvc"))
 	g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 	g.Expect(len(pool.Servers)).To(gomega.Equal(0))
 
@@ -347,7 +347,7 @@ func TestRouteScaleEndpoint(t *testing.T) {
 		return len(pool.Servers)
 	}, 10*time.Second).Should(gomega.Equal(2))
 
-	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_foo-default-foo"))
+	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-avisvc"))
 	g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
@@ -374,10 +374,10 @@ func TestMultiRouteSameHost(t *testing.T) {
 
 	g.Expect(pools).To(gomega.HaveLen(2))
 	for _, pool := range pools {
-		if pool.Name == "cluster--foo.com_foo-default-foo" {
+		if pool.Name == "cluster--foo.com_foo-default-foo-avisvc" {
 			g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 			g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-		} else if pool.Name == "cluster--foo.com_bar-default-bar" {
+		} else if pool.Name == "cluster--foo.com_bar-default-bar-avisvc" {
 			g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
 			g.Expect(len(pool.Servers)).To(gomega.Equal(1))
 		} else {

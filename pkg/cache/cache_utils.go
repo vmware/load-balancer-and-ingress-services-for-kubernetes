@@ -45,6 +45,7 @@ type ServiceMetadataObj struct {
 	Namespace            string   `json:"namespace"`
 	HostNames            []string `json:"hostnames"`
 	ServiceName          string   `json:"svc_name"`
+	PoolRatio            int32    `json:"pool_ratio"`
 }
 
 type AviDSCache struct {

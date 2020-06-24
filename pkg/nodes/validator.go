@@ -108,6 +108,8 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 				// Default to port 80 if not set in the ingress object
 				hostPathMapSvc.Port = 80
 			}
+			// for ingress use 100 as default weight
+			hostPathMapSvc.weight = 100
 			hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
 		}
 		hostMap[hostName] = hostPathMapSvcList
@@ -140,15 +142,30 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 func (v *Validator) ParseHostPathForRoute(ns string, ingName string, routeSpec routev1.RouteSpec, key string) IngressConfig {
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
-
 	hostName := routeSpec.Host
+	defaultWeight := int32(100)
+	var hostPathMapSvcList []IngressHostPathSvc
 
 	hostPathMapSvc := IngressHostPathSvc{}
 	hostPathMapSvc.Path = routeSpec.Path
 	hostPathMapSvc.ServiceName = routeSpec.To.Name
+	hostPathMapSvc.weight = defaultWeight
+	if routeSpec.To.Weight != nil {
+		hostPathMapSvc.weight = *routeSpec.To.Weight
+	}
 
-	var hostPathMapSvcList []IngressHostPathSvc
 	hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
+
+	for _, backend := range routeSpec.AlternateBackends {
+		hostPathMapSvc := IngressHostPathSvc{}
+		hostPathMapSvc.Path = routeSpec.Path
+		hostPathMapSvc.ServiceName = backend.Name
+		hostPathMapSvc.weight = defaultWeight
+		if routeSpec.To.Weight != backend.Weight {
+			hostPathMapSvc.weight = *backend.Weight
+		}
+		hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
+	}
 
 	hostMap[hostName] = hostPathMapSvcList
 

@@ -108,9 +108,14 @@ func GetL7SharedPGName(vsName string) string {
 	return vsName
 }
 
-func GetL7PoolName(priorityLabel, namespace, ingName string) string {
+func GetL7PoolName(priorityLabel, namespace, ingName string, args ...string) string {
 	priorityLabel = strings.Replace(priorityLabel, "/", "_", 1)
-	return NamePrefix + priorityLabel + "-" + namespace + "-" + ingName
+	poolName := NamePrefix + priorityLabel + "-" + namespace + "-" + ingName
+	if len(args) > 0 {
+		svcName := args[0]
+		poolName = poolName + "-" + svcName
+	}
+	return poolName
 }
 
 func GetL7HttpRedirPolicy(vsName string) string {
