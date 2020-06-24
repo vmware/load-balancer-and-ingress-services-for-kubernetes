@@ -332,6 +332,8 @@ func (c *AviController) FullSyncK8s() {
 
 	}
 
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	var vrfModelName string
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
@@ -340,16 +342,22 @@ func (c *AviController) FullSyncK8s() {
 			key := utils.NodeObj + "/" + node.Name
 			nodes.DequeueIngestion(key, true)
 		}
+		// Publish vrfcontext model now, this has to be processed first
+		vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
+		utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
+		nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
 	}
 
 	cache := avicache.SharedAviObjCache()
 	vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 	utils.AviLog.Infof("Got the VS keys :%s", vsKeys)
-	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	allModelsMap := objects.SharedAviGraphLister().GetAll()
 	var allModels []string
 	for modelName, _ := range allModelsMap.(map[string]interface{}) {
-		allModels = append(allModels, modelName)
+		// ignore vrf model, as it has been published already
+		if modelName != vrfModelName {
+			allModels = append(allModels, modelName)
+		}
 	}
 	if len(vsKeys) != 0 {
 		for _, vsCacheKey := range vsKeys {
