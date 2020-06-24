@@ -346,13 +346,21 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					vs_cache_obj.InvalidData = false
 				}
 
-				utils.AviLog.Info(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
+				utils.AviLog.Debug(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 					// This service needs an update of the status
-					UpdateL4LBStatus(vs_cache_obj, svc_mdata_obj, key)
+					UpdateL4LBStatus([]UpdateStatusOptions{{
+						vip:             vs_cache_obj.Vip,
+						serviceMetadata: svc_mdata_obj,
+						key:             key,
+					}}, false)
 				} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
-					UpdateIngressStatus(parentVsObj, svc_mdata_obj, key)
+					UpdateIngressStatus([]UpdateStatusOptions{{
+						vip:             parentVsObj.Vip,
+						serviceMetadata: svc_mdata_obj,
+						key:             key,
+					}}, false)
 				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
 				// But before this a pool may have got created as a part of the macro operation, so update the ingress status here.
@@ -364,7 +372,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 						pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 						if found {
 							if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-								UpdateIngressStatus(vs_cache_obj, pool_cache_obj.ServiceMetadataObj, key)
+								UpdateIngressStatus([]UpdateStatusOptions{{
+									vip:             vs_cache_obj.Vip,
+									serviceMetadata: pool_cache_obj.ServiceMetadataObj,
+									key:             key,
+								}}, false)
 							}
 						}
 					}
@@ -385,7 +397,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			}
 			if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 				// This service needs an update of the status
-				UpdateL4LBStatus(&vs_cache_obj, svc_mdata_obj, key)
+				UpdateL4LBStatus([]UpdateStatusOptions{{
+					vip:             vs_cache_obj.Vip,
+					serviceMetadata: svc_mdata_obj,
+					key:             key,
+				}}, false)
 			}
 			rest.cache.VsCacheMeta.AviCacheAdd(k, &vs_cache_obj)
 			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key %v val %v\n", key, k,
@@ -428,7 +444,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
 			}
 
-			if len(vs_cache_obj.ServiceMetadataObj.HostNames) > 0 {
+			if (vs_cache_obj.ServiceMetadataObj.IngressName != "" || len(vs_cache_obj.ServiceMetadataObj.NamespaceIngressName) > 0) && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
 				// SNI VS deletion related ingress status update
 				if !hostFoundInParentPool {
 					DeleteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)

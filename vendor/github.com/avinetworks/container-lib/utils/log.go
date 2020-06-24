@@ -131,19 +131,19 @@ func init() {
 	}
 	file.Close()
 
-	level1 := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl >= zapcore.InfoLevel
+	level := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+		return lvl >= atom.Level()
 	})
 	w := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   logpath,
 		MaxSize:    100, // megabytes after which new file is created
 		MaxBackups: 5,   // number of backups
-		MaxAge:     28,  //days
+		MaxAge:     28,  // days
 		Compress:   true,
 	})
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(encoderCfg),
 		w,
-		level1,
+		level,
 	)
 
 	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))

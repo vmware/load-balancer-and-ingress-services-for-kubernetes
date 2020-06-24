@@ -167,7 +167,11 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				vs_cache_obj.AddToPoolKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if svc_mdata_obj.Namespace != "" {
-					UpdateIngressStatus(vs_cache_obj, svc_mdata_obj, key)
+					UpdateIngressStatus([]UpdateStatusOptions{{
+						vip:             vs_cache_obj.Vip,
+						serviceMetadata: svc_mdata_obj,
+						key:             key,
+					}}, false)
 				}
 			}
 		} else {

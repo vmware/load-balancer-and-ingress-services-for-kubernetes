@@ -34,10 +34,8 @@ github.com/avinetworks/container-lib v0.0.0-20200611183005-473e61ed6ded h1:UDw5v
 github.com/avinetworks/container-lib v0.0.0-20200611183005-473e61ed6ded/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
 github.com/avinetworks/container-lib v0.0.0-20200613050738-a8db1e98158c h1:6CygymU0/dy9jTqB9nsAsCXz0zKmajG2bkvsExhVkpk=
 github.com/avinetworks/container-lib v0.0.0-20200613050738-a8db1e98158c/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
-github.com/avinetworks/container-lib v0.0.0-20200617135501-ae56ed3adb1e h1:roVv7djzOZasG5nkK7KW+M3SPk6fl+079sjD2BALMDM=
-github.com/avinetworks/container-lib v0.0.0-20200617135501-ae56ed3adb1e/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
-github.com/avinetworks/container-lib v0.0.0-20200617153712-383d0ad09fef h1:VAFOGhQrC44w1ccLbWpliVMQNNsKwUGeSjYNW0gKSuQ=
-github.com/avinetworks/container-lib v0.0.0-20200617153712-383d0ad09fef/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
+github.com/avinetworks/container-lib v0.0.0-20200622110930-58fee8c9dd10 h1:Vm0GF0eFZcVGuQJys+hJkK8TEysBTANqK75r65bhf8o=
+github.com/avinetworks/container-lib v0.0.0-20200622110930-58fee8c9dd10/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
 github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792 h1:WVdw/DU0e+zGRpb5QAmrj4qNwqbhvbsJEQh6MbO2ryg=
 github.com/avinetworks/sdk v0.0.0-20190212153451-786bfe83a792/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
 github.com/avinetworks/sdk v0.0.0-20200403054229-39f30c036b56 h1:QqmQr5PaEH6Xrc0g3L+UpuFDH6C1aY8/ax9Jv7GeACA=

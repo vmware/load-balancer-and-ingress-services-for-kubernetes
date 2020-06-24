@@ -152,7 +152,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/poolgroup/?" + "include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser
+		uri = "/api/poolgroup/?" + "include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -254,7 +254,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/pool/?" + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser
+		uri = "/api/pool/?" + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -534,7 +534,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/sslkeyandcertificate/?" + "&created_by=" + akoUser
+		uri = "/api/sslkeyandcertificate/?" + "&created_by=" + akoUser + "&page_size=100"
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -917,7 +917,7 @@ func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient, cloud stri
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser
+		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -1102,7 +1102,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/httppolicyset/?" + "&include_name=true" + "&created_by=" + akoUser
+		uri = "/api/httppolicyset/?" + "&include_name=true" + "&created_by=" + akoUser + "&page_size=100"
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
@@ -1249,7 +1249,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 	if len(override_uri) == 1 {
 		uri = override_uri[0].Next_uri
 	} else {
-		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser
+		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
 
 	err := AviGet(client, uri, &rest_response)
