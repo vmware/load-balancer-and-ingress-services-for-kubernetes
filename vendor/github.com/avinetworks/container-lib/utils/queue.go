@@ -121,7 +121,6 @@ func (c *WorkerQueue) runWorker(wg *sync.WaitGroup) {
 	AviLog.Infof("Worker id %d", workerId)
 	for c.processNextWorkItem(workerId, wg) {
 	}
-	AviLog.Infof("Shutting down the workers for :%v", workerId)
 	c.workerIdMutex.Lock()
 	c.workerId = c.workerId | (uint32(1) << workerId)
 	c.workerIdMutex.Unlock()
@@ -188,3 +187,4 @@ func (c *WorkerQueue) processBatchedItems(worker_id uint32, wg *sync.WaitGroup) 
 	}
 	return true
 }
+

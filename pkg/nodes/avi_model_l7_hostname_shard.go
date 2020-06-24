@@ -49,7 +49,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 		poolName := lib.GetL7PoolName(priorityLabel, namespace, ingName)
 		// First check if there are pools related to this ingress present in the model already
 		poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
-		utils.AviLog.Infof("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
+		utils.AviLog.Debugf("key: %s, msg: found pools in the model: %s", key, utils.Stringify(poolNodes))
 		for _, pool := range poolNodes {
 			if pool.Name == poolName {
 				o.RemovePoolNodeRefs(pool.Name)
@@ -75,7 +75,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 			poolNode.CalculateCheckSum()
 			o.AddModelNode(poolNode)
 			vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
-			utils.AviLog.Infof("key: %s, msg: the pools after append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
+			utils.AviLog.Debugf("key: %s, msg: the pools after append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
 		}
 
 	}
@@ -97,7 +97,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 	if !secure {
 		// Fetch the ingress pools that are present in the model and delete them.
 		poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
-		utils.AviLog.Infof("key: %s, msg: Pool Nodes to delete for ingress:  %s", key, utils.Stringify(poolNodes))
+		utils.AviLog.Debugf("key: %s, msg: Pool Nodes to delete for ingress: %s", key, utils.Stringify(poolNodes))
 		for _, pool := range poolNodes {
 			// Only delete the pools that belong to the host path combinations.
 			var priorityLabel string
