@@ -24,3 +24,9 @@ data:
   {{ if .Values.configs.syncNamespace  }}
   syncNamespace: {{ .Values.configs.syncNamespace | quote }}
   {{ end }}
+  serviceType:  {{ .Values.configs.serviceType | quote }}
+  {{ if eq .Values.configs.serviceType "NodePort" }}
+  nodeKey: {{ .Values.nodePortSelector.key | quote }}
+  nodeValue: {{ .Values.nodePortSelector.value | quote }}
+  {{ end }}
+  

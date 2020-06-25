@@ -289,3 +289,21 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 func SSLKeyCertChecksum(sslName string, certificate string) uint32 {
 	return utils.Hash(sslName + certificate)
 }
+
+func IsNodePortMode() bool {
+	nodePortType := os.Getenv(SERVICE_TYPE)
+	if nodePortType == NODE_PORT {
+		return true
+	}
+	return false
+}
+
+func GetNodePortsSelector() map[string]string {
+	nodePortsSelectorLabels := make(map[string]string)
+	if IsNodePortMode() {
+		// If the key/values are kept empty then we select all nodes
+		nodePortsSelectorLabels["key"] = os.Getenv(NODE_KEY)
+		nodePortsSelectorLabels["value"] = os.Getenv(NODE_VALUE)
+	}
+	return nodePortsSelectorLabels
+}

@@ -1205,6 +1205,11 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		utils.AviLog.Debugf("Static route sync disabled, skipping vrf cache population")
 		return
 	}
+	// Disable static route sync if ako is in  NodePort mode
+	if lib.IsNodePortMode() {
+		utils.AviLog.Infof("Static route sync disabled in NodePort Mode")
+		return
+	}
 	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
 	vrfList := []*models.VrfContext{}
 

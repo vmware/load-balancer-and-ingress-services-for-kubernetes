@@ -25,10 +25,15 @@ configs:
   cniPlugin: "" #enum: calico|canal|flannel
   logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
   deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI
+  serviceType: ClusterIP #enum NodePort|ClusterIP
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+nodePortSelector: # Only applicable if serviceType is NodePort
+  key: ""
+  value: ""
 
 serviceAccount:
   # Specifies whether a service account should be created

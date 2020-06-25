@@ -127,6 +127,23 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: networkName
+          - name: SERVICE_TYPE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: serviceType
+          {{ if eq .Values.configs.serviceType "NodePort" }}
+          - name: NODE_KEY
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nodeKey
+          - name: NODE_VALUE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nodeValue
+          {{ end }}
           {{ if .Values.persistentVolumeClaim }}
           - name: USE_PVC
             value: "true"

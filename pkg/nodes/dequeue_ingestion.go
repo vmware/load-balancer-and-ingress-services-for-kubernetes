@@ -36,6 +36,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	objType, namespace, name := extractTypeNameNamespace(key)
 
 	// if we get update for object of type k8s node, create vrf graph
+	// if in NodePort Mode we update pool servers
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, false)
@@ -201,6 +202,24 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 		utils.AviLog.Errorf("key: %s, msg: Error getting node: %v\n", key, err)
 		return
 	}
+	if lib.IsNodePortMode() {
+		// Svc keys
+		svcKeys := lib.GetSvcKeysForNodeCRUD()
+		for _, key := range svcKeys {
+			_, namespace, name := extractTypeNameNamespace(key)
+			utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer.", key)
+			aviModelGraph := NewAviObjectGraph()
+			aviModelGraph.BuildL4LBGraph(namespace, name, key)
+			model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+			// Save the LB service in memory
+			objects.SharedlbLister().Save(namespace+"/"+name, name)
+			ok := saveAviModel(model_name, aviModelGraph, key)
+			if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
+				PublishKeyToRestLayer(model_name, key, sharedQueue)
+			}
+		}
+		return
+	}
 	aviModel := NewAviObjectGraph()
 	aviModel.IsVrf = true
 	vrfcontext := lib.GetVrf()
@@ -214,6 +233,7 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	if ok && !fullsync {
 		PublishKeyToRestLayer(model_name, key, sharedQueue)
 	}
+
 }
 
 func PublishKeyToRestLayer(model_name string, key string, sharedQueue *utils.WorkerQueue) {

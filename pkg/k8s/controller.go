@@ -100,6 +100,11 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 		return true
 	}
 
+	nodeLabelEq := reflect.DeepEqual(oldNode.ObjectMeta.Labels, newNode.ObjectMeta.Labels)
+	if !nodeLabelEq {
+		return true
+	}
+
 	return false
 }
 
@@ -480,7 +485,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
-
 			key := utils.NodeObj + "/" + node.Name
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -549,7 +553,8 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
 	}
 	c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
-	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+
+	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
 		c.informers.NodeInformer.Informer().AddEventHandler(node_event_handler)

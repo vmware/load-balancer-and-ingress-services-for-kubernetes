@@ -97,6 +97,11 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 		utils.AviLog.Debugf("key: %s, msg: static route sync disabled\n", key)
 		return
 	}
+	// Disable static route sync if ako is in  NodePort mode
+	if lib.IsNodePortMode() {
+		utils.AviLog.Debugf("key: %s, msg: static route sync disabled in NodePort Mode\n", key)
+		return
+	}
 	vrfNode := avimodel.GetAviVRF()
 	if len(vrfNode) != 1 {
 		utils.AviLog.Warnf("key: %s, msg: Number of vrf nodes is not one\n", key)

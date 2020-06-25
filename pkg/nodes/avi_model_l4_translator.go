@@ -105,9 +105,16 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: lib.GetTenant(), Protocol: portProto.Protocol, PortName: portProto.Name}
 		poolNode.VrfContext = lib.GetVrf()
 
-		if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
-			poolNode.Servers = servers
+		if !lib.IsNodePortMode() {
+			if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+				poolNode.Servers = servers
+			}
+		} else {
+			if servers := PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+				poolNode.Servers = servers
+			}
 		}
+
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
 
@@ -123,6 +130,75 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		o.GraphChecksum = o.GraphChecksum + pgNode.GetCheckSum()
 		o.GraphChecksum = o.GraphChecksum + poolNode.GetCheckSum()
 	}
+}
+
+func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
+
+	// Get all nodes which match nodePortSelector
+	nodePortSelector := lib.GetNodePortsSelector()
+	nodePortFilter := map[string]string{}
+	if len(nodePortSelector) == 2 {
+		nodePortFilter[nodePortSelector["key"]] = nodePortSelector["value"]
+	} else {
+		nodePortFilter = nil
+	}
+	allNodes := objects.SharedNodeLister().CopyAllObjects()
+
+	var poolMeta []AviPoolMetaServer
+	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(ns).Get(serviceName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, serviceName)
+		return poolMeta
+	}
+	// Populate pool servers
+	for _, port := range svcObj.Spec.Ports {
+		if port.Name != poolNode.PortName {
+			continue
+		}
+		svcPort := int32(port.NodePort)
+		poolNode.Port = svcPort
+		for _, nodeIntf := range allNodes {
+			node, ok := nodeIntf.(*corev1.Node)
+			if !ok {
+				utils.AviLog.Warnf("key: %s,msg: error in fetching node from node cache", key)
+				return nil
+			}
+			if nodePortFilter != nil {
+				// skip the node if node does not have node port selector labels
+				_, ok := node.ObjectMeta.Labels[nodePortSelector["key"]]
+				if !ok {
+					continue
+				}
+				if node.ObjectMeta.Labels[nodePortSelector["key"]] != nodePortSelector["value"] {
+					continue
+				}
+
+			}
+			addresses := node.Status.Addresses
+			ip := ""
+			var atype string
+			for _, address := range addresses {
+				if address.Type == corev1.NodeInternalIP {
+					ip = address.Address
+				}
+			}
+			if ip == "" {
+				utils.AviLog.Warnf("key: %s,msg: NodeInternalIP not found for node: %s", key, node.Name)
+				return nil
+			}
+			if utils.IsV4(ip) {
+				atype = "V4"
+			} else {
+				atype = "V6"
+			}
+
+			a := avimodels.IPAddr{Type: &atype, Addr: &ip}
+			server := AviPoolMetaServer{Ip: a}
+			poolMeta = append(poolMeta, server)
+		}
+	}
+
+	return poolMeta
 }
 
 func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {

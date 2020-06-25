@@ -1,2 +1,6 @@
 bin/ako
 bin/avi.log
+
+# IDE
+.idea
+.vscode

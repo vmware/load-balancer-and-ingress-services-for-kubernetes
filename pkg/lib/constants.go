@@ -38,6 +38,10 @@ const (
 	STATUS_REDIRECT           = "HTTP_REDIRECT_STATUS_CODE_302"
 	SLOW_SYNC_TIME            = 120
 	LOG_LEVEL                 = "logLevel"
+	SERVICE_TYPE              = "SERVICE_TYPE"
+	NODE_PORT                 = "NodePort"
+	NODE_KEY                  = "NODE_KEY"
+	NODE_VALUE                = "NODE_VALUE"
 	ShardVSPrefix             = "Shared-L7"
 	PolicyAllow               = "ALLOW"
 	PolicyNone                = "NONE"
