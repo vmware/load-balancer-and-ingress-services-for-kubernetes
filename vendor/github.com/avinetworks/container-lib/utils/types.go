@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
+	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 )
 
 type EvType string
@@ -64,6 +65,7 @@ type Informers struct {
 	RouteInformer     oshiftinformers.RouteInformer
 	NodeInformer      coreinformers.NodeInformer
 	IngressInformer   informers.GenericInformer
+	OshiftClient      oshiftclientset.Interface
 	IngressVersion    string
 	KubeClientIntf
 }
