@@ -122,5 +122,10 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 		vrfCacheObj := avicache.AviVrfCache{Name: name, Uuid: uuid, CloudConfigCksum: checksum}
 		rest.cache.VrfCache.AviCacheAdd(vrfName, &vrfCacheObj)
 	}
+	if lib.StaticRouteSyncChan != nil {
+		close(lib.StaticRouteSyncChan)
+		lib.StaticRouteSyncChan = nil
+	}
+
 	return nil
 }
