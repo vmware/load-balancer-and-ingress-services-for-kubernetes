@@ -297,6 +297,21 @@ func (c *AviController) FullSyncK8s() {
 		utils.AviLog.Infof("Sync disabled, skipping full sync")
 		return
 	}
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	var vrfModelName string
+	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
+	} else {
+		nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
+		for _, node := range nodeObjects {
+			key := utils.NodeObj + "/" + node.Name
+			nodes.DequeueIngestion(key, true)
+		}
+		// Publish vrfcontext model now, this has to be processed first
+		vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
+		utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
+		nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
+	}
 	// List all the kubernetes resources
 	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
@@ -330,22 +345,6 @@ func (c *AviController) FullSyncK8s() {
 			nodes.DequeueIngestion(key, true)
 		}
 
-	}
-
-	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	var vrfModelName string
-	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
-		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
-	} else {
-		nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
-		for _, node := range nodeObjects {
-			key := utils.NodeObj + "/" + node.Name
-			nodes.DequeueIngestion(key, true)
-		}
-		// Publish vrfcontext model now, this has to be processed first
-		vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
-		utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
-		nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
 	}
 
 	cache := avicache.SharedAviObjCache()
