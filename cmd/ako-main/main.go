@@ -116,7 +116,7 @@ func InitializeAKC() {
 	close(ctrlCh)
 	timeoutChan := make(chan struct{})
 	// Timeout after 10 seconds.
-	timeout := 10 * time.Second
+	timeout := 60 * time.Second
 	go func() {
 		defer close(timeoutChan)
 		wgIngestion.Wait()
@@ -125,6 +125,7 @@ func InitializeAKC() {
 	}()
 	select {
 	case <-timeoutChan:
+		utils.AviLog.Warnf("Timed out while waiting for threads to return, going to stop AKO. Time waited 60 seconds")
 		return
 	case <-time.After(timeout):
 		return
