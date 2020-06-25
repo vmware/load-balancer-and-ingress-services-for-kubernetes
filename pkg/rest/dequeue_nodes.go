@@ -62,6 +62,10 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
 	if !ok || avimodelIntf == nil {
+		if lib.StaticRouteSyncChan != nil {
+			close(lib.StaticRouteSyncChan)
+			lib.StaticRouteSyncChan = nil
+		}
 		if vs_cache_obj != nil {
 			utils.AviLog.Infof("key: %s, msg: nil model found, this is a vs deletion case", key)
 			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key)
@@ -95,6 +99,10 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObjectGraph) {
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
 		utils.AviLog.Debugf("key: %s, msg: static route sync disabled\n", key)
+		if lib.StaticRouteSyncChan != nil {
+			close(lib.StaticRouteSyncChan)
+			lib.StaticRouteSyncChan = nil
+		}
 		return
 	}
 	// Disable static route sync if ako is in  NodePort mode
@@ -105,22 +113,38 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	vrfNode := avimodel.GetAviVRF()
 	if len(vrfNode) != 1 {
 		utils.AviLog.Warnf("key: %s, msg: Number of vrf nodes is not one\n", key)
+		if lib.StaticRouteSyncChan != nil {
+			close(lib.StaticRouteSyncChan)
+			lib.StaticRouteSyncChan = nil
+		}
 		return
 	}
 	aviVrfNode := vrfNode[0]
 	vrfCacheObj := rest.getVrfCacheObj(vrfName)
 	if vrfCacheObj == nil {
 		utils.AviLog.Warnf("key: %s, vrf %s not found in cache, exiting\n", key, vrfName)
+		if lib.StaticRouteSyncChan != nil {
+			close(lib.StaticRouteSyncChan)
+			lib.StaticRouteSyncChan = nil
+		}
 		return
 	}
 	if vrfCacheObj.CloudConfigCksum == aviVrfNode.CloudConfigCksum {
 		utils.AviLog.Debugf("key: %s, msg: checksum for vrf %s has not changed, skipping\n", key, vrfName)
+		if lib.StaticRouteSyncChan != nil {
+			close(lib.StaticRouteSyncChan)
+			lib.StaticRouteSyncChan = nil
+		}
 		return
 	}
 	var restOps []*utils.RestOp
 	restOp := rest.AviVrfBuild(key, aviVrfNode, vrfCacheObj.Uuid)
 	if restOp == nil {
 		utils.AviLog.Debugf("key: %s, no rest operation for vrf %s\n", key, vrfName)
+		if lib.StaticRouteSyncChan != nil {
+			close(lib.StaticRouteSyncChan)
+			lib.StaticRouteSyncChan = nil
+		}
 		return
 	}
 	restOps = append(restOps, restOp)
