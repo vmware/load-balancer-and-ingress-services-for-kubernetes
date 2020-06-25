@@ -107,9 +107,20 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 					utils.AviLog.Infof("key: %s, msg: TCP ports for VS creation returned no matching PGs", key)
 				}
 
-			} else if pp.Protocol == utils.UDP && vs_meta.NetworkProfile == "System-TCP-Proxy" {
-				onw_profile := "/api/networkprofile/?name=System-UDP-Fast-Path"
-				svc.OverrideNetworkProfileRef = &onw_profile
+			} else if pp.Protocol == utils.UDP && vs_meta.NetworkProfile == utils.SYSTEM_UDP_FAST_PATH {
+				port := pp.Port
+				var sproto string
+				sproto = "PROTOCOL_TYPE_UDP_FAST_PATH"
+				pg_name := FindPoolGroupForPort(vs_meta.TCPPoolGroupRefs, port)
+				if pg_name != "" {
+					utils.AviLog.Debugf("key: %s, msg: UDP ports for VS creation returned PG: %s", key, pg_name)
+					pg_ref := "/api/poolgroup/?name=" + pg_name
+					sps := avimodels.ServicePoolSelector{ServicePoolGroupRef: &pg_ref,
+						ServicePort: &port, ServiceProtocol: &sproto}
+					vs.ServicePoolSelect = append(vs.ServicePoolSelect, &sps)
+				} else {
+					utils.AviLog.Infof("key: %s, msg: UDP ports for VS creation returned no matching PGs", key)
+				}
 			}
 			vs.Services = append(vs.Services, &svc)
 		}
