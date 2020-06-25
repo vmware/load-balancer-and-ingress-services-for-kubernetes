@@ -136,7 +136,7 @@ func init() {
 	})
 	w := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   logpath,
-		MaxSize:    100, // megabytes after which new file is created
+		MaxSize:    500, // megabytes after which new file is created
 		MaxBackups: 5,   // number of backups
 		MaxAge:     28,  // days
 		Compress:   true,

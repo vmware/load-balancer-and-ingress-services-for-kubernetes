@@ -193,6 +193,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 			if ocs != nil {
 				oshiftInformerFactory := oshiftinformers.NewSharedInformerFactory(ocs, time.Second*30)
 				informers.RouteInformer = oshiftInformerFactory.Route().V1().Routes()
+				informers.OshiftClient = ocs
 			}
 		}
 	}
