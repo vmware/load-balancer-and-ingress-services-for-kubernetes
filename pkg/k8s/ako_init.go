@@ -303,8 +303,8 @@ func (c *AviController) FullSyncK8s() {
 		vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
 		utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
 		nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
+		<-lib.StaticRouteSyncChan
 	}
-	<-lib.StaticRouteSyncChan
 	// List all the kubernetes resources
 	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
