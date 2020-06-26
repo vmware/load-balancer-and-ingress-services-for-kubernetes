@@ -251,6 +251,12 @@ func GetClusterName() string {
 	return ""
 }
 
+var StaticRouteSyncChan chan struct{}
+
+func SetStaticRouteSyncHandler() {
+	StaticRouteSyncChan = make(chan struct{})
+}
+
 func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
 	return (utils.Hash(vrfName) + utils.Hash(utils.Stringify(staticRoutes)))
 }

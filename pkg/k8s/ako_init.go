@@ -302,6 +302,7 @@ func (c *AviController) FullSyncK8s() {
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
+		lib.SetStaticRouteSyncHandler()
 		nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
 		for _, node := range nodeObjects {
 			key := utils.NodeObj + "/" + node.Name
@@ -311,6 +312,7 @@ func (c *AviController) FullSyncK8s() {
 		vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
 		utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
 		nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
+		<-lib.StaticRouteSyncChan
 	}
 	// List all the kubernetes resources
 	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
