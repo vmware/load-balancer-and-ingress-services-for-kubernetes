@@ -38,7 +38,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// if we get update for object of type k8s node, create vrf graph
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
-		processNodeObj(key, name, sharedQueue, false)
+		processNodeObj(key, name, sharedQueue, fullsync)
 		return
 	}
 	schema, valid := ConfigDescriptor().GetByType(objType)
