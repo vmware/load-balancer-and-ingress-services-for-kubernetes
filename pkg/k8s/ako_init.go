@@ -303,7 +303,17 @@ func (c *AviController) FullSyncK8s() {
 		vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
 		utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
 		nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
-		<-lib.StaticRouteSyncChan
+		timeout := make(chan bool, 1)
+		go func() {
+			time.Sleep(20 * time.Second)
+			timeout <- true
+		}()
+		select {
+		case <-lib.StaticRouteSyncChan:
+			utils.AviLog.Infof("Processing done for VRF")
+		case <-timeout:
+			utils.AviLog.Warnf("Timed out while waiting for rest layer to respond, moving on with bootup")
+		}
 	}
 	// List all the kubernetes resources
 	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
