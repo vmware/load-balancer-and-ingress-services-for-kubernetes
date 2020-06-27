@@ -15,3 +15,6 @@ rules:
   - apiGroups: ["crd.projectcalico.org"]
     resources: ["blockaffinities"]
     verbs: ["get", "watch", "list"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes", "routes/status"]
+    verbs: ["get", "watch", "list", "patch", "update"]

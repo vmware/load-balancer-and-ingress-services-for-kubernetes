@@ -367,7 +367,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 						key:             key,
 					}}, false)
 				} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
-					UpdateIngressStatus([]UpdateStatusOptions{{
+					UpdateRouteIngressStatus([]UpdateStatusOptions{{
 						vip:             parentVsObj.Vip,
 						serviceMetadata: svc_mdata_obj,
 						key:             key,
@@ -383,7 +383,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 						pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 						if found {
 							if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-								UpdateIngressStatus([]UpdateStatusOptions{{
+								UpdateRouteIngressStatus([]UpdateStatusOptions{{
 									vip:             vs_cache_obj.Vip,
 									serviceMetadata: pool_cache_obj.ServiceMetadataObj,
 									key:             key,
