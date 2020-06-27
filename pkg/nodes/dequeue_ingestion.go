@@ -39,7 +39,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// if in NodePort Mode we update pool servers
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
-		processNodeObj(key, name, sharedQueue, false)
+		processNodeObj(key, name, sharedQueue, fullsync)
 		return
 	}
 
