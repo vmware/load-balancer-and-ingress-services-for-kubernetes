@@ -48,4 +48,5 @@ const (
 	PolicyEdgeTerm            = "EDGE"
 	PolicyRedirect            = "REDIRECT"
 	DeleteConfig              = "deleteConfig"
+	NodePort                  = "NodePort"
 )

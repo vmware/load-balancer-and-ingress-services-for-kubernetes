@@ -22,6 +22,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 var (
@@ -39,6 +40,10 @@ var (
 		GetParentIngresses: EPToIng,
 		GetParentRoutes:    EPToRoute,
 	}
+	Node = GraphSchema{
+		Type:               "Node",
+		GetParentIngresses: NodeToIng,
+	}
 	Secret = GraphSchema{
 		Type:               "Secret",
 		GetParentIngresses: SecretToIng,
@@ -54,6 +59,7 @@ var (
 		Endpoint,
 		Secret,
 		Route,
+		Node,
 	}
 )
 
@@ -166,6 +172,32 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 	if len(ingresses) == 0 {
 		return nil, false
 	}
+	return ingresses, true
+}
+
+func NodeToIng(nodeName string, namespace string, key string) ([]string, bool) {
+	// Get all Ingress in the system, as node create/update affects all ingresses in the system
+	if !lib.IsNodePortMode() || utils.GetInformers().IngressInformer == nil {
+		return nil, false
+	}
+	ingresses := []string{}
+	ingressObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the ingress: %s", err)
+		return nil, false
+	}
+
+	for _, ingObj := range ingressObjs {
+		ingObjValidated, ok := utils.ToNetworkingIngress(ingObj)
+		if !ok {
+			utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
+		}
+		ingresses = append(ingresses, ingObjValidated.Name)
+	}
+	if len(ingresses) == 0 {
+		return nil, false
+	}
+	utils.AviLog.Debugf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	return ingresses, true
 }
 

@@ -195,8 +195,8 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	retryQueueWorkers = 1
 	slowRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.SLOW_RETRY_LAYER, SlowSyncTime: lib.SLOW_SYNC_TIME}
 	fastRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.FAST_RETRY_LAYER}
+	var numWorkers uint32
 	if shardScheme == lib.HOSTNAME_SHARD_SCHEME {
-		var numWorkers uint32
 		numWorkers = 1
 		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 		numGraphWorkers := lib.GetshardSize()
@@ -205,7 +205,14 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 
 	} else {
 		// Namespace sharding.
-		ingestionQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersIngestion, WorkqueueName: utils.ObjectIngestionLayer}
+		if lib.IsNodePortMode() {
+			// Setting the numWorkers to 1 as single node update in L2 affects multiple ingresses.
+			// Cannot have multiple workers working on ingress and node updates.
+			numWorkers = 1
+		} else {
+			numWorkers = utils.NumWorkersIngestion
+		}
+		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 		graphQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersGraph, WorkqueueName: utils.GraphLayer}
 		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams, slowRetryQParams, fastRetryQParams).GetQueueByName(utils.GraphLayer)
 	}

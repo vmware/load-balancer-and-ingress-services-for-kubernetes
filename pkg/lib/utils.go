@@ -42,7 +42,21 @@ func isServiceLBType(svcObj *corev1.Service) bool {
 	return false
 }
 
-func GetSvcKeysForNodeCRUD() (svcKeys []string) {
+func IsServiceNodPortType(svcObj *corev1.Service) bool {
+	if svcObj.Spec.Type == NodePort {
+		return true
+	}
+	return false
+}
+
+func IsServiceClusterIPType(svcObj *corev1.Service) bool {
+	if svcObj.Spec.Type == "ClusterIP" {
+		return true
+	}
+	return false
+}
+
+func GetSvcKeysForNodeCRUD() (svcl4Keys []string, svcl7Keys []string) {
 	// For NodePort if the node matches the  selector update all L4 services.
 
 	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
@@ -52,13 +66,15 @@ func GetSvcKeysForNodeCRUD() (svcKeys []string) {
 	}
 	for _, svc := range svcObjs {
 		var key string
-		isSvcLb := isServiceLBType(svc)
-		if !isSvcLb {
-			continue
+		if isServiceLBType(svc) {
+			key = utils.L4LBService + "/" + utils.ObjKey(svc)
+			svcl4Keys = append(svcl4Keys, key)
 		}
-		key = utils.L4LBService + "/" + utils.ObjKey(svc)
-		svcKeys = append(svcKeys, key)
+		if IsServiceNodPortType(svc) {
+			key = utils.Service + "/" + utils.ObjKey(svc)
+			svcl7Keys = append(svcl7Keys, key)
+		}
 	}
-	return svcKeys
+	return svcl4Keys, svcl7Keys
 
 }

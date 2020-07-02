@@ -213,6 +213,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint add")
 				return
 			}
+			if lib.IsNodePortMode() {
+				utils.AviLog.Debugf("skipping endpoint for nodeport mode")
+				return
+			}
 			ep := obj.(*corev1.Endpoints)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
 			key := utils.Endpoints + "/" + utils.ObjKey(ep)
@@ -223,6 +227,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
 				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint delete")
+				return
+			}
+			if lib.IsNodePortMode() {
+				utils.AviLog.Debugf("skipping endpoint for nodeport mode")
 				return
 			}
 			ep, ok := obj.(*corev1.Endpoints)
@@ -253,6 +261,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			oep := old.(*corev1.Endpoints)
 			cep := cur.(*corev1.Endpoints)
 			if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
+				if lib.IsNodePortMode() {
+					utils.AviLog.Debugf("skipping endpoint for nodeport mode")
+					return
+				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
 				key := utils.Endpoints + "/" + utils.ObjKey(cep)
 				bkt := utils.Bkt(namespace, numWorkers)

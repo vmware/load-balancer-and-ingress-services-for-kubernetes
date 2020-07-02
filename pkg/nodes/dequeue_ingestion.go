@@ -35,14 +35,6 @@ func DequeueIngestion(key string, fullsync bool) {
 
 	objType, namespace, name := extractTypeNameNamespace(key)
 
-	// if we get update for object of type k8s node, create vrf graph
-	// if in NodePort Mode we update pool servers
-	if objType == utils.NodeObj {
-		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
-		processNodeObj(key, name, sharedQueue, fullsync)
-		return
-	}
-
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if valid {
 		// If it's an ingress related change, let's process that.
@@ -51,6 +43,24 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else if utils.GetInformers().RouteInformer != nil && schema.GetParentRoutes != nil {
 			routeNames, routeFound = schema.GetParentRoutes(name, namespace, key)
 		}
+	}
+	// if we get update for object of type k8s node, create vrf graph
+	// if in NodePort Mode we update pool servers
+	if objType == utils.NodeObj {
+		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
+		processNodeObj(key, name, sharedQueue, fullsync)
+
+		if lib.IsNodePortMode() {
+			// Svc keys
+			svcl4Keys, svcl7Keys := lib.GetSvcKeysForNodeCRUD()
+			for _, svcl4Key := range svcl4Keys {
+				handleL4Service(svcl4Key, fullsync)
+			}
+			for _, svcl7Key := range svcl7Keys {
+				handleIngress(svcl7Key, fullsync, ingressNames)
+			}
+		}
+		return
 	}
 	if objType == utils.Service {
 		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
@@ -83,47 +93,14 @@ func DequeueIngestion(key string, fullsync bool) {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
-			if !isServiceDelete(name, namespace, key) {
-				utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
-				aviModelGraph := NewAviObjectGraph()
-				aviModelGraph.BuildL4LBGraph(namespace, name, key)
-				model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
-				// Save the LB service in memory
-				objects.SharedlbLister().Save(namespace+"/"+name, name)
-				ok := saveAviModel(model_name, aviModelGraph, key)
-				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(model_name, key, sharedQueue)
-				}
-				found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
-				if found {
-					// This is transition from clusterIP to service of type LB
-					objects.SharedClusterIpLister().Delete(namespace + "/" + name)
-					affectedIngs, _ := SvcToIng(name, namespace, key)
-					if lib.GetShardScheme() != lib.NAMESPACE_SHARD_SCHEME {
-						for _, ingress := range affectedIngs {
-							utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
-							HostNameShardAndPublishV2(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
-						}
-					} else {
-						utils.AviLog.Warnf("key: %s, msg: transition from ClusterIP to service of type LB is not supported in namespace based shard for ingress pool changes", key)
-					}
-				}
-			} else {
-				// This is a DELETE event. The avi graph is set to nil.
-				utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
-				model_name := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+name)
-				objects.SharedAviGraphLister().Save(model_name, nil)
-				if !fullsync {
-					bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
-					sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
-				}
-			}
+			handleL4Service(key, fullsync)
 		} else if objType == utils.Endpoints {
 			svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 			if err != nil {
 				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
 				return
 			}
+
 			if svcObj.Spec.Type == utils.LoadBalancer {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
@@ -136,35 +113,82 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	} else {
-		if lib.GetShardScheme() == lib.NAMESPACE_SHARD_SCHEME {
-			shardVsName := DeriveNamespacedShardVS(namespace, key)
-			if shardVsName == "" {
-				// If we aren't able to derive the ShardVS name, we should return
-				return
-			}
-			model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
-			for _, ingress := range ingressNames {
-				// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
-				// does not allow cross tenant ingress references.
-				utils.AviLog.Debugf("key: %s, msg: evaluating ingress: %s", key, ingress)
-				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
-				if !found || aviModel == nil {
-					utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
-					aviModel = NewAviObjectGraph()
-					aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
+		handleIngress(key, fullsync, ingressNames)
+	}
+}
+
+func handleL4Service(key string, fullsync bool) {
+	_, namespace, name := extractTypeNameNamespace(key)
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
+	if !isServiceDelete(name, namespace, key) {
+		utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
+		aviModelGraph := NewAviObjectGraph()
+		aviModelGraph.BuildL4LBGraph(namespace, name, key)
+		model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+		// Save the LB service in memory
+		objects.SharedlbLister().Save(namespace+"/"+name, name)
+		ok := saveAviModel(model_name, aviModelGraph, key)
+		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
+			PublishKeyToRestLayer(model_name, key, sharedQueue)
+		}
+		found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
+		if found {
+			// This is transition from clusterIP to service of type LB
+			objects.SharedClusterIpLister().Delete(namespace + "/" + name)
+			affectedIngs, _ := SvcToIng(name, namespace, key)
+			if lib.GetShardScheme() != lib.NAMESPACE_SHARD_SCHEME {
+				for _, ingress := range affectedIngs {
+					utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
+					HostNameShardAndPublishV2(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
 				}
-				aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
-				ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
-				if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(model_name, key, sharedQueue)
-				}
+			} else {
+				utils.AviLog.Warnf("key: %s, msg: transition from ClusterIP to service of type LB is not supported in namespace based shard for ingress pool changes", key)
 			}
-		} else {
-			// The only other shard scheme we support now is hostname sharding.
-			for _, ingress := range ingressNames {
-				utils.AviLog.Debugf("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
-				HostNameShardAndPublishV2(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
+		}
+	} else {
+		// This is a DELETE event. The avi graph is set to nil.
+		utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
+		model_name := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+name)
+		objects.SharedAviGraphLister().Save(model_name, nil)
+		if !fullsync {
+			bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
+			sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
+		}
+	}
+}
+
+func handleIngress(key string, fullsync bool, ingressNames []string) {
+	_, namespace, _ := extractTypeNameNamespace(key)
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	if lib.GetShardScheme() == lib.NAMESPACE_SHARD_SCHEME {
+		shardVsName := DeriveNamespacedShardVS(namespace, key)
+		if shardVsName == "" {
+			// If we aren't able to derive the ShardVS name, we should return
+			return
+		}
+		model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
+		for _, ingress := range ingressNames {
+			// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
+			// does not allow cross tenant ingress references.
+			utils.AviLog.Debugf("key: %s, msg: evaluating ingress: %s", key, ingress)
+			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+			if !found || aviModel == nil {
+				utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
+				aviModel = NewAviObjectGraph()
+				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 			}
+			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
+			ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
+			if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
+				PublishKeyToRestLayer(model_name, key, sharedQueue)
+			}
+		}
+	} else {
+		// The only other shard scheme we support now is hostname sharding.
+		for _, ingress := range ingressNames {
+			utils.AviLog.Debugf("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
+			HostNameShardAndPublishV2(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
 		}
 	}
 }
@@ -203,21 +227,6 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 		return
 	}
 	if lib.IsNodePortMode() {
-		// Svc keys
-		svcKeys := lib.GetSvcKeysForNodeCRUD()
-		for _, key := range svcKeys {
-			_, namespace, name := extractTypeNameNamespace(key)
-			utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer.", key)
-			aviModelGraph := NewAviObjectGraph()
-			aviModelGraph.BuildL4LBGraph(namespace, name, key)
-			model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
-			// Save the LB service in memory
-			objects.SharedlbLister().Save(namespace+"/"+name, name)
-			ok := saveAviModel(model_name, aviModelGraph, key)
-			if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-				PublishKeyToRestLayer(model_name, key, sharedQueue)
-			}
-		}
 		return
 	}
 	aviModel := NewAviObjectGraph()

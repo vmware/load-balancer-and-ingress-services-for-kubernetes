@@ -1845,6 +1845,10 @@ func CheckAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		return false
 	}
 
+	if lib.IsNodePortMode() {
+		utils.AviLog.Infof("Using global VRF for NodePort mode")
+		return true
+	}
 	vrfRef := *network.VrfContextRef
 	vrfName := strings.Split(vrfRef, "#")[1]
 	utils.AviLog.Infof("Setting VRF %s found from network %s", vrfName, networkName)

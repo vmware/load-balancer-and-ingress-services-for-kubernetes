@@ -151,6 +151,10 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 		return poolMeta
 	}
 	// Populate pool servers
+	if lib.IsServiceClusterIPType(svcObj) {
+		utils.AviLog.Debugf("key: %s, msg: ClusterIP is not processed in NodePort: %s", key, serviceName)
+		return poolMeta
+	}
 	for _, port := range svcObj.Spec.Ports {
 		if port.Name != poolNode.PortName {
 			continue
