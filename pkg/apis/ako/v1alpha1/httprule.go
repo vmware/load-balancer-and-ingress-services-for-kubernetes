@@ -1,0 +1,73 @@
+/*
+ * Copyright 2019-2020 VMware, Inc.
+ * All Rights Reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*   http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+package v1alpha1
+
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// HTTPRule is a top-level type
+type HTTPRule struct {
+	metav1.TypeMeta `json:",inline"`
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// +optional
+	Status HTTPRuleStatus `json:"status,omitempty"`
+	// This is where you can define
+	// your own custom spec
+	Spec HTTPRuleSpec `json:"spec,omitempty"`
+}
+
+// custom spec
+type HTTPRuleSpec struct {
+	HostRule string          `json:"hostrule,omitempty"`
+	Paths    []HTTPRulePaths `json:"paths,omitempty"`
+}
+
+type HTTPRulePaths struct {
+	Target             string           `json:"target,omitempty"`
+	LoadBalancerPolicy HTTPRuleLBPolicy `json:"loadBalancerPolicy,omitempty"`
+	TLS                HTTPRuleTLS      `json:"tls,omitempty"`
+}
+
+type HTTPRuleLBPolicy struct {
+	Algorithm string `json:"algorithm,omitempty"`
+	Hash      string `json:"hash,omitempty"`
+}
+
+type HTTPRuleTLS struct {
+	SSLProfile        string `json:"sslProfile,omitempty"`
+	ClientCertificate string `json:"clientCertificate,omitempty"`
+	PkiProfile        string `json:"pkiProfile,omitempty"`
+}
+
+// HTTPRuleStatus holds the status of the HTTPRule
+type HTTPRuleStatus struct {
+	Status string `json:"status,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// no client needed for list as it's been created in above
+type HTTPRuleList struct {
+	metav1.TypeMeta `json:",inline"`
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	Items []HTTPRule `json:"items"`
+}
