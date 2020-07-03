@@ -458,7 +458,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 			if (vs_cache_obj.ServiceMetadataObj.IngressName != "" || len(vs_cache_obj.ServiceMetadataObj.NamespaceIngressName) > 0) && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
 				// SNI VS deletion related ingress status update
 				if !hostFoundInParentPool {
-					DeleteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
+					DeleteRouteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
 				}
 			} else {
 				// Shared VS deletion related ingress status update

@@ -168,7 +168,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						},
 					}
 					sniNode.VrfContext = lib.GetVrf()
-					certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
+					certsBuilt := o.BuildTlsCertNode(objects.SharedSvcLister(), sniNode, namespace, tlssetting, key)
 					if certsBuilt {
 						o.BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
 						foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
@@ -355,43 +355,83 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	return dsScriptNode
 }
 
-func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, secretName string, key string, sniHost ...string) bool {
-	mClient := utils.GetInformers().ClientSet
-	secretObj, err := mClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
-	if err != nil || secretObj == nil {
-		// This secret has been deleted.
-		ok, ingNames := objects.SharedSvcLister().IngressMappings(namespace).GetSecretToIng(secretName)
-		if ok {
-			// Delete the secret key in the cache if it has no references
-			if len(ingNames) == 0 {
-				objects.SharedSvcLister().IngressMappings(namespace).DeleteSecretToIngMapping(secretName)
-			}
+// BuildCACertNode : Build a new node to store CA cert, this would be referred by the corresponding keycert
+func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, keycertname, key string) string {
+	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(keycertname), Tenant: lib.GetTenant()}
+	cacertNode.Cert = []byte(cacert)
+
+	if tlsNode.CheckCACertNodeNameNChecksum(cacertNode.Name, cacertNode.GetCheckSum()) {
+		if len(tlsNode.CACertRefs) == 1 {
+			tlsNode.CACertRefs[0] = cacertNode
+			utils.AviLog.Warnf("key: %s, msg: duplicate cacerts detected for %s, overwriting", key, cacertNode.Name)
+		} else {
+			tlsNode.ReplaceCACertRefInSNINode(cacertNode, key)
 		}
-		utils.AviLog.Infof("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
-		return false
 	}
+	return cacertNode.Name
+}
+
+func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key string, sniHost ...string) bool {
+	mClient := utils.GetInformers().ClientSet
+	secretName := tlsData.SecretName
+
 	var certNode *AviTLSKeyCertNode
 	if len(sniHost) > 0 {
 		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), Tenant: lib.GetTenant()}
 	} else {
 		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: lib.GetTenant()}
 	}
-	keycertMap := secretObj.Data
-	cert, ok := keycertMap[tlsCert]
-	if ok {
-		certNode.Cert = cert
+
+	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route
+	if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
+		if tlsData.cert != "" && tlsData.key != "" {
+			certNode.Cert = []byte(tlsData.cert)
+			certNode.Key = []byte(tlsData.key)
+			if tlsData.cacert != "" {
+				certNode.CACert = o.BuildCACertNode(tlsNode, tlsData.cacert, certNode.Name, key)
+			} else {
+				tlsNode.DeleteCACertRefInSNINode(lib.GetCACertNodeName(certNode.Name), key)
+			}
+		} else {
+			ok, _ := svcLister.IngressMappings(namespace).GetSecretToIng(secretName)
+			if ok {
+				svcLister.IngressMappings(namespace).DeleteSecretToIngMapping(secretName)
+			}
+			utils.AviLog.Infof("key: %s, msg: no cert/key specified for TLS route")
+			//To Do: use a Default secret if required
+			return false
+		}
 	} else {
-		utils.AviLog.Infof("key: %s, msg: certificate not found for secret: %s", key, secretObj.Name)
-		return false
+		secretObj, err := mClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+		if err != nil || secretObj == nil {
+			// This secret has been deleted.
+			ok, ingNames := svcLister.IngressMappings(namespace).GetSecretToIng(secretName)
+			if ok {
+				// Delete the secret key in the cache if it has no references
+				if len(ingNames) == 0 {
+					svcLister.IngressMappings(namespace).DeleteSecretToIngMapping(secretName)
+				}
+			}
+			utils.AviLog.Infof("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
+			return false
+		}
+		keycertMap := secretObj.Data
+		cert, ok := keycertMap[tlsCert]
+		if ok {
+			certNode.Cert = cert
+		} else {
+			utils.AviLog.Infof("key: %s, msg: certificate not found for secret: %s", key, secretObj.Name)
+			return false
+		}
+		tlsKey, keyfound := keycertMap[utils.K8S_TLS_SECRET_KEY]
+		if keyfound {
+			certNode.Key = tlsKey
+		} else {
+			utils.AviLog.Infof("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
+			return false
+		}
+		utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	}
-	tlsKey, keyfound := keycertMap[utils.K8S_TLS_SECRET_KEY]
-	if keyfound {
-		certNode.Key = tlsKey
-	} else {
-		utils.AviLog.Infof("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
-		return false
-	}
-	utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	// If this SSLCertRef is already present don't add it.
 	if len(sniHost) > 0 {
 		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), certNode.GetCheckSum()) {

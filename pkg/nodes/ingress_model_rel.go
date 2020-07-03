@@ -92,6 +92,10 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 			utils.AviLog.Debugf("key: %s, msg: updating route relationship for service:  %s", key, svc)
 			objects.OshiftRouteSvcLister().IngressMappings(namespace).UpdateIngressMappings(routeName, svc)
 		}
+		if routeObj.Spec.TLS != nil {
+			secret := lib.RouteSecretsPrefix + routeName
+			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(routeName, secret)
+		}
 	}
 	return routes, true
 }

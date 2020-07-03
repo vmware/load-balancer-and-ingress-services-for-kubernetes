@@ -131,7 +131,11 @@ func getRoutes(routeNSNames []string, bulk bool) map[string]*routev1.Route {
 	utils.AviLog.Infof("routeNSNames: %v", routeNSNames)
 	for _, namespaceName := range routeNSNames {
 		nsNameSplit := strings.Split(namespaceName, "/")
-		route, err := utils.GetInformers().RouteInformer.Lister().Routes(nsNameSplit[0]).Get(nsNameSplit[1])
+		if len(nsNameSplit) != 2 {
+			utils.AviLog.Warnf("msg: namespaceName %s has wrong format", namespaceName)
+			continue
+		}
+		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus :%s", err)
 			continue
@@ -192,14 +196,14 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 	}
 
 	if sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress); sameStatus {
-		utils.AviLog.Debugf("key: %s, msg: No changes detected in ingress status. old: %+v new: %+v",
+		utils.AviLog.Debugf("key: %s, msg: No changes detected in route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 		return nil
 	}
 
 	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).UpdateStatus(mRoute)
 	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
+		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the route status: %v", key, err)
 		// fetch updated route and feed for update status
 		mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
 		if len(mRoutes) > 0 {
@@ -284,9 +288,9 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 	var hostListIng []string
 	hostListIng = append(hostListIng, mRoute.Spec.Host)
 
-	for i, status := range mRoute.Status.Ingress {
+	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
 		for _, host := range svc_mdata_obj.HostNames {
-			if status.Host == host {
+			if mRoute.Status.Ingress[i].Host == host {
 				// Check if this host is still present in the spec, if so - don't delete it
 				if !utils.HasElem(hostListIng, host) || isVSDelete {
 					mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
@@ -469,9 +473,9 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 		hostListIng = append(hostListIng, rule.Host)
 	}
 
-	for i, status := range mIngress.Status.LoadBalancer.Ingress {
+	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
 		for _, host := range svc_mdata_obj.HostNames {
-			if status.Hostname == host {
+			if mIngress.Status.LoadBalancer.Ingress[i].Hostname == host {
 				// Check if this host is still present in the spec, if so - don't delete it
 				if !utils.HasElem(hostListIng, host) || isVSDelete {
 					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)

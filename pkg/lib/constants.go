@@ -49,4 +49,5 @@ const (
 	PolicyRedirect            = "REDIRECT"
 	DeleteConfig              = "deleteConfig"
 	NodePort                  = "NodePort"
+	RouteSecretsPrefix        = "-route-secret"
 )

@@ -255,7 +255,7 @@ func getPaths(pathMapArr []IngressHostPathSvc) []string {
 	return paths
 }
 
-func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) map[string][]string {
+func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) map[string][]string {
 	hostPathMap := make(map[string][]string)
 	for sniHost, paths := range tlssetting.Hosts {
 		var allSniHosts []string
@@ -316,7 +316,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			}
 		}
 		sniNode.VrfContext = lib.GetVrf()
-		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key, sniHost)
+		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(routeIgrObj.GetSvcLister(), sniNode, namespace, tlssetting, key, sniHost)
 		if certsBuilt {
 			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key, sniHost)
 			foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)

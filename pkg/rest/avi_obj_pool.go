@@ -215,7 +215,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 		if success {
 			if pool_cache_obj.ServiceMetadataObj.IngressName != "" {
 				// SNI VSes use the VS object metadata, delete ingress status for others
-				err := DeleteIngressStatus(pool_cache_obj.ServiceMetadataObj, isVSDelete, key)
+				err := DeleteRouteIngressStatus(pool_cache_obj.ServiceMetadataObj, isVSDelete, key)
 				if k8serror.IsNotFound(err) {
 					// Just log and get away
 					utils.AviLog.Infof("key: %s, msg: ingress already deleted, nothing to update in status", key)

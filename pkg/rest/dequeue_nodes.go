@@ -809,6 +809,12 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 				sni_pools_to_delete, rest_ops = rest.PoolCU(sni_node.PoolRefs, sni_cache_obj, namespace, rest_ops, key)
 				sni_pgs_to_delete, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, sni_cache_obj, namespace, rest_ops, key)
 				http_policies_to_delete, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, sni_cache_obj, namespace, rest_ops, key)
+
+				// CAcerts have to be created first, as they are referred by the keycerts
+				sslkey_cert_delete, rest_ops = rest.CACertCU(sni_node.CACertRefs, sni_cache_obj, namespace, rest_ops, key)
+				// SSLKeyCertCollection which did not match cacerts are present in the list sslkey_cert_delete,
+				// which shuld be the new SSLKeyCertCollection
+				vs_cache_obj.SSLKeyCertCollection = sslkey_cert_delete
 				sslkey_cert_delete, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, sni_cache_obj, namespace, rest_ops, key)
 				// The checksums are different, so it should be a PUT call.
 				if sni_cache_obj.CloudConfigCksum != strconv.Itoa(int(sni_node.GetCheckSum())) {
@@ -823,6 +829,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 			_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, nil, namespace, rest_ops, key)
+			_, rest_ops = rest.CACertCU(sni_node.CACertRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 
 			// Not found - it should be a POST call.
@@ -839,6 +846,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 		_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.CACertCU(sni_node.CACertRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 
 		// Not found - it should be a POST call.
@@ -1042,7 +1050,15 @@ func (rest *RestOperations) HTTPPolicyDelete(https_to_delete []avicache.Namespac
 	return rest_ops
 }
 
-func (rest *RestOperations) SSLKeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+func (rest *RestOperations) CACertCU(caCertNodes []*nodes.AviTLSKeyCertNode, vsCacheObj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+	return rest.KeyCertCU(caCertNodes, vsCacheObj, namespace, rest_ops, key)
+}
+
+func (rest *RestOperations) SSLKeyCertCU(sslkeyNodes []*nodes.AviTLSKeyCertNode, vsCacheObj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+	return rest.KeyCertCU(sslkeyNodes, vsCacheObj, namespace, rest_ops, key)
+}
+
+func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	// Default is POST
 	var cache_ssl_nodes []avicache.NamespaceName
 	if vs_cache_obj != nil {

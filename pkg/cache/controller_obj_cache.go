@@ -560,8 +560,12 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(sslkey))
 			continue
 		}
+		var cacert string
+		if len(sslkey.CaCerts) != 0 {
+			cacert = *sslkey.CaCerts[0].Name
+		}
 		// No support for checksum in the SSLKeyCert object, so we have to synthesize it.
-		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate)
+		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
@@ -617,7 +621,11 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 		if !strings.HasPrefix(*sslkey.Name, lib.GetNamePrefix()) {
 			continue
 		}
-		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate)
+		var cacert string
+		if len(sslkey.CaCerts) != 0 {
+			cacert = *sslkey.CaCerts[0].Name
+		}
+		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,

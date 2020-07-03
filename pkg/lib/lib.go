@@ -151,6 +151,10 @@ func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) stri
 	return NamePrefix + namespace + "-" + secret
 }
 
+func GetCACertNodeName(keycertname string) string {
+	return keycertname + "-cacert"
+}
+
 var VRFContext string
 var VRFUuid string
 
@@ -292,8 +296,8 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 	return allInformers
 }
 
-func SSLKeyCertChecksum(sslName string, certificate string) uint32 {
-	return utils.Hash(sslName + certificate)
+func SSLKeyCertChecksum(sslName, certificate, cacert string) uint32 {
+	return utils.Hash(sslName + certificate + cacert)
 }
 
 func IsNodePortMode() bool {

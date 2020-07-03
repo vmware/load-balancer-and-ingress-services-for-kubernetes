@@ -35,6 +35,18 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 	cr := lib.AKOUser
 	sslkeycert := avimodels.SSLKeyAndCertificate{Name: &name,
 		CreatedBy: &cr, TenantRef: &tenant, Certificate: &avimodels.SSLCertificate{Certificate: &certificate}, Key: &key}
+
+	if ssl_node.CACert != "" {
+		cacertRef := "/api/sslkeyandcertificate/?name=" + ssl_node.CACert
+		caName := ssl_node.CACert
+		sslkeycert.CaCerts = []*avimodels.CertificateAuthority{
+			&avimodels.CertificateAuthority{
+				CaRef: &cacertRef,
+				Name:  &caName,
+			},
+		}
+	}
+
 	// TODO other fields like cloud_ref and lb algo
 
 	macro := utils.AviRestObjMacro{ModelName: "SSLKeyAndCertificate", Data: sslkeycert}
@@ -90,14 +102,19 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			utils.AviLog.Warnf("Certificate not present in response %v", resp)
 			continue
 		}
-		var SSLKeyAndCertificate string
+		var SSLKeyAndCertificate avimodels.SSLKeyAndCertificate
+		var cert, cacert string
 		switch rest_op.Obj.(type) {
 		case utils.AviRestObjMacro:
-			SSLKeyAndCertificate = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.SSLKeyAndCertificate).Certificate.Certificate
+			SSLKeyAndCertificate = rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.SSLKeyAndCertificate)
 		case avimodels.SSLKeyAndCertificate:
-			SSLKeyAndCertificate = *rest_op.Obj.(avimodels.SSLKeyAndCertificate).Certificate.Certificate
+			SSLKeyAndCertificate = rest_op.Obj.(avimodels.SSLKeyAndCertificate)
 		}
-		checksum := lib.SSLKeyCertChecksum(name, SSLKeyAndCertificate)
+		cert = *SSLKeyAndCertificate.Certificate.Certificate
+		if len(SSLKeyAndCertificate.CaCerts) > 0 {
+			cacert = *SSLKeyAndCertificate.CaCerts[0].Name
+		}
+		checksum := lib.SSLKeyCertChecksum(name, cert, cacert)
 		ssl_cache_obj := avicache.AviSSLCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid, CloudConfigCksum: checksum}
 

@@ -220,7 +220,7 @@ func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync
 	// Process secure routes next.
 	ProcessSecureHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap, fullsync, sharedQueue)
 
-	utils.AviLog.Debugf("key: %s, msg: Stored hosts: %s", key, Storedhosts)
+	utils.AviLog.Debugf("key: %s, msg: Stored hosts: %v, hosts map: %v", key, Storedhosts, hostsMap)
 	DeleteStaleData(routeIgrObj, key, &modelList, Storedhosts, hostsMap)
 
 	// hostNamePathStore cache operation
@@ -301,7 +301,7 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 
 	// To Do: use service for paths while handling secure routes
 	for _, tlssetting := range parsedIng.TlsCollection {
-		locSniHostMap := sniNodeHostName(tlssetting, routeIgrObj.GetName(), routeIgrObj.GetNamespace(), key, fullsync, sharedQueue, modelList)
+		locSniHostMap := sniNodeHostName(routeIgrObj, tlssetting, routeIgrObj.GetName(), routeIgrObj.GetNamespace(), key, fullsync, sharedQueue, modelList)
 		for host, newPaths := range locSniHostMap {
 			// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
 			hostData, found := Storedhosts[host]

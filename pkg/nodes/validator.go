@@ -15,11 +15,13 @@
 package nodes
 
 import (
+	"ako/pkg/lib"
 	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/api/networking/v1beta1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Validator struct {
@@ -139,7 +141,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 	return ingressConfig
 }
 
-func (v *Validator) ParseHostPathForRoute(ns string, ingName string, routeSpec routev1.RouteSpec, key string) IngressConfig {
+func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec routev1.RouteSpec, key string) IngressConfig {
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
 	hostName := routeSpec.Host
@@ -157,6 +159,16 @@ func (v *Validator) ParseHostPathForRoute(ns string, ingName string, routeSpec r
 		hostPathMapSvc.weight = *routeSpec.To.Weight
 	}
 
+	if routeSpec.Port != nil {
+		if routeSpec.Port.TargetPort.Type == intstr.Int {
+			hostPathMapSvc.Port = routeSpec.Port.TargetPort.IntVal
+		} else if routeSpec.Port.TargetPort.Type == intstr.String {
+			hostPathMapSvc.PortName = routeSpec.Port.TargetPort.StrVal
+		}
+	} else {
+		utils.AviLog.Infof("key: %s, msg: no port specified for route, all ports would be used", key)
+	}
+
 	hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
 
 	for _, backend := range routeSpec.AlternateBackends {
@@ -172,7 +184,22 @@ func (v *Validator) ParseHostPathForRoute(ns string, ingName string, routeSpec r
 
 	hostMap[hostName] = hostPathMapSvcList
 
-	ingressConfig.IngressHostMap = hostMap
+	var tlsConfigs []TlsSettings
+	if routeSpec.TLS != nil {
+		if routeSpec.TLS.Termination == routev1.TLSTerminationEdge {
+			tls := TlsSettings{}
+			tls.Hosts = hostMap
+			tls.cert = routeSpec.TLS.Certificate
+			tls.key = routeSpec.TLS.Key
+			tls.cacert = routeSpec.TLS.CACertificate
+			tls.SecretName = lib.RouteSecretsPrefix + routeName
+			tlsConfigs = append(tlsConfigs, tls)
+		}
+		ingressConfig.TlsCollection = tlsConfigs
+	} else {
+		ingressConfig.IngressHostMap = hostMap
+	}
+
 	utils.AviLog.Infof("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig
 }

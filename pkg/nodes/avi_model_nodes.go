@@ -265,6 +265,7 @@ type AviVsNode struct {
 	HTTPDSrefs         []*AviHTTPDataScriptNode
 	SniNodes           []*AviVsNode
 	SharedVS           bool
+	CACertRefs         []*AviTLSKeyCertNode
 	SSLKeyCertRefs     []*AviTLSKeyCertNode
 	HttpPolicyRefs     []*AviHttpPolicySetNode
 	VSVIPRefs          []*AviVSVIPNode
@@ -300,6 +301,18 @@ func (v *AviVsNode) GetSniNodeForName(sniNodeName string) *AviVsNode {
 		}
 	}
 	return nil
+}
+
+func (o *AviVsNode) CheckCACertNodeNameNChecksum(cacertNodeName string, checksum uint32) bool {
+	for _, caCert := range o.CACertRefs {
+		if caCert.Name == cacertNodeName {
+			//Check if their checksums are same
+			if caCert.GetCheckSum() == checksum {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (o *AviVsNode) CheckSSLCertNodeNameNChecksum(sslNodeName string, checksum uint32) bool {
@@ -382,6 +395,29 @@ func (o *AviVsNode) ReplaceSniHTTPRefInSNINode(newHttpNode *AviHttpPolicySetNode
 	return
 }
 
+func (o *AviVsNode) DeleteCACertRefInSNINode(cacertNodeName, key string) {
+	for i, cacert := range o.CACertRefs {
+		if cacert.Name == cacertNodeName {
+			o.CACertRefs = append(o.CACertRefs[:i], o.CACertRefs[i+1:]...)
+			utils.AviLog.Infof("key: %s, msg: replaced cacert for sni in model: %s Pool name: %s", key, o.Name, cacert.Name)
+			return
+		}
+	}
+}
+
+func (o *AviVsNode) ReplaceCACertRefInSNINode(cacertNode *AviTLSKeyCertNode, key string) {
+	for i, cacert := range o.CACertRefs {
+		if cacert.Name == cacertNode.Name {
+			o.CACertRefs = append(o.CACertRefs[:i], o.CACertRefs[i+1:]...)
+			o.CACertRefs = append(o.CACertRefs, cacertNode)
+			utils.AviLog.Infof("key: %s, msg: replaced cacert for sni in model: %s Pool name: %s", key, o.Name, cacert.Name)
+			return
+		}
+	}
+	// If we have reached here it means we haven't found a match. Just append.
+	o.CACertRefs = append(o.CACertRefs, cacertNode)
+}
+
 func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key string) {
 	for i, ssl := range o.SSLKeyCertRefs {
 		if ssl.Name == newSslNode.Name {
@@ -431,6 +467,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	for _, sninode := range v.SniNodes {
 		sniChecksum += sninode.GetCheckSum()
+	}
+
+	for _, cacert := range v.CACertRefs {
+		sslkeyChecksum += cacert.GetCheckSum()
 	}
 
 	for _, sslkeycert := range v.SSLKeyCertRefs {
@@ -526,12 +566,13 @@ type AviTLSKeyCertNode struct {
 	CloudConfigCksum uint32
 	Key              []byte
 	Cert             []byte
+	CACert           string
 	Port             int32
 }
 
 func (v *AviTLSKeyCertNode) CalculateCheckSum() {
 	// A sum of fields for this SSL cert.
-	checksum := lib.SSLKeyCertChecksum(v.Name, string(v.Cert))
+	checksum := lib.SSLKeyCertChecksum(v.Name, string(v.Cert), v.CACert)
 	v.CloudConfigCksum = checksum
 }
 
@@ -817,6 +858,9 @@ type IngressHostMap map[string][]IngressHostPathSvc
 type TlsSettings struct {
 	Hosts      map[string][]IngressHostPathSvc
 	SecretName string
+	key        string
+	cert       string
+	cacert     string
 }
 
 type IngressConfig struct {
