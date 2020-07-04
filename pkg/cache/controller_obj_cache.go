@@ -1398,7 +1398,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 								httpName, foundhttp = c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 								if !foundhttp {
 									// If still the httpName is not found. Log an error saying, this VS may not behave appropriately.
-									utils.AviLog.Warnf("HTTPPolicySet not found in Avi for VS: %s for httpName :%s", vs["name"].(string), httpName)
+									utils.AviLog.Warnf("HTTPPolicySet not found in Avi for VS: %s for httpUUID: %s", vs["name"].(string), httpUuid)
 								}
 							}
 							if foundhttp {

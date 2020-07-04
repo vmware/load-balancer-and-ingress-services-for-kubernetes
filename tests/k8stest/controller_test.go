@@ -14,12 +14,15 @@
 package k8stest
 
 import (
-	"ako/pkg/k8s"
-	"ako/tests/integrationtest"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	crdfake "ako/pkg/client/clientset/versioned/fake"
+	"ako/pkg/k8s"
+	"ako/pkg/lib"
+	"ako/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -35,6 +38,7 @@ import (
 )
 
 var kubeClient *k8sfake.Clientset
+var crdClient *crdfake.Clientset
 var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
@@ -94,6 +98,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("NETWORK_NAME", "net123")
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
+	crdClient = crdfake.NewSimpleClientset()
+	lib.SetCRDClientset(crdClient)
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -105,7 +111,7 @@ func TestMain(m *testing.M) {
 		utils.ConfigMapInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{kubeClient}, registeredInformers)
-
+	k8s.NewCRDInformers(crdClient)
 	integrationtest.InitializeFakeAKOAPIServer()
 
 	integrationtest.NewAviFakeClientInstance()

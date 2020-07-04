@@ -12,35 +12,25 @@
 * limitations under the License.
 */
 
-package lib
+package k8s
 
 import (
+	"time"
+
 	akocrd "ako/pkg/client/clientset/versioned"
-	akoinformer "ako/pkg/client/informers/externalversions/ako/v1alpha1"
+	akoinformers "ako/pkg/client/informers/externalversions"
+	"ako/pkg/lib"
 )
 
-var CRDClientset akocrd.Interface
+func NewCRDInformers(cs akocrd.Interface) {
+	var akoInformerFactory akoinformers.SharedInformerFactory
 
-// crd "ako/pkg/client/clientset/versioned/typed/ako/v1alpha1"
-func SetCRDClientset(cs akocrd.Interface) {
-	CRDClientset = cs
-}
+	akoInformerFactory = akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+	hostRuleInformer := akoInformerFactory.Ako().V1alpha1().HostRules()
+	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
 
-func GetCRDClientset() akocrd.Interface {
-	return CRDClientset
-}
-
-var CRDInformers *AKOCrdInformers
-
-type AKOCrdInformers struct {
-	HostRuleInformer akoinformer.HostRuleInformer
-	HTTPRuleInformer akoinformer.HTTPRuleInformer
-}
-
-func SetCRDInformers(c *AKOCrdInformers) {
-	CRDInformers = c
-}
-
-func GetCRDInformers() *AKOCrdInformers {
-	return CRDInformers
+	lib.SetCRDInformers(&lib.AKOCrdInformers{
+		HostRuleInformer: hostRuleInformer,
+		HTTPRuleInformer: httpRuleInformer,
+	})
 }
