@@ -27,28 +27,30 @@ type HTTPRule struct {
 
 	// +optional
 	Status HTTPRuleStatus `json:"status,omitempty"`
-	// This is where you can define
-	// your own custom spec
+
 	Spec HTTPRuleSpec `json:"spec,omitempty"`
 }
 
-// custom spec
+// HTTPRuleSpec consists of the main HTTPRule settings
 type HTTPRuleSpec struct {
 	HostRule string          `json:"hostrule,omitempty"`
 	Paths    []HTTPRulePaths `json:"paths,omitempty"`
 }
 
+// HTTPRulePaths has settings for a specific target path
 type HTTPRulePaths struct {
 	Target             string           `json:"target,omitempty"`
 	LoadBalancerPolicy HTTPRuleLBPolicy `json:"loadBalancerPolicy,omitempty"`
 	TLS                HTTPRuleTLS      `json:"tls,omitempty"`
 }
 
+// HTTPRuleLBPolicy holds a path/pool's load balancer policies
 type HTTPRuleLBPolicy struct {
 	Algorithm string `json:"algorithm,omitempty"`
 	Hash      string `json:"hash,omitempty"`
 }
 
+// HTTPRuleTLS holds secure path/pool specific properties
 type HTTPRuleTLS struct {
 	SSLProfile        string `json:"sslProfile,omitempty"`
 	ClientCertificate string `json:"clientCertificate,omitempty"`
@@ -63,7 +65,7 @@ type HTTPRuleStatus struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// no client needed for list as it's been created in above
+// HTTPRuleList has the list of HostRule objects
 type HTTPRuleList struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional

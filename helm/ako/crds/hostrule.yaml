@@ -12,5 +12,59 @@ spec:
     kind: "HostRule"
     shortNames:
       - "hostrule"
+      - "hr"
   subresources:
     status: {}
+  preserveUnknownFields: false
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          required:
+          - virtualhost
+          properties:
+            virtualhost:
+              type: object
+              required:
+              - fqdn
+              properties:
+                fqdn:
+                  type: string
+                tls:
+                  type: object
+                  required:
+                  - sslKeyCertificate
+                  properties:
+                    sslKeyCertificate:
+                      type: string
+                networkSecurityPolicy:
+                  type: string
+                wafPolicy:
+                  type: string
+                applicationProfile:
+                  type: string
+                httpPolicySet:
+                  type: array
+                  items:
+                    type: string
+        status:
+          type: object
+          properties:
+            status:
+              type: string
+            error:
+              type: string
+  additionalPrinterColumns:
+  - name: Host
+    type: string
+    description: virtualhost for which the hostrule is valid
+    JSONPath: .spec.virtualhost.fqdn
+  - name: Status
+    type: string
+    description: status of the hostrule object
+    JSONPath: .status.status
+  - name: Age
+    type: date
+    JSONPath: .metadata.creationTimestamp

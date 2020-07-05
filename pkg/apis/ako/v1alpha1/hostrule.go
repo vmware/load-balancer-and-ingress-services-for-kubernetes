@@ -27,16 +27,16 @@ type HostRule struct {
 
 	// +optional
 	Status HostRuleStatus `json:"status,omitempty"`
-	// This is where you can define
-	// your own custom spec
+
 	Spec HostRuleSpec `json:"spec,omitempty"`
 }
 
-// custom spec
+// HostRuleSpec consists of the main HostRule settings
 type HostRuleSpec struct {
 	VirtualHost HostRuleVirtualHost `json:"virtualhost,omitempty"`
 }
 
+// HostRuleVirtualHost defines properties for a host
 type HostRuleVirtualHost struct {
 	Fqdn                  string      `json:"fqdn,omitempty"`
 	TLS                   HostRuleTLS `json:"tls,omitempty"`
@@ -46,6 +46,7 @@ type HostRuleVirtualHost struct {
 	ApplicationProfile    string      `json:"applicationProfile,omitempty"`
 }
 
+// HostRuleTLS holds secure host specific properties
 type HostRuleTLS struct {
 	SSLKeyCertificate string `json:"sslKeyCertificate,omitempty"`
 }
@@ -58,7 +59,7 @@ type HostRuleStatus struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// no client needed for list as it's been created in above
+// HostRuleList has the list of HostRule objects
 type HostRuleList struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
