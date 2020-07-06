@@ -31,6 +31,7 @@ import (
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 
 	"ako/pkg/cache"
+	crdfake "ako/pkg/client/clientset/versioned/fake"
 	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
@@ -58,6 +59,7 @@ const (
 )
 
 var KubeClient *k8sfake.Clientset
+var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 
 func AddConfigMap() {

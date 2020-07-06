@@ -17,12 +17,14 @@ package hostnameshardtests
 import (
 	"os"
 	"sort"
+	"sync"
 	"testing"
 	"time"
-	"sync"
 
 	"ako/pkg/cache"
+	crdfake "ako/pkg/client/clientset/versioned/fake"
 	"ako/pkg/k8s"
+	"ako/pkg/lib"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
 	"ako/tests/integrationtest"
@@ -41,6 +43,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
 	KubeClient = k8sfake.NewSimpleClientset()
+	CRDClient = crdfake.NewSimpleClientset()
+	lib.SetCRDClientset(CRDClient)
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -53,6 +57,8 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
+	k8s.NewCRDInformers(CRDClient)
+
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
 	subdomains := []string{"avi.internal", ".com"}
@@ -83,6 +89,7 @@ func TestMain(m *testing.M) {
 }
 
 var KubeClient *k8sfake.Clientset
+var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 
 func AddConfigMap() {
