@@ -43,6 +43,7 @@ var (
 	Node = GraphSchema{
 		Type:               "Node",
 		GetParentIngresses: NodeToIng,
+		GetParentRoutes:    NodeToRoute,
 	}
 	Secret = GraphSchema{
 		Type:               "Secret",
@@ -203,6 +204,28 @@ func NodeToIng(nodeName string, namespace string, key string) ([]string, bool) {
 	}
 	utils.AviLog.Debugf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	return ingresses, true
+}
+
+func NodeToRoute(nodeName string, namespace string, key string) ([]string, bool) {
+	// Get all routes in the system, as node create/update affects all routes in the system
+	if !lib.IsNodePortMode() || utils.GetInformers().RouteInformer == nil {
+		return nil, false
+	}
+	routes := []string{}
+	routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the routes: %s", err)
+		return nil, false
+	}
+
+	for _, routeObj := range routeObjs {
+		routes = append(routes, routeObj.Name)
+	}
+	if len(routes) == 0 {
+		return nil, false
+	}
+	utils.AviLog.Debugf("key: %s, msg: total routes retrieved:  %s", key, routes)
+	return routes, true
 }
 
 func EPToIng(epName string, namespace string, key string) ([]string, bool) {

@@ -57,7 +57,12 @@ func DequeueIngestion(key string, fullsync bool) {
 				handleL4Service(svcl4Key, fullsync)
 			}
 			for _, svcl7Key := range svcl7Keys {
-				handleIngress(svcl7Key, fullsync, ingressNames)
+				if ingressFound {
+					handleIngress(svcl7Key, fullsync, ingressNames)
+				}
+				if routeFound {
+					handleRoute(svcl7Key, fullsync, routeNames)
+				}
 			}
 		}
 		return
@@ -79,14 +84,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	if routeFound {
-		utils.AviLog.Infof("key: %s, msg: route found: %v", key, routeNames)
-		if lib.GetShardScheme() == lib.HOSTNAME_SHARD_SCHEME {
-			for _, route := range routeNames {
-				utils.AviLog.Infof("key: %s, msg: processing route: %s", key, route)
-				HostNameShardAndPublishV2(utils.OshiftRoute, route, namespace, key, fullsync, sharedQueue)
-			}
-		}
-		return
+		handleRoute(key, fullsync, routeNames)
 	}
 
 	if !ingressFound {
@@ -115,6 +113,19 @@ func DequeueIngestion(key string, fullsync bool) {
 	} else {
 		handleIngress(key, fullsync, ingressNames)
 	}
+}
+
+func handleRoute(key string, fullsync bool, routeNames []string) {
+	_, namespace, _ := extractTypeNameNamespace(key)
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	utils.AviLog.Infof("key: %s, msg: route found: %v", key, routeNames)
+	if lib.GetShardScheme() == lib.HOSTNAME_SHARD_SCHEME {
+		for _, route := range routeNames {
+			utils.AviLog.Infof("key: %s, msg: processing route: %s", route)
+			HostNameShardAndPublishV2(utils.OshiftRoute, route, namespace, key, fullsync, sharedQueue)
+		}
+	}
+	return
 }
 
 func handleL4Service(key string, fullsync bool) {
