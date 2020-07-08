@@ -80,6 +80,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("NETWORK_NAME", "net123")
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
+	os.Setenv("SERVICE_TYPE", "ClusterIP")
 	KubeClient = k8sfake.NewSimpleClientset()
 
 	registeredInformers := []string{

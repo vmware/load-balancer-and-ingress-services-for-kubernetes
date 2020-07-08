@@ -137,7 +137,7 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 	// Get all nodes which match nodePortSelector
 	nodePortSelector := lib.GetNodePortsSelector()
 	nodePortFilter := map[string]string{}
-	if len(nodePortSelector) == 2 {
+	if len(nodePortSelector) == 2 && nodePortSelector["key"] != "" {
 		nodePortFilter[nodePortSelector["key"]] = nodePortSelector["value"]
 	} else {
 		nodePortFilter = nil
@@ -156,7 +156,8 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 		return poolMeta
 	}
 	for _, port := range svcObj.Spec.Ports {
-		if port.Name != poolNode.PortName {
+		if port.Name != poolNode.PortName && len(svcObj.Spec.Ports) != 1 {
+			// continue only if port name does not match and its multiport svcobj
 			continue
 		}
 		svcPort := int32(port.NodePort)

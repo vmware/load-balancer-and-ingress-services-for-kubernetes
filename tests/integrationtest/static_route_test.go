@@ -29,11 +29,11 @@ func TestNodeAdd(t *testing.T) {
 	modelName := "admin/global"
 	nodeip := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
-	nodeExample := (fakeNode{
+	nodeExample := (FakeNode{
 		Name:    "testNode1",
-		podCIDR: "10.244.0.0/24",
-		version: "1",
-		nodeIP:  nodeip,
+		PodCIDR: "10.244.0.0/24",
+		Version: "1",
+		NodeIP:  nodeip,
 	}).Node()
 
 	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample)
@@ -61,11 +61,11 @@ func TestNodeUpdate(t *testing.T) {
 	modelName := "admin/global"
 	nodeip := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
-	nodeExample := (fakeNode{
+	nodeExample := (FakeNode{
 		Name:    "testNode1",
-		podCIDR: "10.244.0.0/24",
-		version: "1",
-		nodeIP:  nodeip,
+		PodCIDR: "10.244.0.0/24",
+		Version: "1",
+		NodeIP:  nodeip,
 	}).Node()
 
 	nodeExample.ObjectMeta.ResourceVersion = "2"
@@ -117,10 +117,10 @@ func TestNodeAddNoPodCIDR(t *testing.T) {
 	modelName := "admin/global"
 	nodeip := "20.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
-	nodeExample := (fakeNode{
+	nodeExample := (FakeNode{
 		Name:    "testNodeInvalid",
-		version: "1",
-		nodeIP:  nodeip,
+		Version: "1",
+		NodeIP:  nodeip,
 	}).Node()
 
 	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample)
@@ -146,17 +146,17 @@ func TestMultiNodeAdd(t *testing.T) {
 	nodeip1 := "10.1.1.1"
 	nodeip2 := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
-	nodeExample1 := (fakeNode{
+	nodeExample1 := (FakeNode{
 		Name:    "testNode1",
-		podCIDR: "10.244.1.0/24",
-		version: "1",
-		nodeIP:  nodeip1,
+		PodCIDR: "10.244.1.0/24",
+		Version: "1",
+		NodeIP:  nodeip1,
 	}).Node()
-	nodeExample2 := (fakeNode{
+	nodeExample2 := (FakeNode{
 		Name:    "testNode2",
-		podCIDR: "10.244.2.0/24",
-		version: "1",
-		nodeIP:  nodeip2,
+		PodCIDR: "10.244.2.0/24",
+		Version: "1",
+		NodeIP:  nodeip2,
 	}).Node()
 
 	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample1)

@@ -419,6 +419,7 @@ type FakeService struct {
 type Serviceport struct {
 	PortName   string
 	PortNumber int32
+	NodePort   int32
 	Protocol   v1.Protocol
 	TargetPort int
 }
@@ -431,6 +432,7 @@ func (svc FakeService) Service() *corev1.Service {
 			Port:       svcport.PortNumber,
 			Protocol:   svcport.Protocol,
 			TargetPort: intstr.FromInt(svcport.TargetPort),
+			NodePort:   svcport.NodePort,
 		})
 	}
 	svcExample := &corev1.Service{
@@ -446,27 +448,27 @@ func (svc FakeService) Service() *corev1.Service {
 	return svcExample
 }
 
-type fakeNode struct {
+type FakeNode struct {
 	Name    string
-	podCIDR string
-	nodeIP  string
-	version string
+	PodCIDR string
+	NodeIP  string
+	Version string
 }
 
-func (node fakeNode) Node() *corev1.Node {
+func (node FakeNode) Node() *corev1.Node {
 	nodeExample := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            node.Name,
-			ResourceVersion: node.version,
+			ResourceVersion: node.Version,
 		},
 		Spec: corev1.NodeSpec{
-			PodCIDR: node.podCIDR,
+			PodCIDR: node.PodCIDR,
 		},
 		Status: corev1.NodeStatus{
 			Addresses: []corev1.NodeAddress{
 				{
 					Type:    "InternalIP",
-					Address: node.nodeIP,
+					Address: node.NodeIP,
 				},
 			},
 		},
@@ -497,6 +499,42 @@ func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.St
 	return &staticRoute
 }
 
+func SetNodePortMode() {
+	os.Setenv("SERVICE_TYPE", "NodePort")
+}
+
+func SetClusterIPMode() {
+	os.Setenv("SERVICE_TYPE", "ClusterIP")
+}
+
+func CreateNode(t *testing.T, nodeName string, nodeIP string) {
+	modelName := "admin/global"
+	objects.SharedAviGraphLister().Delete(modelName)
+	nodeExample := (FakeNode{
+		Name:    nodeName,
+		PodCIDR: "10.244.0.0/24",
+		Version: "1",
+		NodeIP:  nodeIP,
+	}).Node()
+
+	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample)
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	PollForCompletion(t, modelName, 5)
+}
+
+func DeleteNode(t *testing.T, nodeName string) {
+	modelName := "admin/global"
+	objects.SharedAviGraphLister().Delete(modelName)
+	err := KubeClient.CoreV1().Nodes().Delete(nodeName, nil)
+	if err != nil {
+		t.Fatalf("error in deleting Node: %v", err)
+	}
+	PollForCompletion(t, modelName, 5)
+}
+
 /*
 CreateSVC creates a sample service of type: Type
 if multiPort: True, the service gets created with 3 ports as follows
@@ -515,12 +553,18 @@ func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, mu
 
 	for i := 0; i < numPorts; i++ {
 		mPort := 8080 + i
-		servicePorts = append(servicePorts, Serviceport{
+		sp := Serviceport{
 			PortName:   fmt.Sprintf("foo%d", i),
 			PortNumber: int32(mPort),
 			Protocol:   "TCP",
 			TargetPort: mPort,
-		})
+		}
+		if Type != corev1.ServiceTypeClusterIP {
+			// set nodeport value in case of LoadBalancer and NodePort service type
+			nodePort := 31030 + i
+			sp.NodePort = int32(nodePort)
+		}
+		servicePorts = append(servicePorts, sp)
 	}
 
 	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts}).Service()

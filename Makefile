@@ -38,12 +38,24 @@ endif
 .PHONY: test
 test:
 	$(GOTEST) -mod=vendor -v ./tests/k8stest -failfast
+
+.PHONY: integrationtest
+integrationtest:
+	$(GOTEST) -mod=vendor -v ./tests/integrationtest -failfast
+
+.PHONY: hostnameshardtests
+hostnameshardtests:
+	$(GOTEST) -mod=vendor -v ./tests/hostnameshardtests -failfast
+
+.PHONY: oshiftroutetests
+oshiftroutetests:
+	$(GOTEST) -mod=vendor -v ./tests/oshiftroutetests -failfast
+
 .PHONY: int_test
 int_test:
-	$(GOTEST) -mod=vendor -v ./tests/integrationtest -failfast
-	$(GOTEST) -mod=vendor -v ./tests/hostnameshardtests -failfast
-	$(GOTEST) -mod=vendor -v ./tests/oshiftroutetests -failfast
+	make -j 3 integrationtest hostnameshardtests oshiftroutetests
 
 .PHONY: scale_test
 scale_test:
 	$(GOTEST) -mod=vendor -v ./tests/scaletest -failfast
+
