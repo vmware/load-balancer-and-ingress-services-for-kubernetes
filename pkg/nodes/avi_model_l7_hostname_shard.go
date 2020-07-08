@@ -150,7 +150,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 	} else {
 		// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace-secretname
 		// Fetch all the secrets for this ingress
-		found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
+		found, secrets := routeIgrObj.GetSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 		// Remove the ingress from the hostmap
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(hostname)
 		if hostMapOk {

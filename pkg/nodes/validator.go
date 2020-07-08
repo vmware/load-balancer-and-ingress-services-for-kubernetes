@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"ako/pkg/lib"
+	"ako/pkg/objects"
 	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
@@ -134,6 +135,11 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 		}
 		tls.Hosts = tlsHostSvcMap
 		tlsConfigs = append(tlsConfigs, tls)
+		// If svc for an ingress gets processed before the ingress itself,
+		// then secret mapping may not be updated, update it here.
+		if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
+			objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(ingName, tlsSettings.SecretName)
+		}
 	}
 	ingressConfig.TlsCollection = tlsConfigs
 	ingressConfig.IngressHostMap = hostMap
@@ -186,16 +192,23 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 
 	var tlsConfigs []TlsSettings
 	if routeSpec.TLS != nil {
+		secretName := lib.RouteSecretsPrefix + routeName
 		if routeSpec.TLS.Termination == routev1.TLSTerminationEdge {
 			tls := TlsSettings{}
 			tls.Hosts = hostMap
 			tls.cert = routeSpec.TLS.Certificate
 			tls.key = routeSpec.TLS.Key
 			tls.cacert = routeSpec.TLS.CACertificate
-			tls.SecretName = lib.RouteSecretsPrefix + routeName
+			tls.SecretName = secretName
 			tlsConfigs = append(tlsConfigs, tls)
 		}
 		ingressConfig.TlsCollection = tlsConfigs
+		// If svc for a route gets processed before the route itself,
+		// then secret mapping may not be updated, update it here.
+		if ok, _ := objects.OshiftRouteSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
+			objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(routeName, secretName)
+		}
+
 	} else {
 		ingressConfig.IngressHostMap = hostMap
 	}

@@ -94,7 +94,7 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 		}
 		if routeObj.Spec.TLS != nil {
 			secret := lib.RouteSecretsPrefix + routeName
-			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(routeName, secret)
+			objects.OshiftRouteSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(routeName, secret)
 		}
 	}
 	return routes, true

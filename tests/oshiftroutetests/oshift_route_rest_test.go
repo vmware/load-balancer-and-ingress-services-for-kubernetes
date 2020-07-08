@@ -2,6 +2,7 @@ package oshiftroutetests
 
 import (
 	"ako/pkg/cache"
+	"ako/pkg/objects"
 	"testing"
 	"time"
 
@@ -107,6 +108,7 @@ func TestRouteStatusUpdateHost(t *testing.T) {
 	g.Expect(route.Status.Ingress[0].Conditions[0].Message).Should(gomega.Equal("10.250.250.11"))
 
 	TearDownRouteForRestCheck(t, DefaultModelName)
+	objects.SharedAviGraphLister().Delete("admin/cluster--Shared-L7-1")
 }
 
 func TestMultiRouteStatusSameHost(t *testing.T) {
@@ -149,4 +151,5 @@ func TestMultiRouteStatusSameHost(t *testing.T) {
 	}
 
 	TearDownRouteForRestCheck(t, DefaultModelName)
+	objects.SharedAviGraphLister().Delete("admin/cluster--Shared-L7-1")
 }

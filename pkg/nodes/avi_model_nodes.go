@@ -568,6 +568,7 @@ type AviTLSKeyCertNode struct {
 	Cert             []byte
 	CACert           string
 	Port             int32
+	Type             string
 }
 
 func (v *AviTLSKeyCertNode) CalculateCheckSum() {

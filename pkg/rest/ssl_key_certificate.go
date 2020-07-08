@@ -33,8 +33,10 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 	certificate := string(ssl_node.Cert)
 	key := string(ssl_node.Key)
 	cr := lib.AKOUser
+	certType := ssl_node.Type
 	sslkeycert := avimodels.SSLKeyAndCertificate{Name: &name,
-		CreatedBy: &cr, TenantRef: &tenant, Certificate: &avimodels.SSLCertificate{Certificate: &certificate}, Key: &key}
+		CreatedBy: &cr, TenantRef: &tenant, Certificate: &avimodels.SSLCertificate{Certificate: &certificate},
+		Key: &key, Type: &certType}
 
 	if ssl_node.CACert != "" {
 		cacertRef := "/api/sslkeyandcertificate/?name=" + ssl_node.CACert

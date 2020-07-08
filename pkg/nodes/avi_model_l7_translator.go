@@ -358,6 +358,7 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 // BuildCACertNode : Build a new node to store CA cert, this would be referred by the corresponding keycert
 func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, keycertname, key string) string {
 	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(keycertname), Tenant: lib.GetTenant()}
+	cacertNode.Type = lib.CertTypeCA
 	cacertNode.Cert = []byte(cacert)
 
 	if tlsNode.CheckCACertNodeNameNChecksum(cacertNode.Name, cacertNode.GetCheckSum()) {
@@ -381,6 +382,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 	} else {
 		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: lib.GetTenant()}
 	}
+	certNode.Type = lib.CertTypeVS
 
 	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route
 	if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {

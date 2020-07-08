@@ -50,4 +50,6 @@ const (
 	DeleteConfig              = "deleteConfig"
 	NodePort                  = "NodePort"
 	RouteSecretsPrefix        = "-route-secret"
+	CertTypeVS                = "SSL_CERTIFICATE_TYPE_VIRTUALSERVICE"
+	CertTypeCA                = "SSL_CERTIFICATE_TYPE_CA"
 )
