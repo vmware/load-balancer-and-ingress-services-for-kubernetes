@@ -478,6 +478,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	} else {
 		c.informers.NodeInformer.Informer().AddEventHandler(node_event_handler)
 	}
+
+	// Add CRD handlers HostRule/HTTPRule
+	c.SetupAKOCRDEventHandlers(numWorkers)
 }
 
 func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
@@ -505,14 +508,29 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
 	}
 
-	if !cache.WaitForCacheSync(stopCh,
+	go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
+	go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
+
+	// separate wait steps to try getting hostrules synced first,
+	// since httprule has a key relation to hostrules.
+	if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for HostRule caches to sync"))
+	}
+	if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for HTTPRule caches to sync"))
+	}
+	utils.AviLog.Info("CRD caches synced")
+
+	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
 		c.informers.IngressInformer.Informer().HasSynced,
 		c.informers.SecretInformer.Informer().HasSynced,
 		c.informers.NodeInformer.Informer().HasSynced,
 		c.informers.NSInformer.Informer().HasSynced,
-	) {
+	}
+
+	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced")

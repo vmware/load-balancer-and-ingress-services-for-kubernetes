@@ -34,7 +34,6 @@ func DequeueIngestion(key string, fullsync bool) {
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
-
 	// if we get update for object of type k8s node, create vrf graph
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
@@ -56,8 +55,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			model_name := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+name)
 			objects.SharedAviGraphLister().Save(model_name, nil)
 			if !fullsync {
-				bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
-				sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
+				PublishKeyToRestLayer(model_name, key, sharedQueue)
 			}
 		}
 	}
@@ -126,16 +124,17 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 			model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 			for _, ingress := range ingressNames {
+				nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
 				// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 				// does not allow cross tenant ingress references.
-				utils.AviLog.Debugf("key: %s, msg: evaluating ingress: %s", key, ingress)
+				utils.AviLog.Debugf("key: %s, msg: evaluating ingress: %s", key, nameing)
 				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 				if !found || aviModel == nil {
 					utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
 					aviModel = NewAviObjectGraph()
 					aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 				}
-				aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, namespace, ingress, key)
+				aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, nsing, nameing, key)
 				ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
 				if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
 					PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -144,11 +143,21 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else {
 			// The only other shard scheme we support now is hostname sharding.
 			for _, ingress := range ingressNames {
+				nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
 				utils.AviLog.Debugf("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
-				HostNameShardAndPublish(ingress, namespace, key, fullsync, sharedQueue)
+				HostNameShardAndPublish(nameing, nsing, key, fullsync, sharedQueue)
 			}
 		}
 	}
+}
+
+func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, string) {
+	if objType == lib.HostRule || objType == lib.HTTPRule {
+		arr := strings.Split(nsname, "/")
+		return arr[0], arr[1]
+	}
+
+	return namespace, nsname
 }
 
 func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool {

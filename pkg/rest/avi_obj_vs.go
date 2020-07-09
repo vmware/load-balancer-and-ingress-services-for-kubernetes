@@ -24,6 +24,7 @@ import (
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
 	"ako/pkg/nodes"
+	"ako/pkg/status"
 
 	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
@@ -57,7 +58,8 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
 		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
-		vs := avimodels.VirtualService{Name: &name,
+		vs := avimodels.VirtualService{
+			Name:                  &name,
 			NetworkProfileRef:     &network_prof,
 			ApplicationProfileRef: &app_prof,
 			CloudConfigCksum:      &checksumstr,
@@ -190,22 +192,29 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 	east_west := false
 	var app_prof string
-
 	app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE
+	if vs_meta.AppProfileRef != "" {
+		// hostrule ref overrides defaults
+		app_prof = vs_meta.AppProfileRef
+	}
 
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
 	vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
-	sniChild := &avimodels.VirtualService{Name: &name, CloudConfigCksum: &checksumstr,
-		CreatedBy:             &cr,
-		NetworkProfileRef:     &network_prof,
-		ApplicationProfileRef: &app_prof,
-		EastWestPlacement:     &east_west,
-		CloudRef:              &cloudRef,
-		VrfContextRef:         &vrfContextRef,
-		ServiceMetadata:       &svc_mdata,
+	sniChild := &avimodels.VirtualService{
+		Name:                     &name,
+		CloudConfigCksum:         &checksumstr,
+		CreatedBy:                &cr,
+		NetworkProfileRef:        &network_prof,
+		ApplicationProfileRef:    &app_prof,
+		EastWestPlacement:        &east_west,
+		CloudRef:                 &cloudRef,
+		VrfContextRef:            &vrfContextRef,
+		ServiceMetadata:          &svc_mdata,
+		NetworkSecurityPolicyRef: &vs_meta.NsPolicyRef,
+		WafPolicyRef:             &vs_meta.WafPolicyRef,
 	}
 
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
@@ -224,22 +233,37 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	var rest_ops []*utils.RestOp
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
-		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
-			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
-			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, certName)
+		// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
+		if vs_meta.SSLKeyCertAviRef != "" {
+			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef)
+		} else {
+			for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
+				certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
+				sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, certName)
+			}
 		}
-		var i int32
-		i = 0
+
 		var httpPolicyCollection []*avimodels.HTTPPolicies
-		for _, http := range vs_meta.HttpPolicyRefs {
+		internalPolicyIndexBuffer := int32(11)
+		for i, http := range vs_meta.HttpPolicyRefs {
 			// Update them on the VS object
 			var j int32
-			j = i + 11
-			i = i + 1
+			j = int32(i) + internalPolicyIndexBuffer
 			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
 			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
 			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 		}
+
+		// from hostrule CRD
+		bufferLen := int32(len(httpPolicyCollection)) + internalPolicyIndexBuffer + 5
+		for i, policy := range vs_meta.HttpPolicySetRefs {
+			var j int32
+			j = int32(i) + bufferLen
+			httpPolicy := policy
+			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
+			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
+		}
+
 		sniChild.HTTPPolicies = httpPolicyCollection
 	}
 	var rest_op utils.RestOp
@@ -361,16 +385,16 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 					// This service needs an update of the status
-					UpdateL4LBStatus([]UpdateStatusOptions{{
-						vip:             vs_cache_obj.Vip,
-						serviceMetadata: svc_mdata_obj,
-						key:             key,
+					status.UpdateL4LBStatus([]status.UpdateStatusOptions{{
+						Vip:             vs_cache_obj.Vip,
+						ServiceMetadata: svc_mdata_obj,
+						Key:             key,
 					}}, false)
 				} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
-					UpdateIngressStatus([]UpdateStatusOptions{{
-						vip:             parentVsObj.Vip,
-						serviceMetadata: svc_mdata_obj,
-						key:             key,
+					status.UpdateIngressStatus([]status.UpdateStatusOptions{{
+						Vip:             parentVsObj.Vip,
+						ServiceMetadata: svc_mdata_obj,
+						Key:             key,
 					}}, false)
 				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
@@ -383,10 +407,10 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 						pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 						if found {
 							if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-								UpdateIngressStatus([]UpdateStatusOptions{{
-									vip:             vs_cache_obj.Vip,
-									serviceMetadata: pool_cache_obj.ServiceMetadataObj,
-									key:             key,
+								status.UpdateIngressStatus([]status.UpdateStatusOptions{{
+									Vip:             vs_cache_obj.Vip,
+									ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
+									Key:             key,
 								}}, false)
 							}
 						}
@@ -408,10 +432,10 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			}
 			if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 				// This service needs an update of the status
-				UpdateL4LBStatus([]UpdateStatusOptions{{
-					vip:             vs_cache_obj.Vip,
-					serviceMetadata: svc_mdata_obj,
-					key:             key,
+				status.UpdateL4LBStatus([]status.UpdateStatusOptions{{
+					Vip:             vs_cache_obj.Vip,
+					ServiceMetadata: svc_mdata_obj,
+					Key:             key,
 				}}, false)
 			}
 			rest.cache.VsCacheMeta.AviCacheAdd(k, &vs_cache_obj)
@@ -450,7 +474,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				utils.AviLog.Debugf("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
 				// Reset the LB status field as well.
 				if vs_cache_obj.ServiceMetadataObj.ServiceName != "" && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
-					DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
+					status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
 				}
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
 			}
@@ -458,7 +482,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 			if (vs_cache_obj.ServiceMetadataObj.IngressName != "" || len(vs_cache_obj.ServiceMetadataObj.NamespaceIngressName) > 0) && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
 				// SNI VS deletion related ingress status update
 				if !hostFoundInParentPool {
-					DeleteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
+					status.DeleteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
 				}
 			} else {
 				// Shared VS deletion related ingress status update

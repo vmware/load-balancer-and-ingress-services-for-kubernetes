@@ -274,6 +274,11 @@ type AviVsNode struct {
 	IsSNIChild         bool
 	ServiceMetadata    avicache.ServiceMetadataObj
 	VrfContext         string
+	WafPolicyRef       string
+	NsPolicyRef        string
+	AppProfileRef      string
+	HttpPolicySetRefs  []string
+	SSLKeyCertAviRef   string
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -436,11 +441,25 @@ func (v *AviVsNode) CalculateCheckSum() {
 	for _, sslkeycert := range v.SSLKeyCertRefs {
 		sslkeyChecksum += sslkeycert.GetCheckSum()
 	}
+
 	for _, vsvipref := range v.VSVIPRefs {
 		vsvipref.CalculateCheckSum()
 	}
-	checksum := dsChecksum + httppolChecksum + sniChecksum + utils.Hash(v.ApplicationProfile) + utils.Hash(v.NetworkProfile) +
-		utils.Hash(utils.Stringify(portproto)) + sslkeyChecksum
+
+	policies := v.HttpPolicySetRefs
+	sort.Slice(policies, func(i, j int) bool {
+		return policies[i] < policies[j]
+	})
+	vsRefs := v.NsPolicyRef + v.WafPolicyRef + v.AppProfileRef + utils.Stringify(policies)
+
+	checksum := dsChecksum +
+		httppolChecksum +
+		sniChecksum +
+		utils.Hash(v.ApplicationProfile) +
+		utils.Hash(v.NetworkProfile) +
+		utils.Hash(utils.Stringify(portproto)) +
+		sslkeyChecksum +
+		utils.Hash(vsRefs)
 
 	v.CloudConfigCksum = checksum
 }
@@ -727,12 +746,14 @@ type AviPoolNode struct {
 	Servers          []AviPoolMetaServer
 	Protocol         string
 	LbAlgorithm      string
-	ServerClientCert string
-	PkiProfile       string
-	SSLProfileRef    string
+	LbAlgorithmHash  string
 	IngressName      string
 	PriorityLabel    string
 	ServiceMetadata  avicache.ServiceMetadataObj
+	SniEnabled       bool
+	SslProfileRef    string
+	ClientCertRef    string
+	PkiProfileRef    string
 	VrfContext       string
 }
 
@@ -749,9 +770,19 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	})
 	// A sum of fields for this Pool.
 
-	chksumStr := fmt.Sprintf(strings.Join([]string{v.Protocol, strconv.Itoa(int(v.Port)), v.PortName, utils.Stringify(servers),
-		utils.Stringify(v.LbAlgorithm), utils.Stringify(v.SSLProfileRef), utils.Stringify(v.ServerClientCert),
-		utils.Stringify(v.PkiProfile), utils.Stringify(v.PriorityLabel)}[:], delim))
+	chksumStr := fmt.Sprintf(strings.Join([]string{
+		v.Protocol,
+		strconv.Itoa(int(v.Port)),
+		v.PortName,
+		utils.Stringify(servers),
+		v.LbAlgorithm,
+		v.LbAlgorithmHash,
+		utils.Stringify(v.SniEnabled),
+		v.SslProfileRef,
+		v.ClientCertRef,
+		v.PkiProfileRef,
+		v.PriorityLabel,
+	}[:], delim))
 	checksum := utils.Hash(chksumStr)
 	v.CloudConfigCksum = checksum
 }

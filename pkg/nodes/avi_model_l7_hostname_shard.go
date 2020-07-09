@@ -16,6 +16,8 @@ package nodes
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
@@ -67,7 +69,19 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
 			}
 
-			poolNode := &AviPoolNode{Name: poolName, IngressName: ingName, PortName: obj.PortName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: storedHosts}}
+			poolNode := &AviPoolNode{
+				Name:          poolName,
+				IngressName:   ingName,
+				PortName:      obj.PortName,
+				Tenant:        lib.GetTenant(),
+				PriorityLabel: priorityLabel,
+				Port:          obj.Port,
+				ServiceMetadata: avicache.ServiceMetadataObj{
+					IngressName: ingName,
+					Namespace:   namespace,
+					HostNames:   storedHosts,
+				},
+			}
 			poolNode.VrfContext = lib.GetVrf()
 			if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
@@ -79,6 +93,10 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName string, namespace st
 		}
 
 	}
+	for _, obj := range pathsvc {
+		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, key, vsNode[0], false)
+	}
+
 	// Reset the PG Node members and rebuild them
 	pgNode.Members = nil
 	for _, poolNode := range vsNode[0].PoolRefs {
@@ -102,11 +120,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 			// Only delete the pools that belong to the host path combinations.
 			var priorityLabel string
 			for _, path := range paths {
-				if path != "" {
-					priorityLabel = hostname + path
-				} else {
-					priorityLabel = hostname
-				}
+				priorityLabel = hostname + path
 				poolName := lib.GetL7PoolName(priorityLabel, namespace, ingName)
 				if poolName == pool.Name {
 					o.RemovePoolNodeRefs(poolName)
@@ -122,9 +136,6 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
 		}
 	} else {
-		// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace-secretname
-		// Fetch all the secrets for this ingress
-		found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 		// Remove the ingress from the hostmap
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(hostname)
 		if hostMapOk {
@@ -133,17 +144,11 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, namespace, ingName, hostn
 			delete(ingressHostMap.HostNameMap, keyToRemove)
 			SharedHostNameLister().Save(hostname, ingressHostMap)
 		}
-		utils.AviLog.Infof("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
-		if found {
-			for _, secret := range secrets {
-				sniNodeName := lib.GetSniNodeName(ingName, namespace, secret, hostname)
-				// This is a bit tricky. We will get the hostname and the paths to be deleted from the sni node.
-				// So first we get the SNI node from memory and we update the pool/pg/httppol of the sninode.
-				// However if this update leads to 0 pools in the sni node, it means the SNI node can be fully deleted.
-				utils.AviLog.Infof("key: %s, msg: sni node to delete :%s", key, sniNodeName)
-				keepSni = o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, paths, vsNode, key)
-			}
-		}
+
+		// SNI VSes donot have secretname in their names
+		sniNodeName := lib.GetSniNodeName(ingName, namespace, "", hostname)
+		utils.AviLog.Infof("key: %s, msg: sni node to delete :%s", key, sniNodeName)
+		keepSni = o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, paths, vsNode, key)
 	}
 	if removeFqdn && !keepSni {
 		var hosts []string
@@ -365,7 +370,7 @@ func updateHostPathCache(ns, ingress string, oldHostMap, newHostMap map[string]m
 	for _, oldMap := range oldHostMap {
 		for host, paths := range oldMap {
 			for _, path := range paths {
-				SharedHostNameLister().RemoveHostPathStore(host+path, mmapval)
+				SharedHostNameLister().RemoveHostPathStore(host, path, mmapval)
 			}
 		}
 	}
@@ -375,7 +380,7 @@ func updateHostPathCache(ns, ingress string, oldHostMap, newHostMap map[string]m
 		for _, newMap := range newHostMap {
 			for host, paths := range newMap {
 				for _, path := range paths {
-					SharedHostNameLister().SaveHostPathStore(host+path, mmapval)
+					SharedHostNameLister().SaveHostPathStore(host, path, mmapval)
 				}
 			}
 		}
@@ -488,6 +493,15 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 		if len(vsNode) < 1 {
 			return nil
 		}
+
+		certsBuilt := false
+		sniSecretName := tlssetting.SecretName
+		re := regexp.MustCompile(`^@avisslkeycertrefdummy.*`)
+		if re.MatchString(sniSecretName) {
+			sniSecretName = strings.Split(sniSecretName, "/")[1]
+			certsBuilt = true
+		}
+
 		sniNode := vsNode[0].GetSniNodeForName(lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost))
 		if sniNode == nil {
 			sniNode = &AviVsNode{
@@ -510,15 +524,17 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			}
 		}
 		sniNode.VrfContext = lib.GetVrf()
-		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key, sniHost)
+		if !certsBuilt {
+			certsBuilt = aviModel.(*AviObjectGraph).BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key, sniHost)
+		}
 		if certsBuilt {
-			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key, sniHost)
+			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, key, sniHost)
 			foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
 			if !foundSniModel {
 				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 			}
 			aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, namespace, ingName, key)
-
+			BuildL7HostRule(sniHost, namespace, ingName, key, sniNode)
 		} else {
 			hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
 			if hostMapOk {

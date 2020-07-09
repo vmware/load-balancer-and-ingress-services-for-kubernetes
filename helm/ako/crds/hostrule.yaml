@@ -37,18 +37,37 @@ spec:
                   required:
                   - sslKeyCertificate
                   properties:
-                    sslKeyCertificate:
+                    termination:
                       type: string
+                      enum:
+                        - edge
+                    sslKeyCertificate:
+                      type: object
+                      required:
+                      - name
+                      - type
+                      properties:
+                        name:
+                          type: string
+                        type:
+                          type: string
+                          enum:
+                            - ref
                 networkSecurityPolicy:
                   type: string
                 wafPolicy:
                   type: string
                 applicationProfile:
                   type: string
-                httpPolicySet:
-                  type: array
-                  items:
-                    type: string
+                httpPolicy:
+                  type: object
+                  properties:
+                    policySets:
+                      type: array
+                      items:
+                        type: string
+                    overwrite:
+                      type: boolean
         status:
           type: object
           properties:

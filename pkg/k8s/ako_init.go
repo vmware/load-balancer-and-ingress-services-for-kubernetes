@@ -324,18 +324,31 @@ func (c *AviController) FullSyncK8s() {
 			utils.AviLog.Warnf("Timed out while waiting for rest layer to respond, moving on with bootup")
 		}
 	}
-	// List all the kubernetes resources
-	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
+
+	hostRuleObjs, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules("").List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Errorf("Unable to list the namespaces")
-		return
-	}
-	for _, nsObj := range namespaces {
-		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
-			continue
+		utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
+	} else {
+		for _, hostRuleObj := range hostRuleObjs {
+			key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
+			nodes.DequeueIngestion(key, true)
 		}
+	}
+
+	httpRuleObjs, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules("").List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the httprules during full sync: %s", err)
+	} else {
+		for _, httpRuleObj := range httpRuleObjs {
+			key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
+			nodes.DequeueIngestion(key, true)
+		}
+	}
+
+	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
+	} else {
 		for _, svcObj := range svcObjs {
 			isSvcLb := isServiceLBType(svcObj)
 			var key string
@@ -346,17 +359,16 @@ func (c *AviController) FullSyncK8s() {
 			}
 			nodes.DequeueIngestion(key, true)
 		}
+	}
 
-		ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(nsObj.ObjectMeta.Name).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-			continue
-		}
+	ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+	} else {
 		for _, ingObj := range ingObjs {
 			key := utils.Ingress + "/" + utils.ObjKey(ingObj)
 			nodes.DequeueIngestion(key, true)
 		}
-
 	}
 
 	cache := avicache.SharedAviObjCache()

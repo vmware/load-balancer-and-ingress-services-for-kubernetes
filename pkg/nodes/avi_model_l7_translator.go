@@ -164,7 +164,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					sniNode.VrfContext = lib.GetVrf()
 					certsBuilt := o.BuildTlsCertNode(sniNode, namespace, tlssetting.SecretName, key)
 					if certsBuilt {
-						o.BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
+						o.BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, key)
 						foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
 						if !foundSniModel {
 							vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
@@ -403,7 +403,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(tlsNode *AviVsNode, namespace string, 
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, hostName ...string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, key string, hostName ...string) {
 	for host, paths := range hostpath.Hosts {
 		if len(hostName) > 0 {
 			if hostName[0] != host {
@@ -432,8 +432,12 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			httpPGPath.Host = host
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 
-			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), PortName: path.PortName, Tenant: lib.GetTenant()}
-			poolNode.VrfContext = lib.GetVrf()
+			poolNode := &AviPoolNode{
+				Name:       lib.GetSniPoolName(ingName, namespace, host, path.Path),
+				PortName:   path.PortName,
+				Tenant:     lib.GetTenant(),
+				VrfContext: lib.GetVrf(),
+			}
 
 			if servers := PopulateServers(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
@@ -454,6 +458,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
 				tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
 			}
+		}
+		for _, path := range paths {
+			BuildPoolHTTPRule(host, path.Path, ingName, namespace, key, tlsNode, true)
 		}
 	}
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. tlsNodeChecksum for tlsNode :%s is :%v", key, tlsNode.Name, tlsNode.GetCheckSum())

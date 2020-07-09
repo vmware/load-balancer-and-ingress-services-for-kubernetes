@@ -26,6 +26,7 @@ spec:
           properties:
             hostrule:
               type: string
+              pattern: '^[^\/]\/[^\/]$'
             paths:
               type: array
               items:
@@ -35,13 +36,33 @@ spec:
                 properties:
                   target: 
                     type: string
+                    pattern: '^\/.*$'
                   loadBalancerPolicy:
                     type: object
                     properties:
                       algorithm:
                         type: string
+                        enum:
+                          - LB_ALGORITHM_CONSISTENT_HASH
+                          - LB_ALGORITHM_CORE_AFFINITY
+                          - LB_ALGORITHM_FASTEST_RESPONSE
+                          - LB_ALGORITHM_FEWEST_SERVERS
+                          - LB_ALGORITHM_FEWEST_TASKS
+                          - LB_ALGORITHM_LEAST_CONNECTIONS
+                          - LB_ALGORITHM_LEAST_LOAD
+                          - LB_ALGORITHM_NEAREST_SERVER
+                          - LB_ALGORITHM_RANDOM
+                          - LB_ALGORITHM_ROUND_ROBIN
+                          - LB_ALGORITHM_TOPOLOGY
                       hash:
                         type: string
+                        enum:
+                          - LB_ALGORITHM_CONSISTENT_HASH_CALLID
+                          - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
+                          - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING
+                          - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
+                          - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT
+                          - LB_ALGORITHM_CONSISTENT_HASH_UR
                   tls:
                     type: object
                     required:

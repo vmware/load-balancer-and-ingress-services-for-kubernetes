@@ -44,8 +44,9 @@ func SharedAVIClients() *utils.AviRestClientPool {
 		shardSize := lib.GetshardSize()
 		if shardSize != 0 {
 			if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
+				// initializing shardSize+1 clients in pool, the +1 is used by CRD ref verification calls
 				AviClientInstance, err = utils.NewAviRestClientPool(
-					shardSize,
+					shardSize+1,
 					ctrlIpAddress,
 					ctrlUsername,
 					ctrlPassword,

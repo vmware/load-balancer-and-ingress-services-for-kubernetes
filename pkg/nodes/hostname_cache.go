@@ -21,19 +21,19 @@ import (
 	"github.com/avinetworks/container-lib/utils"
 )
 
-var hostNameLister *HostNameLister
+var hostNameListerInstance *HostNameLister
 var hsonce sync.Once
 
 func SharedHostNameLister() *HostNameLister {
 	hsonce.Do(func() {
-		hostNameLister = &HostNameLister{
+		hostNameListerInstance = &HostNameLister{
 			secureHostNameStore: objects.NewObjectMapStore(),
 			HostNamePathStore: HostNamePathStore{
 				hostNamePathStore: objects.NewObjectMapStore(),
 			},
 		}
 	})
-	return hostNameLister
+	return hostNameListerInstance
 }
 
 type HostNameLister struct {
@@ -59,46 +59,69 @@ func (a *HostNameLister) Delete(hostname string) {
 }
 
 // thread safe for namespace based sharding in case of same hostname in different namespaces
-// cache sample: foo.com/path1 -> [ns1/ingress1]
+// cache sample: foo.com -> {path1: [ns1/ingress1], path2: [ns2/ingress2]}
 type HostNamePathStore struct {
 	sync.RWMutex
 	hostNamePathStore *objects.ObjectMapStore
 }
 
-func (h *HostNamePathStore) GetHostPathStore(hostpath string) (bool, []string) {
-	ok, obj := h.hostNamePathStore.Get(hostpath)
+func (h *HostNamePathStore) GetHostPathStore(host string) (bool, map[string][]string) {
+	ok, obj := h.hostNamePathStore.Get(host)
+	if !ok {
+		return false, make(map[string][]string)
+	}
+	return true, obj.(map[string][]string)
+}
+
+func (h *HostNamePathStore) GetHostPathStoreIngresses(host, path string) (bool, []string) {
+	ok, obj := h.hostNamePathStore.Get(host)
 	if !ok {
 		return false, []string{}
 	}
-	return true, obj.([]string)
+	mmap := obj.(map[string][]string)
+	if _, ok := mmap[path]; !ok {
+		return false, []string{}
+	}
+	return true, mmap[path]
 }
 
-func (h *HostNamePathStore) SaveHostPathStore(hostpath string, data string) {
+func (h *HostNamePathStore) SaveHostPathStore(host, path string, ing string) {
 	h.Lock()
 	defer h.Unlock()
-	found, obj := h.GetHostPathStore(hostpath)
-	if found && !utils.HasElem(obj, data) {
-		obj = append(obj, data)
+	found, pathings := h.GetHostPathStore(host)
+	if found {
+		if _, ok := pathings[path]; ok && !utils.HasElem(pathings[path], ing) {
+			pathings[path] = append(pathings[path], ing)
+		} else {
+			pathings[path] = []string{ing}
+		}
 	} else {
-		obj = []string{data}
+		pathings = make(map[string][]string)
+		pathings[path] = []string{ing}
 	}
-	h.hostNamePathStore.AddOrUpdate(hostpath, obj)
+
+	h.hostNamePathStore.AddOrUpdate(host, pathings)
 }
 
-func (h *HostNamePathStore) RemoveHostPathStore(hostpath string, data string) {
+func (h *HostNamePathStore) RemoveHostPathStore(host, path string, ing string) {
 	h.Lock()
 	defer h.Unlock()
-	found, obj := h.GetHostPathStore(hostpath)
-	if found && utils.HasElem(obj, data) {
-		obj = utils.Remove(obj, data)
-		h.hostNamePathStore.AddOrUpdate(hostpath, obj)
+	found, pathings := h.GetHostPathStore(host)
+	if found {
+		if _, ok := pathings[path]; ok && utils.HasElem(pathings[path], ing) {
+			pathings[path] = utils.Remove(pathings[path], ing)
+			if len(pathings[path]) == 0 {
+				delete(pathings, path)
+			}
+			h.hostNamePathStore.AddOrUpdate(host, pathings)
+		}
 	}
 
-	if len(obj) == 0 {
-		h.DeleteHostPathStore(hostpath)
+	if len(pathings) == 0 {
+		h.hostNamePathStore.Delete(host)
 	}
 }
 
-func (h *HostNamePathStore) DeleteHostPathStore(hostpath string) {
-	h.hostNamePathStore.Delete(hostpath)
+func (h *HostNamePathStore) DeleteHostPathStore(host string) {
+	h.hostNamePathStore.Delete(host)
 }

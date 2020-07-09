@@ -40,4 +40,10 @@ const (
 	LOG_LEVEL                 = "logLevel"
 	ShardVSPrefix             = "Shared-L7"
 	DeleteConfig              = "deleteConfig"
+	HostRule                  = "HostRule"
+	HTTPRule                  = "HTTPRule"
+	DummySecret               = "@avisslkeycertrefdummy"
+	StatusRejected            = "Rejected"
+	StatusAccepted            = "Accepted"
+	AllowedApplicationProfile = "APPLICATION_PROFILE_TYPE_HTTP"
 )

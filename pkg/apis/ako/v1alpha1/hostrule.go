@@ -38,17 +38,31 @@ type HostRuleSpec struct {
 
 // HostRuleVirtualHost defines properties for a host
 type HostRuleVirtualHost struct {
-	Fqdn                  string      `json:"fqdn,omitempty"`
-	TLS                   HostRuleTLS `json:"tls,omitempty"`
-	HTTPPolicySet         []string    `json:"httpPolicySet,omitempty"`
-	NetworkSecurityPolicy string      `json:"networkSecurityPolicy,omitempty"`
-	WAFPolicy             string      `json:"wafPolicy,omitempty"`
-	ApplicationProfile    string      `json:"applicationProfile,omitempty"`
+	Fqdn                  string             `json:"fqdn,omitempty"`
+	TLS                   HostRuleTLS        `json:"tls,omitempty"`
+	HTTPPolicy            HostRuleHTTPPolicy `json:"httpPolicy,omitempty"`
+	NetworkSecurityPolicy string             `json:"networkSecurityPolicy,omitempty"`
+	WAFPolicy             string             `json:"wafPolicy,omitempty"`
+	ApplicationProfile    string             `json:"applicationProfile,omitempty"`
 }
 
 // HostRuleTLS holds secure host specific properties
 type HostRuleTLS struct {
-	SSLKeyCertificate string `json:"sslKeyCertificate,omitempty"`
+	SSLKeyCertificate HostRuleSecret `json:"sslKeyCertificate,omitempty"`
+	Termination       string         `json:"termination,omitempty"`
+}
+
+// HostRuleSecret is required to provide distinction between Avi SSLKeyCertificate
+// or K8s Secret Objects
+type HostRuleSecret struct {
+	Name string `json:"name,omitempty"`
+	Type string `json:"type,omitempty"`
+}
+
+// HostRuleHTTPPolicy holds knobs and refs for httpPolicySets
+type HostRuleHTTPPolicy struct {
+	PolicySets []string `json:"policySets,omitempty"`
+	Overwrite  bool     `json:"overwrite,omitempty"`
 }
 
 // HostRuleStatus holds the status of the HostRule
