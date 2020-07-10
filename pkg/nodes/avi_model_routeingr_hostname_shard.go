@@ -208,7 +208,6 @@ func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync
 	var modelList []string
 
 	parsedIng = routeIgrObj.ParseHostPath()
-	utils.AviLog.Debugf("key: %s, parsed routeIng: %v", key, parsedIng)
 
 	// Check if this ingress and had any previous mappings, if so - delete them first.
 	_, Storedhosts := routeIgrObj.GetSvcLister().IngressMappings(namespace).GetRouteIngToHost(objname)
@@ -297,7 +296,6 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng IngressConfig, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost,
 	hostsMap map[string]*objects.RouteIngrhost, fullsync bool, sharedQueue *utils.WorkerQueue) {
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before processing securehosts: %v", key, Storedhosts)
-	utils.AviLog.Debugf("key: %s, msg: tlscollection: %v", key, parsedIng.TlsCollection)
 
 	// To Do: use service for paths while handling secure routes
 	for _, tlssetting := range parsedIng.TlsCollection {

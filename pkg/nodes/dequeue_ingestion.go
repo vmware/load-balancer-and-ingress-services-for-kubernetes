@@ -82,7 +82,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		utils.AviLog.Infof("key: %s, msg: route found: %v", key, routeNames)
 		if lib.GetShardScheme() == lib.HOSTNAME_SHARD_SCHEME {
 			for _, route := range routeNames {
-				utils.AviLog.Infof("key: %s, msg: processing route: %s", route)
+				utils.AviLog.Infof("key: %s, msg: processing route: %s", key, route)
 				HostNameShardAndPublishV2(utils.OshiftRoute, route, namespace, key, fullsync, sharedQueue)
 			}
 		}

@@ -278,6 +278,9 @@ type AviSSLCache struct {
 	CloudConfigCksum uint32
 	LastModified     string
 	InvalidData      bool
+	Cert             string
+	HasCARef         bool
+	CACertUUID       string
 }
 
 type NextPage struct {

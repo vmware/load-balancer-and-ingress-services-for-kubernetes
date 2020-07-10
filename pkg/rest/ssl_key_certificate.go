@@ -17,6 +17,7 @@ package rest
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
@@ -113,12 +114,16 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			SSLKeyAndCertificate = rest_op.Obj.(avimodels.SSLKeyAndCertificate)
 		}
 		cert = *SSLKeyAndCertificate.Certificate.Certificate
+		hasCA := false
 		if len(SSLKeyAndCertificate.CaCerts) > 0 {
-			cacert = *SSLKeyAndCertificate.CaCerts[0].Name
+			if SSLKeyAndCertificate.CaCerts[0].CaRef != nil {
+				cacert = strings.TrimPrefix(*SSLKeyAndCertificate.CaCerts[0].CaRef, "/api/sslkeyandcertificate/?name=")
+				hasCA = true
+			}
 		}
 		checksum := lib.SSLKeyCertChecksum(name, cert, cacert)
 		ssl_cache_obj := avicache.AviSSLCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid: uuid, CloudConfigCksum: checksum}
+			Uuid: uuid, CloudConfigCksum: checksum, HasCARef: hasCA}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.SSLKeyCache.AviCacheAdd(k, &ssl_cache_obj)

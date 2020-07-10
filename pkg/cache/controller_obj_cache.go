@@ -560,16 +560,21 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(sslkey))
 			continue
 		}
-		var cacert string
+		var cacertUUID string
+		hasCA := false
+		// find amnd store UUID of the CA cert which would be used later to calculate checksum
 		if len(sslkey.CaCerts) != 0 {
-			cacert = *sslkey.CaCerts[0].Name
+			if sslkey.CaCerts[0].CaRef != nil {
+				hasCA = true
+				cacertUUID = ExtractUuidWithoutHash(*sslkey.CaCerts[0].CaRef, "sslkeyandcertificate-.*.")
+			}
 		}
-		// No support for checksum in the SSLKeyCert object, so we have to synthesize it.
-		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
 		sslCacheObj := AviSSLCache{
-			Name:             *sslkey.Name,
-			Uuid:             *sslkey.UUID,
-			CloudConfigCksum: checksum,
+			Name:       *sslkey.Name,
+			Uuid:       *sslkey.UUID,
+			Cert:       *sslkey.Certificate.Certificate,
+			HasCARef:   hasCA,
+			CACertUUID: cacertUUID,
 		}
 		*SslData = append(*SslData, sslCacheObj)
 	}
@@ -622,14 +627,23 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 			continue
 		}
 		var cacert string
+		hasCA := false
 		if len(sslkey.CaCerts) != 0 {
-			cacert = *sslkey.CaCerts[0].Name
+			if sslkey.CaCerts[0].CaRef != nil {
+				hasCA = true
+				cacertUUID := ExtractUuidWithoutHash(*sslkey.CaCerts[0].CaRef, "sslkeyandcertificate-.*.")
+				cacertIntf, found := c.SSLKeyCache.AviCacheGetNameByUuid(cacertUUID)
+				if found {
+					cacert = cacertIntf.(string)
+				}
+			}
 		}
 		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
 			CloudConfigCksum: checksum,
+			HasCARef:         hasCA,
 		}
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *sslkey.Name}
 		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
@@ -980,6 +994,17 @@ func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient, cloud stri
 				if foundssl {
 					sslKey := NamespaceName{Namespace: lib.GetTenant(), Name: sslName.(string)}
 					sslKeys = append(sslKeys, sslKey)
+
+					sslIntf, _ := c.SSLKeyCache.AviCacheGet(sslKey)
+					sslData := sslIntf.(*AviSSLCache)
+					// Populate CAcert if available
+					if sslData.CACertUUID != "" {
+						caName, found := c.SSLKeyCache.AviCacheGetNameByUuid(sslData.CACertUUID)
+						if found {
+							caCertKey := NamespaceName{Namespace: lib.GetTenant(), Name: caName.(string)}
+							sslKeys = append(sslKeys, caCertKey)
+						}
+					}
 				}
 			}
 		}
@@ -1093,6 +1118,17 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud str
 				utils.AviLog.Warnf("Wrong data type for ssl key: %s in cache", k)
 			}
 		}
+		var cacert string
+		// Find CA Cert name from the cache for checksum calculation.
+		if SslKeyData[i].HasCARef {
+			ca, found := c.SSLKeyCache.AviCacheGetNameByUuid(SslKeyCacheObj.CACertUUID)
+			if !found {
+				utils.AviLog.Warnf("cacertUUID %s for keycert %s not found in cache", SslKeyCacheObj.CACertUUID, SslKeyCacheObj.Name)
+			} else {
+				cacert = ca.(string)
+			}
+		}
+		SslKeyData[i].CloudConfigCksum = lib.SSLKeyCertChecksum(SslKeyCacheObj.Name, SslKeyCacheObj.Cert, cacert)
 		utils.AviLog.Debugf("Adding key to sslkey cache :%s", k)
 		c.SSLKeyCache.AviCacheAdd(k, &SslKeyData[i])
 		delete(sslCacheData, k)
@@ -1351,6 +1387,17 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						if foundssl {
 							sslKey := NamespaceName{Namespace: lib.GetTenant(), Name: sslName.(string)}
 							sslKeys = append(sslKeys, sslKey)
+
+							sslIntf, _ := c.SSLKeyCache.AviCacheGet(sslKey)
+							sslData := sslIntf.(*AviSSLCache)
+							// Populate CAcert if available
+							if sslData.CACertUUID != "" {
+								caName, found := c.SSLKeyCache.AviCacheGetNameByUuid(sslData.CACertUUID)
+								if found {
+									caCertKey := NamespaceName{Namespace: lib.GetTenant(), Name: caName.(string)}
+									sslKeys = append(sslKeys, caCertKey)
+								}
+							}
 						}
 					}
 				}
@@ -1559,6 +1606,17 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						if foundssl {
 							sslKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: sslName.(string)}
 							sslKeys = append(sslKeys, sslKey)
+
+							sslIntf, _ := c.SSLKeyCache.AviCacheGet(sslKey)
+							sslData := sslIntf.(*AviSSLCache)
+							// Populate CAcert if available
+							if sslData.CACertUUID != "" {
+								caName, found := c.SSLKeyCache.AviCacheGetNameByUuid(sslData.CACertUUID)
+								if found {
+									caCertKey := NamespaceName{Namespace: lib.GetTenant(), Name: caName.(string)}
+									sslKeys = append(sslKeys, caCertKey)
+								}
+							}
 						}
 					}
 				}

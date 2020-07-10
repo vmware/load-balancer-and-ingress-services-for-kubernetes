@@ -563,8 +563,8 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
 	if c.informers.IngressInformer != nil {
 		c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
+		c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
 	}
-	c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
 
 	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
@@ -596,11 +596,11 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.EpInformer.Informer().Run(stopCh)
 	if c.informers.IngressInformer != nil {
 		go c.informers.IngressInformer.Informer().Run(stopCh)
+		go c.informers.SecretInformer.Informer().Run(stopCh)
 	}
 	if c.informers.RouteInformer != nil {
 		go c.informers.RouteInformer.Informer().Run(stopCh)
 	}
-	go c.informers.SecretInformer.Informer().Run(stopCh)
 	go c.informers.NodeInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
 
@@ -611,7 +611,6 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
-		c.informers.SecretInformer.Informer().HasSynced,
 		c.informers.NodeInformer.Informer().HasSynced,
 		c.informers.NSInformer.Informer().HasSynced,
 	}
@@ -620,6 +619,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	}
 	if c.informers.IngressInformer != nil {
 		informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
+		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
