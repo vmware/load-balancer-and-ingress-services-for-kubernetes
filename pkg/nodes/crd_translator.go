@@ -55,7 +55,9 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 		vsNode.NsPolicyRef = ""
 		vsNode.HttpPolicySetRefs = []string{}
 		vsNode.AppProfileRef = ""
-		vsNode.ServiceMetadata.CRDStatus.Status = "INACTIVE"
+		if vsNode.ServiceMetadata.CRDStatus.Value != "" {
+			vsNode.ServiceMetadata.CRDStatus.Status = "INACTIVE"
+		}
 		return
 	}
 
@@ -137,7 +139,9 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 			pool.PkiProfileRef = ""
 			pool.LbAlgorithm = ""
 			pool.LbAlgorithmHash = ""
-			pool.ServiceMetadata.CRDStatus.Status = "INACTIVE"
+			if pool.ServiceMetadata.CRDStatus.Value != "" {
+				pool.ServiceMetadata.CRDStatus.Status = "INACTIVE"
+			}
 		}
 		return
 	}

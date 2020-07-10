@@ -143,7 +143,8 @@ func SecretToIng(secretName string, namespace string, key string) ([]string, boo
 
 func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool) {
 	var err error
-	var fqdn string
+	var oldFqdn, fqdn string
+	var oldFound bool
 	hrDelete := false
 
 	hostrule, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrname)
@@ -157,6 +158,10 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		return nil, false
 	} else {
 		fqdn = hostrule.Spec.VirtualHost.Fqdn
+		oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
+		if oldFound {
+			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
+		}
 		objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrname)
 	}
 
@@ -178,18 +183,33 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		}
 	}
 
+	allIngresses := make([]string, 0)
 	// find ingresses with host==fqdn, across all namespaces
 	ok, obj := SharedHostNameLister().GetHostPathStore(fqdn)
 	if !ok {
 		utils.AviLog.Warnf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, fqdn)
-		return nil, false
+	} else {
+		for _, ingresses := range obj {
+			for _, ing := range ingresses {
+				if !utils.HasElem(allIngresses, ing) {
+					allIngresses = append(allIngresses, ing)
+				}
+			}
+		}
 	}
 
-	allIngresses := make([]string, 0)
-	for _, ingresses := range obj {
-		for _, ing := range ingresses {
-			if !utils.HasElem(allIngresses, ing) {
-				allIngresses = append(allIngresses, ing)
+	// in case the hostname is updated, we need to find ingresses for the old ones as well to recompute
+	if oldFound {
+		ok, oldobj := SharedHostNameLister().GetHostPathStore(oldFqdn)
+		if !ok {
+			utils.AviLog.Warnf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, oldFqdn)
+		} else {
+			for _, ingresses := range oldobj {
+				for _, ing := range ingresses {
+					if !utils.HasElem(allIngresses, ing) {
+						allIngresses = append(allIngresses, ing)
+					}
+				}
 			}
 		}
 	}
