@@ -32,7 +32,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
 	deleteCase := false
 	if !found {
-		utils.AviLog.Warnf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
+		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
 		deleteCase = true
 	}
 
@@ -44,7 +44,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 		// the hostrule can be present in any namespace therefore putting it blank here
 		hostrule, err = lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
 		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: No HostRule found for virtualhost: %s msg: %v", key, host, err)
+			utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s msg: %v", key, host, err)
 			deleteCase = true
 		}
 	}
@@ -118,7 +118,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
 	deleteCase := false
 	if !found {
-		utils.AviLog.Warnf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
+		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
 		deleteCase = true
 	}
 
@@ -126,7 +126,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 	if !deleteCase {
 		found, pathRules = objects.SharedCRDLister().GetHostHTTPRulesMapping(hrNamespaceName)
 		if !found {
-			utils.AviLog.Warnf("key: %s, msg: HTTPRules for hostrule %s not found", key, hrNamespaceName)
+			utils.AviLog.Debugf("key: %s, msg: HTTPRules for hostrule %s not found", key, hrNamespaceName)
 			deleteCase = true
 		}
 	}
@@ -160,7 +160,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 		pathNSName := strings.Split(httprule, "/")
 		httpRuleObj, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(pathNSName[0]).Get(pathNSName[1])
 		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: httprule not found err: %+v", key, err)
+			utils.AviLog.Debugf("key: %s, msg: httprule not found err: %+v", key, err)
 			continue
 		}
 		for _, path := range httpRuleObj.Spec.Paths {

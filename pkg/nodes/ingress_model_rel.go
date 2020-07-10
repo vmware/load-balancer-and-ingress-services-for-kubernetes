@@ -187,7 +187,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 	// find ingresses with host==fqdn, across all namespaces
 	ok, obj := SharedHostNameLister().GetHostPathStore(fqdn)
 	if !ok {
-		utils.AviLog.Warnf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, fqdn)
+		utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, fqdn)
 	} else {
 		for _, ingresses := range obj {
 			for _, ing := range ingresses {
@@ -202,7 +202,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 	if oldFound {
 		ok, oldobj := SharedHostNameLister().GetHostPathStore(oldFqdn)
 		if !ok {
-			utils.AviLog.Warnf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, oldFqdn)
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, oldFqdn)
 		} else {
 			for _, ingresses := range oldobj {
 				for _, ing := range ingresses {
@@ -214,6 +214,8 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		}
 	}
 
+	utils.AviLog.Infof("key: %s, msg: ingresses to compute: %v via hostrule %s",
+		key, allIngresses, namespace+"/"+hrname)
 	return allIngresses, true
 }
 
@@ -298,6 +300,8 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		objects.SharedCRDLister().RemoveHostHTTPRulesMappings(namespace + "/" + rrname)
 	}
 
+	utils.AviLog.Infof("key: %s, msg: ingresses to compute: %v via httprule %s",
+		key, allIngresses, namespace+"/"+rrname)
 	return allIngresses, true
 }
 

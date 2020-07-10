@@ -177,14 +177,12 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 			continue
 		}
 
-		if !checkRefOnController(value, k) {
-			err = fmt.Errorf("%s \"%s\" not found on controller", value, k)
+		if errStatus := checkRefOnController(value, k); errStatus != nil {
 			status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
 				Status: lib.StatusRejected,
-				Error:  err.Error(),
+				Error:  errStatus.Error(),
 			})
-			utils.AviLog.Errorf("key: %s, msg: %v", key, err)
-			return err
+			return errStatus
 		}
 	}
 	status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
@@ -208,14 +206,12 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 			continue
 		}
 
-		if !checkRefOnController(value, k) {
-			err = fmt.Errorf("%s \"%s\" not found on controller or is invalid", value, k)
+		if errStatus := checkRefOnController(value, k); errStatus != nil {
 			status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
 				Status: lib.StatusRejected,
-				Error:  err.Error(),
+				Error:  errStatus.Error(),
 			})
-			utils.AviLog.Errorf("key: %s, msg: %v", key, err)
-			return err
+			return errStatus
 		}
 	}
 
@@ -249,7 +245,7 @@ var refModelMap = map[string]string{
 }
 
 // checkRefOnController checks whether a provided ref on the controller
-func checkRefOnController(refKey, refValue string) bool {
+func checkRefOnController(refKey, refValue string) error {
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type", refModelMap[refKey], refValue)
 	clients := avicache.SharedAVIClients()
 
@@ -258,12 +254,12 @@ func checkRefOnController(refKey, refValue string) bool {
 	result, err := avicache.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
-		return false
+		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 	}
 
 	if result.Count == 0 {
 		utils.AviLog.Warnf("No Objects found for refName: %s/%s", refModelMap[refKey], refValue)
-		return false
+		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 	}
 
 	if refKey == "AppProfile" {
@@ -271,22 +267,23 @@ func checkRefOnController(refKey, refValue string) bool {
 		err = json.Unmarshal(result.Results, &items)
 		if err != nil {
 			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			return false
+			return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 		}
 
 		appProf := models.ApplicationProfile{}
 		err := json.Unmarshal(items[0], &appProf)
 		if err != nil {
 			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			return false
+			return fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
 		}
 
 		if *appProf.Type != lib.AllowedApplicationProfile {
 			utils.AviLog.Warnf("applicationProfile: %s must be of type %s", refValue, lib.AllowedApplicationProfile)
-			return false
+			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
+				refModelMap[refKey], refValue, lib.AllowedApplicationProfile)
 		}
 	}
 
 	utils.AviLog.Infof("Ref found for %s/%s", refModelMap[refKey], refValue)
-	return true
+	return nil
 }
