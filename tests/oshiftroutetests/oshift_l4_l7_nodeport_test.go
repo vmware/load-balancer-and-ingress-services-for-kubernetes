@@ -489,3 +489,127 @@ func TestNodeCUDForOshiftRouteInNodePort(t *testing.T) {
 	VerifyRouteDeletion(t, g, aviModel, 0)
 	TearDownTestForRouteInNodePort(t, DefaultModelName)
 }
+
+func TestSecureRouteInNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	integrationtest.SetNodePortMode()
+	defer integrationtest.SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
+	defer integrationtest.DeleteNode(t, "testNodeNP")
+
+	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(DefaultHostname))
+	VerifySniNode(g, sniVS)
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRouteInNodePort(t, DefaultModelName)
+}
+
+func TestSecureToInsecureRouteInNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	integrationtest.SetNodePortMode()
+	defer integrationtest.SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
+	defer integrationtest.DeleteNode(t, "testNodeNP")
+
+	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample = FakeRoute{Path: "/foo"}.Route()
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	if err != nil {
+		t.Fatalf("error in updating route: %v", err)
+	}
+
+	aviModel := ValidateModelCommon(t, g)
+
+	g.Eventually(func() int {
+		sniNodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes
+		return len(sniNodes)
+	}, 20*time.Second).Should(gomega.Equal(0))
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRouteInNodePort(t, DefaultModelName)
+}
+
+func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	integrationtest.SetNodePortMode()
+	defer integrationtest.SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
+	defer integrationtest.DeleteNode(t, "testNodeNP")
+
+	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(route1)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeNodePort, false)
+	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
+	_, err = OshiftClient.RouteV1().Routes("test").Create(route2)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(DefaultHostname))
+
+	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
+
+	g.Eventually(func() int {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return len(sniVS.PoolRefs)
+	}, 20*time.Second).Should(gomega.Equal(2))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))
+
+	for _, pool := range sniVS.PoolRefs {
+		if pool.Name != "cluster--default-foo.com_foo-foo" && pool.Name != "cluster--test-foo.com_bar-foo" {
+			t.Fatalf("Unexpected poolName found: %s", pool.Name)
+		}
+	}
+	for _, httpps := range sniVS.HttpPolicyRefs {
+		if httpps.Name != "cluster--default-foo.com_foo-foo" && httpps.Name != "cluster--test-foo.com_bar-foo" {
+			t.Fatalf("Unexpected http policyset found: %s", httpps.Name)
+		}
+	}
+
+	err = OshiftClient.RouteV1().Routes("test").Delete(DefaultRouteName, nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the route %v", err)
+	}
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	integrationtest.DelSVC(t, "test", "avisvc")
+}
