@@ -170,7 +170,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					sniNode.VrfContext = lib.GetVrf()
 					certsBuilt := o.BuildTlsCertNode(objects.SharedSvcLister(), sniNode, namespace, tlssetting, key)
 					if certsBuilt {
-						o.BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key)
+						o.BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key, true)
 						foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
 						if !foundSniModel {
 							vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
@@ -451,7 +451,8 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, hostName ...string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, hostName ...string) {
+	localPGList := make(map[string]*AviPoolGroupNode)
 	for host, paths := range hostpath.Hosts {
 		if len(hostName) > 0 {
 			if hostName[0] != host {
@@ -475,12 +476,25 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			}
 			httpPGPath.MatchCriteria = "BEGINS_WITH"
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
-			pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
-			httpPGPath.PoolGroup = pgNode.Name
-			httpPGPath.Host = host
-			httpPolicySet = append(httpPolicySet, httpPGPath)
+			var pgNode *AviPoolGroupNode
+			// There can be multiple services for the same path in case of alternate backend.
+			// In that case, make sure we are creating only one PG per path
+			pgNode, pgfound := localPGList[pgName]
+			if !pgfound {
+				pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
+				localPGList[pgName] = pgNode
+				httpPGPath.PoolGroup = pgNode.Name
+				httpPGPath.Host = host
+				httpPolicySet = append(httpPolicySet, httpPGPath)
+			}
 
-			poolNode := &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), PortName: path.PortName, Tenant: lib.GetTenant()}
+			var poolNode *AviPoolNode
+			// Do not use serviceName in SNI Pool Name for ingress for backward compatibility
+			if isIngr {
+				poolNode = &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), PortName: path.PortName, Tenant: lib.GetTenant()}
+			} else {
+				poolNode = &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path, path.ServiceName), PortName: path.PortName, Tenant: lib.GetTenant()}
+			}
 			poolNode.VrfContext = lib.GetVrf()
 
 			if !lib.IsNodePortMode() {
@@ -493,7 +507,8 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				}
 			}
 			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
+			ratio := path.weight
+			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
 
 			if tlsNode.CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
 				tlsNode.ReplaceSniPGInSNINode(pgNode, key)
@@ -503,10 +518,12 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				tlsNode.ReplaceSniPoolInSNINode(poolNode, key)
 			}
 			o.AddModelNode(poolNode)
-			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
-			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
-			if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
-				tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
+			if !pgfound {
+				httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
+				policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
+				if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
+					tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
+				}
 			}
 		}
 	}

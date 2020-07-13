@@ -129,9 +129,14 @@ func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) st
 	return NamePrefix + ingName + "-" + namespace + "-" + secret
 }
 
-func GetSniPoolName(ingName, namespace, host, path string) string {
+func GetSniPoolName(ingName, namespace, host, path string, args ...string) string {
 	path = strings.Replace(path, "/", "_", 1)
-	return NamePrefix + namespace + "-" + host + path + "-" + ingName
+	poolName := NamePrefix + namespace + "-" + host + path + "-" + ingName
+	if len(args) > 0 {
+		svcName := args[0]
+		poolName = poolName + "-" + svcName
+	}
+	return poolName
 }
 
 func GetSniHttpPolName(ingName, namespace, host, path string) string {

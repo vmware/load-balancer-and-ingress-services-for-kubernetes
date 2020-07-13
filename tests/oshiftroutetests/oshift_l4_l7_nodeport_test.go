@@ -595,7 +595,7 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
-		if pool.Name != "cluster--default-foo.com_foo-foo" && pool.Name != "cluster--test-foo.com_bar-foo" {
+		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" && pool.Name != "cluster--test-foo.com_bar-foo-avisvc" {
 			t.Fatalf("Unexpected poolName found: %s", pool.Name)
 		}
 	}

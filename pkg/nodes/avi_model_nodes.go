@@ -198,6 +198,22 @@ func (o *AviObjectGraph) RemovePoolNodeRefsFromSni(poolName string, sniNode *Avi
 
 }
 
+func (o *AviObjectGraph) RemovePoolRefsFromPG(poolName string, pgNode *AviPoolGroupNode) {
+	if pgNode == nil {
+		utils.AviLog.Warnf("cannot delete pool %s from nil PG node", poolName)
+		return
+	}
+	for i, member := range pgNode.Members {
+		if strings.TrimPrefix(*member.PoolRef, "/api/pool?name=") != poolName {
+			continue
+		}
+		utils.AviLog.Debugf("Removing pool ref: %s from pg: %s", poolName, pgNode.Name)
+		pgNode.Members = append(pgNode.Members[:i], pgNode.Members[i+1:]...)
+		break
+	}
+	utils.AviLog.Debugf("After removing the pool %s, pg Members are: %s", poolName, utils.Stringify(pgNode.Members))
+}
+
 func (o *AviObjectGraph) GetOrderedNodes() []AviModelNode {
 	return o.modelNodes
 }
@@ -351,6 +367,15 @@ func (o *AviVsNode) CheckPoolNChecksum(poolNodeName string, checksum uint32) boo
 		}
 	}
 	return true
+}
+
+func (o *AviVsNode) GetPGForVSByName(pgName string) *AviPoolGroupNode {
+	for _, pgNode := range o.PoolGroupRefs {
+		if pgNode.Name == pgName {
+			return pgNode
+		}
+	}
+	return nil
 }
 
 func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string) {

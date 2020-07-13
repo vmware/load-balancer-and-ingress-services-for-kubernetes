@@ -300,7 +300,7 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 	// To Do: use service for paths while handling secure routes
 	for _, tlssetting := range parsedIng.TlsCollection {
 		locSniHostMap := sniNodeHostName(routeIgrObj, tlssetting, routeIgrObj.GetName(), routeIgrObj.GetNamespace(), key, fullsync, sharedQueue, modelList)
-		for host, newPaths := range locSniHostMap {
+		for host, newPathSvc := range locSniHostMap {
 			// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
 			hostData, found := Storedhosts[host]
 			if found && hostData.SecurePolicy == lib.PolicyEdgeTerm {
@@ -310,13 +310,9 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 				for k := range hostData.PathSvc {
 					pathkeys = append(pathkeys, k)
 				}
-				diffStoredPaths := Difference(pathkeys, newPaths)
-				if len(diffStoredPaths) == 0 {
-					// There's no difference between the paths, we should delete the host entry in the stored Map
+				hostData.PathSvc = routeIgrObj.GetDiffPathSvc(hostData.PathSvc, newPathSvc)
+				if len(hostData.PathSvc) == 0 {
 					delete(Storedhosts, host)
-				} else {
-					// These paths are meant for deletion
-					Storedhosts[host].PathSvc = pathsToEmptySvcMap(diffStoredPaths)
 				}
 			}
 			hostsMap[host] = &objects.RouteIngrhost{
@@ -326,7 +322,7 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 			if routeIgrObj.GetType() == utils.Ingress {
 				hostsMap[host].InsecurePolicy = lib.PolicyRedirect
 			}
-			hostsMap[host].PathSvc = pathsToEmptySvcMap(newPaths)
+			hostsMap[host].PathSvc = getPathSvc(newPathSvc)
 		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing securehosts: %v", key, Storedhosts)
@@ -379,7 +375,7 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		return
 	}
 
-	utils.AviLog.Infof("key: %s, msg: hosts to delete are: :%s", key, hostMap)
+	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
 	for host, hostData := range hostMap {
 		shardVsName := DeriveHostNameShardVS(host, key)
 
