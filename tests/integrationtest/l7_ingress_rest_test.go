@@ -361,12 +361,12 @@ func TestUpdateSNICacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(newHttpPolKey)
 		return found
-	}, 30*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(oldHttpPolKey)
 		return found
-	}, 30*time.Second).Should(gomega.Equal(false))
+	}, 60*time.Second).Should(gomega.Equal(false))
 
 	// verify same vs cksum
 	g.Eventually(func() string {
@@ -376,7 +376,7 @@ func TestUpdateSNICacheSync(t *testing.T) {
 			return sniVSCacheObj.CloudConfigCksum
 		}
 		return "456def"
-	}, 15*time.Second).Should(gomega.Equal(oldSniCacheObj.CloudConfigCksum))
+	}, 60*time.Second).Should(gomega.Equal(oldSniCacheObj.CloudConfigCksum))
 	sniVSCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
 	g.Expect(sniVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))

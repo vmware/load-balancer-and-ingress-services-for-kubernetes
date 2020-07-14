@@ -746,6 +746,7 @@ type AviPoolNode struct {
 	Protocol         string
 	LbAlgorithm      string
 	LbAlgorithmHash  string
+	LbAlgoHostHeader string
 	IngressName      string
 	PriorityLabel    string
 	ServiceMetadata  avicache.ServiceMetadataObj
@@ -774,6 +775,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		utils.Stringify(servers),
 		v.LbAlgorithm,
 		v.LbAlgorithmHash,
+		v.LbAlgoHostHeader,
 		utils.Stringify(v.SniEnabled),
 		v.SslProfileRef,
 		v.PriorityLabel,

@@ -140,7 +140,7 @@ func SetupHTTPRule(t *testing.T, rrname, hostrule, path string) {
 		pathProperties: []FakeHTTPRulePath{{
 			path:        path,
 			sslProfile:  "thisisahttpruleref-sslprofile",
-			lbAlgorithm: "LB_ALGORITHM_ROUND_ROBIN",
+			lbAlgorithm: "LB_ALGORITHM_CONSISTENT_HASH",
 			hash:        "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
 		}},
 	}
@@ -591,7 +591,13 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_ROUND_ROBIN"))
+	g.Eventually(func() bool {
+		if nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisahttpruleref-sslprofile"))
 
@@ -669,7 +675,7 @@ func TestHostNameHTTPRuleBadHR(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		if len(nodes[0].PoolRefs) == 1 &&
-			nodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_ROUND_ROBIN" &&
+			nodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" &&
 			len(nodes[0].SniNodes) == 0 {
 			return true
 		}
@@ -720,7 +726,7 @@ func TestHostNameHTTPRuleHRSwitch(t *testing.T) {
 			nodes[0].PoolRefs[0].LbAlgorithm == "" &&
 			len(nodes[0].SniNodes) == 1 &&
 			len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
-			nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_ROUND_ROBIN" {
+			nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
 			return true
 		}
 		return false
@@ -733,7 +739,7 @@ func TestHostNameHTTPRuleHRSwitch(t *testing.T) {
 		hostrule:  "default/" + hrnameVoo,
 		pathProperties: []FakeHTTPRulePath{{
 			path:        "/foo",
-			lbAlgorithm: "LB_ALGORITHM_ROUND_ROBIN",
+			lbAlgorithm: "LB_ALGORITHM_CONSISTENT_HASH",
 		}},
 	}.HTTPRule()
 	rrUpdate.ResourceVersion = "2"
@@ -747,7 +753,7 @@ func TestHostNameHTTPRuleHRSwitch(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		if len(nodes[0].PoolRefs) == 1 &&
-			nodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_ROUND_ROBIN" &&
+			nodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" &&
 			len(nodes[0].SniNodes) == 1 &&
 			len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
 			nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "" {

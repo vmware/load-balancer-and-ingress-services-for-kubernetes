@@ -59,6 +59,9 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	}
 	if pool_meta.LbAlgorithmHash != "" {
 		pool.LbAlgorithmHash = &pool_meta.LbAlgorithmHash
+		if *pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
+			pool.LbAlgorithmConsistentHashHdr = &pool_meta.LbAlgoHostHeader
+		}
 	}
 
 	for _, server := range pool_meta.Servers {
