@@ -783,7 +783,7 @@ func TestHostnameDeleteSecretSecureIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 30*time.Second).Should(gomega.Equal(0))
+	}, 50*time.Second).Should(gomega.Equal(0))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
@@ -835,7 +835,7 @@ func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 20*time.Second).Should(gomega.Equal(3))
+	}, 50*time.Second).Should(gomega.Equal(3))
 	ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
 	// fake avi controller server returns IP in the form: 10.250.250.1<Shared-L7-NUM>
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))
@@ -853,7 +853,7 @@ func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets-2", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 20*time.Second).Should(gomega.Equal(1))
+	}, 50*time.Second).Should(gomega.Equal(1))
 	ingress, _ = KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets-2", metav1.GetOptions{})
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].Hostname).To(gomega.MatchRegexp(`^((foo).com)$`))

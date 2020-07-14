@@ -72,7 +72,7 @@ func sslKeyCertHostRulePresent(key, host string) (bool, string) {
 	// from host check if hostrule is present
 	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
 	if !found {
-		utils.AviLog.Warnf("key: %s, msg: Couldn't find fqdn %s to hostrule mapping in cache", key, host)
+		utils.AviLog.Debugf("key: %s, msg: Couldn't find fqdn %s to hostrule mapping in cache", key, host)
 		return false, ""
 	}
 
