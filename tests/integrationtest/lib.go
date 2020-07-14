@@ -738,7 +738,8 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		w.Write(finalResponse)
 
-	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "thisisahostruleref") {
+	} else if r.Method == "GET" &&
+		(strings.Contains(r.URL.RawQuery, "thisisahostruleref") || strings.Contains(r.URL.RawQuery, "thisisahttpruleref")) {
 		w.WriteHeader(http.StatusOK)
 		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
 		w.Write(data)

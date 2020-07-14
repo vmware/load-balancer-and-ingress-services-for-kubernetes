@@ -53,8 +53,6 @@ spec:
                           type: string
                           enum:
                             - ref
-                networkSecurityPolicy:
-                  type: string
                 wafPolicy:
                   type: string
                 applicationProfile:

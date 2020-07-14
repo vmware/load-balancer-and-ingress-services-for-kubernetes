@@ -52,9 +52,8 @@ type HTTPRuleLBPolicy struct {
 
 // HTTPRuleTLS holds secure path/pool specific properties
 type HTTPRuleTLS struct {
-	SSLProfile        string `json:"sslProfile,omitempty"`
-	ClientCertificate string `json:"clientCertificate,omitempty"`
-	PkiProfile        string `json:"pkiProfile,omitempty"`
+	Type       string `json:"type,omitempty"`
+	SSLProfile string `json:"sslProfile,omitempty"`
 }
 
 // HTTPRuleStatus holds the status of the HTTPRule

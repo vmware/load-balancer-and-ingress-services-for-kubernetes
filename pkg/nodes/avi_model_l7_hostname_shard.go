@@ -496,7 +496,7 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 
 		certsBuilt := false
 		sniSecretName := tlssetting.SecretName
-		re := regexp.MustCompile(`^@avisslkeycertrefdummy.*`)
+		re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
 		if re.MatchString(sniSecretName) {
 			sniSecretName = strings.Split(sniSecretName, "/")[1]
 			certsBuilt = true
@@ -517,10 +517,11 @@ func sniNodeHostName(tlssetting TlsSettings, ingName, namespace, key string, ful
 			}
 		} else {
 			// The SNI node exists, just update the svc metadata
-			sniNode.ServiceMetadata = avicache.ServiceMetadataObj{
-				NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
-				Namespace:            namespace,
-				HostNames:            sniHosts,
+			sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
+			sniNode.ServiceMetadata.Namespace = namespace
+			sniNode.ServiceMetadata.HostNames = sniHosts
+			if sniNode.SSLKeyCertAviRef != "" {
+				certsBuilt = true
 			}
 		}
 		sniNode.VrfContext = lib.GetVrf()

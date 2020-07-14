@@ -46,4 +46,6 @@ const (
 	StatusRejected            = "Rejected"
 	StatusAccepted            = "Accepted"
 	AllowedApplicationProfile = "APPLICATION_PROFILE_TYPE_HTTP"
+	TypeTLSReencrypt          = "reencrypt"
+	DefaultPoolSSLProfile     = "System-Standard"
 )

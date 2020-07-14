@@ -204,17 +204,16 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	sniChild := &avimodels.VirtualService{
-		Name:                     &name,
-		CloudConfigCksum:         &checksumstr,
-		CreatedBy:                &cr,
-		NetworkProfileRef:        &network_prof,
-		ApplicationProfileRef:    &app_prof,
-		EastWestPlacement:        &east_west,
-		CloudRef:                 &cloudRef,
-		VrfContextRef:            &vrfContextRef,
-		ServiceMetadata:          &svc_mdata,
-		NetworkSecurityPolicyRef: &vs_meta.NsPolicyRef,
-		WafPolicyRef:             &vs_meta.WafPolicyRef,
+		Name:                  &name,
+		CloudConfigCksum:      &checksumstr,
+		CreatedBy:             &cr,
+		NetworkProfileRef:     &network_prof,
+		ApplicationProfileRef: &app_prof,
+		EastWestPlacement:     &east_west,
+		CloudRef:              &cloudRef,
+		VrfContextRef:         &vrfContextRef,
+		ServiceMetadata:       &svc_mdata,
+		WafPolicyRef:          &vs_meta.WafPolicyRef,
 	}
 
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'

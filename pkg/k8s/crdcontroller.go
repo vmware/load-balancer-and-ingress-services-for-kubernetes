@@ -15,23 +15,15 @@
 package k8s
 
 import (
-	"encoding/json"
-	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	akov1alpha1 "ako/pkg/apis/ako/v1alpha1"
-	avicache "ako/pkg/cache"
 	akocrd "ako/pkg/client/clientset/versioned"
 	akoinformers "ako/pkg/client/informers/externalversions"
 	"ako/pkg/lib"
-	"ako/pkg/objects"
-	"ako/pkg/status"
 
 	"github.com/avinetworks/container-lib/utils"
-	"github.com/avinetworks/sdk/go/models"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -63,10 +55,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 			key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			if err := validateHostRuleObj(key, hostrule); err == nil {
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-			}
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			oldObj := old.(*akov1alpha1.HostRule)
@@ -75,10 +65,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				if err := validateHostRuleObj(key, hostrule); err == nil {
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -105,22 +93,20 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 			key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			if err := validateHTTPRuleObj(key, httprule); err == nil {
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-			}
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			oldObj := old.(*akov1alpha1.HTTPRule)
 			httprule := new.(*akov1alpha1.HTTPRule)
+			// reflect.DeepEqual does not work on type []byte,
+			// unable to capture edits in destinationCA
 			if !reflect.DeepEqual(oldObj.Spec, httprule.Spec) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				if err := validateHTTPRuleObj(key, httprule); err == nil {
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -142,148 +128,4 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	informer.HTTPRuleInformer.Informer().AddEventHandler(httpRuleEventHandler)
 
 	return
-}
-
-// validateHostRuleObj would do validation checks
-// update internal CRD caches, and push relevant ingresses to ingestion
-func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
-	var err error
-	fqdn := hostrule.Spec.VirtualHost.Fqdn
-	foundHost, foundHR := objects.SharedCRDLister().GetFQDNToHostruleMapping(fqdn)
-	if foundHost && foundHR != hostrule.Namespace+"/"+hostrule.Name {
-		err = fmt.Errorf("duplicate fqdn %s found in %s", fqdn, foundHR)
-		status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
-		utils.AviLog.Errorf("key: %s, msg: %v", key, err)
-		return err
-	}
-
-	refData := map[string]string{
-		hostrule.Spec.VirtualHost.WAFPolicy:                  "WafPolicy",
-		hostrule.Spec.VirtualHost.NetworkSecurityPolicy:      "NsPolicy",
-		hostrule.Spec.VirtualHost.ApplicationProfile:         "AppProfile",
-		hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name: "SslKeyCert",
-	}
-	for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
-		refData[policy] = "HttpPolicySet"
-	}
-
-	// TODO (shchauhan): optimisation opportunity to make batched api calls
-	// or distribute in threads
-	for k, value := range refData {
-		if k == "" {
-			continue
-		}
-
-		if errStatus := checkRefOnController(value, k); errStatus != nil {
-			status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  errStatus.Error(),
-			})
-			return errStatus
-		}
-	}
-	status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
-		Status: lib.StatusAccepted,
-		Error:  "",
-	})
-	return nil
-}
-
-// validateHTTPRuleObj would do validation checks
-// update internal CRD caches, and push relevant ingresses to ingestion
-func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
-	var err error
-	refData := make(map[string]string)
-	for _, path := range httprule.Spec.Paths {
-		refData[path.TLS.SSLProfile] = "SslProfile"
-	}
-
-	for k, value := range refData {
-		if k == "" {
-			continue
-		}
-
-		if errStatus := checkRefOnController(value, k); errStatus != nil {
-			status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  errStatus.Error(),
-			})
-			return errStatus
-		}
-	}
-
-	hostrule := httprule.Spec.HostRule
-	hostruleNSName := strings.Split(hostrule, "/")
-	_, err = lib.GetCRDClientset().AkoV1alpha1().HostRules(hostruleNSName[0]).Get(hostruleNSName[1], metav1.GetOptions{})
-	if err != nil {
-		err = fmt.Errorf("hostrules.ako.k8s.io %s not found or is invalid", hostrule)
-		status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
-		utils.AviLog.Error(err)
-		return nil
-	}
-
-	status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
-		Status: lib.StatusAccepted,
-		Error:  "",
-	})
-	return nil
-}
-
-var refModelMap = map[string]string{
-	"SslKeyCert":    "sslkeyandcertificate",
-	"WafPolicy":     "wafpolicy",
-	"NsPolicy":      "networksecuritypolicy",
-	"HttpPolicySet": "httppolicyset",
-	"SslProfile":    "sslprofile",
-	"AppProfile":    "applicationprofile",
-}
-
-// checkRefOnController checks whether a provided ref on the controller
-func checkRefOnController(refKey, refValue string) error {
-	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type", refModelMap[refKey], refValue)
-	clients := avicache.SharedAVIClients()
-
-	// assign the last avi client for ref checks
-	aviClientLen := lib.GetshardSize()
-	result, err := avicache.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
-	if err != nil {
-		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
-		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-	}
-
-	if result.Count == 0 {
-		utils.AviLog.Warnf("No Objects found for refName: %s/%s", refModelMap[refKey], refValue)
-		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-	}
-
-	if refKey == "AppProfile" {
-		items := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &items)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-		}
-
-		appProf := models.ApplicationProfile{}
-		err := json.Unmarshal(items[0], &appProf)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			return fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
-		}
-
-		if *appProf.Type != lib.AllowedApplicationProfile {
-			utils.AviLog.Warnf("applicationProfile: %s must be of type %s", refValue, lib.AllowedApplicationProfile)
-			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
-				refModelMap[refKey], refValue, lib.AllowedApplicationProfile)
-		}
-	}
-
-	utils.AviLog.Infof("Ref found for %s/%s", refModelMap[refKey], refValue)
-	return nil
 }

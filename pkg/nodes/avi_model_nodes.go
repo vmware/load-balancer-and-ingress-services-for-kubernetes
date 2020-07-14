@@ -275,7 +275,6 @@ type AviVsNode struct {
 	ServiceMetadata    avicache.ServiceMetadataObj
 	VrfContext         string
 	WafPolicyRef       string
-	NsPolicyRef        string
 	AppProfileRef      string
 	HttpPolicySetRefs  []string
 	SSLKeyCertAviRef   string
@@ -450,7 +449,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 	sort.Slice(policies, func(i, j int) bool {
 		return policies[i] < policies[j]
 	})
-	vsRefs := v.NsPolicyRef + v.WafPolicyRef + v.AppProfileRef + utils.Stringify(policies)
+	vsRefs := v.WafPolicyRef + v.AppProfileRef + utils.Stringify(policies)
 
 	checksum := dsChecksum +
 		httppolChecksum +
@@ -752,8 +751,6 @@ type AviPoolNode struct {
 	ServiceMetadata  avicache.ServiceMetadataObj
 	SniEnabled       bool
 	SslProfileRef    string
-	ClientCertRef    string
-	PkiProfileRef    string
 	VrfContext       string
 }
 
@@ -779,8 +776,6 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.LbAlgorithmHash,
 		utils.Stringify(v.SniEnabled),
 		v.SslProfileRef,
-		v.ClientCertRef,
-		v.PkiProfileRef,
 		v.PriorityLabel,
 	}[:], delim))
 	checksum := utils.Hash(chksumStr)

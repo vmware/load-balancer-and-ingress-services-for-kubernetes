@@ -331,9 +331,7 @@ func (c *AviController) FullSyncK8s() {
 	} else {
 		for _, hostRuleObj := range hostRuleObjs {
 			key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
-			if err := validateHostRuleObj(key, hostRuleObj); err == nil {
-				nodes.DequeueIngestion(key, true)
-			}
+			nodes.DequeueIngestion(key, true)
 		}
 	}
 
@@ -343,9 +341,7 @@ func (c *AviController) FullSyncK8s() {
 	} else {
 		for _, httpRuleObj := range httpRuleObjs {
 			key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
-			if err := validateHTTPRuleObj(key, httpRuleObj); err == nil {
-				nodes.DequeueIngestion(key, true)
-			}
+			nodes.DequeueIngestion(key, true)
 		}
 	}
 

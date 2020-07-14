@@ -82,6 +82,9 @@ func sslKeyCertHostRulePresent(key, host string) (bool, string) {
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Couldn't find hostrule %s", key, hrNSNameStr)
 		return false, ""
+	} else if hostRuleObj.Status.Status == lib.StatusRejected {
+		utils.AviLog.Warnf("key: %s, msg: rejected hostrule %s", key, hrNSNameStr)
+		return false, ""
 	}
 
 	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {

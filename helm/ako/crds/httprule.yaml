@@ -26,7 +26,7 @@ spec:
           properties:
             hostrule:
               type: string
-              pattern: '^[^\/]\/[^\/]$'
+              pattern: '^[^\/]+\/[^\/]+$'
             paths:
               type: array
               items:
@@ -58,21 +58,19 @@ spec:
                         type: string
                         enum:
                           - LB_ALGORITHM_CONSISTENT_HASH_CALLID
-                          - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
-                          - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING
                           - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
                           - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT
                           - LB_ALGORITHM_CONSISTENT_HASH_UR
                   tls:
                     type: object
                     required:
-                    - sslProfile
+                    - type
                     properties:
+                      type:
+                        type: string
+                        enum:
+                          - reencrypt
                       sslProfile:
-                        type: string
-                      clientCertificate:
-                        type: string
-                      pkiProfile:
                         type: string
         status:
           type: object

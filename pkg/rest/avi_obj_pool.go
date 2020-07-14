@@ -42,17 +42,15 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	vrfContextRef := "/api/vrfcontext?name=" + pool_meta.VrfContext
 
 	pool := avimodels.Pool{
-		Name:                    &name,
-		CloudConfigCksum:        &cksumString,
-		CreatedBy:               &cr,
-		TenantRef:               &tenant,
-		CloudRef:                &cloudRef,
-		ServiceMetadata:         &svc_mdata,
-		VrfRef:                  &vrfContextRef,
-		SniEnabled:              &pool_meta.SniEnabled,
-		SslProfileRef:           &pool_meta.SslProfileRef,
-		SslKeyAndCertificateRef: &pool_meta.ClientCertRef,
-		PkiProfileRef:           &pool_meta.PkiProfileRef,
+		Name:             &name,
+		CloudConfigCksum: &cksumString,
+		CreatedBy:        &cr,
+		TenantRef:        &tenant,
+		CloudRef:         &cloudRef,
+		ServiceMetadata:  &svc_mdata,
+		VrfRef:           &vrfContextRef,
+		SniEnabled:       &pool_meta.SniEnabled,
+		SslProfileRef:    &pool_meta.SslProfileRef,
 	}
 
 	// there are defaults set by the Avi controller internally

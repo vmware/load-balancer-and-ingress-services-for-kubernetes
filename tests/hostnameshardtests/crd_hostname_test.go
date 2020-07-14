@@ -28,14 +28,13 @@ import (
 )
 
 type FakeHostRule struct {
-	name                  string
-	namespace             string
-	fqdn                  string
-	sslKeyCertificate     string
-	networkSecurityPolicy string
-	wafPolicy             string
-	applicationProfile    string
-	httpPolicySets        []string
+	name               string
+	namespace          string
+	fqdn               string
+	sslKeyCertificate  string
+	wafPolicy          string
+	applicationProfile string
+	httpPolicySets     []string
 }
 
 func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
@@ -58,9 +57,8 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 					PolicySets: hr.httpPolicySets,
 					Overwrite:  false,
 				},
-				NetworkSecurityPolicy: hr.networkSecurityPolicy,
-				WAFPolicy:             hr.wafPolicy,
-				ApplicationProfile:    hr.applicationProfile,
+				WAFPolicy:          hr.wafPolicy,
+				ApplicationProfile: hr.applicationProfile,
 			},
 		},
 	}
@@ -70,13 +68,12 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 
 func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
 	hostrule := FakeHostRule{
-		name:                  hrname,
-		namespace:             "default",
-		fqdn:                  fqdn,
-		networkSecurityPolicy: "thisisahostruleref-netsec",
-		wafPolicy:             "thisisahostruleref-waf",
-		applicationProfile:    "thisisahostruleref-appprof",
-		httpPolicySets:        []string{"thisisahostruleref-httpps-1"},
+		name:               hrname,
+		namespace:          "default",
+		fqdn:               fqdn,
+		wafPolicy:          "thisisahostruleref-waf",
+		applicationProfile: "thisisahostruleref-appprof",
+		httpPolicySets:     []string{"thisisahostruleref-httpps-1"},
 	}
 	if secure {
 		hostrule.sslKeyCertificate = "thisisahostruleref-sslkey"
@@ -91,6 +88,72 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
 func TeardownHostRule(t *testing.T, hrname string) {
 	if err := CRDClient.AkoV1alpha1().HostRules("default").Delete(hrname, nil); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
+	}
+}
+
+type FakeHTTPRule struct {
+	name           string
+	namespace      string
+	hostrule       string
+	pathProperties []FakeHTTPRulePath
+}
+
+type FakeHTTPRulePath struct {
+	path        string
+	sslProfile  string
+	lbAlgorithm string
+	hash        string
+}
+
+func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
+	var rrPaths []akov1alpha1.HTTPRulePaths
+	for _, p := range rr.pathProperties {
+		rrPaths = append(rrPaths, akov1alpha1.HTTPRulePaths{
+			Target: p.path,
+			TLS: akov1alpha1.HTTPRuleTLS{
+				Type:       "reencrypt",
+				SSLProfile: p.sslProfile,
+			},
+			LoadBalancerPolicy: akov1alpha1.HTTPRuleLBPolicy{
+				Algorithm: p.lbAlgorithm,
+				Hash:      p.hash,
+			},
+		})
+	}
+	return &akov1alpha1.HTTPRule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: rr.namespace,
+			Name:      rr.name,
+		},
+		Spec: akov1alpha1.HTTPRuleSpec{
+			HostRule: rr.hostrule,
+			Paths:    rrPaths,
+		},
+	}
+}
+
+func SetupHTTPRule(t *testing.T, rrname, hostrule, path string) {
+	httprule := FakeHTTPRule{
+		name:      rrname,
+		namespace: "default",
+		hostrule:  hostrule,
+		pathProperties: []FakeHTTPRulePath{{
+			path:        path,
+			sslProfile:  "thisisahttpruleref-sslprofile",
+			lbAlgorithm: "LB_ALGORITHM_ROUND_ROBIN",
+			hash:        "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
+		}},
+	}
+
+	rrCreate := httprule.HTTPRule()
+	if _, err := CRDClient.AkoV1alpha1().HTTPRules("default").Create(rrCreate); err != nil {
+		t.Fatalf("error in adding HTTPRule: %v", err)
+	}
+}
+
+func TeardownHTTPRule(t *testing.T, rrname string) {
+	if err := CRDClient.AkoV1alpha1().HTTPRules("default").Delete(rrname, nil); err != nil {
+		t.Fatalf("error in deleting HTTPRule: %v", err)
 	}
 }
 
@@ -125,12 +188,14 @@ func TestHostnameCreateHostRule(t *testing.T) {
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return nodes[0].SniNodes[0].SSLKeyCertAviRef
-	}, 10*time.Second).Should(gomega.ContainSubstring("thisisahostruleref"))
+		if len(nodes[0].SniNodes) == 1 {
+			return nodes[0].SniNodes[0].SSLKeyCertAviRef
+		}
+		return ""
+	}, 10*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
-	g.Expect(nodes[0].SniNodes[0].NsPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-netsec"))
 	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisahostruleref-appprof"))
 	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs[0]).To(gomega.ContainSubstring("thisisahostruleref-httpps"))
@@ -209,7 +274,6 @@ func TestHostnameInsecureToSecureHostRule(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
-	g.Expect(nodes[0].SniNodes[0].NsPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-netsec"))
 
 	TeardownHostRule(t, hrname)
 	TearDownIngressForCacheSyncCheck(t, modelName)
@@ -297,14 +361,14 @@ func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		if len(nodes[0].SniNodes) == 1 &&
-			len(nodes[0].PoolRefs) == 1 {
+			len(nodes[0].PoolRefs) == 1 &&
+			nodes[0].PoolRefs[0].Name == "cluster--voo.com_voo-red-voo-with-targets" {
 			return true
 		}
 		return false
 	}, 30*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--voo.com_voo-red-voo-with-targets"))
 	g.Expect(nodes[0].SniNodes[0].Name).To(gomega.Equal("cluster--foo.com"))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
 
@@ -382,7 +446,6 @@ func TestHostnameGoodToBadHostRule(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
-	g.Expect(nodes[0].SniNodes[0].NsPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-netsec"))
 	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisahostruleref-appprof"))
 
 	TeardownHostRule(t, hrname)
@@ -467,5 +530,237 @@ func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
 
 	TeardownHostRule(t, hrname)
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+// httprule with HostRules
+
+func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
+	// ingress foo.com/foo /bar
+	// create httprule /foo, nothing happens
+	// create hostrule, httprule gets attached check on /foo /bar
+	// delete hostrule, httprule gets detached
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	hrname := "samplehr-foo"
+	rrname := "samplerr-foo"
+
+	SetupDomain()
+	SetUpTestForIngress(t, modelName)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	ingressObject := integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
+	}
+
+	ingrFake := ingressObject.Ingress(true)
+	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	SetupHTTPRule(t, rrname, "default/"+hrname, "/")
+
+	// nothing happens
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs)
+	}, 10*time.Second).Should(gomega.Equal(2))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Not(gomega.Equal("LB_ALGORITHM_ROUND_ROBIN")))
+
+	g.Eventually(func() string {
+		httprule, _ := CRDClient.AkoV1alpha1().HTTPRules("default").Get(rrname, metav1.GetOptions{})
+		return httprule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Rejected"))
+
+	// create hostrule, creates httprule stuff as well now
+	SetupHostRule(t, hrname, "foo.com", true)
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	VerifyActiveHostRule(g, sniVSKey, "default/samplehr-foo")
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_ROUND_ROBIN"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisahttpruleref-sslprofile"))
+
+	// delete hostrule deletes httprule stuff as well
+	TeardownHostRule(t, hrname)
+	mcache := cache.SharedAviObjCache()
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
+		return found
+	}, 20*time.Second).Should(gomega.Equal(false))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].SniNodes).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal(""))
+	g.Expect(nodes[0].PoolRefs[0].SslProfileRef).To(gomega.Equal(""))
+
+	TeardownHTTPRule(t, rrname)
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestHostNameHTTPRuleBadHR(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	hrname := "samplehr-foo"
+	rrname := "samplerr-foo"
+
+	// creates foo.com insecure
+	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+
+	// create hostrule bad ref, and httprule should not get attached
+	hrCreate := FakeHostRule{
+		name:               hrname,
+		namespace:          "default",
+		fqdn:               "foo.com",
+		applicationProfile: "BADREF",
+	}.HostRule()
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Create(hrCreate); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+	SetupHTTPRule(t, rrname, "default/"+hrname, "/foo")
+
+	// check that httprule is rejected
+	g.Eventually(func() string {
+		httprule, _ := CRDClient.AkoV1alpha1().HTTPRules("default").Get(rrname, metav1.GetOptions{})
+		return httprule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Rejected"))
+
+	// things are as is
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes[0].PoolRefs) == 1 &&
+			nodes[0].PoolRefs[0].LbAlgorithm == "" &&
+			len(nodes[0].SniNodes) == 0 {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+
+	// update hostrule to be good
+	hrUpdate := FakeHostRule{
+		name:               hrname,
+		namespace:          "default",
+		fqdn:               "foo.com",
+		applicationProfile: "thisisahostruleref-appprof",
+	}.HostRule()
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+
+	// things should take effect
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes[0].PoolRefs) == 1 &&
+			nodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_ROUND_ROBIN" &&
+			len(nodes[0].SniNodes) == 0 {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+
+	TeardownHostRule(t, hrname)
+	TeardownHTTPRule(t, rrname)
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestHostNameHTTPRuleHRSwitch(t *testing.T) {
+	// ingress foo.com/foo voo.com/foo
+	// hr1: foo.com (secure), hr2: voo.com (insecure)
+	// rr1: hr1/foo ALGO1
+	// switch rr1 hostrule to hr2
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	hrnameFoo := "samplehr-foo"
+	hrnameVoo := "samplehr-voo"
+	rrnameFoo := "samplerr-foo"
+
+	// creates foo.com insecure
+	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+
+	// creates voo.com insecure
+	ingressObject := integrationtest.FakeIngress{
+		Name:        "voo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"voo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}
+	ingrFake := ingressObject.Ingress()
+	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
+
+	SetupHTTPRule(t, rrnameFoo, "default/"+hrnameFoo, "/foo")
+	SetupHostRule(t, hrnameFoo, "foo.com", true) // makes foo.com secure
+	SetupHostRule(t, hrnameVoo, "voo.com", false)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes[0].PoolRefs) == 1 &&
+			nodes[0].PoolRefs[0].LbAlgorithm == "" &&
+			len(nodes[0].SniNodes) == 1 &&
+			len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
+			nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_ROUND_ROBIN" {
+			return true
+		}
+		return false
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	// update httprule's hostrule pointer from FOO to VOO
+	rrUpdate := FakeHTTPRule{
+		name:      rrnameFoo,
+		namespace: "default",
+		hostrule:  "default/" + hrnameVoo,
+		pathProperties: []FakeHTTPRulePath{{
+			path:        "/foo",
+			lbAlgorithm: "LB_ALGORITHM_ROUND_ROBIN",
+		}},
+	}.HTTPRule()
+	rrUpdate.ResourceVersion = "2"
+	if _, err := CRDClient.AkoV1alpha1().HTTPRules("default").Update(rrUpdate); err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+
+	// httprule things should get attached to insecure Pools of bar.com now
+	// earlier since the hostrule pointed to secure foo.com, it was attached to the SNI pools
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes[0].PoolRefs) == 1 &&
+			nodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_ROUND_ROBIN" &&
+			len(nodes[0].SniNodes) == 1 &&
+			len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
+			nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "" {
+			return true
+		}
+		return false
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	if err := KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("voo-with-targets", nil); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	TeardownHostRule(t, hrnameFoo)
+	TeardownHostRule(t, hrnameVoo)
+	TeardownHTTPRule(t, rrnameFoo)
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }

@@ -15,6 +15,7 @@
 package nodes
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -23,8 +24,11 @@ import (
 	"ako/pkg/cache"
 	"ako/pkg/lib"
 	"ako/pkg/objects"
+	"ako/pkg/status"
 
 	"github.com/avinetworks/container-lib/utils"
+	"github.com/avinetworks/sdk/go/models"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
@@ -41,18 +45,19 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	var hostrule *akov1alpha1.HostRule
 	if !deleteCase {
 		hrNSName = strings.Split(hrNamespaceName, "/")
-		// the hostrule can be present in any namespace therefore putting it blank here
 		hostrule, err = lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s msg: %v", key, host, err)
 			deleteCase = true
+		} else if hostrule.Status.Status == lib.StatusRejected {
+			// do not apply a rejected hostrule, this way the VS would retain
+			return
 		}
 	}
 
 	if deleteCase {
 		vsNode.SSLKeyCertAviRef = ""
 		vsNode.WafPolicyRef = ""
-		vsNode.NsPolicyRef = ""
 		vsNode.HttpPolicySetRefs = []string{}
 		vsNode.AppProfileRef = ""
 		if vsNode.ServiceMetadata.CRDStatus.Value != "" {
@@ -62,7 +67,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	}
 
 	// host specific
-	var vsWafPolicy, vsNSPolicy, vsAppProfile, vsSslKeyCertificate string
+	var vsWafPolicy, vsAppProfile, vsSslKeyCertificate string
 	var vsHTTPPolicySets []string
 	sslKeyCertRef := hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name
 	if sslKeyCertRef != "" {
@@ -73,11 +78,6 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	wafPolicyRef := hostrule.Spec.VirtualHost.WAFPolicy
 	if wafPolicyRef != "" {
 		vsWafPolicy = fmt.Sprintf("/api/wafpolicy?name=%s", wafPolicyRef)
-	}
-
-	nsPolicyRef := hostrule.Spec.VirtualHost.NetworkSecurityPolicy
-	if nsPolicyRef != "" {
-		vsNSPolicy = fmt.Sprintf("/api/networksecuritypolicy?name=%s", nsPolicyRef)
 	}
 
 	httpPolicySetRef := hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets
@@ -99,7 +99,6 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 
 	vsNode.SSLKeyCertAviRef = vsSslKeyCertificate
 	vsNode.WafPolicyRef = vsWafPolicy
-	vsNode.NsPolicyRef = vsNSPolicy
 	vsNode.HttpPolicySetRefs = vsHTTPPolicySets
 	vsNode.AppProfileRef = vsAppProfile
 	vsNode.ServiceMetadata.CRDStatus = cache.CRDMetadata{
@@ -135,8 +134,6 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 		for _, pool := range vsNode.PoolRefs {
 			pool.SniEnabled = false
 			pool.SslProfileRef = ""
-			pool.ClientCertRef = ""
-			pool.PkiProfileRef = ""
 			pool.LbAlgorithm = ""
 			pool.LbAlgorithmHash = ""
 			if pool.ServiceMetadata.CRDStatus.Value != "" {
@@ -162,6 +159,8 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: httprule not found err: %+v", key, err)
 			continue
+		} else if httpRuleObj.Status.Status == lib.StatusRejected {
+			continue
 		}
 		for _, path := range httpRuleObj.Spec.Paths {
 			httpruleNameObjMap[httprule+path.Target] = path
@@ -176,9 +175,13 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 		if !ok {
 			continue
 		}
+		if httpRulePath.TLS.Type != "" && httpRulePath.TLS.Type != lib.TypeTLSReencrypt {
+			continue
+		}
+
 		for _, pool := range vsNode.PoolRefs {
-			isPathSniEnabled := false
-			var pathSslProfile, pathClientCert, pathPkiProfile string
+			isPathSniEnabled := true
+			var pathSslProfile string
 
 			// pathprefix match
 			// lets say path: / and available pools are cluster--namespace-host_foo-ingName, cluster--namespace-host_bar-ingName
@@ -195,27 +198,13 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 				// pool tls
 				sslProfileRef := httpRulePath.TLS.SSLProfile
 				if sslProfileRef != "" {
-					isPathSniEnabled = true
 					pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", sslProfileRef)
-				}
-
-				clientCertRef := httpRulePath.TLS.ClientCertificate
-				if clientCertRef != "" && isPathSniEnabled {
-					pathClientCert = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", clientCertRef)
-				}
-
-				pkiProfileRef := httpRulePath.TLS.PkiProfile
-				if pkiProfileRef != "" && isPathSniEnabled {
-					pathPkiProfile = fmt.Sprintf("/api/pkiprofile?name=%s", pkiProfileRef)
+				} else {
+					pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
 				}
 
 				pool.SniEnabled = isPathSniEnabled
-				if isPathSniEnabled {
-					pool.SniEnabled = isPathSniEnabled
-					pool.SslProfileRef = pathSslProfile
-					pool.ClientCertRef = pathClientCert
-					pool.PkiProfileRef = pathPkiProfile
-				}
+				pool.SslProfileRef = pathSslProfile
 
 				// from this path, generate refs to this pool node
 				pool.LbAlgorithm = httpRulePath.LoadBalancerPolicy.Algorithm
@@ -231,4 +220,144 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 	}
 
 	return
+}
+
+// validateHostRuleObj would do validation checks
+// update internal CRD caches, and push relevant ingresses to ingestion
+func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
+	var err error
+	fqdn := hostrule.Spec.VirtualHost.Fqdn
+	foundHost, foundHR := objects.SharedCRDLister().GetFQDNToHostruleMapping(fqdn)
+	if foundHost && foundHR != hostrule.Namespace+"/"+hostrule.Name {
+		err = fmt.Errorf("duplicate fqdn %s found in %s", fqdn, foundHR)
+		status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		utils.AviLog.Warnf("key: %s, msg: %v", key, err)
+		return err
+	}
+
+	refData := map[string]string{
+		hostrule.Spec.VirtualHost.WAFPolicy:                  "WafPolicy",
+		hostrule.Spec.VirtualHost.ApplicationProfile:         "AppProfile",
+		hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name: "SslKeyCert",
+	}
+	for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
+		refData[policy] = "HttpPolicySet"
+	}
+
+	for k, value := range refData {
+		if k == "" {
+			continue
+		}
+
+		if errStatus := checkRefOnController(key, value, k); errStatus != nil {
+			status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
+				Status: lib.StatusRejected,
+				Error:  errStatus.Error(),
+			})
+			return errStatus
+		}
+	}
+	status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
+		Status: lib.StatusAccepted,
+		Error:  "",
+	})
+	return nil
+}
+
+// validateHTTPRuleObj would do validation checks
+// update internal CRD caches, and push relevant ingresses to ingestion
+func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
+	var err error
+	refData := make(map[string]string)
+	for _, path := range httprule.Spec.Paths {
+		refData[path.TLS.SSLProfile] = "SslProfile"
+	}
+
+	for k, value := range refData {
+		if k == "" {
+			continue
+		}
+
+		if errStatus := checkRefOnController(key, value, k); errStatus != nil {
+			status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
+				Status: lib.StatusRejected,
+				Error:  errStatus.Error(),
+			})
+			return errStatus
+		}
+	}
+
+	hostrule := httprule.Spec.HostRule
+	hostruleNSName := strings.Split(hostrule, "/")
+	hrObj, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hostruleNSName[0]).Get(hostruleNSName[1], metav1.GetOptions{})
+	if err != nil || hrObj.Status.Status == lib.StatusRejected {
+		err = fmt.Errorf("hostrules.ako.k8s.io %s not found or is invalid", hostrule)
+		status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		utils.AviLog.Errorf("key: %s, msg: %v", key, err)
+		return nil
+	}
+
+	status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
+		Status: lib.StatusAccepted,
+		Error:  "",
+	})
+	return nil
+}
+
+var refModelMap = map[string]string{
+	"SslKeyCert":    "sslkeyandcertificate",
+	"WafPolicy":     "wafpolicy",
+	"HttpPolicySet": "httppolicyset",
+	"SslProfile":    "sslprofile",
+	"AppProfile":    "applicationprofile",
+}
+
+// checkRefOnController checks whether a provided ref on the controller
+func checkRefOnController(key, refKey, refValue string) error {
+	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type", refModelMap[refKey], refValue)
+	clients := cache.SharedAVIClients()
+
+	// assign the last avi client for ref checks
+	aviClientLen := lib.GetshardSize()
+	result, err := cache.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
+		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+
+	if result.Count == 0 {
+		utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
+		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+
+	if refKey == "AppProfile" {
+		items := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &items)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
+			return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+		}
+
+		appProf := models.ApplicationProfile{}
+		err := json.Unmarshal(items[0], &appProf)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
+			return fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
+		}
+
+		if *appProf.Type != lib.AllowedApplicationProfile {
+			utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, lib.AllowedApplicationProfile)
+			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
+				refModelMap[refKey], refValue, lib.AllowedApplicationProfile)
+		}
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Ref found for %s/%s", key, refModelMap[refKey], refValue)
+	return nil
 }
