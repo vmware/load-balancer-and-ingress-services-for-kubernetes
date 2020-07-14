@@ -136,6 +136,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 			pool.SslProfileRef = ""
 			pool.LbAlgorithm = ""
 			pool.LbAlgorithmHash = ""
+			pool.LbAlgoHostHeader = ""
 			if pool.ServiceMetadata.CRDStatus.Value != "" {
 				pool.ServiceMetadata.CRDStatus.Status = "INACTIVE"
 			}
@@ -208,7 +209,18 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 
 				// from this path, generate refs to this pool node
 				pool.LbAlgorithm = httpRulePath.LoadBalancerPolicy.Algorithm
-				pool.LbAlgorithmHash = httpRulePath.LoadBalancerPolicy.Hash
+				if pool.LbAlgorithm == lib.LB_ALGORITHM_CONSISTENT_HASH {
+					pool.LbAlgorithmHash = httpRulePath.LoadBalancerPolicy.Hash
+					if pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
+						if httpRulePath.LoadBalancerPolicy.HostHeader != "" {
+							pool.LbAlgoHostHeader = httpRulePath.LoadBalancerPolicy.HostHeader
+						} else {
+							utils.AviLog.Warnf("key: %s, HostHeader is not provided for LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER", key)
+						}
+					} else if httpRulePath.LoadBalancerPolicy.HostHeader != "" {
+						utils.AviLog.Warnf("key: %s, HostHeader is only applicable for LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER", key)
+					}
+				}
 				pool.ServiceMetadata.CRDStatus = cache.CRDMetadata{
 					Type:   "HTTPRule",
 					Value:  rule,

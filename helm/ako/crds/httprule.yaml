@@ -60,7 +60,11 @@ spec:
                           - LB_ALGORITHM_CONSISTENT_HASH_CALLID
                           - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
                           - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT
-                          - LB_ALGORITHM_CONSISTENT_HASH_UR
+                          - LB_ALGORITHM_CONSISTENT_HASH_URI
+                          - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
+                          - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING
+                      hostHeader:
+                        type: string
                   tls:
                     type: object
                     required:

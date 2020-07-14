@@ -46,8 +46,9 @@ type HTTPRulePaths struct {
 
 // HTTPRuleLBPolicy holds a path/pool's load balancer policies
 type HTTPRuleLBPolicy struct {
-	Algorithm string `json:"algorithm,omitempty"`
-	Hash      string `json:"hash,omitempty"`
+	Algorithm  string `json:"algorithm,omitempty"`
+	Hash       string `json:"hash,omitempty"`
+	HostHeader string `json:"hostHeader,omitempty"`
 }
 
 // HTTPRuleTLS holds secure path/pool specific properties
