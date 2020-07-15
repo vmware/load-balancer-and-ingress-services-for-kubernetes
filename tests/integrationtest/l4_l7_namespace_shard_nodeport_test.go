@@ -84,8 +84,7 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
 		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
-		g.Expect(nodes[0].TCPPoolGroupRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 	}
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
 	svcExample := (FakeService{
@@ -202,10 +201,9 @@ func TestMultiPortL4SvcNodePort(t *testing.T) {
 			g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
 			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
 		}
-		g.Expect(nodes[0].TCPPoolGroupRefs).To(gomega.HaveLen(3))
-		g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(3))
 		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
 		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
+		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(3))
 	}
 
 	TearDownTestForSvcLBMultiport(t, g)

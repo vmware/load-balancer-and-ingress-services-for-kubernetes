@@ -83,6 +83,7 @@ type AviVsCache struct {
 	DSKeyCollection      []NamespaceName
 	HTTPKeyCollection    []NamespaceName
 	SSLKeyCertCollection []NamespaceName
+	L4PolicyCollection   []NamespaceName
 	SNIChildCollection   []string
 	ParentVSRef          NamespaceName
 	ServiceMetadataObj   ServiceMetadataObj
@@ -252,6 +253,26 @@ func (v *AviVsCache) RemoveFromSSLKeyCertCollection(k NamespaceName) {
 	v.SSLKeyCertCollection = Remove(v.SSLKeyCertCollection, k)
 }
 
+func (v *AviVsCache) AddToL4PolicyCollection(k NamespaceName) {
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
+	if v.L4PolicyCollection == nil {
+		v.L4PolicyCollection = []NamespaceName{k}
+	}
+	if !utils.HasElem(v.L4PolicyCollection, k) {
+		v.L4PolicyCollection = append(v.L4PolicyCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromL4PolicyCollection(k NamespaceName) {
+	// v.VSCacheLock.Lock()
+	// defer v.VSCacheLock.Unlock()
+	if v.L4PolicyCollection == nil {
+		return
+	}
+	v.L4PolicyCollection = Remove(v.L4PolicyCollection, k)
+}
+
 func (v *AviVsCache) AddToSNIChildCollection(k string) {
 	// v.VSCacheLock.Lock()
 	// defer v.VSCacheLock.Unlock()
@@ -323,6 +344,15 @@ type AviHTTPPolicyCache struct {
 	PoolGroups       []string
 	LastModified     string
 	InvalidData      bool
+}
+
+type AviL4PolicyCache struct {
+	Name             string
+	Tenant           string
+	Uuid             string
+	CloudConfigCksum uint32
+	Pools            []string
+	LastModified     string
 }
 
 type AviVrfCache struct {
@@ -440,6 +470,10 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 		case *AviDSCache:
 			if value.(*AviDSCache).Uuid == uuid {
 				return value.(*AviDSCache).Name, true
+			}
+		case *AviL4PolicyCache:
+			if value.(*AviL4PolicyCache).Uuid == uuid {
+				return value.(*AviL4PolicyCache).Name, true
 			}
 		case *AviHTTPPolicyCache:
 			if value.(*AviHTTPPolicyCache).Uuid == uuid {

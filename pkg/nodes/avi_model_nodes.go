@@ -285,6 +285,7 @@ type AviVsNode struct {
 	SSLKeyCertRefs     []*AviTLSKeyCertNode
 	HttpPolicyRefs     []*AviHttpPolicySetNode
 	VSVIPRefs          []*AviVSVIPNode
+	L4PolicyRefs       []*AviL4PolicyNode
 	VHParentName       string
 	VHDomainNames      []string
 	TLSType            string
@@ -484,7 +485,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum uint32
+	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		dsChecksum += ds.GetCheckSum()
@@ -510,6 +511,9 @@ func (v *AviVsNode) CalculateCheckSum() {
 		vsvipref.CalculateCheckSum()
 	}
 
+	for _, l4policy := range v.L4PolicyRefs {
+		l4policyChecksum += l4policy.GetCheckSum()
+	}
 	policies := v.HttpPolicySetRefs
 	sort.Slice(policies, func(i, j int) bool {
 		return policies[i] < policies[j]
@@ -523,7 +527,8 @@ func (v *AviVsNode) CalculateCheckSum() {
 		utils.Hash(v.NetworkProfile) +
 		utils.Hash(utils.Stringify(portproto)) +
 		sslkeyChecksum +
-		utils.Hash(vsRefs)
+		utils.Hash(vsRefs) +
+		l4policyChecksum
 
 	v.CloudConfigCksum = checksum
 }
@@ -537,6 +542,48 @@ func (v *AviVsNode) CopyNode() AviModelNode {
 	err = json.Unmarshal(bytes, &newNode)
 	if err != nil {
 		utils.AviLog.Warnf("Unable to unmarshal AviVsNode: %s", err)
+	}
+	return &newNode
+}
+
+type AviL4PolicyNode struct {
+	Name             string
+	Tenant           string
+	CloudConfigCksum uint32
+	PortPool         []AviHostPathPortPoolPG
+}
+
+func (v *AviL4PolicyNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviL4PolicyNode) CalculateCheckSum() {
+	// A sum of fields for this VS.
+	var checksum uint32
+	var ports []int64
+	for _, hpp := range v.PortPool {
+		ports = append(ports, int64(hpp.Port))
+	}
+	checksum = lib.L4PolicyChecksum(ports)
+	v.CloudConfigCksum = checksum
+}
+
+func (v *AviL4PolicyNode) GetNodeType() string {
+	// Calculate checksum and return
+	return "AviL4PolicyNode"
+}
+
+func (v *AviL4PolicyNode) CopyNode() AviModelNode {
+	newNode := AviL4PolicyNode{}
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to marshal AviL4PolicyNode: %s", err)
+	}
+	err = json.Unmarshal(bytes, &newNode)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to unmarshal AviL4PolicyNode: %s", err)
 	}
 	return &newNode
 }
@@ -594,6 +641,7 @@ type AviHostPathPortPoolPG struct {
 	Pool          string
 	PoolGroup     string
 	MatchCriteria string
+	Protocol      string
 }
 
 type AviRedirectPort struct {

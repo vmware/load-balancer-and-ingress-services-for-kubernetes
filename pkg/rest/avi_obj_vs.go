@@ -93,37 +93,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		for i, pp := range vs_meta.PortProto {
 			port := pp.Port
 			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL}
-			if pp.Protocol == utils.TCP {
-				utils.AviLog.Debugf("key: %s, msg: processing TCP ports for VS creation :%v", key, pp.Port)
-				port := pp.Port
-				var sproto string
-				sproto = "PROTOCOL_TYPE_TCP_PROXY"
-				pg_name := FindPoolGroupForPort(vs_meta.TCPPoolGroupRefs, port)
-				if pg_name != "" {
-					utils.AviLog.Debugf("key: %s, msg: TCP ports for VS creation returned PG: %s", key, pg_name)
-					pg_ref := "/api/poolgroup/?name=" + pg_name
-					sps := avimodels.ServicePoolSelector{ServicePoolGroupRef: &pg_ref,
-						ServicePort: &port, ServiceProtocol: &sproto}
-					vs.ServicePoolSelect = append(vs.ServicePoolSelect, &sps)
-				} else {
-					utils.AviLog.Infof("key: %s, msg: TCP ports for VS creation returned no matching PGs", key)
-				}
-
-			} else if pp.Protocol == utils.UDP && vs_meta.NetworkProfile == utils.SYSTEM_UDP_FAST_PATH {
-				port := pp.Port
-				var sproto string
-				sproto = "PROTOCOL_TYPE_UDP_FAST_PATH"
-				pg_name := FindPoolGroupForPort(vs_meta.TCPPoolGroupRefs, port)
-				if pg_name != "" {
-					utils.AviLog.Debugf("key: %s, msg: UDP ports for VS creation returned PG: %s", key, pg_name)
-					pg_ref := "/api/poolgroup/?name=" + pg_name
-					sps := avimodels.ServicePoolSelector{ServicePoolGroupRef: &pg_ref,
-						ServicePort: &port, ServiceProtocol: &sproto}
-					vs.ServicePoolSelect = append(vs.ServicePoolSelect, &sps)
-				} else {
-					utils.AviLog.Infof("key: %s, msg: UDP ports for VS creation returned no matching PGs", key)
-				}
-			}
 			vs.Services = append(vs.Services, &svc)
 		}
 
@@ -156,6 +125,21 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 				httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 			}
 			vs.HTTPPolicies = httpPolicyCollection
+		}
+
+		if len(vs_meta.L4PolicyRefs) > 0 {
+			var i int32
+			i = 0
+			var l4Policies []*avimodels.L4Policies
+			for _, l4pol := range vs_meta.L4PolicyRefs {
+				// Update them on the VS object
+				var j int32
+				i = i + 1
+				l4PolicyRef := fmt.Sprintf("/api/l4policyset/?name=%s", l4pol.Name)
+				l4Policy := &avimodels.L4Policies{L4PolicySetRef: &l4PolicyRef, Index: &j}
+				l4Policies = append(l4Policies, l4Policy)
+			}
+			vs.L4Policies = l4Policies
 		}
 
 		var rest_ops []*utils.RestOp
