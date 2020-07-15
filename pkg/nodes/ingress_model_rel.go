@@ -233,7 +233,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 	var oldFqdn, fqdn string
 	oldPathRules := make(map[string]string)
 	pathRules := make(map[string]string)
-	var ok, found bool
+	var ok bool
 
 	if k8serror.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HTTPRule Deleted\n", key)
@@ -259,20 +259,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		}
 
 		hostrule = httprule.Spec.HostRule
-		found, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(hostrule)
-		if !found {
-			err = fmt.Errorf("hostrules.ako.k8s.io %s not found or is invalid", hostrule)
-			status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  err.Error(),
-			})
-			utils.AviLog.Errorf("key: %s, msg: %v", key, err)
-			// do not return, let the httprule cache sync in for the benefit of
-			// new hostrule coming after httprule
-		} else {
-			status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted})
-		}
-
+		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(hostrule)
 		objects.SharedCRDLister().RemoveHostHTTPRulesMappings(namespace + "/" + rrname)
 		for _, path := range httprule.Spec.Paths {
 			objects.SharedCRDLister().UpdateHostHTTPRulesMappings(hostrule, path.Target, namespace+"/"+rrname)

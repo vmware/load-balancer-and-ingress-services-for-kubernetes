@@ -315,6 +315,19 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 		return nil
 	}
 
+	found, _ := objects.SharedCRDLister().GetHostruleToFQDNMapping(hostrule)
+	if !found {
+		err = fmt.Errorf("hostrules.ako.k8s.io %s not found or is invalid", hostrule)
+		status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		utils.AviLog.Errorf("key: %s, msg: %v", key, err)
+		// do not return err, let the httprule cache sync in for the benefit of
+		// new hostrule coming after httprule
+		return nil
+	}
+
 	status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
 		Status: lib.StatusAccepted,
 		Error:  "",
