@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: 10.79.111.50:5443/avi-buildops/ako
+  repository: 10.79.172.11:5000/avi-buildops/ako
   pullPolicy: IfNotPresent
 
 configs:
