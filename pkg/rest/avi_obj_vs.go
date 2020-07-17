@@ -222,7 +222,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	vhParentUuid := "/api/virtualservice/?name=" + vs_meta.VHParentName
 	sniChild.VhParentVsUUID = &vhParentUuid
 	sniChild.VhDomainName = vs_meta.VHDomainNames
-	ignPool := true
+	ignPool := false
 	sniChild.IgnPoolNetReach = &ignPool
 
 	if vs_meta.DefaultPool != "" {
