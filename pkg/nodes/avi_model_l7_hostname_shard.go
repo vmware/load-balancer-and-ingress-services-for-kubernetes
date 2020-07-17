@@ -144,8 +144,9 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 		pgNode := o.GetPoolGroupByName(pgName)
 		pgNode.Members = nil
 		for _, poolNode := range vsNode[0].PoolRefs {
+			ratio := poolNode.ServiceMetadata.PoolRatio
 			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
+			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel, Ratio: &ratio})
 		}
 	} else {
 		// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace-secretname

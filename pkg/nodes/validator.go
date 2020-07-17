@@ -182,7 +182,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 		hostPathMapSvc.Path = routeSpec.Path
 		hostPathMapSvc.ServiceName = backend.Name
 		hostPathMapSvc.weight = defaultWeight
-		if routeSpec.To.Weight != backend.Weight {
+		if backend.Weight != nil {
 			hostPathMapSvc.weight = *backend.Weight
 		}
 		hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
