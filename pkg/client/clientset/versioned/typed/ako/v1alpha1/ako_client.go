@@ -31,7 +31,7 @@ type AkoV1alpha1Interface interface {
 	HostRulesGetter
 }
 
-// AkoV1alpha1Client is used to interact with features provided by the ako.k8s.io group.
+// AkoV1alpha1Client is used to interact with features provided by the ako.vmware.com group.
 type AkoV1alpha1Client struct {
 	restClient rest.Interface
 }

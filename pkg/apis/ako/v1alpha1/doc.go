@@ -14,6 +14,6 @@
 
 // +k8s:deepcopy-gen=package
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=ako.k8s.io
+// +groupName=ako.vmware.com
 
 package v1alpha1

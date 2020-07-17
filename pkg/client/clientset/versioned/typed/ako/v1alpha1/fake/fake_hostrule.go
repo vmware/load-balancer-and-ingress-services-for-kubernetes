@@ -35,9 +35,9 @@ type FakeHostRules struct {
 	ns   string
 }
 
-var hostrulesResource = schema.GroupVersionResource{Group: "ako.k8s.io", Version: "v1alpha1", Resource: "hostrules"}
+var hostrulesResource = schema.GroupVersionResource{Group: "ako.vmware.com", Version: "v1alpha1", Resource: "hostrules"}
 
-var hostrulesKind = schema.GroupVersionKind{Group: "ako.k8s.io", Version: "v1alpha1", Kind: "HostRule"}
+var hostrulesKind = schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1alpha1", Kind: "HostRule"}
 
 // Get takes name of the hostRule, and returns the corresponding hostRule object, and an error if there is any.
 func (c *FakeHostRules) Get(name string, options v1.GetOptions) (result *v1alpha1.HostRule, err error) {

@@ -22,7 +22,7 @@ import (
 
 // SchemeGroupVersion schema name and the version
 var SchemeGroupVersion = schema.GroupVersion{
-	Group:   "ako.k8s.io",
+	Group:   "ako.vmware.com",
 	Version: "v1alpha1",
 }
 

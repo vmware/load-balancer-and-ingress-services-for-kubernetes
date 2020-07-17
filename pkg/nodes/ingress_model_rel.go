@@ -180,7 +180,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 				if hrDelete {
 					status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
 						Status: lib.StatusRejected,
-						Error:  fmt.Sprintf("hostrules.ako.k8s.io %s not found or is invalid", hrname),
+						Error:  fmt.Sprintf("hostrules.ako.vmware.com %s not found or is invalid", hrname),
 					})
 				} else if !hrDelete && httprule.Status.Status == lib.StatusRejected {
 					status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted})

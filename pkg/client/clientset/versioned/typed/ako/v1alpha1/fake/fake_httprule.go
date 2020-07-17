@@ -35,9 +35,9 @@ type FakeHTTPRules struct {
 	ns   string
 }
 
-var httprulesResource = schema.GroupVersionResource{Group: "ako.k8s.io", Version: "v1alpha1", Resource: "httprules"}
+var httprulesResource = schema.GroupVersionResource{Group: "ako.vmware.com", Version: "v1alpha1", Resource: "httprules"}
 
-var httprulesKind = schema.GroupVersionKind{Group: "ako.k8s.io", Version: "v1alpha1", Kind: "HTTPRule"}
+var httprulesKind = schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1alpha1", Kind: "HTTPRule"}
 
 // Get takes name of the hTTPRule, and returns the corresponding hTTPRule object, and an error if there is any.
 func (c *FakeHTTPRules) Get(name string, options v1.GetOptions) (result *v1alpha1.HTTPRule, err error) {

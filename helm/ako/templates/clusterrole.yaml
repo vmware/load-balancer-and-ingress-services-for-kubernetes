@@ -15,6 +15,6 @@ rules:
   - apiGroups: ["crd.projectcalico.org"]
     resources: ["blockaffinities"]
     verbs: ["get", "watch", "list"]
-  - apiGroups: ["ako.k8s.io"]
+  - apiGroups: ["ako.vmware.com"]
     resources: ["hostrules", "hostrules/status", "httprules", "httprules/status"]
     verbs: ["get","watch","list","patch", "update"]

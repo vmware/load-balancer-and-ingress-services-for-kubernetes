@@ -306,7 +306,7 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	hostruleNSName := strings.Split(hostrule, "/")
 	hrObj, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hostruleNSName[0]).Get(hostruleNSName[1], metav1.GetOptions{})
 	if err != nil || hrObj.Status.Status == lib.StatusRejected {
-		err = fmt.Errorf("hostrules.ako.k8s.io %s not found or is invalid", hostrule)
+		err = fmt.Errorf("hostrules.ako.vmware.com %s not found or is invalid", hostrule)
 		status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -317,7 +317,7 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 
 	found, _ := objects.SharedCRDLister().GetHostruleToFQDNMapping(hostrule)
 	if !found {
-		err = fmt.Errorf("hostrules.ako.k8s.io %s not found or is invalid", hostrule)
+		err = fmt.Errorf("hostrules.ako.vmware.com %s not found or is invalid", hostrule)
 		status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
