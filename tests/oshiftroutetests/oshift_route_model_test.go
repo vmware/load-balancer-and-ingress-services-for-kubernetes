@@ -88,12 +88,15 @@ func (rt FakeRoute) Route() *routev1.Route {
 	return routeExample
 }
 
-func (rt FakeRoute) ABRoute() *routev1.Route {
+func (rt FakeRoute) ABRoute(ratio ...int) *routev1.Route {
 	routeExample := rt.Route()
 	if rt.Backend2 == "" {
 		rt.Backend2 = "absvc2"
 	}
 	weight2 := int32(200)
+	if len(ratio) > 0 {
+		weight2 = int32(ratio[0])
+	}
 	backend2 := routev1.RouteTargetReference{
 		Kind:   "Service",
 		Name:   rt.Backend2,
@@ -603,6 +606,104 @@ func TestRemoveAlternateBackend(t *testing.T) {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-foo-avisvc" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+		} else {
+			t.Fatalf("unexpected pgmember: %s", *pgmember.PoolRef)
+		}
+	}
+
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+
+	integrationtest.DelSVC(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
+}
+
+func TestAlternateBackendUpdatePath(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample = FakeRoute{Path: "/bar"}.ABRoute()
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateModelCommon(t, g)
+
+	pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
+	g.Expect(pools).To(gomega.HaveLen(2))
+	for _, pool := range pools {
+		if pool.Name == "cluster--foo.com_bar-default-foo-avisvc" || pool.Name == "cluster--foo.com_bar-default-foo-absvc2" {
+			g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+		} else {
+			t.Fatalf("unexpected pool: %s", pool.Name)
+		}
+	}
+
+	poolgroups := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolGroupRefs
+	for _, pgmember := range poolgroups[0].Members {
+		if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_bar-default-foo-avisvc" {
+			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+		} else if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_bar-default-foo-absvc2" {
+			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+		} else {
+			t.Fatalf("unexpected pgmember: %s", *pgmember.PoolRef)
+		}
+	}
+
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+
+	integrationtest.DelSVC(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
+}
+
+func TestAlternateBackendUpdateWeight(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample = FakeRoute{Path: "/foo"}.ABRoute(300)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateModelCommon(t, g)
+
+	pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
+	g.Expect(pools).To(gomega.HaveLen(2))
+	for _, pool := range pools {
+		if pool.Name == "cluster--foo.com_foo-default-foo-avisvc" || pool.Name == "cluster--foo.com_foo-default-foo-absvc2" {
+			g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+		} else {
+			t.Fatalf("unexpected pool: %s", pool.Name)
+		}
+	}
+
+	poolgroups := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolGroupRefs
+	for _, pgmember := range poolgroups[0].Members {
+		if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-foo-avisvc" {
+			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+		} else if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-foo-absvc2" {
+			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(300)))
 		} else {
 			t.Fatalf("unexpected pgmember: %s", *pgmember.PoolRef)
 		}

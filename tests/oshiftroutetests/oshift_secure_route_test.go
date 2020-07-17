@@ -38,6 +38,22 @@ func (rt FakeRoute) SecureRoute() *routev1.Route {
 	return routeExample
 }
 
+func (rt FakeRoute) SecureABRoute(ratio ...int) *routev1.Route {
+	var routeExample *routev1.Route
+	if len(ratio) > 0 {
+		routeExample = rt.ABRoute(ratio[0])
+	} else {
+		routeExample = rt.ABRoute()
+	}
+	routeExample.Spec.TLS = &routev1.TLSConfig{
+		Certificate:   "cert",
+		CACertificate: "cacert",
+		Key:           "key",
+		Termination:   routev1.TLSTerminationEdge,
+	}
+	return routeExample
+}
+
 func VerifySecureRouteDeletion(t *testing.T, g *gomega.WithT, modelName string, poolCount, snicount int) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	VerifyRouteDeletion(t, g, aviModel, poolCount)
@@ -275,4 +291,212 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	TearDownTestForRoute(t, DefaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
 	integrationtest.DelEP(t, "test", "avisvc")
+}
+
+func TestSecureRouteAlternateBackend(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(DefaultHostname))
+
+	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(2))
+
+	for _, pool := range sniVS.PoolRefs {
+		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" && pool.Name != "cluster--default-foo.com_foo-foo-absvc2" {
+			t.Fatalf("Unexpected poolName found: %s", pool.Name)
+		}
+		g.Expect(pool.Servers).To(gomega.HaveLen(1))
+	}
+	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
+		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+		} else {
+			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
+		}
+	}
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+	integrationtest.DelSVC(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
+}
+
+func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample = FakeRoute{Path: "/foo"}.SecureABRoute(150)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(DefaultHostname))
+
+	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(2))
+
+	for _, pool := range sniVS.PoolRefs {
+		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" && pool.Name != "cluster--default-foo.com_foo-foo-absvc2" {
+			t.Fatalf("Unexpected poolName found: %s", pool.Name)
+		}
+		g.Expect(pool.Servers).To(gomega.HaveLen(1))
+	}
+	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
+		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(150)))
+		} else {
+			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
+		}
+	}
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+	integrationtest.DelSVC(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
+}
+
+func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample = FakeRoute{Path: "/bar"}.SecureABRoute()
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(DefaultHostname))
+
+	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(2))
+
+	for _, pool := range sniVS.PoolRefs {
+		if pool.Name != "cluster--default-foo.com_bar-foo-avisvc" && pool.Name != "cluster--default-foo.com_bar-foo-absvc2" {
+			t.Fatalf("Unexpected poolName found: %s", pool.Name)
+		}
+		g.Expect(pool.Servers).To(gomega.HaveLen(1))
+	}
+	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
+		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_bar-foo-avisvc" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_bar-foo-absvc2" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+		} else {
+			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
+		}
+	}
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+	integrationtest.DelSVC(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
+}
+
+func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample = FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(DefaultHostname))
+
+	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(1))
+
+	for _, pool := range sniVS.PoolRefs {
+		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" {
+			t.Fatalf("Unexpected poolName found: %s", pool.Name)
+		}
+		g.Expect(pool.Servers).To(gomega.HaveLen(1))
+	}
+	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
+		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+		} else {
+			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
+		}
+	}
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+	integrationtest.DelSVC(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
 }
