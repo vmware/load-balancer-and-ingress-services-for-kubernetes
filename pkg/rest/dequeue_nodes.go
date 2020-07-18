@@ -25,6 +25,8 @@ import (
 	"ako/pkg/nodes"
 	"ako/pkg/objects"
 
+	"github.com/Masterminds/semver"
+
 	"github.com/avinetworks/container-lib/api/models"
 	"github.com/avinetworks/container-lib/utils"
 	"github.com/avinetworks/sdk/go/clients"
@@ -266,6 +268,14 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_op, ok := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
 		if ok {
 			rest_ops = append(rest_ops, rest_op)
+		}
+		// Delete the vsvip explicitly if controller version is >= 20.1.1
+		c, err := semver.NewConstraint(">= " + lib.VSVIPDELCTRLVER)
+		if err == nil {
+			currVersion, verErr := semver.NewVersion(utils.CtrlVersion)
+			if verErr == nil && c.Check(currVersion) {
+				rest_ops = rest.VSVipDelete(vs_cache_obj.VSVipKeyCollection, namespace, rest_ops, key)
+			}
 		}
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)

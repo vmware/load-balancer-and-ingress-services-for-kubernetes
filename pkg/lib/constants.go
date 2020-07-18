@@ -50,4 +50,5 @@ const (
 	DefaultPoolSSLProfile                      = "System-Standard"
 	LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER = "LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
 	LB_ALGORITHM_CONSISTENT_HASH               = "LB_ALGORITHM_CONSISTENT_HASH"
+	VSVIPDELCTRLVER                            = "20.1.1"
 )
