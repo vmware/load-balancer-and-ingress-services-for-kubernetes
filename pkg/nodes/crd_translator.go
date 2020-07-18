@@ -181,7 +181,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 		}
 
 		for _, pool := range vsNode.PoolRefs {
-			isPathSniEnabled := true
+			isPathSniEnabled := false
 			var pathSslProfile string
 
 			// pathprefix match
@@ -197,11 +197,14 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 			if (secureRgx.MatchString(pool.Name) && isSNI) || (insecureRgx.MatchString(pool.Name) && !isSNI) {
 				utils.AviLog.Debugf("key: %s, msg: computing poolNode %s for httprule.paths.target %s", key, pool.Name, path)
 				// pool tls
-				sslProfileRef := httpRulePath.TLS.SSLProfile
-				if sslProfileRef != "" {
-					pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", sslProfileRef)
-				} else {
-					pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
+				if httpRulePath.TLS.Type != "" {
+					isPathSniEnabled = true
+					sslProfileRef := httpRulePath.TLS.SSLProfile
+					if sslProfileRef != "" {
+						pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", sslProfileRef)
+					} else {
+						pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
+					}
 				}
 
 				pool.SniEnabled = isPathSniEnabled
