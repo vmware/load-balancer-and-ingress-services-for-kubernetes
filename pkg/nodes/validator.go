@@ -89,7 +89,7 @@ func sslKeyCertHostRulePresent(key, host string) (bool, string) {
 
 	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
 		utils.AviLog.Infof("key: %s, msg: secret %s found for host %s in hostrule.ako.vmware.com %s",
-			key, host, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name, hostRuleObj.Name)
+			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name, host, hostRuleObj.Name)
 		return true, lib.DummySecret + "/" + hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name
 	}
 

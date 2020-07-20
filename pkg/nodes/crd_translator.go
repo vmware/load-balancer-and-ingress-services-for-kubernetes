@@ -28,7 +28,6 @@ import (
 
 	"github.com/avinetworks/container-lib/utils"
 	"github.com/avinetworks/sdk/go/models"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
@@ -114,20 +113,11 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 // when we get an ingress update and we are building the corresponding pools of that ingress
 // we need to get all httprules which match ingress's host/path
 func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVsNode, isSNI bool) {
-	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
 	deleteCase := false
+	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
 	if !found {
-		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
+		utils.AviLog.Debugf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
 		deleteCase = true
-	}
-
-	var pathRules map[string]string
-	if !deleteCase {
-		found, pathRules = objects.SharedCRDLister().GetHostHTTPRulesMapping(hrNamespaceName)
-		if !found {
-			utils.AviLog.Debugf("key: %s, msg: HTTPRules for hostrule %s not found", key, hrNamespaceName)
-			deleteCase = true
-		}
 	}
 
 	if deleteCase {
@@ -168,8 +158,8 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 		}
 	}
 
-	// iterate through httpRule which we get from GetHostHTTPRulesMapping
-	// must contain hr1: {path1: rr1, path2: rr1, path3: rr2}
+	// iterate through httpRule which we get from GetFqdnHTTPRulesMapping
+	// must contain fqdn.com: {path1: rr1, path2: rr1, path3: rr2}
 	for path, rule := range pathRules {
 		rrNamespace := strings.Split(rule, "/")[0]
 		httpRulePath, ok := httpruleNameObjMap[rule+path]
@@ -285,7 +275,6 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 // validateHTTPRuleObj would do validation checks
 // update internal CRD caches, and push relevant ingresses to ingestion
 func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
-	var err error
 	refData := make(map[string]string)
 	for _, path := range httprule.Spec.Paths {
 		refData[path.TLS.SSLProfile] = "SslProfile"
@@ -303,32 +292,6 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 			})
 			return errStatus
 		}
-	}
-
-	hostrule := httprule.Spec.HostRule
-	hostruleNSName := strings.Split(hostrule, "/")
-	hrObj, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hostruleNSName[0]).Get(hostruleNSName[1], metav1.GetOptions{})
-	if err != nil || hrObj.Status.Status == lib.StatusRejected {
-		err = fmt.Errorf("hostrules.ako.vmware.com %s not found or is invalid", hostrule)
-		status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
-		utils.AviLog.Errorf("key: %s, msg: %v", key, err)
-		return nil
-	}
-
-	found, _ := objects.SharedCRDLister().GetHostruleToFQDNMapping(hostrule)
-	if !found {
-		err = fmt.Errorf("hostrules.ako.vmware.com %s not found or is invalid", hostrule)
-		status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
-		utils.AviLog.Errorf("key: %s, msg: %v", key, err)
-		// do not return err, let the httprule cache sync in for the benefit of
-		// new hostrule coming after httprule
-		return nil
 	}
 
 	status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{

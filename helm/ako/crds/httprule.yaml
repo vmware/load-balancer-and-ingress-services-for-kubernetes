@@ -19,8 +19,7 @@ spec:
         properties:
           spec:
             properties:
-              hostrule:
-                pattern: ^[^\/]+\/[^\/]+$
+              fqdn:
                 type: string
               paths:
                 items:
@@ -68,7 +67,7 @@ spec:
                   type: object
                 type: array
             required:
-            - hostrule
+            - fqdn
             type: object
           status:
             properties:
@@ -79,9 +78,9 @@ spec:
             type: object
         type: object
     additionalPrinterColumns:
-    - description: hostrule associated with the httprule
-      jsonPath: .spec.hostrule
-      name: HostRule
+    - description: fqdn associated with the httprule
+      jsonPath: .spec.fqdn
+      name: HOST
       type: string
     - description: status of the httprule object
       jsonPath: .status.status

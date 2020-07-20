@@ -33,8 +33,8 @@ type HTTPRule struct {
 
 // HTTPRuleSpec consists of the main HTTPRule settings
 type HTTPRuleSpec struct {
-	HostRule string          `json:"hostrule,omitempty"`
-	Paths    []HTTPRulePaths `json:"paths,omitempty"`
+	Fqdn  string          `json:"fqdn,omitempty"`
+	Paths []HTTPRulePaths `json:"paths,omitempty"`
 }
 
 // HTTPRulePaths has settings for a specific target path

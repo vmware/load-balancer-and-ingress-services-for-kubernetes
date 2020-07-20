@@ -17,7 +17,6 @@ package nodes
 import (
 	"ako/pkg/lib"
 	"ako/pkg/objects"
-	"ako/pkg/status"
 	"fmt"
 	"regexp"
 	"strings"
@@ -145,7 +144,6 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 	var err error
 	var oldFqdn, fqdn string
 	var oldFound bool
-	hrDelete := false
 
 	allIngresses := make([]string, 0)
 	hostrule, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrname)
@@ -154,7 +152,6 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted\n", key)
 		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
 		objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
-		hrDelete = true
 	} else if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v\n", key, err)
 		return nil, false
@@ -169,24 +166,6 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
 		}
 		objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrname)
-	}
-
-	found, pathRules := objects.SharedCRDLister().GetHostHTTPRulesMapping(namespace + "/" + hrname)
-	if found {
-		for _, ruleNSName := range pathRules {
-			rulensn := strings.Split(ruleNSName, "/")
-			httprule, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(rulensn[0]).Get(rulensn[1])
-			if err == nil {
-				if hrDelete {
-					status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
-						Status: lib.StatusRejected,
-						Error:  fmt.Sprintf("hostrules.ako.vmware.com %s not found or is invalid", hrname),
-					})
-				} else if !hrDelete && httprule.Status.Status == lib.StatusRejected {
-					status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted})
-				}
-			}
-		}
 	}
 
 	// find ingresses with host==fqdn, across all namespaces
@@ -237,9 +216,12 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 
 	if k8serror.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HTTPRule Deleted\n", key)
-		_, hostrule = objects.SharedCRDLister().GetHTTPHostRuleMapping(namespace + "/" + rrname)
-		_, oldPathRules = objects.SharedCRDLister().GetHostHTTPRulesMapping(hostrule)
-		objects.SharedCRDLister().RemoveHostHTTPRulesMappings(namespace + "/" + rrname)
+		_, oldFqdn = objects.SharedCRDLister().GetHTTPRuleFqdnMapping(namespace + "/" + rrname)
+		_, x := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(oldFqdn)
+		for i, elem := range x {
+			oldPathRules[i] = elem
+		}
+		objects.SharedCRDLister().RemoveFqdnHTTPRulesMappings(namespace + "/" + rrname)
 	} else if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error getting httprule: %v\n", key, err)
 		return nil, false
@@ -249,23 +231,19 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 			return allIngresses, false
 		}
 
-		oldHRFound, oldHostrule := objects.SharedCRDLister().GetHTTPHostRuleMapping(namespace + "/" + rrname)
-		if oldHRFound {
-			_, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(oldHostrule)
-			_, x := objects.SharedCRDLister().GetHostHTTPRulesMapping(oldHostrule)
-			for i, elem := range x {
-				oldPathRules[i] = elem
-			}
+		_, oldFqdn = objects.SharedCRDLister().GetHTTPRuleFqdnMapping(namespace + "/" + rrname)
+		_, x := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(oldFqdn)
+		for i, elem := range x {
+			oldPathRules[i] = elem
 		}
 
-		hostrule = httprule.Spec.HostRule
-		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(hostrule)
-		objects.SharedCRDLister().RemoveHostHTTPRulesMappings(namespace + "/" + rrname)
+		fqdn = httprule.Spec.Fqdn
+		objects.SharedCRDLister().RemoveFqdnHTTPRulesMappings(namespace + "/" + rrname)
 		for _, path := range httprule.Spec.Paths {
-			objects.SharedCRDLister().UpdateHostHTTPRulesMappings(hostrule, path.Target, namespace+"/"+rrname)
+			objects.SharedCRDLister().UpdateFqdnHTTPRulesMappings(fqdn, path.Target, namespace+"/"+rrname)
 		}
 
-		ok, pathRules = objects.SharedCRDLister().GetHostHTTPRulesMapping(hostrule)
+		ok, pathRules = objects.SharedCRDLister().GetFqdnHTTPRulesMapping(fqdn)
 		if !ok {
 			utils.AviLog.Debugf("key: %s, msg: Couldn't find httprules for hostrule %s in cache", key, hostrule)
 		}
