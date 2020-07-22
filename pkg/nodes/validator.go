@@ -134,6 +134,8 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 			}
 		}
 		tls.Hosts = tlsHostSvcMap
+		// Always add http -> https redirect rule for secure ingress
+		tls.redirect = true
 		tlsConfigs = append(tlsConfigs, tls)
 		// If svc for an ingress gets processed before the ingress itself,
 		// then secret mapping may not be updated, update it here.
@@ -200,6 +202,9 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 			tls.key = routeSpec.TLS.Key
 			tls.cacert = routeSpec.TLS.CACertificate
 			tls.SecretName = secretName
+			if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
+				tls.redirect = true
+			}
 			tlsConfigs = append(tlsConfigs, tls)
 		}
 		ingressConfig.TlsCollection = tlsConfigs
@@ -209,7 +214,8 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 			objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(routeName, secretName)
 		}
 
-	} else {
+	}
+	if routeSpec.TLS == nil || routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow {
 		ingressConfig.IngressHostMap = hostMap
 	}
 

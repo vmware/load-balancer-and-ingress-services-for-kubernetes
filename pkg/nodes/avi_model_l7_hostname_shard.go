@@ -348,7 +348,10 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			if !foundSniModel {
 				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 			}
-			aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, namespace, ingName, key)
+			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
+			if tlssetting.redirect == true {
+				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, namespace, ingName, key)
+			}
 
 		} else {
 			hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)

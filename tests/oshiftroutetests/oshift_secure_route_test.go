@@ -85,6 +85,7 @@ func ValidateSniModel(t *testing.T, g *gomega.GomegaWithT, modelName string) int
 	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 
 	g.Expect(nodes[0].SharedVS).To(gomega.Equal(true))
+	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(0))
 	dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 	g.Expect(len(dsNodes)).To(gomega.Equal(1))
 

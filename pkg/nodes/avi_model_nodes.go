@@ -887,6 +887,7 @@ type TlsSettings struct {
 	key        string
 	cert       string
 	cacert     string
+	redirect   bool
 }
 
 type IngressConfig struct {
