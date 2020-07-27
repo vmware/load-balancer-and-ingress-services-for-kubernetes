@@ -335,3 +335,11 @@ func GetCloudType() string {
 	}
 	return CloudType
 }
+
+func IsPublicCloud() bool {
+
+	if GetCloudType() == CLOUD_AZURE || GetCloudType() == CLOUD_AWS {
+		return true
+	}
+	return false
+}

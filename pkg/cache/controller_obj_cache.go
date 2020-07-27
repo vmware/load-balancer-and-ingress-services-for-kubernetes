@@ -1927,8 +1927,8 @@ func CheckAndSetCloudType(client *clients.AviClient) bool {
 }
 
 func CheckPublicCloud(client *clients.AviClient) bool {
-	if lib.GetCloudType() == lib.CLOUD_AZURE {
-		// Handle all azure cloud validations here
+	if lib.IsPublicCloud() {
+		// Handle all public cloud validations here
 		networkName := lib.GetNetworkName()
 		if networkName == "" {
 			utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")

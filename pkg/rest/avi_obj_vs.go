@@ -574,7 +574,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		var vips []*avimodels.Vip
 		var vip avimodels.Vip
 		networkRef := lib.GetNetworkName()
-		if lib.GetCloudType() == lib.CLOUD_AZURE && lib.GetNetworkName() != "" {
+		if lib.IsPublicCloud() && lib.GetNetworkName() != "" {
 			vip = avimodels.Vip{
 				AutoAllocateIP: &auto_alloc,
 				SubnetUUID:     &networkRef,

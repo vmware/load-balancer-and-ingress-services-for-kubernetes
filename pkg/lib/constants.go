@@ -32,6 +32,7 @@ const (
 	CLUSTER_NAME                               = "CLUSTER_NAME"
 	CLOUD_VCENTER                              = "CLOUD_VCENTER"
 	CLOUD_AZURE                                = "CLOUD_AZURE"
+	CLOUD_AWS                                  = "CLOUD_AWS"
 	DEFAULT_SHARD_SCHEME                       = "hostname"
 	HOSTNAME_SHARD_SCHEME                      = "hostname"
 	NAMESPACE_SHARD_SCHEME                     = "namespace"
