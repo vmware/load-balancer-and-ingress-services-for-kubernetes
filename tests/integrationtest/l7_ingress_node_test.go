@@ -1190,7 +1190,11 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() string {
-			return nodes[0].PoolRefs[0].Name
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 1 {
+				return nodes[0].PoolRefs[0].Name
+			}
+			return ""
 		}, 5*time.Second).Should(gomega.Equal("cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
 

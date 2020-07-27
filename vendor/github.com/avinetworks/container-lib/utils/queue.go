@@ -187,4 +187,3 @@ func (c *WorkerQueue) processBatchedItems(worker_id uint32, wg *sync.WaitGroup) 
 	}
 	return true
 }
-

@@ -439,16 +439,16 @@ func updateHostPathCacheV2(ns, ingress string, oldHostMap, newHostMap map[string
 
 	// remove from oldHostMap
 	for host, oldMap := range oldHostMap {
-		for _, path := range oldMap.Paths {
-			SharedHostNameLister().RemoveHostPathStore(host+path, mmapval)
+		for path, _ := range oldMap.PathSvc {
+			SharedHostNameLister().RemoveHostPathStore(host, path, mmapval)
 		}
 	}
 
 	// add from newHostMap
 	if newHostMap != nil {
 		for host, newMap := range newHostMap {
-			for _, path := range newMap.Paths {
-				SharedHostNameLister().SaveHostPathStore(host+path, mmapval)
+			for path, _ := range newMap.PathSvc {
+				SharedHostNameLister().SaveHostPathStore(host, path, mmapval)
 			}
 		}
 	}

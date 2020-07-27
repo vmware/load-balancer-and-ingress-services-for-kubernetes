@@ -560,21 +560,29 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(sslkey))
 			continue
 		}
-		var cacertUUID string
+
+		// No support for checksum in the SSLKeyCert object, so we have to synthesize it.
+		var cacertUUID, cacert string
 		hasCA := false
 		// find amnd store UUID of the CA cert which would be used later to calculate checksum
 		if len(sslkey.CaCerts) != 0 {
 			if sslkey.CaCerts[0].CaRef != nil {
 				hasCA = true
 				cacertUUID = ExtractUuidWithoutHash(*sslkey.CaCerts[0].CaRef, "sslkeyandcertificate-.*.")
+				cacertIntf, found := c.SSLKeyCache.AviCacheGetNameByUuid(cacertUUID)
+				if found {
+					cacert = cacertIntf.(string)
+				}
 			}
 		}
+		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
 		sslCacheObj := AviSSLCache{
-			Name:       *sslkey.Name,
-			Uuid:       *sslkey.UUID,
-			Cert:       *sslkey.Certificate.Certificate,
-			HasCARef:   hasCA,
-			CACertUUID: cacertUUID,
+			Name:             *sslkey.Name,
+			Uuid:             *sslkey.UUID,
+			Cert:             *sslkey.Certificate.Certificate,
+			HasCARef:         hasCA,
+			CACertUUID:       cacertUUID,
+			CloudConfigCksum: checksum,
 		}
 		*SslData = append(*SslData, sslCacheObj)
 	}
@@ -1458,7 +1466,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 								httpName, foundhttp = c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 								if !foundhttp {
 									// If still the httpName is not found. Log an error saying, this VS may not behave appropriately.
-									utils.AviLog.Warnf("HTTPPolicySet not found in Avi for VS: %s for httpName :%s", vs["name"].(string), httpName)
+									utils.AviLog.Warnf("HTTPPolicySet not found in Avi for VS: %s for httpUUID: %s", vs["name"].(string), httpUuid)
 								}
 							}
 							if foundhttp {

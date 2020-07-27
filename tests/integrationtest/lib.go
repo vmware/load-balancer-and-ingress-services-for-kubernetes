@@ -31,6 +31,7 @@ import (
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 
 	"ako/pkg/cache"
+	crdfake "ako/pkg/client/clientset/versioned/fake"
 	"ako/pkg/k8s"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
@@ -58,6 +59,7 @@ const (
 )
 
 var KubeClient *k8sfake.Clientset
+var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 
 func AddConfigMap() {
@@ -671,6 +673,8 @@ func InitializeFakeAKOAPIServer() {
 	akoApi.InitFakeApi()
 }
 
+const mockFilePath = "../avimockobjects"
+
 var AviFakeClientInstance *httptest.Server
 var FakeServerMiddleware InjectFault
 var FakeAviObjects = []string{
@@ -698,8 +702,7 @@ func NewAviFakeClientInstance() {
 	if AviFakeClientInstance == nil {
 		AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			url := r.URL.EscapedPath()
-			utils.AviLog.Infof("[fakeAPI]: %s %s\n", r.Method, url)
+			utils.AviLog.Infof("[fakeAPI]: %s %s\n", r.Method, r.URL)
 
 			if FakeServerMiddleware != nil {
 				FakeServerMiddleware(w, r)
@@ -746,7 +749,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 			// handle sni child, fill in vs parent ref
 			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
 				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
-				shardVSNum = strings.Split(parentVSName, "cluster-")[1]
+				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
 
 				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
@@ -765,7 +768,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 
 		finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, string(finalResponse))
+		w.Write(finalResponse)
 
 	} else if r.Method == "PUT" {
 		data, _ := ioutil.ReadAll(r.Body)
@@ -773,11 +776,17 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 		resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
 		finalResponse, _ = json.Marshal(resp)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, string(finalResponse))
+		w.Write(finalResponse)
 
 	} else if r.Method == "DELETE" {
 		w.WriteHeader(http.StatusNoContent)
-		fmt.Fprintln(w, string(finalResponse))
+		w.Write(finalResponse)
+
+	} else if r.Method == "GET" &&
+		(strings.Contains(r.URL.RawQuery, "thisisahostruleref") || strings.Contains(r.URL.RawQuery, "thisisahttpruleref")) {
+		w.WriteHeader(http.StatusOK)
+		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
+		w.Write(data)
 
 	} else if r.Method == "GET" && inArray(FakeAviObjects, object[1]) {
 		FeedMockCollectionData(w, r)
@@ -785,7 +794,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 	} else if strings.Contains(url, "login") {
 		// This is used for /login --> first request to controller
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, `{"success": "true"}`)
+		w.Write([]byte(`{"success": "true"}`))
 	}
 }
 
@@ -801,9 +810,9 @@ func inArray(a []string, b string) bool {
 // FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data
 // for GET objects list API. GET /api/virtualservice returns from virtualservice_mock.json and so on
 func FeedMockCollectionData(w http.ResponseWriter, r *http.Request) {
-	mockFilePath := "../avimockobjects"
 	url := r.URL.EscapedPath() // url = //api/<object>/:objectId
 	splitURL := strings.Split(strings.Trim(url, "/"), "/")
+
 	if r.Method == "GET" {
 		var data []byte
 		if len(splitURL) == 2 {
@@ -813,11 +822,11 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request) {
 			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))
 		}
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, string(data))
+		w.Write(data)
 	} else if strings.Contains(url, "login") {
 		// This is used for /login --> first request to controller
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, `{"success": "true"}`)
+		w.Write([]byte(`{"success": "true"}`))
 	}
 }
 

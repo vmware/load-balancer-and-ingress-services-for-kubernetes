@@ -140,12 +140,12 @@ func GetSniPoolName(ingName, namespace, host, path string, args ...string) strin
 }
 
 func GetSniHttpPolName(ingName, namespace, host, path string) string {
-	path = strings.Replace(path, "/", "_", 1)
+	path = strings.ReplaceAll(path, "/", "_")
 	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
 func GetSniPGName(ingName, namespace, host, path string) string {
-	path = strings.Replace(path, "/", "_", 1)
+	path = strings.ReplaceAll(path, "/", "_")
 	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 

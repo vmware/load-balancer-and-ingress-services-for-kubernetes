@@ -17,6 +17,9 @@ package nodes
 import (
 	"ako/pkg/lib"
 	"ako/pkg/objects"
+	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/avinetworks/container-lib/utils"
 	routev1 "github.com/openshift/api/route/v1"
@@ -54,6 +57,14 @@ var (
 		Type:            utils.OshiftRoute,
 		GetParentRoutes: RouteChanges,
 	}
+	HostRule = GraphSchema{
+		Type:               "HostRule",
+		GetParentIngresses: HostRuleToIng,
+	}
+	HTTPRule = GraphSchema{
+		Type:               "HTTPRule",
+		GetParentIngresses: HTTPRuleToIng,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		Service,
@@ -61,6 +72,8 @@ var (
 		Secret,
 		Route,
 		Node,
+		HostRule,
+		HTTPRule,
 	}
 )
 
@@ -254,6 +267,162 @@ func parseServicesForRoute(routeSpec routev1.RouteSpec, key string) []string {
 
 	utils.AviLog.Debugf("key: %s, msg: total services retrieved  from route:  %v", key, services)
 	return services
+}
+
+func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool) {
+	var err error
+	var oldFqdn, fqdn string
+	var oldFound bool
+
+	allIngresses := make([]string, 0)
+	hostrule, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrname)
+	if errors.IsNotFound(err) {
+		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted\n", key)
+		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
+		objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
+	} else if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v\n", key, err)
+		return nil, false
+	} else {
+		if err = validateHostRuleObj(key, hostrule); err != nil {
+			return allIngresses, false
+		}
+
+		fqdn = hostrule.Spec.VirtualHost.Fqdn
+		oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
+		if oldFound {
+			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
+		}
+		objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrname)
+	}
+
+	// find ingresses with host==fqdn, across all namespaces
+	ok, obj := SharedHostNameLister().GetHostPathStore(fqdn)
+	if !ok {
+		utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, fqdn)
+	} else {
+		for _, ingresses := range obj {
+			for _, ing := range ingresses {
+				if !utils.HasElem(allIngresses, ing) {
+					allIngresses = append(allIngresses, ing)
+				}
+			}
+		}
+	}
+
+	// in case the hostname is updated, we need to find ingresses for the old ones as well to recompute
+	if oldFound {
+		ok, oldobj := SharedHostNameLister().GetHostPathStore(oldFqdn)
+		if !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, oldFqdn)
+		} else {
+			for _, ingresses := range oldobj {
+				for _, ing := range ingresses {
+					if !utils.HasElem(allIngresses, ing) {
+						allIngresses = append(allIngresses, ing)
+					}
+				}
+			}
+		}
+	}
+
+	utils.AviLog.Infof("key: %s, msg: ingresses to compute: %v via hostrule %s",
+		key, allIngresses, namespace+"/"+hrname)
+	return allIngresses, true
+}
+
+func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool) {
+	var err error
+	allIngresses := make([]string, 0)
+	httprule, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(namespace).Get(rrname)
+
+	var hostrule string
+	var oldFqdn, fqdn string
+	oldPathRules := make(map[string]string)
+	pathRules := make(map[string]string)
+	var ok bool
+
+	if errors.IsNotFound(err) {
+		utils.AviLog.Debugf("key: %s, msg: HTTPRule Deleted\n", key)
+		_, oldFqdn = objects.SharedCRDLister().GetHTTPRuleFqdnMapping(namespace + "/" + rrname)
+		_, x := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(oldFqdn)
+		for i, elem := range x {
+			oldPathRules[i] = elem
+		}
+		objects.SharedCRDLister().RemoveFqdnHTTPRulesMappings(namespace + "/" + rrname)
+	} else if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Error getting httprule: %v\n", key, err)
+		return nil, false
+	} else {
+		utils.AviLog.Debugf("key: %s, HTTPRule %v\n", key, httprule)
+		if err = validateHTTPRuleObj(key, httprule); err != nil {
+			return allIngresses, false
+		}
+
+		_, oldFqdn = objects.SharedCRDLister().GetHTTPRuleFqdnMapping(namespace + "/" + rrname)
+		_, x := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(oldFqdn)
+		for i, elem := range x {
+			oldPathRules[i] = elem
+		}
+
+		fqdn = httprule.Spec.Fqdn
+		objects.SharedCRDLister().RemoveFqdnHTTPRulesMappings(namespace + "/" + rrname)
+		for _, path := range httprule.Spec.Paths {
+			objects.SharedCRDLister().UpdateFqdnHTTPRulesMappings(fqdn, path.Target, namespace+"/"+rrname)
+		}
+
+		ok, pathRules = objects.SharedCRDLister().GetFqdnHTTPRulesMapping(fqdn)
+		if !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find httprules for hostrule %s in cache", key, hostrule)
+		}
+	}
+
+	// pathprefix match
+	// lets say path: / and available paths registered in the cache could be keyed to /foo, /bar
+	// in that case pathprefix match must account for both paths
+	ok, pathIngs := SharedHostNameLister().GetHostPathStore(fqdn)
+	if !ok {
+		utils.AviLog.Debugf("key %s, msg: Couldn't find hostpath info for host: %s in cache", key, fqdn)
+	} else {
+		for pathPrefix, _ := range pathRules {
+			re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, strings.ReplaceAll(pathPrefix, `/`, `\/`)))
+			for path, ingresses := range pathIngs {
+				if !re.MatchString(path) {
+					continue
+				}
+				utils.AviLog.Debugf("key: %s, msg: Computing for path %s in ingresses %v", key, path, ingresses)
+				for _, ing := range ingresses {
+					if !utils.HasElem(allIngresses, ing) {
+						allIngresses = append(allIngresses, ing)
+					}
+				}
+			}
+		}
+	}
+
+	ok, oldPathIngs := SharedHostNameLister().GetHostPathStore(oldFqdn)
+	if !ok {
+		utils.AviLog.Debugf("key %s, msg: Couldn't find hostpath info for host: %s in cache", key, oldFqdn)
+	} else {
+		for oldPathPrefix, _ := range oldPathRules {
+			re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, strings.ReplaceAll(oldPathPrefix, `/`, `\/`)))
+			for oldPath, oldIngresses := range oldPathIngs {
+				if !re.MatchString(oldPath) {
+					continue
+				}
+				utils.AviLog.Debugf("key: %s, msg: Computing for oldPath %s in oldIngresses %v", key, oldPath, oldIngresses)
+				for _, oldIng := range oldIngresses {
+					if !utils.HasElem(allIngresses, oldIng) {
+						allIngresses = append(allIngresses, oldIng)
+					}
+				}
+			}
+		}
+	}
+
+	utils.AviLog.Infof("key: %s, msg: ingresses to compute: %v via httprule %s",
+		key, allIngresses, namespace+"/"+rrname)
+	return allIngresses, true
 }
 
 func parseServicesForIngress(ingSpec v1beta1.IngressSpec, key string) []string {

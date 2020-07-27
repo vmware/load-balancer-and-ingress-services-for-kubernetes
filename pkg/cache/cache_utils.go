@@ -40,12 +40,19 @@ type AviPoolCache struct {
 }
 
 type ServiceMetadataObj struct {
-	NamespaceIngressName []string `json:"namespace_ingress_name"`
-	IngressName          string   `json:"ingress_name"`
-	Namespace            string   `json:"namespace"`
-	HostNames            []string `json:"hostnames"`
-	ServiceName          string   `json:"svc_name"`
-	PoolRatio            int32    `json:"pool_ratio"`
+	NamespaceIngressName []string    `json:"namespace_ingress_name"`
+	IngressName          string      `json:"ingress_name"`
+	Namespace            string      `json:"namespace"`
+	HostNames            []string    `json:"hostnames"`
+	ServiceName          string      `json:"svc_name"`
+	CRDStatus            CRDMetadata `json:"crd_status"`
+	PoolRatio            int32       `json:"pool_ratio"`
+}
+
+type CRDMetadata struct {
+	Type   string `json:"type"`
+	Value  string `json:"value"`
+	Status string `json:"status"`
 }
 
 type AviDSCache struct {

@@ -561,7 +561,9 @@ func TestSecureRouteInsecureAllow(t *testing.T) {
 	g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	// sni vs
-	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	g.Eventually(func() int {
+		return len(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
 	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 	g.Eventually(func() string {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]

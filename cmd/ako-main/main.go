@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	crd "ako/pkg/client/clientset/versioned"
 	"ako/pkg/k8s"
 	"ako/pkg/lib"
 
@@ -75,6 +76,12 @@ func InitializeAKC() {
 		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
 	}
 
+	crdClient, err := crd.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
+	}
+	lib.SetCRDClientset(crdClient)
+
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
@@ -96,6 +103,7 @@ func InitializeAKC() {
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient)
+	k8s.NewCRDInformers(crdClient)
 
 	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
 	c := k8s.SharedAviController()
@@ -116,7 +124,7 @@ func InitializeAKC() {
 	<-stopCh
 	close(ctrlCh)
 	timeoutChan := make(chan struct{})
-	// Timeout after 10 seconds.
+	// Timeout after 60 seconds.
 	timeout := 60 * time.Second
 	go func() {
 		defer close(timeoutChan)

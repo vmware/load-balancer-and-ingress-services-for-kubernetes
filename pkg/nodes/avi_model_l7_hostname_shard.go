@@ -16,6 +16,8 @@ package nodes
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
@@ -77,7 +79,20 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
 			}
 
-			poolNode := &AviPoolNode{Name: poolName, IngressName: ingName, PortName: obj.PortName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: storedHosts, PoolRatio: obj.weight}}
+			poolNode := &AviPoolNode{
+				Name:          poolName,
+				IngressName:   ingName,
+				PortName:      obj.PortName,
+				Tenant:        lib.GetTenant(),
+				PriorityLabel: priorityLabel,
+				Port:          obj.Port,
+				ServiceMetadata: avicache.ServiceMetadataObj{
+					IngressName: ingName,
+					Namespace:   namespace,
+					HostNames:   storedHosts,
+					PoolRatio:   obj.weight,
+				},
+			}
 			poolNode.VrfContext = lib.GetVrf()
 			if !lib.IsNodePortMode() {
 				if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
@@ -95,6 +110,10 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 		}
 
 	}
+	for _, obj := range pathsvc {
+		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, key, vsNode[0], false)
+	}
+
 	// Reset the PG Node members and rebuild them
 	pgNode.Members = nil
 	for _, poolNode := range vsNode[0].PoolRefs {
@@ -149,9 +168,6 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel, Ratio: &ratio})
 		}
 	} else {
-		// Generate SNI nodes and mark them for deletion. SNI node names: ingressname--namespace-secretname
-		// Fetch all the secrets for this ingress
-		found, secrets := routeIgrObj.GetSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 		// Remove the ingress from the hostmap
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(hostname)
 		if hostMapOk {
@@ -160,21 +176,12 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 			delete(ingressHostMap.HostNameMap, keyToRemove)
 			SharedHostNameLister().Save(hostname, ingressHostMap)
 		}
-		var isIngr bool
-		if routeIgrObj.GetType() == utils.Ingress {
-			isIngr = true
-		}
-		utils.AviLog.Infof("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
-		if found {
-			for _, secret := range secrets {
-				sniNodeName := lib.GetSniNodeName(ingName, namespace, secret, hostname)
-				// This is a bit tricky. We will get the hostname and the paths to be deleted from the sni node.
-				// So first we get the SNI node from memory and we update the pool/pg/httppol of the sninode.
-				// However if this update leads to 0 pools in the sni node, it means the SNI node can be fully deleted.
-				utils.AviLog.Infof("key: %s, msg: sni node to delete :%s", key, sniNodeName)
-				keepSni = o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, pathSvc, vsNode, key, isIngr)
-			}
-		}
+
+		isIngr := routeIgrObj.GetType() == utils.Ingress
+		// SNI VSes donot have secretname in their names
+		sniNodeName := lib.GetSniNodeName(ingName, namespace, "", hostname)
+		utils.AviLog.Infof("key: %s, msg: sni node to delete: %s", key, sniNodeName)
+		keepSni = o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, pathSvc, vsNode, key, isIngr)
 	}
 	if removeFqdn && !keepSni {
 		var hosts []string
@@ -223,8 +230,8 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 			return false
 		}
 	}
-	return true
 
+	return true
 }
 
 func updateHostPathCache(ns, ingress string, oldHostMap, newHostMap map[string]map[string][]string) {
@@ -234,7 +241,7 @@ func updateHostPathCache(ns, ingress string, oldHostMap, newHostMap map[string]m
 	for _, oldMap := range oldHostMap {
 		for host, paths := range oldMap {
 			for _, path := range paths {
-				SharedHostNameLister().RemoveHostPathStore(host+path, mmapval)
+				SharedHostNameLister().RemoveHostPathStore(host, path, mmapval)
 			}
 		}
 	}
@@ -244,7 +251,7 @@ func updateHostPathCache(ns, ingress string, oldHostMap, newHostMap map[string]m
 		for _, newMap := range newHostMap {
 			for host, paths := range newMap {
 				for _, path := range paths {
-					SharedHostNameLister().SaveHostPathStore(host+path, mmapval)
+					SharedHostNameLister().SaveHostPathStore(host, path, mmapval)
 				}
 			}
 		}
@@ -315,6 +322,15 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if len(vsNode) < 1 {
 			return nil
 		}
+
+		certsBuilt := false
+		sniSecretName := tlssetting.SecretName
+		re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
+		if re.MatchString(sniSecretName) {
+			sniSecretName = strings.Split(sniSecretName, "/")[1]
+			certsBuilt = true
+		}
+
 		sniNode := vsNode[0].GetSniNodeForName(lib.GetSniNodeName(ingName, namespace, tlssetting.SecretName, sniHost))
 		if sniNode == nil {
 			sniNode = &AviVsNode{
@@ -330,19 +346,19 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 		} else {
 			// The SNI node exists, just update the svc metadata
-			sniNode.ServiceMetadata = avicache.ServiceMetadataObj{
-				NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
-				Namespace:            namespace,
-				HostNames:            sniHosts,
+			sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
+			sniNode.ServiceMetadata.Namespace = namespace
+			sniNode.ServiceMetadata.HostNames = sniHosts
+			if sniNode.SSLKeyCertAviRef != "" {
+				certsBuilt = true
 			}
 		}
 		sniNode.VrfContext = lib.GetVrf()
-		certsBuilt := aviModel.(*AviObjectGraph).BuildTlsCertNode(routeIgrObj.GetSvcLister(), sniNode, namespace, tlssetting, key, sniHost)
+		if !certsBuilt {
+			certsBuilt = aviModel.(*AviObjectGraph).BuildTlsCertNode(routeIgrObj.GetSvcLister(), sniNode, namespace, tlssetting, key, sniHost)
+		}
 		if certsBuilt {
-			isIngr := false
-			if routeIgrObj.GetType() == utils.Ingress {
-				isIngr = true
-			}
+			isIngr := routeIgrObj.GetType() == utils.Ingress
 			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, tlssetting.SecretName, key, isIngr, sniHost)
 			foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
 			if !foundSniModel {
@@ -352,7 +368,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			if tlssetting.redirect == true {
 				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, namespace, ingName, key)
 			}
-
+			BuildL7HostRule(sniHost, namespace, ingName, key, sniNode)
 		} else {
 			hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
 			if hostMapOk {

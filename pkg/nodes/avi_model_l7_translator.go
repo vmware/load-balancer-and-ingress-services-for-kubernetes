@@ -488,14 +488,19 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				httpPolicySet = append(httpPolicySet, httpPGPath)
 			}
 
-			var poolNode *AviPoolNode
+			var poolName string
 			// Do not use serviceName in SNI Pool Name for ingress for backward compatibility
 			if isIngr {
-				poolNode = &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path), PortName: path.PortName, Tenant: lib.GetTenant()}
+				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path)
 			} else {
-				poolNode = &AviPoolNode{Name: lib.GetSniPoolName(ingName, namespace, host, path.Path, path.ServiceName), PortName: path.PortName, Tenant: lib.GetTenant()}
+				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path, path.ServiceName)
 			}
-			poolNode.VrfContext = lib.GetVrf()
+			poolNode := &AviPoolNode{
+				Name:       poolName,
+				PortName:   path.PortName,
+				Tenant:     lib.GetTenant(),
+				VrfContext: lib.GetVrf(),
+			}
 
 			if !lib.IsNodePortMode() {
 				if servers := PopulateServers(poolNode, namespace, path.ServiceName, true, key); servers != nil {
@@ -525,6 +530,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 					tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
 				}
 			}
+		}
+		for _, path := range paths {
+			BuildPoolHTTPRule(host, path.Path, ingName, namespace, key, tlsNode, true)
 		}
 	}
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. tlsNodeChecksum for tlsNode :%s is :%v", key, tlsNode.Name, tlsNode.GetCheckSum())

@@ -26,7 +26,9 @@ import (
 	"time"
 
 	"ako/pkg/cache"
+	crdfake "ako/pkg/client/clientset/versioned/fake"
 	"ako/pkg/k8s"
+	"ako/pkg/lib"
 	avinodes "ako/pkg/nodes"
 	"ako/pkg/objects"
 
@@ -82,6 +84,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
 	KubeClient = k8sfake.NewSimpleClientset()
+	CRDClient = crdfake.NewSimpleClientset()
+	lib.SetCRDClientset(CRDClient)
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -94,6 +98,7 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
+	k8s.NewCRDInformers(CRDClient)
 
 	InitializeFakeAKOAPIServer()
 

@@ -56,23 +56,57 @@ func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec v1beta1.Ingr
 	nsIngress := ns + "/" + ingName
 	for _, rule := range ingSpec.Rules {
 		for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
-			hostpath := rule.Host + svcPath.Path
-
-			found, val := SharedHostNameLister().GetHostPathStore(hostpath)
-			if found && len(val) > 0 && val[0] != nsIngress {
+			found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
+			if found && len(val) > 0 && utils.HasElem(val, nsIngress) && len(val) > 1 {
 				// TODO: push in ako apiserver
-				utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s: %s in ingresses: %+v", key, nsIngress, hostpath, utils.Stringify(val))
+				utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 			}
 		}
 	}
 	return
 }
 
+func sslKeyCertHostRulePresent(key, host string) (bool, string) {
+	if lib.GetShardScheme() == "namespace" {
+		return false, ""
+	}
+
+	// from host check if hostrule is present
+	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
+	if !found {
+		utils.AviLog.Debugf("key: %s, msg: Couldn't find fqdn %s to hostrule mapping in cache", key, host)
+		return false, ""
+	}
+
+	hrNSName := strings.Split(hrNSNameStr, "/")
+	// from hostrule check if hostrule.TLS.SSLKeyCertificate is not null
+	hostRuleObj, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Couldn't find hostrule %s", key, hrNSNameStr)
+		return false, ""
+	} else if hostRuleObj.Status.Status == lib.StatusRejected {
+		utils.AviLog.Warnf("key: %s, msg: rejected hostrule %s", key, hrNSNameStr)
+		return false, ""
+	}
+
+	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
+		utils.AviLog.Infof("key: %s, msg: secret %s found for host %s in hostrule.ako.vmware.com %s",
+			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name, host, hostRuleObj.Name)
+		return true, lib.DummySecret + "/" + hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name
+	}
+
+	return false, ""
+}
+
+// ParseHostPathForIngress handling for hostrule: if the host has a hostrule, and that hostrule has a tls.sslkeycertref then
+// move that host in the tls.hosts, this should be only in case of hostname sharding
 func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
+	additionalSecureHostMap := make(IngressHostMap)
+	secretHostsMap := make(map[string][]string)
 	subDomains := GetDefaultSubDomain()
 
 	for _, rule := range ingSpec.Rules {
@@ -100,13 +134,25 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 		if len(hostMap[hostName]) > 0 {
 			hostPathMapSvcList = hostMap[hostName]
 		}
-		for _, path := range rule.IngressRuleValue.HTTP.Paths {
-			hostPathMapSvc := IngressHostPathSvc{}
 
-			hostPathMapSvc.Path = path.Path
-			hostPathMapSvc.ServiceName = path.Backend.ServiceName
-			hostPathMapSvc.Port = path.Backend.ServicePort.IntVal
-			hostPathMapSvc.PortName = path.Backend.ServicePort.StrVal
+		// check if this host has a valid hostrule with sslkeycertref present
+		useHostRuleSSL, secretName := sslKeyCertHostRulePresent(key, hostName)
+		if useHostRuleSSL && len(additionalSecureHostMap[hostName]) > 0 {
+			hostPathMapSvcList = additionalSecureHostMap[hostName]
+		}
+		if _, ok := secretHostsMap[secretName]; !ok {
+			secretHostsMap[secretName] = []string{hostName}
+		} else {
+			secretHostsMap[secretName] = append(secretHostsMap[secretName], hostName)
+		}
+
+		for _, path := range rule.IngressRuleValue.HTTP.Paths {
+			hostPathMapSvc := IngressHostPathSvc{
+				Path:        path.Path,
+				ServiceName: path.Backend.ServiceName,
+				Port:        path.Backend.ServicePort.IntVal,
+				PortName:    path.Backend.ServicePort.StrVal,
+			}
 			if hostPathMapSvc.Port == 0 {
 				// Default to port 80 if not set in the ingress object
 				hostPathMapSvc.Port = 80
@@ -115,7 +161,12 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 			hostPathMapSvc.weight = 100
 			hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
 		}
-		hostMap[hostName] = hostPathMapSvcList
+
+		if useHostRuleSSL {
+			additionalSecureHostMap[hostName] = hostPathMapSvcList
+		} else {
+			hostMap[hostName] = hostPathMapSvcList
+		}
 	}
 
 	var tlsConfigs []TlsSettings
@@ -124,6 +175,9 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 		tls := TlsSettings{}
 		tls.SecretName = tlsSettings.SecretName
 		for _, host := range tlsSettings.Hosts {
+			if _, ok := additionalSecureHostMap[host]; ok {
+				continue
+			}
 			if !v.IsValiddHostName(host) {
 				continue
 			}
@@ -143,6 +197,22 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 			objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(ingName, tlsSettings.SecretName)
 		}
 	}
+
+	for aviSecret, securedHostNames := range secretHostsMap {
+		additionalTLS := TlsSettings{}
+		additionalTLS.SecretName = aviSecret
+		additionalTLSHostSvcMap := make(IngressHostMap)
+		for _, host := range securedHostNames {
+			if hostSvcMap, ok := additionalSecureHostMap[host]; ok {
+				additionalTLSHostSvcMap[host] = hostSvcMap
+			}
+		}
+		if len(additionalTLSHostSvcMap) > 0 {
+			additionalTLS.Hosts = additionalTLSHostSvcMap
+			tlsConfigs = append(tlsConfigs, additionalTLS)
+		}
+	}
+
 	ingressConfig.TlsCollection = tlsConfigs
 	ingressConfig.IngressHostMap = hostMap
 	utils.AviLog.Infof("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))

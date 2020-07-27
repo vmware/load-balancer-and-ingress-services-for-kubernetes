@@ -22,6 +22,7 @@ import (
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
 	"ako/pkg/nodes"
+	"ako/pkg/status"
 
 	"github.com/avinetworks/container-lib/utils"
 	avimodels "github.com/avinetworks/sdk/go/models"
@@ -39,9 +40,29 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	svc_mdata := string(svc_mdata_json)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	vrfContextRef := "/api/vrfcontext?name=" + pool_meta.VrfContext
-	pool := avimodels.Pool{Name: &name, CloudConfigCksum: &cksumString,
-		CreatedBy: &cr, TenantRef: &tenant, CloudRef: &cloudRef,
-		ServiceMetadata: &svc_mdata, VrfRef: &vrfContextRef}
+
+	pool := avimodels.Pool{
+		Name:             &name,
+		CloudConfigCksum: &cksumString,
+		CreatedBy:        &cr,
+		TenantRef:        &tenant,
+		CloudRef:         &cloudRef,
+		ServiceMetadata:  &svc_mdata,
+		VrfRef:           &vrfContextRef,
+		SniEnabled:       &pool_meta.SniEnabled,
+		SslProfileRef:    &pool_meta.SslProfileRef,
+	}
+
+	// there are defaults set by the Avi controller internally
+	if pool_meta.LbAlgorithm != "" {
+		pool.LbAlgorithm = &pool_meta.LbAlgorithm
+	}
+	if pool_meta.LbAlgorithmHash != "" {
+		pool.LbAlgorithmHash = &pool_meta.LbAlgorithmHash
+		if *pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
+			pool.LbAlgorithmConsistentHashHdr = &pool_meta.LbAlgoHostHeader
+		}
+	}
 
 	for _, server := range pool_meta.Servers {
 		sip := server.Ip
@@ -167,10 +188,10 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				vs_cache_obj.AddToPoolKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if svc_mdata_obj.Namespace != "" {
-					UpdateRouteIngressStatus([]UpdateStatusOptions{{
-						vip:             vs_cache_obj.Vip,
-						serviceMetadata: svc_mdata_obj,
-						key:             key,
+					status.UpdateRouteIngressStatus([]status.UpdateStatusOptions{{
+						Vip:             vs_cache_obj.Vip,
+						ServiceMetadata: svc_mdata_obj,
+						Key:             key,
 					}}, false)
 				}
 			}
@@ -215,7 +236,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 		if success {
 			if pool_cache_obj.ServiceMetadataObj.IngressName != "" {
 				// SNI VSes use the VS object metadata, delete ingress status for others
-				err := DeleteRouteIngressStatus(pool_cache_obj.ServiceMetadataObj, isVSDelete, key)
+				err := status.DeleteRouteIngressStatus(pool_cache_obj.ServiceMetadataObj, isVSDelete, key)
 				if k8serror.IsNotFound(err) {
 					// Just log and get away
 					utils.AviLog.Infof("key: %s, msg: ingress already deleted, nothing to update in status", key)
