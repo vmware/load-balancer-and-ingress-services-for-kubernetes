@@ -559,6 +559,46 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.dynamicInformers.CalicoBlockAffinityInformer.Informer().AddEventHandler(block_affinity_handler)
 	}
 
+	if lib.GetCNIPlugin() == lib.OPENSHIFT_CNI {
+		host_subnet_handler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				utils.AviLog.Debugf("hostsubnets ADD Event")
+				if c.DisableSync {
+					utils.AviLog.Debugf("Sync disabled, skipping sync for hostsubnets add")
+					return
+				}
+				crd := obj.(*unstructured.Unstructured)
+				host, found, err := unstructured.NestedString(crd.UnstructuredContent(), "host")
+				if err != nil || !found {
+					utils.AviLog.Warnf("hostsubnet host not found: %+v", err)
+					return
+				}
+
+				key := utils.NodeObj + "/" + host
+				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				utils.AviLog.Debugf("hostsubnets DELETE Event")
+				if c.DisableSync {
+					utils.AviLog.Debugf("Sync disabled, skipping sync for hostsubnets delete")
+					return
+				}
+				crd := obj.(*unstructured.Unstructured)
+				host, found, err := unstructured.NestedString(crd.UnstructuredContent(), "host")
+				if err != nil || !found {
+					utils.AviLog.Warnf("hostsubnet host not found: %+v", err)
+					return
+				}
+				key := utils.NodeObj + "/" + host
+				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
+
+		c.dynamicInformers.HostSubnetInformer.Informer().AddEventHandler(host_subnet_handler)
+	}
+
 	c.informers.EpInformer.Informer().AddEventHandler(ep_event_handler)
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
 	if c.informers.IngressInformer != nil {
@@ -609,6 +649,9 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {
 		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
+	}
+	if lib.GetCNIPlugin() == lib.OPENSHIFT_CNI {
+		go c.dynamicInformers.HostSubnetInformer.Informer().Run(stopCh)
 	}
 
 	go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)

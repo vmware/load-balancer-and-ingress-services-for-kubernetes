@@ -38,12 +38,19 @@ var (
 		Version:  "v1",
 		Resource: "blockaffinities",
 	}
+
+	// HostSubnetGVR : OpenShift's HostSubnet CRD resource identifier
+	HostSubnetGVR = schema.GroupVersionResource{
+		Group:    "network.openshift.io",
+		Version:  "v1",
+		Resource: "hostsubnets",
+	}
 )
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if GetCNIPlugin() != CALICO_CNI {
+	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
 		return nil, nil
 	}
 
@@ -70,22 +77,30 @@ func GetDynamicClientSet() dynamic.Interface {
 // DynamicInformers holds third party generic informers
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
+	HostSubnetInformer          informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
 func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 	informers := &DynamicInformers{}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
-	if GetCNIPlugin() == CALICO_CNI {
+
+	switch GetCNIPlugin() {
+	case CALICO_CNI:
 		informers.CalicoBlockAffinityInformer = f.ForResource(CalicoBlockaffinityGVR)
+	case OPENSHIFT_CNI:
+		informers.HostSubnetInformer = f.ForResource(HostSubnetGVR)
+	default:
+		utils.AviLog.Infof("Skipped iniializing dynamic informers %s \n", GetCNIPlugin())
 	}
+
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
 }
 
 // GetDynamicInformers returns DynamicInformers instance
 func GetDynamicInformers() *DynamicInformers {
-	if dynamicInformerInstance == nil && GetCNIPlugin() == CALICO_CNI {
+	if dynamicInformerInstance == nil {
 		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
 		return nil
 	}
@@ -115,6 +130,34 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 				if podCIDR == "" {
 					utils.AviLog.Errorf("Error in fetching Pod CIDR from BlockAffinity %v", node.ObjectMeta.Name)
 					return nil, errors.New("podcidr not found")
+				}
+
+				if !utils.HasElem(podCIDRs, podCIDR) {
+					podCIDRs = append(podCIDRs, podCIDR)
+				}
+			}
+		}
+
+	} else if GetCNIPlugin() == OPENSHIFT_CNI && dynamicClientSet != nil {
+		crdClient := dynamicClient.Resource(HostSubnetGVR)
+		crdList, err := crdClient.List(metav1.ListOptions{})
+		if err != nil {
+			utils.AviLog.Errorf("Error getting CRD %v", err)
+			return nil, err
+		}
+
+		for _, i := range crdList.Items {
+			host, ok := (i.Object["host"]).(string)
+			if !ok {
+				utils.AviLog.Errorf("Error in parsing hostsubnets crd list")
+				return nil, errors.New("Error in parsing hostsubnets crd list")
+			}
+
+			if host == nodename {
+				podCIDR, ok := (i.Object["subnet"]).(string)
+				if !ok {
+					utils.AviLog.Errorf("Error in parsing hostsubnets crd list")
+					return nil, errors.New("Error in parsing hostsubnets crd list")
 				}
 
 				if !utils.HasElem(podCIDRs, podCIDR) {
