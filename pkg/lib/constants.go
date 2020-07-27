@@ -29,6 +29,8 @@ const (
 	L7_SHARD_SCHEME           = "L7_SHARD_SCHEME"
 	DEFAULT_DOMAIN            = "DEFAULT_DOMAIN"
 	CLUSTER_NAME              = "CLUSTER_NAME"
+	CLOUD_VCENTER             = "CLOUD_VCENTER"
+	CLOUD_AZURE               = "CLOUD_AZURE"
 	DEFAULT_SHARD_SCHEME      = "hostname"
 	HOSTNAME_SHARD_SCHEME     = "hostname"
 	NAMESPACE_SHARD_SCHEME    = "namespace"

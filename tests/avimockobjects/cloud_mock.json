@@ -62,7 +62,7 @@
         },
         "autoscale_polling_interval": 60,
         "mtu": 1500,
-        "vtype": "CLOUD_OSHIFT_K8S",
+        "vtype": "CLOUD_VCENTER",
         "_last_modified": "1576211637873537",
         "apic_mode": false,
         "dns_provider_ref": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-19a05809-a373-4892-a318-74702c2237ca",

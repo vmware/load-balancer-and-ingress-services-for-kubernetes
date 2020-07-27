@@ -1836,7 +1836,7 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 
 func ValidateUserInput(client *clients.AviClient) bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
-	isValid := checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client)
+	isValid := CheckAndSetCloudType(client) && checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client) && CheckPublicCloud(client)
 	if !isValid {
 		utils.AviLog.Warn("Invalid input detected, syncing will be disabled.")
 	}
@@ -1879,7 +1879,65 @@ func checkRequiredValuesYaml() bool {
 	return true
 }
 
+func CheckAndSetCloudType(client *clients.AviClient) bool {
+
+	uri := "/api/cloud/?include_name&name=" + utils.CloudName
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+		return false
+	}
+
+	if result.Count != 1 {
+		utils.AviLog.Warnf("Cloud details not found for cloud name: %s", utils.CloudName)
+		return false
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
+
+	cloud := models.Cloud{}
+	err = json.Unmarshal(elems[0], &cloud)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
+	vType := *cloud.Vtype
+
+	if vType != lib.CLOUD_VCENTER && !lib.IsNodePortMode() {
+		utils.AviLog.Warnf("%v not allowed in ClusterIP mode.", vType)
+		return false
+	}
+
+	utils.AviLog.Infof("Setting cloud vType: %v", vType)
+	lib.SetCloudType(vType)
+	return true
+}
+
+func CheckPublicCloud(client *clients.AviClient) bool {
+	if lib.GetCloudType() == lib.CLOUD_AZURE {
+		// Handle all azure cloud validations here
+		networkName := lib.GetNetworkName()
+		if networkName == "" {
+			utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")
+			return false
+		}
+	}
+
+	return true
+}
+
 func CheckAndSetVRFFromNetwork(client *clients.AviClient) bool {
+
+	if lib.GetCloudType() != lib.CLOUD_VCENTER {
+		// Need not set VRFContext for public clouds.
+		return true
+	}
+
 	networkName := lib.GetNetworkName()
 	if networkName == "" {
 		utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")
@@ -1915,6 +1973,7 @@ func CheckAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		utils.AviLog.Infof("Using global VRF for NodePort mode")
 		return true
 	}
+
 	vrfRef := *network.VrfContextRef
 	vrfName := strings.Split(vrfRef, "#")[1]
 	utils.AviLog.Infof("Setting VRF %s found from network %s", vrfName, networkName)

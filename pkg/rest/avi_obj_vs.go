@@ -550,7 +550,13 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		auto_alloc := true
 		var vips []*avimodels.Vip
 		var vip avimodels.Vip
-		if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
+		networkRef := lib.GetNetworkName()
+		if lib.GetCloudType() == lib.CLOUD_AZURE && lib.GetNetworkName() != "" {
+			vip = avimodels.Vip{
+				AutoAllocateIP: &auto_alloc,
+				SubnetUUID:     &networkRef,
+			}
+		} else if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
 			utils.AviLog.Warnf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
 			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
 		} else {
@@ -564,7 +570,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			subnet_atype := "V4"
 			subnet_ip_obj := avimodels.IPAddr{Type: &subnet_atype, Addr: &subnet_addr}
 			subnet_obj := avimodels.IPAddrPrefix{IPAddr: &subnet_ip_obj, Mask: &subnet_mask}
-			networkRef := "/api/network/?name=" + lib.GetNetworkName()
 			vip = avimodels.Vip{
 				AutoAllocateIP: &auto_alloc,
 				IPAMNetworkSubnet: &avimodels.IPNetworkSubnet{

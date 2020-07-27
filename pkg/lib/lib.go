@@ -322,3 +322,16 @@ func GetNodePortsSelector() map[string]string {
 	}
 	return nodePortsSelectorLabels
 }
+
+var CloudType string
+
+func SetCloudType(cloudType string) {
+	CloudType = cloudType
+}
+
+func GetCloudType() string {
+	if CloudType == "" {
+		return CLOUD_VCENTER
+	}
+	return CloudType
+}
