@@ -17,7 +17,6 @@ package nodes
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	avicache "ako/pkg/cache"
@@ -95,13 +94,10 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	return avi_vs_meta
 }
 
-func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode, key string) {
+func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode, key string) {
+	var l4Policies []*AviL4PolicyNode
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
-		pgName := lib.GetL4PGName(vsNode.Name, filterPort)
-
-		pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant(), Port: strconv.Itoa(int(filterPort))}
-		// For TCP - the PG to Pool relationship is 1x1
 		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: lib.GetTenant(), Protocol: portProto.Protocol, PortName: portProto.Name}
 		poolNode.VrfContext = lib.GetVrf()
 
@@ -116,20 +112,24 @@ func (o *AviObjectGraph) ConstructAviTCPPGPoolNodes(svcObj *corev1.Service, vsNo
 		}
 
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref})
+		var portPoolSet []AviHostPathPortPoolPG
+		portPool := AviHostPathPortPoolPG{Port: uint32(filterPort), Pool: pool_ref, Protocol: portProto.Protocol}
+		portPoolSet = append(portPoolSet, portPool)
+		l4policyNode := &AviL4PolicyNode{Name: lib.GetL4PolicyName(vsNode.Name, filterPort), Tenant: lib.GetTenant(), PortPool: portPoolSet}
 
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
-		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool group values :%v", key, utils.Stringify(pgNode))
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
-		vsNode.TCPPoolGroupRefs = append(vsNode.TCPPoolGroupRefs, pgNode)
-		pgNode.CalculateCheckSum()
-		poolNode.CalculateCheckSum()
 
+		l4Policies = append(l4Policies, l4policyNode)
+		poolNode.CalculateCheckSum()
+		l4policyNode.CalculateCheckSum()
 		o.AddModelNode(poolNode)
-		vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
-		o.GraphChecksum = o.GraphChecksum + pgNode.GetCheckSum()
+		o.GraphChecksum = o.GraphChecksum + l4policyNode.GetCheckSum()
 		o.GraphChecksum = o.GraphChecksum + poolNode.GetCheckSum()
 	}
+	vsNode.L4PolicyRefs = l4Policies
+	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
+
 }
 
 func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
@@ -277,7 +277,7 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 		return
 	}
 	VsNode = o.ConstructAviL4VsNode(svcObj, key)
-	o.ConstructAviTCPPGPoolNodes(svcObj, VsNode, key)
+	o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
 	o.AddModelNode(VsNode)
 	VsNode.CalculateCheckSum()
 	o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()

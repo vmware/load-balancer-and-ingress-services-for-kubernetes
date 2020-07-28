@@ -163,6 +163,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var vsvip_to_delete []avicache.NamespaceName
 	var sni_to_delete []avicache.NamespaceName
 	var httppol_to_delete []avicache.NamespaceName
+	var l4pol_to_delete []avicache.NamespaceName
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: vsName}
 	aviVsNode := avimodel.GetAviVS()[0]
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
@@ -172,6 +173,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
 		httppol_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
+		l4pol_to_delete, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		vsvip_to_delete, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		utils.AviLog.Debugf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, strconv.Itoa(int(aviVsNode.GetCheckSum())))
 		if vs_cache_obj.CloudConfigCksum == strconv.Itoa(int(aviVsNode.GetCheckSum())) {
@@ -189,6 +191,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 
@@ -213,6 +216,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	vsKey = avicache.NamespaceName{Namespace: namespace, Name: vsName}
 	rest_ops = rest.VSVipDelete(vsvip_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.HTTPPolicyDelete(httppol_to_delete, namespace, rest_ops, key)
+	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
@@ -285,6 +289,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.L4PolicyDelete(vs_cache_obj.L4PolicyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
 		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
@@ -387,6 +392,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviHTTPPolicyCacheAdd(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "SSLKeyAndCertificate" {
 			rest.AviSSLKeyCertAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "L4PolicySet" {
+			rest.AviL4PolicyCacheAdd(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VrfContext" {
 			rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VsVip" {
@@ -407,6 +414,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "SSLKeyAndCertificate" {
 			rest.AviSSLCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "L4PolicySet" {
+			rest.AviL4PolicyCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VsVip" {
 			rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VSDataScriptSet" {
@@ -535,6 +544,16 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				}
 				rest_op.ObjName = HTTPPolicySet
 				rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
+			case "L4PolicySet":
+				var L4PolicySet string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					L4PolicySet = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.L4PolicySet).Name
+				case avimodels.L4PolicySet:
+					L4PolicySet = *rest_op.Obj.(avimodels.L4PolicySet).Name
+				}
+				rest_op.ObjName = L4PolicySet
+				rest.AviL4PolicyCacheDel(rest_op, aviObjKey, key)
 			case "SSLKeyAndCertificate":
 				var SSLKeyAndCertificate string
 				switch rest_op.Obj.(type) {
@@ -611,6 +630,15 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					HTTPPolicySet = *rest_op.Obj.(avimodels.HTTPPolicySet).Name
 				}
 				aviObjCache.AviPopulateOneVsHttpPolCache(c, utils.CloudName, HTTPPolicySet)
+			case "L4PolicySet":
+				var L4PolicySet string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					L4PolicySet = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.L4PolicySet).Name
+				case avimodels.L4PolicySet:
+					L4PolicySet = *rest_op.Obj.(avimodels.L4PolicySet).Name
+				}
+				aviObjCache.AviPopulateOneVsL4PolCache(c, utils.CloudName, L4PolicySet)
 			case "SSLKeyAndCertificate":
 				var SSLKeyAndCertificate string
 				switch rest_op.Obj.(type) {
@@ -653,7 +681,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 			}
 		} else {
 			// We don't want to handle any other error code like 400 etc.
-			utils.AviLog.Infof("key: %s, msg: Detected an error code that we don't support, not going to retry", statuscode)
+			utils.AviLog.Infof("key: %s, msg: Detected an error code that we don't support, not going to retry", key, statuscode)
 			retry = false
 		}
 	}
@@ -1073,6 +1101,49 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 	return cache_http_nodes, rest_ops
 }
 
+func (rest *RestOperations) L4PolicyCU(l4_nodes []*nodes.AviL4PolicyNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+	var cache_l4_nodes []avicache.NamespaceName
+	// Default is POST
+	if vs_cache_obj != nil {
+		cache_l4_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.L4PolicyCollection))
+		copy(cache_l4_nodes, vs_cache_obj.L4PolicyCollection)
+		for _, l4 := range l4_nodes {
+			l4_key := avicache.NamespaceName{Namespace: namespace, Name: l4.Name}
+			found := utils.HasElem(cache_l4_nodes, l4_key)
+			if found {
+				l4_cache, ok := rest.cache.L4PolicyCache.AviCacheGet(l4_key)
+				if ok {
+					cache_l4_nodes = Remove(cache_l4_nodes, l4_key)
+					l4_cache_obj, _ := l4_cache.(*avicache.AviL4PolicyCache)
+					// Cache found. Let's compare the checksums
+					if l4_cache_obj.CloudConfigCksum == l4.GetCheckSum() {
+						utils.AviLog.Debugf("The checksums are same for l4 cache obj %s, not doing anything", l4_cache_obj.Name)
+					} else {
+						// The checksums are different, so it should be a PUT call.
+						restOp := rest.AviL4PSBuild(l4, l4_cache_obj, key)
+						rest_ops = append(rest_ops, restOp)
+					}
+				}
+			} else {
+				// Not found - it should be a POST call.
+				restOp := rest.AviL4PSBuild(l4, nil, key)
+				rest_ops = append(rest_ops, restOp)
+			}
+
+		}
+	} else {
+		// Everything is a POST call
+		for _, l4 := range l4_nodes {
+			restOp := rest.AviL4PSBuild(l4, nil, key)
+			rest_ops = append(rest_ops, restOp)
+		}
+
+	}
+	utils.AviLog.Debugf("The l4 Policies rest_op is %s", utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, msg: the l4 policies to be deleted are: %s", key, cache_l4_nodes)
+	return cache_l4_nodes, rest_ops
+}
+
 func (rest *RestOperations) HTTPPolicyDelete(https_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
 	for _, del_http := range https_to_delete {
 		// fetch trhe http policyset uuid from cache
@@ -1094,6 +1165,21 @@ func (rest *RestOperations) CACertCU(caCertNodes []*nodes.AviTLSKeyCertNode, cer
 
 func (rest *RestOperations) SSLKeyCertCU(sslkeyNodes []*nodes.AviTLSKeyCertNode, certKeys []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	return rest.KeyCertCU(sslkeyNodes, certKeys, namespace, rest_ops, key)
+}
+
+func (rest *RestOperations) L4PolicyDelete(l4_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	for _, del_l4 := range l4_to_delete {
+		// fetch trhe http policyset uuid from cache
+		l4_key := avicache.NamespaceName{Namespace: namespace, Name: del_l4.Name}
+		l4_cache, ok := rest.cache.L4PolicyCache.AviCacheGet(l4_key)
+		if ok {
+			l4_cache_obj, _ := l4_cache.(*avicache.AviL4PolicyCache)
+			restOp := rest.AviL4PolicyDel(l4_cache_obj.Uuid, namespace, key)
+			restOp.ObjName = del_l4.Name
+			rest_ops = append(rest_ops, restOp)
+		}
+	}
+	return rest_ops
 }
 
 func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, certKeys []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {

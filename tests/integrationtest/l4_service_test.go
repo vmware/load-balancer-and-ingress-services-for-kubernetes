@@ -141,8 +141,6 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
 		address := "1.1.1.1"
 		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
-		g.Expect(nodes[0].TCPPoolGroupRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(1))
 	}
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
 	svcExample := (FakeService{
@@ -216,8 +214,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			}
 		}
-		g.Expect(nodes[0].TCPPoolGroupRefs).To(gomega.HaveLen(3))
-		g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(3))
+		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(3))
 		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
 		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
 	}
@@ -259,8 +256,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			}
 		}
-		g.Expect(nodes[0].TCPPoolGroupRefs).To(gomega.HaveLen(3))
-		g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(3))
+		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(3))
 		g.Expect(nodes[0].SharedVS).To(gomega.Equal(false))
 		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
 		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
@@ -333,9 +329,9 @@ func TestCreateServiceLBCacheSync(t *testing.T) {
 		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
 		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-8080"))
-		g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
+		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
+		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
 	}
 
 	TearDownTestForSvcLB(t, g)
@@ -400,9 +396,9 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
 		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-8080"))
-		g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
+		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
+		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
 	}
 
 	TearDownTestForSvcLB(t, g)
@@ -428,8 +424,8 @@ func TestCreateMultiportServiceLBCacheSync(t *testing.T) {
 	g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 	g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(3))
 	g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp(`^(cluster--[a-zA-Z0-9-]+-808(0|1|2))$`))
-	g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(3))
-	g.Expect(vsCacheObj.PGKeyCollection[0].Name).To(gomega.MatchRegexp(`^(cluster--[a-zA-Z0-9-]+-808(0|1|2))$`))
+	g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(3))
+	g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp(`^(cluster--[a-zA-Z0-9-]+-808(0|1|2))$`))
 
 	TearDownTestForSvcLBMultiport(t, g)
 }
@@ -441,7 +437,7 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 	SetUpTestForSvcLB(t)
 
 	// Get hold of the pool checksum on CREATE
-	poolName := "cluster--red-ns-testsvc-8080"
+	poolName := "cluster--red-ns-testsvc--8080"
 	mcache := cache.SharedAviObjCache()
 	poolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: poolName}
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)
@@ -558,7 +554,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		g.Eventually(func() bool {
 			_, found = mcache.VsCacheMeta.AviCacheGet(vsKey)
 			return found
-		}, 40*time.Second).Should(gomega.Equal(false))
+		}, 60*time.Second).Should(gomega.Equal(false))
 	}
 
 	// verifying whether the first service created still has the corresponding cache entry

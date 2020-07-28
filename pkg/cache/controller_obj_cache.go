@@ -38,6 +38,7 @@ type AviObjCache struct {
 	PoolCache       *AviCache
 	CloudKeyCache   *AviCache
 	HTTPPolicyCache *AviCache
+	L4PolicyCache   *AviCache
 	SSLKeyCache     *AviCache
 	PKIProfileCache *AviCache
 	VSVIPCache      *AviCache
@@ -56,6 +57,7 @@ func NewAviObjCache() *AviObjCache {
 	c.SSLKeyCache = NewAviCache()
 	c.CloudKeyCache = NewAviCache()
 	c.HTTPPolicyCache = NewAviCache()
+	c.L4PolicyCache = NewAviCache()
 	c.VSVIPCache = NewAviCache()
 	c.VrfCache = NewAviCache()
 	c.PKIProfileCache = NewAviCache()
@@ -79,6 +81,7 @@ func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient, cloud str
 	c.PopulateDSDataToCache(client, cloud)
 	c.PopulateSSLKeyToCache(client, cloud)
 	c.PopulateHttpPolicySetToCache(client, cloud)
+	c.PopulateL4PolicySetToCache(client, cloud)
 	c.PopulateVsVipDataToCache(client, cloud)
 	// Switch to the below method once the go sdk is fixed for the DBExtensions fields.
 	//c.PopulateVsKeyToCache(client, cloud)
@@ -1097,6 +1100,72 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 	return nil
 }
 
+func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
+	cloud string, objName string) error {
+	var uri string
+	akoUser := lib.AKOUser
+
+	uri = "/api/l4policyset?name=" + objName + "&created_by=" + akoUser
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for l4pol %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal l4pol data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		l4pol := models.L4PolicySet{}
+		err = json.Unmarshal(elems[i], &l4pol)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal l4polset data, err: %v", err)
+			continue
+		}
+		if l4pol.Name == nil || l4pol.UUID == nil {
+			utils.AviLog.Warnf("Incomplete l4 policy data unmarshalled, %s", utils.Stringify(l4pol))
+			continue
+		}
+		//Only cache a l4 policies that belongs to this AKO.
+		if !strings.HasPrefix(*l4pol.Name, lib.GetNamePrefix()) {
+			continue
+		}
+		// Fetch the pools associated with the l4 policyset object
+		var pools []string
+		var ports []int64
+		var protocol string
+		if l4pol.L4ConnectionPolicy != nil {
+			for _, rule := range l4pol.L4ConnectionPolicy.Rules {
+				protocol = *rule.Match.Protocol.Protocol
+				if rule.Action != nil {
+					poolUuid := ExtractUuid(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
+					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
+					if found {
+						pools = append(pools, poolName.(string))
+					}
+				}
+				if rule.Match != nil {
+					ports = append(ports, rule.Match.Port.Ports...)
+				}
+			}
+		}
+		l4PolCacheObj := AviL4PolicyCache{
+			Name:             *l4pol.Name,
+			Uuid:             *l4pol.UUID,
+			Pools:            pools,
+			LastModified:     *l4pol.LastModified,
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol),
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *l4pol.Name}
+		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
+		utils.AviLog.Debugf("Adding l4pol to Cache during refresh %s\n", k)
+	}
+	return nil
+}
+
 // This method is just added for future here. We can't use it until they expose the DB extensions on the virtualservice object
 func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient, cloud string, vsData *[]AviVsCache, nextPage ...NextPage) (*[]AviVsCache, error) {
 	var uri string
@@ -1408,6 +1477,104 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cl
 	}
 }
 
+func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, cloud string, l4PolicyData *[]AviL4PolicyCache, nextPage ...NextPage) (*[]AviL4PolicyCache, int, error) {
+	var uri string
+	akoUser := lib.AKOUser
+
+	if len(nextPage) == 1 {
+		uri = nextPage[0].Next_uri
+	} else {
+		uri = "/api/l4policyset/?" + "&include_name=true" + "&created_by=" + akoUser + "&page_size=100"
+	}
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for httppolicyset %v", uri, err)
+		return nil, 0, err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal httppolicyset data, err: %v", err)
+		return nil, 0, err
+	}
+	for i := 0; i < len(elems); i++ {
+		l4pol := models.L4PolicySet{}
+		err = json.Unmarshal(elems[i], &l4pol)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal httppolicyset data, err: %v", err)
+			continue
+		}
+		if l4pol.Name == nil || l4pol.UUID == nil {
+			utils.AviLog.Warnf("Incomplete http policy data unmarshalled, %s", utils.Stringify(l4pol))
+			continue
+		}
+
+		// Fetch the pgs associated with the http policyset object
+		// Fetch the pools associated with the l4 policyset object
+		var pools []string
+		var ports []int64
+		var protocol string
+		if l4pol.L4ConnectionPolicy != nil {
+			for _, rule := range l4pol.L4ConnectionPolicy.Rules {
+				if rule.Action != nil {
+					protocol = *rule.Match.Protocol.Protocol
+					poolUuid := ExtractUuid(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
+					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
+					if found {
+						pools = append(pools, poolName.(string))
+					}
+				}
+				if rule.Match != nil {
+					ports = append(ports, rule.Match.Port.Ports...)
+				}
+			}
+		}
+		l4PolCacheObj := AviL4PolicyCache{
+			Name:             *l4pol.Name,
+			Uuid:             *l4pol.UUID,
+			Pools:            pools,
+			LastModified:     *l4pol.LastModified,
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol),
+		}
+		*l4PolicyData = append(*l4PolicyData, l4PolCacheObj)
+
+	}
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/l4policyset")
+		if len(next_uri) > 1 {
+			override_uri := "/api/l4policyset" + next_uri[1]
+			nextPage := NextPage{Next_uri: override_uri}
+			_, _, err := c.AviPopulateAllL4PolicySets(client, cloud, l4PolicyData, nextPage)
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+	}
+	return l4PolicyData, result.Count, nil
+}
+
+func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
+	var l4PolData []AviL4PolicyCache
+	_, count, err := c.AviPopulateAllL4PolicySets(client, cloud, &l4PolData)
+	if err != nil || len(l4PolData) != count {
+		return
+	}
+	l4CacheData := c.L4PolicyCache.ShallowCopy()
+	for i, l4PolCacheObj := range l4PolData {
+		k := NamespaceName{Namespace: lib.GetTenant(), Name: l4PolCacheObj.Name}
+		utils.AviLog.Infof("Adding key to l4 cache :%s", utils.Stringify(l4PolCacheObj))
+		c.L4PolicyCache.AviCacheAdd(k, &l4PolData[i])
+		delete(l4CacheData, k)
+	}
+	// // The data that is left in httpCacheData should be explicitly removed
+	for key := range l4CacheData {
+		utils.AviLog.Debugf("Deleting key from l4policy cache :%s", key)
+		c.L4PolicyCache.AviCacheDelete(key)
+	}
+}
+
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) {
 	disableStaticRoute := os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC)
 	if disableStaticRoute == "true" {
@@ -1528,6 +1695,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				var sslKeys []NamespaceName
 				var dsKeys []NamespaceName
 				var httpKeys []NamespaceName
+				var l4Keys []NamespaceName
 				var poolgroupKeys []NamespaceName
 				var poolKeys []NamespaceName
 				var sharedVsOrL4 bool
@@ -1608,9 +1776,27 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						}
 					}
 				}
+				if vs["l4_policies"] != nil {
+					for _, l4_intf := range vs["l4_policies"].([]interface{}) {
+						l4map, ok := l4_intf.(map[string]interface{})
+						if ok {
+							l4PolUuid := ExtractUuid(l4map["l4_policy_set_ref"].(string), "l4policyset-.*.#")
+							l4Name, foundl4pol := c.L4PolicyCache.AviCacheGetNameByUuid(l4PolUuid)
+							if foundl4pol {
+								sharedVsOrL4 = true
+								l4key := NamespaceName{Namespace: lib.GetTenant(), Name: l4Name.(string)}
+								l4Obj, _ := c.L4PolicyCache.AviCacheGet(l4key)
+								for _, poolName := range l4Obj.(*AviL4PolicyCache).Pools {
+									poolKey := NamespaceName{Namespace: lib.GetTenant(), Name: poolName}
+									poolKeys = append(poolKeys, poolKey)
+								}
+								l4Keys = append(l4Keys, l4key)
+							}
+						}
+					}
+				}
 				if vs["http_policies"] != nil {
 					for _, http_intf := range vs["http_policies"].([]interface{}) {
-						// find the sslkey name from the ssl key cache
 						httpmap, ok := http_intf.(map[string]interface{})
 						if ok {
 							httpUuid := ExtractUuid(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
@@ -1655,10 +1841,11 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					SNIChildCollection:   sni_child_collection,
 					ParentVSRef:          parentVSKey,
 					ServiceMetadataObj:   svc_mdata_obj,
+					L4PolicyCollection:   l4Keys,
 					LastModified:         vs["_last_modified"].(string),
 				}
 				c.VsCacheLocal.AviCacheAdd(k, &vsMetaObj)
-				utils.AviLog.Debugf("Added VS cache key :%s", k)
+				utils.AviLog.Debugf("Added VS cache key :%s", utils.Stringify(vsMetaObj))
 
 			}
 		}
@@ -1750,6 +1937,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				var httpKeys []NamespaceName
 				var poolgroupKeys []NamespaceName
 				var poolKeys []NamespaceName
+				var l4Keys []NamespaceName
 				if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
 					vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
 				}
@@ -1825,6 +2013,24 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						}
 					}
 				}
+				if vs["l4_policies"] != nil {
+					for _, l4_intf := range vs["l4_policies"].([]interface{}) {
+						l4map, ok := l4_intf.(map[string]interface{})
+						if ok {
+							l4PolUuid := ExtractUuid(l4map["l4_policy_set_ref"].(string), "l4policyset-.*.#")
+							l4Name, foundl4pol := c.L4PolicyCache.AviCacheGetNameByUuid(l4PolUuid)
+							if foundl4pol {
+								l4key := NamespaceName{Namespace: lib.GetTenant(), Name: l4Name.(string)}
+								l4Obj, _ := c.L4PolicyCache.AviCacheGet(l4key)
+								for _, poolName := range l4Obj.(*AviL4PolicyCache).Pools {
+									poolKey := NamespaceName{Namespace: lib.GetTenant(), Name: poolName}
+									poolKeys = append(poolKeys, poolKey)
+								}
+								l4Keys = append(l4Keys, l4key)
+							}
+						}
+					}
+				}
 				if vs["http_policies"] != nil {
 					for _, http_intf := range vs["http_policies"].([]interface{}) {
 						// find the sslkey name from the ssl key cache
@@ -1861,6 +2067,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 					CloudConfigCksum:     vs["cloud_config_cksum"].(string),
 					SNIChildCollection:   sni_child_collection,
 					ParentVSRef:          parentVSKey,
+					L4PolicyCollection:   l4Keys,
 					ServiceMetadataObj:   svc_mdata_obj,
 				}
 				c.VsCacheMeta.AviCacheAdd(k, &vsMetaObj)

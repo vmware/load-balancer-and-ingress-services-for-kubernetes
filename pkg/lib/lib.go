@@ -16,6 +16,7 @@ package lib
 
 import (
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -88,7 +89,11 @@ func GetL4VSVipName(svcName, namespace string) string {
 }
 
 func GetL4PoolName(vsName string, port int32) string {
-	return vsName + "-" + strconv.Itoa(int(port))
+	return vsName + "--" + strconv.Itoa(int(port))
+}
+
+func GetL4PolicyName(vsName string, port int32) string {
+	return GetL4PoolName(vsName, port)
 }
 
 func GetL4PGName(vsName string, port int32) string {
@@ -310,6 +315,15 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 
 func SSLKeyCertChecksum(sslName, certificate, cacert string) uint32 {
 	return utils.Hash(sslName + certificate + cacert)
+}
+
+func L4PolicyChecksum(ports []int64, protocol string) uint32 {
+	var portsInt []int
+	for _, port := range ports {
+		portsInt = append(portsInt, int(port))
+	}
+	sort.Ints(portsInt)
+	return utils.Hash(utils.Stringify(portsInt)) + utils.Hash(protocol)
 }
 
 func IsNodePortMode() bool {
