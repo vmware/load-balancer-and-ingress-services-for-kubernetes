@@ -2073,13 +2073,14 @@ func CheckAndSetCloudType(client *clients.AviClient) bool {
 	}
 	vType := *cloud.Vtype
 
-	if vType != lib.CLOUD_VCENTER && !lib.IsNodePortMode() {
+	utils.AviLog.Infof("Setting cloud vType: %v", vType)
+	lib.SetCloudType(vType)
+
+	if lib.IsPublicCloud() && !lib.IsNodePortMode() {
 		utils.AviLog.Warnf("%v not allowed in ClusterIP mode.", vType)
 		return false
 	}
 
-	utils.AviLog.Infof("Setting cloud vType: %v", vType)
-	lib.SetCloudType(vType)
 	return true
 }
 
@@ -2098,7 +2099,7 @@ func CheckPublicCloud(client *clients.AviClient) bool {
 
 func CheckAndSetVRFFromNetwork(client *clients.AviClient) bool {
 
-	if lib.GetCloudType() != lib.CLOUD_VCENTER {
+	if lib.IsPublicCloud() {
 		// Need not set VRFContext for public clouds.
 		return true
 	}
