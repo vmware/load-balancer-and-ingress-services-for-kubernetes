@@ -535,7 +535,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		sniCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 		sniCacheObj, _ := sniCache.(*cache.AviVsCache)
 		return len(sniCacheObj.PoolKeyCollection)
-	}, 40*time.Second).Should(gomega.Equal(2))
+	}, 60*time.Second).Should(gomega.Equal(2))
 
 	// should not be found
 	g.Eventually(func() bool {

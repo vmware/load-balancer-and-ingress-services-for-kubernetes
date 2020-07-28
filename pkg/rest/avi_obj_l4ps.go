@@ -30,8 +30,6 @@ import (
 
 func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_obj *avicache.AviL4PolicyCache, key string) *utils.RestOp {
 	name := hps_meta.Name
-	//cksum := hps_meta.CloudConfigCksum
-	//cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
 	cr := lib.AKOUser
 
@@ -75,8 +73,8 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 			l4rule.Match = ruleMatchTarget
 			l4rules = append(l4rules, l4rule)
 			l4Policy.Rules = l4rules
+			idx = idx + 1
 		}
-		idx = idx + 1
 	}
 	hps.L4ConnectionPolicy = &l4Policy
 	macro := utils.AviRestObjMacro{ModelName: "L4PolicySet", Data: hps}
@@ -163,8 +161,8 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 					if rulemap["match"] != nil {
 						match, _ := rulemap["match"].(map[string]interface{})
 						portsMap, _ := match["port"].(map[string]interface{})
-						for port, _ := range portsMap["ports"].([]interface{}) {
-							ports = append(ports, int64(port))
+						for _, port := range portsMap["ports"].([]interface{}) {
+							ports = append(ports, port.(int64))
 						}
 					}
 					if rulemap["action"] != nil {
