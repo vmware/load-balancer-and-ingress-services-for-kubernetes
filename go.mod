@@ -12,7 +12,6 @@ require (
 	github.com/openshift/api v0.0.0-20200311183032-85e16cc5dd7c
 	github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
 	go.uber.org/zap v1.15.0 // indirect
-	golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	k8s.io/api v0.17.1
 	k8s.io/apimachinery v0.17.1

@@ -30,13 +30,14 @@ type NamespaceName struct {
  */
 
 type AviPoolCache struct {
-	Name               string
-	Tenant             string
-	Uuid               string
-	CloudConfigCksum   string
-	ServiceMetadataObj ServiceMetadataObj
-	LastModified       string
-	InvalidData        bool
+	Name                 string
+	Tenant               string
+	Uuid                 string
+	CloudConfigCksum     string
+	ServiceMetadataObj   ServiceMetadataObj
+	PkiProfileCollection NamespaceName
+	LastModified         string
+	InvalidData          bool
 }
 
 type ServiceMetadataObj struct {
@@ -104,6 +105,21 @@ func (c *AviCache) AviCacheAddVS(k NamespaceName) *AviVsCache {
 	vsObj := AviVsCache{Name: k.Name, Tenant: k.Namespace}
 	c.cache[k] = &vsObj
 	return &vsObj
+}
+
+func (c *AviCache) AviCacheAddPool(k NamespaceName) *AviPoolCache {
+	c.cache_lock.Lock()
+	defer c.cache_lock.Unlock()
+	val, found := c.cache[k]
+	if found {
+		aviPool, ok := val.(*AviPoolCache)
+		if ok {
+			return aviPool
+		}
+	}
+	poolObj := AviPoolCache{Name: k.Name, Tenant: k.Namespace}
+	c.cache[k] = &poolObj
+	return &poolObj
 }
 
 func (v *AviVsCache) SetPGKeyCollection(keyCollection []NamespaceName) {
@@ -290,6 +306,15 @@ type AviSSLCache struct {
 	CACertUUID       string
 }
 
+type AviPkiProfileCache struct {
+	Name             string
+	Tenant           string
+	Uuid             string
+	CloudConfigCksum uint32
+	LastModified     string
+	InvalidData      bool
+}
+
 type NextPage struct {
 	Next_uri   string
 	Collection interface{}
@@ -448,6 +473,10 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 		case *AviPGCache:
 			if value.(*AviPGCache).Uuid == uuid {
 				return value.(*AviPGCache).Name, true
+			}
+		case *AviPkiProfileCache:
+			if value.(*AviPkiProfileCache).Uuid == uuid {
+				return value.(*AviPkiProfileCache).Name, true
 			}
 		}
 	}

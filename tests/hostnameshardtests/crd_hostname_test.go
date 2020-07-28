@@ -192,7 +192,7 @@ func TestHostnameCreateHostRule(t *testing.T) {
 			return nodes[0].SniNodes[0].SSLKeyCertAviRef
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
+	}, 20*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))

@@ -53,6 +53,11 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		SslProfileRef:    &pool_meta.SslProfileRef,
 	}
 
+	if pool_meta.PkiProfile != nil {
+		pkiProfileName := "/api/pkiprofile?name=" + pool_meta.PkiProfile.Name
+		pool.PkiProfileRef = &pkiProfileName
+	}
+
 	// there are defaults set by the Avi controller internally
 	if pool_meta.LbAlgorithm != "" {
 		pool.LbAlgorithm = &pool_meta.LbAlgorithm
@@ -168,11 +173,23 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			}
 		}
 
-		pool_cache_obj := avicache.AviPoolCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid:               uuid,
-			CloudConfigCksum:   cksum,
-			ServiceMetadataObj: svc_mdata_obj,
-			LastModified:       lastModifiedStr,
+		var pkiKey avicache.NamespaceName
+		if pkiprof, ok := resp["pki_profile_ref"]; ok && pkiprof != "" {
+			pkiUuid := avicache.ExtractUuid(pkiprof.(string), "pkiprofile-.*.#")
+			pkiName, foundPki := rest.cache.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
+			if foundPki {
+				pkiKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
+			}
+		}
+
+		pool_cache_obj := avicache.AviPoolCache{
+			Name:                 name,
+			Tenant:               rest_op.Tenant,
+			Uuid:                 uuid,
+			CloudConfigCksum:     cksum,
+			ServiceMetadataObj:   svc_mdata_obj,
+			PkiProfileCollection: pkiKey,
+			LastModified:         lastModifiedStr,
 		}
 		if lastModifiedStr == "" {
 			pool_cache_obj.InvalidData = true

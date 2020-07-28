@@ -160,6 +160,13 @@ func GetCACertNodeName(keycertname string) string {
 	return keycertname + "-cacert"
 }
 
+func GetPoolTLSKeyCertNodeName(httprule, pathPrefix string) string {
+	if pathPrefix == "/" {
+		pathPrefix = ""
+	}
+	return NamePrefix + strings.ReplaceAll(httprule, "/", "-") + strings.ReplaceAll(pathPrefix, "/", "_")
+}
+
 var VRFContext string
 var VRFUuid string
 

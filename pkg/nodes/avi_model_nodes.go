@@ -819,6 +819,7 @@ type AviPoolNode struct {
 	ServiceMetadata  avicache.ServiceMetadataObj
 	SniEnabled       bool
 	SslProfileRef    string
+	PkiProfile       *AviTLSKeyCertNode
 	VrfContext       string
 }
 
@@ -848,6 +849,10 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.PriorityLabel,
 	}[:], delim))
 	checksum := utils.Hash(chksumStr)
+
+	if v.PkiProfile != nil {
+		checksum = v.PkiProfile.GetCheckSum()
+	}
 	v.CloudConfigCksum = checksum
 }
 

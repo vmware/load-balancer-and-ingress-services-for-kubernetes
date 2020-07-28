@@ -373,7 +373,9 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey avicache.NamespaceName, key string) {
 	if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
 		utils.AviLog.Infof("key: %s, msg: creating/updating %s cache, method: %s", key, rest_op.Model, rest_op.Method)
-		if rest_op.Model == "Pool" {
+		if rest_op.Model == "PKIprofile" {
+			rest.AviPkiProfileAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "Pool" {
 			rest.AviPoolCacheAdd(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VirtualService" {
 			rest.AviVsCacheAdd(rest_op, key)
@@ -393,7 +395,9 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 
 	} else {
 		utils.AviLog.Infof("key: %s, msg: deleting %s cache", key, rest_op.Model)
-		if rest_op.Model == "Pool" {
+		if rest_op.Model == "PKIprofile" {
+			rest.AviPkiProfileCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "Pool" {
 			rest.AviPoolCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VirtualService" {
 			rest.AviVsCacheDel(rest_op, aviObjKey, key)
@@ -541,6 +545,16 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				}
 				rest_op.ObjName = SSLKeyAndCertificate
 				rest.AviSSLCacheDel(rest_op, aviObjKey, key)
+			case "PKIprofile":
+				var PKIprofile string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					PKIprofile = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.PKIprofile).Name
+				case avimodels.PKIprofile:
+					PKIprofile = *rest_op.Obj.(avimodels.PKIprofile).Name
+				}
+				rest_op.ObjName = PKIprofile
+				rest.AviPkiProfileCacheDel(rest_op, aviObjKey, key)
 			case "VirtualService":
 				rest.AviVsCacheDel(rest_op, aviObjKey, key)
 			case "VSDataScriptSet":
@@ -606,6 +620,15 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					SSLKeyAndCertificate = *rest_op.Obj.(avimodels.SSLKeyAndCertificate).Name
 				}
 				aviObjCache.AviPopulateOneSSLCache(c, utils.CloudName, SSLKeyAndCertificate)
+			case "PKIprofile":
+				var PKIprofile string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					PKIprofile = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.PKIprofile).Name
+				case avimodels.PKIprofile:
+					PKIprofile = *rest_op.Obj.(avimodels.PKIprofile).Name
+				}
+				aviObjCache.AviPopulateOnePKICache(c, utils.CloudName, PKIprofile)
 			case "VirtualService":
 				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name)
 				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
@@ -714,6 +737,7 @@ func (rest *RestOperations) DSDelete(ds_to_delete []avicache.NamespaceName, name
 
 func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	var cache_pool_nodes []avicache.NamespaceName
+	var pool_pkiprofile_delete []avicache.NamespaceName
 	if vs_cache_obj != nil {
 		cache_pool_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.PoolKeyCollection))
 		copy(cache_pool_nodes, vs_cache_obj.PoolKeyCollection)
@@ -730,6 +754,8 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 					pool_cache, ok := rest.cache.PoolCache.AviCacheGet(pool_key)
 					if ok {
 						pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
+						pool_pkiprofile_delete, rest_ops = rest.PkiProfileCU(pool.PkiProfile, pool_cache_obj, namespace, rest_ops, key)
+
 						// Cache found. Let's compare the checksums
 						utils.AviLog.Debugf("key: %s, msg: poolcache: %v", key, pool_cache_obj)
 						if pool_cache_obj.CloudConfigCksum == strconv.Itoa(int(pool.GetCheckSum())) {
@@ -743,16 +769,19 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 					}
 				} else {
 					utils.AviLog.Debugf("key: %s, msg: pool %s not found in cache, operation: POST", key, pool.Name)
+					_, rest_ops = rest.PkiProfileCU(pool.PkiProfile, nil, namespace, rest_ops, key)
 					// Not found - it should be a POST call.
 					restOp := rest.AviPoolBuild(pool, nil, key)
 					rest_ops = append(rest_ops, restOp)
 				}
-
+				rest_ops = rest.PkiProfileDelete(pool_pkiprofile_delete, namespace, rest_ops, key)
 			}
 		}
 	} else {
 		// Everything is a POST call
 		for _, pool := range pool_nodes {
+			_, rest_ops = rest.PkiProfileCU(pool.PkiProfile, nil, namespace, rest_ops, key)
+
 			utils.AviLog.Debugf("key: %s, msg: pool cache does not exist %s, operation: POST", key, pool.Name)
 			restOp := rest.AviPoolBuild(pool, nil, key)
 			rest_ops = append(rest_ops, restOp)
@@ -1125,6 +1154,65 @@ func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceN
 		}
 	}
 	rest_ops = append(rest_ops, noCARefRestOps...)
+	return rest_ops
+}
+
+func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviTLSKeyCertNode, pool_cache_obj *avicache.AviPoolCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+	// Default is POST
+	var cache_pki_nodes []avicache.NamespaceName
+	if pool_cache_obj != nil {
+		cache_pki_nodes = make([]avicache.NamespaceName, 1)
+		copy(cache_pki_nodes, []avicache.NamespaceName{pool_cache_obj.PkiProfileCollection})
+		if pki_node == nil {
+			return cache_pki_nodes, rest_ops
+		}
+
+		pki_key := avicache.NamespaceName{Namespace: namespace, Name: pki_node.Name}
+		found := utils.HasElem(cache_pki_nodes, pki_key)
+		if found {
+			pki_cache, ok := rest.cache.PKIProfileCache.AviCacheGet(pki_key)
+			if ok {
+				cache_pki_nodes = Remove(cache_pki_nodes, pki_key)
+				pki_cache_obj, _ := pki_cache.(*avicache.AviPkiProfileCache)
+				if pki_cache_obj.CloudConfigCksum == pki_node.GetCheckSum() {
+					utils.AviLog.Debugf("The checksums are same for SSL cache obj %s, not doing anything", pki_cache_obj.Name)
+				} else {
+					// The checksums are different, so it should be a PUT call.
+					restOp := rest.AviPkiProfileBuild(pki_node, pki_cache_obj)
+					rest_ops = append(rest_ops, restOp)
+				}
+			}
+		} else {
+			if pki_node != nil {
+				// Not found - it should be a POST call.
+				restOp := rest.AviPkiProfileBuild(pki_node, nil)
+				rest_ops = append(rest_ops, restOp)
+			}
+		}
+
+	} else {
+		if pki_node != nil {
+			// Everything is a POST call
+			restOp := rest.AviPkiProfileBuild(pki_node, nil)
+			rest_ops = append(rest_ops, restOp)
+		}
+
+	}
+
+	return cache_pki_nodes, rest_ops
+}
+
+func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	for _, delPki := range pkiProfileDelete {
+		pkiProfile := avicache.NamespaceName{Namespace: namespace, Name: delPki.Name}
+		pkiCache, ok := rest.cache.PKIProfileCache.AviCacheGet(pkiProfile)
+		if ok {
+			pkiCacheObj, _ := pkiCache.(*avicache.AviPkiProfileCache)
+			restOp := rest.AviPkiProfileDel(pkiCacheObj.Uuid, namespace)
+			restOp.ObjName = delPki.Name
+			rest_ops = append(rest_ops, restOp)
+		}
+	}
 	return rest_ops
 }
 

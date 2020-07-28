@@ -39,6 +39,7 @@ type AviObjCache struct {
 	CloudKeyCache   *AviCache
 	HTTPPolicyCache *AviCache
 	SSLKeyCache     *AviCache
+	PKIProfileCache *AviCache
 	VSVIPCache      *AviCache
 	VrfCache        *AviCache
 	VsCacheMeta     *AviCache
@@ -57,6 +58,7 @@ func NewAviObjCache() *AviObjCache {
 	c.HTTPPolicyCache = NewAviCache()
 	c.VSVIPCache = NewAviCache()
 	c.VrfCache = NewAviCache()
+	c.PKIProfileCache = NewAviCache()
 	return &c
 }
 
@@ -71,6 +73,7 @@ func SharedAviObjCache() *AviObjCache {
 }
 
 func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient, cloud string) {
+	c.PopulatePkiProfilesToCache(client)
 	c.PopulatePoolsToCache(client, cloud)
 	c.PopulatePgDataToCache(client, cloud)
 	c.PopulateDSDataToCache(client, cloud)
@@ -248,6 +251,64 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud str
 	}
 }
 
+func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, override_uri ...NextPage) (*[]AviPkiProfileCache, int, error) {
+	var uri string
+	akoUser := lib.AKOUser
+
+	if len(override_uri) == 1 {
+		uri = override_uri[0].Next_uri
+	} else {
+		uri = "/api/pkiprofile/?" + "&include_name=true&" + "&created_by=" + akoUser + "&page_size=100"
+	}
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for pool %v", uri, err)
+		return nil, 0, err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := 0; i < len(elems); i++ {
+		pki := models.PKIprofile{}
+		err = json.Unmarshal(elems[i], &pki)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal pki data, err: %v", err)
+			continue
+		}
+
+		if pki.Name == nil || pki.UUID == nil {
+			utils.AviLog.Warnf("Incomplete pki data unmarshalled, %s", utils.Stringify(pki))
+			continue
+		}
+
+		pkiCacheObj := AviPkiProfileCache{
+			Name:             *pki.Name,
+			Uuid:             *pki.UUID,
+			Tenant:           lib.GetTenant(),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), ""),
+		}
+		*pkiData = append(*pkiData, pkiCacheObj)
+
+	}
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/pkiprofile")
+		if len(next_uri) > 1 {
+			override_uri := "/api/pkiprofile" + next_uri[1]
+			nextPage := NextPage{Next_uri: override_uri}
+			_, _, err := c.AviPopulateAllPkiPRofiles(client, pkiData, nextPage)
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+	}
+
+	return pkiData, result.Count, nil
+}
+
 func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud string, poolData *[]AviPoolCache, override_uri ...NextPage) (*[]AviPoolCache, int, error) {
 	var uri string
 	akoUser := lib.AKOUser
@@ -287,12 +348,22 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 			utils.AviLog.Warnf("Error parsing service metadata during pool cache :%v", err)
 		}
 
+		var pkiKey NamespaceName
+		if pool.PkiProfileRef != nil {
+			pkiUuid := ExtractUuid(*pool.PkiProfileRef, "pkiprofile-.*.#")
+			pkiName, foundPki := c.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
+			if foundPki {
+				pkiKey = NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
+			}
+		}
+
 		poolCacheObj := AviPoolCache{
-			Name:               *pool.Name,
-			Uuid:               *pool.UUID,
-			CloudConfigCksum:   *pool.CloudConfigCksum,
-			ServiceMetadataObj: svc_mdata_obj,
-			LastModified:       *pool.LastModified,
+			Name:                 *pool.Name,
+			Uuid:                 *pool.UUID,
+			CloudConfigCksum:     *pool.CloudConfigCksum,
+			PkiProfileCollection: pkiKey,
+			ServiceMetadataObj:   svc_mdata_obj,
+			LastModified:         *pool.LastModified,
 		}
 		*poolData = append(*poolData, poolCacheObj)
 	}
@@ -310,6 +381,36 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 	}
 
 	return poolData, result.Count, nil
+}
+
+func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, override_uri ...NextPage) {
+	var pkiProfData []AviPkiProfileCache
+	c.AviPopulateAllPkiPRofiles(client, &pkiProfData)
+
+	pkiCacheData := c.PKIProfileCache.ShallowCopy()
+	for i, pkiCacheObj := range pkiProfData {
+		k := NamespaceName{Namespace: lib.GetTenant(), Name: pkiCacheObj.Name}
+		oldPkiIntf, found := c.PKIProfileCache.AviCacheGet(k)
+		if found {
+			oldPkiData, ok := oldPkiIntf.(*AviPkiProfileCache)
+			if ok {
+				if oldPkiData.InvalidData {
+					pkiProfData[i].InvalidData = true
+					utils.AviLog.Infof("Invalid cache data for pki: %s", k)
+				}
+			} else {
+				utils.AviLog.Infof("Wrong data type for pki: %s in cache", k)
+			}
+		}
+		utils.AviLog.Infof("Adding key to pki cache :%s value :%s", k, pkiCacheObj.Uuid)
+		c.PKIProfileCache.AviCacheAdd(k, &pkiProfData[i])
+		delete(pkiCacheData, k)
+	}
+	// The data that is left in pkiCacheData should be explicitly removed
+	for key := range pkiCacheData {
+		utils.AviLog.Infof("Deleting key from pki cache :%s", key)
+		c.PKIProfileCache.AviCacheDelete(key)
+	}
 }
 
 func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
@@ -660,6 +761,52 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 	return nil
 }
 
+func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
+	cloud string, objName string) error {
+	var uri string
+	akoUser := lib.AKOUser
+
+	uri = "/api/pkiprofile?name=" + objName + "&created_by=" + akoUser
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for pkiprofile %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal pkiprofile data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		pkikey := models.PKIprofile{}
+		err = json.Unmarshal(elems[i], &pkikey)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal pkiprofile data, err: %v", err)
+			continue
+		}
+		if pkikey.Name == nil || pkikey.UUID == nil {
+			utils.AviLog.Warnf("Incomplete pkikey data unmarshalled, %s", utils.Stringify(pkikey))
+			continue
+		}
+		//Only cache a SSL keys that belongs to this AKO.
+		if !strings.HasPrefix(*pkikey.Name, lib.GetNamePrefix()) {
+			continue
+		}
+		checksum := lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "")
+		sslCacheObj := AviSSLCache{
+			Name:             *pkikey.Name,
+			Uuid:             *pkikey.UUID,
+			CloudConfigCksum: checksum,
+		}
+		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pkikey.Name}
+		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
+		utils.AviLog.Debugf("Adding pkikey to Cache during refresh %s\n", k)
+	}
+	return nil
+}
+
 func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 	cloud string, objName string) error {
 	var uri string
@@ -701,12 +848,22 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 			utils.AviLog.Warnf("Error parsing service metadata during pool cache :%v", err)
 		}
 
+		var pkiKey NamespaceName
+		if *pool.PkiProfileRef != "" {
+			pkiUuid := ExtractUuid(*pool.PkiProfileRef, "pkiprofile-.*.#")
+			pkiName, foundPki := c.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
+			if foundPki {
+				pkiKey = NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
+			}
+		}
+
 		poolCacheObj := AviPoolCache{
-			Name:               *pool.Name,
-			Uuid:               *pool.UUID,
-			CloudConfigCksum:   *pool.CloudConfigCksum,
-			ServiceMetadataObj: svc_mdata_obj,
-			LastModified:       *pool.LastModified,
+			Name:                 *pool.Name,
+			Uuid:                 *pool.UUID,
+			CloudConfigCksum:     *pool.CloudConfigCksum,
+			PkiProfileCollection: pkiKey,
+			ServiceMetadataObj:   svc_mdata_obj,
+			LastModified:         *pool.LastModified,
 		}
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pool.Name}
 		c.PoolCache.AviCacheAdd(k, &poolCacheObj)
