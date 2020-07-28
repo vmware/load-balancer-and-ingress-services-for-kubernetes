@@ -566,7 +566,9 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	for _, hpp := range v.PortPool {
 		ports = append(ports, int64(hpp.Port))
 	}
-	checksum = lib.L4PolicyChecksum(ports)
+	if len(v.PortPool) > 0 {
+		checksum = lib.L4PolicyChecksum(ports, v.PortPool[0].Protocol)
+	}
 	v.CloudConfigCksum = checksum
 }
 

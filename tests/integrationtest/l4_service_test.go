@@ -554,7 +554,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		g.Eventually(func() bool {
 			_, found = mcache.VsCacheMeta.AviCacheGet(vsKey)
 			return found
-		}, 40*time.Second).Should(gomega.Equal(false))
+		}, 60*time.Second).Should(gomega.Equal(false))
 	}
 
 	// verifying whether the first service created still has the corresponding cache entry

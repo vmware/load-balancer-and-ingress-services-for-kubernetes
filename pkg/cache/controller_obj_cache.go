@@ -979,8 +979,10 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 		// Fetch the pools associated with the l4 policyset object
 		var pools []string
 		var ports []int64
+		var protocol string
 		if l4pol.L4ConnectionPolicy != nil {
 			for _, rule := range l4pol.L4ConnectionPolicy.Rules {
+				protocol = *rule.Match.Protocol.Protocol
 				if rule.Action != nil {
 					poolUuid := ExtractUuid(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
 					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
@@ -998,7 +1000,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports),
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol),
 		}
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *l4pol.Name}
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
@@ -1355,9 +1357,11 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		// Fetch the pools associated with the l4 policyset object
 		var pools []string
 		var ports []int64
+		var protocol string
 		if l4pol.L4ConnectionPolicy != nil {
 			for _, rule := range l4pol.L4ConnectionPolicy.Rules {
 				if rule.Action != nil {
+					protocol = *rule.Match.Protocol.Protocol
 					poolUuid := ExtractUuid(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
 					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 					if found {
@@ -1374,7 +1378,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports),
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol),
 		}
 		*l4PolicyData = append(*l4PolicyData, l4PolCacheObj)
 
@@ -1684,7 +1688,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					LastModified:         vs["_last_modified"].(string),
 				}
 				c.VsCacheLocal.AviCacheAdd(k, &vsMetaObj)
-				utils.AviLog.Infof("Added VS cache key :%s", utils.Stringify(vsMetaObj))
+				utils.AviLog.Debugf("Added VS cache key :%s", utils.Stringify(vsMetaObj))
 
 			}
 		}

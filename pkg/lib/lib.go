@@ -310,13 +310,13 @@ func SSLKeyCertChecksum(sslName, certificate, cacert string) uint32 {
 	return utils.Hash(sslName + certificate + cacert)
 }
 
-func L4PolicyChecksum(ports []int64) uint32 {
+func L4PolicyChecksum(ports []int64, protocol string) uint32 {
 	var portsInt []int
 	for _, port := range ports {
 		portsInt = append(portsInt, int(port))
 	}
 	sort.Ints(portsInt)
-	return utils.Hash(utils.Stringify(portsInt))
+	return utils.Hash(utils.Stringify(portsInt)) + utils.Hash(protocol)
 }
 
 func IsNodePortMode() bool {

@@ -17,6 +17,7 @@ package rest
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
@@ -62,6 +63,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 			ruleMatchTarget := &avimodels.L4RuleMatchTarget{}
 
 			l4Protocol := &avimodels.L4RuleProtocolMatch{}
+			l4Protocol.MatchCriteria = &matchCriteria
 			if hppmap.Protocol == utils.TCP {
 				tcpString := "PROTOCOL_TCP"
 				l4Protocol.Protocol = &tcpString
@@ -70,6 +72,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 				l4Protocol.Protocol = &udpString
 			}
 			ruleMatchTarget.Port = portMatch
+			ruleMatchTarget.Protocol = l4Protocol
 			l4rule.Match = ruleMatchTarget
 			l4rules = append(l4rules, l4rule)
 			l4Policy.Rules = l4rules
@@ -150,39 +153,30 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 				utils.AviLog.Warnf("key: %s, msg: last_modified is not of type string", key)
 			}
 		}
-		var pools []string
+
+		var l4policyset avimodels.L4PolicySet
+		var protocol string
 		var ports []int64
-		if resp["l4_connection_policy"] != nil {
-			l4map, rulessOk := resp["l4_connection_policy"].(map[string]interface{})
-			if rulessOk {
-				rulesArr := l4map["rules"].([]interface{})
-				for _, ruleIntf := range rulesArr {
-					rulemap, _ := ruleIntf.(map[string]interface{})
-					if rulemap["match"] != nil {
-						match, _ := rulemap["match"].(map[string]interface{})
-						portsMap, _ := match["port"].(map[string]interface{})
-						for _, port := range portsMap["ports"].([]interface{}) {
-							ports = append(ports, port.(int64))
-						}
-					}
-					if rulemap["action"] != nil {
-						action, _ := rulemap["action"].(map[string]interface{})
-						selectPool, _ := action["select_pool"].(map[string]interface{})
-						poolUuid := avicache.ExtractUuid(selectPool["pool_ref"].(string), "pool-.*.#")
-						poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
-						if found {
-							pools = append(pools, poolName.(string))
-						}
-					}
-				}
-			}
+		var pools []string
+		switch rest_op.Obj.(type) {
+		case utils.AviRestObjMacro:
+			l4policyset = rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.L4PolicySet)
+		case avimodels.L4PolicySet:
+			l4policyset = rest_op.Obj.(avimodels.L4PolicySet)
+		}
+		for _, rule := range l4policyset.L4ConnectionPolicy.Rules {
+			// cannot create an external load balancer with mix protocol - hence just caching the protocol once
+			protocol = *rule.Match.Protocol.Protocol
+			ports = rule.Match.Port.Ports
+			pool := strings.TrimPrefix(*rule.Action.SelectPool.PoolRef, "/api/pool?name=")
+			pools = append(pools, pool)
 		}
 
 		l4_cache_obj := avicache.AviL4PolicyCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			LastModified:     lastModifiedStr,
 			Pools:            pools,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports),
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol),
 		}
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.L4PolicyCache.AviCacheAdd(k, &l4_cache_obj)
