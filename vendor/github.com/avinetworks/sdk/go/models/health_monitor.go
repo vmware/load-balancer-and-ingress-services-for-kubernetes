@@ -14,6 +14,9 @@ type HealthMonitor struct {
 	// By default, multiple instances of the same healthmonitor to the same server are suppressed intelligently. In rare cases, the monitor may have specific constructs that go beyond the server keys (ip, port, etc.) during which such suppression is not desired. Use this knob to allow duplicates. Field introduced in 18.2.8.
 	AllowDuplicateMonitors *bool `json:"allow_duplicate_monitors,omitempty"`
 
+	// Authentication information for username/password. Field introduced in 20.1.1.
+	Authentication *HealthMonitorAuthInfo `json:"authentication,omitempty"`
+
 	// User defined description for the object.
 	Description *string `json:"description,omitempty"`
 

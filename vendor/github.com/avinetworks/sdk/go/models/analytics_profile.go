@@ -86,6 +86,9 @@ type AnalyticsProfile struct {
 	// Disable VirtualService (frontend) Analytics. This flag disables metrics and healthscore for Virtualservice. Field introduced in 18.2.1.
 	DisableVsAnalytics *bool `json:"disable_vs_analytics,omitempty"`
 
+	// Enable adaptive configuration for optimizing resource usage. Field introduced in 20.1.1.
+	EnableAdaptiveConfig *bool `json:"enable_adaptive_config,omitempty"`
+
 	// Enables Advanced Analytics features like Anomaly detection. If set to false, anomaly computation (and associated rules/events) for VS, Pool and Server metrics will be disabled. However, setting it to false reduces cpu and memory requirements for Analytics subsystem. Field introduced in 17.2.13, 18.1.5, 18.2.1.
 	EnableAdvancedAnalytics *bool `json:"enable_advanced_analytics,omitempty"`
 
@@ -107,6 +110,9 @@ type AnalyticsProfile struct {
 	// Exclude invalid dns queries from the list of errors.
 	ExcludeInvalidDNSQueryAsError *bool `json:"exclude_invalid_dns_query_as_error,omitempty"`
 
+	// Exclude the Issuer-Revoked OCSP Responses from the list of errors. Field introduced in 20.1.1.
+	ExcludeIssuerRevokedOcspResponsesAsError *bool `json:"exclude_issuer_revoked_ocsp_responses_as_error,omitempty"`
+
 	// Exclude queries to domains that did not have configured services/records from the list of errors.
 	ExcludeNoDNSRecordAsError *bool `json:"exclude_no_dns_record_as_error,omitempty"`
 
@@ -115,6 +121,9 @@ type AnalyticsProfile struct {
 
 	// Exclude persistence server changed while load balancing' from the list of errors.
 	ExcludePersistenceChangeAsError *bool `json:"exclude_persistence_change_as_error,omitempty"`
+
+	// Exclude the Revoked OCSP certificate status responses from the list of errors. Field introduced in 20.1.1.
+	ExcludeRevokedOcspResponsesAsError *bool `json:"exclude_revoked_ocsp_responses_as_error,omitempty"`
 
 	// Exclude server dns error response from the list of errors.
 	ExcludeServerDNSErrorAsError *bool `json:"exclude_server_dns_error_as_error,omitempty"`
@@ -125,11 +134,17 @@ type AnalyticsProfile struct {
 	// List of SIP status codes to be excluded from being classified as an error. Field introduced in 17.2.13, 18.1.5, 18.2.1.
 	ExcludeSipErrorCodes []int64 `json:"exclude_sip_error_codes,omitempty,omitempty"`
 
+	// Exclude the Stale OCSP certificate status responses from the list of errors. Field introduced in 20.1.1.
+	ExcludeStaleOcspResponsesAsError *bool `json:"exclude_stale_ocsp_responses_as_error,omitempty"`
+
 	// Exclude 'server unanswered syns' from the list of errors.
 	ExcludeSynRetransmitAsError *bool `json:"exclude_syn_retransmit_as_error,omitempty"`
 
 	// Exclude TCP resets by client from the list of potential errors.
 	ExcludeTCPResetAsError *bool `json:"exclude_tcp_reset_as_error,omitempty"`
+
+	// Exclude the unavailable OCSP Responses from the list of errors. Field introduced in 20.1.1.
+	ExcludeUnavailableOcspResponsesAsError *bool `json:"exclude_unavailable_ocsp_responses_as_error,omitempty"`
 
 	// Exclude unsupported dns queries from the list of errors.
 	ExcludeUnsupportedDNSQueryAsError *bool `json:"exclude_unsupported_dns_query_as_error,omitempty"`
@@ -196,6 +211,10 @@ type AnalyticsProfile struct {
 
 	// Penalty for allowing non-PFS handshakes. Allowed values are 0-5.
 	HsSecurityNonpfsPenalty *float64 `json:"hs_security_nonpfs_penalty,omitempty"`
+
+	// Score assigned when OCSP Certificate Status is set to Revoked or Issuer Revoked. Allowed values are 0.0-5.0. Field introduced in 20.1.1.
+	// Read Only: true
+	HsSecurityOcspRevokedScore *float64 `json:"hs_security_ocsp_revoked_score,omitempty"`
 
 	// Deprecated. Allowed values are 0-5.
 	HsSecuritySelfsignedcertPenalty *float64 `json:"hs_security_selfsignedcert_penalty,omitempty"`

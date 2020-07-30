@@ -35,7 +35,7 @@ type OpenStackConfiguration struct {
 	// Enable Contrail plugin mode. (deprecated).
 	ContrailPlugin *bool `json:"contrail_plugin,omitempty"`
 
-	// Custom image properties to be set on a Service Engine image. Only hw_vif_multiqueue_enabled property is supported. Other properties will be ignored. Field introduced in 18.2.7.
+	// Custom image properties to be set on a Service Engine image. Only hw_vif_multiqueue_enabled property is supported. Other properties will be ignored. Field introduced in 18.2.7, 20.1.1.
 	CustomSeImageProperties []*Property `json:"custom_se_image_properties,omitempty"`
 
 	// If True, allow selection of networks marked as 'external' for management,  vip or data networks.
@@ -44,13 +44,13 @@ type OpenStackConfiguration struct {
 	// Free unused floating IPs.
 	FreeFloatingips *bool `json:"free_floatingips,omitempty"`
 
-	// Default hypervisor type. Enum options - DEFAULT, VMWARE_ESX, KVM, VMWARE_VSAN, XEN.
+	// Default hypervisor type, only KVM is supported. Enum options - DEFAULT, VMWARE_ESX, KVM, VMWARE_VSAN, XEN.
 	Hypervisor *string `json:"hypervisor,omitempty"`
 
 	// Custom properties per hypervisor type. Field introduced in 17.2.1.
 	HypervisorProperties []*OpenStackHypervisorProperties `json:"hypervisor_properties,omitempty"`
 
-	// If OS_IMG_FMT_RAW, use RAW images else use QCOW2 or streamOptimized/flat VMDK as appropriate. . Enum options - OS_IMG_FMT_AUTO, OS_IMG_FMT_QCOW2, OS_IMG_FMT_VMDK, OS_IMG_FMT_RAW, OS_IMG_FMT_FLAT.
+	// If OS_IMG_FMT_RAW, use RAW images else use QCOW2 for KVM. Enum options - OS_IMG_FMT_AUTO, OS_IMG_FMT_QCOW2, OS_IMG_FMT_VMDK, OS_IMG_FMT_RAW, OS_IMG_FMT_FLAT.
 	ImgFormat *string `json:"img_format,omitempty"`
 
 	// Import keystone tenants list into Avi.
@@ -81,28 +81,28 @@ type OpenStackConfiguration struct {
 	// If True, enable neutron rbac discovery of networks shared across tenants/projects.
 	NeutronRbac *bool `json:"neutron_rbac,omitempty"`
 
-	// nuage_organization of OpenStackConfiguration.
+	//  Field deprecated in 20.1.1.
 	NuageOrganization *string `json:"nuage_organization,omitempty"`
 
-	// nuage_password of OpenStackConfiguration.
+	//  Field deprecated in 20.1.1.
 	NuagePassword *string `json:"nuage_password,omitempty"`
 
-	// Number of nuage_port.
+	//  Field deprecated in 20.1.1.
 	NuagePort *int32 `json:"nuage_port,omitempty"`
 
-	// nuage_username of OpenStackConfiguration.
+	//  Field deprecated in 20.1.1.
 	NuageUsername *string `json:"nuage_username,omitempty"`
 
-	// Applicable only if allowed-address-pairs is disabled or unusable. VIP placement uses Nuage virtualIp if true, else redirectionTarget. Field introduced in 17.2.3.
+	// Applicable only if allowed-address-pairs is disabled or unusable. VIP placement uses Nuage virtualIp if true, else redirectionTarget. Field deprecated in 20.1.1. Field introduced in 17.2.3.
 	NuageVirtualip *bool `json:"nuage_virtualip,omitempty"`
 
-	// Nuage VSD host name or IP address.
+	// Nuage VSD host name or IP address. Field deprecated in 20.1.1.
 	NuageVsdHost *string `json:"nuage_vsd_host,omitempty"`
 
 	// The password Avi Vantage will use when authenticating to Keystone.
 	Password *string `json:"password,omitempty"`
 
-	// If true, port-security extension (if detected) will be used instead of security-groups, allowed-address-pairs or interface-secondary-ips. If false, port-security extension is skipped.
+	// If true, port-security extension (if detected) will be used instead of security-groups, allowed-address-pairs or interface-secondary-ips. If false, port-security extension is skipped. Field deprecated in 20.1.1.
 	PortSecurity *bool `json:"port_security,omitempty"`
 
 	// Access privilege. Enum options - NO_ACCESS, READ_ACCESS, WRITE_ACCESS.
@@ -142,7 +142,7 @@ type OpenStackConfiguration struct {
 	// Use keystone for user authentication.
 	UseKeystoneAuth *bool `json:"use_keystone_auth,omitempty"`
 
-	// If True, use nuage vip as device_owner of VIP ports, else use neutron LOADBALANCER. Field introduced in 17.2.1.
+	// If True, use nuage vip as device_owner of VIP ports, else use neutron LOADBALANCER. Field deprecated in 20.1.1. Field introduced in 17.2.1.
 	UseNuagevip *bool `json:"use_nuagevip,omitempty"`
 
 	// The username Avi Vantage will use when authenticating to Keystone. For Keystone v3, provide the user information in user@domain format, unless that user belongs to the Default domain.

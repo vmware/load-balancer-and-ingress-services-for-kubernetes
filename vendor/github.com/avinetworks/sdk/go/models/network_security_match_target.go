@@ -10,6 +10,9 @@ type NetworkSecurityMatchTarget struct {
 	// Placeholder for description of property client_ip of obj type NetworkSecurityMatchTarget field type str  type object
 	ClientIP *IPAddrMatch `json:"client_ip,omitempty"`
 
+	//  Field introduced in 20.1.1.
+	IPReputationType *IPReputationTypeMatch `json:"ip_reputation_type,omitempty"`
+
 	// Placeholder for description of property microservice of obj type NetworkSecurityMatchTarget field type str  type object
 	Microservice *MicroServiceMatch `json:"microservice,omitempty"`
 

@@ -22,6 +22,9 @@ type DNSResourceRecord struct {
 	// Geo Location of Member. Field introduced in 17.1.1.
 	Location *GeoLocation `json:"location,omitempty"`
 
+	// Fully qualified domain name of a mail server in the MX record. Field introduced in 18.2.9, 20.1.1.
+	MailServer *string `json:"mail_server,omitempty"`
+
 	// Domain name of the resource record.
 	Name *string `json:"name,omitempty"`
 
@@ -31,8 +34,14 @@ type DNSResourceRecord struct {
 	// Service port.
 	Port *int32 `json:"port,omitempty"`
 
+	// The priority field identifies which mail server should be preferred. Field introduced in 18.2.9, 20.1.1.
+	Priority *int32 `json:"priority,omitempty"`
+
 	// Site controller cluster name - applicable only for Avi VS GSLB member.
 	SiteName *string `json:"site_name,omitempty"`
+
+	// Text resource record. Field introduced in 18.2.9, 20.1.1.
+	TextRdata *string `json:"text_rdata,omitempty"`
 
 	// Number of seconds the resource record can be cached.
 	// Required: true

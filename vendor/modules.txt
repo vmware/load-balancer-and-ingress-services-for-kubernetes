@@ -4,7 +4,7 @@ github.com/Masterminds/semver
 github.com/avinetworks/container-lib/api
 github.com/avinetworks/container-lib/api/models
 github.com/avinetworks/container-lib/utils
-# github.com/avinetworks/sdk v0.0.0-20200403054229-39f30c036b56
+# github.com/avinetworks/sdk v0.0.0-20200724112835-36cadc631f7f
 github.com/avinetworks/sdk/go/clients
 github.com/avinetworks/sdk/go/models
 github.com/avinetworks/sdk/go/session

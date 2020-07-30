@@ -21,11 +21,18 @@ type WafRule struct {
 	// Required: true
 	Index *int32 `json:"index"`
 
+	// The rule field is sensitive and will not be displayed. Field introduced in 20.1.1.
+	IsSensitive *bool `json:"is_sensitive,omitempty"`
+
 	// WAF Rule mode. This can be detection or enforcement. If this is not set, the Policy mode is used. This only takes effect if the policy allows delegation. Enum options - WAF_MODE_DETECTION_ONLY, WAF_MODE_ENFORCEMENT. Field introduced in 18.1.5, 18.2.1.
 	Mode *string `json:"mode,omitempty"`
 
 	// User-friendly optional name for a rule. Field introduced in 17.2.1.
 	Name *string `json:"name,omitempty"`
+
+	// The execution phase where this rule will be executed. Enum options - WAF_PHASE_CONNECTION, WAF_PHASE_REQUEST_HEADER, WAF_PHASE_REQUEST_BODY, WAF_PHASE_RESPONSE_HEADER, WAF_PHASE_RESPONSE_BODY, WAF_PHASE_LOGGING. Field introduced in 20.1.1.
+	// Read Only: true
+	Phase *string `json:"phase,omitempty"`
 
 	// Rule as per Modsec language. Field introduced in 17.2.1.
 	// Required: true

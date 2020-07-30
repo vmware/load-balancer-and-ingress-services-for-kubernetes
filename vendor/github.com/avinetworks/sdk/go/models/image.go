@@ -11,10 +11,16 @@ type Image struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// This field describes the cloud info specific to the base image. Field introduced in 20.1.1.
+	CloudInfoValues []*ImageCloudData `json:"cloud_info_values,omitempty"`
+
 	// Controller package details. Field introduced in 18.2.6.
 	ControllerInfo *PackageDetails `json:"controller_info,omitempty"`
 
-	// It references the controller-patch associated with the Uber image. Field introduced in 18.2.8.
+	// Mandatory Controller patch name that is applied along with this base image. Field introduced in 18.2.10, 20.1.1.
+	ControllerPatchName *string `json:"controller_patch_name,omitempty"`
+
+	// It references the controller-patch associated with the Uber image. Field introduced in 18.2.8, 20.1.1.
 	ControllerPatchUUID *string `json:"controller_patch_uuid,omitempty"`
 
 	// This field describes the api migration related information. Field introduced in 18.2.6.
@@ -27,7 +33,10 @@ type Image struct {
 	// SE package details. Field introduced in 18.2.6.
 	SeInfo *PackageDetails `json:"se_info,omitempty"`
 
-	// It references the Service Engine patch associated with the Uber Image. Field introduced in 18.2.8.
+	// Mandatory ServiceEngine patch name that is applied along with this base image. Field introduced in 18.2.10, 20.1.1.
+	SePatchName *string `json:"se_patch_name,omitempty"`
+
+	// It references the Service Engine patch associated with the Uber Image. Field introduced in 18.2.8, 20.1.1.
 	SePatchUUID *string `json:"se_patch_uuid,omitempty"`
 
 	// Status to check if the image is present. Enum options - SYSERR_SUCCESS, SYSERR_FAILURE, SYSERR_OUT_OF_MEMORY, SYSERR_NO_ENT, SYSERR_INVAL, SYSERR_ACCESS, SYSERR_FAULT, SYSERR_IO, SYSERR_TIMEOUT, SYSERR_NOT_SUPPORTED, SYSERR_NOT_READY, SYSERR_UPGRADE_IN_PROGRESS, SYSERR_WARM_START_IN_PROGRESS, SYSERR_TRY_AGAIN, SYSERR_NOT_UPGRADING, SYSERR_PENDING, SYSERR_EVENT_GEN_FAILURE, SYSERR_CONFIG_PARAM_MISSING, SYSERR_BAD_REQUEST, SYSERR_TEST1.... Field introduced in 18.2.6.
@@ -39,7 +48,7 @@ type Image struct {
 	// Type of the image patch/system. Enum options - IMAGE_TYPE_PATCH, IMAGE_TYPE_SYSTEM. Field introduced in 18.2.6.
 	Type *string `json:"type,omitempty"`
 
-	// Status to check if the image is an uber bundle. Field introduced in 18.2.8.
+	// Status to check if the image is an uber bundle. Field introduced in 18.2.8, 20.1.1.
 	UberBundle *bool `json:"uber_bundle,omitempty"`
 
 	// url

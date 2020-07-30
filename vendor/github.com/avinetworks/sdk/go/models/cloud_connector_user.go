@@ -24,6 +24,9 @@ type CloudConnectorUser struct {
 	// Required: true
 	Name *string `json:"name"`
 
+	// Credentials to talk to NSX-T manager. Field introduced in 20.1.1.
+	NsxtCredentials *NsxtCredentials `json:"nsxt_credentials,omitempty"`
+
 	// Credentials for Oracle Cloud Infrastructure. Field introduced in 18.2.1,18.1.3.
 	OciCredentials *OCICredentials `json:"oci_credentials,omitempty"`
 
@@ -48,4 +51,7 @@ type CloudConnectorUser struct {
 
 	// Unique object identifier of the object.
 	UUID *string `json:"uuid,omitempty"`
+
+	// Credentials to talk to VCenter. Field introduced in 20.1.1.
+	VcenterCredentials *VCenterCredentials `json:"vcenter_credentials,omitempty"`
 }

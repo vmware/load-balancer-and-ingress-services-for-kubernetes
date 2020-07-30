@@ -34,6 +34,9 @@ type GslbPoolMemberRuntimeInfo struct {
 	// This is an internal field that conveys the IP address from the controller to service engine in binary format. .
 	IPValueToSe *int32 `json:"ip_value_to_se,omitempty"`
 
+	// This is an internal field that conveys the IPV6 address from the controller to service engine in binary format. . Field introduced in 18.2.8, 20.1.1.
+	IPV6ValueToSe []int64 `json:"ipv6_value_to_se,omitempty,omitempty"`
+
 	// Operational VIPs of the member  that can map to multiple VS IP addresses such as private, public and floating addresses.
 	OperIps []*IPAddr `json:"oper_ips,omitempty"`
 

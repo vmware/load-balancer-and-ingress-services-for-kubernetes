@@ -20,9 +20,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/avinetworks/container-lib/api"
 	"github.com/avinetworks/container-lib/utils"
 	"github.com/avinetworks/sdk/go/models"
-
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -283,8 +283,18 @@ func GetClusterName() string {
 
 var StaticRouteSyncChan chan struct{}
 
+var akoApi *api.ApiServer
+
 func SetStaticRouteSyncHandler() {
 	StaticRouteSyncChan = make(chan struct{})
+}
+
+func SetApiServerInstance(akoApiInstance *api.ApiServer) {
+	akoApi = akoApiInstance
+}
+
+func ShutdownApi() {
+	akoApi.ShutDown()
 }
 
 func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {

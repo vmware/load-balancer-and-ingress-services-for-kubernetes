@@ -39,17 +39,16 @@ var (
 )
 
 func main() {
-	go InitializeAKCApi()
+
+	InitializeAKOApi()
+
 	InitializeAKC()
 }
 
-func InitializeAKCApi() {
-	akoApi := &api.ApiServer{
-		Port:   "8080",
-		Models: []models.ApiModel{},
-	}
-
+func InitializeAKOApi() {
+	akoApi := api.NewServer("8080", []models.ApiModel{})
 	akoApi.InitApi()
+	lib.SetApiServerInstance(akoApi)
 }
 
 func InitializeAKC() {

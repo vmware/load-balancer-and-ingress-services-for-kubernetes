@@ -26,6 +26,9 @@ type PoolGroup struct {
 	// Description of Pool Group.
 	Description *string `json:"description,omitempty"`
 
+	// Enable HTTP/2 for traffic from VirtualService to all the backend servers in all the pools configured under this PoolGroup. Field introduced in 20.1.1.
+	EnableHttp2 *bool `json:"enable_http2,omitempty"`
+
 	// Enable an action - Close Connection, HTTP Redirect, or Local HTTP Response - when a pool group failure happens. By default, a connection will be closed, in case the pool group experiences a failure.
 	FailAction *FailAction `json:"fail_action,omitempty"`
 

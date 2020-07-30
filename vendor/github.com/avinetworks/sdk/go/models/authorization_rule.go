@@ -8,7 +8,8 @@ package models
 type AuthorizationRule struct {
 
 	// Authorization action when rule is matched. Field introduced in 18.2.5.
-	Action *AuthorizationAction `json:"action,omitempty"`
+	// Required: true
+	Action *AuthorizationAction `json:"action"`
 
 	// Enable or disable the rule. Field introduced in 18.2.5.
 	// Required: true
@@ -19,7 +20,8 @@ type AuthorizationRule struct {
 	Index *int32 `json:"index"`
 
 	// Authorization match criteria for the rule. Field introduced in 18.2.5.
-	Match *AuthorizationMatch `json:"match,omitempty"`
+	// Required: true
+	Match *AuthorizationMatch `json:"match"`
 
 	// Name of the rule. Field introduced in 18.2.5.
 	// Required: true

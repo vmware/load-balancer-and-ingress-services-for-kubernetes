@@ -10,6 +10,15 @@ type EventDetails struct {
 	// Placeholder for description of property add_networks_details of obj type EventDetails field type str  type object
 	AddNetworksDetails *RmAddNetworksEventDetails `json:"add_networks_details,omitempty"`
 
+	// Placeholder for description of property albservices_case_details of obj type EventDetails field type str  type object
+	AlbservicesCaseDetails *ALBServicesCase `json:"albservices_case_details,omitempty"`
+
+	// Placeholder for description of property albservices_file_upload_details of obj type EventDetails field type str  type object
+	AlbservicesFileUploadDetails *ALBServicesFileUpload `json:"albservices_file_upload_details,omitempty"`
+
+	// Placeholder for description of property albservices_status_details of obj type EventDetails field type str  type object
+	AlbservicesStatusDetails *ALBServicesStatusDetails `json:"albservices_status_details,omitempty"`
+
 	// Placeholder for description of property all_seupgrade_event_details of obj type EventDetails field type str  type object
 	AllSeupgradeEventDetails *AllSeUpgradeEventDetails `json:"all_seupgrade_event_details,omitempty"`
 
@@ -27,12 +36,6 @@ type EventDetails struct {
 
 	// Placeholder for description of property avg_uptime_change_details of obj type EventDetails field type str  type object
 	AvgUptimeChangeDetails *AvgUptimeChangeDetails `json:"avg_uptime_change_details,omitempty"`
-
-	// Placeholder for description of property avi_cloud_crs_details of obj type EventDetails field type str  type object
-	AviCloudCrsDetails *AviCloudCRSDetails `json:"avi_cloud_crs_details,omitempty"`
-
-	// Placeholder for description of property avi_cloud_status_details of obj type EventDetails field type str  type object
-	AviCloudStatusDetails *AviCloudStatusDetails `json:"avi_cloud_status_details,omitempty"`
 
 	//  Field introduced in 17.2.10,18.1.2.
 	AwsAsgDeletionDetails *AWSASGDelete `json:"aws_asg_deletion_details,omitempty"`
@@ -96,6 +99,12 @@ type EventDetails struct {
 
 	// Placeholder for description of property cc_vnic_details of obj type EventDetails field type str  type object
 	CcVnicDetails *CloudVnicChange `json:"cc_vnic_details,omitempty"`
+
+	// Placeholder for description of property cloud_asg_notif_details of obj type EventDetails field type str  type object
+	CloudAsgNotifDetails *CloudASGNotifDetails `json:"cloud_asg_notif_details,omitempty"`
+
+	// Placeholder for description of property cloud_autoscaling_config_failure_details of obj type EventDetails field type str  type object
+	CloudAutoscalingConfigFailureDetails *CloudAutoscalingConfigFailureDetails `json:"cloud_autoscaling_config_failure_details,omitempty"`
 
 	// Placeholder for description of property cluster_config_failed_details of obj type EventDetails field type str  type object
 	ClusterConfigFailedDetails *ClusterConfigFailedEvent `json:"cluster_config_failed_details,omitempty"`
@@ -172,6 +181,21 @@ type EventDetails struct {
 	// Placeholder for description of property container_cloud_sevice of obj type EventDetails field type str  type object
 	ContainerCloudSevice *ContainerCloudService `json:"container_cloud_sevice,omitempty"`
 
+	// Placeholder for description of property controller_license_reconcile_details of obj type EventDetails field type str  type object
+	ControllerLicenseReconcileDetails *ControllerLicenseReconcileDetails `json:"controller_license_reconcile_details,omitempty"`
+
+	// Placeholder for description of property crs_deployment_failure of obj type EventDetails field type str  type object
+	CrsDeploymentFailure *CRSDeploymentFailure `json:"crs_deployment_failure,omitempty"`
+
+	// Placeholder for description of property crs_deployment_success of obj type EventDetails field type str  type object
+	CrsDeploymentSuccess *CRSDeploymentSuccess `json:"crs_deployment_success,omitempty"`
+
+	// Placeholder for description of property crs_details of obj type EventDetails field type str  type object
+	CrsDetails *CRSDetails `json:"crs_details,omitempty"`
+
+	// Placeholder for description of property crs_update_details of obj type EventDetails field type str  type object
+	CrsUpdateDetails *CRSUpdateDetails `json:"crs_update_details,omitempty"`
+
 	// Placeholder for description of property cs_infra_details of obj type EventDetails field type str  type object
 	CsInfraDetails *CloudStackSetup `json:"cs_infra_details,omitempty"`
 
@@ -214,11 +238,17 @@ type EventDetails struct {
 	// Placeholder for description of property ip_fail_details of obj type EventDetails field type str  type object
 	IPFailDetails *RmSeIPFailEventDetails `json:"ip_fail_details,omitempty"`
 
+	// Placeholder for description of property ip_threat_db_event_data of obj type EventDetails field type str  type object
+	IPThreatDbEventData *IPThreatDBEventData `json:"ip_threat_db_event_data,omitempty"`
+
 	// Placeholder for description of property license_details of obj type EventDetails field type str  type object
 	LicenseDetails *LicenseDetails `json:"license_details,omitempty"`
 
 	// Placeholder for description of property license_expiry_details of obj type EventDetails field type str  type object
 	LicenseExpiryDetails *LicenseExpiryDetails `json:"license_expiry_details,omitempty"`
+
+	// Placeholder for description of property license_transaction_details of obj type EventDetails field type str  type object
+	LicenseTransactionDetails *LicenseTransactionDetails `json:"license_transaction_details,omitempty"`
 
 	// Placeholder for description of property marathon_service_port_conflict_details of obj type EventDetails field type str  type object
 	MarathonServicePortConflictDetails *MarathonServicePortConflict `json:"marathon_service_port_conflict_details,omitempty"`
@@ -250,6 +280,12 @@ type EventDetails struct {
 	// Placeholder for description of property network_subnet_details of obj type EventDetails field type str  type object
 	NetworkSubnetDetails *NetworkSubnetInfo `json:"network_subnet_details,omitempty"`
 
+	// Nsxt Image event. Field introduced in 20.1.1.
+	NsxtImgDetails *NsxtImageDetails `json:"nsxt_img_details,omitempty"`
+
+	// Nsxt cloud event. Field introduced in 20.1.1.
+	NsxtInfo *NsxtSetup `json:"nsxt_info,omitempty"`
+
 	// Placeholder for description of property nw_subnet_clash_details of obj type EventDetails field type str  type object
 	NwSubnetClashDetails *NetworkSubnetClash `json:"nw_subnet_clash_details,omitempty"`
 
@@ -258,6 +294,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property oci_info of obj type EventDetails field type str  type object
 	OciInfo *OCISetup `json:"oci_info,omitempty"`
+
+	//  Field introduced in 20.1.1.
+	OsAPIVerCheckFailure *OpenStackAPIVersionCheckFailure `json:"os_api_ver_check_failure,omitempty"`
 
 	// Placeholder for description of property os_infra_details of obj type EventDetails field type str  type object
 	OsInfraDetails *OpenStackClusterSetup `json:"os_infra_details,omitempty"`
@@ -295,6 +334,9 @@ type EventDetails struct {
 	// Placeholder for description of property psm_program_details of obj type EventDetails field type str  type object
 	PsmProgramDetails *PsmProgramDetails `json:"psm_program_details,omitempty"`
 
+	//  Field introduced in 20.1.1.
+	RateLimiterEventDetails *RateLimiterEventDetails `json:"rate_limiter_event_details,omitempty"`
+
 	// Placeholder for description of property rebalance_migrate_details of obj type EventDetails field type str  type object
 	RebalanceMigrateDetails *RebalanceMigrateEventDetails `json:"rebalance_migrate_details,omitempty"`
 
@@ -309,6 +351,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property scheduler_action_info of obj type EventDetails field type str  type object
 	SchedulerActionInfo *SchedulerActionDetails `json:"scheduler_action_info,omitempty"`
+
+	//  Field introduced in 20.1.1.
+	SeBgpPeerDownDetails *SeBgpPeerDownDetails `json:"se_bgp_peer_down_details,omitempty"`
 
 	// Placeholder for description of property se_bgp_peer_state_change_details of obj type EventDetails field type str  type object
 	SeBgpPeerStateChangeDetails *SeBgpPeerStateChangeDetails `json:"se_bgp_peer_state_change_details,omitempty"`
@@ -330,6 +375,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property se_hb_event_details of obj type EventDetails field type str  type object
 	SeHbEventDetails *SeHBEventDetails `json:"se_hb_event_details,omitempty"`
+
+	// Inter-SE datapath heartbeat recovered. One event is generated when heartbeat recovers. Field introduced in 20.1.1.
+	SeHbRecoveredEventDetails *SeHbRecoveredEventDetails `json:"se_hb_recovered_event_details,omitempty"`
 
 	// Placeholder for description of property se_hm_gs_details of obj type EventDetails field type str  type object
 	SeHmGsDetails *SeHmEventGSDetails `json:"se_hm_gs_details,omitempty"`
@@ -367,6 +415,9 @@ type EventDetails struct {
 	// Placeholder for description of property se_pool_lb_details of obj type EventDetails field type str  type object
 	SePoolLbDetails *SePoolLbEventDetails `json:"se_pool_lb_details,omitempty"`
 
+	// Placeholder for description of property se_reconcile_details of obj type EventDetails field type str  type object
+	SeReconcileDetails *SeReconcileDetails `json:"se_reconcile_details,omitempty"`
+
 	// Placeholder for description of property se_thresh_event_details of obj type EventDetails field type str  type object
 	SeThreshEventDetails *SeThreshEventDetails `json:"se_thresh_event_details,omitempty"`
 
@@ -384,6 +435,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property se_vs_fault_event_details of obj type EventDetails field type str  type object
 	SeVsFaultEventDetails *SeVsFaultEventDetails `json:"se_vs_fault_event_details,omitempty"`
+
+	// Placeholder for description of property sec_mgr_data_event of obj type EventDetails field type str  type object
+	SecMgrDataEvent *SecMgrDataEvent `json:"sec_mgr_data_event,omitempty"`
 
 	// Placeholder for description of property semigrate_event_details of obj type EventDetails field type str  type object
 	SemigrateEventDetails *SeMigrateEventDetails `json:"semigrate_event_details,omitempty"`
@@ -427,11 +481,17 @@ type EventDetails struct {
 	// Placeholder for description of property ssl_export_details of obj type EventDetails field type str  type object
 	SslExportDetails *SSLExportDetails `json:"ssl_export_details,omitempty"`
 
+	// Placeholder for description of property ssl_ignored_details of obj type EventDetails field type str  type object
+	SslIgnoredDetails *SSLIgnoredDetails `json:"ssl_ignored_details,omitempty"`
+
 	// Placeholder for description of property ssl_renew_details of obj type EventDetails field type str  type object
 	SslRenewDetails *SSLRenewDetails `json:"ssl_renew_details,omitempty"`
 
 	// Placeholder for description of property ssl_renew_failed_details of obj type EventDetails field type str  type object
 	SslRenewFailedDetails *SSLRenewFailedDetails `json:"ssl_renew_failed_details,omitempty"`
+
+	// Placeholder for description of property ssl_revoked_details of obj type EventDetails field type str  type object
+	SslRevokedDetails *SSLRevokedDetails `json:"ssl_revoked_details,omitempty"`
 
 	// Placeholder for description of property switchover_details of obj type EventDetails field type str  type object
 	SwitchoverDetails *SwitchoverEventDetails `json:"switchover_details,omitempty"`

@@ -13,6 +13,9 @@ type AzureConfiguration struct {
 	// Credentials to access azure cloud. It is a reference to an object of type CloudConnectorUser. Field introduced in 17.2.1.
 	CloudCredentialsRef *string `json:"cloud_credentials_ref,omitempty"`
 
+	// Disks Encryption Set resource-id (des_id) to encrypt se image and managed disk using customer-managed-keys. Field introduced in 20.1.1.
+	DesID *string `json:"des_id,omitempty"`
+
 	// Azure location where this cloud will be located. Field introduced in 17.2.1.
 	Location *string `json:"location,omitempty"`
 

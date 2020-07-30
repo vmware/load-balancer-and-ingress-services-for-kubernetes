@@ -679,6 +679,10 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				}
 				aviObjCache.AviPopulateOneVsDSCache(c, utils.CloudName, VSDataScriptSet)
 			}
+		} else if statuscode == 408 {
+			// This status code refers to a problem with the controller timeouts. We need to re-init the session object.
+			utils.AviLog.Infof("key :%s, msg: Controller request timed out, will re-init session by retrying", key)
+
 		} else {
 			// We don't want to handle any other error code like 400 etc.
 			utils.AviLog.Infof("key: %s, msg: Detected an error code that we don't support, not going to retry", key, statuscode)

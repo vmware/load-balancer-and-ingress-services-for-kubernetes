@@ -7,10 +7,10 @@ package models
 // swagger:model SeUpgradeParams
 type SeUpgradeParams struct {
 
-	// Placeholder for description of property disruptive of obj type SeUpgradeParams field type str  type boolean
+	// This field is used to disable scale-in/scale out operations during upgrade operations. .
 	Disruptive *bool `json:"disruptive,omitempty"`
 
-	// Placeholder for description of property force of obj type SeUpgradeParams field type str  type boolean
+	//  Field deprecated in 18.2.10, 20.1.1.
 	Force *bool `json:"force,omitempty"`
 
 	// Upgrade System with patch upgrade. Field introduced in 17.2.2.
@@ -22,7 +22,7 @@ type SeUpgradeParams struct {
 	// Resume from suspended state.
 	ResumeFromSuspend *bool `json:"resume_from_suspend,omitempty"`
 
-	// Placeholder for description of property rollback of obj type SeUpgradeParams field type str  type boolean
+	// It is used in rollback operations. .
 	Rollback *bool `json:"rollback,omitempty"`
 
 	//  It is a reference to an object of type ServiceEngineGroup. Field introduced in 17.2.2.
@@ -34,7 +34,7 @@ type SeUpgradeParams struct {
 	// When set to true, if there is any failure during the SE upgrade, upgrade will be suspended for this SE group and manual intervention would be needed to resume the upgrade. Field introduced in 17.1.4.
 	SuspendOnFailure *bool `json:"suspend_on_failure,omitempty"`
 
-	// Placeholder for description of property test of obj type SeUpgradeParams field type str  type boolean
+	//  Field deprecated in 18.2.10, 20.1.1.
 	Test *bool `json:"test,omitempty"`
 
 	// Unique object identifier of the object.

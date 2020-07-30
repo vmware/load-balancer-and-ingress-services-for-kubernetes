@@ -13,6 +13,9 @@ type GslbSiteRuntime struct {
 	// This field tracks the glb-uuid. Field introduced in 17.2.5.
 	GlbUUID *string `json:"glb_uuid,omitempty"`
 
+	// Carries replication stats for a given site. Field introduced in 20.1.1.
+	ReplicationStats *GslbReplicationStats `json:"replication_stats,omitempty"`
+
 	// Placeholder for description of property rxed_site_hs of obj type GslbSiteRuntime field type str  type object
 	RxedSiteHs *GslbSiteHealthStatus `json:"rxed_site_hs,omitempty"`
 

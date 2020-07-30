@@ -27,8 +27,17 @@ type BgpProfile struct {
 	// Required: true
 	LocalAs *int32 `json:"local_as"`
 
+	// LOCAL_PREF to be used for routes advertised. Applicable only over iBGP. Field introduced in 20.1.1.
+	LocalPreference *int32 `json:"local_preference,omitempty"`
+
+	// Number of times the local AS should be prepended additionally. Allowed values are 1-10. Field introduced in 20.1.1.
+	NumAsPathPrepend *int32 `json:"num_as_path_prepend,omitempty"`
+
 	// BGP Peers.
 	Peers []*BgpPeer `json:"peers,omitempty"`
+
+	// Learning and advertising options for BGP peers. Field introduced in 20.1.1.
+	RoutingOptions []*BgpRoutingOptions `json:"routing_options,omitempty"`
 
 	// Send community attribute to all peers. Field introduced in 17.1.2.
 	SendCommunity *bool `json:"send_community,omitempty"`

@@ -57,6 +57,9 @@ type VISeVMOvaParams struct {
 	// Number of vcenter_num_se_cores.
 	VcenterNumSeCores *int32 `json:"vcenter_num_se_cores,omitempty"`
 
+	// vcenter_opaque_nwid of VISeVmOvaParams.
+	VcenterOpaqueNwid *string `json:"vcenter_opaque_nwid,omitempty"`
+
 	// vcenter_ovf_path of VISeVmOvaParams.
 	VcenterOvfPath *string `json:"vcenter_ovf_path,omitempty"`
 

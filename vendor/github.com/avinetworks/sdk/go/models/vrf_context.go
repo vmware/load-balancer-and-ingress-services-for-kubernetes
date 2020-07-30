@@ -11,6 +11,9 @@ type VrfContext struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// BFD configuration profile. Field introduced in 20.1.1.
+	BfdProfile *BfdProfile `json:"bfd_profile,omitempty"`
+
 	// Bgp Local and Peer Info.
 	BgpProfile *BgpProfile `json:"bgp_profile,omitempty"`
 
@@ -29,8 +32,11 @@ type VrfContext struct {
 	// Configure ping based heartbeat check for all default gateways in service engines of vrf. Field introduced in 17.1.1.
 	InternalGatewayMonitor *InternalGatewayMonitor `json:"internal_gateway_monitor,omitempty"`
 
-	// Key/value labels which can be used for Object Access Policy permission scoping. Field introduced in 18.2.7.
+	// Key/value labels which can be used for Object Access Policy permission scoping. Field introduced in 18.2.7, 20.1.1.
 	Labels []*KeyValue `json:"labels,omitempty"`
+
+	// Enable LLDP. Field introduced in 18.2.10, 20.1.1.
+	LldpEnable *bool `json:"lldp_enable,omitempty"`
 
 	// Name of the object.
 	// Required: true

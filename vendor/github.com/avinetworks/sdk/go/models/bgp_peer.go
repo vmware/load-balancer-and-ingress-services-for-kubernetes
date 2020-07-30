@@ -31,6 +31,9 @@ type BgpPeer struct {
 	// Keepalive interval for this Peer. Allowed values are 0-3600.
 	KeepaliveInterval *int32 `json:"keepalive_interval,omitempty"`
 
+	// Label used to enable learning and/or advertisement of routes to this peer. Field introduced in 20.1.1.
+	Label *string `json:"label,omitempty"`
+
 	// Local AS to use for this ebgp peer. If specified, this will override the local AS configured at the VRF level. Allowed values are 1-4294967295. Field introduced in 17.1.6,17.2.2.
 	LocalAs *int32 `json:"local_as,omitempty"`
 

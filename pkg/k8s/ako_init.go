@@ -84,6 +84,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	if len(aviClientPool.AviClient) < 1 {
 		c.DisableSync = true
 		utils.AviLog.Errorf("could not get client to connect to Avi Controller, disabling sync")
+		lib.ShutdownApi()
 		return
 	}
 	aviclient := aviClientPool.AviClient[0]

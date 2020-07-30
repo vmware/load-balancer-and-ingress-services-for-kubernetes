@@ -31,6 +31,9 @@ type DNSRecord struct {
 	// Internal metadata for the DNS record. Field introduced in 18.2.5.
 	Metadata *string `json:"metadata,omitempty"`
 
+	// MX record. Field introduced in 18.2.9, 20.1.1.
+	MxRecords []*DNSMxRdata `json:"mx_records,omitempty"`
+
 	// Name Server information in NS record. Field introduced in 17.1.1.
 	Ns []*DNSNsRdata `json:"ns,omitempty"`
 
@@ -42,6 +45,9 @@ type DNSRecord struct {
 
 	// Time To Live for this DNS record.
 	TTL *int32 `json:"ttl,omitempty"`
+
+	// Text record. Field introduced in 18.2.9, 20.1.1.
+	TxtRecords []*DNSTxtRdata `json:"txt_records,omitempty"`
 
 	// DNS record type. Enum options - DNS_RECORD_OTHER, DNS_RECORD_A, DNS_RECORD_NS, DNS_RECORD_CNAME, DNS_RECORD_SOA, DNS_RECORD_PTR, DNS_RECORD_HINFO, DNS_RECORD_MX, DNS_RECORD_TXT, DNS_RECORD_RP, DNS_RECORD_DNSKEY, DNS_RECORD_AAAA, DNS_RECORD_SRV, DNS_RECORD_OPT, DNS_RECORD_RRSIG, DNS_RECORD_AXFR, DNS_RECORD_ANY.
 	// Required: true

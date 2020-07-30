@@ -39,6 +39,9 @@ type ApplicationProfile struct {
 	// Specifies if we need to preserve client port while preserving client IP for backend connections. Field introduced in 17.2.7.
 	PreserveClientPort *bool `json:"preserve_client_port,omitempty"`
 
+	// Specifies if destination IP and port needs to be preserved for backend connection. Field introduced in 20.1.1.
+	PreserveDestIPPort *bool `json:"preserve_dest_ip_port,omitempty"`
+
 	// Specifies various SIP service related controls for virtual service. Field introduced in 17.2.8, 18.1.3, 18.2.1.
 	SipServiceProfile *SipServiceApplicationProfile `json:"sip_service_profile,omitempty"`
 

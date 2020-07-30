@@ -13,7 +13,7 @@ type BurstResource struct {
 	// Time UTC of the last alert created for this burst resource. Field introduced in 17.2.5.
 	LastAlertTime *string `json:"last_alert_time,omitempty"`
 
-	//  Enum options - ENTERPRISE_16, ENTERPRISE_18. Field introduced in 17.2.5.
+	//  Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC. Field introduced in 17.2.5.
 	LicenseTier *string `json:"license_tier,omitempty"`
 
 	//  Field introduced in 17.2.5.

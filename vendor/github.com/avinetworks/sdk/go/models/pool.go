@@ -77,6 +77,9 @@ type Pool struct {
 	// Inherited config from VirtualService.
 	EastWest *bool `json:"east_west,omitempty"`
 
+	// Enable HTTP/2 for traffic from VirtualService to all backend servers in this pool. Field introduced in 20.1.1.
+	EnableHttp2 *bool `json:"enable_http2,omitempty"`
+
 	// Enable or disable the pool.  Disabling will terminate all open connections and pause health monitors.
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -101,6 +104,9 @@ type Pool struct {
 
 	// Enable common name check for server certificate. If enabled and no explicit domain name is specified, Avi will use the incoming host header to do the match.
 	HostCheckEnabled *bool `json:"host_check_enabled,omitempty"`
+
+	// Ignore the server port in building the load balancing state.Applicable only for consistent hash load balancing algorithm or Disable Port translation (use_service_port) use cases. Field introduced in 20.1.1.
+	IgnoreServerPort *bool `json:"ignore_server_port,omitempty"`
 
 	// The Passive monitor will monitor client to server connections and requests and adjust traffic load to servers based on successful responses.  This may alter the expected behavior of the LB method, such as Round Robin.
 	InlineHealthMonitor *bool `json:"inline_health_monitor,omitempty"`
@@ -165,6 +171,9 @@ type Pool struct {
 
 	// If SNI server name is specified, rewrite incoming host header to the SNI server name.
 	RewriteHostHeaderToSni *bool `json:"rewrite_host_header_to_sni,omitempty"`
+
+	// Enable to do routing when this pool is selected to send traffic. No servers present in routing pool. Field introduced in 20.1.1.
+	RoutingPool *bool `json:"routing_pool,omitempty"`
 
 	// Server AutoScale. Not used anymore. Field deprecated in 18.1.2.
 	ServerAutoScale *bool `json:"server_auto_scale,omitempty"`

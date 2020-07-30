@@ -11,6 +11,9 @@ type Network struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Key/value network attributes. Field introduced in 20.1.1.
+	Attrs []*KeyValue `json:"attrs,omitempty"`
+
 	//  It is a reference to an object of type Cloud.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
@@ -26,7 +29,7 @@ type Network struct {
 	// Enable IPv6 auto configuration. Field introduced in 18.1.1.
 	Ip6AutocfgEnabled *bool `json:"ip6_autocfg_enabled,omitempty"`
 
-	// Key/value labels which can be used for Object Access Policy permission scoping. Field introduced in 18.2.7.
+	// Key/value labels which can be used for Object Access Policy permission scoping. Field introduced in 18.2.7, 20.1.1.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name of the object.

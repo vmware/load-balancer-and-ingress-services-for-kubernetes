@@ -18,7 +18,7 @@ type GslbGeoDbFile struct {
 	// Geodb Filename in the Avi supported formats. Field introduced in 17.1.1.
 	Filename *string `json:"filename,omitempty"`
 
-	// This field indicates the file format. Enum options - GSLB_GEODB_FILE_FORMAT_AVI, GSLB_GEODB_FILE_FORMAT_MAXMIND_CITY. Field introduced in 17.1.1.
+	// This field indicates the file format. Enum options - GSLB_GEODB_FILE_FORMAT_AVI, GSLB_GEODB_FILE_FORMAT_MAXMIND_CITY, GSLB_GEODB_FILE_FORMAT_MAXMIND_CITY_V6, GSLB_GEODB_FILE_FORMAT_MAXMIND_CITY_V4_AND_V6, GSLB_GEODB_FILE_FORMAT_AVI_V6, GSLB_GEODB_FILE_FORMAT_AVI_V4_AND_V6. Field introduced in 17.1.1.
 	Format *string `json:"format,omitempty"`
 
 	// Internal timestamp associated with the file. Field introduced in 17.1.1.

@@ -51,6 +51,9 @@ type ControllerLicense struct {
 	// Service Engine bandwidth limits for bandwidth based licenses. Field introduced in 17.2.5.
 	SeBandwidthLimits []*SEBandwidthLimit `json:"se_bandwidth_limits,omitempty"`
 
+	// Number of vmware service cores after aggregating all other license types. Field introduced in 20.1.1.
+	ServiceCores *float64 `json:"service_cores,omitempty"`
+
 	// Number of physical cpu sockets across Service Engines in no access and linux server clouds.
 	Sockets *int32 `json:"sockets,omitempty"`
 

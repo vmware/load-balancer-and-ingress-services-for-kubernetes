@@ -11,7 +11,7 @@ type ControllerProperties struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Allow non-admin tenants to update admin VrfContext and Network objects. Field introduced in 18.2.7.
+	// Allow non-admin tenants to update admin VrfContext and Network objects. Field introduced in 18.2.7, 20.1.1.
 	AllowAdminNetworkUpdates *bool `json:"allow_admin_network_updates,omitempty"`
 
 	//  Field introduced in 17.1.1.
@@ -71,6 +71,9 @@ type ControllerProperties struct {
 	// Number of dummy.
 	Dummy *int32 `json:"dummy,omitempty"`
 
+	// Allow editing of system limits. Keep in mind that these system limits have been carefully selected based on rigorous testing in our testig environments. Modifying these limits could destabilize your cluster. Do this at your own risk!. Field introduced in 20.1.1.
+	EditSystemLimits *bool `json:"edit_system_limits,omitempty"`
+
 	// This setting enables the controller leader to shard API requests to the followers (if any). Field introduced in 18.1.5, 18.2.1.
 	EnableAPISharding *bool `json:"enable_api_sharding,omitempty"`
 
@@ -80,11 +83,20 @@ type ControllerProperties struct {
 	// Number of fatal_error_lease_time.
 	FatalErrorLeaseTime *int32 `json:"fatal_error_lease_time,omitempty"`
 
+	// Federated datastore will not cleanup diffs unless they are at least this duration in the past. Field introduced in 20.1.1.
+	FederatedDatastoreCleanupDuration *int64 `json:"federated_datastore_cleanup_duration,omitempty"`
+
+	// Period for file object cleanup job. Field introduced in 20.1.1.
+	FileObjectCleanupPeriod *int32 `json:"file_object_cleanup_period,omitempty"`
+
 	// Number of max_dead_se_in_grp.
 	MaxDeadSeInGrp *int32 `json:"max_dead_se_in_grp,omitempty"`
 
 	// Maximum number of pcap files stored per tenant.
 	MaxPcapPerTenant *int32 `json:"max_pcap_per_tenant,omitempty"`
+
+	// Maximum delay possible to add to se_spawn_retry_interval after successive SE spawn failure. Field introduced in 20.1.1.
+	MaxSeSpawnIntervalDelay *int32 `json:"max_se_spawn_interval_delay,omitempty"`
 
 	// Maximum number of consecutive attach IP failures that halts VS placement. Field introduced in 17.2.2.
 	MaxSeqAttachIPFailures *int32 `json:"max_seq_attach_ip_failures,omitempty"`
@@ -92,11 +104,17 @@ type ControllerProperties struct {
 	// Number of max_seq_vnic_failures.
 	MaxSeqVnicFailures *int32 `json:"max_seq_vnic_failures,omitempty"`
 
-	// Network and VrfContext objects from the admin tenant will not be shared to non-admin tenants unless admin permissions are granted. Field introduced in 18.2.7.
+	// Network and VrfContext objects from the admin tenant will not be shared to non-admin tenants unless admin permissions are granted. Field introduced in 18.2.7, 20.1.1.
 	PermissionScopedSharedAdminNetworks *bool `json:"permission_scoped_shared_admin_networks,omitempty"`
 
 	// Period for rotate app persistence keys job. Allowed values are 1-1051200. Special values are 0 - 'Disabled'.
 	PersistenceKeyRotatePeriod *int32 `json:"persistence_key_rotate_period,omitempty"`
+
+	// Burst limit on number of incoming requests0 to disable. Field introduced in 20.1.1.
+	PortalRequestBurstLimit *int32 `json:"portal_request_burst_limit,omitempty"`
+
+	// Maximum average number of requests allowed per second0 to disable. Field introduced in 20.1.1.
+	PortalRequestRateLimit *int32 `json:"portal_request_rate_limit,omitempty"`
 
 	// Token used for uploading tech-support to portal. Field introduced in 16.4.6,17.1.2.
 	PortalToken *string `json:"portal_token,omitempty"`
@@ -124,6 +142,9 @@ type ControllerProperties struct {
 
 	// Number of se_offline_del.
 	SeOfflineDel *int32 `json:"se_offline_del,omitempty"`
+
+	// Default retry period before attempting another Service Engine spawn in SE Group. Field introduced in 20.1.1.
+	SeSpawnRetryInterval *int32 `json:"se_spawn_retry_interval,omitempty"`
 
 	// Number of se_vnic_cooldown.
 	SeVnicCooldown *int32 `json:"se_vnic_cooldown,omitempty"`
@@ -158,8 +179,14 @@ type ControllerProperties struct {
 	// Time to account for DNS TTL during upgrade. This is in addition to vs_scalein_timeout_for_upgrade in se_group. Field introduced in 17.1.1.
 	UpgradeDNSTTL *int32 `json:"upgrade_dns_ttl,omitempty"`
 
-	// Number of upgrade_lease_time.
+	// Amount of time Controller waits for a large-sized SE (>=128GB memory) to reconnect after it is rebooted during upgrade. Field introduced in 18.2.10, 20.1.1.
+	UpgradeFatSeLeaseTime *int32 `json:"upgrade_fat_se_lease_time,omitempty"`
+
+	// Amount of time Controller waits for a regular-sized SE (<128GB memory) to reconnect after it is rebooted during upgrade. Starting 18.2.10/20.1.1, the default time has increased from 360 seconds to 600 seconds.
 	UpgradeLeaseTime *int32 `json:"upgrade_lease_time,omitempty"`
+
+	// This parameter defines the upper-bound value of the VS scale-in or VS scale-out operation executed in the SeScaleIn and SeScale context.  User can tweak this parameter to a higher value if the Segroup gets suspended due to SeScalein or SeScaleOut timeout failure typically associated with high number of VS(es) scaled out. . Field introduced in 18.2.10, 20.1.1.
+	UpgradeSePerVsScaleOpsTxnTime *int32 `json:"upgrade_se_per_vs_scale_ops_txn_time,omitempty"`
 
 	// url
 	// Read Only: true

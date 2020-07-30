@@ -36,6 +36,9 @@ type VSDataScriptSet struct {
 	// List of protocol parsers that could be referred by VSDataScriptSet objects. It is a reference to an object of type ProtocolParser. Field introduced in 18.2.3.
 	ProtocolParserRefs []string `json:"protocol_parser_refs,omitempty"`
 
+	// The Rate Limit definitions needed for this DataScript. The name is composed of the Virtual Service name and the DataScript name. Field introduced in 18.2.9.
+	RateLimiters []*RateLimiter `json:"rate_limiters,omitempty"`
+
 	// UUID of String Groups that could be referred by VSDataScriptSet objects. It is a reference to an object of type StringGroup.
 	StringGroupRefs []string `json:"string_group_refs,omitempty"`
 

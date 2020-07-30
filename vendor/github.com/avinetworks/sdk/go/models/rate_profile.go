@@ -11,10 +11,10 @@ type RateProfile struct {
 	// Required: true
 	Action *RateLimiterAction `json:"action"`
 
-	// Maximum number of connections or requests or packets to be let through instantaneously. Allowed values are 10-2500. Special values are 0- 'automatic'.
+	// Maximum number of connections or requests or packets to be let through instantaneously. Allowed values are 10-2500. Special values are 0- 'automatic'. Field deprecated in 18.2.9.
 	BurstSz *int32 `json:"burst_sz,omitempty"`
 
-	// Maximum number of connections or requests or packets. Allowed values are 1-1000000000. Special values are 0- 'unlimited'.
+	// Maximum number of connections or requests or packets. Allowed values are 1-1000000000. Special values are 0- 'unlimited'. Field deprecated in 18.2.9.
 	Count *int32 `json:"count,omitempty"`
 
 	// Explicitly tracks an attacker across rate periods.
@@ -29,6 +29,9 @@ type RateProfile struct {
 	// HTTP header name. Field introduced in 17.1.1.
 	HTTPHeader *string `json:"http_header,omitempty"`
 
-	// Time value in seconds to enforce rate count. Allowed values are 1-300.
+	// Time value in seconds to enforce rate count. Allowed values are 1-300. Field deprecated in 18.2.9.
 	Period *int32 `json:"period,omitempty"`
+
+	// The rate limiter configuration for this rate profile. Field introduced in 18.2.9.
+	RateLimiter *RateLimiter `json:"rate_limiter,omitempty"`
 }

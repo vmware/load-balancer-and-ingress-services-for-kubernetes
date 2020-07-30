@@ -16,6 +16,9 @@ type DebugVirtualServiceCapture struct {
 	// Enable SSL session key capture. Field introduced in 18.2.3.
 	EnableSslSessionKeyCapture *bool `json:"enable_ssl_session_key_capture,omitempty"`
 
+	// Number of files to maintain for SE pcap file rotation.file count set to 1 indicates no rotate. Allowed values are 1-10. Field introduced in 20.1.1.
+	FileCount *int32 `json:"file_count,omitempty"`
+
 	// Total number of packets to capture.
 	NumPkts *int32 `json:"num_pkts,omitempty"`
 

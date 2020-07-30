@@ -7,6 +7,9 @@ package models
 // swagger:model Service
 type Service struct {
 
+	// Enable HTTP2 on this port. Field introduced in 20.1.1.
+	EnableHttp2 *bool `json:"enable_http2,omitempty"`
+
 	// Enable SSL termination and offload for traffic from clients.
 	EnableSsl *bool `json:"enable_ssl,omitempty"`
 
@@ -16,7 +19,7 @@ type Service struct {
 	// Override the network profile for this specific service port. It is a reference to an object of type NetworkProfile.
 	OverrideNetworkProfileRef *string `json:"override_network_profile_ref,omitempty"`
 
-	// The Virtual Service's port number. Allowed values are 1-65535.
+	// The Virtual Service's port number. Allowed values are 0-65535.
 	// Required: true
 	Port *int32 `json:"port"`
 

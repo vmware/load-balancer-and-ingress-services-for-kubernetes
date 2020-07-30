@@ -31,29 +31,32 @@ type WafConfig struct {
 	// Maximum size for the client request body scanned by WAF. Allowed values are 1-32768. Field introduced in 18.1.5, 18.2.1.
 	ClientRequestMaxBodySize *int32 `json:"client_request_max_body_size,omitempty"`
 
-	// Configure thresholds for confidence labels. Field introduced in 18.2.3.
+	// Deprecated (Moved to WafPolicy). Configure thresholds for confidence labels. Field deprecated in 20.1.1. Field introduced in 18.2.3.
 	ConfidenceOverride *AppLearningConfidenceOverride `json:"confidence_override,omitempty"`
 
 	// 0  For Netscape Cookies. 1  For version 1 cookies. Allowed values are 0-1. Field introduced in 17.2.1.
 	CookieFormatVersion *int32 `json:"cookie_format_version,omitempty"`
 
-	// Enable Application Learning based rule updates on the WAF Profile. Rules will be programmed in dedicated WAF learning group. Field introduced in 18.2.3.
+	// Deprecated (Moved to WafPolicy). Enable Application Learning based rule updates on the WAF Profile. Rules will be programmed in dedicated WAF learning group. Field deprecated in 20.1.1. Field introduced in 18.2.3.
 	EnableAutoRuleUpdates *bool `json:"enable_auto_rule_updates,omitempty"`
 
 	// Ignore request body parsing errors due to partial scanning. Field introduced in 18.1.5, 18.2.1.
 	IgnoreIncompleteRequestBodyError *bool `json:"ignore_incomplete_request_body_error,omitempty"`
 
-	// Parameters for tuning Application learning. Field introduced in 18.2.3.
+	// Deprecated (Moved to WafPolicy). Parameters for tuning Application learning. Field deprecated in 20.1.1. Field introduced in 18.2.3.
 	LearningParams *AppLearningParams `json:"learning_params,omitempty"`
 
 	// The maximum period of time WAF processing is allowed to take for a single request. A value of 0 (zero) means no limit and should not be chosen in production deployments. It is only used for exceptional situations where crashes of se_dp processes are acceptable. The behavior of the system if this time is exceeded depends on two other configuration settings, the WAF policy mode and the WAF failure mode. In WAF policy mode 'Detection', the request is allowed and flagged for both failure mode 'Closed' and 'Open'. In enforcement node, 'Closed' means the request is rejected, 'Open' means the request is allowed and flagged. Irrespective of these settings, no subsequent WAF rules of this or other phases will be executed once the maximum execution time has been exceeded. Allowed values are 0-5000. Field introduced in 17.2.12, 18.1.2.
 	MaxExecutionTime *int32 `json:"max_execution_time,omitempty"`
 
-	// Minimum confidence label required for auto rule updates. Enum options - CONFIDENCE_VERY_HIGH, CONFIDENCE_HIGH, CONFIDENCE_PROBABLE, CONFIDENCE_LOW, CONFIDENCE_NONE. Field introduced in 18.2.3.
+	// Deprecated (Moved to WafPolicy) Minimum confidence label required for auto rule updates. Enum options - CONFIDENCE_VERY_HIGH, CONFIDENCE_HIGH, CONFIDENCE_PROBABLE, CONFIDENCE_LOW, CONFIDENCE_NONE. Field deprecated in 20.1.1. Field introduced in 18.2.3.
 	MinConfidence *string `json:"min_confidence,omitempty"`
 
 	// Limit CPU utilization for each regular expression match when processing rules. Field introduced in 17.2.5.
 	RegexMatchLimit *int32 `json:"regex_match_limit,omitempty"`
+
+	// Limit depth of recursion for each regular expression match when processing rules. Field introduced in 18.2.9.
+	RegexRecursionLimit *int32 `json:"regex_recursion_limit,omitempty"`
 
 	// WAF default action for Request Body Phase. Field introduced in 17.2.1.
 	// Required: true
@@ -85,4 +88,7 @@ type WafConfig struct {
 
 	// HTTP status code used by WAF Positive Security Model when rejecting a request. Enum options - HTTP_RESPONSE_CODE_0, HTTP_RESPONSE_CODE_100, HTTP_RESPONSE_CODE_101, HTTP_RESPONSE_CODE_200, HTTP_RESPONSE_CODE_201, HTTP_RESPONSE_CODE_202, HTTP_RESPONSE_CODE_203, HTTP_RESPONSE_CODE_204, HTTP_RESPONSE_CODE_205, HTTP_RESPONSE_CODE_206, HTTP_RESPONSE_CODE_300, HTTP_RESPONSE_CODE_301, HTTP_RESPONSE_CODE_302, HTTP_RESPONSE_CODE_303, HTTP_RESPONSE_CODE_304, HTTP_RESPONSE_CODE_305, HTTP_RESPONSE_CODE_307, HTTP_RESPONSE_CODE_400, HTTP_RESPONSE_CODE_401, HTTP_RESPONSE_CODE_402.... Field introduced in 18.2.3.
 	StatusCodeForRejectedRequests *string `json:"status_code_for_rejected_requests,omitempty"`
+
+	// Block or flag XML requests referring to External Entities. Field introduced in 20.1.1.
+	XMLXxeProtection *bool `json:"xml_xxe_protection,omitempty"`
 }

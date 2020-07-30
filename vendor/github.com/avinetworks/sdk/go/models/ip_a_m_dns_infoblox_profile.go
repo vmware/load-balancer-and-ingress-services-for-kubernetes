@@ -10,7 +10,7 @@ type IPAMDNSInfobloxProfile struct {
 	// DNS view.
 	DNSView *string `json:"dns_view,omitempty"`
 
-	// Custom parameters that will passed to the Infoblox provider as extensible attributes. Field introduced in 18.2.7.
+	// Custom parameters that will passed to the Infoblox provider as extensible attributes. Field introduced in 18.2.7, 20.1.1.
 	ExtensibleAttributes []*CustomParams `json:"extensible_attributes,omitempty"`
 
 	// Address of Infoblox appliance.
@@ -24,7 +24,7 @@ type IPAMDNSInfobloxProfile struct {
 	// Required: true
 	Password *string `json:"password"`
 
-	// Subnets to use for Infoblox IP allocation. Field introduced in 18.2.8.
+	// Subnets to use for Infoblox IP allocation. Field introduced in 18.2.8, 20.1.1.
 	UsableAllocSubnets []*InfobloxSubnet `json:"usable_alloc_subnets,omitempty"`
 
 	// Usable domains to pick from Infoblox.

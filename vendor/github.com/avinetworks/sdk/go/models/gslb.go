@@ -43,6 +43,9 @@ type Gslb struct {
 	// Required: true
 	Name *string `json:"name"`
 
+	// Policy for replicating configuration to the active follower sites. Field introduced in 20.1.1.
+	ReplicationPolicy *ReplicationPolicy `json:"replication_policy,omitempty"`
+
 	// Frequency with which group members communicate. Allowed values are 1-3600.
 	SendInterval *int32 `json:"send_interval,omitempty"`
 

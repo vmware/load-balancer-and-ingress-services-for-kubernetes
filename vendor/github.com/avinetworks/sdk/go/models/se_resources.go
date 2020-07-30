@@ -17,9 +17,15 @@ type SeResources struct {
 	// Placeholder for description of property hyper_threading of obj type SeResources field type str  type boolean
 	HyperThreading *bool `json:"hyper_threading,omitempty"`
 
+	// Indicates that the SE is running on a Virtual Machine. Field introduced in 20.1.1.
+	HypervisorMode *bool `json:"hypervisor_mode,omitempty"`
+
 	// Number of memory.
 	// Required: true
 	Memory *int32 `json:"memory"`
+
+	// Indicates the number of datapath processes spawned. Field introduced in 20.1.1.
+	NumDatapathProcesses *int32 `json:"num_datapath_processes,omitempty"`
 
 	// Number of num_vcpus.
 	// Required: true

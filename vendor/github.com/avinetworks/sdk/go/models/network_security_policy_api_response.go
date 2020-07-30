@@ -11,6 +11,9 @@ type NetworkSecurityPolicyAPIResponse struct {
 	// Required: true
 	Count *int32 `json:"count"`
 
+	// next
+	Next *string `json:"next,omitempty"`
+
 	// results
 	// Required: true
 	Results []*NetworkSecurityPolicy `json:"results,omitempty"`

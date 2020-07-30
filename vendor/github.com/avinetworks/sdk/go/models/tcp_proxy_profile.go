@@ -10,6 +10,9 @@ type TCPProxyProfile struct {
 	// Controls the our congestion window to send, normally it's 1 mss, If this option is turned on, we use 10 msses.
 	AggressiveCongestionAvoidance *bool `json:"aggressive_congestion_avoidance,omitempty"`
 
+	// Controls whether the windows are static or supports autogrowth. Maximum that it can grow to is limited to 4MB. Field introduced in 20.1.1.
+	AutoWindowGrowth *bool `json:"auto_window_growth,omitempty"`
+
 	// Dynamically pick the relevant parameters for connections.
 	Automatic *bool `json:"automatic,omitempty"`
 

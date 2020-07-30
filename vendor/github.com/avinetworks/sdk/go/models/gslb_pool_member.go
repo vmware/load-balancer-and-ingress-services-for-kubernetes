@@ -40,6 +40,9 @@ type GslbPoolMember struct {
 	// Overrides the default ratio of 1.  Reduces the percentage the LB algorithm would pick the server in relation to its peers.  Range is 1-20. Allowed values are 1-20.
 	Ratio *int32 `json:"ratio,omitempty"`
 
+	// This field indicates if the fqdn should be resolved to a v6 or a v4 address family. . Field introduced in 18.2.8, 20.1.1.
+	ResolveFqdnToV6 *bool `json:"resolve_fqdn_to_v6,omitempty"`
+
 	// Select local virtual service in the specified controller cluster belonging to this GSLB service. The virtual service may have multiple IP addresses and FQDNs.  User will have to choose IP address or FQDN and configure it in the respective field. .
 	VsUUID *string `json:"vs_uuid,omitempty"`
 }

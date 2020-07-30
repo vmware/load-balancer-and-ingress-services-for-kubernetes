@@ -11,6 +11,9 @@ type VIMgrVMRuntimeAPIResponse struct {
 	// Required: true
 	Count *int32 `json:"count"`
 
+	// next
+	Next *string `json:"next,omitempty"`
+
 	// results
 	// Required: true
 	Results []*VIMgrVMRuntime `json:"results,omitempty"`

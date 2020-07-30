@@ -7,7 +7,7 @@ package models
 // swagger:model SecureChannelConfiguration
 type SecureChannelConfiguration struct {
 
-	// Boolean that allows force update of secure channel certificate. Field introduced in 18.2.5.
+	// Boolean which allowed force update of secure channel certificate. Forced updating has been disallowed. Field deprecated in 18.2.8. Field introduced in 18.2.5.
 	BypassSecureChannelMustChecks *bool `json:"bypass_secure_channel_must_checks,omitempty"`
 
 	// Certificate for secure channel. Leave list empty to use system default certs. It is a reference to an object of type SSLKeyAndCertificate. Field introduced in 18.1.4, 18.2.1.

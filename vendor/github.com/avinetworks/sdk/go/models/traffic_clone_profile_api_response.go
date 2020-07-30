@@ -11,6 +11,9 @@ type TrafficCloneProfileAPIResponse struct {
 	// Required: true
 	Count *int32 `json:"count"`
 
+	// next
+	Next *string `json:"next,omitempty"`
+
 	// results
 	// Required: true
 	Results []*TrafficCloneProfile `json:"results,omitempty"`

@@ -20,7 +20,7 @@ type SAMLSPConfig struct {
 	// Key to generate the cookie. Field introduced in 18.2.3.
 	Key []*HTTPCookiePersistenceKey `json:"key,omitempty"`
 
-	// SP will use this SSL certificate to sign assertions going to the IdP. It is a reference to an object of type SSLKeyAndCertificate. Field introduced in 18.2.3.
+	// SP will use this SSL certificate to sign requests going to the IdP and decrypt the assertions coming from IdP. It is a reference to an object of type SSLKeyAndCertificate. Field introduced in 18.2.3.
 	SigningSslKeyAndCertificateRef *string `json:"signing_ssl_key_and_certificate_ref,omitempty"`
 
 	// SAML Single Signon URL to be programmed on the IDP. Field introduced in 18.2.3.
@@ -30,4 +30,7 @@ type SAMLSPConfig struct {
 	// SAML SP metadata for this application. Field introduced in 18.2.3.
 	// Read Only: true
 	SpMetadata *string `json:"sp_metadata,omitempty"`
+
+	// By enabling this field IdP can control how long the SP session can exist through the SessionNotOnOrAfter field in the AuthNStatement of SAML Response. Field introduced in 18.2.7.
+	UseIdpSessionTimeout *bool `json:"use_idp_session_timeout,omitempty"`
 }

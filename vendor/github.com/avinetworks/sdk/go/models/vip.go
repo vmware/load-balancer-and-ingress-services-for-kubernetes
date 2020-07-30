@@ -61,6 +61,9 @@ type Vip struct {
 	// (internal-use) Network port assigned to the Vip IP address. Field introduced in 17.1.1.
 	PortUUID *string `json:"port_uuid,omitempty"`
 
+	// Mask applied for the Vip, non-default mask supported only for wildcard Vip. Allowed values are 0-32. Field introduced in 20.1.1.
+	PrefixLength *int32 `json:"prefix_length,omitempty"`
+
 	// Subnet providing reachability for client facing Vip IP. Field introduced in 17.1.1.
 	Subnet *IPAddrPrefix `json:"subnet,omitempty"`
 

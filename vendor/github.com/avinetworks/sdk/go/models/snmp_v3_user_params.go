@@ -10,7 +10,7 @@ type SnmpV3UserParams struct {
 	// SNMP V3 authentication passphrase. Field introduced in 17.2.3.
 	AuthPassphrase *string `json:"auth_passphrase,omitempty"`
 
-	// SNMP V3 user authentication type. Enum options - SNMP_V3_AUTH_MD5, SNMP_V3_AUTH_SHA. Field introduced in 17.2.3.
+	// SNMP V3 user authentication type. Enum options - SNMP_V3_AUTH_MD5, SNMP_V3_AUTH_SHA, SNMP_V3_AUTH_SHA_224, SNMP_V3_AUTH_SHA_256, SNMP_V3_AUTH_SHA_384, SNMP_V3_AUTH_SHA_512. Field introduced in 17.2.3.
 	AuthType *string `json:"auth_type,omitempty"`
 
 	// SNMP V3 privacy passphrase. Field introduced in 17.2.3.

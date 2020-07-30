@@ -10,6 +10,9 @@ type RoutingService struct {
 	// Advertise reachability of backend server networks via ADC through BGP for default gateway feature. Field introduced in 18.2.5.
 	AdvertiseBackendNetworks *bool `json:"advertise_backend_networks,omitempty"`
 
+	// Enable auto gateway to save and use the same L2 path to send the return traffic. Field introduced in 20.1.1.
+	EnableAutoGateway *bool `json:"enable_auto_gateway,omitempty"`
+
 	// Service Engine acts as Default Gateway for this service. Field introduced in 18.2.5.
 	EnableRouting *bool `json:"enable_routing,omitempty"`
 

@@ -11,21 +11,21 @@ type ObjectAccessPolicy struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Name of the Object Access Policy. Field introduced in 18.2.7.
+	// Name of the Object Access Policy. Field introduced in 18.2.7, 20.1.1.
 	// Required: true
 	Name *string `json:"name"`
 
-	// Rules which grant access to specific objects. Field introduced in 18.2.7.
+	// Rules which grant access to specific objects. Field introduced in 18.2.7, 20.1.1.
 	// Required: true
 	Rules []*ObjectAccessPolicyRule `json:"rules,omitempty"`
 
-	// Tenant that this object belongs to. It is a reference to an object of type Tenant. Field introduced in 18.2.7.
+	// Tenant that this object belongs to. It is a reference to an object of type Tenant. Field introduced in 18.2.7, 20.1.1.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// Uuid of the Object Access Policy. Field introduced in 18.2.7.
+	// Uuid of the Object Access Policy. Field introduced in 18.2.7, 20.1.1.
 	UUID *string `json:"uuid,omitempty"`
 }

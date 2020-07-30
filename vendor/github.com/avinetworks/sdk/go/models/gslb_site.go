@@ -52,6 +52,9 @@ type GslbSite struct {
 	// User can overide the individual GslbPoolMember ratio for all the VIPs/VS(es) of this site. If this field is not  configured then the GslbPoolMember ratio gets applied. . Allowed values are 1-20. Field introduced in 17.1.1.
 	Ratio *int32 `json:"ratio,omitempty"`
 
+	// This modes applies to follower sites. When an active site is in suspend mode, the site does not receive any further federated objects. Field introduced in 20.1.1.
+	SuspendMode *bool `json:"suspend_mode,omitempty"`
+
 	// The username used when authenticating with the Site. .
 	// Required: true
 	Username *string `json:"username"`

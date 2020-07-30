@@ -20,6 +20,9 @@ type NetworkSecurityPolicy struct {
 	// User defined description for the object.
 	Description *string `json:"description,omitempty"`
 
+	// IP reputation database. It is a reference to an object of type IPReputationDB. Field introduced in 20.1.1.
+	IPReputationDbRef *string `json:"ip_reputation_db_ref,omitempty"`
+
 	// Name of the object.
 	Name *string `json:"name,omitempty"`
 

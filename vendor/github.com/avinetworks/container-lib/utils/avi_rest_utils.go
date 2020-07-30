@@ -1,5 +1,5 @@
 /*
- * [2013] - [2018] Avi Networks Incorporated
+ * [2019] - [2018] Avi Networks Incorporated
  * All Rights Reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,8 +52,9 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	var p AviRestClientPool
 
 	for i := uint32(0); i < num; i++ {
+		// Retry 20 times with an interval of 10 seconds each.
 		aviClient, err := clients.NewAviClient(api_ep, username,
-			session.SetPassword(password), session.SetInsecure)
+			session.SetPassword(password), session.SetControllerStatusCheckLimits(20, 10), session.SetInsecure)
 		if err != nil {
 			AviLog.Warnf("NewAviClient returned err %v", err)
 			return &p, err
@@ -104,7 +105,6 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 	}
 	return nil
 }
-
 
 func AviModelToUrl(model string) string {
 	switch model {

@@ -14,7 +14,7 @@ type SystemConfiguration struct {
 	// Placeholder for description of property admin_auth_configuration of obj type SystemConfiguration field type str  type object
 	AdminAuthConfiguration *AdminAuthConfiguration `json:"admin_auth_configuration,omitempty"`
 
-	// Specifies the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE_18. Field introduced in 17.2.5.
+	// Specifies the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC. Field introduced in 17.2.5.
 	DefaultLicenseTier *string `json:"default_license_tier,omitempty"`
 
 	// Placeholder for description of property dns_configuration of obj type SystemConfiguration field type str  type object
@@ -28,6 +28,9 @@ type SystemConfiguration struct {
 
 	// Placeholder for description of property email_configuration of obj type SystemConfiguration field type str  type object
 	EmailConfiguration *EmailConfiguration `json:"email_configuration,omitempty"`
+
+	// Enable FIPS mode. Field introduced in 20.1.1.
+	FipsMode *bool `json:"fips_mode,omitempty"`
 
 	// Placeholder for description of property global_tenant_config of obj type SystemConfiguration field type str  type object
 	GlobalTenantConfig *TenantConfiguration `json:"global_tenant_config,omitempty"`

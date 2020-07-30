@@ -14,6 +14,9 @@ type VirtualService struct {
 	// This configuration only applies if the VirtualService is in Legacy Active Standby HA mode and Load Distribution among Active Standby is enabled. This field is used to tag the VirtualService so that VirtualServices with the same tag will share the same Active ServiceEngine. VirtualServices with different tags will have different Active ServiceEngines. If one of the ServiceEngine's in the ServiceEngineGroup fails, all VirtualServices will end up using the same Active ServiceEngine. Redistribution of the VirtualServices can be either manual or automated when the failed ServiceEngine recovers. Redistribution is based on the auto redistribute property of the ServiceEngineGroup. Enum options - ACTIVE_STANDBY_SE_1, ACTIVE_STANDBY_SE_2.
 	ActiveStandbySeTag *string `json:"active_standby_se_tag,omitempty"`
 
+	// Keep advertising Virtual Service via BGP even if it is marked down by health monitor. This setting takes effect for future Virtual Service flaps. To advertise current VSes that are down, please disable and re-enable the Virtual Service. Field introduced in 20.1.1.
+	AdvertiseDownVs *bool `json:"advertise_down_vs,omitempty"`
+
 	// Process request even if invalid client certificate is presented. Datascript APIs need to be used for processing of such requests. Field introduced in 18.2.3.
 	AllowInvalidClientCert *bool `json:"allow_invalid_client_cert,omitempty"`
 
@@ -63,7 +66,7 @@ type VirtualService struct {
 	//  It is a reference to an object of type Cloud.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
-	//  Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP.
+	//  Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT.
 	CloudType *string `json:"cloud_type,omitempty"`
 
 	// Rate limit the incoming connections to this virtual service.
@@ -134,6 +137,9 @@ type VirtualService struct {
 
 	// HTTP Policies applied on the data traffic of the Virtual Service.
 	HTTPPolicies []*HTTPPolicies `json:"http_policies,omitempty"`
+
+	// The config settings for the ICAP server when checking the HTTP request. It is a reference to an object of type IcapProfile. Field introduced in 20.1.1.
+	IcapRequestProfileRefs []string `json:"icap_request_profile_refs,omitempty"`
 
 	// Ignore Pool servers network reachability constraints for Virtual Service placement.
 	IgnPoolNetReach *bool `json:"ign_pool_net_reach,omitempty"`

@@ -16,6 +16,9 @@ type LicenseExpiryDetails struct {
 	// Number of cores.
 	Cores *int32 `json:"cores,omitempty"`
 
+	// Placeholder for description of property cpu_cores of obj type LicenseExpiryDetails field type str  type number
+	CPUCores *float64 `json:"cpu_cores,omitempty"`
+
 	// expiry_at of LicenseExpiryDetails.
 	ExpiryAt *string `json:"expiry_at,omitempty"`
 
@@ -36,6 +39,9 @@ type LicenseExpiryDetails struct {
 
 	// Name of the object.
 	Name *string `json:"name,omitempty"`
+
+	// Placeholder for description of property service_cores of obj type LicenseExpiryDetails field type str  type number
+	ServiceCores *float64 `json:"service_cores,omitempty"`
 
 	// Number of sockets.
 	Sockets *int32 `json:"sockets,omitempty"`

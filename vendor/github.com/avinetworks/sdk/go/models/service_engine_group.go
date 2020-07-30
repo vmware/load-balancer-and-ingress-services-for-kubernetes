@@ -35,6 +35,9 @@ type ServiceEngineGroup struct {
 	// A percent value of total SE memory reserved for applicationcaching. This is an SE bootup property and requires SE restart.Requires SE Reboot. Allowed values are 0 - 100. Special values are 0- 'disable'. Field introduced in 18.2.3.
 	AppCachePercent *int32 `json:"app_cache_percent,omitempty"`
 
+	// The max memory that can be allocated for the app cache. This value will act as an upper bound on the cache size specified in app_cache_percent. Special values are 0- 'disable'. Field introduced in 20.1.1.
+	AppCacheThreshold *int32 `json:"app_cache_threshold,omitempty"`
+
 	// A percent value of total SE memory reserved for Application learning. This is an SE bootup property and requires SE restart. Allowed values are 0 - 10. Field introduced in 18.2.3.
 	AppLearningMemoryPercent *int32 `json:"app_learning_memory_percent,omitempty"`
 
@@ -62,6 +65,9 @@ type ServiceEngineGroup struct {
 	// Redistribution of virtual services from the takeover SE to the replacement SE can cause momentary traffic loss. If the auto-redistribute load option is left in its default off state, any desired rebalancing requires calls to REST API.
 	AutoRedistributeActiveStandbyLoad *bool `json:"auto_redistribute_active_standby_load,omitempty"`
 
+	// Availability zones for Virtual Service High Availability. It is a reference to an object of type AvailabilityZone. Field introduced in 20.1.1.
+	AvailabilityZoneRefs []string `json:"availability_zone_refs,omitempty"`
+
 	// BGP peer state update interval. Allowed values are 5-100. Field introduced in 17.2.14,18.1.5,18.2.1.
 	BgpStateUpdateInterval *int32 `json:"bgp_state_update_interval,omitempty"`
 
@@ -71,16 +77,19 @@ type ServiceEngineGroup struct {
 	//  It is a reference to an object of type Cloud.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
+	// Compress IP rules into a single subnet based IP rule for each north-south IPAM subnet configured in PCAP mode in OpenShift/Kubernetes node. Field introduced in 18.2.9, 20.1.1.
+	CompressIPRulesForEachNsSubnet *bool `json:"compress_ip_rules_for_each_ns_subnet,omitempty"`
+
 	// Enable config debugs on all cores of SE. Field introduced in 17.2.13,18.1.5,18.2.1.
 	ConfigDebugsOnAllCores *bool `json:"config_debugs_on_all_cores,omitempty"`
 
 	// Percentage of memory for connection state. This will come at the expense of memory used for HTTP in-memory cache. Allowed values are 10-90.
 	ConnectionMemoryPercentage *int32 `json:"connection_memory_percentage,omitempty"`
 
-	// Include shared memory for app cache in core file.Requires SE Reboot. Field introduced in 18.2.8.
+	// Include shared memory for app cache in core file.Requires SE Reboot. Field introduced in 18.2.8, 20.1.1.
 	CoreShmAppCache *bool `json:"core_shm_app_cache,omitempty"`
 
-	// Include shared memory for app learning in core file.Requires SE Reboot. Field introduced in 18.2.8.
+	// Include shared memory for app learning in core file.Requires SE Reboot. Field introduced in 18.2.8, 20.1.1.
 	CoreShmAppLearning *bool `json:"core_shm_app_learning,omitempty"`
 
 	// Placeholder for description of property cpu_reserve of obj type ServiceEngineGroup field type str  type boolean
@@ -221,13 +230,16 @@ type ServiceEngineGroup struct {
 	// Instance/Flavor name for SE instance.
 	InstanceFlavor *string `json:"instance_flavor,omitempty"`
 
+	// Additional information associated with instance_flavor. Field introduced in 20.1.1.
+	InstanceFlavorInfo *CloudFlavor `json:"instance_flavor_info,omitempty"`
+
 	// Iptable Rules.
 	Iptables []*IptableRuleSet `json:"iptables,omitempty"`
 
 	// Select core with least load for new flow.
 	LeastLoadCoreSelection *bool `json:"least_load_core_selection,omitempty"`
 
-	// Specifies the license tier which would be used. This field by default inherits the value from cloud. Enum options - ENTERPRISE_16, ENTERPRISE_18. Field introduced in 17.2.5.
+	// Specifies the license tier which would be used. This field by default inherits the value from cloud. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC. Field introduced in 17.2.5.
 	LicenseTier *string `json:"license_tier,omitempty"`
 
 	// If no license type is specified then default license enforcement for the cloud type is chosen. Enum options - LIC_BACKEND_SERVERS, LIC_SOCKETS, LIC_CORES, LIC_HOSTS, LIC_SE_BANDWIDTH, LIC_METERED_SE_BANDWIDTH. Field introduced in 17.2.5.
@@ -245,10 +257,13 @@ type ServiceEngineGroup struct {
 	// Max bytes that can be allocated in a single mempool. Field introduced in 18.1.5.
 	MaxMemoryPerMempool *int32 `json:"max_memory_per_mempool,omitempty"`
 
+	// Configures the maximum number of se_dp processes created on the SE, requires SE reboot. If not configured, defaults to the number of CPUs on the SE. This should only be used if user wants to limit the number of se_dps to less than the available CPUs on the SE. Allowed values are 1-128. Field introduced in 20.1.1.
+	MaxNumSeDps *int32 `json:"max_num_se_dps,omitempty"`
+
 	// Applicable to Azure platform only. Maximum number of public IPs per Azure LB. . Field introduced in 17.2.12, 18.1.2.
 	MaxPublicIpsPerLb *int32 `json:"max_public_ips_per_lb,omitempty"`
 
-	// Maximum number of queues per vnic Setting to '0' utilises all queues that are distributed across dispatcher cores. Allowed values are 0,1,2,4,8,16. Field introduced in 18.2.7.
+	// Maximum number of queues per vnic Setting to '0' utilises all queues that are distributed across dispatcher cores. Allowed values are 0,1,2,4,8,16. Field introduced in 18.2.7, 20.1.1.
 	MaxQueuesPerVnic *int32 `json:"max_queues_per_vnic,omitempty"`
 
 	// Applicable to Azure platform only. Maximum number of rules per Azure LB. . Field introduced in 17.2.12, 18.1.2.
@@ -342,7 +357,7 @@ type ServiceEngineGroup struct {
 	// Amount of extra memory to be reserved for use by the Operating System on a Service Engine.
 	OsReservedMemory *int32 `json:"os_reserved_memory,omitempty"`
 
-	// Determines the PCAP transmit mode of operation. Requires SE Reboot. Enum options - PCAP_TX_AUTO, PCAP_TX_SOCKET, PCAP_TX_RING. Field introduced in 18.2.8.
+	// Determines the PCAP transmit mode of operation. Requires SE Reboot. Enum options - PCAP_TX_AUTO, PCAP_TX_SOCKET, PCAP_TX_RING. Field introduced in 18.2.8, 20.1.1.
 	PcapTxMode *string `json:"pcap_tx_mode,omitempty"`
 
 	// Per-app SE mode is designed for deploying dedicated load balancers per app (VS). In this mode, each SE is limited to a max of 2 VSs. vCPUs in per-app SEs count towards licensing usage at 25% rate.
@@ -360,6 +375,9 @@ type ServiceEngineGroup struct {
 	// Reboot the system if the SE is stopped. Field deprecated in 18.2.5.
 	RebootOnStop *bool `json:"reboot_on_stop,omitempty"`
 
+	// Time interval to re-sync SE's time with wall clock time. Allowed values are 8-600000. Field introduced in 20.1.1.
+	ResyncTimeInterval *int32 `json:"resync_time_interval,omitempty"`
+
 	// Select the SE bandwidth for the bandwidth license. Enum options - SE_BANDWIDTH_UNLIMITED, SE_BANDWIDTH_25M, SE_BANDWIDTH_200M, SE_BANDWIDTH_1000M, SE_BANDWIDTH_10000M. Field introduced in 17.2.5.
 	SeBandwidthType *string `json:"se_bandwidth_type,omitempty"`
 
@@ -368,6 +386,9 @@ type ServiceEngineGroup struct {
 
 	// Placeholder for description of property se_dos_profile of obj type ServiceEngineGroup field type str  type object
 	SeDosProfile *DosThresholdProfile `json:"se_dos_profile,omitempty"`
+
+	// The highest supported SE-SE Heartbeat protocol version. This version is reported by Secondary SE to Primary SE in Heartbeat response messages. Allowed values are 1-2. Field introduced in 20.1.1.
+	SeDpMaxHbVersion *int32 `json:"se_dp_max_hb_version,omitempty"`
 
 	// Time (in seconds) service engine waits for after generating a Vnic transmit queue stall event before resetting theNIC. Field introduced in 18.2.5.
 	SeDpVnicQueueStallEventSleep *int32 `json:"se_dp_vnic_queue_stall_event_sleep,omitempty"`
@@ -396,7 +417,10 @@ type ServiceEngineGroup struct {
 	// Timeout in milliseconds for flow probe entries. Allowed values are 10-200. Field deprecated in 18.2.5. Field introduced in 18.1.4, 18.2.1.
 	SeFlowProbeTimer *int32 `json:"se_flow_probe_timer,omitempty"`
 
-	// UDP Port for SE_DP IPC in Docker bridge mode. Field introduced in 17.1.2.
+	// Controls the distribution of SE data path processes on CPUs which support hyper-threading. Requires hyper-threading to be enabled at host level. Requires SE Reboot. For more details please refer to SE placement KB. Enum options - SE_CPU_HT_AUTO, SE_CPU_HT_SPARSE_DISPATCHER_PRIORITY, SE_CPU_HT_SPARSE_PROXY_PRIORITY, SE_CPU_HT_PACKED_CORES. Field introduced in 20.1.1.
+	SeHyperthreadedMode *string `json:"se_hyperthreaded_mode,omitempty"`
+
+	// UDP Port for SE_DP IPC in Docker bridge mode. Field deprecated in 20.1.1. Field introduced in 17.1.2.
 	SeIpcUDPPort *int32 `json:"se_ipc_udp_port,omitempty"`
 
 	// Knob to control burst size used in polling KNI interfaces for traffic sent from KNI towards DPDK application Also controls burst size used by KNI module to read pkts punted from DPDK application towards KNI Helps minimize drops in non-VIP traffic in either pathFactor of (0-2) multiplies/divides burst size by 2^N. Allowed values are 0-2. Field introduced in 18.2.6.
@@ -405,7 +429,7 @@ type ServiceEngineGroup struct {
 	// Enable or disable Large Receive Optimization for vnics. Requires SE Reboot. Field introduced in 18.2.5.
 	SeLro *bool `json:"se_lro,omitempty"`
 
-	// MTU for the VNICs of SEs in the SE group. Allowed values are 512-9000. Field introduced in 18.2.8.
+	// MTU for the VNICs of SEs in the SE group. Allowed values are 512-9000. Field introduced in 18.2.8, 20.1.1.
 	SeMtu *int32 `json:"se_mtu,omitempty"`
 
 	// Prefix to use for virtual machine name of Service Engines.
@@ -432,8 +456,11 @@ type ServiceEngineGroup struct {
 	// TCP port on SE where echo service will be run. Field introduced in 17.2.2.
 	SeProbePort *int32 `json:"se_probe_port,omitempty"`
 
-	// UDP Port for punted packets in Docker bridge mode. Field introduced in 17.1.2.
+	// UDP Port for punted packets in Docker bridge mode. Field deprecated in 20.1.1. Field introduced in 17.1.2.
 	SeRemotePuntUDPPort *int32 `json:"se_remote_punt_udp_port,omitempty"`
+
+	// Rate limiter properties. Field introduced in 20.1.1.
+	SeRlProp *RateLimiterProperties `json:"se_rl_prop,omitempty"`
 
 	// Enable routing via Service Engine Datapath. When disabled, routing is done by the Linux kernel. IP Routing needs to be enabled in Service Engine Group for SE Routing to be effective. Field deprecated in 18.2.5. Field introduced in 18.2.3.
 	SeRouting *bool `json:"se_routing,omitempty"`
@@ -477,6 +504,12 @@ type ServiceEngineGroup struct {
 	// Determines if DPDK library should be used or not   0  Automatically determine based on hypervisor type 1  Use DPDK if PCAP is not enabled 2  Don't use DPDK. Allowed values are 0-2. Field introduced in 18.1.3.
 	SeUseDpdk *int32 `json:"se_use_dpdk,omitempty"`
 
+	// Configure the frequency in milliseconds of software transmit spillover queue flush when enabled. This is necessary to flush any packets in the spillover queue in the absence of a packet transmit in the normal course of operation. Allowed values are 50-500. Special values are 0- 'disable'. Field introduced in 20.1.1.
+	SeVnicTxSwQueueFlushFrequency *int32 `json:"se_vnic_tx_sw_queue_flush_frequency,omitempty"`
+
+	// Configure the size of software transmit spillover queue when enabled. Requires SE Reboot. Allowed values are 128-2048. Field introduced in 20.1.1.
+	SeVnicTxSwQueueSize *int32 `json:"se_vnic_tx_sw_queue_size,omitempty"`
+
 	// Maximum number of aggregated vs heartbeat packets to send in a batch. Allowed values are 1-256. Field introduced in 17.1.1.
 	SeVsHbMaxPktsInBatch *int32 `json:"se_vs_hb_max_pkts_in_batch,omitempty"`
 
@@ -504,12 +537,18 @@ type ServiceEngineGroup struct {
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
+	// The threshold for the transient shared config memory in the SE. Allowed values are 0-100. Field introduced in 20.1.1.
+	TransientSharedMemoryMax *int32 `json:"transient_shared_memory_max,omitempty"`
+
 	// This setting limits the number of UDF logs generated per second per core on this SE. UDF logs are generated due to the configured client log filters or the rules with logging enabled. Default is 100 logs per second. Set it to zero (0) to disable throttling. Field introduced in 17.1.3.
 	UdfLogThrottle *int32 `json:"udf_log_throttle,omitempty"`
 
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
+
+	// Enables the use of hyper-threaded cores on SE. Requires SE Reboot. Field introduced in 20.1.1.
+	UseHyperthreadedCores *bool `json:"use_hyperthreaded_cores,omitempty"`
 
 	// Use Standard SKU Azure Load Balancer. By default cloud level flag is set. If not set, it inherits/uses the use_standard_alb flag from the cloud. Field introduced in 18.2.3.
 	UseStandardAlb *bool `json:"use_standard_alb,omitempty"`
@@ -534,6 +573,9 @@ type ServiceEngineGroup struct {
 
 	// Placeholder for description of property vcenter_hosts of obj type ServiceEngineGroup field type str  type object
 	VcenterHosts *VcenterHosts `json:"vcenter_hosts,omitempty"`
+
+	// VCenter information for scoping at Host/Cluster level. Field introduced in 20.1.1.
+	Vcenters []*PlacementScopeConfig `json:"vcenters,omitempty"`
 
 	// Number of vcpus for each of the Service Engine virtual machines.
 	VcpusPerSe *int32 `json:"vcpus_per_se,omitempty"`
