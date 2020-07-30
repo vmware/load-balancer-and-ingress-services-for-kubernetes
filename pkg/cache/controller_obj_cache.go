@@ -2210,7 +2210,11 @@ func ValidateUserInput(client *clients.AviClient) bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
 	isValid := CheckAndSetCloudType(client) && checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client) && CheckPublicCloud(client)
 	if !isValid {
-		utils.AviLog.Warn("Invalid input detected, syncing will be disabled.")
+		if !CheckAndSetCloudType(client) {
+			utils.AviLog.Warn("Invalid cloud input detected, AKO will be rebooted to retry")
+			lib.ShutdownApi()
+		}
+		utils.AviLog.Warn("Invalid input detected, sync will be disabled.")
 	}
 	return isValid
 }
