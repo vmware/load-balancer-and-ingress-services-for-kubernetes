@@ -89,8 +89,9 @@ func NewServer(port string, models []models.ApiModel) *ApiServer {
 		},
 	}
 	s.Models = models
-	router := s.SetRouter()
 	s.initModels()
+	router := s.SetRouter()
+
 	//set http server handler
 	s.Handler = router
 
