@@ -11,6 +11,7 @@ image:
 configs:
   controllerVersion: "18.2.8"
   shardVSSize: "LARGE"
+  passthroughShardSize: "SMALL"
   fullSyncFrequency: "300"
   cloudName: "Default-Cloud"
   clusterName: ""
