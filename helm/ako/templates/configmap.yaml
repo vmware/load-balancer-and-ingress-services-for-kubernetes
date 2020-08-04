@@ -8,6 +8,7 @@ data:
   controllerVersion: {{ .Values.configs.controllerVersion | quote }}
   cniPlugin: {{ .Values.configs.cniPlugin | quote }}
   shardVSSize: {{ .Values.configs.shardVSSize | quote }}
+  passthroughShardSize: {{ .Values.configs.passthroughShardSize | quote }}
   fullSyncFrequency: {{ .Values.configs.fullSyncFrequency | quote }}
   cloudName: {{ .Values.configs.cloudName | quote }}
   clusterName: {{ .Values.configs.clusterName | quote }}

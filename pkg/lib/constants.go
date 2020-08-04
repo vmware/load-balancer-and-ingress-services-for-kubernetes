@@ -47,10 +47,12 @@ const (
 	NODE_KEY                                   = "NODE_KEY"
 	NODE_VALUE                                 = "NODE_VALUE"
 	ShardVSPrefix                              = "Shared-L7"
+	PassthroughPrefix                          = "Shared-Passthrough-"
 	PolicyAllow                                = "ALLOW"
 	PolicyNone                                 = "NONE"
 	PolicyEdgeTerm                             = "EDGE"
 	PolicyRedirect                             = "REDIRECT"
+	PolicyPass                                 = "PASSTHROUGH"
 	DeleteConfig                               = "deleteConfig"
 	NodePort                                   = "NodePort"
 	RouteSecretsPrefix                         = "-route-secret"
@@ -67,4 +69,30 @@ const (
 	DefaultPoolSSLProfile                      = "System-Standard"
 	LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER = "LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
 	LB_ALGORITHM_CONSISTENT_HASH               = "LB_ALGORITHM_CONSISTENT_HASH"
+)
+
+const (
+	PassthroughDatascript = `local avi_tls = require "Default-TLS"
+	buffered = avi.l4.collect(20)
+	payload = avi.l4.read()
+	len = avi_tls.get_req_buffer_size(payload)
+	if ( buffered < len ) then
+	  avi.l4.collect(len)
+	end
+	if ( avi_tls.sanity_check(payload) ) then
+	   local h = avi_tls.parse_record(payload)
+	   local sname = avi_tls.get_sni(h)
+	   if sname == nil then
+		  avi.vs.log('SNI not present')
+		  avi.vs.close_conn()
+	   else
+		  avi.vs.log("SNI=".. sname)
+		  pg_name = "CLUSTER--"..sname
+		  avi.poolgroup.select(pg_name)
+	   end
+	else
+	   avi.vs.close_conn()
+	end
+	avi.l4.ds_done()
+	avi_tls = nil`
 )

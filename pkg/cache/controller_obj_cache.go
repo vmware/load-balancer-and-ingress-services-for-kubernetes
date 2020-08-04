@@ -586,6 +586,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
+		dsCacheObj.CloudConfigCksum = lib.DSChecksum(dsCacheObj.PoolGroups)
 		*DsData = append(*DsData, dsCacheObj)
 	}
 	if result.Next != "" {
@@ -924,6 +925,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
+		dsCacheObj.CloudConfigCksum = lib.DSChecksum(dsCacheObj.PoolGroups)
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *ds.Name}
 		c.DSCache.AviCacheAdd(k, &dsCacheObj)
 		utils.AviLog.Debugf("Adding ds to Cache during refresh %s\n", k)

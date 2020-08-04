@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -301,6 +302,12 @@ func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
 	return (utils.Hash(vrfName) + utils.Hash(utils.Stringify(staticRoutes)))
 }
 
+func DSChecksum(pgrefs []string) uint32 {
+	sort.Strings(pgrefs)
+	checksum := utils.Hash(utils.Stringify(pgrefs))
+	return checksum
+}
+
 func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Clientset) []string {
 	//allInformers := []string{}
 	allInformers := []string{
@@ -373,4 +380,23 @@ func IsPublicCloud() bool {
 		return true
 	}
 	return false
+}
+
+func PassthroughShardSize() uint32 {
+	shardVsSize := os.Getenv("PASSTHROUGH_SHARD_SIZE")
+	shardSize, ok := shardSizeMap[shardVsSize]
+	if ok {
+		return shardSize
+	}
+	return 1
+}
+
+func GetPassthroughShardVSName(s string, key string) string {
+	var vsNum uint32
+	shardSize := PassthroughShardSize()
+	shardVsPrefix := GetClusterName() + "--" + PassthroughPrefix
+	vsNum = utils.Bkt(s, shardSize)
+	vsName := shardVsPrefix + fmt.Sprint(vsNum)
+	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
+	return vsName
 }

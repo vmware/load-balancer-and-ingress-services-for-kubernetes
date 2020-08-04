@@ -144,6 +144,7 @@ func (o *AviObjectGraph) AddModelNode(node AviModelNode) {
 }
 
 func (o *AviObjectGraph) RemovePoolNodeRefs(poolName string) {
+	utils.AviLog.Debugf("Removing Pool: %s", poolName)
 	for _, node := range o.modelNodes {
 		if node.GetNodeType() == "VirtualServiceNode" {
 			for i, pool := range node.(*AviVsNode).PoolRefs {
@@ -159,16 +160,16 @@ func (o *AviObjectGraph) RemovePoolNodeRefs(poolName string) {
 	}
 }
 
-func (o *AviObjectGraph) RemovePgNodeRefsFromSni(pgName string, sniNode *AviVsNode) {
+func (o *AviObjectGraph) RemovePGNodeRefs(pgName string, vsNode *AviVsNode) {
 
-	for i, pg := range sniNode.PoolGroupRefs {
+	for i, pg := range vsNode.PoolGroupRefs {
 		if pg.Name == pgName {
 			utils.AviLog.Debugf("Removing pgRef: %s", pgName)
-			sniNode.PoolGroupRefs = append(sniNode.PoolGroupRefs[:i], sniNode.PoolGroupRefs[i+1:]...)
+			vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs[:i], vsNode.PoolGroupRefs[i+1:]...)
 			break
 		}
 	}
-	utils.AviLog.Debugf("After removing the pg nodes are: %s", utils.Stringify(sniNode.PoolGroupRefs))
+	utils.AviLog.Debugf("After removing the pg nodes are: %s", utils.Stringify(vsNode.PoolGroupRefs))
 
 }
 
@@ -264,38 +265,39 @@ func (o *AviObjectGraph) GetAviVRF() []*AviVrfNode {
 }
 
 type AviVsNode struct {
-	Name               string
-	Tenant             string
-	ApplicationProfile string
-	NetworkProfile     string
-	PortProto          []AviPortHostProtocol // for listeners
-	DefaultPool        string
-	EastWest           bool
-	CloudConfigCksum   uint32
-	DefaultPoolGroup   string
-	HTTPChecksum       uint32
-	SNIParent          bool
-	PoolGroupRefs      []*AviPoolGroupNode
-	PoolRefs           []*AviPoolNode
-	TCPPoolGroupRefs   []*AviPoolGroupNode
-	HTTPDSrefs         []*AviHTTPDataScriptNode
-	SniNodes           []*AviVsNode
-	SharedVS           bool
-	CACertRefs         []*AviTLSKeyCertNode
-	SSLKeyCertRefs     []*AviTLSKeyCertNode
-	HttpPolicyRefs     []*AviHttpPolicySetNode
-	VSVIPRefs          []*AviVSVIPNode
-	L4PolicyRefs       []*AviL4PolicyNode
-	VHParentName       string
-	VHDomainNames      []string
-	TLSType            string
-	IsSNIChild         bool
-	ServiceMetadata    avicache.ServiceMetadataObj
-	VrfContext         string
-	WafPolicyRef       string
-	AppProfileRef      string
-	HttpPolicySetRefs  []string
-	SSLKeyCertAviRef   string
+	Name                  string
+	Tenant                string
+	ApplicationProfile    string
+	NetworkProfile        string
+	PortProto             []AviPortHostProtocol // for listeners
+	DefaultPool           string
+	EastWest              bool
+	CloudConfigCksum      uint32
+	DefaultPoolGroup      string
+	HTTPChecksum          uint32
+	SNIParent             bool
+	PoolGroupRefs         []*AviPoolGroupNode
+	PoolRefs              []*AviPoolNode
+	TCPPoolGroupRefs      []*AviPoolGroupNode
+	HTTPDSrefs            []*AviHTTPDataScriptNode
+	SniNodes              []*AviVsNode
+	PassthroughChildNodes []*AviVsNode
+	SharedVS              bool
+	CACertRefs            []*AviTLSKeyCertNode
+	SSLKeyCertRefs        []*AviTLSKeyCertNode
+	HttpPolicyRefs        []*AviHttpPolicySetNode
+	VSVIPRefs             []*AviVSVIPNode
+	L4PolicyRefs          []*AviL4PolicyNode
+	VHParentName          string
+	VHDomainNames         []string
+	TLSType               string
+	IsSNIChild            bool
+	ServiceMetadata       avicache.ServiceMetadataObj
+	VrfContext            string
+	WafPolicyRef          string
+	AppProfileRef         string
+	HttpPolicySetRefs     []string
+	SSLKeyCertAviRef      string
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -485,7 +487,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum uint32
+	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum, passthoughChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		dsChecksum += ds.GetCheckSum()
@@ -514,6 +516,11 @@ func (v *AviVsNode) CalculateCheckSum() {
 	for _, l4policy := range v.L4PolicyRefs {
 		l4policyChecksum += l4policy.GetCheckSum()
 	}
+
+	for _, passthoughChild := range v.PassthroughChildNodes {
+		passthoughChecksum += passthoughChild.GetCheckSum()
+	}
+
 	policies := v.HttpPolicySetRefs
 	sort.Slice(policies, func(i, j int) bool {
 		return policies[i] < policies[j]
@@ -528,7 +535,8 @@ func (v *AviVsNode) CalculateCheckSum() {
 		utils.Hash(utils.Stringify(portproto)) +
 		sslkeyChecksum +
 		utils.Hash(vsRefs) +
-		l4policyChecksum
+		l4policyChecksum +
+		passthoughChecksum
 
 	v.CloudConfigCksum = checksum
 }
@@ -804,6 +812,7 @@ type AviHTTPDataScriptNode struct {
 	Tenant           string
 	CloudConfigCksum uint32
 	PoolGroupRefs    []string
+	ProtocolParsers  []string
 	*DataScript
 }
 
@@ -815,9 +824,7 @@ func (v *AviHTTPDataScriptNode) GetCheckSum() uint32 {
 
 func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
-	sort.Strings(v.PoolGroupRefs)
-	checksum := utils.Hash(utils.Stringify(v.PoolGroupRefs))
-	v.CloudConfigCksum = checksum
+	v.CloudConfigCksum = lib.DSChecksum(v.PoolGroupRefs)
 }
 
 func (v *AviHTTPDataScriptNode) GetNodeType() string {
@@ -851,6 +858,23 @@ func (o *AviObjectGraph) GetAviHTTPDSNode() []*AviHTTPDataScriptNode {
 type DataScript struct {
 	Evt    string
 	Script string
+}
+
+type AviPkiProfileNode struct {
+	Name             string
+	Tenant           string
+	CloudConfigCksum uint32
+	CACert           string
+}
+
+func (v *AviPkiProfileNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviPkiProfileNode) CalculateCheckSum() {
+	v.CloudConfigCksum = lib.SSLKeyCertChecksum(v.Name, "", v.CACert)
 }
 
 type AviPoolNode struct {
@@ -901,7 +925,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	checksum := utils.Hash(chksumStr)
 
 	if v.PkiProfile != nil {
-		checksum = v.PkiProfile.GetCheckSum()
+		checksum += v.PkiProfile.GetCheckSum()
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -949,6 +973,20 @@ func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string)
 	return aviPool
 }
 
+func (o *AviObjectGraph) GetAviPoolNodeByName(poolname string) *AviPoolNode {
+	for _, model := range o.modelNodes {
+		if model.GetNodeType() == "VirtualServiceNode" {
+			for _, pool := range model.(*AviVsNode).PoolRefs {
+				if pool.Name == poolname {
+					utils.AviLog.Debugf("Found Pool with name: %s", pool.Name)
+					return pool
+				}
+			}
+		}
+	}
+	return nil
+}
+
 type AviPoolMetaServer struct {
 	Ip         avimodels.IPAddr
 	ServerNode string
@@ -970,11 +1008,22 @@ type TlsSettings struct {
 	key        string
 	cert       string
 	cacert     string
+	destCA     string //for reencrypt
+	reencrypt  bool
 	redirect   bool
+	//tlstype    string
+}
+
+type PassthroughSettings struct {
+	PathSvc  []IngressHostPathSvc
+	host     string
+	redirect bool
+	//tlstype    string
 }
 
 type IngressConfig struct {
-	TlsCollection []TlsSettings
+	PassthroughCollection map[string]PassthroughSettings
+	TlsCollection         []TlsSettings
 	IngressHostMap
 }
 

@@ -276,12 +276,24 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 				tls.redirect = true
 			}
 			tlsConfigs = append(tlsConfigs, tls)
-		}
-		ingressConfig.TlsCollection = tlsConfigs
-		// If svc for a route gets processed before the route itself,
-		// then secret mapping may not be updated, update it here.
-		if ok, _ := objects.OshiftRouteSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
-			objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(routeName, secretName)
+			//}
+			ingressConfig.TlsCollection = tlsConfigs
+			// If svc for a route gets processed before the route itself,
+			// then secret mapping may not be updated, update it here.
+			if ok, _ := objects.OshiftRouteSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
+				objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(routeName, secretName)
+			}
+		} else if routeSpec.TLS.Termination == routev1.TLSTerminationPassthrough {
+			pass := PassthroughSettings{}
+			pass.host = hostName
+			pass.PathSvc = hostPathMapSvcList
+			if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
+				//
+				pass.redirect = true
+			}
+			passConfig := make(map[string]PassthroughSettings)
+			passConfig[hostName] = pass
+			ingressConfig.PassthroughCollection = passConfig
 		}
 
 	}

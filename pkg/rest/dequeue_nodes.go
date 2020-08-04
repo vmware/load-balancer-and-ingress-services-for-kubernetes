@@ -245,6 +245,43 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		}
 	}
 
+	for _, passChildNode := range aviVsNode.PassthroughChildNodes {
+		passChildVSKey := avicache.NamespaceName{Namespace: namespace, Name: passChildNode.Name}
+		passChildVSCacheObj := rest.getVsCacheObj(passChildVSKey, key)
+		utils.AviLog.Debugf("key: %s, msg: processing passthrough node: %s", key, passChildNode)
+		vsKey = avicache.NamespaceName{Namespace: namespace, Name: passChildNode.Name}
+		if passChildVSCacheObj != nil {
+			rest_ops = rest.PassthroughChildCU(passChildNode, passChildVSCacheObj, namespace, rest_ops, key)
+		} else {
+			rest_ops = rest.PassthroughChildCU(passChildNode, nil, namespace, rest_ops, key)
+		}
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
+	}
+}
+
+func (rest *RestOperations) PassthroughChildCU(passChildNode *nodes.AviVsNode, vsCacheObj *avicache.AviVsCache, namespace string, restOps []*utils.RestOp, key string) []*utils.RestOp {
+	var httpPoliciesToDelete []avicache.NamespaceName
+	if vsCacheObj != nil {
+		utils.AviLog.Debugf("key: %s, msg: Cache Passthrough Node - %s", utils.Stringify(vsCacheObj))
+		httpPoliciesToDelete, restOps = rest.HTTPPolicyCU(passChildNode.HttpPolicyRefs, vsCacheObj, namespace, restOps, key)
+
+		// The checksums are different, so it should be a PUT call.
+		if vsCacheObj.CloudConfigCksum != strconv.Itoa(int(passChildNode.GetCheckSum())) {
+			restOp := rest.AviVsBuild(passChildNode, utils.RestPut, vsCacheObj, key)
+			restOps = append(restOps, restOp...)
+			utils.AviLog.Debugf("key: %s, msg: the checksums are different for passthrough child %s, operation: PUT", key, passChildNode.Name)
+		}
+		restOps = rest.HTTPPolicyDelete(httpPoliciesToDelete, namespace, restOps, key)
+
+	} else {
+		utils.AviLog.Infof("key: %s, msg: passthrough Child %s not found in cache", key, passChildNode.Name)
+		_, restOps = rest.HTTPPolicyCU(passChildNode.HttpPolicyRefs, nil, namespace, restOps, key)
+
+		// Not found - it should be a POST call.
+		restOp := rest.AviVsBuild(passChildNode, utils.RestPost, nil, key)
+		restOps = append(restOps, restOp...)
+	}
+	return restOps
 }
 
 func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key string) *avicache.AviVsCache {
@@ -267,6 +304,15 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 	copy(sni_vs_keys, vs_cache_obj.SNIChildCollection)
 	if vs_cache_obj != nil {
 		// VS delete should delete everything together.
+		passthroughChild := vs_cache_obj.ServiceMetadataObj.PassthroughChildRef
+		if passthroughChild != "" {
+			passthroughChildKey := avicache.NamespaceName{
+				Namespace: namespace,
+				Name:      passthroughChild,
+			}
+			passthroughChildCache := rest.getVsCacheObj(passthroughChildKey, key)
+			rest.deleteVSOper(passthroughChildKey, passthroughChildCache, namespace, key)
+		}
 		for _, sni_uuid := range sni_vs_keys {
 			sniVsKey, ok := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sni_uuid)
 			if ok {
@@ -987,11 +1033,18 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 				found := utils.HasElem(cache_ds_nodes, ds_key)
 				if found {
 					cache_ds_nodes = Remove(cache_ds_nodes, ds_key)
-					_, ok := rest.cache.DSCache.AviCacheGet(ds_key)
+					ds_cache, ok := rest.cache.DSCache.AviCacheGet(ds_key)
 					if !ok {
-						// If the DS Is not found - let's do a POST call. Assume DS will not be a candidate for PUT.
+						// If the DS Is not found - let's do a POST call.
 						restOp := rest.AviDSBuild(ds, nil, key)
 						rest_ops = append(rest_ops, restOp)
+					} else {
+						dsCacheObj := ds_cache.(*avicache.AviDSCache)
+						if dsCacheObj.CloudConfigCksum != ds.CloudConfigCksum {
+							utils.AviLog.Debugf("key: %s, msg: datascript checksum changed, updating - %s", key, ds.Name)
+							restOp := rest.AviDSBuild(ds, dsCacheObj, key)
+							rest_ops = append(rest_ops, restOp)
+						}
 					}
 				}
 			}

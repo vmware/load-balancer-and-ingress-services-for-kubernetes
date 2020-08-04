@@ -48,6 +48,8 @@ type ServiceMetadataObj struct {
 	ServiceName          string      `json:"svc_name"`
 	CRDStatus            CRDMetadata `json:"crd_status"`
 	PoolRatio            int32       `json:"pool_ratio"`
+	PassthroughParentRef string      `json:"passthrough_parent_ref"`
+	PassthroughChildRef  string      `json:"passthrough_child_ref"`
 }
 
 type CRDMetadata struct {
@@ -57,12 +59,13 @@ type CRDMetadata struct {
 }
 
 type AviDSCache struct {
-	Name         string
-	Tenant       string
-	Uuid         string
-	PoolGroups   []string
-	LastModified string
-	InvalidData  bool
+	Name             string
+	Tenant           string
+	Uuid             string
+	PoolGroups       []string
+	LastModified     string
+	InvalidData      bool
+	CloudConfigCksum uint32
 }
 
 type AviCloudPropertyCache struct {
@@ -87,6 +90,8 @@ type AviVsCache struct {
 	L4PolicyCollection   []NamespaceName
 	SNIChildCollection   []string
 	ParentVSRef          NamespaceName
+	PassthroughParentRef NamespaceName
+	PassthroughChildRef  NamespaceName
 	ServiceMetadataObj   ServiceMetadataObj
 	LastModified         string
 	InvalidData          bool
@@ -397,7 +402,8 @@ func (c *AviCache) AviCacheGetAllParentVSKeys() []NamespaceName {
 	defer c.cache_lock.RUnlock()
 	var keys []NamespaceName
 	for k, val := range c.cache {
-		if val.(*AviVsCache).ParentVSRef == (NamespaceName{}) {
+		vsCache := val.(*AviVsCache)
+		if vsCache.ParentVSRef == (NamespaceName{}) && vsCache.ServiceMetadataObj.PassthroughParentRef == "" {
 			keys = append(keys, k.(NamespaceName))
 		}
 	}

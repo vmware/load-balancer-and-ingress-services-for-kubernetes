@@ -227,6 +227,8 @@ func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync
 	// Process secure routes next.
 	ProcessSecureHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap, fullsync, sharedQueue)
 
+	ProcessPassthroughHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
+
 	utils.AviLog.Debugf("key: %s, msg: Stored hosts: %v, hosts map: %v", key, Storedhosts, hostsMap)
 	DeleteStaleData(routeIgrObj, key, &modelList, Storedhosts, hostsMap)
 
@@ -308,7 +310,6 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 	hostsMap map[string]*objects.RouteIngrhost, fullsync bool, sharedQueue *utils.WorkerQueue) {
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before processing securehosts: %v", key, Storedhosts)
 
-	// To Do: use service for paths while handling secure routes
 	for _, tlssetting := range parsedIng.TlsCollection {
 		locSniHostMap := sniNodeHostName(routeIgrObj, tlssetting, routeIgrObj.GetName(), routeIgrObj.GetNamespace(), key, fullsync, sharedQueue, modelList)
 		for host, newPathSvc := range locSniHostMap {
@@ -347,11 +348,53 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing securehosts: %s", key, utils.Stringify(Storedhosts))
 }
 
+func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIng IngressConfig, modelList *[]string,
+	Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
+	utils.AviLog.Debugf("key: %s, msg: Storedhosts before processing passthrough hosts: %v", key, Storedhosts)
+	for host, pass := range parsedIng.PassthroughCollection {
+		hostData, found := Storedhosts[host]
+		if found && hostData.SecurePolicy == lib.PolicyPass {
+			//
+			Storedhosts[host].SecurePolicy = lib.PolicyNone
+		}
+
+		if _, ok := hostsMap[host]; !ok {
+			hostsMap[host] = &objects.RouteIngrhost{
+				InsecurePolicy: lib.PolicyNone,
+			}
+		}
+		hostsMap[host].SecurePolicy = lib.PolicyPass
+		redirect := false
+		if pass.redirect == true {
+			redirect = true
+			hostsMap[host].InsecurePolicy = lib.PolicyRedirect
+		}
+
+		shardVsName := lib.GetPassthroughShardVSName(host, key)
+		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found || aviModel == nil {
+			aviModel = NewAviObjectGraph()
+			aviModel.(*AviObjectGraph).BuildVSForPassthrough(shardVsName, routeIgrObj.GetNamespace(), host, key)
+		}
+		aviModel.(*AviObjectGraph).BuildGraphForPassthrough(pass.PathSvc, routeIgrObj.GetName(), host, routeIgrObj.GetNamespace(), key, redirect)
+
+		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
+		if !utils.HasElem(modelList, modelName) && changedModel {
+			*modelList = append(*modelList, modelName)
+		}
+	}
+	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing passthrough hosts: %s", key, utils.Stringify(Storedhosts))
+}
+
 //DeleteStaleData : delete pool, fqdn and redirect policy which are present in the object store but no longer required.
 func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	for host, hostData := range Storedhosts {
 		utils.AviLog.Debugf("host to del: %s, data : %s", host, utils.Stringify(hostData))
 		shardVsName := DeriveHostNameShardVS(host, key)
+		if hostData.SecurePolicy == lib.PolicyPass {
+			shardVsName = lib.GetPassthroughShardVSName(host, key)
+		}
 		if shardVsName == "" {
 			// If we aren't able to derive the ShardVS name, we should return
 			return
@@ -376,6 +419,8 @@ func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]str
 		// Delete the pool corresponding to this host
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
 			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, host, routeIgrObj, hostData.PathSvc, key, removeFqdn, removeRedir, true)
+		} else if hostData.SecurePolicy == lib.PolicyPass {
+			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName, host, routeIgrObj, hostData.PathSvc, key, removeFqdn, removeRedir, true)
 		}
 		if hostData.InsecurePolicy != lib.PolicyNone {
 			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, host, routeIgrObj, hostData.PathSvc, key, removeFqdn, removeRedir, false)
@@ -399,7 +444,9 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
 	for host, hostData := range hostMap {
 		shardVsName := DeriveHostNameShardVS(host, key)
-
+		if hostData.SecurePolicy == lib.PolicyPass {
+			shardVsName = lib.GetPassthroughShardVSName(host, key)
+		}
 		if shardVsName == "" {
 			// If we aren't able to derive the ShardVS name, we should return
 			utils.AviLog.Infof("key: %s, shard vs ndoe not found for host: %s", host)
@@ -414,6 +461,8 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		// Delete the pool corresponding to this host
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
 			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, host, routeIgrObj, hostData.PathSvc, key, true, true, true)
+		} else if hostData.SecurePolicy == lib.PolicyPass {
+			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName, host, routeIgrObj, hostData.PathSvc, key, true, true, true)
 		}
 		if hostData.InsecurePolicy == lib.PolicyAllow {
 			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, host, routeIgrObj, hostData.PathSvc, key, true, true, false)

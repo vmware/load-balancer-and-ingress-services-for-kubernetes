@@ -70,6 +70,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: shardVSSize
+          - name: PASSTHROUGH_SHARD_SIZE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: passthroughShardSize
           - name: FULL_SYNC_INTERVAL
             valueFrom:
               configMapKeyRef:

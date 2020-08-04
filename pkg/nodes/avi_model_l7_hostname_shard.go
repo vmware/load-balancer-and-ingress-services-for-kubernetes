@@ -216,7 +216,7 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 			// Remove the SNI PG if it has no member
 			if pgNode != nil {
 				if len(pgNode.Members) == 0 {
-					o.RemovePgNodeRefsFromSni(pgName, modelSniNode)
+					o.RemovePGNodeRefs(pgName, modelSniNode)
 					httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path)
 					o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
 				}

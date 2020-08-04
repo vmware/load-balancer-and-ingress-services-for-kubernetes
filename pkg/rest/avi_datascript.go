@@ -16,7 +16,6 @@ package rest
 
 import (
 	"errors"
-	"strings"
 
 	avicache "ako/pkg/cache"
 	"ako/pkg/lib"
@@ -30,10 +29,9 @@ import (
 func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cache_obj *avicache.AviDSCache, key string) *utils.RestOp {
 	var datascriptlist []*avimodels.VSDataScript
 	var poolgroupref []string
-	if len(ds_meta.PoolGroupRefs) > 0 {
+	for _, pgname := range ds_meta.PoolGroupRefs {
 		// Replace the PoolGroup Ref in the DS.
-		ds_meta.Script = strings.Replace(ds_meta.Script, "POOLGROUP", ds_meta.PoolGroupRefs[0], 1)
-		pg_ref := "/api/poolgroup/?name=" + ds_meta.PoolGroupRefs[0]
+		pg_ref := "/api/poolgroup/?name=" + pgname
 		poolgroupref = append(poolgroupref, pg_ref)
 	}
 	datascript := avimodels.VSDataScript{Evt: &ds_meta.Evt, Script: &ds_meta.Script}
@@ -41,6 +39,9 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	tenant_ref := "/api/tenant/?name=" + ds_meta.Tenant
 	cr := lib.AKOUser
 	vsdatascriptset := avimodels.VSDataScriptSet{CreatedBy: &cr, Datascript: datascriptlist, Name: &ds_meta.Name, TenantRef: &tenant_ref, PoolGroupRefs: poolgroupref}
+	if len(ds_meta.ProtocolParsers) > 0 {
+		vsdatascriptset.ProtocolParserRefs = ds_meta.ProtocolParsers
+	}
 
 	var path string
 	var rest_op utils.RestOp
@@ -119,6 +120,8 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		}
 		ds_cache_obj := avicache.AviDSCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid, PoolGroups: poolgroups}
+
+		ds_cache_obj.CloudConfigCksum = lib.DSChecksum(ds_cache_obj.PoolGroups)
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.DSCache.AviCacheAdd(k, &ds_cache_obj)
