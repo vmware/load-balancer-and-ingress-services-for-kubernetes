@@ -16,6 +16,7 @@ package status
 
 import (
 	avicache "ako/pkg/cache"
+	"ako/pkg/lib"
 	"errors"
 	"strings"
 
@@ -166,7 +167,8 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 				Status:  corev1.ConditionTrue,
 			}
 			rtIngress := routev1.RouteIngress{
-				Host: host,
+				Host:       host,
+				RouterName: lib.AKOUser,
 				Conditions: []routev1.RouteIngressCondition{
 					condition,
 				},
@@ -221,7 +223,7 @@ func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) bool {
 			continue
 		}
 		ip := status.Conditions[0].Message
-		ipHost := ip + ":" + status.Host
+		ipHost := ip + ":" + status.Host + ":" + status.RouterName
 
 		if !utils.HasElem(exists, ipHost) {
 			return false
