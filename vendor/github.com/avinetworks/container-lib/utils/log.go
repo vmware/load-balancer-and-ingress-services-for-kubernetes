@@ -16,6 +16,7 @@ package utils
 
 import (
 	"os"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -88,6 +89,23 @@ func (aviLogger *AviLogger) SetLevel(l string) {
 	aviLogger.atom.SetLevel(LogLevelMap[l])
 }
 
+// log file sample name /log/ako-12345.avi.log
+func getFileName() string {
+	input := os.Getenv("LOG_FILE_NAME")
+	if input == "" {
+		input = DEFAULT_FILE_SUFFIX
+	}
+	return getFilePath() + getPodName() + input
+}
+
+func getFilePath() string {
+	return strings.TrimLeft(os.Getenv("LOG_FILE_PATH")+"/", "/")
+}
+
+func getPodName() string {
+	return strings.TrimLeft(os.Getenv("POD_NAME")+".", ".")
+}
+
 var AviLog AviLogger
 
 func init() {
@@ -120,10 +138,7 @@ func init() {
 	}
 
 	encoderCfg.EncodeLevel = zapcore.CapitalLevelEncoder
-	logpath = os.Getenv("LOG_FILE_NAME")
-	if logpath == "" {
-		logpath = DEFAULT_AVI_LOG
-	}
+	logpath = getFileName()
 	file, err = os.OpenFile(logpath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

@@ -65,7 +65,7 @@ const (
 	GlobalVRF                     = "global"
 	VRF_CONTEXT                   = "VRF_CONTEXT"
 	FULL_SYNC_INTERVAL            = "FULL_SYNC_INTERVAL"
-	DEFAULT_AVI_LOG               = "avi.log"
+	DEFAULT_FILE_SUFFIX           = "avi.log"
 
 	// container-lib/api constants
 	AVIAPI_INITIATING   = "INITIATING"
