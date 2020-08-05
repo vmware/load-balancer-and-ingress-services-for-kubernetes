@@ -156,7 +156,6 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint delete")
 				return
 			}
 			route, ok := obj.(*routev1.Route)
@@ -180,7 +179,6 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint update")
 				return
 			}
 			oldRoute := old.(*routev1.Route)
@@ -210,7 +208,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	ep_event_handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint add")
 				return
 			}
 			if lib.IsNodePortMode() {
@@ -226,7 +223,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint delete")
 				return
 			}
 			if lib.IsNodePortMode() {
@@ -255,7 +251,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for endpoint update")
 				return
 			}
 			oep := old.(*corev1.Endpoints)
@@ -277,7 +272,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	svc_event_handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for svc add")
 				return
 			}
 			svc := obj.(*corev1.Service)
@@ -295,7 +289,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for svc delete")
 				return
 			}
 			svc, ok := obj.(*corev1.Service)
@@ -326,7 +319,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for svc update")
 				return
 			}
 			oldobj := old.(*corev1.Service)
@@ -352,7 +344,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	ingress_event_handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for ingress add")
 				return
 			}
 			ingress, ok := utils.ToNetworkingIngress(obj)
@@ -368,7 +359,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for ingress delete")
 				return
 			}
 			ingress, ok := utils.ToNetworkingIngress(obj)
@@ -393,7 +383,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for ingress update")
 				return
 			}
 			oldobj, okOld := utils.ToNetworkingIngress(old)
@@ -415,7 +404,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	secret_event_handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for secret add")
 				return
 			}
 			secret := obj.(*corev1.Secret)
@@ -427,7 +415,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for secret delete")
 				return
 			}
 			secret, ok := obj.(*corev1.Secret)
@@ -451,7 +438,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for secret update")
 				return
 			}
 			oldobj := old.(*corev1.Secret)
@@ -470,7 +456,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	node_event_handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for node add")
 				return
 			}
 			node := obj.(*corev1.Node)
@@ -481,7 +466,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for node delete")
 				return
 			}
 			node, ok := obj.(*corev1.Node)
@@ -504,7 +488,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for node update")
 				return
 			}
 			oldobj := old.(*corev1.Node)
@@ -525,7 +508,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			AddFunc: func(obj interface{}) {
 				utils.AviLog.Debugf("calico blockaffinity ADD Event")
 				if c.DisableSync {
-					utils.AviLog.Debugf("Sync disabled, skipping sync for calico blockaffinity add")
 					return
 				}
 				crd := obj.(*unstructured.Unstructured)
@@ -541,7 +523,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			DeleteFunc: func(obj interface{}) {
 				utils.AviLog.Debugf("calico blockaffinity DELETE Event")
 				if c.DisableSync {
-					utils.AviLog.Debugf("Sync disabled, skipping sync for calico blockaffinity delete")
 					return
 				}
 				crd := obj.(*unstructured.Unstructured)
@@ -564,7 +545,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			AddFunc: func(obj interface{}) {
 				utils.AviLog.Debugf("hostsubnets ADD Event")
 				if c.DisableSync {
-					utils.AviLog.Debugf("Sync disabled, skipping sync for hostsubnets add")
 					return
 				}
 				crd := obj.(*unstructured.Unstructured)
@@ -581,7 +561,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			DeleteFunc: func(obj interface{}) {
 				utils.AviLog.Debugf("hostsubnets DELETE Event")
 				if c.DisableSync {
-					utils.AviLog.Debugf("Sync disabled, skipping sync for hostsubnets delete")
 					return
 				}
 				crd := obj.(*unstructured.Unstructured)

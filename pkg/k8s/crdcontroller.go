@@ -48,7 +48,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	hostRuleEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for hostrule update")
 				return
 			}
 			hostrule := obj.(*akov1alpha1.HostRule)
@@ -71,7 +70,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for hostrule update")
 				return
 			}
 			hostrule := obj.(*akov1alpha1.HostRule)
@@ -86,7 +84,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	httpRuleEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for httprule update")
 				return
 			}
 			httprule := obj.(*akov1alpha1.HTTPRule)
@@ -111,7 +108,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				utils.AviLog.Debugf("Sync disabled, skipping sync for httprule update")
 				return
 			}
 			httprule := obj.(*akov1alpha1.HTTPRule)
