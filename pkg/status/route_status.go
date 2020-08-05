@@ -216,7 +216,7 @@ func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) bool {
 			continue
 		}
 		ip := status.Conditions[0].Message
-		exists = append(exists, ip+":"+status.Host)
+		exists = append(exists, ip+":"+status.Host+":"+status.RouterName)
 	}
 	for _, status := range newStatus {
 		if len(status.Conditions) < 1 {
