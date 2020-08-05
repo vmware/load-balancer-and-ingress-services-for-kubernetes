@@ -265,7 +265,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	var tlsConfigs []TlsSettings
 	if routeSpec.TLS != nil {
 		secretName := lib.RouteSecretsPrefix + routeName
-		if routeSpec.TLS.Termination == routev1.TLSTerminationEdge {
+		if routeSpec.TLS.Termination == routev1.TLSTerminationEdge || routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
 			tls := TlsSettings{}
 			tls.Hosts = hostMap
 			tls.cert = routeSpec.TLS.Certificate
@@ -275,8 +275,14 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 			if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
 				tls.redirect = true
 			}
+
+			if routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
+				tls.reencrypt = true
+				if routeSpec.TLS.DestinationCACertificate != "" {
+					tls.destCA = routeSpec.TLS.DestinationCACertificate
+				}
+			}
 			tlsConfigs = append(tlsConfigs, tls)
-			//}
 			ingressConfig.TlsCollection = tlsConfigs
 			// If svc for a route gets processed before the route itself,
 			// then secret mapping may not be updated, update it here.

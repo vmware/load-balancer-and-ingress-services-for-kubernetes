@@ -502,6 +502,10 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				VrfContext: lib.GetVrf(),
 			}
 
+			if hostpath.reencrypt == true {
+				o.BuildPoolSecurity(poolNode, hostpath, key)
+			}
+
 			if !lib.IsNodePortMode() {
 				if servers := PopulateServers(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 					poolNode.Servers = servers
@@ -537,6 +541,23 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 	}
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. tlsNodeChecksum for tlsNode :%s is :%v", key, tlsNode.Name, tlsNode.GetCheckSum())
 
+}
+
+func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSettings, key string) {
+	poolNode.SniEnabled = true
+	poolNode.SslProfileRef = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
+
+	utils.AviLog.Infof("key: %s, Added ssl profile for pool %s", poolNode.Name)
+	if tlsData.destCA == "" {
+		return
+	}
+	pkiProfile := AviPkiProfileNode{
+		Name:   poolNode.Name + "-" + "pkiprofile",
+		Tenant: lib.GetTenant(),
+		CACert: tlsData.destCA,
+	}
+	utils.AviLog.Infof("key: %s, Added pki profile %s for pool %s", pkiProfile.Name, poolNode.Name)
+	poolNode.PkiProfile = &pkiProfile
 }
 
 func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostname string, namespace, ingName, key string) {

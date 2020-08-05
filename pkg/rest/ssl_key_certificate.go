@@ -169,8 +169,8 @@ func (rest *RestOperations) AviSSLCacheDel(rest_op *utils.RestOp, vsKey avicache
 
 }
 
-func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviTLSKeyCertNode, cache_obj *avicache.AviPkiProfileCache) *utils.RestOp {
-	caCert := string(pki_node.Cert)
+func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode, cache_obj *avicache.AviPkiProfileCache) *utils.RestOp {
+	caCert := string(pki_node.CACert)
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pki_node.Tenant)
 	name := pki_node.Name
 	var caCerts []*avimodels.SSLCertificate

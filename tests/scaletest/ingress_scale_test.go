@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers(crdClient)
+	k8s.NewCRDInformers(CRDClient)
 
 	integrationtest.InitializeFakeAKOAPIServer()
 
@@ -66,8 +66,9 @@ func TestMain(m *testing.M) {
 	stopCh := utils.SetupSignalHandler()
 	k8s.PopulateCache()
 	ctrlCh := make(chan struct{})
-	ctrl.HandleConfigMap(informers, ctrlCh, stopCh)
-	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh)
+	quickSyncCh := make(chan struct{})
+	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh)
 	AddConfigMap()
 	integrationtest.KubeClient = KubeClient
 

@@ -122,8 +122,6 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 
 	if deleteCase {
 		for _, pool := range vsNode.PoolRefs {
-			pool.SniEnabled = false
-			pool.SslProfileRef = ""
 			pool.LbAlgorithm = ""
 			pool.LbAlgorithmHash = ""
 			pool.LbAlgoHostHeader = ""
@@ -171,8 +169,8 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 		}
 
 		for _, pool := range vsNode.PoolRefs {
-			isPathSniEnabled := false
-			var pathSslProfile string
+			isPathSniEnabled := pool.SniEnabled
+			pathSslProfile := pool.SslProfileRef
 
 			// pathprefix match
 			// lets say path: / and available pools are cluster--namespace-host_foo-ingName, cluster--namespace-host_bar-ingName

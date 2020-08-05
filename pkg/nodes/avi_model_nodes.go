@@ -714,12 +714,14 @@ type AviPortHostProtocol struct {
 }
 
 type AviVSVIPNode struct {
-	Name             string
-	Tenant           string
-	CloudConfigCksum uint32
-	FQDNs            []string
-	EastWest         bool
-	VrfContext       string
+	Name                    string
+	Tenant                  string
+	CloudConfigCksum        uint32
+	FQDNs                   []string
+	EastWest                bool
+	VrfContext              string
+	SecurePassthoughNode    *AviVsNode
+	InsecurePassthroughNode *AviVsNode
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {
@@ -893,7 +895,7 @@ type AviPoolNode struct {
 	ServiceMetadata  avicache.ServiceMetadataObj
 	SniEnabled       bool
 	SslProfileRef    string
-	PkiProfile       *AviTLSKeyCertNode
+	PkiProfile       *AviPkiProfileNode
 	VrfContext       string
 }
 

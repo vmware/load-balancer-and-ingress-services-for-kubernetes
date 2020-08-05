@@ -45,7 +45,14 @@ func TestInsecureRouteStatusCheck(t *testing.T) {
 		}
 		return route.Status.Ingress[0].Host
 	}, 30*time.Second).Should(gomega.Equal(DefaultHostname))
-	g.Expect(route.Status.Ingress[0].Conditions[0].Message).Should(gomega.Equal("10.250.250.10"))
+
+	g.Eventually(func() string {
+		route, _ = OshiftClient.RouteV1().Routes("default").Get(DefaultRouteName, metav1.GetOptions{})
+		if (len(route.Status.Ingress)) != 1 {
+			return ""
+		}
+		return route.Status.Ingress[0].Conditions[0].Message
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.10"))
 
 	TearDownRouteForRestCheck(t, DefaultModelName)
 }
