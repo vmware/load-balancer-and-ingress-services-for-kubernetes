@@ -246,6 +246,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	}
 
 	for _, passChildNode := range aviVsNode.PassthroughChildNodes {
+		var rest_ops []*utils.RestOp
 		passChildVSKey := avicache.NamespaceName{Namespace: namespace, Name: passChildNode.Name}
 		passChildVSCacheObj := rest.getVsCacheObj(passChildVSKey, key)
 		utils.AviLog.Debugf("key: %s, msg: processing passthrough node: %s", key, passChildNode)
@@ -262,7 +263,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 func (rest *RestOperations) PassthroughChildCU(passChildNode *nodes.AviVsNode, vsCacheObj *avicache.AviVsCache, namespace string, restOps []*utils.RestOp, key string) []*utils.RestOp {
 	var httpPoliciesToDelete []avicache.NamespaceName
 	if vsCacheObj != nil {
-		utils.AviLog.Debugf("key: %s, msg: Cache Passthrough Node - %s", utils.Stringify(vsCacheObj))
+		utils.AviLog.Debugf("key: %s, msg: Cache Passthrough Node - %s", key, utils.Stringify(vsCacheObj))
 		httpPoliciesToDelete, restOps = rest.HTTPPolicyCU(passChildNode.HttpPolicyRefs, vsCacheObj, namespace, restOps, key)
 
 		// The checksums are different, so it should be a PUT call.
@@ -369,7 +370,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 	var fastRetry, retry bool
 	if shardSize != 0 {
 		bkt := utils.Bkt(key, shardSize)
-		utils.AviLog.Debugf("key: %s, msg: processing in rest queue number: %v", key, bkt)
+		utils.AviLog.Infof("key: %s, msg: processing in rest queue number: %v", key, bkt)
 		if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
 			aviclient := rest.aviRestPoolClient.AviClient[bkt]
 			err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
@@ -785,7 +786,7 @@ func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName
 }
 
 func (rest *RestOperations) PoolGroupDelete(pgs_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
-	utils.AviLog.Debugf("key: %s, msg: about to delete the PGs %s", key, pgs_to_delete)
+	utils.AviLog.Infof("key: %s, msg: about to delete the PGs %s", key, pgs_to_delete)
 	for _, del_pg := range pgs_to_delete {
 		// fetch trhe pool uuid from cache
 		pg_key := avicache.NamespaceName{Namespace: namespace, Name: del_pg.Name}
@@ -801,7 +802,7 @@ func (rest *RestOperations) PoolGroupDelete(pgs_to_delete []avicache.NamespaceNa
 }
 
 func (rest *RestOperations) DSDelete(ds_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
-	utils.AviLog.Debugf("key: %s, msg: about to delete the DS %s", key, ds_to_delete)
+	utils.AviLog.Infof("key: %s, msg: about to delete the DS %s", key, ds_to_delete)
 	for _, del_ds := range ds_to_delete {
 		// fetch trhe pool uuid from cache
 		ds_key := avicache.NamespaceName{Namespace: namespace, Name: del_ds.Name}
@@ -877,7 +878,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 }
 
 func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) {
-	utils.AviLog.Debugf("key: %s, msg: about to delete the SNI child %s", key, del_sni)
+	utils.AviLog.Infof("key: %s, msg: about to delete the SNI child %s", key, del_sni)
 	sni_key := avicache.NamespaceName{Namespace: namespace, Name: del_sni.Name}
 	sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 	if sni_cache_obj != nil {

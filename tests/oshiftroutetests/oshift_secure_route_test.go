@@ -659,7 +659,15 @@ func TestSecureRouteInsecureRedirectToAllow(t *testing.T) {
 	//shared vs
 	ValidateModelCommon(t, g)
 	g.Eventually(func() int {
-		pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
+		vslist := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(vslist) == 0 {
+			return 0
+		}
+		poolrefs := vslist[0].PoolRefs
+		if len(poolrefs) == 0 {
+			return 0
+		}
+		pool := poolrefs[0]
 		return len(pool.Servers)
 	}, 10*time.Second).Should(gomega.Equal(1))
 
@@ -805,4 +813,189 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	TearDownTestForRoute(t, DefaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
 	integrationtest.DelEP(t, "test", "avisvc")
+}
+
+func TestReencryptRoute(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 60*time.Second).Should(gomega.Equal(DefaultHostname))
+	VerifySniNode(g, sniVS)
+
+	g.Expect(sniVS.PoolRefs[0].SniEnabled).To(gomega.Equal(true))
+	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+}
+
+func TestRemoveReencryptRoute(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample.Spec.TLS.Termination = routev1.TLSTerminationEdge
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 60*time.Second).Should(gomega.Equal(DefaultHostname))
+	VerifySniNode(g, sniVS)
+	g.Eventually(func() bool {
+		return sniVS.PoolRefs[0].SniEnabled
+	}, 60*time.Second).Should(gomega.Equal(false))
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+}
+
+func TestRencryptRouteAlternateBackend(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
+	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 60*time.Second).Should(gomega.Equal(DefaultHostname))
+
+	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(2))
+
+	for _, pool := range sniVS.PoolRefs {
+		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" && pool.Name != "cluster--default-foo.com_foo-foo-absvc2" {
+			t.Fatalf("Unexpected poolName found: %s", pool.Name)
+		} else {
+			g.Eventually(func() bool {
+				return pool.SniEnabled
+			}, 60*time.Second).Should(gomega.Equal(true))
+			g.Expect(pool.SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+		}
+		g.Expect(pool.Servers).To(gomega.HaveLen(1))
+	}
+	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
+		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+		} else {
+			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
+		}
+	}
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+	integrationtest.DelSVC(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
+}
+
+func TestReencryptRouteWithDestinationCA(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
+	routeExample.Spec.TLS.DestinationCACertificate = "abc"
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 60*time.Second).Should(gomega.Equal(DefaultHostname))
+	VerifySniNode(g, sniVS)
+	g.Eventually(func() bool {
+		return sniVS.PoolRefs[0].SniEnabled
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+	g.Expect(sniVS.PoolRefs[0].PkiProfile.Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-avisvc-pkiprofile"))
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
+}
+
+func TestReencryptRouteRemoveDestinationCA(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, DefaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
+	routeExample.Spec.TLS.DestinationCACertificate = "abc"
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample.Spec.TLS.DestinationCACertificate = ""
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, DefaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 60*time.Second).Should(gomega.Equal(DefaultHostname))
+	VerifySniNode(g, sniVS)
+	g.Eventually(func() bool {
+		return sniVS.PoolRefs[0].SniEnabled
+	}, 60*time.Second).Should(gomega.Equal(true))
+	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+
+	var nilPki *avinodes.AviPkiProfileNode
+	g.Eventually(func() *avinodes.AviPkiProfileNode {
+		return sniVS.PoolRefs[0].PkiProfile
+	}, 60*time.Second).Should(gomega.Equal(nilPki))
+
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }

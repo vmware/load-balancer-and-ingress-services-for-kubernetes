@@ -101,6 +101,12 @@ func TestHostnameCreateIngressCacheSync(t *testing.T) {
 	}
 	g.Expect(vsCacheObj.Name).To(gomega.Equal("cluster--Shared-L7-0"))
 	g.Expect(vsCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
+	g.Eventually(func() int {
+		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
+		return len(vsCacheObj.PoolKeyCollection)
+	}, 20*time.Second).Should(gomega.Equal(1))
+
 	g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
 	g.Expect(vsCacheObj.DSKeyCollection).To(gomega.HaveLen(1))
