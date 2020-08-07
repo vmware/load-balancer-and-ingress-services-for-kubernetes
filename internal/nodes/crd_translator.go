@@ -26,7 +26,8 @@ import (
 	"ako/internal/objects"
 	"ako/internal/status"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	"github.com/avinetworks/sdk/go/models"
 )
 

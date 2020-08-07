@@ -29,7 +29,8 @@ import (
 	"ako/internal/rest"
 	"ako/internal/retry"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"

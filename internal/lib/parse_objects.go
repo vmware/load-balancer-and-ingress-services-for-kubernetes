@@ -15,7 +15,8 @@
 package lib
 
 import (
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	avimodels "github.com/avinetworks/sdk/go/models"
 )
 

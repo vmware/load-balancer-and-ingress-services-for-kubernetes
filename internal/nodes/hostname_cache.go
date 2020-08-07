@@ -18,7 +18,7 @@ import (
 	"ako/internal/objects"
 	"sync"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
 )
 
 var hostNameListerInstance *HostNameLister

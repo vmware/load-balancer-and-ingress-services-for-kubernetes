@@ -19,7 +19,8 @@ import (
 	"ako/internal/objects"
 	"strings"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
