@@ -1,8 +1,8 @@
 package oshiftroutetests
 
 import (
-	"ako/pkg/cache"
-	"ako/pkg/objects"
+	"ako/internal/cache"
+	"ako/internal/objects"
 	"testing"
 	"time"
 

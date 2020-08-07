@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	avinodes "ako/pkg/nodes"
-	"ako/pkg/objects"
+	avinodes "ako/internal/nodes"
+	"ako/internal/objects"
 	"ako/tests/integrationtest"
 
 	"github.com/onsi/gomega"

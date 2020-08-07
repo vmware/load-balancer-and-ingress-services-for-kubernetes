@@ -30,11 +30,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 
-	"ako/pkg/cache"
-	crdfake "ako/pkg/client/clientset/versioned/fake"
-	"ako/pkg/k8s"
-	avinodes "ako/pkg/nodes"
-	"ako/pkg/objects"
+	"ako/internal/cache"
+	crdfake "ako/internal/client/clientset/versioned/fake"
+	"ako/internal/k8s"
+	avinodes "ako/internal/nodes"
+	"ako/internal/objects"
 
 	"github.com/avinetworks/container-lib/api"
 	apimodels "github.com/avinetworks/container-lib/api/models"
