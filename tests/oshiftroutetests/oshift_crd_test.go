@@ -12,13 +12,14 @@
 * limitations under the License.
 */
 
-package hostnameshardtests
+package oshiftroutetests
 
 import (
 	"testing"
 	"time"
 
 	"github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
 	avinodes "github.com/avinetworks/ako/internal/nodes"
 	"github.com/avinetworks/ako/internal/objects"
 	"github.com/avinetworks/ako/tests/integrationtest"
@@ -27,19 +28,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestHostnameCreateHostRule(t *testing.T) {
+func TestRouteCreateHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-
-	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	modelName := "admin/cluster--Shared-L7-0"
 
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(hrname, metav1.GetOptions{})
+		hostrule, _ := lib.GetCRDClientset().AkoV1alpha1().HostRules(DefaultNamespace).Get(hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
@@ -49,8 +56,8 @@ func TestHostnameCreateHostRule(t *testing.T) {
 			}
 		}
 		return ""
-	}, 20*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	}, 30*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
 	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisahostruleref-appprof"))
@@ -61,10 +68,11 @@ func TestHostnameCreateHostRule(t *testing.T) {
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }
 
-func TestHostnameCreateHostRuleBeforeIngress(t *testing.T) {
+func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
@@ -72,58 +80,78 @@ func TestHostnameCreateHostRuleBeforeIngress(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(hrname, metav1.GetOptions{})
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules(DefaultNamespace).Get(hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+	ValidateSniModel(t, g, modelName)
 
 	g.Eventually(func() string {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes) == 1 {
-			return nodes[0].SniNodes[0].SSLKeyCertAviRef
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].SniNodes) == 1 {
+				return nodes[0].SniNodes[0].SSLKeyCertAviRef
+			}
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
+	}, 20*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 
 	g.Eventually(func() string {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes) == 1 {
-			return nodes[0].SniNodes[0].SSLKeyCertAviRef
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].SniNodes) == 1 {
+				return nodes[0].SniNodes[0].SSLKeyCertAviRef
+			}
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Equal(""))
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	}, 20*time.Second).Should(gomega.Equal(""))
+	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }
 
-func TestHostnameInsecureToSecureHostRule(t *testing.T) {
-	// insecure ingress to secure VS via Hostrule
+func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
+	// insecure route to secure VS via Hostrule
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{}.Route()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
 	g.Eventually(func() int {
-		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
-		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
-		return len(vsCacheObj.SNIChildCollection)
-	}, 15*time.Second).Should(gomega.Equal(0))
+		vsCache, ok := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		vsCacheObj, found := vsCache.(*cache.AviVsCache)
+		if ok && found {
+			return len(vsCacheObj.SNIChildCollection)
+		}
+		return 100
+	}, 20*time.Second).Should(gomega.Equal(0))
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() int {
-		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
-		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
-		return len(vsCacheObj.SNIChildCollection)
-	}, 15*time.Second).Should(gomega.Equal(1))
+		vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if found && ok {
+			return len(vsCacheObj.SNIChildCollection)
+		}
+		return 0
+	}, 20*time.Second).Should(gomega.Equal(1))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
@@ -134,80 +162,86 @@ func TestHostnameInsecureToSecureHostRule(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }
 
-func TestHostnameMultiIngressToSecureHostRule(t *testing.T) {
-	// 1 insecure ingress, 1 secure ingress -> secure VS via Hostrule
+func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
+	// 1 insecure route, 1 secure route -> secure VS via Hostrule
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
 
 	// creating secure default/foo.com/foo
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpTestForRoute(t, modelName)
+	secRouteExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(secRouteExample); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
 
 	// creating insecure red/foo.com/bar
-	ingressObject := integrationtest.FakeIngress{
-		Name:        "foo-with-targets-2",
-		Namespace:   "red",
-		DnsNames:    []string{"foo.com"},
-		Paths:       []string{"/bar"},
-		ServiceName: "avisvc",
+	routeExample := FakeRoute{
+		Name:      "insecure-foo",
+		Namespace: "red",
+		Path:      "/bar",
+	}.Route()
+	_, err := OshiftClient.RouteV1().Routes("red").Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
 	}
-	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("red").Create(ingrFake); err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
-	}
+	ValidateSniModel(t, g, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes) > 0 {
-			return len(nodes[0].SniNodes[0].PoolGroupRefs)
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].SniNodes) > 0 &&
+				len(nodes[0].SniNodes[0].PoolRefs) == 2 &&
+				len(nodes[0].PoolRefs) == 0 {
+				return true
+			}
 		}
-		return 0
-	}, 20*time.Second).Should(gomega.Equal(2))
+		return false
+	}, 30*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(0))
-	g.Expect(nodes[0].SniNodes[0].PoolRefs).To(gomega.HaveLen(2))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 
-	if err := KubeClient.ExtensionsV1beta1().Ingresses("red").Delete("foo-with-targets-2", nil); err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifySecureRouteDeletion(t, g, modelName, 1, 0)
+	VerifyRouteDeletion(t, g, aviModel, 0, "red/insecure-foo")
+	TearDownTestForRoute(t, modelName)
 }
 
-func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
-	// 2 insecure ingresses -> VS via Hostrule
+func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
+	// 2 insecure routes -> secure VS via Hostrule
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
 
 	// creating insecure default/foo.com/foo
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{Path: "/foo"}.Route()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
 
 	// creating insecure red/voo.com/voo
-	ingressObject := integrationtest.FakeIngress{
-		Name:        "voo-with-targets",
-		Namespace:   "red",
-		DnsNames:    []string{"voo.com"},
-		Paths:       []string{"/voo"},
-		ServiceName: "avisvc",
-	}
-	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("red").Create(ingrFake); err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
+	routeExampleVoo := FakeRoute{
+		Name:      "voo",
+		Namespace: "red",
+		Hostname:  "voo.com",
+		Path:      "/voo",
+	}.Route()
+	if _, err := OshiftClient.RouteV1().Routes("red").Create(routeExampleVoo); err != nil {
+		t.Fatalf("error in adding route: %v", err)
 	}
 
 	// hostrule for foo.com
@@ -216,19 +250,20 @@ func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 	// voo.com must be insecure, foo.com must be secure
 	// both foo.com and voo.com fall in the SAME shard
 	g.Eventually(func() bool {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes) == 1 &&
-			len(nodes[0].PoolRefs) == 1 &&
-			nodes[0].PoolRefs[0].Name == "cluster--voo.com_voo-red-voo-with-targets" {
-			return true
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].SniNodes) == 1 &&
+				len(nodes[0].PoolRefs) == 1 &&
+				nodes[0].PoolRefs[0].Name == "cluster--voo.com_voo-red-voo-avisvc" {
+				return true
+			}
 		}
 		return false
 	}, 30*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].Name).To(gomega.Equal("cluster--foo.com"))
-	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-avisvc"))
 
 	// change hostrule for foo.com to voo.com
 	hrUpdate := integrationtest.FakeHostRule{
@@ -244,38 +279,43 @@ func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 
 	// foo.com would be insecure, voo.com would become secure now
 	g.Eventually(func() bool {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes) == 1 &&
-			nodes[0].SniNodes[0].Name == "cluster--voo.com" &&
-			len(nodes[0].PoolRefs) == 1 {
-			return true
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].SniNodes) == 1 &&
+				nodes[0].SniNodes[0].Name == "cluster--voo.com" &&
+				len(nodes[0].PoolRefs) == 1 &&
+				nodes[0].PoolRefs[0].Name == "cluster--foo.com_foo-default-foo-avisvc" {
+				return true
+			}
 		}
 		return false
 	}, 30*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-with-targets"))
-	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--red-voo.com_voo-voo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--red-voo.com_voo-voo-avisvc"))
 
-	if err := KubeClient.ExtensionsV1beta1().Ingresses("red").Delete("voo-with-targets", nil); err != nil {
-		t.Fatalf("Couldn't Delete the Ingress %v", err)
-	}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--voo.com"}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifySecureRouteDeletion(t, g, modelName, 1, 0, "red/voo")
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }
 
-func TestHostnameGoodToBadHostRule(t *testing.T) {
-	// create insecure ingress, apply good secure hostrule, transition to bad
+func TestOshiftGoodToBadHostRule(t *testing.T) {
+	// create insecure route, apply good secure hostrule, transition to bad
 	g := gomega.NewGomegaWithT(t)
-
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{}.Route()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", false)
+	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 
 	// update hostrule with bad ref
@@ -294,36 +334,47 @@ func TestHostnameGoodToBadHostRule(t *testing.T) {
 	g.Eventually(func() string {
 		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Rejected"))
+	}, 30*time.Second).Should(gomega.Equal("Rejected"))
 
 	// the last applied hostrule values would exist
 	g.Eventually(func() string {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return nodes[0].SniNodes[0].SSLKeyCertAviRef
-	}, 10*time.Second).Should(gomega.ContainSubstring("thisisahostruleref"))
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].SniNodes) == 1 {
+				return nodes[0].SniNodes[0].SSLKeyCertAviRef
+			}
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.ContainSubstring("thisisahostruleref"))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
 	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisahostruleref-appprof"))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }
 
-func TestHostnameInsecureHostAndHostrule(t *testing.T) {
-	// create insecure ingress, insecure hostrule, nothing should be applied
+func TestOshiftInsecureHostAndHostrule(t *testing.T) {
+	// create insecure route, insecure hostrule, nothing should be applied
 	g := gomega.NewGomegaWithT(t)
-
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{}.Route()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
 
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].PoolRefs)
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return 0
 	}, 10*time.Second).Should(gomega.Equal(1))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -331,18 +382,23 @@ func TestHostnameInsecureHostAndHostrule(t *testing.T) {
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }
 
-func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
+func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 	// create insecure host foo.com, attach hostrule, change hostrule to non existing bar.com
 	// foo.com should become insecure again
 	// change hostrule back to foo.com and it should become secure again
 	g := gomega.NewGomegaWithT(t)
-
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{Path: "/foo"}.Route()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
@@ -360,13 +416,15 @@ func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
 	}
 
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].PoolRefs)
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return 0
 	}, 10*time.Second).Should(gomega.Equal(1))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-with-targets"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-avisvc"))
 
 	// change back to good host
 	hrUpdate = integrationtest.FakeHostRule{
@@ -381,59 +439,48 @@ func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
 	}
 
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].PoolRefs)
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return -1
 	}, 10*time.Second).Should(gomega.Equal(0))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-avisvc"))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }
 
-// httprule with HostRules
-
-func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
-	// ingress secure foo.com/foo /bar
-	// create httprule /foo, nothing happens
-	// create hostrule, httprule gets attached check on /foo /bar
+func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
+	// route secure foo.com/foo /bar
+	// create httprule /, httprule gets attached check on /foo /bar
 	// delete hostrule, httprule gets detached
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
 	rrname := "samplerr-foo"
 
-	SetupDomain()
-	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	integrationtest.PollForCompletion(t, modelName, 5)
-	ingressObject := integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
-		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
-		Paths:       []string{"/foo", "/bar"},
-		ServiceName: "avisvc",
-		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
-		},
+	SetUpTestForRoute(t, modelName)
+	routeExampleFoo := FakeRoute{Path: "/foo"}.SecureRoute()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExampleFoo); err != nil {
+		t.Fatalf("error in adding route: %v", err)
 	}
-
-	ingrFake := ingressObject.Ingress(true)
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
+	routeExampleBar := FakeRoute{Name: "foobar", Path: "/bar"}.SecureRoute()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExampleBar); err != nil {
+		t.Fatalf("error in adding route: %v", err)
 	}
-	integrationtest.PollForCompletion(t, modelName, 5)
 
 	integrationtest.SetupHTTPRule(t, rrname, "foo.com", "/")
 	g.Eventually(func() bool {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
-			return true
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].SniNodes) == 1 &&
+				nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
+				return true
+			}
 		}
 		return false
 	}, 20*time.Second).Should(gomega.Equal(true))
@@ -446,11 +493,12 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 	// delete httprule deletes refs as well
 	integrationtest.TeardownHTTPRule(t, rrname)
 	g.Eventually(func() bool {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes[0].PoolRefs) == 2 &&
-			nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "" {
-			return true
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].SniNodes[0].PoolRefs) == 2 &&
+				nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "" {
+				return true
+			}
 		}
 		return false
 	}, 20*time.Second).Should(gomega.Equal(true))
@@ -459,10 +507,12 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithm).To(gomega.Equal(""))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.Equal(""))
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifySecureRouteDeletion(t, g, modelName, 0, 1)
+	VerifySecureRouteDeletion(t, g, modelName, 0, 0, "default/foobar")
+	TearDownTestForRoute(t, DefaultModelName)
 }
 
-func TestHostNameHTTPRuleHostSwitch(t *testing.T) {
+func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 	// ingress foo.com/foo voo.com/foo
 	// hr1: foo.com (secure), hr2: voo.com (insecure)
 	// rr1: hr1/foo ALGO1
@@ -470,39 +520,30 @@ func TestHostNameHTTPRuleHostSwitch(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	hrnameFoo := "samplehr-foo"
-	hrnameVoo := "samplehr-voo"
 	rrnameFoo := "samplerr-foo"
 
 	// creates foo.com insecure
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
-
-	// creates voo.com insecure
-	ingressObject := integrationtest.FakeIngress{
-		Name:        "voo-with-targets",
-		Namespace:   "default",
-		DnsNames:    []string{"voo.com"},
-		Paths:       []string{"/foo"},
-		ServiceName: "avisvc",
+	SetUpTestForRoute(t, modelName)
+	routeExampleFoo := FakeRoute{Path: "/foo"}.SecureRoute()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExampleFoo); err != nil {
+		t.Fatalf("error in adding route: %v", err)
 	}
-	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
+	routeExampleVoo := FakeRoute{Name: "voo", Hostname: "voo.com", Path: "/foo"}.Route()
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExampleVoo); err != nil {
+		t.Fatalf("error in adding route: %v", err)
 	}
 
 	integrationtest.SetupHTTPRule(t, rrnameFoo, "foo.com", "/foo")
-	integrationtest.SetupHostRule(t, hrnameFoo, "foo.com", true) // makes foo.com secure
-	integrationtest.SetupHostRule(t, hrnameVoo, "voo.com", false)
-
 	g.Eventually(func() bool {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].PoolRefs) == 1 &&
-			nodes[0].PoolRefs[0].LbAlgorithm == "" &&
-			len(nodes[0].SniNodes) == 1 &&
-			len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
-			nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
-			return true
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 1 &&
+				nodes[0].PoolRefs[0].LbAlgorithm == "" &&
+				len(nodes[0].SniNodes) == 1 &&
+				len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
+				nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
+				return true
+			}
 		}
 		return false
 	}, 25*time.Second).Should(gomega.Equal(true))
@@ -525,24 +566,22 @@ func TestHostNameHTTPRuleHostSwitch(t *testing.T) {
 	// httprule things should get attached to insecure Pools of bar.com now
 	// earlier since the hostrule pointed to secure foo.com, it was attached to the SNI pools
 	g.Eventually(func() bool {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].PoolRefs) == 1 &&
-			nodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" &&
-			len(nodes[0].SniNodes) == 1 &&
-			len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
-			nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "" {
-			return true
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 1 &&
+				nodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" &&
+				len(nodes[0].SniNodes) == 1 &&
+				len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
+				nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "" {
+				return true
+			}
 		}
 		return false
 	}, 25*time.Second).Should(gomega.Equal(true))
 
-	if err := KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("voo-with-targets", nil); err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrnameFoo)
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrnameVoo)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	integrationtest.TeardownHTTPRule(t, rrnameFoo)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	VerifyRouteDeletion(t, g, aviModel, 0, "default/voo")
+	VerifySecureRouteDeletion(t, g, modelName, 0, 0)
+	TearDownTestForRoute(t, DefaultModelName)
 }

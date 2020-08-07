@@ -16,6 +16,7 @@ package oshiftroutetests
 
 import (
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -201,8 +202,13 @@ func TearDownTestForRoute(t *testing.T, modelName string) {
 	integrationtest.DelEP(t, "default", "avisvc")
 }
 
-func VerifyRouteDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int) {
-	err := OshiftClient.RouteV1().Routes(DefaultNamespace).Delete(DefaultRouteName, nil)
+func VerifyRouteDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int, nsname ...string) {
+	namespace, name := DefaultNamespace, DefaultRouteName
+	if len(nsname) > 0 {
+		namespace, name = strings.Split(nsname[0], "/")[0], strings.Split(nsname[0], "/")[1]
+	}
+
+	err := OshiftClient.RouteV1().Routes(namespace).Delete(name, nil)
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
@@ -210,12 +216,12 @@ func VerifyRouteDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, po
 	g.Eventually(func() []*avinodes.AviPoolNode {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolRefs
-	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
+	}, 20*time.Second).Should(gomega.HaveLen(poolCount))
 
 	g.Eventually(func() []*models.PoolGroupMember {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolGroupRefs[0].Members
-	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
+	}, 20*time.Second).Should(gomega.HaveLen(poolCount))
 }
 
 func ValidateModelCommon(t *testing.T, g *gomega.GomegaWithT) interface{} {
