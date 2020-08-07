@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	avinodes "ako/internal/nodes"
-	"ako/internal/objects"
+	avinodes "github.com/avinetworks/ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/objects"
 
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"

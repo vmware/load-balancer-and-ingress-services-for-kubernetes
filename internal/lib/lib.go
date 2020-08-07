@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"strings"
 
-	"ako/pkg/api"
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/api"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"

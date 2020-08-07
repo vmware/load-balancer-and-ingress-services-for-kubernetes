@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"strings"
 
-	"ako/internal/lib"
-	"ako/internal/objects"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/objects"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 )

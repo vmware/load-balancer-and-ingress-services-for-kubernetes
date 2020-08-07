@@ -20,13 +20,13 @@ import (
 	"regexp"
 	"strings"
 
-	akov1alpha1 "ako/internal/apis/ako/v1alpha1"
-	"ako/internal/cache"
-	"ako/internal/lib"
-	"ako/internal/objects"
-	"ako/internal/status"
+	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
+	"github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/objects"
+	"github.com/avinetworks/ako/internal/status"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
 )

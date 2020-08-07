@@ -1,4 +1,4 @@
-module ako
+module github.com/avinetworks/ako
 
 require (
 	github.com/Masterminds/semver v1.5.0

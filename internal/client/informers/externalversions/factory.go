@@ -19,12 +19,13 @@ limitations under the License.
 package externalversions
 
 import (
-	versioned "ako/internal/client/clientset/versioned"
-	ako "ako/internal/client/informers/externalversions/ako"
-	internalinterfaces "ako/internal/client/informers/externalversions/internalinterfaces"
 	reflect "reflect"
 	sync "sync"
 	time "time"
+
+	versioned "github.com/avinetworks/ako/internal/client/clientset/versioned"
+	ako "github.com/avinetworks/ako/internal/client/informers/externalversions/ako"
+	internalinterfaces "github.com/avinetworks/ako/internal/client/informers/externalversions/internalinterfaces"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"

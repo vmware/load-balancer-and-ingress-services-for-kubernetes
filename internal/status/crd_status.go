@@ -15,12 +15,13 @@
 package status
 
 import (
-	"ako/internal/lib"
 	"errors"
 
-	akov1alpha1 "ako/internal/apis/ako/v1alpha1"
+	"github.com/avinetworks/ako/internal/lib"
 
-	"ako/pkg/utils"
+	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
+
+	"github.com/avinetworks/ako/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

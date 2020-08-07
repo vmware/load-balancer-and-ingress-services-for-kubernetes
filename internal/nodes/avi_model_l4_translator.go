@@ -19,11 +19,11 @@ import (
 	"sort"
 	"strings"
 
-	avicache "ako/internal/cache"
-	"ako/internal/lib"
-	"ako/internal/objects"
+	avicache "github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/objects"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	corev1 "k8s.io/api/core/v1"

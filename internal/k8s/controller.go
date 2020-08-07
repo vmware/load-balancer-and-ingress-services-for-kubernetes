@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"sync"
 
-	"ako/internal/lib"
+	"github.com/avinetworks/ako/internal/lib"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
