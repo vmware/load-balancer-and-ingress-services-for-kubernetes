@@ -22,10 +22,10 @@ import (
 	"strings"
 	"sync"
 
-	"ako/internal/lib"
+	"github.com/avinetworks/ako/internal/lib"
 
-	apimodels "ako/pkg/api/models"
-	"ako/pkg/utils"
+	apimodels "github.com/avinetworks/ako/pkg/api/models"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/avinetworks/sdk/go/models"

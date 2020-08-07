@@ -21,11 +21,11 @@ import (
 	"testing"
 	"time"
 
-	"ako/internal/cache"
-	avinodes "ako/internal/nodes"
-	"ako/internal/objects"
+	"github.com/avinetworks/ako/internal/cache"
+	avinodes "github.com/avinetworks/ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/objects"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

@@ -15,10 +15,11 @@
 package nodes
 
 import (
-	"ako/internal/objects"
 	"sync"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/internal/objects"
+
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 var hostNameListerInstance *HostNameLister

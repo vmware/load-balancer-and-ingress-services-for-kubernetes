@@ -18,7 +18,7 @@ import (
 	"errors"
 	"regexp"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) ([]map[string]interface{}, error) {

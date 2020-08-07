@@ -15,10 +15,10 @@
 package rest
 
 import (
-	avicache "ako/internal/cache"
-	"ako/internal/status"
+	avicache "github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/status"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 // SyncIngressStatus gets data from L3 cache and does a status update on the ingress objects

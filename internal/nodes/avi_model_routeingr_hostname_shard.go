@@ -15,11 +15,12 @@
 package nodes
 
 import (
-	"ako/internal/lib"
-	"ako/internal/objects"
 	"errors"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/objects"
+
+	"github.com/avinetworks/ako/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
 	networking "k8s.io/api/networking/v1beta1"

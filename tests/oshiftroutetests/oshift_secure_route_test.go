@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	avinodes "ako/internal/nodes"
-	"ako/internal/objects"
-	"ako/tests/integrationtest"
+	avinodes "github.com/avinetworks/ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/objects"
+	"github.com/avinetworks/ako/tests/integrationtest"
 
 	"github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"

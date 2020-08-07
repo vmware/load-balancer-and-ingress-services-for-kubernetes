@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 // AviApiRestStatus holds status details for AKO/AMKO <-> AVI connection

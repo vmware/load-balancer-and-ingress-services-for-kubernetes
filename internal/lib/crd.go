@@ -15,13 +15,13 @@
 package lib
 
 import (
-	akocrd "ako/internal/client/clientset/versioned"
-	akoinformer "ako/internal/client/informers/externalversions/ako/v1alpha1"
+	akocrd "github.com/avinetworks/ako/internal/client/clientset/versioned"
+	akoinformer "github.com/avinetworks/ako/internal/client/informers/externalversions/ako/v1alpha1"
 )
 
 var CRDClientset akocrd.Interface
 
-// crd "ako/internal/client/clientset/versioned/typed/ako/v1alpha1"
+// crd "github.com/avinetworks/ako/internal/client/clientset/versioned/typed/ako/v1alpha1"
 func SetCRDClientset(cs akocrd.Interface) {
 	CRDClientset = cs
 }

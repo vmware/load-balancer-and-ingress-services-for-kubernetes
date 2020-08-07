@@ -20,7 +20,7 @@ package objects
 import (
 	"sync"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 type ObjectStore struct {
