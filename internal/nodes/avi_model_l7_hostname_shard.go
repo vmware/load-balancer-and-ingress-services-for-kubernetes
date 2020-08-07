@@ -23,7 +23,8 @@ import (
 	"ako/internal/lib"
 	"ako/internal/objects"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	avimodels "github.com/avinetworks/sdk/go/models"
 )
 

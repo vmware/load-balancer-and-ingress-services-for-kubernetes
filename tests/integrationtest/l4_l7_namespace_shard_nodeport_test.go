@@ -25,7 +25,8 @@ import (
 	avinodes "ako/internal/nodes"
 	"ako/internal/objects"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 )

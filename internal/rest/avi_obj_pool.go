@@ -24,7 +24,8 @@ import (
 	"ako/internal/nodes"
 	"ako/internal/status"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"

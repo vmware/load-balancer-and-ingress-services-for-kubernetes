@@ -17,7 +17,7 @@ package objects
 import (
 	"sync"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
 )
 
 //This package gives relationship APIs to manage a kubernetes service object.

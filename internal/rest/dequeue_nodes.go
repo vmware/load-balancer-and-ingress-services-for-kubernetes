@@ -27,8 +27,9 @@ import (
 
 	"github.com/Masterminds/semver"
 
-	"github.com/avinetworks/container-lib/api/models"
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/api/models"
+	"ako/pkg/utils"
+
 	"github.com/avinetworks/sdk/go/clients"
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"

@@ -24,9 +24,10 @@ import (
 	"ako/internal/k8s"
 	"ako/internal/lib"
 
-	"github.com/avinetworks/container-lib/api"
-	"github.com/avinetworks/container-lib/api/models"
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/api"
+	"ako/pkg/api/models"
+	"ako/pkg/utils"
+
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

@@ -20,8 +20,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/avinetworks/container-lib/api/models"
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/api/models"
+	"ako/pkg/utils"
+
 	"github.com/gorilla/mux"
 )
 

@@ -21,7 +21,8 @@ import (
 	"ako/internal/lib"
 	"ako/internal/objects"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 

@@ -20,7 +20,8 @@ import (
 
 	akov1alpha1 "ako/internal/apis/ako/v1alpha1"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

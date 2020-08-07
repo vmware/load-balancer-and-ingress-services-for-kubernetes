@@ -19,7 +19,7 @@ package objects
 import (
 	"sync"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
 )
 
 var aviGraphinstance *AviGraphLister
