@@ -62,10 +62,12 @@ var (
 	HostRule = GraphSchema{
 		Type:               "HostRule",
 		GetParentIngresses: HostRuleToIng,
+		GetParentRoutes:    HostRuleToIng,
 	}
 	HTTPRule = GraphSchema{
 		Type:               "HTTPRule",
 		GetParentIngresses: HTTPRuleToIng,
+		GetParentRoutes:    HTTPRuleToIng,
 	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,

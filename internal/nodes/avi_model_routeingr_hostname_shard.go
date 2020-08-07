@@ -43,6 +43,7 @@ type RouteIngressModel interface {
 
 // OshiftRouteModel : Model for openshift routes with it's own service lister
 type OshiftRouteModel struct {
+	key       string
 	name      string
 	namespace string
 	spec      routev1.RouteSpec
@@ -50,13 +51,15 @@ type OshiftRouteModel struct {
 
 // K8sIngressModel : Model for openshift routes with default service lister
 type K8sIngressModel struct {
+	key       string
 	name      string
 	namespace string
 	spec      networking.IngressSpec
 }
 
-func GetOshiftRouteModel(name, namespace string) (*OshiftRouteModel, error, bool) {
+func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error, bool) {
 	routeModel := OshiftRouteModel{
+		key:       key,
 		name:      name,
 		namespace: namespace,
 	}
@@ -91,7 +94,7 @@ func (m *OshiftRouteModel) GetSpec() interface{} {
 
 func (or *OshiftRouteModel) ParseHostPath() IngressConfig {
 	o := NewNodesValidator()
-	return o.ParseHostPathForRoute(or.namespace, or.name, or.spec, "")
+	return o.ParseHostPathForRoute(or.namespace, or.name, or.spec, or.key)
 }
 
 func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, currentPathSvc []IngressHostPathSvc) map[string][]string {
@@ -115,8 +118,9 @@ func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, cur
 	return pathSvcCopy
 }
 
-func GetK8sIngressModel(name, namespace string) (*K8sIngressModel, error, bool) {
+func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, bool) {
 	ingrModel := K8sIngressModel{
+		key:       key,
 		name:      name,
 		namespace: namespace,
 	}
@@ -156,7 +160,7 @@ func (m *K8sIngressModel) GetSpec() interface{} {
 
 func (m *K8sIngressModel) ParseHostPath() IngressConfig {
 	o := NewNodesValidator()
-	return o.ParseHostPathForIngress(m.namespace, m.name, m.spec, "")
+	return o.ParseHostPathForIngress(m.namespace, m.name, m.spec, m.key)
 }
 
 func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, currentPathSvc []IngressHostPathSvc) map[string][]string {
@@ -190,12 +194,12 @@ func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync
 		if utils.GetInformers().IngressInformer == nil {
 			return
 		}
-		routeIgrObj, err, processObj = GetK8sIngressModel(objname, namespace)
+		routeIgrObj, err, processObj = GetK8sIngressModel(objname, namespace, key)
 	case utils.OshiftRoute:
 		if utils.GetInformers().RouteInformer == nil {
 			return
 		}
-		routeIgrObj, err, processObj = GetOshiftRouteModel(objname, namespace)
+		routeIgrObj, err, processObj = GetOshiftRouteModel(objname, namespace, key)
 
 	default:
 		utils.AviLog.Infof("key: %s, starting unsupported object type: %s", key, objType)

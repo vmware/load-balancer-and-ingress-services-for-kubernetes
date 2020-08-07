@@ -116,13 +116,14 @@ func DequeueIngestion(key string, fullsync bool) {
 }
 
 func handleRoute(key string, fullsync bool, routeNames []string) {
-	_, namespace, _ := extractTypeNameNamespace(key)
+	objType, namespace, _ := extractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	utils.AviLog.Infof("key: %s, msg: route found: %v", key, routeNames)
 	if lib.GetShardScheme() == lib.HOSTNAME_SHARD_SCHEME {
 		for _, route := range routeNames {
+			nsroute, nameroute := getIngressNSNameForIngestion(objType, namespace, route)
 			utils.AviLog.Infof("key: %s, msg: processing route: %s", key, route)
-			HostNameShardAndPublishV2(utils.OshiftRoute, route, namespace, key, fullsync, sharedQueue)
+			HostNameShardAndPublishV2(utils.OshiftRoute, nameroute, nsroute, key, fullsync, sharedQueue)
 		}
 	}
 	return
@@ -200,7 +201,7 @@ func handleIngress(key string, fullsync bool, ingressNames []string) {
 		// The only other shard scheme we support now is hostname sharding.
 		for _, ingress := range ingressNames {
 			nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
-			utils.AviLog.Debugf("key: %s, msg: Using hostname based sharding for ing: %s", key, ingress)
+			utils.AviLog.Debugf("key: %s, msg: processing ingress: %s", key, ingress)
 			HostNameShardAndPublishV2(utils.Ingress, nameing, nsing, key, fullsync, sharedQueue)
 		}
 	}

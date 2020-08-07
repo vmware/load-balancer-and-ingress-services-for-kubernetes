@@ -265,50 +265,63 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	hostMap[hostName] = hostPathMapSvcList
 
 	var tlsConfigs []TlsSettings
-	if routeSpec.TLS != nil {
-		secretName := lib.RouteSecretsPrefix + routeName
-		if routeSpec.TLS.Termination == routev1.TLSTerminationEdge || routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
-			tls := TlsSettings{}
-			tls.Hosts = hostMap
-			tls.cert = routeSpec.TLS.Certificate
-			tls.key = routeSpec.TLS.Key
-			tls.cacert = routeSpec.TLS.CACertificate
-			tls.SecretName = secretName
-			if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
-				tls.redirect = true
+	var secretName string
+	var useHostRuleSSL bool
+	// check if this host has a valid hostrule with sslkeycertref present
+	useHostRuleSSL, secretName = sslKeyCertHostRulePresent(key, hostName)
+	if routeSpec.TLS != nil && !useHostRuleSSL {
+		secretName = lib.RouteSecretsPrefix + routeName
+	}
+
+	if routeSpec.TLS != nil && routeSpec.TLS.Termination == routev1.TLSTerminationPassthrough {
+		pass := PassthroughSettings{}
+		pass.host = hostName
+		pass.PathSvc = hostPathMapSvcList
+		if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
+			pass.redirect = true
+		}
+		passConfig := make(map[string]PassthroughSettings)
+		passConfig[hostName] = pass
+		ingressConfig.PassthroughCollection = passConfig
+	} else if secretName != "" {
+		tls := TlsSettings{Hosts: hostMap, SecretName: secretName}
+
+		// TODO: add httprule destinationCA here, for reencrypt: true
+
+		if routeSpec.TLS != nil {
+			// build edge cert data for termination: edge and reencrypt
+			if routeSpec.TLS.Termination == routev1.TLSTerminationEdge ||
+				routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
+				tls.cert = routeSpec.TLS.Certificate
+				tls.key = routeSpec.TLS.Key
+				tls.cacert = routeSpec.TLS.CACertificate
+				if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
+					tls.redirect = true
+				}
 			}
 
+			// reencrypt specific
 			if routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
 				tls.reencrypt = true
 				if routeSpec.TLS.DestinationCACertificate != "" {
 					tls.destCA = routeSpec.TLS.DestinationCACertificate
 				}
 			}
-			tlsConfigs = append(tlsConfigs, tls)
-			ingressConfig.TlsCollection = tlsConfigs
-			// If svc for a route gets processed before the route itself,
-			// then secret mapping may not be updated, update it here.
-			if ok, _ := objects.OshiftRouteSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
-				objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(routeName, secretName)
-			}
-		} else if routeSpec.TLS.Termination == routev1.TLSTerminationPassthrough {
-			pass := PassthroughSettings{}
-			pass.host = hostName
-			pass.PathSvc = hostPathMapSvcList
-			if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
-				//
-				pass.redirect = true
-			}
-			passConfig := make(map[string]PassthroughSettings)
-			passConfig[hostName] = pass
-			ingressConfig.PassthroughCollection = passConfig
 		}
 
+		tlsConfigs = append(tlsConfigs, tls)
+		ingressConfig.TlsCollection = tlsConfigs
+		// If svc for a route gets processed before the route itself,
+		// then secret mapping may not be updated, update it here.
+		if ok, _ := objects.OshiftRouteSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
+			objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(routeName, secretName)
+		}
 	}
-	if routeSpec.TLS == nil || routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow {
+
+	if secretName == "" || (routeSpec.TLS != nil && routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow) {
 		ingressConfig.IngressHostMap = hostMap
 	}
 
-	utils.AviLog.Infof("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))
+	utils.AviLog.Infof("key: %s, msg: host path config from routes: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig
 }
