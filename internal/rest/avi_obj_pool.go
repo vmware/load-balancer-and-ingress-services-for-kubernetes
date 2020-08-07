@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"strconv"
 
-	avicache "ako/internal/cache"
-	"ako/internal/lib"
-	"ako/internal/nodes"
-	"ako/internal/status"
+	avicache "github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/status"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"

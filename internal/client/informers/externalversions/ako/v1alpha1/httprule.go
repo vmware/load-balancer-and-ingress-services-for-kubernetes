@@ -19,11 +19,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	akov1alpha1 "ako/internal/apis/ako/v1alpha1"
-	versioned "ako/internal/client/clientset/versioned"
-	internalinterfaces "ako/internal/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "ako/internal/client/listers/ako/v1alpha1"
 	time "time"
+
+	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
+	versioned "github.com/avinetworks/ako/internal/client/clientset/versioned"
+	internalinterfaces "github.com/avinetworks/ako/internal/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/avinetworks/ako/internal/client/listers/ako/v1alpha1"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"

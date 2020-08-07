@@ -20,8 +20,8 @@ import (
 	"net/http"
 	"time"
 
-	"ako/pkg/api/models"
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/api/models"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"github.com/gorilla/mux"
 )

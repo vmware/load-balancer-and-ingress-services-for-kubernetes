@@ -19,8 +19,9 @@ limitations under the License.
 package versioned
 
 import (
-	akov1alpha1 "ako/internal/client/clientset/versioned/typed/ako/v1alpha1"
 	"fmt"
+
+	akov1alpha1 "github.com/avinetworks/ako/internal/client/clientset/versioned/typed/ako/v1alpha1"
 
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"

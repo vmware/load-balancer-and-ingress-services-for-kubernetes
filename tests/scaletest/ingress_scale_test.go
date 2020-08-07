@@ -21,12 +21,12 @@ import (
 	"testing"
 	"time"
 
-	crdfake "ako/internal/client/clientset/versioned/fake"
-	"ako/internal/k8s"
-	"ako/internal/lib"
-	avinodes "ako/internal/nodes"
-	"ako/internal/objects"
-	"ako/tests/integrationtest"
+	crdfake "github.com/avinetworks/ako/internal/client/clientset/versioned/fake"
+	"github.com/avinetworks/ako/internal/k8s"
+	"github.com/avinetworks/ako/internal/lib"
+	avinodes "github.com/avinetworks/ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/objects"
+	"github.com/avinetworks/ako/tests/integrationtest"
 
 	utils "github.com/avinetworks/container-lib/utils"
 	"github.com/onsi/gomega"

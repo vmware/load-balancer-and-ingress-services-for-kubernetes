@@ -18,7 +18,7 @@ import (
 	"os"
 	"strings"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -15,12 +15,13 @@
 package nodes
 
 import (
-	avicache "ako/internal/cache"
-	"ako/internal/lib"
 	"fmt"
 	"strings"
 
-	"ako/pkg/utils"
+	avicache "github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
+
+	"github.com/avinetworks/ako/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 )

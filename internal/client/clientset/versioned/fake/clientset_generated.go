@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "ako/internal/client/clientset/versioned"
-	akov1alpha1 "ako/internal/client/clientset/versioned/typed/ako/v1alpha1"
-	fakeakov1alpha1 "ako/internal/client/clientset/versioned/typed/ako/v1alpha1/fake"
+	clientset "github.com/avinetworks/ako/internal/client/clientset/versioned"
+	akov1alpha1 "github.com/avinetworks/ako/internal/client/clientset/versioned/typed/ako/v1alpha1"
+	fakeakov1alpha1 "github.com/avinetworks/ako/internal/client/clientset/versioned/typed/ako/v1alpha1/fake"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"

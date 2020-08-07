@@ -19,10 +19,10 @@ import (
 	"os"
 	"sync"
 
-	"ako/internal/lib"
+	"github.com/avinetworks/ako/internal/lib"
 
-	"ako/pkg/api/models"
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/api/models"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 var AviClientInstance *utils.AviRestClientPool

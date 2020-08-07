@@ -20,13 +20,13 @@ import (
 	"sync"
 	"time"
 
-	crd "ako/internal/client/clientset/versioned"
-	"ako/internal/k8s"
-	"ako/internal/lib"
+	crd "github.com/avinetworks/ako/internal/client/clientset/versioned"
+	"github.com/avinetworks/ako/internal/k8s"
+	"github.com/avinetworks/ako/internal/lib"
 
-	"ako/pkg/api"
-	"ako/pkg/api/models"
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/api"
+	"github.com/avinetworks/ako/pkg/api/models"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
