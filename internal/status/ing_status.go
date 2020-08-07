@@ -21,7 +21,8 @@ import (
 
 	avicache "ako/internal/cache"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

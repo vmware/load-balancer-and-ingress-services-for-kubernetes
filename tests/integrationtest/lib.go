@@ -36,9 +36,9 @@ import (
 	avinodes "ako/internal/nodes"
 	"ako/internal/objects"
 
-	"github.com/avinetworks/container-lib/api"
-	apimodels "github.com/avinetworks/container-lib/api/models"
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/api"
+	apimodels "ako/pkg/api/models"
+	"ako/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/avinetworks/sdk/go/models"

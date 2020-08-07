@@ -22,7 +22,8 @@ import (
 
 	"ako/internal/lib"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"

@@ -21,8 +21,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/avinetworks/container-lib/api"
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/api"
+	"ako/pkg/utils"
+
 	"github.com/avinetworks/sdk/go/models"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

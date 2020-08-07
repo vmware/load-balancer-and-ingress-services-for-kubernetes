@@ -23,7 +23,8 @@ import (
 	"ako/internal/lib"
 	"ako/internal/objects"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	"github.com/avinetworks/sdk/go/models"
 	v1 "k8s.io/api/core/v1"
 )
