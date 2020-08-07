@@ -20,10 +20,10 @@ import (
 	"strconv"
 	"strings"
 
-	"ako/internal/lib"
-	"ako/internal/objects"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/objects"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
 	v1 "k8s.io/api/core/v1"

@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
-	crdfake "ako/internal/client/clientset/versioned/fake"
-	"ako/internal/k8s"
-	"ako/internal/lib"
-	"ako/tests/integrationtest"
+	crdfake "github.com/avinetworks/ako/internal/client/clientset/versioned/fake"
+	"github.com/avinetworks/ako/internal/k8s"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -34,7 +34,7 @@ import (
 	// To Do: add test for openshift route
 	//oshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 var kubeClient *k8sfake.Clientset

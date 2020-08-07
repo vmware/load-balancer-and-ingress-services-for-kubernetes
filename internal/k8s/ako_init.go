@@ -22,14 +22,14 @@ import (
 	"sync"
 	"time"
 
-	avicache "ako/internal/cache"
-	"ako/internal/lib"
-	"ako/internal/nodes"
-	"ako/internal/objects"
-	"ako/internal/rest"
-	"ako/internal/retry"
+	avicache "github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/objects"
+	"github.com/avinetworks/ako/internal/rest"
+	"github.com/avinetworks/ako/internal/retry"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"

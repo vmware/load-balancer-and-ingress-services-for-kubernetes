@@ -17,7 +17,7 @@ import (
 	"encoding/json"
 	"sync"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 type NamespaceName struct {

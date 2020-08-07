@@ -15,13 +15,14 @@
 package status
 
 import (
-	"ako/internal/lib"
 	"errors"
 	"strings"
 
-	avicache "ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
 
-	"ako/pkg/utils"
+	avicache "github.com/avinetworks/ako/internal/cache"
+
+	"github.com/avinetworks/ako/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1beta1"

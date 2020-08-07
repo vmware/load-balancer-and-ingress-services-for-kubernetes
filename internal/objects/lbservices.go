@@ -17,7 +17,7 @@ package objects
 import (
 	"sync"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 var lbinstance *lbLister

@@ -21,7 +21,7 @@ import (
 	"os"
 	"testing"
 
-	"ako/pkg/api/models"
+	"github.com/avinetworks/ako/pkg/api/models"
 )
 
 func TestMain(m *testing.M) {

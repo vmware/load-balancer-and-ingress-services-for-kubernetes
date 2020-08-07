@@ -15,12 +15,13 @@
 package status
 
 import (
-	avicache "ako/internal/cache"
-	"ako/internal/lib"
 	"errors"
 	"strings"
 
-	"ako/pkg/utils"
+	avicache "github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
+
+	"github.com/avinetworks/ako/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"

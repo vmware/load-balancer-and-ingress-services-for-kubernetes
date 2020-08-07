@@ -1,10 +1,11 @@
 package oshiftroutetests
 
 import (
-	"ako/internal/cache"
-	"ako/internal/objects"
 	"testing"
 	"time"
+
+	"github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/objects"
 
 	"github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"

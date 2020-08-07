@@ -15,10 +15,11 @@
 package status
 
 import (
-	avicache "ako/internal/cache"
 	"strings"
 
-	"ako/pkg/utils"
+	avicache "github.com/avinetworks/ako/internal/cache"
+
+	"github.com/avinetworks/ako/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

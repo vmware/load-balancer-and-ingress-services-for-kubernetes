@@ -22,10 +22,10 @@ import (
 	"strings"
 	"sync"
 
-	avicache "ako/internal/cache"
-	"ako/internal/lib"
+	avicache "github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 )

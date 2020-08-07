@@ -14,9 +14,9 @@
 package retry
 
 import (
-	"ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/nodes"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 )
 
 func DequeueFastRetry(vsKey string) {

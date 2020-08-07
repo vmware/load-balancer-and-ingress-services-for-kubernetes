@@ -15,13 +15,14 @@
 package hostnameshardtests
 
 import (
-	akov1alpha1 "ako/internal/apis/ako/v1alpha1"
-	"ako/internal/cache"
-	avinodes "ako/internal/nodes"
-	"ako/internal/objects"
-	"ako/tests/integrationtest"
 	"testing"
 	"time"
+
+	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
+	"github.com/avinetworks/ako/internal/cache"
+	avinodes "github.com/avinetworks/ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/objects"
+	"github.com/avinetworks/ako/tests/integrationtest"
 
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

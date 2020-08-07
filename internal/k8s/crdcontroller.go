@@ -18,12 +18,12 @@ import (
 	"reflect"
 	"time"
 
-	akov1alpha1 "ako/internal/apis/ako/v1alpha1"
-	akocrd "ako/internal/client/clientset/versioned"
-	akoinformers "ako/internal/client/informers/externalversions"
-	"ako/internal/lib"
+	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
+	akocrd "github.com/avinetworks/ako/internal/client/clientset/versioned"
+	akoinformers "github.com/avinetworks/ako/internal/client/informers/externalversions"
+	"github.com/avinetworks/ako/internal/lib"
 
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"k8s.io/client-go/tools/cache"
 )

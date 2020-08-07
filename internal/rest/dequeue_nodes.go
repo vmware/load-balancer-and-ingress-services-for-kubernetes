@@ -20,15 +20,15 @@ import (
 	"strconv"
 	"strings"
 
-	avicache "ako/internal/cache"
-	"ako/internal/lib"
-	"ako/internal/nodes"
-	"ako/internal/objects"
+	avicache "github.com/avinetworks/ako/internal/cache"
+	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/nodes"
+	"github.com/avinetworks/ako/internal/objects"
 
 	"github.com/Masterminds/semver"
 
-	"ako/pkg/api/models"
-	"ako/pkg/utils"
+	"github.com/avinetworks/ako/pkg/api/models"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/clients"
 	avimodels "github.com/avinetworks/sdk/go/models"
