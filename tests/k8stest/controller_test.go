@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	crdfake "ako/pkg/client/clientset/versioned/fake"
-	"ako/pkg/k8s"
-	"ako/pkg/lib"
+	crdfake "ako/internal/client/clientset/versioned/fake"
+	"ako/internal/k8s"
+	"ako/internal/lib"
 	"ako/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"

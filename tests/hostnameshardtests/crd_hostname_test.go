@@ -15,10 +15,10 @@
 package hostnameshardtests
 
 import (
-	akov1alpha1 "ako/pkg/apis/ako/v1alpha1"
-	"ako/pkg/cache"
-	avinodes "ako/pkg/nodes"
-	"ako/pkg/objects"
+	akov1alpha1 "ako/internal/apis/ako/v1alpha1"
+	"ako/internal/cache"
+	avinodes "ako/internal/nodes"
+	"ako/internal/objects"
 	"ako/tests/integrationtest"
 	"testing"
 	"time"

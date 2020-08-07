@@ -20,9 +20,9 @@ import (
 	"sync"
 	"time"
 
-	crd "ako/pkg/client/clientset/versioned"
-	"ako/pkg/k8s"
-	"ako/pkg/lib"
+	crd "ako/internal/client/clientset/versioned"
+	"ako/internal/k8s"
+	"ako/internal/lib"
 
 	"github.com/avinetworks/container-lib/api"
 	"github.com/avinetworks/container-lib/api/models"

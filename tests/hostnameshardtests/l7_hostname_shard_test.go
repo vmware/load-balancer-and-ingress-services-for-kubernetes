@@ -17,16 +17,16 @@ package hostnameshardtests
 import (
 	"os"
 	"sort"
+	"sync"
 	"testing"
 	"time"
-	"sync"
 
-	"ako/pkg/cache"
-	crdfake "ako/pkg/client/clientset/versioned/fake"
-	"ako/pkg/k8s"
-	"ako/pkg/lib"
-	avinodes "ako/pkg/nodes"
-	"ako/pkg/objects"
+	"ako/internal/cache"
+	crdfake "ako/internal/client/clientset/versioned/fake"
+	"ako/internal/k8s"
+	"ako/internal/lib"
+	avinodes "ako/internal/nodes"
+	"ako/internal/objects"
 	"ako/tests/integrationtest"
 
 	utils "github.com/avinetworks/container-lib/utils"
