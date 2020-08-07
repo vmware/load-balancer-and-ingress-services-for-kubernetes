@@ -18,7 +18,7 @@ import (
 	avicache "ako/internal/cache"
 	"ako/internal/status"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
 )
 
 // SyncIngressStatus gets data from L3 cache and does a status update on the ingress objects

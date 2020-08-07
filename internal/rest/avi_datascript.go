@@ -21,7 +21,8 @@ import (
 	"ako/internal/lib"
 	"ako/internal/nodes"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
 )

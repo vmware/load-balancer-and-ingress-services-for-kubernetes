@@ -21,8 +21,8 @@ import (
 
 	"ako/internal/lib"
 
-	"github.com/avinetworks/container-lib/api/models"
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/api/models"
+	"ako/pkg/utils"
 )
 
 var AviClientInstance *utils.AviRestClientPool

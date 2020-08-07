@@ -24,8 +24,9 @@ import (
 
 	"ako/internal/lib"
 
-	apimodels "github.com/avinetworks/container-lib/api/models"
-	"github.com/avinetworks/container-lib/utils"
+	apimodels "ako/pkg/api/models"
+	"ako/pkg/utils"
+
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/avinetworks/sdk/go/session"

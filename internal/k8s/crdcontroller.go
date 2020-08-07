@@ -23,7 +23,8 @@ import (
 	akoinformers "ako/internal/client/informers/externalversions"
 	"ako/internal/lib"
 
-	"github.com/avinetworks/container-lib/utils"
+	"ako/pkg/utils"
+
 	"k8s.io/client-go/tools/cache"
 )
 

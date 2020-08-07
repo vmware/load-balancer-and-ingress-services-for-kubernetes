@@ -1,8 +1,6 @@
 # github.com/Masterminds/semver v1.5.0
 github.com/Masterminds/semver
 # github.com/avinetworks/container-lib v0.0.0-20200805113307-80c6b5ecc46e
-github.com/avinetworks/container-lib/api
-github.com/avinetworks/container-lib/api/models
 github.com/avinetworks/container-lib/utils
 # github.com/avinetworks/sdk v0.0.0-20200724112835-36cadc631f7f
 github.com/avinetworks/sdk/go/clients
