@@ -54,9 +54,9 @@ func (rt FakeRoute) SecureABRoute(ratio ...int) *routev1.Route {
 	return routeExample
 }
 
-func VerifySecureRouteDeletion(t *testing.T, g *gomega.WithT, modelName string, poolCount, snicount int) {
+func VerifySecureRouteDeletion(t *testing.T, g *gomega.WithT, modelName string, poolCount, snicount int, nsname ...string) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	VerifyRouteDeletion(t, g, aviModel, poolCount)
+	VerifyRouteDeletion(t, g, aviModel, poolCount, nsname...)
 	g.Eventually(func() int {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()

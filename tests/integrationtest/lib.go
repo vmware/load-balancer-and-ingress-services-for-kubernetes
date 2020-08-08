@@ -20,28 +20,28 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"os"
-
-	v1 "k8s.io/api/core/v1"
-	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
-
+	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
 	"github.com/avinetworks/ako/internal/cache"
 	crdfake "github.com/avinetworks/ako/internal/client/clientset/versioned/fake"
 	"github.com/avinetworks/ako/internal/k8s"
+	"github.com/avinetworks/ako/internal/lib"
 	avinodes "github.com/avinetworks/ako/internal/nodes"
 	"github.com/avinetworks/ako/internal/objects"
-
 	"github.com/avinetworks/ako/pkg/api"
 	apimodels "github.com/avinetworks/ako/pkg/api/models"
 	"github.com/avinetworks/ako/pkg/utils"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/avinetworks/sdk/go/models"
+	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -849,4 +849,155 @@ func (ing FakeIngress) UpdateIngress() (*extensionv1beta1.Ingress, error) {
 	//update ingress resource
 	updatedIngress, err := KubeClient.ExtensionsV1beta1().Ingresses(newIngress.Namespace).Update(newIngress)
 	return updatedIngress, err
+}
+
+// HostRule/HTTPRule lib functions
+type FakeHostRule struct {
+	Name               string
+	Namespace          string
+	Fqdn               string
+	SslKeyCertificate  string
+	WafPolicy          string
+	ApplicationProfile string
+	HttpPolicySets     []string
+}
+
+func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
+	hostrule := &akov1alpha1.HostRule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: hr.Namespace,
+			Name:      hr.Name,
+		},
+		Spec: akov1alpha1.HostRuleSpec{
+			VirtualHost: akov1alpha1.HostRuleVirtualHost{
+				Fqdn: hr.Fqdn,
+				TLS: akov1alpha1.HostRuleTLS{
+					SSLKeyCertificate: akov1alpha1.HostRuleSecret{
+						Name: hr.SslKeyCertificate,
+						Type: "ref",
+					},
+					Termination: "edge",
+				},
+				HTTPPolicy: akov1alpha1.HostRuleHTTPPolicy{
+					PolicySets: hr.HttpPolicySets,
+					Overwrite:  false,
+				},
+				WAFPolicy:          hr.WafPolicy,
+				ApplicationProfile: hr.ApplicationProfile,
+			},
+		},
+	}
+
+	return hostrule
+}
+
+func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
+	hostrule := FakeHostRule{
+		Name:               hrname,
+		Namespace:          "default",
+		Fqdn:               fqdn,
+		WafPolicy:          "thisisahostruleref-waf",
+		ApplicationProfile: "thisisahostruleref-appprof",
+		HttpPolicySets:     []string{"thisisahostruleref-httpps-1"},
+	}
+	if secure {
+		hostrule.SslKeyCertificate = "thisisahostruleref-sslkey"
+	}
+
+	hrCreate := hostrule.HostRule()
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Create(hrCreate); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+}
+
+func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, hrname string) {
+	if err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Delete(hrname, nil); err != nil {
+		t.Fatalf("error in deleting HostRule: %v", err)
+	}
+	VerifyMetadataHostRule(g, vskey, "default/"+hrname, false)
+}
+
+type FakeHTTPRule struct {
+	Name           string
+	Namespace      string
+	Fqdn           string
+	PathProperties []FakeHTTPRulePath
+}
+
+type FakeHTTPRulePath struct {
+	Path        string
+	SslProfile  string
+	LbAlgorithm string
+	Hash        string
+}
+
+func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
+	var rrPaths []akov1alpha1.HTTPRulePaths
+	for _, p := range rr.PathProperties {
+		rrPaths = append(rrPaths, akov1alpha1.HTTPRulePaths{
+			Target: p.Path,
+			TLS: akov1alpha1.HTTPRuleTLS{
+				Type:       "reencrypt",
+				SSLProfile: p.SslProfile,
+			},
+			LoadBalancerPolicy: akov1alpha1.HTTPRuleLBPolicy{
+				Algorithm: p.LbAlgorithm,
+				Hash:      p.Hash,
+			},
+		})
+	}
+	return &akov1alpha1.HTTPRule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: rr.Namespace,
+			Name:      rr.Name,
+		},
+		Spec: akov1alpha1.HTTPRuleSpec{
+			Fqdn:  rr.Fqdn,
+			Paths: rrPaths,
+		},
+	}
+}
+
+func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
+	httprule := FakeHTTPRule{
+		Name:      rrname,
+		Namespace: "default",
+		Fqdn:      fqdn,
+		PathProperties: []FakeHTTPRulePath{{
+			Path:        path,
+			SslProfile:  "thisisahttpruleref-sslprofile",
+			LbAlgorithm: "LB_ALGORITHM_CONSISTENT_HASH",
+			Hash:        "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
+		}},
+	}
+
+	rrCreate := httprule.HTTPRule()
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules("default").Create(rrCreate); err != nil {
+		t.Fatalf("error in adding HTTPRule: %v", err)
+	}
+}
+
+func TeardownHTTPRule(t *testing.T, rrname string) {
+	if err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules("default").Delete(rrname, nil); err != nil {
+		t.Fatalf("error in deleting HTTPRule: %v", err)
+	}
+}
+
+func VerifyMetadataHostRule(g *gomega.WithT, vsKey cache.NamespaceName, hrnsname string, active bool) {
+	mcache := cache.SharedAviObjCache()
+	status := "INACTIVE"
+	if active {
+		status = "ACTIVE"
+	}
+	g.Eventually(func() bool {
+		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
+		if (ok && found &&
+			sniCacheObj.ServiceMetadataObj.CRDStatus.Value == hrnsname &&
+			sniCacheObj.ServiceMetadataObj.CRDStatus.Status == status) ||
+			(!active && !found) {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
 }
