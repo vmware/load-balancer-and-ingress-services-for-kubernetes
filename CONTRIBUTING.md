@@ -16,10 +16,6 @@ to effectively get it merged upstream.
     - [CI testing](#ci-testing)
     - [Running the end-to-end tests](#running-the-end-to-end-tests)
     - [Reverting a commit](#reverting-a-commit)
-  - [Issue and PR Management](#issue-and-pr-management)
-    - [Filing An Issue](#filing-an-issue)
-    - [Issue Triage](#issue-triage)
-    - [Issue and PR Kinds](#issue-and-pr-kinds)
 
 ## Getting Started
 
@@ -136,13 +132,36 @@ To develop locally, you can follow these steps:
  3. To build all Go files and install, run `make build`
  4. To run all Go unit tests, run `make int_test`
 
-### CI testing
+### Dev testing on real setup
 
-TBU
+AKO can be tested from your laptop. Please follow the instructions:
+
+ 1. Configure your Avi controller with a VMware cloud in R/W mode or a No-access cloud.
+ 2. Ensure all the pre-requisites are setup in the controller.
+ 3. Set the following environment variables locally on your laptop by exporting them:
+
+        export NETWORK_NAME=<vipNetwork>
+        export CTRL_USERNAME=<username>
+        export CTRL_PASSWORD=<password>
+        export CTRL_IPADDRESS=<controller-ip>
+        export CTRL_VERSION=<controller-api-version>
+        export SHARD_VS_SIZE=<LARGE.MEDIUM,SMALL>
+        export FULL_SYNC_INTERVAL=1800
+        export CLOUD_NAME=<Avi-cloud-name>
+        export CLUSTER_NAME=<your-unique-cluster-name>
+        
+     You can control additional settings by exporting respective variables from inside the deployment [file](https://github.com/avinetworks/ako/blob/master/helm/ako/templates/deployment.yaml).
+
+  4. Run: ./bin/ako
 
 ### Running the end-to-end tests
 
-TBU
+AKO uses Jenkins pipelines currently to run a set of tests.
+All tests are presently hosted inside VMware internal network:
+
+ 1. PR builder jobs, that run `make test` and `make int_tests`. Without this passing, you can't get the PR to merge.
+ 2. Daily smoke tests. 
+ 3. Nightly Functional Test suites that runs AKO tests using a real controller/kubernetes/openshift setup.
 
 ### Reverting a commit
 
@@ -166,19 +185,3 @@ TBU
 5. Create a Pull Request on GitHub.
    Visit your fork at `https://github.com/avinetworks/ako` and click
    `Compare & Pull Request` button next to your `remoteRevertName` branch.
-
-## Issue and PR Management
-
-TBU
-
-### Filing An Issue
-
-TBU
-
-### Issue Triage
-
-TBU
-
-### Issue and PR Kinds
-
-TBU
