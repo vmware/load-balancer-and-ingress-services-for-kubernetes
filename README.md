@@ -1,4 +1,4 @@
-# Avi Kubernetes Operator
+# Load Balancer and Ingress Services for Kubernetes
 
 ## Architecture
 
