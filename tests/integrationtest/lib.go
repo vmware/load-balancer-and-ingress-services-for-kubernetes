@@ -752,6 +752,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
 
 				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
+				//rData["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 
 			} else if strings.Contains(rName, "Shared-L7") {
@@ -763,6 +764,20 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 
 			// add vip for status update checks
 			// use vh_parent_vs_uuid for sniVS, and name for normal VSes
+
+			rData["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
+			rData["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
+		} else if rModelName == "vsvip" {
+			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
+				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
+				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
+			} else if strings.Contains(rName, "Shared-L7") {
+				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
+			} else {
+				vipAddress = "10.250.250.250"
+			}
 			rData["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 		}
 

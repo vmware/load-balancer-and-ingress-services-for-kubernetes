@@ -329,6 +329,7 @@ type AviVSVIPCache struct {
 	CloudConfigCksum string
 	LastModified     string
 	InvalidData      bool
+	Vips             []string
 }
 
 type AviHTTPPolicyCache struct {
