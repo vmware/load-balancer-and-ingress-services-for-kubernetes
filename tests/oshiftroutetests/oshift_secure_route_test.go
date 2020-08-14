@@ -161,6 +161,7 @@ func TestUpdatePathSecureRoute(t *testing.T) {
 	}
 
 	routeExample = FakeRoute{Path: "/bar"}.SecureRoute()
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
@@ -191,6 +192,7 @@ func TestUpdateHostnameSecureRoute(t *testing.T) {
 	}
 
 	routeExample = FakeRoute{Hostname: "bar.com", Path: "/foo"}.SecureRoute()
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
@@ -224,6 +226,7 @@ func TestSecureToInsecureRoute(t *testing.T) {
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.Route()
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
@@ -251,6 +254,7 @@ func TestInsecureToSecureRoute(t *testing.T) {
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.SecureRoute()
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
@@ -364,6 +368,7 @@ func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.SecureABRoute(150)
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -418,6 +423,7 @@ func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	}
 
 	routeExample = FakeRoute{Path: "/bar"}.SecureABRoute()
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -472,6 +478,7 @@ func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.SecureRoute()
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -587,6 +594,7 @@ func TestSecureRouteInsecureAllowToRedirect(t *testing.T) {
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -618,6 +626,7 @@ func TestSecureRouteInsecureAllowToNone(t *testing.T) {
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyNone
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -649,6 +658,7 @@ func TestSecureRouteInsecureRedirectToAllow(t *testing.T) {
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -704,6 +714,7 @@ func TestSecureRouteInsecureRedirectToNone(t *testing.T) {
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyNone
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -853,6 +864,7 @@ func TestRemoveReencryptRoute(t *testing.T) {
 	}
 
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationEdge
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -972,6 +984,7 @@ func TestReencryptRouteRemoveDestinationCA(t *testing.T) {
 	}
 
 	routeExample.Spec.TLS.DestinationCACertificate = ""
+	routeExample.ObjectMeta.ResourceVersion = "2"
 	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)

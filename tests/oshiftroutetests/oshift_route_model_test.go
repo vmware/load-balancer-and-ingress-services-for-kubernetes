@@ -75,8 +75,9 @@ func (rt FakeRoute) Route() *routev1.Route {
 	routeExample := &routev1.Route{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: rt.Namespace,
-			Name:      rt.Name,
+			Namespace:       rt.Namespace,
+			Name:            rt.Name,
+			ResourceVersion: "1",
 		},
 		Spec: routev1.RouteSpec{
 			Host: rt.Hostname,

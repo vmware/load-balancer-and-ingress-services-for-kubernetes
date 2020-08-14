@@ -415,7 +415,8 @@ func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]str
 		removeFqdn := true
 		removeRedir := true
 		currentData, ok := hostsMap[host]
-		if ok {
+		// if route is transitioning from/to passthrough route, then always remove fqdn
+		if ok && hostData.SecurePolicy != lib.PolicyPass && currentData.SecurePolicy != lib.PolicyPass {
 			if currentData.InsecurePolicy == lib.PolicyRedirect {
 				removeRedir = false
 			}
