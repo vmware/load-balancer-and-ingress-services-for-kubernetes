@@ -41,10 +41,11 @@ var (
 
 func main() {
 	flag.Parse()
-	flag.Lookup("logtostderr").Value.Set("true")
 	logfilepath := os.Getenv("LOG_FILE_PATH")
 	if logfilepath != "" {
-		flag.Lookup("log_dir").Value.Set("true")
+		flag.Lookup("log_dir").Value.Set(logfilepath)
+	} else {
+		flag.Lookup("logtostderr").Value.Set("true")
 	}
 
 	InitializeAKOApi()
