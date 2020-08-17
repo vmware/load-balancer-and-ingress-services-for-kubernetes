@@ -29,7 +29,7 @@ type RateProfile struct {
 	// HTTP header name. Field introduced in 17.1.1.
 	HTTPHeader *string `json:"http_header,omitempty"`
 
-	// Time value in seconds to enforce rate count. Allowed values are 1-300. Field deprecated in 18.2.9.
+	// Time value in seconds to enforce rate count. Allowed values are 1-300. Field deprecated in 18.2.9. Unit is SEC.
 	Period *int32 `json:"period,omitempty"`
 
 	// The rate limiter configuration for this rate profile. Field introduced in 18.2.9.

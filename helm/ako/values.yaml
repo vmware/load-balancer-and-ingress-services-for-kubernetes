@@ -27,7 +27,9 @@ configs:
   logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
   deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI
   serviceType: ClusterIP #enum NodePort|ClusterIP
-
+  serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
+  nodeNetworkName: "" # Network name of the node network
+  nodeNetworkCIDRs: [] # List of CIDR of node network where the nodes are created.
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

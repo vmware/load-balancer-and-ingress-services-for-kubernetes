@@ -17,6 +17,7 @@ package rest
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	avicache "github.com/avinetworks/ako/internal/cache"
 	"github.com/avinetworks/ako/internal/lib"
@@ -60,8 +61,34 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 		return nil
 	}
 	path := "/api/vrfcontext/" + vrfCacheObj.Uuid
-	vrf.StaticRoutes = vrfNode.StaticRoutes
-	restOp := utils.RestOp{Path: path, Method: utils.RestPut, Obj: vrf,
+
+	nodeStaticRoutes := vrfNode.StaticRoutes
+	aviStaticRoutes := vrf.StaticRoutes
+	clusterStaticRoutes := []*avimodels.StaticRoute{}
+	mergedStaticRoutes := []*avimodels.StaticRoute{}
+	clusterName := lib.GetClusterName()
+
+	for _, aviStaticRoute := range aviStaticRoutes {
+		if strings.HasPrefix(*aviStaticRoute.RouteID, clusterName) {
+			clusterStaticRoutes = append(clusterStaticRoutes, aviStaticRoute)
+		} else {
+			mergedStaticRoutes = append(mergedStaticRoutes, aviStaticRoute)
+		}
+	}
+
+	patchOp := utils.PatchReplaceOp
+	if len(nodeStaticRoutes) == 0 {
+		// this is the case of deleting all the static routes for the cluster
+		patchOp = utils.PatchDeleteOp
+		vrf.StaticRoutes = clusterStaticRoutes
+
+	} else {
+		patchOp = utils.PatchReplaceOp
+		mergedStaticRoutes = append(mergedStaticRoutes, nodeStaticRoutes...)
+		vrf.StaticRoutes = mergedStaticRoutes
+	}
+
+	restOp := utils.RestOp{Path: path, Method: utils.RestPatch, PatchOp: patchOp, Obj: vrf,
 		Tenant: lib.GetTenant(), Model: "VrfContext", Version: utils.CtrlVersion}
 	return &restOp
 }

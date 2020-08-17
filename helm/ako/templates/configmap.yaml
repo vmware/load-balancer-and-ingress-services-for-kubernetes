@@ -30,4 +30,9 @@ data:
   nodeKey: {{ .Values.nodePortSelector.key | quote }}
   nodeValue: {{ .Values.nodePortSelector.value | quote }}
   {{ end }}
-  
+  serviceEngineGroupName:  {{ .Values.configs.serviceEngineGroupName | quote }}
+  nodeNetworkName:  {{ .Values.configs.nodeNetworkName | quote }}
+  nodeNetworkCIDRs: |-
+    {{- range $.Values.configs.nodeNetworkCIDRs }}
+    - {{ . }}
+    {{- end }}

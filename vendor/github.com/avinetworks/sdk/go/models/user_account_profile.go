@@ -11,10 +11,10 @@ type UserAccountProfile struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Lock timeout period (in minutes). Default is 30 minutes.
+	// Lock timeout period (in minutes). Default is 30 minutes. Unit is MIN.
 	AccountLockTimeout *int32 `json:"account_lock_timeout,omitempty"`
 
-	// The time period after which credentials expire. Default is 180 days.
+	// The time period after which credentials expire. Default is 180 days. Unit is DAYS.
 	CredentialsTimeoutThreshold *int32 `json:"credentials_timeout_threshold,omitempty"`
 
 	// Maximum number of concurrent sessions allowed. There are unlimited sessions by default.

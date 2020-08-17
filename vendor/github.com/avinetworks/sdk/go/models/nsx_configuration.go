@@ -23,7 +23,7 @@ type NsxConfiguration struct {
 	// Required: true
 	NsxManagerUsername *string `json:"nsx_manager_username"`
 
-	// The interval (in secs) with which Avi Controller polls the NSX Manager for updates. Field introduced in 17.1.1.
+	// The interval (in secs) with which Avi Controller polls the NSX Manager for updates. Field introduced in 17.1.1. Unit is SECONDS.
 	// Required: true
 	NsxPollTime *int32 `json:"nsx_poll_time"`
 }

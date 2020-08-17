@@ -268,6 +268,7 @@ func (o *AviObjectGraph) GetAviVRF() []*AviVrfNode {
 type AviVsNode struct {
 	Name                  string
 	Tenant                string
+	ServiceEngineGroup    string
 	ApplicationProfile    string
 	NetworkProfile        string
 	PortProto             []AviPortHostProtocol // for listeners

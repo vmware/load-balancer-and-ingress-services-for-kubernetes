@@ -11,7 +11,7 @@ type ConnectionLog struct {
 	// Required: true
 	Adf *bool `json:"adf"`
 
-	// Number of average_turntime.
+	//  Unit is MILLISECONDS.
 	AverageTurntime *int32 `json:"average_turntime,omitempty"`
 
 	// Number of client_dest_port.
@@ -31,7 +31,7 @@ type ConnectionLog struct {
 	// Name of the Client Log Filter applied. Field introduced in 18.1.5, 18.2.1.
 	ClientLogFilterName *string `json:"client_log_filter_name,omitempty"`
 
-	// Number of client_rtt.
+	//  Unit is MILLISECONDS.
 	// Required: true
 	ClientRtt *int32 `json:"client_rtt"`
 
@@ -83,7 +83,7 @@ type ConnectionLog struct {
 	// microservice_name of ConnectionLog.
 	MicroserviceName *string `json:"microservice_name,omitempty"`
 
-	// Number of mss.
+	//  Unit is BYTES.
 	// Required: true
 	Mss *int32 `json:"mss"`
 
@@ -129,7 +129,7 @@ type ConnectionLog struct {
 	// Required: true
 	Retransmits *int32 `json:"retransmits"`
 
-	// Number of rx_bytes.
+	//  Unit is BYTES.
 	// Required: true
 	RxBytes *int64 `json:"rx_bytes"`
 
@@ -169,11 +169,11 @@ type ConnectionLog struct {
 	// Required: true
 	ServerRetransmits *int32 `json:"server_retransmits"`
 
-	// Number of server_rtt.
+	//  Unit is MILLISECONDS.
 	// Required: true
 	ServerRtt *int32 `json:"server_rtt"`
 
-	// Number of server_rx_bytes.
+	//  Unit is BYTES.
 	// Required: true
 	ServerRxBytes *int64 `json:"server_rx_bytes"`
 
@@ -189,7 +189,7 @@ type ConnectionLog struct {
 	// Required: true
 	ServerTimeouts *int32 `json:"server_timeouts"`
 
-	// Number of server_total_bytes.
+	//  Unit is BYTES.
 	// Required: true
 	ServerTotalBytes *int64 `json:"server_total_bytes"`
 
@@ -197,7 +197,7 @@ type ConnectionLog struct {
 	// Required: true
 	ServerTotalPkts *int64 `json:"server_total_pkts"`
 
-	// Number of server_tx_bytes.
+	//  Unit is BYTES.
 	// Required: true
 	ServerTxBytes *int64 `json:"server_tx_bytes"`
 
@@ -245,16 +245,16 @@ type ConnectionLog struct {
 	// Required: true
 	Timeouts *int32 `json:"timeouts"`
 
-	// Number of total_bytes.
+	//  Unit is BYTES.
 	TotalBytes *int64 `json:"total_bytes,omitempty"`
 
 	// Number of total_pkts.
 	TotalPkts *int64 `json:"total_pkts,omitempty"`
 
-	// Number of total_time.
+	//  Unit is MILLISECONDS.
 	TotalTime *int64 `json:"total_time,omitempty"`
 
-	// Number of tx_bytes.
+	//  Unit is BYTES.
 	// Required: true
 	TxBytes *int64 `json:"tx_bytes"`
 

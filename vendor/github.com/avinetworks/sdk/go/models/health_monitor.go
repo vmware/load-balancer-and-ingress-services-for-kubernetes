@@ -51,10 +51,10 @@ type HealthMonitor struct {
 	// Health monitor for Radius. Field introduced in 18.2.3.
 	RadiusMonitor *HealthMonitorRadius `json:"radius_monitor,omitempty"`
 
-	// A valid response from the server is expected within the receive timeout window.  This timeout must be less than the send interval.  If server status is regularly flapping up and down, consider increasing this value. Allowed values are 1-2400.
+	// A valid response from the server is expected within the receive timeout window.  This timeout must be less than the send interval.  If server status is regularly flapping up and down, consider increasing this value. Allowed values are 1-2400. Unit is SEC.
 	ReceiveTimeout *int32 `json:"receive_timeout,omitempty"`
 
-	// Frequency, in seconds, that monitors are sent to a server. Allowed values are 1-3600.
+	// Frequency, in seconds, that monitors are sent to a server. Allowed values are 1-3600. Unit is SEC.
 	SendInterval *int32 `json:"send_interval,omitempty"`
 
 	// Health monitor for SIP. Field introduced in 17.2.8, 18.1.3, 18.2.1.

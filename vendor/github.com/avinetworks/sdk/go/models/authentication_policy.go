@@ -16,7 +16,7 @@ type AuthenticationPolicy struct {
 	// HTTP cookie name for authenticated session. Field deprecated in 18.2.3. Field introduced in 18.2.1.
 	CookieName *string `json:"cookie_name,omitempty"`
 
-	// Cookie timeout in minutes. Allowed values are 1-1440. Field deprecated in 18.2.3. Field introduced in 18.2.1.
+	// Cookie timeout in minutes. Allowed values are 1-1440. Field deprecated in 18.2.3. Field introduced in 18.2.1. Unit is MIN.
 	CookieTimeout *int32 `json:"cookie_timeout,omitempty"`
 
 	// Auth Profile to use for validating users. It is a reference to an object of type AuthProfile. Field introduced in 18.2.3.

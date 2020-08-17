@@ -17,7 +17,7 @@ type HttpserverReselect struct {
 	// Allow retry of non-idempotent HTTP requests.
 	RetryNonidempotent *bool `json:"retry_nonidempotent,omitempty"`
 
-	// Timeout per retry attempt, for a given request. Value of 0 indicates default timeout. Allowed values are 0-3600000. Field introduced in 18.1.5,18.2.1.
+	// Timeout per retry attempt, for a given request. Value of 0 indicates default timeout. Allowed values are 0-3600000. Field introduced in 18.1.5,18.2.1. Unit is MILLISECONDS.
 	RetryTimeout *int32 `json:"retry_timeout,omitempty"`
 
 	// Server response codes which will trigger an HTTP request retry.

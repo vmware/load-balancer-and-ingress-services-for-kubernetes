@@ -11,7 +11,7 @@ type Gslb struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Frequency with which messages are propagated to Vs Mgr. Value of 0 disables async behavior and RPC are sent inline. Allowed values are 0-5. Field introduced in 18.2.3.
+	// Frequency with which messages are propagated to Vs Mgr. Value of 0 disables async behavior and RPC are sent inline. Allowed values are 0-5. Field introduced in 18.2.3. Unit is SEC.
 	AsyncInterval *int32 `json:"async_interval,omitempty"`
 
 	// Max retries after which the remote site is treated as a fresh start. In fresh start all the configs are downloaded. Allowed values are 1-1024.
@@ -26,7 +26,7 @@ type Gslb struct {
 	// Sub domain configuration for the GSLB.  GSLB service's FQDN must be a match one of these subdomains. .
 	DNSConfigs []*DNSConfig `json:"dns_configs,omitempty"`
 
-	// Frequency with which errored messages are resynced to follower sites. Value of 0 disables resync behavior. Allowed values are 60-3600. Special values are 0 - 'Disable'. Field introduced in 18.2.3.
+	// Frequency with which errored messages are resynced to follower sites. Value of 0 disables resync behavior. Allowed values are 60-3600. Special values are 0 - 'Disable'. Field introduced in 18.2.3. Unit is SEC.
 	ErrorResyncInterval *int32 `json:"error_resync_interval,omitempty"`
 
 	// This field indicates that this object is replicated across GSLB federation. Field introduced in 17.1.3.
@@ -46,10 +46,10 @@ type Gslb struct {
 	// Policy for replicating configuration to the active follower sites. Field introduced in 20.1.1.
 	ReplicationPolicy *ReplicationPolicy `json:"replication_policy,omitempty"`
 
-	// Frequency with which group members communicate. Allowed values are 1-3600.
+	// Frequency with which group members communicate. Allowed values are 1-3600. Unit is SEC.
 	SendInterval *int32 `json:"send_interval,omitempty"`
 
-	// The user can specify a send-interval while entering maintenance mode. The validity of this 'maintenance send-interval' is only during maintenance mode. When the user leaves maintenance mode, the original send-interval is reinstated. This internal variable is used to store the original send-interval. . Field introduced in 18.2.3.
+	// The user can specify a send-interval while entering maintenance mode. The validity of this 'maintenance send-interval' is only during maintenance mode. When the user leaves maintenance mode, the original send-interval is reinstated. This internal variable is used to store the original send-interval. . Field introduced in 18.2.3. Unit is SEC.
 	SendIntervalPriorToMaintenanceMode *int32 `json:"send_interval_prior_to_maintenance_mode,omitempty"`
 
 	// Select Avi site member belonging to this Gslb.

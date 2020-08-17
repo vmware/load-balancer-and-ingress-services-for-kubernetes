@@ -424,7 +424,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 }
 
 func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey avicache.NamespaceName, key string) {
-	if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut) {
+	if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut || rest_op.Method == utils.RestPatch) {
 		utils.AviLog.Infof("key: %s, msg: creating/updating %s cache, method: %s", key, rest_op.Model, rest_op.Method)
 		if rest_op.Model == "PKIprofile" {
 			rest.AviPkiProfileAdd(rest_op, aviObjKey, key)

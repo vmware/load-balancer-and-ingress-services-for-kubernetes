@@ -59,6 +59,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
 		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
+		seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
 		vs := avimodels.VirtualService{
 			Name:                  &name,
 			NetworkProfileRef:     &network_prof,
@@ -67,6 +68,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			CreatedBy:             &cr,
 			CloudRef:              &cloudRef,
 			ServiceMetadata:       &svc_mdata,
+			SeGroupRef:            &seGroupRef,
 			VrfContextRef:         &vrfContextRef,
 		}
 
@@ -186,6 +188,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
 	vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
+	seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	sniChild := &avimodels.VirtualService{
@@ -197,6 +200,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		EastWestPlacement:     &east_west,
 		CloudRef:              &cloudRef,
 		VrfContextRef:         &vrfContextRef,
+		SeGroupRef:            &seGroupRef,
 		ServiceMetadata:       &svc_mdata,
 		WafPolicyRef:          &vs_meta.WafPolicyRef,
 	}

@@ -114,9 +114,11 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 			return nil, err
 		}
 
+		clusterName := lib.GetClusterName()
+		labels := lib.GetLabels()
 		prefixipType := "V4"
 		mask := int32(m)
-		routeIDString := strconv.Itoa(routeid)
+		routeIDString := clusterName + "-" + strconv.Itoa(routeid)
 		nodeRoute := models.StaticRoute{
 			RouteID: &routeIDString,
 			Prefix: &models.IPAddrPrefix{
@@ -130,6 +132,7 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 				Addr: &nodeIP,
 				Type: &nodeipType,
 			},
+			Labels: labels,
 		}
 
 		nodeRoutes = append(nodeRoutes, &nodeRoute)

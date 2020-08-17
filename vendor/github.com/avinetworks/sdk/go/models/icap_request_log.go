@@ -34,7 +34,7 @@ type IcapRequestLog struct {
 	// The response code received from the ICAP server. Field introduced in 20.1.1.
 	IcapResponseCode *int32 `json:"icap_response_code,omitempty"`
 
-	// Latency added due to ICAP processing. This is the time taken from 1st byte of ICAP request sent to last byte of ICAP response received. Field introduced in 20.1.1.
+	// Latency added due to ICAP processing. This is the time taken from 1st byte of ICAP request sent to last byte of ICAP response received. Field introduced in 20.1.1. Unit is MILLISECONDS.
 	Latency *int64 `json:"latency,omitempty"`
 
 	// Content-Length of the modified content from ICAP server. Field introduced in 20.1.1.

@@ -7,9 +7,9 @@ package models
 // swagger:model ParamSizeClass
 type ParamSizeClass struct {
 
-	// Number of hits.
+	//  Field introduced in 20.1.1.
 	Hits *int64 `json:"hits,omitempty"`
 
-	//  Enum options - EMPTY, SMALL, MEDIUM, LARGE, UNLIMITED.
+	//  Enum options - EMPTY, SMALL, MEDIUM, LARGE, UNLIMITED. Field introduced in 20.1.1.
 	Len *string `json:"len,omitempty"`
 }

@@ -62,6 +62,12 @@ func StaticRoutesIntfToObj(staticRoutesIntf []interface{}) []*avimodels.StaticRo
 				} else {
 					utils.AviLog.Warnf("wrong object type %T for routeId in staticRoute\n", val)
 				}
+			case "labels":
+				if labels, ok := val.([]interface{}); ok {
+					staticRoute.Labels = LabelsIntfToObj(labels)
+				} else {
+					utils.AviLog.Warnf("wrong object type %T for labels in staticRoute\n", val)
+				}
 			default:
 				utils.AviLog.Warnf("Unknown key %s in staticRoute\n", key)
 			}
@@ -69,6 +75,45 @@ func StaticRoutesIntfToObj(staticRoutesIntf []interface{}) []*avimodels.StaticRo
 		staticRoutes = append(staticRoutes, &staticRoute)
 	}
 	return staticRoutes
+}
+
+func LabelsIntfToObj(labelsIntf []interface{}) []*avimodels.KeyValue {
+	var labels []*avimodels.KeyValue
+
+	for _, labelIntf := range labelsIntf {
+		labelMap, ok := labelIntf.(map[string]interface{})
+		if !ok {
+			utils.AviLog.Warnf("object type %T did not match for label\n", labelIntf)
+			continue
+		}
+		kv := keyValueIntfToObj(labelMap)
+		labels = append(labels, kv)
+
+	}
+	return labels
+}
+
+func keyValueIntfToObj(keyValueIntf map[string]interface{}) *avimodels.KeyValue {
+	keyValue := avimodels.KeyValue{}
+	for key, val := range keyValueIntf {
+		switch key {
+		case "key":
+			if k, ok := val.(string); ok {
+				keyValue.Key = &k
+			} else {
+				utils.AviLog.Warnf("wrong object type %T for addr in KeyValue\n", val)
+			}
+		case "value":
+			if v, ok := val.(string); ok {
+				keyValue.Value = &v
+			} else {
+				utils.AviLog.Warnf("wrong object type %T for type in KeyValue\n", val)
+			}
+		default:
+			utils.AviLog.Warnf("Unknown key %s in KeyValue\n", key)
+		}
+	}
+	return &keyValue
 }
 
 func IPAddrIntfToObj(ipAddrIntf map[string]interface{}) *avimodels.IPAddr {
