@@ -17,7 +17,7 @@ type ServiceEngineGroup struct {
 	// Service Engines in active/standby mode for HA failover.
 	ActiveStandby *bool `json:"active_standby,omitempty"`
 
-	// Indicates the percent of config memory used for config updates. Allowed values are 0-90. Field deprecated in 18.1.2. Field introduced in 18.1.1.
+	// Indicates the percent of config memory used for config updates. Allowed values are 0-90. Field deprecated in 18.1.2. Field introduced in 18.1.1. Unit is PERCENT.
 	AdditionalConfigMemory *int32 `json:"additional_config_memory,omitempty"`
 
 	// Advertise reach-ability of backend server networks via ADC through BGP for default gateway feature. Field deprecated in 18.2.5.
@@ -32,16 +32,16 @@ type ServiceEngineGroup struct {
 	// Allow SEs to be created using burst license. Field introduced in 17.2.5.
 	AllowBurst *bool `json:"allow_burst,omitempty"`
 
-	// A percent value of total SE memory reserved for applicationcaching. This is an SE bootup property and requires SE restart.Requires SE Reboot. Allowed values are 0 - 100. Special values are 0- 'disable'. Field introduced in 18.2.3.
+	// A percent value of total SE memory reserved for applicationcaching. This is an SE bootup property and requires SE restart.Requires SE Reboot. Allowed values are 0 - 100. Special values are 0- 'disable'. Field introduced in 18.2.3. Unit is PERCENT.
 	AppCachePercent *int32 `json:"app_cache_percent,omitempty"`
 
-	// The max memory that can be allocated for the app cache. This value will act as an upper bound on the cache size specified in app_cache_percent. Special values are 0- 'disable'. Field introduced in 20.1.1.
+	// The max memory that can be allocated for the app cache. This value will act as an upper bound on the cache size specified in app_cache_percent. Special values are 0- 'disable'. Field introduced in 20.1.1. Unit is GB.
 	AppCacheThreshold *int32 `json:"app_cache_threshold,omitempty"`
 
-	// A percent value of total SE memory reserved for Application learning. This is an SE bootup property and requires SE restart. Allowed values are 0 - 10. Field introduced in 18.2.3.
+	// A percent value of total SE memory reserved for Application learning. This is an SE bootup property and requires SE restart. Allowed values are 0 - 10. Field introduced in 18.2.3. Unit is PERCENT.
 	AppLearningMemoryPercent *int32 `json:"app_learning_memory_percent,omitempty"`
 
-	// Amount of SE memory in GB until which shared memory is collected in core archive. Field introduced in 17.1.3.
+	// Amount of SE memory in GB until which shared memory is collected in core archive. Field introduced in 17.1.3. Unit is GB.
 	ArchiveShmLimit *int32 `json:"archive_shm_limit,omitempty"`
 
 	// SSL handshakes will be handled by dedicated SSL Threads.Requires SE Reboot.
@@ -59,7 +59,7 @@ type ServiceEngineGroup struct {
 	// Set of criteria for SE Auto Rebalance. Enum options - SE_AUTO_REBALANCE_CPU, SE_AUTO_REBALANCE_PPS, SE_AUTO_REBALANCE_MBPS, SE_AUTO_REBALANCE_OPEN_CONNS, SE_AUTO_REBALANCE_CPS. Field introduced in 17.2.3.
 	AutoRebalanceCriteria []string `json:"auto_rebalance_criteria,omitempty"`
 
-	// Frequency of rebalance, if 'Auto rebalance' is enabled.
+	// Frequency of rebalance, if 'Auto rebalance' is enabled. Unit is SEC.
 	AutoRebalanceInterval *int32 `json:"auto_rebalance_interval,omitempty"`
 
 	// Redistribution of virtual services from the takeover SE to the replacement SE can cause momentary traffic loss. If the auto-redistribute load option is left in its default off state, any desired rebalancing requires calls to REST API.
@@ -68,7 +68,7 @@ type ServiceEngineGroup struct {
 	// Availability zones for Virtual Service High Availability. It is a reference to an object of type AvailabilityZone. Field introduced in 20.1.1.
 	AvailabilityZoneRefs []string `json:"availability_zone_refs,omitempty"`
 
-	// BGP peer state update interval. Allowed values are 5-100. Field introduced in 17.2.14,18.1.5,18.2.1.
+	// BGP peer state update interval. Allowed values are 5-100. Field introduced in 17.2.14,18.1.5,18.2.1. Unit is SEC.
 	BgpStateUpdateInterval *int32 `json:"bgp_state_update_interval,omitempty"`
 
 	// Excess Service Engine capacity provisioned for HA failover.
@@ -83,7 +83,7 @@ type ServiceEngineGroup struct {
 	// Enable config debugs on all cores of SE. Field introduced in 17.2.13,18.1.5,18.2.1.
 	ConfigDebugsOnAllCores *bool `json:"config_debugs_on_all_cores,omitempty"`
 
-	// Percentage of memory for connection state. This will come at the expense of memory used for HTTP in-memory cache. Allowed values are 10-90.
+	// Percentage of memory for connection state. This will come at the expense of memory used for HTTP in-memory cache. Allowed values are 10-90. Unit is PERCENT.
 	ConnectionMemoryPercentage *int32 `json:"connection_memory_percentage,omitempty"`
 
 	// Include shared memory for app cache in core file.Requires SE Reboot. Field introduced in 18.2.8, 20.1.1.
@@ -134,7 +134,7 @@ type ServiceEngineGroup struct {
 	// Disable TCP Segmentation Offload (TSO) in DPDK poll-mode driver packet transmit path. TSO is on by default on NICs that support it. Field introduced in 17.2.5, 18.1.1.
 	DisableTso *bool `json:"disable_tso,omitempty"`
 
-	// Amount of disk space for each of the Service Engine virtual machines.
+	// Amount of disk space for each of the Service Engine virtual machines. Unit is GB.
 	DiskPerSe *int32 `json:"disk_per_se,omitempty"`
 
 	// Use both the active and standby Service Engines for Virtual Service placement in the legacy active standby HA mode.
@@ -176,7 +176,7 @@ type ServiceEngineGroup struct {
 	// Multiplier for extra config to support large VS/Pool config.
 	ExtraConfigMultiplier *float64 `json:"extra_config_multiplier,omitempty"`
 
-	// Extra config memory to support large Geo DB configuration. Field introduced in 17.1.1.
+	// Extra config memory to support large Geo DB configuration. Field introduced in 17.1.1. Unit is MB.
 	ExtraSharedConfigMemory *int32 `json:"extra_shared_config_memory,omitempty"`
 
 	// If ServiceEngineGroup is configured for Legacy 1+1 Active Standby HA Mode, Floating IP's will be advertised only by the Active SE in the Pair. Virtual Services in this group must be disabled/enabled for any changes to the Floating IP's to take effect. Only active SE hosting VS tagged with Active Standby SE 1 Tag will advertise this floating IP when manual load distribution is enabled. Field deprecated in 18.2.5.
@@ -191,7 +191,7 @@ type ServiceEngineGroup struct {
 	// Number of entries in the free list. Field introduced in 17.2.10, 18.1.2.
 	FreeListSize *int32 `json:"free_list_size,omitempty"`
 
-	// GratArp periodicity for VIP-IP. Allowed values are 5-30. Field introduced in 18.2.3.
+	// GratArp periodicity for VIP-IP. Allowed values are 5-30. Field introduced in 18.2.3. Unit is MIN.
 	GratarpPermanentPeriodicity *int32 `json:"gratarp_permanent_periodicity,omitempty"`
 
 	// High Availability mode for all the Virtual Services using this Service Engine group. Enum options - HA_MODE_SHARED_PAIR, HA_MODE_SHARED, HA_MODE_LEGACY_ACTIVE_STANDBY.
@@ -200,7 +200,7 @@ type ServiceEngineGroup struct {
 	//  It is a reference to an object of type HardwareSecurityModuleGroup.
 	HardwaresecuritymodulegroupRef *string `json:"hardwaresecuritymodulegroup_ref,omitempty"`
 
-	// Minimum required heap memory to apply any configuration. Allowed values are 0-100. Field introduced in 18.1.2.
+	// Minimum required heap memory to apply any configuration. Allowed values are 0-100. Field introduced in 18.1.2. Unit is MB.
 	HeapMinimumConfigMemory *int32 `json:"heap_minimum_config_memory,omitempty"`
 
 	// Enable active health monitoring from the standby SE for all placed virtual services.
@@ -218,7 +218,7 @@ type ServiceEngineGroup struct {
 	// Override default hypervisor. Enum options - DEFAULT, VMWARE_ESX, KVM, VMWARE_VSAN, XEN.
 	Hypervisor *string `json:"hypervisor,omitempty"`
 
-	// Ignore RTT samples if it is above threshold. Field introduced in 17.1.6,17.2.2.
+	// Ignore RTT samples if it is above threshold. Field introduced in 17.1.6,17.2.2. Unit is MILLISECONDS.
 	IgnoreRttThreshold *int32 `json:"ignore_rtt_threshold,omitempty"`
 
 	// Program SE security group ingress rules to allow VIP data access from remote CIDR type. Enum options - SG_INGRESS_ACCESS_NONE, SG_INGRESS_ACCESS_ALL, SG_INGRESS_ACCESS_VPC. Field introduced in 17.1.5.
@@ -236,6 +236,9 @@ type ServiceEngineGroup struct {
 	// Iptable Rules.
 	Iptables []*IptableRuleSet `json:"iptables,omitempty"`
 
+	// Labels associated with this SE group. Field introduced in 20.1.1.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Select core with least load for new flow.
 	LeastLoadCoreSelection *bool `json:"least_load_core_selection,omitempty"`
 
@@ -245,16 +248,16 @@ type ServiceEngineGroup struct {
 	// If no license type is specified then default license enforcement for the cloud type is chosen. Enum options - LIC_BACKEND_SERVERS, LIC_SOCKETS, LIC_CORES, LIC_HOSTS, LIC_SE_BANDWIDTH, LIC_METERED_SE_BANDWIDTH. Field introduced in 17.2.5.
 	LicenseType *string `json:"license_type,omitempty"`
 
-	// Maximum disk capacity (in MB) to be allocated to an SE. This is exclusively used for debug and log data.
+	// Maximum disk capacity (in MB) to be allocated to an SE. This is exclusively used for debug and log data. Unit is MB.
 	LogDisksz *int32 `json:"log_disksz,omitempty"`
 
 	// Maximum number of external health monitors that can run concurrently in a service engine. This helps control the CPU and memory use by external health monitors. Special values are 0- 'Value will be internally calculated based on cpu and memory'. Field introduced in 18.2.7.
 	MaxConcurrentExternalHm *int32 `json:"max_concurrent_external_hm,omitempty"`
 
-	// When CPU usage on an SE exceeds this threshold, Virtual Services hosted on this SE may be rebalanced to other SEs to reduce load. A new SE may be created as part of this process. Allowed values are 40-90.
+	// When CPU usage on an SE exceeds this threshold, Virtual Services hosted on this SE may be rebalanced to other SEs to reduce load. A new SE may be created as part of this process. Allowed values are 40-90. Unit is PERCENT.
 	MaxCPUUsage *int32 `json:"max_cpu_usage,omitempty"`
 
-	// Max bytes that can be allocated in a single mempool. Field introduced in 18.1.5.
+	// Max bytes that can be allocated in a single mempool. Field introduced in 18.1.5. Unit is MB.
 	MaxMemoryPerMempool *int32 `json:"max_memory_per_mempool,omitempty"`
 
 	// Configures the maximum number of se_dp processes created on the SE, requires SE reboot. If not configured, defaults to the number of CPUs on the SE. This should only be used if user wants to limit the number of se_dps to less than the available CPUs on the SE. Allowed values are 1-128. Field introduced in 20.1.1.
@@ -281,7 +284,7 @@ type ServiceEngineGroup struct {
 	// Placeholder for description of property mem_reserve of obj type ServiceEngineGroup field type str  type boolean
 	MemReserve *bool `json:"mem_reserve,omitempty"`
 
-	// Indicates the percent of memory reserved for config updates. Allowed values are 0-100. Field introduced in 18.1.2.
+	// Indicates the percent of memory reserved for config updates. Allowed values are 0-100. Field introduced in 18.1.2. Unit is PERCENT.
 	MemoryForConfigUpdate *int32 `json:"memory_for_config_update,omitempty"`
 
 	// Amount of memory for each of the Service Engine virtual machines.
@@ -293,7 +296,7 @@ type ServiceEngineGroup struct {
 	// Management subnet to use for Avi Service Engines.
 	MgmtSubnet *IPAddrPrefix `json:"mgmt_subnet,omitempty"`
 
-	// When CPU usage on an SE falls below the minimum threshold, Virtual Services hosted on the SE may be consolidated onto other underutilized SEs. After consolidation, unused Service Engines may then be eligible for deletion. . Allowed values are 20-60.
+	// When CPU usage on an SE falls below the minimum threshold, Virtual Services hosted on the SE may be consolidated onto other underutilized SEs. After consolidation, unused Service Engines may then be eligible for deletion. . Allowed values are 20-60. Unit is PERCENT.
 	MinCPUUsage *int32 `json:"min_cpu_usage,omitempty"`
 
 	// Minimum number of active Service Engines for the Virtual Service. Allowed values are 1-64.
@@ -302,10 +305,10 @@ type ServiceEngineGroup struct {
 	// Minimum number of Services Engines in this group (relevant for SE AutoRebalance only). Allowed values are 0-1000. Field introduced in 17.2.13,18.1.3,18.2.1.
 	MinSe *int32 `json:"min_se,omitempty"`
 
-	// Indicates the percent of memory reserved for connections. Allowed values are 0-100. Field introduced in 18.1.2.
+	// Indicates the percent of memory reserved for connections. Allowed values are 0-100. Field introduced in 18.1.2. Unit is PERCENT.
 	MinimumConnectionMemory *int32 `json:"minimum_connection_memory,omitempty"`
 
-	// Required available config memory to apply any configuration. Allowed values are 0-90. Field deprecated in 18.1.2. Field introduced in 18.1.1.
+	// Required available config memory to apply any configuration. Allowed values are 0-90. Field deprecated in 18.1.2. Field introduced in 18.1.1. Unit is PERCENT.
 	MinimumRequiredConfigMemory *int32 `json:"minimum_required_config_memory,omitempty"`
 
 	// Number of threads to use for log streaming. Allowed values are 1-100. Field introduced in 17.2.12, 18.1.2.
@@ -315,25 +318,25 @@ type ServiceEngineGroup struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// Idle timeout in seconds for nat tcp flows in closed state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5.
+	// Idle timeout in seconds for nat tcp flows in closed state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5. Unit is SECONDS.
 	NatFlowTCPClosedTimeout *int32 `json:"nat_flow_tcp_closed_timeout,omitempty"`
 
-	// Idle timeout in seconds for nat tcp flows in established state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5.
+	// Idle timeout in seconds for nat tcp flows in established state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5. Unit is SECONDS.
 	NatFlowTCPEstablishedTimeout *int32 `json:"nat_flow_tcp_established_timeout,omitempty"`
 
-	// Idle timeout in seconds for nat tcp flows in half closed state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5.
+	// Idle timeout in seconds for nat tcp flows in half closed state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5. Unit is SECONDS.
 	NatFlowTCPHalfClosedTimeout *int32 `json:"nat_flow_tcp_half_closed_timeout,omitempty"`
 
-	// Idle timeout in seconds for nat tcp flows in handshake state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5.
+	// Idle timeout in seconds for nat tcp flows in handshake state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5. Unit is SECONDS.
 	NatFlowTCPHandshakeTimeout *int32 `json:"nat_flow_tcp_handshake_timeout,omitempty"`
 
-	// Idle timeout in seconds for nat udp flows in noresponse state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5.
+	// Idle timeout in seconds for nat udp flows in noresponse state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5. Unit is SECONDS.
 	NatFlowUDPNoresponseTimeout *int32 `json:"nat_flow_udp_noresponse_timeout,omitempty"`
 
-	// Idle timeout in seconds for nat udp flows in response state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5.
+	// Idle timeout in seconds for nat udp flows in response state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5. Unit is SECONDS.
 	NatFlowUDPResponseTimeout *int32 `json:"nat_flow_udp_response_timeout,omitempty"`
 
-	// This setting limits the number of non-significant logs generated per second per core on this SE. Default is 100 logs per second. Set it to zero (0) to disable throttling. Field introduced in 17.1.3.
+	// This setting limits the number of non-significant logs generated per second per core on this SE. Default is 100 logs per second. Set it to zero (0) to disable throttling. Field introduced in 17.1.3. Unit is PER_SECOND.
 	NonSignificantLogThrottle *int32 `json:"non_significant_log_throttle,omitempty"`
 
 	// Number of dispatcher cores (0,1,2,4,8 or 16). If set to 0, then number of dispatcher cores is deduced automatically.Requires SE Reboot. Allowed values are 0,1,2,4,8,16. Field introduced in 17.2.12, 18.1.3, 18.2.1.
@@ -354,7 +357,7 @@ type ServiceEngineGroup struct {
 	// Management network UUID.
 	OpenstackMgmtNetworkUUID *string `json:"openstack_mgmt_network_uuid,omitempty"`
 
-	// Amount of extra memory to be reserved for use by the Operating System on a Service Engine.
+	// Amount of extra memory to be reserved for use by the Operating System on a Service Engine. Unit is MB.
 	OsReservedMemory *int32 `json:"os_reserved_memory,omitempty"`
 
 	// Determines the PCAP transmit mode of operation. Requires SE Reboot. Enum options - PCAP_TX_AUTO, PCAP_TX_SOCKET, PCAP_TX_RING. Field introduced in 18.2.8, 20.1.1.
@@ -375,13 +378,13 @@ type ServiceEngineGroup struct {
 	// Reboot the system if the SE is stopped. Field deprecated in 18.2.5.
 	RebootOnStop *bool `json:"reboot_on_stop,omitempty"`
 
-	// Time interval to re-sync SE's time with wall clock time. Allowed values are 8-600000. Field introduced in 20.1.1.
+	// Time interval to re-sync SE's time with wall clock time. Allowed values are 8-600000. Field introduced in 20.1.1. Unit is MILLISECONDS.
 	ResyncTimeInterval *int32 `json:"resync_time_interval,omitempty"`
 
 	// Select the SE bandwidth for the bandwidth license. Enum options - SE_BANDWIDTH_UNLIMITED, SE_BANDWIDTH_25M, SE_BANDWIDTH_200M, SE_BANDWIDTH_1000M, SE_BANDWIDTH_10000M. Field introduced in 17.2.5.
 	SeBandwidthType *string `json:"se_bandwidth_type,omitempty"`
 
-	// Duration to preserve unused Service Engine virtual machines before deleting them. If traffic to a Virtual Service were to spike up abruptly, this SE would still be available to be utilized again rather than creating a new SE. If this value is set to 0, Controller will never delete any SEs and administrator has to manually cleanup unused SEs. Allowed values are 0-525600.
+	// Duration to preserve unused Service Engine virtual machines before deleting them. If traffic to a Virtual Service were to spike up abruptly, this SE would still be available to be utilized again rather than creating a new SE. If this value is set to 0, Controller will never delete any SEs and administrator has to manually cleanup unused SEs. Allowed values are 0-525600. Unit is MIN.
 	SeDeprovisionDelay *int32 `json:"se_deprovision_delay,omitempty"`
 
 	// Placeholder for description of property se_dos_profile of obj type ServiceEngineGroup field type str  type object
@@ -411,10 +414,10 @@ type ServiceEngineGroup struct {
 	// Flow probe retry count if no replies are received.Requires SE Reboot. Allowed values are 0-5. Field introduced in 18.1.4, 18.2.1.
 	SeFlowProbeRetries *int32 `json:"se_flow_probe_retries,omitempty"`
 
-	// Timeout in milliseconds for flow probe retries.Requires SE Reboot. Allowed values are 20-50. Field introduced in 18.2.5.
+	// Timeout in milliseconds for flow probe retries.Requires SE Reboot. Allowed values are 20-50. Field introduced in 18.2.5. Unit is MILLISECONDS.
 	SeFlowProbeRetryTimer *int32 `json:"se_flow_probe_retry_timer,omitempty"`
 
-	// Timeout in milliseconds for flow probe entries. Allowed values are 10-200. Field deprecated in 18.2.5. Field introduced in 18.1.4, 18.2.1.
+	// Timeout in milliseconds for flow probe entries. Allowed values are 10-200. Field deprecated in 18.2.5. Field introduced in 18.1.4, 18.2.1. Unit is MILLISECONDS.
 	SeFlowProbeTimer *int32 `json:"se_flow_probe_timer,omitempty"`
 
 	// Controls the distribution of SE data path processes on CPUs which support hyper-threading. Requires hyper-threading to be enabled at host level. Requires SE Reboot. For more details please refer to SE placement KB. Enum options - SE_CPU_HT_AUTO, SE_CPU_HT_SPARSE_DISPATCHER_PRIORITY, SE_CPU_HT_SPARSE_PROXY_PRIORITY, SE_CPU_HT_PACKED_CORES. Field introduced in 20.1.1.
@@ -447,10 +450,10 @@ type ServiceEngineGroup struct {
 	// Bypass the kernel's traffic control layer, to deliver packets directly to the driver. Enabling this feature results in egress packets not being captured in host tcpdump. Note   brief packet reordering or loss may occur upon toggle. Field introduced in 18.2.6.
 	SePcapQdiscBypass *bool `json:"se_pcap_qdisc_bypass,omitempty"`
 
-	// Frequency in seconds at which periodically a PCAP reinit check is triggered. May be used in conjunction with the configuration pcap_reinit_threshold. (Valid range   15 mins - 12 hours, 0 - disables). Allowed values are 900-43200. Special values are 0- 'disable'. Field introduced in 17.2.13, 18.1.3, 18.2.1.
+	// Frequency in seconds at which periodically a PCAP reinit check is triggered. May be used in conjunction with the configuration pcap_reinit_threshold. (Valid range   15 mins - 12 hours, 0 - disables). Allowed values are 900-43200. Special values are 0- 'disable'. Field introduced in 17.2.13, 18.1.3, 18.2.1. Unit is SEC.
 	SePcapReinitFrequency *int32 `json:"se_pcap_reinit_frequency,omitempty"`
 
-	// Threshold for input packet receive errors in PCAP mode exceeding which a PCAP reinit is triggered. If not set, an unconditional reinit is performed. This value is checked every pcap_reinit_frequency interval. Field introduced in 17.2.13, 18.1.3, 18.2.1.
+	// Threshold for input packet receive errors in PCAP mode exceeding which a PCAP reinit is triggered. If not set, an unconditional reinit is performed. This value is checked every pcap_reinit_frequency interval. Field introduced in 17.2.13, 18.1.3, 18.2.1. Unit is METRIC_COUNT.
 	SePcapReinitThreshold *int32 `json:"se_pcap_reinit_threshold,omitempty"`
 
 	// TCP port on SE where echo service will be run. Field introduced in 17.2.2.
@@ -465,13 +468,13 @@ type ServiceEngineGroup struct {
 	// Enable routing via Service Engine Datapath. When disabled, routing is done by the Linux kernel. IP Routing needs to be enabled in Service Engine Group for SE Routing to be effective. Field deprecated in 18.2.5. Field introduced in 18.2.3.
 	SeRouting *bool `json:"se_routing,omitempty"`
 
-	// Minimum time to wait on server between taking sampleswhen sampling the navigation timing data from the end user client. Field introduced in 18.2.6.
+	// Minimum time to wait on server between taking sampleswhen sampling the navigation timing data from the end user client. Field introduced in 18.2.6. Unit is SEC.
 	SeRumSamplingNavInterval *int32 `json:"se_rum_sampling_nav_interval,omitempty"`
 
 	// Percentage of navigation timing data from the end user client, used for sampling to get client insights. Field introduced in 18.2.6.
 	SeRumSamplingNavPercent *int32 `json:"se_rum_sampling_nav_percent,omitempty"`
 
-	// Minimum time to wait on server between taking sampleswhen sampling the resource timing data from the end user client. Field introduced in 18.2.6.
+	// Minimum time to wait on server between taking sampleswhen sampling the resource timing data from the end user client. Field introduced in 18.2.6. Unit is SEC.
 	SeRumSamplingResInterval *int32 `json:"se_rum_sampling_res_interval,omitempty"`
 
 	// Percentage of resource timing data from the end user client used for sampling to get client insight. Field introduced in 18.2.6.
@@ -504,7 +507,7 @@ type ServiceEngineGroup struct {
 	// Determines if DPDK library should be used or not   0  Automatically determine based on hypervisor type 1  Use DPDK if PCAP is not enabled 2  Don't use DPDK. Allowed values are 0-2. Field introduced in 18.1.3.
 	SeUseDpdk *int32 `json:"se_use_dpdk,omitempty"`
 
-	// Configure the frequency in milliseconds of software transmit spillover queue flush when enabled. This is necessary to flush any packets in the spillover queue in the absence of a packet transmit in the normal course of operation. Allowed values are 50-500. Special values are 0- 'disable'. Field introduced in 20.1.1.
+	// Configure the frequency in milliseconds of software transmit spillover queue flush when enabled. This is necessary to flush any packets in the spillover queue in the absence of a packet transmit in the normal course of operation. Allowed values are 50-500. Special values are 0- 'disable'. Field introduced in 20.1.1. Unit is MILLISECONDS.
 	SeVnicTxSwQueueFlushFrequency *int32 `json:"se_vnic_tx_sw_queue_flush_frequency,omitempty"`
 
 	// Configure the size of software transmit spillover queue when enabled. Requires SE Reboot. Allowed values are 128-2048. Field introduced in 20.1.1.
@@ -525,10 +528,10 @@ type ServiceEngineGroup struct {
 	// Subnets assigned to the SE group. Required for VS group placement. Field introduced in 17.1.1.
 	ServiceIPSubnets []*IPAddrPrefix `json:"service_ip_subnets,omitempty"`
 
-	// Minimum required shared memory to apply any configuration. Allowed values are 0-100. Field introduced in 18.1.2.
+	// Minimum required shared memory to apply any configuration. Allowed values are 0-100. Field introduced in 18.1.2. Unit is MB.
 	ShmMinimumConfigMemory *int32 `json:"shm_minimum_config_memory,omitempty"`
 
-	// This setting limits the number of significant logs generated per second per core on this SE. Default is 100 logs per second. Set it to zero (0) to disable throttling. Field introduced in 17.1.3.
+	// This setting limits the number of significant logs generated per second per core on this SE. Default is 100 logs per second. Set it to zero (0) to disable throttling. Field introduced in 17.1.3. Unit is PER_SECOND.
 	SignificantLogThrottle *int32 `json:"significant_log_throttle,omitempty"`
 
 	// (Beta) Preprocess SSL Client Hello for SNI hostname extension.If set to True, this will apply SNI child's SSL protocol(s), if they are different from SNI Parent's allowed SSL protocol(s). Field introduced in 17.2.12, 18.1.3.
@@ -537,10 +540,10 @@ type ServiceEngineGroup struct {
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// The threshold for the transient shared config memory in the SE. Allowed values are 0-100. Field introduced in 20.1.1.
+	// The threshold for the transient shared config memory in the SE. Allowed values are 0-100. Field introduced in 20.1.1. Unit is PERCENT.
 	TransientSharedMemoryMax *int32 `json:"transient_shared_memory_max,omitempty"`
 
-	// This setting limits the number of UDF logs generated per second per core on this SE. UDF logs are generated due to the configured client log filters or the rules with logging enabled. Default is 100 logs per second. Set it to zero (0) to disable throttling. Field introduced in 17.1.3.
+	// This setting limits the number of UDF logs generated per second per core on this SE. UDF logs are generated due to the configured client log filters or the rules with logging enabled. Default is 100 logs per second. Set it to zero (0) to disable throttling. Field introduced in 17.1.3. Unit is PER_SECOND.
 	UdfLogThrottle *int32 `json:"udf_log_throttle,omitempty"`
 
 	// url
@@ -586,22 +589,22 @@ type ServiceEngineGroup struct {
 	// Ensure primary and secondary Service Engines are deployed on different physical hosts.
 	VsHostRedundancy *bool `json:"vs_host_redundancy,omitempty"`
 
-	// Time to wait for the scaled in SE to drain existing flows before marking the scalein done.
+	// Time to wait for the scaled in SE to drain existing flows before marking the scalein done. Unit is SEC.
 	VsScaleinTimeout *int32 `json:"vs_scalein_timeout,omitempty"`
 
-	// During SE upgrade, Time to wait for the scaled-in SE to drain existing flows before marking the scalein done.
+	// During SE upgrade, Time to wait for the scaled-in SE to drain existing flows before marking the scalein done. Unit is SEC.
 	VsScaleinTimeoutForUpgrade *int32 `json:"vs_scalein_timeout_for_upgrade,omitempty"`
 
-	// Time to wait for the scaled out SE to become ready before marking the scaleout done.
+	// Time to wait for the scaled out SE to become ready before marking the scaleout done. Unit is SEC.
 	VsScaleoutTimeout *int32 `json:"vs_scaleout_timeout,omitempty"`
 
-	// Wait time for sending scaleout ready notification after Virtual Service is marked UP. In certain deployments, there may be an additional delay to accept traffic. For example, for BGP, some time is needed for route advertisement. Allowed values are 0-20. Field introduced in 18.1.5,18.2.1.
+	// Wait time for sending scaleout ready notification after Virtual Service is marked UP. In certain deployments, there may be an additional delay to accept traffic. For example, for BGP, some time is needed for route advertisement. Allowed values are 0-20. Field introduced in 18.1.5,18.2.1. Unit is SEC.
 	VsSeScaleoutAdditionalWaitTime *int32 `json:"vs_se_scaleout_additional_wait_time,omitempty"`
 
-	// Timeout in seconds for Service Engine to sendScaleout Ready notification of a Virtual Service. Allowed values are 0-90. Field introduced in 18.1.5,18.2.1.
+	// Timeout in seconds for Service Engine to sendScaleout Ready notification of a Virtual Service. Allowed values are 0-90. Field introduced in 18.1.5,18.2.1. Unit is SEC.
 	VsSeScaleoutReadyTimeout *int32 `json:"vs_se_scaleout_ready_timeout,omitempty"`
 
-	// During SE upgrade in a legacy active/standby segroup, Time to wait for the new primary SE to accept flows before marking the switchover done. Field introduced in 17.2.13,18.1.4,18.2.1.
+	// During SE upgrade in a legacy active/standby segroup, Time to wait for the new primary SE to accept flows before marking the switchover done. Field introduced in 17.2.13,18.1.4,18.2.1. Unit is SEC.
 	VsSwitchoverTimeout *int32 `json:"vs_switchover_timeout,omitempty"`
 
 	// Parameters to place Virtual Services on only a subset of the cores of an SE. Field introduced in 17.2.5.
@@ -610,15 +613,15 @@ type ServiceEngineGroup struct {
 	// If set, Virtual Services will be placed on only a subset of the cores of an SE. Field introduced in 18.1.1.
 	VssPlacementEnabled *bool `json:"vss_placement_enabled,omitempty"`
 
-	// Frequency with which SE publishes WAF learning. Allowed values are 1-43200. Field deprecated in 18.2.3. Field introduced in 18.1.2.
+	// Frequency with which SE publishes WAF learning. Allowed values are 1-43200. Field deprecated in 18.2.3. Field introduced in 18.1.2. Unit is MIN.
 	WafLearningInterval *int32 `json:"waf_learning_interval,omitempty"`
 
-	// Amount of memory reserved on SE for WAF learning. This can be atmost 5% of SE memory. Field deprecated in 18.2.3. Field introduced in 18.1.2.
+	// Amount of memory reserved on SE for WAF learning. This can be atmost 5% of SE memory. Field deprecated in 18.2.3. Field introduced in 18.1.2. Unit is MB.
 	WafLearningMemory *int32 `json:"waf_learning_memory,omitempty"`
 
 	// Enable memory pool for WAF.Requires SE Reboot. Field introduced in 17.2.3.
 	WafMempool *bool `json:"waf_mempool,omitempty"`
 
-	// Memory pool size used for WAF.Requires SE Reboot. Field introduced in 17.2.3.
+	// Memory pool size used for WAF.Requires SE Reboot. Field introduced in 17.2.3. Unit is KB.
 	WafMempoolSize *int32 `json:"waf_mempool_size,omitempty"`
 }

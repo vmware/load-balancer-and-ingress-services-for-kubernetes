@@ -89,7 +89,7 @@ type UpgradeStatusInfo struct {
 	// Previous version prior to upgrade.Example  Base-image was 18.2.5 and an upgrade was done to 18.2.6, then this field will indicate the 18.2.5 value. . Field introduced in 18.2.6.
 	PreviousVersion *string `json:"previous_version,omitempty"`
 
-	// Upgrade operations progress which holds value between 0-100. Allowed values are 0-100. Field introduced in 18.2.8, 20.1.1.
+	// Upgrade operations progress which holds value between 0-100. Allowed values are 0-100. Field introduced in 18.2.8, 20.1.1. Unit is PERCENT.
 	Progress *int32 `json:"progress,omitempty"`
 
 	// Image path of se patch image.(required in case of reimage and upgrade + patch). Field introduced in 18.2.10, 20.1.1.

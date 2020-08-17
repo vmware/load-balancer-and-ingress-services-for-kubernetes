@@ -55,22 +55,22 @@ type SeBootupProperties struct {
 	// Internal flag that blocks dataplane until all application logs are flushed to log-agent process.
 	SeLogBufferAppBlockingDequeue *bool `json:"se_log_buffer_app_blocking_dequeue,omitempty"`
 
-	// Internal application log buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments.
+	// Internal application log buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments. Unit is WORD.
 	SeLogBufferApplogSize *int32 `json:"se_log_buffer_applog_size,omitempty"`
 
-	// Number of internal buffer chunks to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments.
+	// Number of internal buffer chunks to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments. Unit is BYTES.
 	SeLogBufferChunkCount *int32 `json:"se_log_buffer_chunk_count,omitempty"`
 
 	// Internal flag that blocks dataplane until all connection logs are flushed to log-agent process.
 	SeLogBufferConnBlockingDequeue *bool `json:"se_log_buffer_conn_blocking_dequeue,omitempty"`
 
-	// Internal connection log buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments.
+	// Internal connection log buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments. Unit is WORD.
 	SeLogBufferConnlogSize *int32 `json:"se_log_buffer_connlog_size,omitempty"`
 
 	// Internal flag that blocks dataplane until all outstanding events are flushed to log-agent process.
 	SeLogBufferEventsBlockingDequeue *bool `json:"se_log_buffer_events_blocking_dequeue,omitempty"`
 
-	// Internal events buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments.
+	// Internal events buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments. Unit is WORD.
 	SeLogBufferEventsSize *int32 `json:"se_log_buffer_events_size,omitempty"`
 
 	// Deprecated. Field deprecated in 18.2.5.

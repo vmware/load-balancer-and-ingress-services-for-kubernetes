@@ -686,6 +686,7 @@ var FakeAviObjects = []string{
 	"virtualservice",
 	"vrfcontext",
 	"vsdatascriptset",
+	"serviceenginegroup",
 }
 
 type InjectFault func(w http.ResponseWriter, r *http.Request)

@@ -7,7 +7,7 @@ package models
 // swagger:model AlertRuleMetric
 type AlertRuleMetric struct {
 
-	// Evaluation window for the Metrics.
+	// Evaluation window for the Metrics. Unit is SEC.
 	Duration *int32 `json:"duration,omitempty"`
 
 	// Metric Id for the Alert. Eg. l4_client.avg_complete_conns.

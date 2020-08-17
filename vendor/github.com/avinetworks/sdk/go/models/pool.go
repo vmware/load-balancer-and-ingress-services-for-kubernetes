@@ -44,7 +44,7 @@ type Pool struct {
 	// Inline estimation of capacity of servers.
 	CapacityEstimation *bool `json:"capacity_estimation,omitempty"`
 
-	// The maximum time-to-first-byte of a server. Allowed values are 1-5000. Special values are 0 - 'Automatic'.
+	// The maximum time-to-first-byte of a server. Allowed values are 1-5000. Special values are 0 - 'Automatic'. Unit is MILLISECONDS.
 	CapacityEstimationTtfbThresh *int32 `json:"capacity_estimation_ttfb_thresh,omitempty"`
 
 	// Checksum of cloud configuration for Pool. Internally set by cloud connector.
@@ -56,7 +56,7 @@ type Pool struct {
 	// Connnection pool properties. Field introduced in 18.2.1.
 	ConnPoolProperties *ConnPoolProperties `json:"conn_pool_properties,omitempty"`
 
-	// Duration for which new connections will be gradually ramped up to a server recently brought online.  Useful for LB algorithms that are least connection based. Allowed values are 1-300. Special values are 0 - 'Immediate'.
+	// Duration for which new connections will be gradually ramped up to a server recently brought online.  Useful for LB algorithms that are least connection based. Allowed values are 1-300. Special values are 0 - 'Immediate'. Unit is MIN.
 	ConnectionRampDuration *int32 `json:"connection_ramp_duration,omitempty"`
 
 	// Creator name.
@@ -89,10 +89,10 @@ type Pool struct {
 	// Enable an action - Close Connection, HTTP Redirect or Local HTTP Response - when a pool failure happens. By default, a connection will be closed, in case the pool experiences a failure.
 	FailAction *FailAction `json:"fail_action,omitempty"`
 
-	// Periodicity of feedback for fewest tasks server selection algorithm. Allowed values are 1-300.
+	// Periodicity of feedback for fewest tasks server selection algorithm. Allowed values are 1-300. Unit is SEC.
 	FewestTasksFeedbackDelay *int32 `json:"fewest_tasks_feedback_delay,omitempty"`
 
-	// Used to gracefully disable a server. Virtual service waits for the specified time before terminating the existing connections  to the servers that are disabled. Allowed values are 1-7200. Special values are 0 - 'Immediate', -1 - 'Infinite'.
+	// Used to gracefully disable a server. Virtual service waits for the specified time before terminating the existing connections  to the servers that are disabled. Allowed values are 1-7200. Special values are 0 - 'Immediate', -1 - 'Infinite'. Unit is MIN.
 	GracefulDisableTimeout *int32 `json:"graceful_disable_timeout,omitempty"`
 
 	// Indicates if the pool is a site-persistence pool. . Field introduced in 17.2.1.
@@ -114,13 +114,16 @@ type Pool struct {
 	// Use list of servers from Ip Address Group. It is a reference to an object of type IpAddrGroup.
 	IpaddrgroupRef *string `json:"ipaddrgroup_ref,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// The load balancing algorithm will pick a server within the pool's list of available servers. Enum options - LB_ALGORITHM_LEAST_CONNECTIONS, LB_ALGORITHM_ROUND_ROBIN, LB_ALGORITHM_FASTEST_RESPONSE, LB_ALGORITHM_CONSISTENT_HASH, LB_ALGORITHM_LEAST_LOAD, LB_ALGORITHM_FEWEST_SERVERS, LB_ALGORITHM_RANDOM, LB_ALGORITHM_FEWEST_TASKS, LB_ALGORITHM_NEAREST_SERVER, LB_ALGORITHM_CORE_AFFINITY, LB_ALGORITHM_TOPOLOGY.
 	LbAlgorithm *string `json:"lb_algorithm,omitempty"`
 
 	// HTTP header name to be used for the hash key.
 	LbAlgorithmConsistentHashHdr *string `json:"lb_algorithm_consistent_hash_hdr,omitempty"`
 
-	// Degree of non-affinity for core afffinity based server selection. Allowed values are 1-65535. Field introduced in 17.1.3.
+	// Degree of non-affinity for core affinity based server selection. Allowed values are 1-65535. Field introduced in 17.1.3.
 	LbAlgorithmCoreNonaffinity *int32 `json:"lb_algorithm_core_nonaffinity,omitempty"`
 
 	// Criteria used as a key for determining the hash between the client and  server. Enum options - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS, LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT, LB_ALGORITHM_CONSISTENT_HASH_URI, LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER, LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING, LB_ALGORITHM_CONSISTENT_HASH_CALLID.
@@ -148,13 +151,13 @@ type Pool struct {
 	// (internal-use) Networks designated as containing servers for this pool.  The servers may be further narrowed down by a filter. This field is used internally by Avi, not editable by the user.
 	Networks []*NetworkFilter `json:"networks,omitempty"`
 
-	// A list of NSX Service Groups where the Servers for the Pool are created . Field introduced in 17.1.1.
+	// A list of NSX Groups where the Servers for the Pool are created . Field introduced in 17.1.1.
 	NsxSecuritygroup []string `json:"nsx_securitygroup,omitempty"`
 
 	// Avi will validate the SSL certificate present by a server against the selected PKI Profile. It is a reference to an object of type PKIProfile.
 	PkiProfileRef *string `json:"pki_profile_ref,omitempty"`
 
-	// Manually select the networks and subnets used to provide reachability to the pool's servers.  Specify the Subnet using the following syntax  10-1-1-0/24. Use static routes in VRF configuration when pool servers are not directly connected butroutable from the service engine.
+	// Manually select the networks and subnets used to provide reachability to the pool's servers.  Specify the Subnet using the following syntax  10-1-1-0/24. Use static routes in VRF configuration when pool servers are not directly connected but routable from the service engine.
 	PlacementNetworks []*PlacementNetwork `json:"placement_networks,omitempty"`
 
 	// Header name for custom header persistence. Field deprecated in 18.1.2.
@@ -187,7 +190,7 @@ type Pool struct {
 	// Server reselect configuration for HTTP requests.
 	ServerReselect *HttpserverReselect `json:"server_reselect,omitempty"`
 
-	// Server timeout value specifies the time within which a server connection needs to be established and a request-response exchange completes between AVI and the server. Value of 0 results in using default timeout of 60 minutes. Allowed values are 0-3600000. Field introduced in 18.1.5,18.2.1.
+	// Server timeout value specifies the time within which a server connection needs to be established and a request-response exchange completes between AVI and the server. Value of 0 results in using default timeout of 60 minutes. Allowed values are 0-3600000. Field introduced in 18.1.5,18.2.1. Unit is MILLISECONDS.
 	ServerTimeout *int32 `json:"server_timeout,omitempty"`
 
 	// The pool directs load balanced traffic to this list of destination servers. The servers can be configured by IP address, name, network or via IP Address Group.
@@ -207,6 +210,9 @@ type Pool struct {
 
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
+
+	// This tier1_lr field should be set same as VirtualService associated for NSX-T. Field introduced in 20.1.1.
+	Tier1Lr *string `json:"tier1_lr,omitempty"`
 
 	// url
 	// Read Only: true

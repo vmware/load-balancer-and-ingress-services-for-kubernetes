@@ -17,8 +17,11 @@ package cache
 import (
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
+	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -2232,9 +2235,10 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 
 func ValidateUserInput(client *clients.AviClient) bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
-	isValid := CheckAndSetCloudType(client) && checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client) && CheckPublicCloud(client)
+	isValid := CheckAndSetCloudType(client) && checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client) &&
+		CheckPublicCloud(client) && CheckSegroupLabels(client) && CheckNodeNetwork(client)
 	if !isValid {
-		if !CheckAndSetCloudType(client) {
+		if !CheckAndSetCloudType(client) || !CheckSegroupLabels(client) {
 			utils.AviLog.Warn("Invalid cloud input detected, AKO will be rebooted to retry")
 			lib.ShutdownApi()
 		}
@@ -2273,6 +2277,60 @@ func checkRequiredValuesYaml() bool {
 	_, err := k8sClient.CoreV1().ConfigMaps(aviCMNamespace).Get(lib.AviConfigMap, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Configmap %s/%s not found, error: %v, syncing will be disabled", lib.AviNS, lib.AviConfigMap, err)
+		return false
+	}
+
+	return true
+}
+
+func CheckSegroupLabels(client *clients.AviClient) bool {
+
+	// Not applicable for NodePort mode / disable route is set as True
+	if lib.IsNodePortMode() || os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+		utils.AviLog.Infof("Skipping the check for SE group labels ")
+		return true
+	}
+	// validate SE Group labels
+	segName := lib.GetSEGName()
+	if segName == "" {
+		utils.AviLog.Warnf("Service Engine Group: serviceEngineGroupName not set in values.yaml, skipping sync.")
+		return false
+	}
+	uri := "/api/serviceenginegroup/?include_name&name=" + segName + "&cloud_ref.name=" + utils.CloudName
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+		return false
+	}
+
+	if result.Count != 1 {
+		utils.AviLog.Warnf("Service Engine Group details not found with serviceEngineGroupName: %s", segName)
+		return false
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
+
+	seg := models.ServiceEngineGroup{}
+	err = json.Unmarshal(elems[0], &seg)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
+
+	labels := seg.Labels
+	if len(labels) == 0 {
+		utils.AviLog.Warnf("Labels are not set for SE group :%v. Expected Labels: %v", segName, utils.Stringify(lib.GetLabels()))
+		return false
+	}
+
+	segLabelEq := reflect.DeepEqual(labels, lib.GetLabels())
+	if !segLabelEq {
+		utils.AviLog.Warnf("Labels does not match with cluster name for SE group :%v. Expected Labels: %v", segName, utils.Stringify(lib.GetLabels()))
 		return false
 	}
 
@@ -2325,6 +2383,60 @@ func CheckPublicCloud(client *clients.AviClient) bool {
 		networkName := lib.GetNetworkName()
 		if networkName == "" {
 			utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")
+			return false
+		}
+	}
+
+	return true
+}
+
+func CheckNodeNetwork(client *clients.AviClient) bool {
+
+	// Not applicable for NodePort mode / disable route is set as True
+	if lib.IsPublicCloud() {
+		utils.AviLog.Infof("Skipping the check for Node Network ")
+		return true
+	}
+
+	// check if node network and cidr's are valid
+	nodeNetworkName := lib.GetNodeNetworkName()
+	if nodeNetworkName == "" {
+		utils.AviLog.Error("Required param nodeNetworkName not specified, syncing will be disabled.")
+		return false
+	}
+
+	uri := "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+		return false
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
+
+	if result.Count == 0 {
+		utils.AviLog.Warnf("No networks found for networkName: %s", nodeNetworkName)
+		return false
+	}
+
+	nodeNetworkCIDRs := lib.GetNodeNetworkCIDRs()
+
+	// set pool placement network if node network details are present
+
+	for _, cidr := range nodeNetworkCIDRs {
+		_, _, err := net.ParseCIDR(cidr)
+		if err != nil {
+			utils.AviLog.Warnf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
+			return false
+		}
+		mask := strings.Split(cidr, "/")[1]
+		_, err = strconv.ParseInt(mask, 10, 32)
+		if err != nil {
+			utils.AviLog.Warnf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
 			return false
 		}
 	}

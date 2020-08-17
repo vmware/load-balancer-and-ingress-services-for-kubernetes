@@ -17,7 +17,7 @@ type RateLimiter struct {
 	// Identifier for Rate Limit. Constructed according to context. Field introduced in 18.2.9.
 	Name *string `json:"name,omitempty"`
 
-	// Time value in seconds to enforce rate count. Allowed values are 1-1000000000. Field introduced in 18.2.9.
+	// Time value in seconds to enforce rate count. Allowed values are 1-1000000000. Field introduced in 18.2.9. Unit is SEC.
 	// Required: true
 	Period *int32 `json:"period"`
 }

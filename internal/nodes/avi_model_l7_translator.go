@@ -168,6 +168,9 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 							Namespace:   namespace,
 						},
 					}
+					if lib.GetSEGName() != lib.DEFAULT_GROUP {
+						sniNode.ServiceEngineGroup = lib.GetSEGName()
+					}
 					sniNode.VrfContext = lib.GetVrf()
 					certsBuilt := o.BuildTlsCertNode(objects.SharedSvcLister(), sniNode, namespace, tlssetting, key)
 					if certsBuilt {
@@ -293,6 +296,9 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	// This is a shared VS - always created in the admin namespace for now.
 	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: lib.GetTenant(),
 		EastWest: false, SharedVS: true}
+	if lib.GetSEGName() != lib.DEFAULT_GROUP {
+		avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
+	}
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
 	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}

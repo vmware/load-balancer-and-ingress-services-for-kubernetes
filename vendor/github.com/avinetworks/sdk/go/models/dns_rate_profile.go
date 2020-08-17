@@ -20,6 +20,6 @@ type DNSRateProfile struct {
 	// Enable fine granularity. Field deprecated in 20.1.1. Field introduced in 18.2.5.
 	FineGrain *bool `json:"fine_grain,omitempty"`
 
-	// Time value in seconds to enforce rate count. Allowed values are 1-300. Field deprecated in 20.1.1. Field introduced in 18.2.5.
+	// Time value in seconds to enforce rate count. Allowed values are 1-300. Field deprecated in 20.1.1. Field introduced in 18.2.5. Unit is SEC.
 	Period *int32 `json:"period,omitempty"`
 }

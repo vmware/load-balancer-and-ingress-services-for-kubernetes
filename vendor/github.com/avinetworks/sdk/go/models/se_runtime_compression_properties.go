@@ -7,10 +7,10 @@ package models
 // swagger:model SeRuntimeCompressionProperties
 type SeRuntimeCompressionProperties struct {
 
-	// If client RTT is higher than this threshold, enable normal compression on the response.
+	// If client RTT is higher than this threshold, enable normal compression on the response. Unit is MILLISECONDS.
 	MaxLowRtt *int32 `json:"max_low_rtt,omitempty"`
 
-	// If client RTT is higher than this threshold, enable aggressive compression on the response.
+	// If client RTT is higher than this threshold, enable aggressive compression on the response. Unit is MILLISECONDS.
 	MinHighRtt *int32 `json:"min_high_rtt,omitempty"`
 
 	// Minimum response content length to enable compression.

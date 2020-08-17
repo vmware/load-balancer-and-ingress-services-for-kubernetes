@@ -25,7 +25,7 @@ type IPAMDNSAwsProfile struct {
 	// AWS secret access key.
 	SecretAccessKey *string `json:"secret_access_key,omitempty"`
 
-	// Default TTL for all records. Allowed values are 1-172800. Field introduced in 17.1.3.
+	// Default TTL for all records. Allowed values are 1-172800. Field introduced in 17.1.3. Unit is SEC.
 	TTL *int32 `json:"ttl,omitempty"`
 
 	// Usable domains to pick from Amazon Route 53. Field introduced in 17.1.1.

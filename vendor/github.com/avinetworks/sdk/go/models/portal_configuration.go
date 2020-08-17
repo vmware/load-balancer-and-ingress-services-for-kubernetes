@@ -10,7 +10,7 @@ type PortalConfiguration struct {
 	// Enable/Disable HTTP basic authentication.
 	AllowBasicAuthentication *bool `json:"allow_basic_authentication,omitempty"`
 
-	// Force API session timeout after the specified time (in hours). Allowed values are 1-24. Field introduced in 18.2.3.
+	// Force API session timeout after the specified time (in hours). Allowed values are 1-24. Field introduced in 18.2.3. Unit is HOURS.
 	APIForceTimeout *int32 `json:"api_force_timeout,omitempty"`
 
 	// Disable Remote CLI Shell Client access.

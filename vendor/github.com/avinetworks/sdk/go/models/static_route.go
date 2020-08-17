@@ -13,6 +13,9 @@ type StaticRoute struct {
 	// if_name of StaticRoute.
 	IfName *string `json:"if_name,omitempty"`
 
+	// Labels associated with this route. Field introduced in 20.1.1.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Placeholder for description of property next_hop of obj type StaticRoute field type str  type object
 	// Required: true
 	NextHop *IPAddr `json:"next_hop"`

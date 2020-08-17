@@ -7,7 +7,7 @@ package models
 // swagger:model AuthProfileHTTPClientParams
 type AuthProfileHTTPClientParams struct {
 
-	// The max allowed length of time a clients authentication is cached. Allowed values are 1-30.
+	// The max allowed length of time a clients authentication is cached. Allowed values are 1-30. Unit is SEC.
 	CacheExpirationTime *int32 `json:"cache_expiration_time,omitempty"`
 
 	// Group member entries contain full DNs instead of just user id attribute values. This should now be configured using the LdapDirectorySettings field instead. Field deprecated in 18.2.1.

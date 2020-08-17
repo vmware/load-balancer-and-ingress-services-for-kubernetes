@@ -7,7 +7,7 @@ package models
 // swagger:model VipAutoscalePolicy
 type VipAutoscalePolicy struct {
 
-	// The amount of time, in seconds, when a Vip is withdrawn before a scaling activity starts. Field introduced in 17.2.12, 18.1.2.
+	// The amount of time, in seconds, when a Vip is withdrawn before a scaling activity starts. Field introduced in 17.2.12, 18.1.2. Unit is SECONDS.
 	DNSCooldown *int32 `json:"dns_cooldown,omitempty"`
 
 	// The maximum size of the group. Field introduced in 17.2.12, 18.1.2.
