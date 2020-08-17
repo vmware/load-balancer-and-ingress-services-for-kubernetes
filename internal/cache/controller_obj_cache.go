@@ -484,12 +484,17 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		for _, dnsinfo := range vsvip.DNSInfo {
 			fqdns = append(fqdns, *dnsinfo.Fqdn)
 		}
+		var vips []string
+		for _, vip := range vsvip.Vip {
+			vips = append(vips, *vip.IPAddress.Addr)
+		}
 
 		vsVipCacheObj := AviVSVIPCache{
 			Name:         *vsvip.Name,
 			Uuid:         *vsvip.UUID,
 			FQDNs:        fqdns,
 			LastModified: *vsvip.LastModified,
+			Vips:         vips,
 		}
 		*vsVipData = append(*vsVipData, vsVipCacheObj)
 	}
@@ -1030,11 +1035,17 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			fqdns = append(fqdns, *dnsinfo.Fqdn)
 		}
 
+		var vips []string
+		for _, vip := range vsvip.Vip {
+			vips = append(vips, *vip.IPAddress.Addr)
+		}
+
 		vsVipCacheObj := AviVSVIPCache{
 			Name:         *vsvip.Name,
 			Uuid:         *vsvip.UUID,
 			FQDNs:        fqdns,
 			LastModified: *vsvip.LastModified,
+			Vips:         vips,
 		}
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *vsvip.Name}
 		c.VSVIPCache.AviCacheAdd(k, &vsVipCacheObj)
@@ -1702,17 +1713,22 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				var poolgroupKeys []NamespaceName
 				var poolKeys []NamespaceName
 				var sharedVsOrL4 bool
-				if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
-					vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
-				}
+
 				// Populate the VSVIP cache
 				if vs["vsvip_ref"] != nil {
 					// find the vsvip name from the vsvip cache
 					vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
-					vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
+					vsVip, foundVip := c.VSVIPCache.AviCacheGet(vsVipUuid)
+
 					if foundVip {
-						vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
-						vsVipKey = append(vsVipKey, vipKey)
+						vsVipData, ok := vsVip.(*AviVSVIPCache)
+						if ok {
+							vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipData.Name}
+							vsVipKey = append(vsVipKey, vipKey)
+							if len(vsVipData.Vips) > 0 {
+								vip = vsVipData.Vips[0]
+							}
+						}
 					}
 				}
 				if vs["ssl_key_and_certificate_refs"] != nil {
@@ -1941,17 +1957,22 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				var poolgroupKeys []NamespaceName
 				var poolKeys []NamespaceName
 				var l4Keys []NamespaceName
-				if vs["vip"] != nil && len(vs["vip"].([]interface{})) > 0 {
-					vip = (vs["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
-				}
+
 				// Populate the VSVIP cache
 				if vs["vsvip_ref"] != nil {
 					// find the vsvip name from the vsvip cache
 					vsVipUuid := ExtractUuidWithoutHash(vs["vsvip_ref"].(string), "vsvip-.*.")
-					vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
+					vsVip, foundVip := c.VSVIPCache.AviCacheGet(vsVipUuid)
+
 					if foundVip {
-						vipKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: vsVipName.(string)}
-						vsVipKey = append(vsVipKey, vipKey)
+						vsVipData, ok := vsVip.(*AviVSVIPCache)
+						if ok {
+							vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipData.Name}
+							vsVipKey = append(vsVipKey, vipKey)
+							if len(vsVipData.Vips) > 0 {
+								vip = vsVipData.Vips[0]
+							}
+						}
 					}
 				}
 				if vs["ssl_key_and_certificate_refs"] != nil {

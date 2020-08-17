@@ -332,7 +332,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					vs_cache_obj))
 			}
 		}
-		vsvip, vipExists := resp["vip"].([]interface{})
+
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(k)
 		var svc_mdata_obj avicache.ServiceMetadataObj
@@ -343,13 +343,27 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				utils.AviLog.Warnf("Error parsing service metadata :%v", err)
 			}
 		}
+
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				if vipExists && len(vsvip) > 0 {
-					vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
-					vs_cache_obj.Vip = vip
-					utils.AviLog.Info(spew.Sprintf("key: %s, msg: updated vsvip to the cache: %s", key, vip))
+				if _, ok := resp["vsvip_ref"].(string); ok {
+					vsVipUuid := avicache.ExtractUuid(resp["vsvip_ref"].(string), "vsvip-.*.#")
+					vsVipName, vipFound := rest.cache.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
+					if vipFound {
+						vipKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
+						vsvip_cache, found := rest.cache.VSVIPCache.AviCacheGet(vipKey)
+						if found {
+							vsvip_cache_obj, ok := vsvip_cache.(*avicache.AviVSVIPCache)
+							if ok {
+								if len(vsvip_cache_obj.Vips) > 0 {
+									vip := vsvip_cache_obj.Vips[0]
+									vs_cache_obj.Vip = vip
+									utils.AviLog.Info(spew.Sprintf("key: %s, msg: updated vsvip to the cache: %s", key, vip))
+								}
+							}
+						}
+					}
 				}
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
@@ -409,11 +423,25 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			if lastModifiedStr == "" {
 				vs_cache_obj.InvalidData = true
 			}
-			if vipExists && len(vsvip) > 0 {
-				vip := (resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"]).(map[string]interface{})["addr"].(string)
-				vs_cache_obj.Vip = vip
-				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
+			if _, ok := resp["vsvip_ref"].(string); ok {
+				vsVipUuid := avicache.ExtractUuid(resp["vsvip_ref"].(string), "vsvip-.*.#")
+				vsVipName, vipFound := rest.cache.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
+				if vipFound {
+					vipKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
+					vsvip_cache, found := rest.cache.VSVIPCache.AviCacheGet(vipKey)
+					if found {
+						vsvip_cache_obj, ok := vsvip_cache.(*avicache.AviVSVIPCache)
+						if ok {
+							if len(vsvip_cache_obj.Vips) > 0 {
+								vip := vsvip_cache_obj.Vips[0]
+								vs_cache_obj.Vip = vip
+								utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
+							}
+						}
+					}
+				}
 			}
+
 			if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
 				// This service needs an update of the status
 				status.UpdateL4LBStatus([]status.UpdateStatusOptions{{
@@ -759,8 +787,32 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			}
 		}
 
+		var vsvipVips []string
+		if _, found := resp["vip"]; found {
+			if vips, ok := resp["vip"].([]interface{}); ok {
+				for _, vipsIntf := range vips {
+					vip, valid := vipsIntf.(map[string]interface{})
+					if !valid {
+						utils.AviLog.Infof("key: %s, msg: invalid type for vip in vsvip: %s", key, name)
+						continue
+					}
+					ip_address, valid := vip["ip_address"].(map[string]interface{})
+					if !valid {
+						utils.AviLog.Infof("key: %s, msg: invalid type for ip_address in vsvip: %s", key, name)
+						continue
+					}
+					addr, valid := ip_address["addr"].(string)
+					if !valid {
+						utils.AviLog.Infof("key: %s, msg: invalid type for addr in vsvip: %s", key, name)
+						continue
+					}
+					vsvipVips = append(vsvipVips, addr)
+				}
+			}
+		}
+
 		vsvip_cache_obj := avicache.AviVSVIPCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid: uuid, LastModified: lastModifiedStr, FQDNs: vsvipFQDNs}
+			Uuid: uuid, LastModified: lastModifiedStr, FQDNs: vsvipFQDNs, Vips: vsvipVips}
 		if lastModifiedStr == "" {
 			vsvip_cache_obj.InvalidData = true
 		}
