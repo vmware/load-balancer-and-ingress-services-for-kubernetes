@@ -221,6 +221,20 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 	return ingressConfig
 }
 
+func (v *Validator) HasValidBackends(routeSpec routev1.RouteSpec, routeName, key string) bool {
+	svcList := make(map[string]bool)
+	toSvc := routeSpec.To.Name
+	svcList[toSvc] = true
+	for _, altBackend := range routeSpec.AlternateBackends {
+		if _, found := svcList[altBackend.Name]; found {
+			utils.AviLog.Warnf("key: %s, msg: multiple backends with name %s found for route: %s, won't sync", key, altBackend.Name, routeName)
+			return false
+		}
+		svcList[altBackend.Name] = true
+	}
+	return true
+}
+
 func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec routev1.RouteSpec, key string) IngressConfig {
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
