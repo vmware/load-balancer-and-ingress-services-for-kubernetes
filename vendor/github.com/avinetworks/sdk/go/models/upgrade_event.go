@@ -7,7 +7,7 @@ package models
 // swagger:model UpgradeEvent
 type UpgradeEvent struct {
 
-	// Time taken to complete upgrade event in seconds. Field introduced in 18.2.6.
+	// Time taken to complete upgrade event in seconds. Field introduced in 18.2.6. Unit is SEC.
 	Duration *int32 `json:"duration,omitempty"`
 
 	// Task end time. Field introduced in 18.2.6.

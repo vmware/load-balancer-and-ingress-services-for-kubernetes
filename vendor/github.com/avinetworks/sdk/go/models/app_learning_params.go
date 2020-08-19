@@ -19,9 +19,9 @@ type AppLearningParams struct {
 	// Minimum number of occurances required for a Param to qualify for learning. Field introduced in 18.2.5.
 	MinHitsToLearn *int64 `json:"min_hits_to_learn,omitempty"`
 
-	// Percent of the requests subjected to Application learning. Allowed values are 1-100. Field introduced in 18.2.3.
+	// Percent of the requests subjected to Application learning. Allowed values are 1-100. Field introduced in 18.2.3. Unit is PERCENT.
 	SamplingPercent *int32 `json:"sampling_percent,omitempty"`
 
-	// Frequency with which SE publishes Application learning data to controller. Allowed values are 1-10080. Field introduced in 18.2.3.
+	// Frequency with which SE publishes Application learning data to controller. Allowed values are 1-60. Field introduced in 18.2.3. Unit is MIN.
 	UpdateInterval *int32 `json:"update_interval,omitempty"`
 }

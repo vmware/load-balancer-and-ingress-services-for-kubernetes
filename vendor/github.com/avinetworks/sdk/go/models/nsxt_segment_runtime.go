@@ -14,6 +14,9 @@ type NsxtSegmentRuntime struct {
 	// Nsxt segment belongs to cloud. It is a reference to an object of type Cloud. Field introduced in 20.1.1.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
+	// V6 DHCP ranges configured in Nsxt. Field introduced in 20.1.1.
+	Dhcp6Ranges []string `json:"dhcp6_ranges,omitempty"`
+
 	// IP address management scheme for this Segment associated network. Field introduced in 20.1.1.
 	DhcpEnabled *bool `json:"dhcp_enabled,omitempty"`
 
@@ -35,6 +38,9 @@ type NsxtSegmentRuntime struct {
 	// Segment Gateway. Field introduced in 20.1.1.
 	SegmentGw *string `json:"segment_gw,omitempty"`
 
+	// V6 segment Gateway. Field introduced in 20.1.1.
+	SegmentGw6 *string `json:"segment_gw6,omitempty"`
+
 	// Segment Id. Field introduced in 20.1.1.
 	SegmentID *string `json:"segment_id,omitempty"`
 
@@ -42,7 +48,10 @@ type NsxtSegmentRuntime struct {
 	Segname *string `json:"segname,omitempty"`
 
 	// Segment Cidr. Field introduced in 20.1.1.
-	Subnet *IPAddrPrefix `json:"subnet,omitempty"`
+	Subnet *string `json:"subnet,omitempty"`
+
+	// V6 Segment Cidr. Field introduced in 20.1.1.
+	Subnet6 *string `json:"subnet6,omitempty"`
 
 	// Nsxt segment belongs to tenant. It is a reference to an object of type Tenant. Field introduced in 20.1.1.
 	TenantRef *string `json:"tenant_ref,omitempty"`

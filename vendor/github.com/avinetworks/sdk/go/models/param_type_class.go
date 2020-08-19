@@ -7,9 +7,9 @@ package models
 // swagger:model ParamTypeClass
 type ParamTypeClass struct {
 
-	// Number of hits.
+	//  Field introduced in 20.1.1.
 	Hits *int64 `json:"hits,omitempty"`
 
-	//  Enum options - PARAM_FLAG, PARAM_DIGITS, PARAM_HEXDIGITS, PARAM_WORD, PARAM_SAFE_TEXT, PARAM_SAFE_TEXT_MULTILINE, PARAM_TEXT, PARAM_TEXT_MULTILINE, PARAM_ALL.
+	//  Enum options - PARAM_FLAG, PARAM_DIGITS, PARAM_HEXDIGITS, PARAM_WORD, PARAM_SAFE_TEXT, PARAM_SAFE_TEXT_MULTILINE, PARAM_TEXT, PARAM_TEXT_MULTILINE, PARAM_ALL. Field introduced in 20.1.1.
 	Type *string `json:"type,omitempty"`
 }

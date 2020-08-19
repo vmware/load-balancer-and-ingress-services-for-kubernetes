@@ -10,7 +10,7 @@ type PoolDeploymentUpdateInfo struct {
 	// Pool deployment state used with the PG deployment policy. Enum options - EVALUATION_IN_PROGRESS, IN_SERVICE, OUT_OF_SERVICE, EVALUATION_FAILED.
 	DeploymentState *string `json:"deployment_state,omitempty"`
 
-	// Evaluation period for deployment update.
+	// Evaluation period for deployment update. Unit is SEC.
 	EvaluationDuration *int32 `json:"evaluation_duration,omitempty"`
 
 	// Operational traffic ratio for the pool.

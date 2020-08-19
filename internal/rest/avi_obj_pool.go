@@ -17,7 +17,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
+	"strings"
 
 	avicache "github.com/avinetworks/ako/internal/cache"
 	"github.com/avinetworks/ako/internal/lib"
@@ -42,16 +44,52 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	vrfContextRef := "/api/vrfcontext?name=" + pool_meta.VrfContext
 
+	placementNetworks := []*avimodels.PlacementNetwork{}
+	nodeNetworkName := lib.GetNodeNetworkName()
+	networkRef := "/api/network/?name=" + nodeNetworkName
+	nodeNetworkCIDRs := lib.GetNodeNetworkCIDRs()
+
+	// set pool placement network if node network details are present
+	if nodeNetworkName != "" {
+
+		for _, cidr := range nodeNetworkCIDRs {
+			placementNetwork := avimodels.PlacementNetwork{}
+			placementNetwork.NetworkRef = &networkRef
+			_, ipnet, err := net.ParseCIDR(cidr)
+			if err != nil {
+				utils.AviLog.Warnf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
+				break
+			}
+			addr := ipnet.IP.String()
+			atype := "V4"
+			if !utils.IsV4(addr) {
+				atype = "V6"
+			}
+
+			mask := strings.Split(cidr, "/")[1]
+			intCidr, err := strconv.ParseInt(mask, 10, 32)
+			if err != nil {
+				utils.AviLog.Warnf("The value of CIDR couldn't be converted to int32.")
+				break
+			}
+			int32Cidr := int32(intCidr)
+
+			placementNetwork.Subnet = &avimodels.IPAddrPrefix{IPAddr: &avimodels.IPAddr{Addr: &addr, Type: &atype}, Mask: &int32Cidr}
+			placementNetworks = append(placementNetworks, &placementNetwork)
+		}
+	}
+
 	pool := avimodels.Pool{
-		Name:             &name,
-		CloudConfigCksum: &cksumString,
-		CreatedBy:        &cr,
-		TenantRef:        &tenant,
-		CloudRef:         &cloudRef,
-		ServiceMetadata:  &svc_mdata,
-		VrfRef:           &vrfContextRef,
-		SniEnabled:       &pool_meta.SniEnabled,
-		SslProfileRef:    &pool_meta.SslProfileRef,
+		Name:              &name,
+		CloudConfigCksum:  &cksumString,
+		CreatedBy:         &cr,
+		TenantRef:         &tenant,
+		CloudRef:          &cloudRef,
+		ServiceMetadata:   &svc_mdata,
+		VrfRef:            &vrfContextRef,
+		SniEnabled:        &pool_meta.SniEnabled,
+		SslProfileRef:     &pool_meta.SslProfileRef,
+		PlacementNetworks: placementNetworks,
 	}
 
 	if pool_meta.PkiProfile != nil {

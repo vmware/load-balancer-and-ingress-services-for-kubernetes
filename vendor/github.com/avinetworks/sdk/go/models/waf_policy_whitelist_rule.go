@@ -28,6 +28,6 @@ type WafPolicyWhitelistRule struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// Percentage of traffic that is sampled. Allowed values are 0-100. Field introduced in 20.1.1.
+	// Percentage of traffic that is sampled. Allowed values are 0-100. Field introduced in 20.1.1. Unit is PERCENT.
 	SamplingPercent *int32 `json:"sampling_percent,omitempty"`
 }

@@ -45,6 +45,12 @@ const (
 )
 
 const (
+	PatchAddOp     string = "add"
+	PatchReplaceOp string = "replace"
+	PatchDeleteOp  string = "delete"
+)
+
+const (
 	INFORMERS_INSTANTIATE_ONCE string = "instantiateOnce"
 	INFORMERS_OPENSHIFT_CLIENT string = "oshiftClient"
 	INFORMERS_NAMESPACE        string = "namespace"

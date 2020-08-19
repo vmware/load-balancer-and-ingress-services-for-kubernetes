@@ -10,7 +10,7 @@ type SystemUpgradeState struct {
 	// upgrade state from controller.
 	ControllerState *ControllerUpgradeState `json:"controller_state,omitempty"`
 
-	// upgrade duration. Field introduced in 17.1.1.
+	// upgrade duration. Field introduced in 17.1.1. Unit is SEC.
 	Duration *int32 `json:"duration,omitempty"`
 
 	// upgrade end time. Field introduced in 17.1.1.

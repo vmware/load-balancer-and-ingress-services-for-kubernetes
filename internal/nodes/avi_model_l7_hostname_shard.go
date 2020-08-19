@@ -354,6 +354,9 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				certsBuilt = true
 			}
 		}
+		if lib.GetSEGName() != lib.DEFAULT_GROUP {
+			sniNode.ServiceEngineGroup = lib.GetSEGName()
+		}
 		sniNode.VrfContext = lib.GetVrf()
 		if !certsBuilt {
 			certsBuilt = aviModel.(*AviObjectGraph).BuildTlsCertNode(routeIgrObj.GetSvcLister(), sniNode, namespace, tlssetting, key, sniHost)

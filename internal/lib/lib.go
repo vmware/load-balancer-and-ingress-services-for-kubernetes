@@ -267,6 +267,38 @@ func GetNetworkName() string {
 	return ""
 }
 
+func GetSEGName() string {
+	segName := os.Getenv(SEG_NAME)
+	if segName != "" {
+		return segName
+	}
+	return ""
+}
+
+func GetNodeNetworkName() string {
+	nodeNetworkName := os.Getenv(NODE_NETWORK_NAME)
+	if nodeNetworkName != "" {
+		return nodeNetworkName
+	}
+	return ""
+}
+
+func GetNodeNetworkCIDRs() []string {
+	nodeNetworkCidrStr := os.Getenv(NODE_NETWORK_CIDRS)
+	nodeNetworkCIDRs := []string{}
+	if nodeNetworkCidrStr == "" {
+		return nodeNetworkCIDRs
+	}
+	nodeNetworkCIDRs = strings.Split(nodeNetworkCidrStr, "-")
+	for i := range nodeNetworkCIDRs {
+		nodeNetworkCIDRs[i] = strings.TrimSpace(nodeNetworkCIDRs[i])
+	}
+	if len(nodeNetworkCIDRs) > 1 {
+		return nodeNetworkCIDRs[1:]
+	}
+	return nodeNetworkCIDRs
+}
+
 func GetDomain() string {
 	subDomain := os.Getenv(DEFAULT_DOMAIN)
 	if subDomain != "" {
@@ -300,7 +332,14 @@ func ShutdownApi() {
 }
 
 func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
-	return (utils.Hash(vrfName) + utils.Hash(utils.Stringify(staticRoutes)))
+	clusterName := GetClusterName()
+	filteredStaticRoutes := []*models.StaticRoute{}
+	for _, staticRoute := range staticRoutes {
+		if strings.HasPrefix(*staticRoute.RouteID, clusterName) {
+			filteredStaticRoutes = append(filteredStaticRoutes, staticRoute)
+		}
+	}
+	return utils.Hash(utils.Stringify(filteredStaticRoutes))
 }
 
 func DSChecksum(pgrefs []string) uint32 {
@@ -400,4 +439,17 @@ func GetPassthroughShardVSName(s string, key string) string {
 	vsName := shardVsPrefix + fmt.Sprint(vsNum)
 	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
 	return vsName
+}
+
+// GetLabels returns the key value pair used for tagging the segroups and routes in vrfcontext
+func GetLabels() []*models.KeyValue {
+	clusterName := GetClusterName()
+	labelKey := "clustername"
+	kv := &models.KeyValue{
+		Key:   &labelKey,
+		Value: &clusterName,
+	}
+	labels := []*models.KeyValue{}
+	labels = append(labels, kv)
+	return labels
 }
