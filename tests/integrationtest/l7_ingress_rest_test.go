@@ -227,11 +227,17 @@ func TestUpdatePoolCacheSync(t *testing.T) {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 
-	g.Eventually(func() []avinodes.AviPoolMetaServer {
+	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		vs := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return vs[0].PoolRefs[0].Servers
-	}, 5*time.Second).Should(gomega.HaveLen(2))
+		if len(vs) < 1 {
+			return 0
+		}
+		if len(vs[0].PoolRefs) < 1 {
+			return 0
+		}
+		return len(vs[0].PoolRefs[0].Servers)
+	}, 60*time.Second).Should(gomega.Equal(2))
 
 	g.Eventually(func() string {
 		if poolCache, found := mcache.PoolCache.AviCacheGet(poolKey); found {
