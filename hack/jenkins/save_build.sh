@@ -41,7 +41,7 @@ CHARTS_PATH="$(get_git_ws)/helm/ako"
 
 build_version=$(bash $BUILD_VERSION_SCRIPT "dummy" $BUILD_NUMBER)
 
-target_path=/mnt/builds/ako/$BRANCH/ci-build-$build_version
+target_path=/mnt/builds/ako_OS/$BRANCH/ci-build-$build_version
 
 sudo mkdir -p $target_path
 
