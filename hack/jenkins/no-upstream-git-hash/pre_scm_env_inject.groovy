@@ -91,7 +91,7 @@ ako_map = get_essential_mapping("${ako_branch}",
                                 "ako-${ako_branch}-ci-build", 
                                 "${ako_build_num}",
                                 "${AKO_NO_UPSTREAM_GIT_HASH}",
-                                "/mnt/builds/ako/${ako_branch}")
+                                "/mnt/builds/ako_OS/${ako_branch}")
 
 
 
