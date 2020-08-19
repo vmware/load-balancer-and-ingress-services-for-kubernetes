@@ -45,7 +45,7 @@ FILE_LOCATION_COMMIT_INFO = "/tmp/commit-stats.json"
 # Exclude commits list
 EXCLUDE_COMMITS_LIST = []
 
-# Name of the avinetworks/ako GIT branch for which the dev commits must be fetched
+# Name of the vmware/load-balancer-and-ingress-services-for-kubernetes GIT branch for which the dev commits must be fetched
 BRANCH_NAME = 'dummy-nonexistent-branch'
 
 # Since criterion value, timestamp for 'since-time' mode, commit SHA for 'since-commit' mode
@@ -316,7 +316,7 @@ def _setup_args():
                        required=True,
                        action='store',
                        type=str,
-                       help='The name of the avinetworks/ako.git GIT repository branch for which the developer commits must be fetched')
+                       help='The name of the vmware/load-balancer-and-ingress-services-for-kubernetes.git GIT repository branch for which the developer commits must be fetched')
     
         p.add_argument('-s',
                        '--since',

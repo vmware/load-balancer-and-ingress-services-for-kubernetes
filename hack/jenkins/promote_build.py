@@ -70,7 +70,7 @@ FILE_LOCATION_BUILDS_DETAILS = "builds_details.json"
 FILE_LOCATION_HEAD_COMMIT = "HEAD_COMMIT"
 
 # Root folder of the builds archival location
-ROOT_FOLDER_BUILDS_ARCHIVAL = '/mnt/builds/ako'
+ROOT_FOLDER_BUILDS_ARCHIVAL = '/mnt/builds/ako_OS'
 
 # Common tag which appears at the beginning of every builds folder
 COMMON_BUILDS_TAG = 'ci-build-'
@@ -109,7 +109,7 @@ GIT_USER = 'nobody'
 GIT_PASS = 'my-very-private-password'
 
 # Partial Github URL to ako GIT repository
-URL_GITHUB_AVI_DEV = 'github.com/avinetworks/ako.git'
+URL_GITHUB_AVI_DEV = 'github.com/vmware/load-balancer-and-ingress-services-for-kubernetes.git'
 
 
 def _setup_logging():
