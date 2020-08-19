@@ -30,6 +30,10 @@ configs:
   serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
   nodeNetworkName: "" # Network name of the node network
   nodeNetworkCIDRs: [] # List of CIDR of node network where the nodes are created.
+  ## Advanced L4 allows users to control VS settings using the services-api. This disables all Ingress/Route features.
+  ## Forces the L4 syncing to use Gateway object.
+  advancedL4: "false"
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

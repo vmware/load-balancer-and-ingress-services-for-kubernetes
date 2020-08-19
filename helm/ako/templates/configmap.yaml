@@ -22,6 +22,7 @@ data:
   l7ShardingScheme: {{ .Values.configs.l7ShardingScheme | quote }}
   logLevel: {{ .Values.configs.logLevel | quote }}
   deleteConfig: {{ .Values.configs.deleteConfig | quote }}
+  advancedL4: {{ .Values.configs.advancedL4 | quote }}
   {{ if .Values.configs.syncNamespace  }}
   syncNamespace: {{ .Values.configs.syncNamespace | quote }}
   {{ end }}

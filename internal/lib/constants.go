@@ -33,6 +33,7 @@ const (
 	NODE_NETWORK_CIDRS                         = "NODE_NETWORK_CIDRS"
 	L7_SHARD_SCHEME                            = "L7_SHARD_SCHEME"
 	DEFAULT_DOMAIN                             = "DEFAULT_DOMAIN"
+	ADVANCED_L4                                = "ADVANCED_L4"
 	CLUSTER_NAME                               = "CLUSTER_NAME"
 	CLOUD_VCENTER                              = "CLOUD_VCENTER"
 	CLOUD_AZURE                                = "CLOUD_AZURE"
