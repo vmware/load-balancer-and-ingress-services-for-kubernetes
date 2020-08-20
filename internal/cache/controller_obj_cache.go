@@ -862,7 +862,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 		}
 
 		var pkiKey NamespaceName
-		if *pool.PkiProfileRef != "" {
+		if pool.PkiProfileRef != nil {
 			pkiUuid := ExtractUuid(*pool.PkiProfileRef, "pkiprofile-.*.#")
 			pkiName, foundPki := c.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
@@ -1721,15 +1721,18 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				if vs["vsvip_ref"] != nil {
 					// find the vsvip name from the vsvip cache
 					vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
-					vsVip, foundVip := c.VSVIPCache.AviCacheGet(vsVipUuid)
+					objKey, objFound := c.VSVIPCache.AviCacheGetKeyByUuid(vsVipUuid)
 
-					if foundVip {
-						vsVipData, ok := vsVip.(*AviVSVIPCache)
-						if ok {
-							vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipData.Name}
-							vsVipKey = append(vsVipKey, vipKey)
-							if len(vsVipData.Vips) > 0 {
-								vip = vsVipData.Vips[0]
+					if objFound {
+						vsVip, foundVip := c.VSVIPCache.AviCacheGet(objKey)
+						if foundVip {
+							vsVipData, ok := vsVip.(*AviVSVIPCache)
+							if ok {
+								vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipData.Name}
+								vsVipKey = append(vsVipKey, vipKey)
+								if len(vsVipData.Vips) > 0 {
+									vip = vsVipData.Vips[0]
+								}
 							}
 						}
 					}
