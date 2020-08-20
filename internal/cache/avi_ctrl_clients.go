@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/sdk/go/session"
 
 	"github.com/avinetworks/ako/pkg/api/models"
 	"github.com/avinetworks/ako/pkg/utils"
@@ -55,6 +56,13 @@ func SharedAVIClients() *utils.AviRestClientPool {
 				if err != nil {
 					connectionStatus = utils.AVIAPI_DISCONNECTED
 					utils.AviLog.Error("AVI controller initilization failed")
+				}
+				// set the tenant and controller version in avisession obj
+				for _, client := range AviClientInstance.AviClient {
+					SetTenant := session.SetTenant(lib.GetTenant())
+					SetTenant(client.AviSession)
+					SetVersion := session.SetVersion(utils.CtrlVersion)
+					SetVersion(client.AviSession)
 				}
 			}
 		} else {
