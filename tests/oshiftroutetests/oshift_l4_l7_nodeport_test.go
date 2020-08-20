@@ -613,3 +613,62 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	TearDownTestForRouteInNodePort(t, DefaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
 }
+
+func TestPassthroughRouteInNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	integrationtest.SetNodePortMode()
+	defer integrationtest.SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
+	defer integrationtest.DeleteNode(t, "testNodeNP")
+
+	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidatePassthroughModel(t, g, DefaultPassthroughModel)
+	graph := aviModel.(*avinodes.AviObjectGraph)
+	vs := graph.GetAviVS()[0]
+	VerifyOnePasthrough(t, g, vs)
+
+	g.Expect(vs.PassthroughChildNodes).To(gomega.HaveLen(0))
+
+	VerifyPassthroughRouteDeletion(t, g, DefaultPassthroughModel, 0, 0)
+	TearDownTestForRouteInNodePort(t, DefaultPassthroughModel)
+}
+
+func TestPassthroughRouteDelSvcInNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	integrationtest.SetNodePortMode()
+	defer integrationtest.SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
+	defer integrationtest.DeleteNode(t, "testNodeNP")
+
+	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidatePassthroughModel(t, g, DefaultPassthroughModel)
+	graph := aviModel.(*avinodes.AviObjectGraph)
+	vs := graph.GetAviVS()[0]
+
+	VerifyOnePasthrough(t, g, vs)
+
+	// verify server is deleted from pool after deleting service
+	integrationtest.DelSVC(t, "default", "avisvc")
+	g.Eventually(func() int {
+		return len(vs.PoolRefs[0].Servers)
+	}, 60*time.Second).Should(gomega.Equal(0))
+
+	VerifyPassthroughRouteDeletion(t, g, DefaultPassthroughModel, 0, 0)
+	objects.SharedAviGraphLister().Delete(DefaultPassthroughModel)
+}
