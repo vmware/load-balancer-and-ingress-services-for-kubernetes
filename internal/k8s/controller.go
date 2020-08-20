@@ -341,258 +341,258 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 		},
 	}
-
-	ingress_event_handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ingress, ok := utils.ToNetworkingIngress(obj)
-			if !ok {
-				utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
-			}
-
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			key := utils.Ingress + "/" + utils.ObjKey(ingress)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ingress, ok := utils.ToNetworkingIngress(obj)
-			if !ok {
-				// ingress was deleted but its final state is unrecorded.
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+	if !lib.GetAdvancedL4() {
+		ingress_event_handler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
 					return
 				}
-				ingress, ok = tombstone.Obj.(*v1beta1.Ingress)
+				ingress, ok := utils.ToNetworkingIngress(obj)
 				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
-					return
+					utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
 				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			key := utils.Ingress + "/" + utils.ObjKey(ingress)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oldobj, okOld := utils.ToNetworkingIngress(old)
-			ingress, okNew := utils.ToNetworkingIngress(cur)
-			if !okOld || !okNew {
-				utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
-			}
 
-			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
-		},
-	}
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ingress, ok := utils.ToNetworkingIngress(obj)
+				if !ok {
+					// ingress was deleted but its final state is unrecorded.
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					ingress, ok = tombstone.Obj.(*v1beta1.Ingress)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
+				key := utils.Ingress + "/" + utils.ObjKey(ingress)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldobj, okOld := utils.ToNetworkingIngress(old)
+				ingress, okNew := utils.ToNetworkingIngress(cur)
+				if !okOld || !okNew {
+					utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
+				}
 
-	secret_event_handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			secret := obj.(*corev1.Secret)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
-			key := "Secret" + "/" + utils.ObjKey(secret)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			secret, ok := obj.(*corev1.Secret)
-			if !ok {
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+				if isIngressUpdated(oldobj, ingress) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
+					key := utils.Ingress + "/" + utils.ObjKey(ingress)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			},
+		}
+
+		secret_event_handler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
 					return
 				}
-				secret, ok = tombstone.Obj.(*corev1.Secret)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
-					return
-				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
-			key := "Secret" + "/" + utils.ObjKey(secret)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oldobj := old.(*corev1.Secret)
-			secret := cur.(*corev1.Secret)
-			if oldobj.ResourceVersion != secret.ResourceVersion {
-				// Only add the key if the resource versions have changed.
+				secret := obj.(*corev1.Secret)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 				key := "Secret" + "/" + utils.ObjKey(secret)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
-		},
-	}
-
-	node_event_handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			node := obj.(*corev1.Node)
-			key := utils.NodeObj + "/" + node.Name
-			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			node, ok := obj.(*corev1.Node)
-			if !ok {
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-					return
-				}
-				node, ok = tombstone.Obj.(*corev1.Node)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Node: %#v", obj)
-					return
-				}
-			}
-			key := utils.NodeObj + "/" + node.Name
-			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oldobj := old.(*corev1.Node)
-			node := cur.(*corev1.Node)
-			key := utils.NodeObj + "/" + node.Name
-			if isNodeUpdated(oldobj, node) {
-				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			} else {
-				utils.AviLog.Debugf("key: %s, msg: node object did not change\n", key)
-			}
-		},
-	}
-
-	if lib.GetCNIPlugin() == lib.CALICO_CNI {
-		block_affinity_handler := cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				utils.AviLog.Debugf("calico blockaffinity ADD Event")
-				if c.DisableSync {
-					return
-				}
-				crd := obj.(*unstructured.Unstructured)
-				specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
-				if err != nil || !found {
-					utils.AviLog.Warnf("calico blockaffinity spec not found: %+v", err)
-					return
-				}
-				key := utils.NodeObj + "/" + specJSON["name"]
-				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			},
 			DeleteFunc: func(obj interface{}) {
-				utils.AviLog.Debugf("calico blockaffinity DELETE Event")
 				if c.DisableSync {
 					return
 				}
-				crd := obj.(*unstructured.Unstructured)
-				specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
-				if err != nil || !found {
-					utils.AviLog.Warnf("calico blockaffinity spec not found: %+v", err)
+				secret, ok := obj.(*corev1.Secret)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					secret, ok = tombstone.Obj.(*corev1.Secret)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+				key := "Secret" + "/" + utils.ObjKey(secret)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
 					return
 				}
-				key := utils.NodeObj + "/" + specJSON["name"]
-				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
+				oldobj := old.(*corev1.Secret)
+				secret := cur.(*corev1.Secret)
+				if oldobj.ResourceVersion != secret.ResourceVersion {
+					// Only add the key if the resource versions have changed.
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+					key := "Secret" + "/" + utils.ObjKey(secret)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
 			},
 		}
 
-		c.dynamicInformers.CalicoBlockAffinityInformer.Informer().AddEventHandler(block_affinity_handler)
-	}
-
-	if lib.GetCNIPlugin() == lib.OPENSHIFT_CNI {
-		host_subnet_handler := cache.ResourceEventHandlerFuncs{
+		node_event_handler := cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				utils.AviLog.Debugf("hostsubnets ADD Event")
 				if c.DisableSync {
 					return
 				}
-				crd := obj.(*unstructured.Unstructured)
-				host, found, err := unstructured.NestedString(crd.UnstructuredContent(), "host")
-				if err != nil || !found {
-					utils.AviLog.Warnf("hostsubnet host not found: %+v", err)
-					return
-				}
-
-				key := utils.NodeObj + "/" + host
+				node := obj.(*corev1.Node)
+				key := utils.NodeObj + "/" + node.Name
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			},
 			DeleteFunc: func(obj interface{}) {
-				utils.AviLog.Debugf("hostsubnets DELETE Event")
 				if c.DisableSync {
 					return
 				}
-				crd := obj.(*unstructured.Unstructured)
-				host, found, err := unstructured.NestedString(crd.UnstructuredContent(), "host")
-				if err != nil || !found {
-					utils.AviLog.Warnf("hostsubnet host not found: %+v", err)
-					return
+				node, ok := obj.(*corev1.Node)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					node, ok = tombstone.Obj.(*corev1.Node)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an Node: %#v", obj)
+						return
+					}
 				}
-				key := utils.NodeObj + "/" + host
+				key := utils.NodeObj + "/" + node.Name
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldobj := old.(*corev1.Node)
+				node := cur.(*corev1.Node)
+				key := utils.NodeObj + "/" + node.Name
+				if isNodeUpdated(oldobj, node) {
+					bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				} else {
+					utils.AviLog.Debugf("key: %s, msg: node object did not change\n", key)
+				}
 			},
 		}
 
-		c.dynamicInformers.HostSubnetInformer.Informer().AddEventHandler(host_subnet_handler)
-	}
+		if lib.GetCNIPlugin() == lib.CALICO_CNI {
+			block_affinity_handler := cache.ResourceEventHandlerFuncs{
+				AddFunc: func(obj interface{}) {
+					utils.AviLog.Debugf("calico blockaffinity ADD Event")
+					if c.DisableSync {
+						return
+					}
+					crd := obj.(*unstructured.Unstructured)
+					specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+					if err != nil || !found {
+						utils.AviLog.Warnf("calico blockaffinity spec not found: %+v", err)
+						return
+					}
+					key := utils.NodeObj + "/" + specJSON["name"]
+					bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				},
+				DeleteFunc: func(obj interface{}) {
+					utils.AviLog.Debugf("calico blockaffinity DELETE Event")
+					if c.DisableSync {
+						return
+					}
+					crd := obj.(*unstructured.Unstructured)
+					specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+					if err != nil || !found {
+						utils.AviLog.Warnf("calico blockaffinity spec not found: %+v", err)
+						return
+					}
+					key := utils.NodeObj + "/" + specJSON["name"]
+					bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				},
+			}
 
+			c.dynamicInformers.CalicoBlockAffinityInformer.Informer().AddEventHandler(block_affinity_handler)
+		}
+
+		if lib.GetCNIPlugin() == lib.OPENSHIFT_CNI {
+			host_subnet_handler := cache.ResourceEventHandlerFuncs{
+				AddFunc: func(obj interface{}) {
+					utils.AviLog.Debugf("hostsubnets ADD Event")
+					if c.DisableSync {
+						return
+					}
+					crd := obj.(*unstructured.Unstructured)
+					host, found, err := unstructured.NestedString(crd.UnstructuredContent(), "host")
+					if err != nil || !found {
+						utils.AviLog.Warnf("hostsubnet host not found: %+v", err)
+						return
+					}
+
+					key := utils.NodeObj + "/" + host
+					bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				},
+				DeleteFunc: func(obj interface{}) {
+					utils.AviLog.Debugf("hostsubnets DELETE Event")
+					if c.DisableSync {
+						return
+					}
+					crd := obj.(*unstructured.Unstructured)
+					host, found, err := unstructured.NestedString(crd.UnstructuredContent(), "host")
+					if err != nil || !found {
+						utils.AviLog.Warnf("hostsubnet host not found: %+v", err)
+						return
+					}
+					key := utils.NodeObj + "/" + host
+					bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				},
+			}
+
+			c.dynamicInformers.HostSubnetInformer.Informer().AddEventHandler(host_subnet_handler)
+		}
+		if c.informers.IngressInformer != nil {
+			c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
+			c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
+		}
+
+		if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" && !lib.IsNodePortMode() {
+			utils.AviLog.Infof("Static route sync disabled, skipping node informers")
+		} else {
+			c.informers.NodeInformer.Informer().AddEventHandler(node_event_handler)
+		}
+	}
 	c.informers.EpInformer.Informer().AddEventHandler(ep_event_handler)
 	c.informers.ServiceInformer.Informer().AddEventHandler(svc_event_handler)
-	if c.informers.IngressInformer != nil {
-		c.informers.IngressInformer.Informer().AddEventHandler(ingress_event_handler)
-		c.informers.SecretInformer.Informer().AddEventHandler(secret_event_handler)
-	}
 
-	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" && !lib.IsNodePortMode() {
-		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
-	} else {
-		c.informers.NodeInformer.Informer().AddEventHandler(node_event_handler)
-	}
-
-	if c.informers.RouteInformer != nil {
+	if c.informers.RouteInformer != nil && !lib.GetAdvancedL4() {
 		routeEventHandler := AddRouteEventHandler(numWorkers, c)
 		c.informers.RouteInformer.Informer().AddEventHandler(routeEventHandler)
 	}
@@ -617,46 +617,50 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
-	if c.informers.IngressInformer != nil {
-		go c.informers.IngressInformer.Informer().Run(stopCh)
-		go c.informers.SecretInformer.Informer().Run(stopCh)
-	}
-	if c.informers.RouteInformer != nil {
-		go c.informers.RouteInformer.Informer().Run(stopCh)
-	}
-	go c.informers.NodeInformer.Informer().Run(stopCh)
-	go c.informers.NSInformer.Informer().Run(stopCh)
+	// Disable all informers if we are in advancedL4 mode. We expect to only provide L4 load balancing capability for this feature.
+	if !lib.GetAdvancedL4() {
+		if c.informers.IngressInformer != nil {
+			go c.informers.IngressInformer.Informer().Run(stopCh)
+			go c.informers.SecretInformer.Informer().Run(stopCh)
+		}
+		if c.informers.RouteInformer != nil {
+			go c.informers.RouteInformer.Informer().Run(stopCh)
+		}
+		go c.informers.NodeInformer.Informer().Run(stopCh)
+		go c.informers.NSInformer.Informer().Run(stopCh)
 
-	if lib.GetCNIPlugin() == lib.CALICO_CNI {
-		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
-	}
-	if lib.GetCNIPlugin() == lib.OPENSHIFT_CNI {
-		go c.dynamicInformers.HostSubnetInformer.Informer().Run(stopCh)
-	}
+		if lib.GetCNIPlugin() == lib.CALICO_CNI {
+			go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
+		}
+		if lib.GetCNIPlugin() == lib.OPENSHIFT_CNI {
+			go c.dynamicInformers.HostSubnetInformer.Informer().Run(stopCh)
+		}
 
-	go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
-	go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
+		go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
+		go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
 
-	// separate wait steps to try getting hostrules synced first,
-	// since httprule has a key relation to hostrules.
-	if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for HostRule caches to sync"))
-	}
-	if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for HTTPRule caches to sync"))
+		// separate wait steps to try getting hostrules synced first,
+		// since httprule has a key relation to hostrules.
+		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {
+			runtime.HandleError(fmt.Errorf("Timed out waiting for HostRule caches to sync"))
+		}
+		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced) {
+			runtime.HandleError(fmt.Errorf("Timed out waiting for HTTPRule caches to sync"))
+		}
 	}
 	utils.AviLog.Info("CRD caches synced")
-
 	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
-		c.informers.NodeInformer.Informer().HasSynced,
 		c.informers.NSInformer.Informer().HasSynced,
 	}
-	if c.informers.RouteInformer != nil {
+	if !lib.GetAdvancedL4() {
+		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)
+	}
+	if c.informers.RouteInformer != nil && !lib.GetAdvancedL4() {
 		informersList = append(informersList, c.informers.RouteInformer.Informer().HasSynced)
 	}
-	if c.informers.IngressInformer != nil {
+	if c.informers.IngressInformer != nil && !lib.GetAdvancedL4() {
 		informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
 		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 	}

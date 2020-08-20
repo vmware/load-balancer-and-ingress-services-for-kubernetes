@@ -307,6 +307,16 @@ func GetDomain() string {
 	return ""
 }
 
+// This utility returns a true/false depending on whether
+// the user requires advanced L4 functionality
+func GetAdvancedL4() bool {
+	advanceL4 := os.Getenv(ADVANCED_L4)
+	if advanceL4 == "true" {
+		return true
+	}
+	return false
+}
+
 func GetClusterName() string {
 	clusterName := os.Getenv(CLUSTER_NAME)
 	if clusterName != "" {

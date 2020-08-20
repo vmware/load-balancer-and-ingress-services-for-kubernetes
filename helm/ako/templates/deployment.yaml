@@ -164,6 +164,11 @@ spec:
                 name: avi-k8s-config
                 key: nodeValue
           {{ end }}
+          - name: ADVANCED_L4
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: advancedL4
           {{ if .Values.persistentVolumeClaim }}
           - name: USE_PVC
             value: "true"
