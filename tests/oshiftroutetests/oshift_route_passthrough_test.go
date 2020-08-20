@@ -98,17 +98,29 @@ func VerifyPassthroughRouteDeletion(t *testing.T, g *gomega.WithT, modelName str
 
 func VerifyOnePasthrough(t *testing.T, g *gomega.WithT, vs *avinodes.AviVsNode) {
 
-	g.Expect(vs.HTTPDSrefs[0].PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Eventually(func() int {
+		if len(vs.HTTPDSrefs) < 1 {
+			return 0
+		}
+		return len(vs.HTTPDSrefs[0].PoolGroupRefs)
+	}, 60*time.Second).Should(gomega.Equal(1))
+
 	g.Expect(vs.HTTPDSrefs[0].PoolGroupRefs[0]).To(gomega.Equal("cluster--foo.com"))
 
 	g.Expect(vs.PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(vs.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--foo.com"))
-	g.Expect(vs.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+
+	g.Eventually(func() int {
+		return len(vs.PoolGroupRefs[0].Members)
+	}, 60*time.Second).Should(gomega.Equal(1))
 	g.Expect(*vs.PoolGroupRefs[0].Members[0].PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com-avisvc"))
 
 	g.Expect(vs.PoolRefs).To(gomega.HaveLen(1))
 	g.Expect(vs.PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com-avisvc"))
-	g.Expect(vs.PoolRefs[0].Servers).To(gomega.HaveLen(1))
+
+	g.Eventually(func() int {
+		return len(vs.PoolRefs[0].Servers)
+	}, 60*time.Second).Should(gomega.Equal(1))
 
 	g.Expect(vs.VSVIPRefs[0].FQDNs[0]).To(gomega.Equal("foo.com"))
 }
