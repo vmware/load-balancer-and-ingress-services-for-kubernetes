@@ -113,8 +113,17 @@ func DequeueIngestion(key string, fullsync bool) {
 	} else {
 		handleIngress(key, fullsync, ingressNames)
 	}
+
+	// handle the services APIs
 	if lib.GetAdvancedL4() {
-		// This block of code is all about handling the services APIs.
+		// Only Service type has a valid schema,
+		// treating L4LBService as Service, to fetch the schema
+		if objType == utils.L4LBService {
+			schema, valid = ConfigDescriptor().GetByType(utils.Service)
+			if !valid {
+				return
+			}
+		}
 		gateways, gatewayFound := schema.GetParentGateways(name, namespace, key)
 		// Now walk down from the gateway and construct the VS.
 		if gatewayFound {

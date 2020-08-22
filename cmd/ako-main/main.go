@@ -29,6 +29,7 @@ import (
 	"github.com/avinetworks/ako/pkg/utils"
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+	advl4 "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -53,6 +54,7 @@ func InitializeAKOApi() {
 }
 
 func InitializeAKC() {
+	var err error
 	kubeCluster := false
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
@@ -71,16 +73,26 @@ func InitializeAKC() {
 		}
 	}
 
+	var crdClient *crd.Clientset
+	var advl4Client *advl4.Clientset
+	if lib.GetAdvancedL4() {
+		advl4Client, err = advl4.NewForConfig(cfg)
+		if err != nil {
+			utils.AviLog.Fatalf("Error building service-api clientset: %s", err.Error())
+		}
+		lib.SetAdvL4Clientset(advl4Client)
+	} else {
+		crdClient, err = crd.NewForConfig(cfg)
+		if err != nil {
+			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
+		}
+		lib.SetCRDClientset(crdClient)
+	}
+
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
 	if err != nil {
 		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
 	}
-
-	crdClient, err := crd.NewForConfig(cfg)
-	if err != nil {
-		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
-	}
-	lib.SetCRDClientset(crdClient)
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -103,7 +115,11 @@ func InitializeAKC() {
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient)
-	k8s.NewCRDInformers(crdClient)
+	if lib.GetAdvancedL4() {
+		k8s.NewAdvL4Informers(advl4Client)
+	} else {
+		k8s.NewCRDInformers(crdClient)
+	}
 
 	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
 	c := k8s.SharedAviController()

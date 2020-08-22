@@ -325,26 +325,6 @@ func (c *AviController) FullSyncK8s() {
 		}
 	}
 
-	hostRuleObjs, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules("").List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
-	} else {
-		for _, hostRuleObj := range hostRuleObjs {
-			key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
-			nodes.DequeueIngestion(key, true)
-		}
-	}
-
-	httpRuleObjs, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules("").List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the httprules during full sync: %s", err)
-	} else {
-		for _, httpRuleObj := range httpRuleObjs {
-			key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
-			nodes.DequeueIngestion(key, true)
-		}
-	}
-
 	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
@@ -361,26 +341,48 @@ func (c *AviController) FullSyncK8s() {
 		}
 	}
 
-	if utils.GetInformers().IngressInformer != nil {
-		ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
+	if !lib.GetAdvancedL4() {
+		hostRuleObjs, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules("").List(labels.Set(nil).AsSelector())
 		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+			utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
 		} else {
-			for _, ingObj := range ingObjs {
-				key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+			for _, hostRuleObj := range hostRuleObjs {
+				key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
-	}
-	if utils.GetInformers().RouteInformer != nil {
-		ingObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
+
+		httpRuleObjs, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules("").List(labels.Set(nil).AsSelector())
 		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
+			utils.AviLog.Errorf("Unable to retrieve the httprules during full sync: %s", err)
 		} else {
-			for _, ingObj := range ingObjs {
-				// to do move to container-lib
-				key := utils.OshiftRoute + "/" + utils.ObjKey(ingObj)
+			for _, httpRuleObj := range httpRuleObjs {
+				key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
 				nodes.DequeueIngestion(key, true)
+			}
+		}
+
+		if utils.GetInformers().IngressInformer != nil {
+			ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+			} else {
+				for _, ingObj := range ingObjs {
+					key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+		}
+		if utils.GetInformers().RouteInformer != nil {
+			ingObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
+			} else {
+				for _, ingObj := range ingObjs {
+					// to do move to container-lib
+					key := utils.OshiftRoute + "/" + utils.ObjKey(ingObj)
+					nodes.DequeueIngestion(key, true)
+				}
 			}
 		}
 	}

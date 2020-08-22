@@ -45,6 +45,7 @@ var (
 		Type:               "Endpoints",
 		GetParentIngresses: EPToIng,
 		GetParentRoutes:    EPToRoute,
+		GetParentGateways:  EPToGateway,
 	}
 	Node = GraphSchema{
 		Type:               "Node",
@@ -83,6 +84,7 @@ var (
 		Node,
 		HostRule,
 		HTTPRule,
+		Gateway,
 	}
 )
 
@@ -150,7 +152,7 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 			objects.ServiceGWLister().SvcGWMappings(namespace).DeleteSvcToGwMapping(svcName)
 		}
 	}
-	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved:  %v", key, gateways)
+	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved: %v", key, gateways)
 	if len(gateways) == 0 {
 		return nil, false
 	}
@@ -169,9 +171,19 @@ func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 	return gateways, found
 }
 
+// networking.x-k8s.io/gateway-name: <>
+// networking.x-k8s.io/gateway-namespace: <>
 func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
 	var gateways []string
 	gateways = append(gateways, gwName)
+	myGw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Remove all the Gateway to Services mapping.
+		}
+	} else {
+		utils.AviLog.Debugf("%+v", utils.Stringify(myGw))
+	}
 	return gateways, true
 }
 
