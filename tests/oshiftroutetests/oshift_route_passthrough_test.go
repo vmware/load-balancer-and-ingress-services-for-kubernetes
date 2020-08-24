@@ -252,7 +252,7 @@ func TestPassthroughToInsecureRoute(t *testing.T) {
 		passnodes := passthroughModel.(*avinodes.AviObjectGraph).GetAviVS()
 		vsvipNode := passnodes[0].VSVIPRefs[0]
 		return len(vsvipNode.FQDNs)
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 50*time.Second).Should(gomega.Equal(0))
 
 	aviModel := ValidateModelCommon(t, g)
 	pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
@@ -303,7 +303,7 @@ func TestInsecureToPassthroughRoute(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(false))
+	}, 50*time.Second).Should(gomega.Equal(false))
 
 	aviModel := ValidatePassthroughModel(t, g, DefaultPassthroughModel)
 	graph := aviModel.(*avinodes.AviObjectGraph)
@@ -338,7 +338,7 @@ func TestPassthroughToSecureRoute(t *testing.T) {
 		passnodes := passthroughModel.(*avinodes.AviObjectGraph).GetAviVS()
 		vsvipNode := passnodes[0].VSVIPRefs[0]
 		return len(vsvipNode.FQDNs)
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 50*time.Second).Should(gomega.Equal(0))
 
 	aviModel := ValidateSniModel(t, g, DefaultModelName)
 

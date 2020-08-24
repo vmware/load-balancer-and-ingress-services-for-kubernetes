@@ -219,12 +219,12 @@ func VerifyRouteDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, po
 	g.Eventually(func() []*avinodes.AviPoolNode {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolRefs
-	}, 20*time.Second).Should(gomega.HaveLen(poolCount))
+	}, 50*time.Second).Should(gomega.HaveLen(poolCount))
 
 	g.Eventually(func() []*models.PoolGroupMember {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolGroupRefs[0].Members
-	}, 20*time.Second).Should(gomega.HaveLen(poolCount))
+	}, 50*time.Second).Should(gomega.HaveLen(poolCount))
 }
 
 func ValidateModelCommon(t *testing.T, g *gomega.GomegaWithT) interface{} {
@@ -654,8 +654,12 @@ func TestAlternateBackendUpdatePath(t *testing.T) {
 
 	aviModel := ValidateModelCommon(t, g)
 
+	var nodes []*avinodes.AviVsNode
+	g.Eventually(func() []*avinodes.AviPoolNode {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].PoolRefs
+	}, 50*time.Second).Should(gomega.HaveLen(2))
 	pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
-	g.Expect(pools).To(gomega.HaveLen(2))
 	for _, pool := range pools {
 		if pool.Name == "cluster--foo.com_bar-default-foo-avisvc" || pool.Name == "cluster--foo.com_bar-default-foo-absvc2" {
 			g.Expect(len(pool.Servers)).To(gomega.Equal(1))

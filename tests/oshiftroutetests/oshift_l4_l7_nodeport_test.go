@@ -513,7 +513,7 @@ func TestSecureRouteInNodePort(t *testing.T) {
 	g.Eventually(func() string {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return sniVS.VHDomainNames[0]
-	}, 20*time.Second).Should(gomega.Equal(DefaultHostname))
+	}, 50*time.Second).Should(gomega.Equal(DefaultHostname))
 	VerifySniNode(g, sniVS)
 
 	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
@@ -547,7 +547,7 @@ func TestSecureToInsecureRouteInNodePort(t *testing.T) {
 	g.Eventually(func() int {
 		sniNodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes
 		return len(sniNodes)
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 50*time.Second).Should(gomega.Equal(0))
 
 	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
 	TearDownTestForRouteInNodePort(t, DefaultModelName)
@@ -583,7 +583,7 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	g.Eventually(func() string {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return sniVS.VHDomainNames[0]
-	}, 20*time.Second).Should(gomega.Equal(DefaultHostname))
+	}, 50*time.Second).Should(gomega.Equal(DefaultHostname))
 
 	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
@@ -591,7 +591,7 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	g.Eventually(func() int {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return len(sniVS.PoolRefs)
-	}, 20*time.Second).Should(gomega.Equal(2))
+	}, 50*time.Second).Should(gomega.Equal(2))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
