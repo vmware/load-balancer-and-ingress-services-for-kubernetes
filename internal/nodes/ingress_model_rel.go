@@ -35,6 +35,7 @@ var (
 		Type:               "Service",
 		GetParentIngresses: SvcToIng,
 		GetParentRoutes:    SvcToRoute,
+		GetParentGateways:  SvcToGateway,
 	}
 	Ingress = GraphSchema{
 		Type:               "Ingress",
@@ -69,6 +70,10 @@ var (
 		GetParentIngresses: HTTPRuleToIng,
 		GetParentRoutes:    HTTPRuleToIng,
 	}
+	Gateway = GraphSchema{
+		Type:              "Gateway",
+		GetParentGateways: GatewayChanges,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		Service,
@@ -85,6 +90,7 @@ type GraphSchema struct {
 	Type               string
 	GetParentIngresses func(string, string, string) ([]string, bool)
 	GetParentRoutes    func(string, string, string) ([]string, bool)
+	GetParentGateways  func(string, string, string) ([]string, bool)
 }
 
 type GraphDescriptor []GraphSchema
@@ -135,10 +141,38 @@ func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
 	return routes, true
 }
 
+func SvcToGateway(svcName string, namespace string, key string) ([]string, bool) {
+	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	_, gateways := objects.ServiceGWLister().SvcGWMappings(namespace).GetSvcToGw(svcName)
+	if err != nil && errors.IsNotFound(err) {
+		// Garbage collect the svc if no route references exist
+		if len(gateways) == 0 {
+			objects.ServiceGWLister().SvcGWMappings(namespace).DeleteSvcToGwMapping(svcName)
+		}
+	}
+	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved:  %v", key, gateways)
+	if len(gateways) == 0 {
+		return nil, false
+	}
+	return gateways, true
+}
+
 func EPToRoute(epName string, namespace string, key string) ([]string, bool) {
 	routes, found := SvcToRoute(epName, namespace, key)
 	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved:  %v", key, routes)
 	return routes, found
+}
+
+func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
+	gateways, found := SvcToGateway(epName, namespace, key)
+	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved:  %v", key, gateways)
+	return gateways, found
+}
+
+func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
+	var gateways []string
+	gateways = append(gateways, gwName)
+	return gateways, true
 }
 
 func IngressChanges(ingName string, namespace string, key string) ([]string, bool) {

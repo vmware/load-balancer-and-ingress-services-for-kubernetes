@@ -87,7 +87,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		handleRoute(key, fullsync, routeNames)
 	}
 
-	if !ingressFound {
+	if !ingressFound && !lib.GetAdvancedL4() {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
@@ -112,6 +112,17 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	} else {
 		handleIngress(key, fullsync, ingressNames)
+	}
+	if lib.GetAdvancedL4() {
+		// This block of code is all about handling the services APIs.
+		gateways, gatewayFound := schema.GetParentGateways(name, namespace, key)
+		// Now walk down from the gateway and construct the VS.
+		if gatewayFound {
+			for _, gateway := range gateways {
+				aviModelGraph := NewAviObjectGraph()
+				aviModelGraph.BuildAdvancedL4Graph(namespace, gateway, key)
+			}
+		}
 	}
 }
 

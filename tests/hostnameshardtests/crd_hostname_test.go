@@ -49,7 +49,7 @@ func TestHostnameCreateHostRule(t *testing.T) {
 			}
 		}
 		return ""
-	}, 20*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
+	}, 50*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
@@ -169,7 +169,7 @@ func TestHostnameMultiIngressToSecureHostRule(t *testing.T) {
 			return len(nodes[0].SniNodes[0].PoolGroupRefs)
 		}
 		return 0
-	}, 20*time.Second).Should(gomega.Equal(2))
+	}, 50*time.Second).Should(gomega.Equal(2))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(0))
@@ -432,11 +432,11 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 	g.Eventually(func() bool {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
+		if len(nodes[0].SniNodes) > 0 && len(nodes[0].SniNodes[0].PoolRefs) > 0 && nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
 			return true
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 50*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
@@ -453,7 +453,7 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 			return true
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 50*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithm).To(gomega.Equal(""))

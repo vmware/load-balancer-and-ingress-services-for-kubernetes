@@ -46,7 +46,7 @@ func TestRouteCreateHostRule(t *testing.T) {
 	g.Eventually(func() string {
 		hostrule, _ := lib.GetCRDClientset().AkoV1alpha1().HostRules(DefaultNamespace).Get(hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
-	}, 20*time.Second).Should(gomega.Equal("Accepted"))
+	}, 50*time.Second).Should(gomega.Equal("Accepted"))
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
@@ -82,7 +82,7 @@ func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 	g.Eventually(func() string {
 		hostrule, _ := CRDClient.AkoV1alpha1().HostRules(DefaultNamespace).Get(hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
-	}, 20*time.Second).Should(gomega.Equal("Accepted"))
+	}, 50*time.Second).Should(gomega.Equal("Accepted"))
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
@@ -100,7 +100,7 @@ func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 			}
 		}
 		return ""
-	}, 20*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
+	}, 50*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
@@ -113,7 +113,7 @@ func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 			}
 		}
 		return ""
-	}, 20*time.Second).Should(gomega.Equal(""))
+	}, 50*time.Second).Should(gomega.Equal(""))
 	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
 	TearDownTestForRoute(t, DefaultModelName)
 }
@@ -140,7 +140,7 @@ func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
 			return len(vsCacheObj.SNIChildCollection)
 		}
 		return 100
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 50*time.Second).Should(gomega.Equal(0))
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
@@ -151,7 +151,7 @@ func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
 			return len(vsCacheObj.SNIChildCollection)
 		}
 		return 0
-	}, 20*time.Second).Should(gomega.Equal(1))
+	}, 50*time.Second).Should(gomega.Equal(1))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
@@ -483,7 +483,7 @@ func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 50*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
@@ -501,7 +501,7 @@ func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 50*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithm).To(gomega.Equal(""))

@@ -48,7 +48,6 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	if subDomains != nil {
 		var fqdn string
-
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := lib.GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
@@ -280,6 +279,27 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 		utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, svcName)
 		return
 	}
+	VsNode = o.ConstructAviL4VsNode(svcObj, key)
+	o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
+	o.AddModelNode(VsNode)
+	VsNode.CalculateCheckSum()
+	o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
+	utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
+	utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
+}
+
+func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
+	var VsNode *AviVsNode
+	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(gatewayName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, gatewayName)
+		return
+	}
+	// Get the gateway object here and pass information to constuctAviL4 information of IP address(if specified) and listeners.
+	// A gateway may refer more than 1 service in such a case, the correct pools have to be constructed.
+	// TODO: The below method should be changed.
 	VsNode = o.ConstructAviL4VsNode(svcObj, key)
 	o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
 	o.AddModelNode(VsNode)
