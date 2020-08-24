@@ -882,23 +882,24 @@ func (v *AviPkiProfileNode) CalculateCheckSum() {
 }
 
 type AviPoolNode struct {
-	Name             string
-	Tenant           string
-	CloudConfigCksum uint32
-	Port             int32
-	PortName         string
-	Servers          []AviPoolMetaServer
-	Protocol         string
-	LbAlgorithm      string
-	LbAlgorithmHash  string
-	LbAlgoHostHeader string
-	IngressName      string
-	PriorityLabel    string
-	ServiceMetadata  avicache.ServiceMetadataObj
-	SniEnabled       bool
-	SslProfileRef    string
-	PkiProfile       *AviPkiProfileNode
-	VrfContext       string
+	Name              string
+	Tenant            string
+	CloudConfigCksum  uint32
+	Port              int32
+	PortName          string
+	Servers           []AviPoolMetaServer
+	Protocol          string
+	LbAlgorithm       string
+	LbAlgorithmHash   string
+	LbAlgoHostHeader  string
+	IngressName       string
+	PriorityLabel     string
+	ServiceMetadata   avicache.ServiceMetadataObj
+	SniEnabled        bool
+	SslProfileRef     string
+	PkiProfile        *AviPkiProfileNode
+	VrfContext        string
+	PlacementNetworks map[string][]string
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -925,6 +926,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		utils.Stringify(v.SniEnabled),
 		v.SslProfileRef,
 		v.PriorityLabel,
+		utils.Stringify(v.PlacementNetworks),
 	}[:], delim))
 	checksum := utils.Hash(chksumStr)
 

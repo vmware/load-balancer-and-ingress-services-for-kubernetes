@@ -28,8 +28,18 @@ configs:
   deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI
   serviceType: ClusterIP #enum NodePort|ClusterIP
   serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
-  nodeNetworkName: "" # Network name of the node network
-  nodeNetworkCIDRs: [] # List of CIDR of node network where the nodes are created.
+  ## This list of network and cidrs are used in pool placement network for vcenter cloud.
+  ## Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
+  nodeNetworkList:[]
+  # nodeNetworkList:
+  #   - networkName: "network-name"
+  #     cidrs:
+  #       - 10.0.0.1/24
+  #       - 11.0.0.1/24
+  ## Advanced L4 allows users to control VS settings using the services-api. This disables all Ingress/Route features.
+  ## Forces the L4 syncing to use Gateway object.
+  advancedL4: "false"
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

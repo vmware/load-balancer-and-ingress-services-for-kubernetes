@@ -96,6 +96,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 			}
 			poolNode.VrfContext = lib.GetVrf()
 			if !lib.IsNodePortMode() {
+				poolNode.PlacementNetworks, _ = lib.GetNodeNetworkMap()
 				if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 					poolNode.Servers = servers
 				}
