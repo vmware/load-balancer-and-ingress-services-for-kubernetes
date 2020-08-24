@@ -143,14 +143,13 @@ func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
 
 func SvcToGateway(svcName string, namespace string, key string) ([]string, bool) {
 	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	_, gateways := objects.ServiceGWLister().SvcGWMappings(namespace).GetSvcToGw(svcName)
 	if err != nil && errors.IsNotFound(err) {
 		// Garbage collect the svc if no route references exist
-		_, gateways := objects.ServiceGWLister().SvcGWMappings(namespace).GetSvcToGw(svcName)
 		if len(gateways) == 0 {
 			objects.ServiceGWLister().SvcGWMappings(namespace).DeleteSvcToGwMapping(svcName)
 		}
 	}
-	_, gateways := objects.ServiceGWLister().SvcGWMappings(namespace).GetSvcToGw(svcName)
 	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved:  %v", key, gateways)
 	if len(gateways) == 0 {
 		return nil, false

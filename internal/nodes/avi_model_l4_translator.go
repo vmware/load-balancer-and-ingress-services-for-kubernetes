@@ -48,7 +48,6 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	if subDomains != nil {
 		var fqdn string
-
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := lib.GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
