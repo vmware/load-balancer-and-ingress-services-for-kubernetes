@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
 	os.Setenv("SEG_NAME", "Default-Group")
-	os.Setenv("NODE_NETWORK_NAME", "net123")
+	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(CRDClient)

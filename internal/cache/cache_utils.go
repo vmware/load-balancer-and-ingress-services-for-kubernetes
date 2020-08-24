@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/avinetworks/sdk/go/models"
 )
 
 type NamespaceName struct {
@@ -36,6 +37,7 @@ type AviPoolCache struct {
 	CloudConfigCksum     string
 	ServiceMetadataObj   ServiceMetadataObj
 	PkiProfileCollection NamespaceName
+	PlacementNetworks    []*models.PlacementNetwork
 	LastModified         string
 	InvalidData          bool
 }
