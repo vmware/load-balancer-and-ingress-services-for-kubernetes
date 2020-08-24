@@ -1,4 +1,11 @@
-  Apache License
+Load Balancer and Ingress Services for Kubernetes
+Copyright 2020 VMware, Inc.
+
+The Apache 2.0 license (the "License") set forth below applies to all parts of the Load Balancer and 
+Ingress Services for Kubernetes project. You may not use this file except in compliance with the License.
+
+Apache License 
+
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 
