@@ -105,7 +105,6 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		poolNode.VrfContext = lib.GetVrf()
 
 		if !lib.IsNodePortMode() {
-			poolNode.PlacementNetworks, _ = lib.GetNodeNetworkMap()
 			if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
 				poolNode.Servers = servers
 			}

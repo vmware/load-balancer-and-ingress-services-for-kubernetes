@@ -139,7 +139,6 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), PortName: obj.PortName, IngressName: ingName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: hostSlice}}
 						poolNode.VrfContext = lib.GetVrf()
 						if !lib.IsNodePortMode() {
-							poolNode.PlacementNetworks, _ = lib.GetNodeNetworkMap()
 							if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 								poolNode.Servers = servers
 							}
@@ -515,7 +514,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			}
 
 			if !lib.IsNodePortMode() {
-				poolNode.PlacementNetworks, _ = lib.GetNodeNetworkMap()
 				if servers := PopulateServers(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 					poolNode.Servers = servers
 				}

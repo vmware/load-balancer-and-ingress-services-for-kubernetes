@@ -53,7 +53,7 @@ oshiftroutetests:
 
 .PHONY: int_test
 int_test:
-	make -j 3 integrationtest hostnameshardtests oshiftroutetests
+	make -j 1 integrationtest hostnameshardtests oshiftroutetests
 
 .PHONY: scale_test
 scale_test:
