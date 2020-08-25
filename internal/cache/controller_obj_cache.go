@@ -2238,11 +2238,14 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 
 func ValidateUserInput(client *clients.AviClient) bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
-	isValid := CheckAndSetCloudType(client) && checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client) &&
-		CheckPublicCloud(client) && CheckSegroupLabels(client) && CheckNodeNetwork(client)
+	isCloudValid := CheckAndSetCloudType(client)
+	isSegroupValid := CheckSegroupLabels(client)
+	isNodeNetworkValid := CheckNodeNetwork(client)
+	isValid := isCloudValid && isSegroupValid && isNodeNetworkValid &&
+		CheckPublicCloud(client) && checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client)
 	if !isValid {
-		if !CheckAndSetCloudType(client) || !CheckSegroupLabels(client) {
-			utils.AviLog.Warn("Invalid cloud input detected, AKO will be rebooted to retry")
+		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid {
+			utils.AviLog.Warn("Invalid input detected, AKO will be rebooted to retry")
 			lib.ShutdownApi()
 		}
 		utils.AviLog.Warn("Invalid input detected, sync will be disabled.")
@@ -2325,10 +2328,24 @@ func CheckSegroupLabels(client *clients.AviClient) bool {
 		return false
 	}
 
+	if seg.UUID == nil {
+		utils.AviLog.Warnf("Failed to get UUID for Service Engine Group: %s", segName)
+		return false
+	}
+
 	labels := seg.Labels
 	if len(labels) == 0 {
-		utils.AviLog.Warnf("Labels are not set for SE group :%v. Expected Labels: %v", segName, utils.Stringify(lib.GetLabels()))
-		return false
+		uri = "/api/serviceenginegroup/" + *seg.UUID
+		seg.Labels = lib.GetLabels()
+		response := models.ServiceEngineGroupAPIResponse{}
+		err = AviPut(client, uri, seg, response)
+		if err != nil {
+			utils.AviLog.Warnf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+			return false
+		}
+		utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), segName)
+		return true
+
 	}
 
 	segLabelEq := reflect.DeepEqual(labels, lib.GetLabels())
@@ -2385,7 +2402,7 @@ func CheckPublicCloud(client *clients.AviClient) bool {
 		// Handle all public cloud validations here
 		networkName := lib.GetNetworkName()
 		if networkName == "" {
-			utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")
+			utils.AviLog.Errorf("Required param networkName not specified, syncing will be disabled.")
 			return false
 		}
 	}
@@ -2395,52 +2412,51 @@ func CheckPublicCloud(client *clients.AviClient) bool {
 
 func CheckNodeNetwork(client *clients.AviClient) bool {
 
-	// Not applicable for NodePort mode / disable route is set as True
-	if lib.IsPublicCloud() {
+	// Not applicable for NodePort mode and non vcenter clouds
+	if lib.IsNodePortMode() || lib.GetCloudType() != lib.CLOUD_VCENTER {
 		utils.AviLog.Infof("Skipping the check for Node Network ")
 		return true
 	}
 
 	// check if node network and cidr's are valid
-	nodeNetworkName := lib.GetNodeNetworkName()
-	if nodeNetworkName == "" {
-		utils.AviLog.Error("Required param nodeNetworkName not specified, syncing will be disabled.")
-		return false
-	}
-
-	uri := "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
-	result, err := AviGetCollectionRaw(client, uri)
+	nodeNetworkMap, err := lib.GetNodeNetworkMap()
 	if err != nil {
-		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
-		return false
-	}
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		utils.AviLog.Errorf("Fetching node network list failed with error: %s, syncing will be disabled.", err.Error())
 		return false
 	}
 
-	if result.Count == 0 {
-		utils.AviLog.Warnf("No networks found for networkName: %s", nodeNetworkName)
-		return false
-	}
+	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 
-	nodeNetworkCIDRs := lib.GetNodeNetworkCIDRs()
-
-	// set pool placement network if node network details are present
-
-	for _, cidr := range nodeNetworkCIDRs {
-		_, _, err := net.ParseCIDR(cidr)
+		uri := "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
+		result, err := AviGetCollectionRaw(client, uri)
 		if err != nil {
-			utils.AviLog.Warnf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 			return false
 		}
-		mask := strings.Split(cidr, "/")[1]
-		_, err = strconv.ParseInt(mask, 10, 32)
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
 		if err != nil {
-			utils.AviLog.Warnf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %s", err.Error())
 			return false
+		}
+
+		if result.Count == 0 {
+			utils.AviLog.Errorf("No networks found for networkName: %s", nodeNetworkName)
+			return false
+		}
+
+		for _, cidr := range nodeNetworkCIDRs {
+			_, _, err := net.ParseCIDR(cidr)
+			if err != nil {
+				utils.AviLog.Errorf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
+				return false
+			}
+			mask := strings.Split(cidr, "/")[1]
+			_, err = strconv.ParseInt(mask, 10, 32)
+			if err != nil {
+				utils.AviLog.Errorf("The value of CIDR couldn't be converted to int32")
+				return false
+			}
 		}
 	}
 
@@ -2537,6 +2553,18 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string) (session.AviColl
 
 func AviGet(client *clients.AviClient, uri string, response interface{}) error {
 	err := client.AviSession.Get(uri, &response)
+	if err != nil {
+		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		return err
+	}
+
+	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
+	return nil
+}
+
+func AviPut(client *clients.AviClient, uri string, payload interface{}, response interface{}) error {
+	err := client.AviSession.Put(uri, payload, &response)
+
 	if err != nil {
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		return err

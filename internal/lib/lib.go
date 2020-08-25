@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -275,28 +276,34 @@ func GetSEGName() string {
 	return ""
 }
 
-func GetNodeNetworkName() string {
-	nodeNetworkName := os.Getenv(NODE_NETWORK_NAME)
-	if nodeNetworkName != "" {
-		return nodeNetworkName
-	}
-	return ""
-}
+func GetNodeNetworkMap() (map[string][]string, error) {
 
-func GetNodeNetworkCIDRs() []string {
-	nodeNetworkCidrStr := os.Getenv(NODE_NETWORK_CIDRS)
-	nodeNetworkCIDRs := []string{}
-	if nodeNetworkCidrStr == "" {
-		return nodeNetworkCIDRs
+	nodeNetworkMap := make(map[string][]string)
+	type Row struct {
+		NetworkName string   `json:"networkName"`
+		Cidrs       []string `json:"cidrs"`
 	}
-	nodeNetworkCIDRs = strings.Split(nodeNetworkCidrStr, "-")
-	for i := range nodeNetworkCIDRs {
-		nodeNetworkCIDRs[i] = strings.TrimSpace(nodeNetworkCIDRs[i])
+	type nodeNetworkList []Row
+
+	nodeNetworkListStr := os.Getenv(NODE_NETWORK_LIST)
+	if nodeNetworkListStr == "" {
+		return nodeNetworkMap, fmt.Errorf("nodeNetworkList not set in values yaml")
 	}
-	if len(nodeNetworkCIDRs) > 1 {
-		return nodeNetworkCIDRs[1:]
+	var nodeNetworkListObj nodeNetworkList
+	err := json.Unmarshal([]byte(nodeNetworkListStr), &nodeNetworkListObj)
+	if err != nil {
+		return nodeNetworkMap, fmt.Errorf("Unable to unmarshall json for nodeNetworkMap")
 	}
-	return nodeNetworkCIDRs
+
+	if len(nodeNetworkListObj) > NODE_NETWORK_MAX_ENTRIES {
+		return nodeNetworkMap, fmt.Errorf("Maximum of %v entries are allowed for nodeNetworkMap", string(NODE_NETWORK_MAX_ENTRIES))
+	}
+
+	for _, nodeNetwork := range nodeNetworkListObj {
+		nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetwork.Cidrs
+	}
+
+	return nodeNetworkMap, nil
 }
 
 func GetDomain() string {

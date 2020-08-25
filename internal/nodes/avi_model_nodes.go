@@ -912,8 +912,9 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	sort.Slice(servers, func(i, j int) bool {
 		return *servers[i].Ip.Addr < *servers[j].Ip.Addr
 	})
+	// nodeNetworkMap is the placement nw details for the pool which is constand for the AKO instance.
+	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 	// A sum of fields for this Pool.
-
 	chksumStr := fmt.Sprintf(strings.Join([]string{
 		v.Protocol,
 		strconv.Itoa(int(v.Port)),
@@ -925,6 +926,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		utils.Stringify(v.SniEnabled),
 		v.SslProfileRef,
 		v.PriorityLabel,
+		utils.Stringify(nodeNetworkMap),
 	}[:], delim))
 	checksum := utils.Hash(chksumStr)
 
