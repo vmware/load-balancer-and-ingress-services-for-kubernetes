@@ -36,9 +36,7 @@ configs:
   #     cidrs:
   #       - 10.0.0.1/24
   #       - 11.0.0.1/24
-  ## Advanced L4 allows users to control VS settings using the services-api. This disables all Ingress/Route features.
-  ## Forces the L4 syncing to use Gateway object.
-  advancedL4: "false"
+
 
 imagePullSecrets: []
 nameOverride: ""
