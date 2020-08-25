@@ -292,14 +292,14 @@ func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName stri
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var VsNode *AviVsNode
+	// TODO: work around gateway object and fetch services 
 	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(gatewayName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, gatewayName)
 		return
 	}
-	// Get the gateway object here and pass information to constuctAviL4 information of IP address(if specified) and listeners.
-	// A gateway may refer more than 1 service in such a case, the correct pools have to be constructed.
-	// TODO: The below method should be changed.
+
+	// for gatewayName, fetch all valid services for gw.listener
 	VsNode = o.ConstructAviL4VsNode(svcObj, key)
 	o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
 	o.AddModelNode(VsNode)
