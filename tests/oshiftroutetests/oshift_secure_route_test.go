@@ -76,8 +76,12 @@ func ValidateSniModel(t *testing.T, g *gomega.GomegaWithT, modelName string, red
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 50*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+
+	g.Eventually(func() int {
+		return len(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes)
+	}, 50*time.Second).Should(gomega.Equal(1))
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 
 	g.Expect(len(nodes)).To(gomega.Equal(1))

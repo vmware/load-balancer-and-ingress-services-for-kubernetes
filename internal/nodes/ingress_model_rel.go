@@ -111,6 +111,7 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 			objects.OshiftRouteSvcLister().IngressMappings(namespace).RemoveIngressMappings(routeName)
 		}
 	} else {
+		validateRouteSpecFromHostnameCache(key, namespace, routeName, routeObj.Spec)
 		services := parseServicesForRoute(routeObj.Spec, key)
 		for _, svc := range services {
 			utils.AviLog.Debugf("key: %s, msg: updating route relationship for service:  %s", key, svc)

@@ -68,6 +68,14 @@ func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec v1beta1.Ingr
 	return
 }
 
+func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec routev1.RouteSpec) {
+	nsRoute := ns + "/" + routeName
+	found, val := SharedHostNameLister().GetHostPathStoreIngresses(routeSpec.Host, routeSpec.Path)
+	if found && len(val) > 0 && utils.HasElem(val, nsRoute) && len(val) > 1 {
+		utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in routes: %+v", key, nsRoute, routeSpec.Host, routeSpec.Path, utils.Stringify(val))
+	}
+}
+
 func sslKeyCertHostRulePresent(key, host string) (bool, string) {
 	if lib.GetShardScheme() == "namespace" {
 		return false, ""
@@ -219,20 +227,6 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 	ingressConfig.IngressHostMap = hostMap
 	utils.AviLog.Infof("key: %s, msg: host path config from ingress: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig
-}
-
-func (v *Validator) HasValidBackends(routeSpec routev1.RouteSpec, routeName, key string) bool {
-	svcList := make(map[string]bool)
-	toSvc := routeSpec.To.Name
-	svcList[toSvc] = true
-	for _, altBackend := range routeSpec.AlternateBackends {
-		if _, found := svcList[altBackend.Name]; found {
-			utils.AviLog.Warnf("key: %s, msg: multiple backends with name %s found for route: %s, won't sync", key, altBackend.Name, routeName)
-			return false
-		}
-		svcList[altBackend.Name] = true
-	}
-	return true
 }
 
 func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec routev1.RouteSpec, key string) IngressConfig {
