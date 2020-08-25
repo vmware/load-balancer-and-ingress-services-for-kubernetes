@@ -364,15 +364,12 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 			}
 		}
 
-		placementNetworks := c.GetPlacementNetworksForPool()
-
 		poolCacheObj := AviPoolCache{
 			Name:                 *pool.Name,
 			Uuid:                 *pool.UUID,
 			CloudConfigCksum:     *pool.CloudConfigCksum,
 			PkiProfileCollection: pkiKey,
 			ServiceMetadataObj:   svc_mdata_obj,
-			PlacementNetworks:    placementNetworks,
 			LastModified:         *pool.LastModified,
 		}
 		*poolData = append(*poolData, poolCacheObj)
@@ -421,47 +418,6 @@ func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, over
 		utils.AviLog.Infof("Deleting key from pki cache :%s", key)
 		c.PKIProfileCache.AviCacheDelete(key)
 	}
-}
-
-func (c *AviObjCache) GetPlacementNetworksForPool() []*models.PlacementNetwork {
-
-	placementNetworks := []*models.PlacementNetwork{}
-	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
-
-	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER
-	if len(nodeNetworkMap) != 0 && lib.GetCloudType() == lib.CLOUD_VCENTER {
-
-		for network, cidrs := range nodeNetworkMap {
-			for _, cidr := range cidrs {
-				placementNetwork := models.PlacementNetwork{}
-				networkRef := "/api/network/?name=" + network
-				placementNetwork.NetworkRef = &networkRef
-				_, ipnet, err := net.ParseCIDR(cidr)
-				if err != nil {
-					utils.AviLog.Warnf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
-					break
-				}
-				addr := ipnet.IP.String()
-				atype := "V4"
-				if !utils.IsV4(addr) {
-					atype = "V6"
-				}
-
-				mask := strings.Split(cidr, "/")[1]
-				intCidr, err := strconv.ParseInt(mask, 10, 32)
-				if err != nil {
-					utils.AviLog.Warnf("The value of CIDR couldn't be converted to int32.")
-					break
-				}
-				int32Cidr := int32(intCidr)
-
-				placementNetwork.Subnet = &models.IPAddrPrefix{IPAddr: &models.IPAddr{Addr: &addr, Type: &atype}, Mask: &int32Cidr}
-				placementNetworks = append(placementNetworks, &placementNetwork)
-			}
-
-		}
-	}
-	return placementNetworks
 }
 
 func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
@@ -913,7 +869,6 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 				pkiKey = NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
 			}
 		}
-		placementNetworks := c.GetPlacementNetworksForPool()
 
 		poolCacheObj := AviPoolCache{
 			Name:                 *pool.Name,
@@ -921,7 +876,6 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 			CloudConfigCksum:     *pool.CloudConfigCksum,
 			PkiProfileCollection: pkiKey,
 			ServiceMetadataObj:   svc_mdata_obj,
-			PlacementNetworks:    placementNetworks,
 			LastModified:         *pool.LastModified,
 		}
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *pool.Name}
@@ -2374,6 +2328,11 @@ func CheckSegroupLabels(client *clients.AviClient) bool {
 		return false
 	}
 
+	if seg.UUID == nil {
+		utils.AviLog.Warnf("Failed to get UUID for Service Engine Group: %s", segName)
+		return false
+	}
+
 	labels := seg.Labels
 	if len(labels) == 0 {
 		uri = "/api/serviceenginegroup/" + *seg.UUID
@@ -2381,9 +2340,10 @@ func CheckSegroupLabels(client *clients.AviClient) bool {
 		response := models.ServiceEngineGroupAPIResponse{}
 		err = AviPut(client, uri, seg, response)
 		if err != nil {
-			utils.AviLog.Warnf("Setting labels on segroup :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+			utils.AviLog.Warnf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
 			return false
 		}
+		utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), segName)
 		return true
 
 	}
@@ -2494,7 +2454,7 @@ func CheckNodeNetwork(client *clients.AviClient) bool {
 			mask := strings.Split(cidr, "/")[1]
 			_, err = strconv.ParseInt(mask, 10, 32)
 			if err != nil {
-				utils.AviLog.Errorf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
+				utils.AviLog.Errorf("The value of CIDR couldn't be converted to int32")
 				return false
 			}
 		}
