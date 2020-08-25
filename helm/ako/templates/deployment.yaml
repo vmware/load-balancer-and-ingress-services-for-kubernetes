@@ -137,16 +137,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: serviceEngineGroupName
-          - name: NODE_NETWORK_NAME
+          - name: NODE_NETWORK_LIST
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: nodeNetworkName
-          - name: NODE_NETWORK_CIDRS
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: nodeNetworkCIDRs
+                key: nodeNetworkList
           - name: SERVICE_TYPE
             valueFrom:
               configMapKeyRef:

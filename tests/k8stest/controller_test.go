@@ -99,8 +99,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
 	os.Setenv("SEG_NAME", "Default-Group")
-	os.Setenv("NODE_NETWORK_NAME", "net123")
-	os.Setenv("NODE_NETWORK_CIDRS", "- 10.0.0.5/24\n- 10.0.0.5/28")
+	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	crdClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(crdClient)
 
