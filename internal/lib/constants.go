@@ -76,6 +76,7 @@ const (
 	LB_ALGORITHM_CONSISTENT_HASH               = "LB_ALGORITHM_CONSISTENT_HASH"
 	Gateway                                    = "Gateway"
 	GatewayClass                               = "GatewayClass"
+	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
 )
 
 const (
