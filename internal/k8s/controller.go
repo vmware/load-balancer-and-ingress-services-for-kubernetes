@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/avinetworks/ako/internal/lib"
+	"github.com/avinetworks/ako/internal/status"
 
 	"github.com/avinetworks/ako/pkg/utils"
 
@@ -148,10 +149,11 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 		AddFunc: func(obj interface{}) {
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
-			//To Do: Add to container-lib
-			//key := utils.Route + "/" + utils.ObjKey(route)
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
 			bkt := utils.Bkt(namespace, numWorkers)
+			if !lib.HasValidBackends(route.Spec, route.Name, namespace, key) {
+				status.UpdateRouteStatusWithErrMsg(route.Name, namespace, lib.DuplicateBackends)
+			}
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
@@ -188,6 +190,9 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
 				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
 				bkt := utils.Bkt(namespace, numWorkers)
+				if !lib.HasValidBackends(newRoute.Spec, newRoute.Name, namespace, key) {
+					status.UpdateRouteStatusWithErrMsg(newRoute.Name, namespace, lib.DuplicateBackends)
+				}
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
