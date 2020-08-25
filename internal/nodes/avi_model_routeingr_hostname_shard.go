@@ -69,8 +69,7 @@ func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error,
 		return &routeModel, err, processObj
 	}
 	routeModel.spec = routeObj.Spec
-	o := NewNodesValidator()
-	if !o.HasValidBackends(routeObj.Spec, name, namespace, key) {
+	if !lib.HasValidBackends(routeObj.Spec, name, namespace, key) {
 		err := errors.New("validation failed for alternate backends for route: " + name)
 		return &routeModel, err, false
 	}

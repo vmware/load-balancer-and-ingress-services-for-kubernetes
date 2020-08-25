@@ -25,6 +25,7 @@ import (
 	"github.com/avinetworks/ako/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
+	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -462,4 +463,18 @@ func GetLabels() []*models.KeyValue {
 	labels := []*models.KeyValue{}
 	labels = append(labels, kv)
 	return labels
+}
+
+func HasValidBackends(routeSpec routev1.RouteSpec, routeName, namespace, key string) bool {
+	svcList := make(map[string]bool)
+	toSvc := routeSpec.To.Name
+	svcList[toSvc] = true
+	for _, altBackend := range routeSpec.AlternateBackends {
+		if _, found := svcList[altBackend.Name]; found {
+			utils.AviLog.Warnf("key: %s, msg: multiple backends with name %s found for route: %s", key, altBackend.Name, routeName)
+			return false
+		}
+		svcList[altBackend.Name] = true
+	}
+	return true
 }
