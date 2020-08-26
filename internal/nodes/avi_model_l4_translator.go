@@ -288,27 +288,6 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 	utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 }
 
-func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {
-	o.Lock.Lock()
-	defer o.Lock.Unlock()
-	var VsNode *AviVsNode
-	// TODO: work around gateway object and fetch services 
-	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(gatewayName)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, gatewayName)
-		return
-	}
-
-	// for gatewayName, fetch all valid services for gw.listener
-	VsNode = o.ConstructAviL4VsNode(svcObj, key)
-	o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
-	o.AddModelNode(VsNode)
-	VsNode.CalculateCheckSum()
-	o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
-	utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
-	utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
-}
-
 func GetDefaultSubDomain() []string {
 	cache := avicache.SharedAviObjCache()
 	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)

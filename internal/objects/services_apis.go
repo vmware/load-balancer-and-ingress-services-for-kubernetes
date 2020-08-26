@@ -30,49 +30,154 @@ var gwonce sync.Once
 func ServiceGWLister() *SvcGWLister {
 	gwonce.Do(func() {
 		gwsvclister = &SvcGWLister{
-			gwSvcStore: NewObjectStore(),
+			GwClassGWStore:   NewObjectMapStore(),
+			GwGwClassStore:   NewObjectMapStore(),
+			GwListenersStore: NewObjectMapStore(),
+			SvcGWStore:       NewObjectMapStore(),
+			GwSvcsStore:      NewObjectMapStore(),
 		}
 	})
 	return gwsvclister
 }
 
 type SvcGWLister struct {
-	gwSvcStore *ObjectStore
+	SvcGWLock sync.RWMutex
+
+	// gwclass -> [ns1/gw1, ns1/gw2, ns2/gw3]
+	GwClassGWStore *ObjectMapStore
+
+	// nsX/gw1 -> gwclass
+	GwGwClassStore *ObjectMapStore
+
+	// the protocol and port mapped here are of the gateway listener config
+	// that has the appropriate labels
+	// nsX/gw1 -> [proto1/port1, proto2/port2]
+	GwListenersStore *ObjectMapStore
+
+	// ns1/svc -> nsX/gw1
+	SvcGWStore *ObjectMapStore
+
+	// the protocol and port mapped here are of the service
+	// nsX/gw1 -> {ns1/svc1: proto1/port1, ns2/svc2: proto2/port2, ...}
+	GwSvcsStore *ObjectMapStore
 }
 
-type SvcGWNSCache struct {
-	namespace  string
-	svcGWStore *ObjectMapStore
-	svcGWLock  sync.RWMutex
-}
-
-func (v *SvcGWLister) SvcGWMappings(ns string) *SvcGWNSCache {
-	return &SvcGWNSCache{
-		namespace:  ns,
-		svcGWStore: v.gwSvcStore.GetNSStore(ns),
-	}
-}
-
-//=====All service to gateway mappings go here. The mappings are updated only if the Gateway validation is successful in layer 1.
-// TODO : Do we have to map the services to listeners of the gateway instead of the gateway as as a whole?
-
-func (v *SvcGWNSCache) GetSvcToGw(svcName string) (bool, []string) {
-	// Need checks if it's found or not?
-	found, gwNames := v.svcGWStore.Get(svcName)
+// Gateway <-> GatewayClass
+func (v *SvcGWLister) GetGWclassToGateways(gwclass string) (bool, []string) {
+	found, gatewayList := v.GwClassGWStore.Get(gwclass)
 	if !found {
 		return false, make([]string, 0)
 	}
-	return true, gwNames.([]string)
+	return true, gatewayList.([]string)
 }
 
-func (v *SvcGWNSCache) DeleteSvcToGwMapping(svcName string) bool {
-	// Need checks if it's found or not?
-	success := v.svcGWStore.Delete(svcName)
+func (v *SvcGWLister) GetGatewayToGWclass(gateway string) (bool, string) {
+	found, gwClass := v.GwGwClassStore.Get(gateway)
+	if !found {
+		return false, ""
+	}
+	return true, gwClass.(string)
+}
+
+func (v *SvcGWLister) UpdateGatewayGWclassMappings(gateway, gwclass string) {
+	v.SvcGWLock.Lock()
+	defer v.SvcGWLock.Unlock()
+	_, gatewayList := v.GetGWclassToGateways(gwclass)
+	if !utils.HasElem(gatewayList, gateway) {
+		gatewayList = append(gatewayList, gateway)
+	}
+	v.GwClassGWStore.AddOrUpdate(gwclass, gatewayList)
+	v.GwGwClassStore.AddOrUpdate(gateway, gwclass)
+}
+
+func (v *SvcGWLister) RemoveGatewayGWclassMappings(gateway string) bool {
+	v.SvcGWLock.Lock()
+	defer v.SvcGWLock.Unlock()
+	found, gwclass := v.GetGatewayToGWclass(gateway)
+	if !found {
+		return false
+	}
+
+	if found, gatewayList := v.GetGWclassToGateways(gwclass); found && utils.HasElem(gatewayList, gateway) {
+		gatewayList = utils.Remove(gatewayList, gateway)
+		if len(gatewayList) == 0 {
+			v.GwClassGWStore.Delete(gwclass)
+			return true
+		}
+		v.GwClassGWStore.AddOrUpdate(gwclass, gatewayList)
+		return true
+	}
+	return false
+}
+
+// Gateway <-> Listeners
+func (v *SvcGWLister) GetGWListeners(gateway string) (bool, []string) {
+	found, listeners := v.GwListenersStore.Get(gateway)
+	if !found {
+		return false, make([]string, 0)
+	}
+	return true, listeners.([]string)
+}
+
+func (v *SvcGWLister) UpdateGWListeners(gateway string, listeners []string) {
+	v.GwListenersStore.AddOrUpdate(gateway, listeners)
+}
+
+func (v *SvcGWLister) DeleteGWListeners(gateway string) bool {
+	success := v.GwListenersStore.Delete(gateway)
+	return success
+}
+
+//=====All service <-> gateway mappings go here. The mappings are updated only if the Gateway validation is successful in layer 1.
+// TODO : Do we have to map the services to listeners of the gateway instead of the gateway as as a whole?
+
+func (v *SvcGWLister) GetSvcToGw(service string) (bool, string) {
+	found, gateway := v.SvcGWStore.Get(service)
+	if !found {
+		return false, ""
+	}
+	return true, gateway.(string)
+}
+
+func (v *SvcGWLister) GetGwToSvcs(gateway string) (bool, map[string]string) {
+	found, services := v.GwSvcsStore.Get(gateway)
+	if !found {
+		return false, make(map[string]string)
+	}
+	return true, services.(map[string]string)
+}
+
+func (v *SvcGWLister) RemoveSvcToGwMapping(svcName string) bool {
+	success := v.SvcGWStore.Delete(svcName)
 	utils.AviLog.Debugf("Deleted the gateway mappings for svc: %s", svcName)
 	return success
 }
 
-func (v *SvcGWNSCache) UpdateSvcToGwMapping(svcName string, gatewayList []string) {
-	utils.AviLog.Debugf("Updated the mappings with svc: %s, gateways: %s", svcName, gatewayList)
-	v.svcGWStore.AddOrUpdate(svcName, gatewayList)
+func (v *SvcGWLister) UpdateSvcToGwMapping(svcName string, gateway string) {
+	utils.AviLog.Debugf("Updated the mappings with svc: %s, gateways: %s", svcName, gateway)
+	v.SvcGWStore.AddOrUpdate(svcName, gateway)
+}
+
+func (v *SvcGWLister) UpdateGatewayMappings(gateway, service, portprotocol string) {
+	v.SvcGWLock.Lock()
+	defer v.SvcGWLock.Unlock()
+	_, services := v.GetGwToSvcs(gateway)
+	services[service] = portprotocol
+	v.GwSvcsStore.AddOrUpdate(gateway, services)
+	v.SvcGWStore.AddOrUpdate(service, gateway)
+}
+
+func (v *SvcGWLister) RemoveGatewayMappings(gateway, service string) bool {
+	v.SvcGWLock.Lock()
+	defer v.SvcGWLock.Unlock()
+	_, services := v.GetGwToSvcs(gateway)
+	if _, ok := services[service]; ok {
+		delete(services, service)
+		if len(services) == 0 {
+			if success := v.GwSvcsStore.Delete(gateway); !success {
+				return false
+			}
+		}
+	}
+	return v.SvcGWStore.Delete(service)
 }

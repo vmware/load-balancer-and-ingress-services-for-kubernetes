@@ -115,7 +115,8 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if lib.GetAdvancedL4() {
+	// TODO: add GetParetGateways for GatewayClass
+	if lib.GetAdvancedL4() && objType != "GatewayClass" {
 		// Only Service type has a valid schema,
 		// treating L4LBService as Service, to fetch the schema
 		if objType == utils.L4LBService {

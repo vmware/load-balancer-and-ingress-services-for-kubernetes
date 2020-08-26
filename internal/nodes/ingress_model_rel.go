@@ -25,6 +25,8 @@ import (
 	"github.com/avinetworks/ako/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
+	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -145,19 +147,23 @@ func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
 }
 
 func SvcToGateway(svcName string, namespace string, key string) ([]string, bool) {
-	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
-	_, gateways := objects.ServiceGWLister().SvcGWMappings(namespace).GetSvcToGw(svcName)
+	var gateway string
+	var portProtocols []string
+
+	myService, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil && errors.IsNotFound(err) {
 		// Garbage collect the svc if no route references exist
-		if len(gateways) == 0 {
-			objects.ServiceGWLister().SvcGWMappings(namespace).DeleteSvcToGwMapping(svcName)
+		_, gateway = objects.ServiceGWLister().GetSvcToGw(namespace + "/" + svcName)
+		objects.ServiceGWLister().RemoveGatewayMappings(gateway, namespace+"/"+svcName)
+	} else {
+		gateway, portProtocols = parseL4ServiceForGateway(myService, key)
+		if gateway != "" {
+			objects.ServiceGWLister().UpdateGatewayMappings(gateway, namespace+"/"+svcName, portProtocols[0])
 		}
 	}
-	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved: %v", key, gateways)
-	if len(gateways) == 0 {
-		return nil, false
-	}
-	return gateways, true
+
+	utils.AviLog.Debugf("key: %s, msg: Gateway retrieved %s", key, gateway)
+	return []string{gateway}, true
 }
 
 func EPToRoute(epName string, namespace string, key string) ([]string, bool) {
@@ -172,20 +178,26 @@ func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 	return gateways, found
 }
 
-// networking.x-k8s.io/gateway-name: <>
-// networking.x-k8s.io/gateway-namespace: <>
 func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
-	var gateways []string
-	gateways = append(gateways, gwName)
-	myGw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Remove all the Gateway to Services mapping.
-		}
+	var allGateways []string
+	allGateways = append(allGateways, gwName)
+	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+	if err != nil && errors.IsNotFound(err) {
+		// Remove all the Gateway to Services mapping.
+		objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
+		objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
 	} else {
-		utils.AviLog.Debugf("%+v", utils.Stringify(myGw))
+		if err = validateGatewayObj(key, gateway); err != nil {
+			return allGateways, false
+		}
+
+		if gwListeners := parseGatewayForListeners(gateway, key); len(gwListeners) > 0 {
+			objects.ServiceGWLister().UpdateGWListeners(namespace+"/"+gwName, gwListeners)
+		}
+		gatewayClass := gateway.Spec.Class
+		objects.ServiceGWLister().UpdateGatewayGWclassMappings(namespace+"/"+gwName, gatewayClass)
 	}
-	return gateways, true
+	return allGateways, true
 }
 
 func IngressChanges(ingName string, namespace string, key string) ([]string, bool) {
@@ -496,6 +508,39 @@ func parseSecretsForIngress(ingSpec v1beta1.IngressSpec, key string) []string {
 	}
 	utils.AviLog.Debugf("key: %s, msg: total secrets retrieved from corev1:  %s", key, secrets)
 	return secrets
+}
+
+func parseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string) {
+	var gateway string
+	var portProtocols []string
+
+	labels := svc.GetLabels()
+	if name, ok := labels[lib.GatewayNameLabel]; ok {
+		if namespace, ok := labels[lib.GatewayNamespaceLabel]; ok {
+			gateway = namespace + "/" + name
+		}
+	}
+	if gateway != "" {
+		for _, listener := range svc.Spec.Ports {
+			if listener.Port != 0 && listener.Protocol != "" {
+				portProtocols = append(portProtocols, fmt.Sprintf("%s/%d", listener.Protocol, listener.Port))
+			}
+		}
+	}
+
+	return gateway, portProtocols
+}
+
+func parseGatewayForListeners(gateway *advl4v1alpha1pre1.Gateway, key string) []string {
+	var listeners []string
+	for _, listener := range gateway.Spec.Listeners {
+		gwName, nameOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNameLabel]
+		gwNamespace, nsOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNamespaceLabel]
+		if nameOk && nsOk && gwName == gateway.Name && gwNamespace == gateway.Namespace {
+			listeners = append(listeners, fmt.Sprintf("%s/%d", listener.Protocol, listener.Port))
+		}
+	}
+	return listeners
 }
 
 func filterIngressOnClass(ingress *v1beta1.Ingress) bool {

@@ -225,7 +225,7 @@ func GetShardScheme() string {
 	if !ok {
 		return DEFAULT_SHARD_SCHEME
 	}
-	utils.AviLog.Infof("SHARDING scheme :%s", shardSchemeName)
+	utils.AviLog.Debugf("SHARDING scheme: %s", shardSchemeName)
 	return shardSchemeName
 }
 

@@ -78,6 +78,8 @@ const (
 	Gateway                                    = "Gateway"
 	GatewayClass                               = "GatewayClass"
 	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
+	GatewayNameLabel                           = "networking.x-k8s.io/gateway-name"
+	GatewayNamespaceLabel                      = "networking.x-k8s.io/gateway-namespace"
 )
 
 const (

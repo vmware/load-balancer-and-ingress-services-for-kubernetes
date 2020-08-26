@@ -51,21 +51,24 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				return
 			}
 			gw := obj.(*advl4v1alpha1pre1.Gateway)
-			// namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			// bkt := utils.Bkt(namespace, numWorkers)
-			// c.workqueue[bkt].AddRateLimited(key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
 		},
 		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
 			oldObj := old.(*advl4v1alpha1pre1.Gateway)
 			gw := new.(*advl4v1alpha1pre1.Gateway)
 			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) {
-				// namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				// bkt := utils.Bkt(namespace, numWorkers)
-				// c.workqueue[bkt].AddRateLimited(key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -73,11 +76,11 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				return
 			}
 			gw := obj.(*advl4v1alpha1pre1.Gateway)
-			// namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			// bkt := utils.Bkt(namespace, numWorkers)
-			// c.workqueue[bkt].AddRateLimited(key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
 		},
 	}
 
@@ -87,21 +90,24 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				return
 			}
 			gwclass := obj.(*advl4v1alpha1pre1.GatewayClass)
-			// namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwclass)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			// bkt := utils.Bkt(namespace, numWorkers)
-			// c.workqueue[bkt].AddRateLimited(key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
 		},
 		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
 			oldObj := old.(*advl4v1alpha1pre1.GatewayClass)
 			gwclass := new.(*advl4v1alpha1pre1.GatewayClass)
 			if !reflect.DeepEqual(oldObj.Spec, gwclass.Spec) {
-				// namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwclass)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				// bkt := utils.Bkt(namespace, numWorkers)
-				// c.workqueue[bkt].AddRateLimited(key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -110,10 +116,10 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			}
 			gwclass := obj.(*advl4v1alpha1pre1.GatewayClass)
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwclass)
-			// namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			// bkt := utils.Bkt(namespace, numWorkers)
-			// c.workqueue[bkt].AddRateLimited(key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
 		},
 	}
 
