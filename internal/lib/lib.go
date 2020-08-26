@@ -287,7 +287,7 @@ func GetNodeNetworkMap() (map[string][]string, error) {
 	type nodeNetworkList []Row
 
 	nodeNetworkListStr := os.Getenv(NODE_NETWORK_LIST)
-	if nodeNetworkListStr == "" {
+	if nodeNetworkListStr == "" || nodeNetworkListStr == "null" {
 		return nodeNetworkMap, fmt.Errorf("nodeNetworkList not set in values yaml")
 	}
 	var nodeNetworkListObj nodeNetworkList
