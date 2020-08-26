@@ -51,6 +51,17 @@ func PopulateCache() {
 		restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
 		restlayer.SyncIngressStatus()
 	}
+
+	// Delete Stale objects by deleting model for dummy VS
+	aviclient := avicache.SharedAVIClients()
+	restlayer := rest.NewRestOperations(avi_obj_cache, aviclient)
+	staleVSKey := utils.ADMIN_NS + "/" + lib.DummyVSForStaleData
+	restlayer.CleanupVS(staleVSKey, true)
+	staleCacheKey := avicache.NamespaceName{
+		Name:      lib.DummyVSForStaleData,
+		Namespace: utils.ADMIN_NS,
+	}
+	avi_obj_cache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 }
 
 func PopulateNodeCache(cs *kubernetes.Clientset) {
