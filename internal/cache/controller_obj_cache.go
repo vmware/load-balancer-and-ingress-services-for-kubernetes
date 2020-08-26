@@ -105,7 +105,7 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version str
 	utils.AviLog.Infof("Refreshing all object cache")
 	c.AviRefreshObjectCache(client, cloud)
 	vsCacheCopy := c.VsCacheMeta.AviCacheGetAllParentVSKeys()
-	allVsKeys := c.VsCacheMeta.AviGetAllVSKeys()
+	allVsKeys := c.VsCacheMeta.AviGetAllKeys()
 	c.AviObjVSCachePopulate(client, cloud, &allVsKeys)
 	// Populate the SNI VS keys to their respective parents
 	c.PopulateVsMetaCache()
@@ -140,12 +140,13 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 		}
 	}
 	// Now write lock and copy over all VsCacheMeta and copy the right cache from local
-	allVsKeys := c.VsCacheLocal.AviGetAllVSKeys()
+	allVsKeys := c.VsCacheLocal.AviGetAllKeys()
 	for _, vsKey := range allVsKeys {
 		vsObj, vsFound := c.VsCacheLocal.AviCacheGet(vsKey)
 		if vsFound {
 			vs_cache_obj, foundvs := vsObj.(*AviVsCache)
 			if foundvs {
+				c.MarkReference(vs_cache_obj)
 				vsCopy, done := vs_cache_obj.GetVSCopy()
 				if done {
 					c.VsCacheMeta.AviCacheAdd(vsKey, vsCopy)
@@ -154,6 +155,158 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 			}
 		}
 	}
+	c.DeleteUnmarked()
+}
+
+// MarkReference : check objects referred by a VS and mark they they have reference
+// so that they are not deleted during clean up stage
+func (c *AviObjCache) MarkReference(vsCacheObj *AviVsCache) {
+
+	for _, objKey := range vsCacheObj.DSKeyCollection {
+		if intf, found := c.DSCache.AviCacheGet(objKey); found {
+			if obj, ok := intf.(*AviDSCache); ok {
+				obj.HasReference = true
+			}
+		}
+	}
+
+	for _, objKey := range vsCacheObj.HTTPKeyCollection {
+		if intf, found := c.HTTPPolicyCache.AviCacheGet(objKey); found {
+			if obj, ok := intf.(*AviHTTPPolicyCache); ok {
+				obj.HasReference = true
+			}
+		}
+	}
+
+	for _, objKey := range vsCacheObj.L4PolicyCollection {
+		if intf, found := c.L4PolicyCache.AviCacheGet(objKey); found {
+			if obj, ok := intf.(*AviL4PolicyCache); ok {
+				obj.HasReference = true
+			}
+		}
+	}
+
+	for _, objKey := range vsCacheObj.PGKeyCollection {
+		if intf, found := c.PgCache.AviCacheGet(objKey); found {
+			if obj, ok := intf.(*AviPGCache); ok {
+				obj.HasReference = true
+			}
+		}
+	}
+
+	for _, objKey := range vsCacheObj.PoolKeyCollection {
+		if intf, found := c.PoolCache.AviCacheGet(objKey); found {
+			if obj, ok := intf.(*AviPoolCache); ok {
+				obj.HasReference = true
+			}
+		}
+	}
+
+	for _, objKey := range vsCacheObj.SSLKeyCertCollection {
+		if intf, found := c.SSLKeyCache.AviCacheGet(objKey); found {
+			if obj, ok := intf.(*AviSSLCache); ok {
+				obj.HasReference = true
+			}
+		}
+	}
+
+	for _, objKey := range vsCacheObj.VSVipKeyCollection {
+		if intf, found := c.VSVIPCache.AviCacheGet(objKey); found {
+			if obj, ok := intf.(*AviVSVIPCache); ok {
+				obj.HasReference = true
+			}
+		}
+	}
+}
+
+// DeleteUnmarked : Adds non referenced cached objects to a Dummy VS, which
+// would be used later to delete these objects from AVI Controller
+func (c *AviObjCache) DeleteUnmarked() {
+
+	var dsKeys, vsVipKeys, httpKeys, sslKeys []NamespaceName
+	var pgKeys, poolKeys, l4Keys []NamespaceName
+	for _, objkey := range c.DSCache.AviGetAllKeys() {
+		intf, _ := c.DSCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviDSCache); ok {
+			if obj.HasReference == false {
+				dsKeys = append(dsKeys, objkey)
+			}
+		}
+	}
+
+	for _, objkey := range c.HTTPPolicyCache.AviGetAllKeys() {
+		intf, _ := c.HTTPPolicyCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviHTTPPolicyCache); ok {
+			if obj.HasReference == false {
+				httpKeys = append(httpKeys, objkey)
+			}
+		}
+	}
+
+	for _, objkey := range c.L4PolicyCache.AviGetAllKeys() {
+		utils.AviLog.Infof("Reference Not found for pool: %s", objkey)
+		intf, _ := c.L4PolicyCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviL4PolicyCache); ok {
+			if obj.HasReference == false {
+				poolKeys = append(poolKeys, objkey)
+			}
+		}
+	}
+
+	for _, objkey := range c.PgCache.AviGetAllKeys() {
+		intf, _ := c.PgCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviPGCache); ok {
+			if obj.HasReference == false {
+				pgKeys = append(pgKeys, objkey)
+			}
+		}
+
+	}
+
+	for _, objkey := range c.PoolCache.AviGetAllKeys() {
+		utils.AviLog.Infof("Reference Not found for pool: %s", objkey)
+		intf, _ := c.PoolCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviPoolCache); ok {
+			if obj.HasReference == false {
+				poolKeys = append(poolKeys, objkey)
+			}
+		}
+	}
+
+	for _, objkey := range c.SSLKeyCache.AviGetAllKeys() {
+		intf, _ := c.SSLKeyCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviSSLCache); ok {
+			if obj.HasReference == false {
+				sslKeys = append(sslKeys, objkey)
+			}
+		}
+	}
+
+	for _, objkey := range c.VSVIPCache.AviGetAllKeys() {
+		intf, _ := c.VSVIPCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviVSVIPCache); ok {
+			if obj.HasReference == false {
+				vsVipKeys = append(vsVipKeys, objkey)
+			}
+		}
+	}
+
+	vsMetaObj := AviVsCache{
+		Name:                 lib.DummyVSForStaleData,
+		VSVipKeyCollection:   vsVipKeys,
+		HTTPKeyCollection:    httpKeys,
+		DSKeyCollection:      dsKeys,
+		SSLKeyCertCollection: sslKeys,
+		PGKeyCollection:      pgKeys,
+		PoolKeyCollection:    poolKeys,
+		L4PolicyCollection:   l4Keys,
+	}
+	vsKey := NamespaceName{
+		Namespace: utils.ADMIN_NS,
+		Name:      lib.DummyVSForStaleData,
+	}
+	utils.AviLog.Infof("Dummy VS for stale objects Deletion %s", utils.Stringify(vsMetaObj))
+	c.VsCacheMeta.AviCacheAdd(vsKey, &vsMetaObj)
 }
 
 func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string, pgData *[]AviPGCache, override_uri ...NextPage) (*[]AviPGCache, int, error) {

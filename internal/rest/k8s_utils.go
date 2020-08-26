@@ -25,7 +25,7 @@ import (
 // based on the service metadata objects it finds in the cache
 // This is executed once AKO is done with populating the L3 cache in reboot scenarios
 func (rest *RestOperations) SyncIngressStatus() {
-	vsKeys := rest.cache.VsCacheMeta.AviGetAllVSKeys()
+	vsKeys := rest.cache.VsCacheMeta.AviGetAllKeys()
 	utils.AviLog.Debugf("Ingress status sync for vsKeys %+v", utils.Stringify(vsKeys))
 
 	var allIngressUpdateOptions []status.UpdateStatusOptions
