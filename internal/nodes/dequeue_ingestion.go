@@ -135,7 +135,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					}
 				} else {
 					aviModelGraph := NewAviObjectGraph()
-					aviModelGraph.BuildAdvancedL4Graph(namespace, name, key)
+					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key)
 					ok := saveAviModel(modelName, aviModelGraph, key)
 					if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 						PublishKeyToRestLayer(modelName, key, sharedQueue)

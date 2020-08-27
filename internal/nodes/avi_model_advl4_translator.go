@@ -38,7 +38,7 @@ func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName stri
 
 	found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName)
 	if !found {
-		utils.AviLog.Debugf("key: %s, msg: No services mapped to gateway %s/%s", namespace, gatewayName)
+		utils.AviLog.Warnf("key: %s, msg: No services mapped to gateway %s/%s", key, namespace, gatewayName)
 		return
 	}
 	utils.AviLog.Infof("key: %s, msg: Found Services %v for Gateway %s/%s", key, services, gateway.Namespace, gateway.Name)
