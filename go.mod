@@ -1,9 +1,8 @@
-module github.com/avinetworks/ako
+module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
 require (
 	github.com/Azure/go-autorest v11.1.2+incompatible // indirect
 	github.com/Masterminds/semver v1.5.0
-	github.com/avinetworks/container-lib v0.0.0-20200805113307-80c6b5ecc46e
 	github.com/avinetworks/sdk v0.0.0-20200812060914-ba100c75801c
 	github.com/davecgh/go-spew v1.1.1
 	github.com/gorilla/mux v1.7.4

@@ -19,7 +19,7 @@ limitations under the License.
 package scheme
 
 import (
-	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"

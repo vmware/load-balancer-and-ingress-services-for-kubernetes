@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/avinetworks/ako/pkg/api"
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
 	routev1 "github.com/openshift/api/route/v1"

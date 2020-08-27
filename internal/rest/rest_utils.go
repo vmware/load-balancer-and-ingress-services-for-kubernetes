@@ -18,7 +18,7 @@ import (
 	"errors"
 	"regexp"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) ([]map[string]interface{}, error) {

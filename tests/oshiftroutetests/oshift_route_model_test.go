@@ -21,15 +21,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avinetworks/ako/internal/cache"
-	crdfake "github.com/avinetworks/ako/internal/client/clientset/versioned/fake"
-	"github.com/avinetworks/ako/internal/k8s"
-	"github.com/avinetworks/ako/internal/lib"
-	avinodes "github.com/avinetworks/ako/internal/nodes"
-	"github.com/avinetworks/ako/internal/objects"
-	"github.com/avinetworks/ako/tests/integrationtest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned/fake"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
-	utils "github.com/avinetworks/ako/pkg/utils"
+	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
