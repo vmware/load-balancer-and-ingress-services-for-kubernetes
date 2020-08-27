@@ -77,6 +77,10 @@ var (
 		Type:              "Gateway",
 		GetParentGateways: GatewayChanges,
 	}
+	GatewayClass = GraphSchema{
+		Type:              "GatewayClass",
+		GetParentGateways: GatewayClassChanges,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		Service,
@@ -87,6 +91,7 @@ var (
 		HostRule,
 		HTTPRule,
 		Gateway,
+		GatewayClass,
 	}
 )
 
@@ -154,11 +159,16 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 	if err != nil && errors.IsNotFound(err) {
 		// Garbage collect the svc if no route references exist
 		_, gateway = objects.ServiceGWLister().GetSvcToGw(namespace + "/" + svcName)
+		if gateway == "" {
+			return nil, false
+		}
 		objects.ServiceGWLister().RemoveGatewayMappings(gateway, namespace+"/"+svcName)
 	} else {
 		gateway, portProtocols = parseL4ServiceForGateway(myService, key)
 		if gateway != "" {
 			objects.ServiceGWLister().UpdateGatewayMappings(gateway, namespace+"/"+svcName, portProtocols[0])
+		} else {
+			return nil, false
 		}
 	}
 
@@ -180,7 +190,7 @@ func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 
 func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
 	var allGateways []string
-	allGateways = append(allGateways, gwName)
+	allGateways = append(allGateways, namespace+"/"+gwName)
 	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 	if err != nil && errors.IsNotFound(err) {
 		// Remove all the Gateway to Services mapping.
@@ -198,6 +208,11 @@ func GatewayChanges(gwName string, namespace string, key string) ([]string, bool
 		objects.ServiceGWLister().UpdateGatewayGWclassMappings(namespace+"/"+gwName, gatewayClass)
 	}
 	return allGateways, true
+}
+
+func GatewayClassChanges(gwClassName string, namespace string, key string) ([]string, bool) {
+	found, gateways := objects.ServiceGWLister().GetGWclassToGateways(gwClassName)
+	return gateways, found
 }
 
 func IngressChanges(ingName string, namespace string, key string) ([]string, bool) {
@@ -515,8 +530,8 @@ func parseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string
 	var portProtocols []string
 
 	labels := svc.GetLabels()
-	if name, ok := labels[lib.GatewayNameLabel]; ok {
-		if namespace, ok := labels[lib.GatewayNamespaceLabel]; ok {
+	if name, ok := labels[lib.GatewayNameLabelKey]; ok {
+		if namespace, ok := labels[lib.GatewayNamespaceLabelKey]; ok {
 			gateway = namespace + "/" + name
 		}
 	}
@@ -534,8 +549,8 @@ func parseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string
 func parseGatewayForListeners(gateway *advl4v1alpha1pre1.Gateway, key string) []string {
 	var listeners []string
 	for _, listener := range gateway.Spec.Listeners {
-		gwName, nameOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNameLabel]
-		gwNamespace, nsOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNamespaceLabel]
+		gwName, nameOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNameLabelKey]
+		gwNamespace, nsOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNamespaceLabelKey]
 		if nameOk && nsOk && gwName == gateway.Name && gwNamespace == gateway.Namespace {
 			listeners = append(listeners, fmt.Sprintf("%s/%d", listener.Protocol, listener.Port))
 		}

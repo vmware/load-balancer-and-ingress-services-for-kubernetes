@@ -35,7 +35,6 @@ func DequeueIngestion(key string, fullsync bool) {
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
-
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if valid {
 		// If it's an ingress related change, let's process that.
@@ -115,25 +114,55 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	// TODO: add GetParetGateways for GatewayClass
-	if lib.GetAdvancedL4() && objType != "GatewayClass" {
-		// Only Service type has a valid schema,
-		// treating L4LBService as Service, to fetch the schema
-		if objType == utils.L4LBService {
-			schema, valid = ConfigDescriptor().GetByType(utils.Service)
-			if !valid {
-				return
-			}
-		}
+	if lib.GetAdvancedL4() && valid {
+
 		gateways, gatewayFound := schema.GetParentGateways(name, namespace, key)
-		// Now walk down from the gateway and construct the VS.
+		// For each gateway first verify if it has a valid subscription to the GatewayClass or not.
+		// If the gateway does not have a valid gatewayclass relationship, then set the model to nil.
+
 		if gatewayFound {
-			for _, gateway := range gateways {
-				aviModelGraph := NewAviObjectGraph()
-				aviModelGraph.BuildAdvancedL4Graph(namespace, gateway, key)
+			for _, gatewayKey := range gateways {
+				// Check the gateway has a valid subscription or not. If not, delete it.
+				namespace, _, gwName := extractTypeNameNamespace(gatewayKey)
+				modelName := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+gwName)
+				if isGatewayDelete(gatewayKey, key) {
+					// Check if a model corresponding to the gateway exists or not in memory.
+
+					found, _ := objects.SharedAviGraphLister().Get(modelName)
+					if found {
+						objects.SharedAviGraphLister().Save(modelName, nil)
+						if !fullsync {
+							PublishKeyToRestLayer(modelName, key, sharedQueue)
+						}
+					}
+				} else {
+					aviModelGraph := NewAviObjectGraph()
+					aviModelGraph.BuildAdvancedL4Graph(namespace, name, key)
+					ok := saveAviModel(modelName, aviModelGraph, key)
+					if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
+						PublishKeyToRestLayer(modelName, key, sharedQueue)
+					}
+				}
 			}
 		}
 	}
+}
+
+func isGatewayDelete(gatewayKey string, key string) bool {
+	// parse the gateway name and namespace
+	namespace, _, gwName := extractTypeNameNamespace(gatewayKey)
+	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+	if err != nil && errors.IsNotFound(err) {
+		// If the gateway is not found, return false
+		return false
+	}
+	// Check if the gateway has a valid gwclass or not.
+	err = validateGatewayObj(key, gateway)
+	if err != nil {
+		return false
+	}
+	return true
+
 }
 
 func handleRoute(key string, fullsync bool, routeNames []string) {
