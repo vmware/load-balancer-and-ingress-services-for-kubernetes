@@ -25,14 +25,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avinetworks/ako/internal/cache"
-	crdfake "github.com/avinetworks/ako/internal/client/clientset/versioned/fake"
-	"github.com/avinetworks/ako/internal/k8s"
-	"github.com/avinetworks/ako/internal/lib"
-	avinodes "github.com/avinetworks/ako/internal/nodes"
-	"github.com/avinetworks/ako/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned/fake"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

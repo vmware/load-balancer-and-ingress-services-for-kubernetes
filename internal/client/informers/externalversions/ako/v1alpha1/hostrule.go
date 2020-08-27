@@ -21,10 +21,10 @@ package v1alpha1
 import (
 	time "time"
 
-	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
-	versioned "github.com/avinetworks/ako/internal/client/clientset/versioned"
-	internalinterfaces "github.com/avinetworks/ako/internal/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/avinetworks/ako/internal/client/listers/ako/v1alpha1"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
+	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned"
+	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/listers/ako/v1alpha1"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"

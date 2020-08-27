@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avinetworks/ako/internal/cache"
-	"github.com/avinetworks/ako/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
 	"github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"

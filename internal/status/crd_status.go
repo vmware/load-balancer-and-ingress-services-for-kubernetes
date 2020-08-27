@@ -17,11 +17,11 @@ package status
 import (
 	"errors"
 
-	"github.com/avinetworks/ako/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
-	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	avinodes "github.com/avinetworks/ako/internal/nodes"
-	"github.com/avinetworks/ako/internal/objects"
-	"github.com/avinetworks/ako/tests/integrationtest"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"

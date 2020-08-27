@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"strings"
 
-	avicache "github.com/avinetworks/ako/internal/cache"
-	"github.com/avinetworks/ako/internal/lib"
-	"github.com/avinetworks/ako/internal/objects"
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

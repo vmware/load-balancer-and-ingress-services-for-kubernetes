@@ -19,11 +19,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/avinetworks/ako/internal/lib"
 	"github.com/avinetworks/sdk/go/session"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
-	"github.com/avinetworks/ako/pkg/api/models"
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var AviClientInstance *utils.AviRestClientPool

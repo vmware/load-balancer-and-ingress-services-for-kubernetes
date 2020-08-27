@@ -14,9 +14,9 @@
 package retry
 
 import (
-	"github.com/avinetworks/ako/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 func DequeueFastRetry(vsKey string) {

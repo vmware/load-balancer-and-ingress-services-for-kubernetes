@@ -21,7 +21,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/avinetworks/ako/pkg/api/models"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 )
 
 func TestMain(m *testing.M) {
