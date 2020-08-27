@@ -23,7 +23,7 @@ configs:
   subnetPrefix: "" # Subnet Prefix of the data network
   networkName: "" # Network Name of the data network
   l7ShardingScheme: "hostname"
-  cniPlugin: "" #enum: calico|canal|flannel
+  cniPlugin: "" #enum: calico|canal|flannel|openshift
   logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
   deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI
   serviceType: ClusterIP #enum NodePort|ClusterIP
