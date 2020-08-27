@@ -17,10 +17,10 @@ package nodes
 import (
 	"errors"
 
-	"github.com/avinetworks/ako/internal/lib"
-	"github.com/avinetworks/ako/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
 	networking "k8s.io/api/networking/v1beta1"

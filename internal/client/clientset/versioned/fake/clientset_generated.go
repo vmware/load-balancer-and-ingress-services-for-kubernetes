@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/avinetworks/ako/internal/client/clientset/versioned"
-	akov1alpha1 "github.com/avinetworks/ako/internal/client/clientset/versioned/typed/ako/v1alpha1"
-	fakeakov1alpha1 "github.com/avinetworks/ako/internal/client/clientset/versioned/typed/ako/v1alpha1/fake"
+	clientset "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned/typed/ako/v1alpha1"
+	fakeakov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned/typed/ako/v1alpha1/fake"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"

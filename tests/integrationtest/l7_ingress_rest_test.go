@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avinetworks/ako/internal/cache"
-	avinodes "github.com/avinetworks/ako/internal/nodes"
-	"github.com/avinetworks/ako/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

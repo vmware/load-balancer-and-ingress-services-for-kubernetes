@@ -15,10 +15,10 @@
 package rest
 
 import (
-	avicache "github.com/avinetworks/ako/internal/cache"
-	"github.com/avinetworks/ako/internal/status"
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 // SyncIngressStatus gets data from L3 cache and does a status update on the ingress objects
