@@ -30,7 +30,7 @@ configs:
   serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
   ## This list of network and cidrs are used in pool placement network for vcenter cloud.
   ## Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
-  nodeNetworkList:[]
+  nodeNetworkList: []
   # nodeNetworkList:
   #   - networkName: "network-name"
   #     cidrs:
