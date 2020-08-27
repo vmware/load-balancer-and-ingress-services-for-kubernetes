@@ -53,7 +53,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			gw := obj.(*advl4v1alpha1pre1.Gateway)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			utils.AviLog.Infof("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 		},
@@ -66,7 +66,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			}
@@ -78,7 +78,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			gw := obj.(*advl4v1alpha1pre1.Gateway)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			utils.AviLog.Infof("key: %s, msg: DELETE", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 		},
@@ -92,7 +92,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			gwclass := obj.(*advl4v1alpha1pre1.GatewayClass)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwclass)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			utils.AviLog.Infof("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 		},
@@ -105,7 +105,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			if !reflect.DeepEqual(oldObj.Spec, gwclass.Spec) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwclass)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			}
@@ -117,7 +117,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			gwclass := obj.(*advl4v1alpha1pre1.GatewayClass)
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwclass)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			utils.AviLog.Infof("key: %s, msg: DELETE", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 		},

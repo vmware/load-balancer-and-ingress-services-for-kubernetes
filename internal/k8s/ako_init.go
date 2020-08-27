@@ -223,6 +223,11 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	graphQueue.Run(stopCh, graphwg)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
+	if lib.GetAdvancedL4() {
+		// Set the error to nil
+		err = nil
+		interval = 1800 //seconds, hard coded.
+	}
 	// Set up the workers but don't start draining them.
 	c.SetupEventHandlers(informers)
 	if err != nil {

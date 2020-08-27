@@ -2239,6 +2239,9 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 func ValidateUserInput(client *clients.AviClient) bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
 	isCloudValid := CheckAndSetCloudType(client)
+	if lib.GetAdvancedL4() && isCloudValid {
+		return true
+	}
 	isSegroupValid := CheckSegroupLabels(client)
 	isNodeNetworkValid := CheckNodeNetwork(client)
 	isValid := isCloudValid && isSegroupValid && isNodeNetworkValid &&

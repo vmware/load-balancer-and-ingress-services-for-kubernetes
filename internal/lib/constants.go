@@ -78,8 +78,10 @@ const (
 	Gateway                                    = "Gateway"
 	GatewayClass                               = "GatewayClass"
 	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
-	GatewayNameLabel                           = "networking.x-k8s.io/gateway-name"
-	GatewayNamespaceLabel                      = "networking.x-k8s.io/gateway-namespace"
+	GatewayNameLabelKey                        = "service.route.lbapi.run.tanzu.vmware.com/gateway-name"
+	GatewayNamespaceLabelKey                   = "service.route.lbapi.run.tanzu.vmware.com/gateway-namespace"
+	GatewayTypeLabelKey                        = "service.route.lbapi.run.tanzu.vmware.com/type"
+	AviGatewayController                       = "lbapi.run.tanzu.vmware.com/avi-lb"
 )
 
 const (

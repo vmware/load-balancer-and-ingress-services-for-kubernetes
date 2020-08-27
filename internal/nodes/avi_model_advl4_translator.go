@@ -15,11 +15,12 @@
 package nodes
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/avinetworks/ako/internal/lib"
-	"github.com/avinetworks/ako/pkg/utils"
 	"github.com/avinetworks/ako/internal/objects"
+	"github.com/avinetworks/ako/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 )
@@ -35,7 +36,7 @@ func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName stri
 		return
 	}
 
-	found, services := objects.ServiceGWLister().GetGwToSvcs(namespace+"/"+gatewayName)
+	found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName)
 	if !found {
 		utils.AviLog.Debugf("key: %s, msg: No services mapped to gateway %s/%s", namespace, gatewayName)
 		return
@@ -67,12 +68,16 @@ func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName stri
 }
 
 func validateGatewayObj(key string, gateway *advl4v1alpha1pre1.Gateway) error {
-	gwClass := gateway.Spec.Class
-	if _, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gwClass); err != nil {
+	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
+	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Unable to fetch corresponding networking.x-k8s.io/gatewayclass %s %v",
-			key, gwClass, err)
+			key, gateway.Spec.Class, err)
 		return err
 	}
-
+	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
+	if gwClassObj.Spec.Controller != lib.AviGatewayController {
+		// Return an error since this is not our object.
+		return errors.New("Unexpected controller")
+	}
 	return nil
 }
