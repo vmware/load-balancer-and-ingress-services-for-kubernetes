@@ -119,7 +119,6 @@ func DequeueIngestion(key string, fullsync bool) {
 		gateways, gatewayFound := schema.GetParentGateways(name, namespace, key)
 		// For each gateway first verify if it has a valid subscription to the GatewayClass or not.
 		// If the gateway does not have a valid gatewayclass relationship, then set the model to nil.
-
 		if gatewayFound {
 			for _, gatewayKey := range gateways {
 				// Check the gateway has a valid subscription or not. If not, delete it.
@@ -127,7 +126,6 @@ func DequeueIngestion(key string, fullsync bool) {
 				modelName := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+gwName)
 				if isGatewayDelete(gatewayKey, key) {
 					// Check if a model corresponding to the gateway exists or not in memory.
-
 					found, _ := objects.SharedAviGraphLister().Get(modelName)
 					if found {
 						objects.SharedAviGraphLister().Save(modelName, nil)
@@ -154,14 +152,14 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 	if err != nil && errors.IsNotFound(err) {
 		// If the gateway is not found, return false
-		return false
+		return true
 	}
 	// Check if the gateway has a valid gwclass or not.
 	err = validateGatewayObj(key, gateway)
 	if err != nil {
-		return false
+		return true
 	}
-	return true
+	return false
 
 }
 
