@@ -77,18 +77,19 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 	}
 
 	patchOp := utils.PatchReplaceOp
+	patchPayload := make(map[string]interface{})
 	if len(nodeStaticRoutes) == 0 {
 		// this is the case of deleting all the static routes for the cluster
 		patchOp = utils.PatchDeleteOp
-		vrf.StaticRoutes = clusterStaticRoutes
+		patchPayload["static_routes"] = clusterStaticRoutes
 
 	} else {
 		patchOp = utils.PatchReplaceOp
 		mergedStaticRoutes = append(mergedStaticRoutes, nodeStaticRoutes...)
-		vrf.StaticRoutes = mergedStaticRoutes
+		patchPayload["static_routes"] = mergedStaticRoutes
 	}
 
-	restOp := utils.RestOp{Path: path, Method: utils.RestPatch, PatchOp: patchOp, Obj: vrf,
+	restOp := utils.RestOp{Path: path, Method: utils.RestPatch, PatchOp: patchOp, Obj: patchPayload,
 		Tenant: lib.GetTenant(), Model: "VrfContext", Version: utils.CtrlVersion}
 	return &restOp
 }
