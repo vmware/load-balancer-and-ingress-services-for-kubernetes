@@ -19,7 +19,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/labels"
 )

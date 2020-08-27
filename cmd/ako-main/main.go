@@ -20,13 +20,13 @@ import (
 	"sync"
 	"time"
 
-	crd "github.com/avinetworks/ako/internal/client/clientset/versioned"
-	"github.com/avinetworks/ako/internal/k8s"
-	"github.com/avinetworks/ako/internal/lib"
+	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
-	"github.com/avinetworks/ako/pkg/api"
-	"github.com/avinetworks/ako/pkg/api/models"
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"k8s.io/client-go/kubernetes"

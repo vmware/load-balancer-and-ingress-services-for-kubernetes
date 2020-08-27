@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 // AviApiRestStatus holds status details for AKO/AMKO <-> AVI connection

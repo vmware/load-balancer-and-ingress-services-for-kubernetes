@@ -18,12 +18,12 @@ import (
 	"reflect"
 	"time"
 
-	akov1alpha1 "github.com/avinetworks/ako/internal/apis/ako/v1alpha1"
-	akocrd "github.com/avinetworks/ako/internal/client/clientset/versioned"
-	akoinformers "github.com/avinetworks/ako/internal/client/informers/externalversions"
-	"github.com/avinetworks/ako/internal/lib"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
+	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned"
+	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/informers/externalversions"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/client-go/tools/cache"
 )

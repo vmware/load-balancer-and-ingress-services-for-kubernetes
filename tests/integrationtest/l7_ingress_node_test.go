@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	avinodes "github.com/avinetworks/ako/internal/nodes"
-	"github.com/avinetworks/ako/internal/objects"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"

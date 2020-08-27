@@ -22,14 +22,14 @@ import (
 	"sync"
 	"time"
 
-	avicache "github.com/avinetworks/ako/internal/cache"
-	"github.com/avinetworks/ako/internal/lib"
-	"github.com/avinetworks/ako/internal/nodes"
-	"github.com/avinetworks/ako/internal/objects"
-	"github.com/avinetworks/ako/internal/rest"
-	"github.com/avinetworks/ako/internal/retry"
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"

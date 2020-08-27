@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avinetworks/ako/internal/cache"
-	avinodes "github.com/avinetworks/ako/internal/nodes"
-	"github.com/avinetworks/ako/internal/objects"
-	"github.com/avinetworks/ako/tests/integrationtest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

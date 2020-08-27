@@ -25,10 +25,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/avinetworks/ako/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
-	apimodels "github.com/avinetworks/ako/pkg/api/models"
-	"github.com/avinetworks/ako/pkg/utils"
+	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/avinetworks/sdk/go/models"

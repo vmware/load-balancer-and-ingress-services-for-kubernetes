@@ -17,7 +17,7 @@ package objects
 import (
 	"sync"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var lbinstance *lbLister

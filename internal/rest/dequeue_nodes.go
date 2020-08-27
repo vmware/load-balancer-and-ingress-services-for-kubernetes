@@ -20,15 +20,15 @@ import (
 	"strconv"
 	"strings"
 
-	avicache "github.com/avinetworks/ako/internal/cache"
-	"github.com/avinetworks/ako/internal/lib"
-	"github.com/avinetworks/ako/internal/nodes"
-	"github.com/avinetworks/ako/internal/objects"
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
 	"github.com/Masterminds/semver"
 
-	"github.com/avinetworks/ako/pkg/api/models"
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/clients"
 	avimodels "github.com/avinetworks/sdk/go/models"

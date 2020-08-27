@@ -18,11 +18,11 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/avinetworks/ako/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
-	avicache "github.com/avinetworks/ako/internal/cache"
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1beta1"

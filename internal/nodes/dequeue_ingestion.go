@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/avinetworks/ako/internal/lib"
-	"github.com/avinetworks/ako/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 )

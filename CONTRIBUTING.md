@@ -154,7 +154,7 @@ AKO can be tested from your laptop. Please follow the instructions:
         export CLOUD_NAME=<Avi-cloud-name>
         export CLUSTER_NAME=<your-unique-cluster-name>
         
-     You can control additional settings by exporting respective variables from inside the deployment [file](https://github.com/avinetworks/ako/blob/master/helm/ako/templates/deployment.yaml).
+     You can control additional settings by exporting respective variables from inside the deployment [file](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/helm/ako/templates/deployment.yaml).
 
   4. Run: ./bin/ako
 

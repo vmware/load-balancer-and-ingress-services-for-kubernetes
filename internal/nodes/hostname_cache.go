@@ -17,9 +17,9 @@ package nodes
 import (
 	"sync"
 
-	"github.com/avinetworks/ako/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
-	"github.com/avinetworks/ako/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var hostNameListerInstance *HostNameLister
