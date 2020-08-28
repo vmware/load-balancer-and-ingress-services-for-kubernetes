@@ -287,6 +287,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isSvcLb {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
+				if lib.GetAdvancedL4() {
+					return
+				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -317,6 +320,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isSvcLb {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
+				if lib.GetAdvancedL4() {
+					return
+				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -337,6 +343,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				if isSvcLb {
 					key = utils.L4LBService + "/" + utils.ObjKey(svc)
 				} else {
+					if lib.GetAdvancedL4() {
+						return
+					}
 					key = utils.Service + "/" + utils.ObjKey(svc)
 				}
 
