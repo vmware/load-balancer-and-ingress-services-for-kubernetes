@@ -673,7 +673,7 @@ func InitializeFakeAKOAPIServer() {
 	akoApi.InitFakeApi()
 }
 
-const mockFilePath = "../avimockobjects"
+const defaultMockFilePath = "../avimockobjects"
 
 var AviFakeClientInstance *httptest.Server
 var FakeServerMiddleware InjectFault
@@ -699,7 +699,7 @@ func ResetMiddleware() {
 	FakeServerMiddleware = nil
 }
 
-func NewAviFakeClientInstance() {
+func NewAviFakeClientInstance(skipCachePopulation ...bool) {
 	if AviFakeClientInstance == nil {
 		AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -723,11 +723,17 @@ func NewAviFakeClientInstance() {
 
 		// resets avi client pool instance, allows to connect with the new `ts` server
 		cache.AviClientInstance = nil
-		k8s.PopulateCache()
+		if len(skipCachePopulation) == 0 || skipCachePopulation[0] == false {
+			k8s.PopulateCache()
+		}
 	}
 }
 
-func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
+func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...string) {
+	mockFilePath := defaultMockFilePath
+	if len(args) > 0 {
+		mockFilePath = args[0]
+	}
 	url := r.URL.EscapedPath()
 	var resp map[string]interface{}
 	var finalResponse []byte
@@ -805,7 +811,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 
 	} else if r.Method == "GET" && inArray(FakeAviObjects, object[1]) {
-		FeedMockCollectionData(w, r)
+		FeedMockCollectionData(w, r, mockFilePath)
 
 	} else if strings.Contains(url, "login") {
 		// This is used for /login --> first request to controller
@@ -825,7 +831,7 @@ func inArray(a []string, b string) bool {
 
 // FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data
 // for GET objects list API. GET /api/virtualservice returns from virtualservice_mock.json and so on
-func FeedMockCollectionData(w http.ResponseWriter, r *http.Request) {
+func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath string) {
 	url := r.URL.EscapedPath() // url = //api/<object>/:objectId
 	splitURL := strings.Split(strings.Trim(url, "/"), "/")
 

@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -532,6 +534,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	}
 
 	ingrUpdate := ingressUpdateObject.Ingress()
+	utils.AviLog.Infof("Updated ingress after removing one secret: %s", utils.Stringify(ingrUpdate))
 	ingrUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Update(ingrUpdate); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)

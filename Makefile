@@ -51,9 +51,13 @@ hostnameshardtests:
 oshiftroutetests:
 	$(GOTEST) -mod=vendor -v ./tests/oshiftroutetests -failfast
 
+.PHONY: bootuptests
+bootuptests:
+	$(GOTEST) -mod=vendor -v ./tests/bootuptests -failfast
+
 .PHONY: int_test
 int_test:
-	make -j 1 integrationtest hostnameshardtests oshiftroutetests
+	make -j 1 integrationtest hostnameshardtests oshiftroutetests bootuptests
 
 .PHONY: scale_test
 scale_test:

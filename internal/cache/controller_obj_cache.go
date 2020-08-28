@@ -226,6 +226,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 	var dsKeys, vsVipKeys, httpKeys, sslKeys []NamespaceName
 	var pgKeys, poolKeys, l4Keys []NamespaceName
 	for _, objkey := range c.DSCache.AviGetAllKeys() {
+		utils.AviLog.Infof("Reference Not found for datascript: %s", objkey)
 		intf, _ := c.DSCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviDSCache); ok {
 			if obj.HasReference == false {
@@ -235,6 +236,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 	}
 
 	for _, objkey := range c.HTTPPolicyCache.AviGetAllKeys() {
+		utils.AviLog.Infof("Reference Not found for http policy: %s", objkey)
 		intf, _ := c.HTTPPolicyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviHTTPPolicyCache); ok {
 			if obj.HasReference == false {
@@ -244,7 +246,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 	}
 
 	for _, objkey := range c.L4PolicyCache.AviGetAllKeys() {
-		utils.AviLog.Infof("Reference Not found for pool: %s", objkey)
+		utils.AviLog.Infof("Reference Not found for l4 policy: %s", objkey)
 		intf, _ := c.L4PolicyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviL4PolicyCache); ok {
 			if obj.HasReference == false {
@@ -254,6 +256,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 	}
 
 	for _, objkey := range c.PgCache.AviGetAllKeys() {
+		utils.AviLog.Infof("Reference Not found for poolgroup: %s", objkey)
 		intf, _ := c.PgCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviPGCache); ok {
 			if obj.HasReference == false {
@@ -274,6 +277,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 	}
 
 	for _, objkey := range c.SSLKeyCache.AviGetAllKeys() {
+		utils.AviLog.Infof("Reference Not found for ssl key: %s", objkey)
 		intf, _ := c.SSLKeyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviSSLCache); ok {
 			if obj.HasReference == false {
@@ -283,6 +287,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 	}
 
 	for _, objkey := range c.VSVIPCache.AviGetAllKeys() {
+		utils.AviLog.Infof("Reference Not found for vsvip: %s", objkey)
 		intf, _ := c.VSVIPCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviVSVIPCache); ok {
 			if obj.HasReference == false {

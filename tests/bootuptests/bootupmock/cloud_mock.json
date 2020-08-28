@@ -1,0 +1,86 @@
+{
+    "count": 1,
+    "results": [
+      {
+        "oshiftk8s_configuration": {
+          "sync_not_ready_addresses": true,
+          "east_west_placement_subnet": {
+            "mask": 16,
+            "ip_addr": {
+              "type": "V4",
+              "addr": "172.18.0.1"
+            }
+          },
+          "enable_event_subscription": true,
+          "feproxy_vips_enable_proxy_arp": true,
+          "use_resource_definition_as_ssot": false,
+          "disable_auto_backend_service_sync": false,
+          "container_port_match_http_service": true,
+          "docker_endpoint": "/var/run/docker.sock",
+          "se_volume": "/var/lib/avi",
+          "client_tls_key_and_certificate_ref": "https://10.52.3.116:9443/api/sslkeyandcertificate/sslkeyandcertificate-c0224d73-0a3b-4bce-9027-937c064af123",
+          "se_restart_force": false,
+          "enable_route_ingress_hardening": true,
+          "l4_health_monitoring": true,
+          "se_deployment_method": "SE_CREATE_POD",
+          "auto_assign_fqdn": true,
+          "use_service_cluster_ip_as_ew_vip": false,
+          "sdn_overlay": true,
+          "num_shards": 0,
+          "docker_registry_se": {
+            "oshift_registry": {
+              "registry_service": "docker-registry",
+              "registry_namespace": "default"
+            },
+            "registry": "avinetworks/se",
+            "private": true
+          },
+          "ca_tls_key_and_certificate_ref": "https://10.52.3.116:9443/api/sslkeyandcertificate/sslkeyandcertificate-aaa821b9-3710-4e09-8f6d-9cb2f93e1253",
+          "se_namespace": "default",
+          "default_service_as_east_west_service": true,
+          "use_scheduling_disabled_nodes": false,
+          "use_controller_image": false,
+          "disable_auto_gs_sync": false,
+          "coredump_directory": "/var/lib/systemd/coredump",
+          "disable_auto_frontend_service_sync": false,
+          "master_nodes": [
+            "10.52.2.107:8443"
+          ],
+          "app_sync_frequency": 30,
+          "secure_egress_mode": false,
+          "override_service_ports": true,
+          "se_restart_batch_size": 1,
+          "avi_bridge_subnet": {
+            "mask": 16,
+            "ip_addr": {
+              "type": "V4",
+              "addr": "172.18.0.1"
+            }
+          },
+          "shared_virtualservice_namespace": true,
+          "disable_auto_se_creation": false
+        },
+        "autoscale_polling_interval": 60,
+        "mtu": 1500,
+        "vtype": "CLOUD_VCENTER",
+        "_last_modified": "1576211637873537",
+        "apic_mode": false,
+        "dns_provider_ref": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-19a05809-a373-4892-a318-74702c2237ca",
+        "ip6_autocfg_enabled": false,
+        "enable_vip_static_routes": false,
+        "east_west_dns_provider_ref": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-19a05809-a373-4892-a318-74702c2237ca",
+        "license_tier": "ENTERPRISE_18",
+        "state_based_dns_registration": true,
+        "uuid": "cloud-b7942dad-554f-4c9f-8226-1220b7bb4c8c",
+        "ipam_provider_ref": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-d49243f3-65f3-4cd1-b93a-e0ec41df409e",
+        "name": "Default-Cloud",
+        "url": "https://10.52.3.116:9443/api/cloud/cloud-b7942dad-554f-4c9f-8226-1220b7bb4c8c",
+        "tenant_ref": "https://10.52.3.116:9443/api/tenant/admin",
+        "dns_resolution_on_se": false,
+        "dhcp_enabled": true,
+        "east_west_ipam_provider_ref": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-be7aa26d-3bc8-4213-9f73-b23b4e1d9c39",
+        "prefer_static_routes": false,
+        "license_type": "LIC_CORES"
+      }
+    ]
+  }

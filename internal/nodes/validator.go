@@ -204,7 +204,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 		// If svc for an ingress gets processed before the ingress itself,
 		// then secret mapping may not be updated, update it here.
 		if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
-			objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(ingName, tlsSettings.SecretName)
+			objects.SharedSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(ingName, tlsSettings.SecretName)
 		}
 	}
 
