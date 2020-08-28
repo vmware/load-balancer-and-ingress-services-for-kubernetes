@@ -159,19 +159,18 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 	if err != nil && errors.IsNotFound(err) {
 		// Garbage collect the svc if no route references exist
 		_, gateway = objects.ServiceGWLister().GetSvcToGw(namespace + "/" + svcName)
-		if gateway == "" {
-			return nil, false
-		}
 		objects.ServiceGWLister().RemoveGatewayMappings(gateway, namespace+"/"+svcName)
 	} else {
-		gateway, portProtocols = parseL4ServiceForGateway(myService, key)
-		if gateway != "" {
-			objects.ServiceGWLister().UpdateGatewayMappings(gateway, namespace+"/"+svcName, portProtocols[0])
-		} else {
-			return nil, false
+		if gateway, portProtocols = parseL4ServiceForGateway(myService, key); gateway != "" {
+			for _, portProto := range portProtocols {
+				objects.ServiceGWLister().UpdateGatewayMappings(gateway, namespace+"/"+svcName, portProto)
+			}
 		}
 	}
 
+	if gateway == "" {
+		return nil, false
+	}
 	utils.AviLog.Debugf("key: %s, msg: Gateway retrieved %s", key, gateway)
 	return []string{gateway}, true
 }
@@ -197,10 +196,6 @@ func GatewayChanges(gwName string, namespace string, key string) ([]string, bool
 		objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
 		objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
 	} else {
-		if err = validateGatewayObj(key, gateway); err != nil {
-			return allGateways, false
-		}
-
 		if gwListeners := parseGatewayForListeners(gateway, key); len(gwListeners) > 0 {
 			objects.ServiceGWLister().UpdateGWListeners(namespace+"/"+gwName, gwListeners)
 		}

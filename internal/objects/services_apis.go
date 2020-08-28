@@ -147,17 +147,6 @@ func (v *SvcGWLister) GetGwToSvcs(gateway string) (bool, map[string]string) {
 	return true, services.(map[string]string)
 }
 
-func (v *SvcGWLister) RemoveSvcToGwMapping(svcName string) bool {
-	success := v.SvcGWStore.Delete(svcName)
-	utils.AviLog.Debugf("Deleted the gateway mappings for svc: %s", svcName)
-	return success
-}
-
-func (v *SvcGWLister) UpdateSvcToGwMapping(svcName string, gateway string) {
-	utils.AviLog.Debugf("Updated the mappings with svc: %s, gateways: %s", svcName, gateway)
-	v.SvcGWStore.AddOrUpdate(svcName, gateway)
-}
-
 func (v *SvcGWLister) UpdateGatewayMappings(gateway, service, portprotocol string) {
 	v.SvcGWLock.Lock()
 	defer v.SvcGWLock.Unlock()

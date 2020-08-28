@@ -2238,14 +2238,21 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID 
 
 func ValidateUserInput(client *clients.AviClient) bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
-	isCloudValid := CheckAndSetCloudType(client)
-	if lib.GetAdvancedL4() && isCloudValid {
+	isCloudValid := checkAndSetCloudType(client)
+	isRequiredValuesValid := checkRequiredValuesYaml()
+	if lib.GetAdvancedL4() && isCloudValid && isRequiredValuesValid {
 		return true
 	}
-	isSegroupValid := CheckSegroupLabels(client)
-	isNodeNetworkValid := CheckNodeNetwork(client)
-	isValid := isCloudValid && isSegroupValid && isNodeNetworkValid &&
-		CheckPublicCloud(client) && checkRequiredValuesYaml() && CheckAndSetVRFFromNetwork(client)
+
+	isSegroupValid := checkSegroupLabels(client)
+	isNodeNetworkValid := checkNodeNetwork(client)
+	isValid := isCloudValid &&
+		isSegroupValid &&
+		isNodeNetworkValid &&
+		checkPublicCloud(client) &&
+		isRequiredValuesValid &&
+		checkAndSetVRFFromNetwork(client)
+
 	if !isValid {
 		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid {
 			utils.AviLog.Warn("Invalid input detected, AKO will be rebooted to retry")
@@ -2292,7 +2299,7 @@ func checkRequiredValuesYaml() bool {
 	return true
 }
 
-func CheckSegroupLabels(client *clients.AviClient) bool {
+func checkSegroupLabels(client *clients.AviClient) bool {
 
 	// Not applicable for NodePort mode / disable route is set as True
 	if lib.IsNodePortMode() || os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
@@ -2360,7 +2367,7 @@ func CheckSegroupLabels(client *clients.AviClient) bool {
 	return true
 }
 
-func CheckAndSetCloudType(client *clients.AviClient) bool {
+func checkAndSetCloudType(client *clients.AviClient) bool {
 
 	uri := "/api/cloud/?include_name&name=" + utils.CloudName
 	result, err := AviGetCollectionRaw(client, uri)
@@ -2400,7 +2407,7 @@ func CheckAndSetCloudType(client *clients.AviClient) bool {
 	return true
 }
 
-func CheckPublicCloud(client *clients.AviClient) bool {
+func checkPublicCloud(client *clients.AviClient) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
 		networkName := lib.GetNetworkName()
@@ -2413,7 +2420,7 @@ func CheckPublicCloud(client *clients.AviClient) bool {
 	return true
 }
 
-func CheckNodeNetwork(client *clients.AviClient) bool {
+func checkNodeNetwork(client *clients.AviClient) bool {
 
 	// Not applicable for NodePort mode and non vcenter clouds
 	if lib.IsNodePortMode() || lib.GetCloudType() != lib.CLOUD_VCENTER {
@@ -2466,7 +2473,7 @@ func CheckNodeNetwork(client *clients.AviClient) bool {
 	return true
 }
 
-func CheckAndSetVRFFromNetwork(client *clients.AviClient) bool {
+func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 
 	if lib.IsPublicCloud() {
 		// Need not set VRFContext for public clouds.

@@ -114,8 +114,10 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if lib.GetAdvancedL4() && valid {
-
+	if lib.GetAdvancedL4() {
+		if !valid && objType == utils.L4LBService {
+			schema, valid = ConfigDescriptor().GetByType(utils.Service)
+		}
 		gateways, gatewayFound := schema.GetParentGateways(name, namespace, key)
 		// For each gateway first verify if it has a valid subscription to the GatewayClass or not.
 		// If the gateway does not have a valid gatewayclass relationship, then set the model to nil.
@@ -126,8 +128,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				modelName := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+gwName)
 				if isGatewayDelete(gatewayKey, key) {
 					// Check if a model corresponding to the gateway exists or not in memory.
-					found, _ := objects.SharedAviGraphLister().Get(modelName)
-					if found {
+					if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 						objects.SharedAviGraphLister().Save(modelName, nil)
 						if !fullsync {
 							PublishKeyToRestLayer(modelName, key, sharedQueue)
@@ -151,9 +152,9 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 	namespace, _, gwName := extractTypeNameNamespace(gatewayKey)
 	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 	if err != nil && errors.IsNotFound(err) {
-		// If the gateway is not found, return false
 		return true
 	}
+
 	// Check if the gateway has a valid gwclass or not.
 	err = validateGatewayObj(key, gateway)
 	if err != nil {

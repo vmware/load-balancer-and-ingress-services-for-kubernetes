@@ -340,6 +340,9 @@ func (c *AviController) FullSyncK8s() {
 			if isSvcLb {
 				key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
 			} else {
+				if !lib.GetAdvancedL4() {
+					continue
+				}
 				key = utils.Service + "/" + utils.ObjKey(svcObj)
 			}
 			nodes.DequeueIngestion(key, true)
@@ -390,11 +393,31 @@ func (c *AviController) FullSyncK8s() {
 				}
 			}
 		}
+	} else {
+		gatewayObjs, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways("").List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
+		} else {
+			for _, gatewayObj := range gatewayObjs {
+				key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
+		gwClassObjs, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
+		} else {
+			for _, gwClassObj := range gwClassObjs {
+				key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+				nodes.DequeueIngestion(key, true)
+			}
+		}
 	}
 
 	cache := avicache.SharedAviObjCache()
 	vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
-	utils.AviLog.Infof("Got the VS keys :%s", vsKeys)
+	utils.AviLog.Debugf("Got the VS keys: %s", vsKeys)
 	allModelsMap := objects.SharedAviGraphLister().GetAll()
 	var allModels []string
 	for modelName, _ := range allModelsMap.(map[string]interface{}) {
@@ -439,7 +462,7 @@ func (c *AviController) FullSyncK8s() {
 	}
 	// Now also publish the newly generated models (if any)
 	// Publish all the models to REST layer.
-	utils.AviLog.Infof("Newly generated models that do not exist in cache %s", utils.Stringify(allModels))
+	utils.AviLog.Debugf("Newly generated models that do not exist in cache %s", utils.Stringify(allModels))
 	if allModels != nil {
 		for _, modelName := range allModels {
 			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)

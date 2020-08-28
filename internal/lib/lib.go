@@ -96,6 +96,10 @@ func GetL4PoolName(vsName string, port int32) string {
 	return vsName + "--" + strconv.Itoa(int(port))
 }
 
+func GetAdvL4PoolName(svcName, namespace string, port int32) string {
+	return NamePrefix + namespace + "-" + svcName + "--" + strconv.Itoa(int(port))
+}
+
 func GetL4PolicyName(vsName string, port int32) string {
 	return GetL4PoolName(vsName, port)
 }
