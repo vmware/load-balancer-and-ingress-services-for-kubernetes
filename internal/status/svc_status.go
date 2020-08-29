@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -102,14 +101,27 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 
 // getServices fetches all serviceLB and returns a map: {"namespace/name": serviceObj...}
 // if bulk is set to true, this fetches all services in a single k8s api-server call
-func getServices(serviceNSNames []string, bulk bool) map[string]*corev1.Service {
+func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string]*corev1.Service {
+	retry := 0
 	mClient := utils.GetInformers().ClientSet
 	serviceMap := make(map[string]*corev1.Service)
+	if len(retryNum) > 0 {
+		utils.AviLog.Infof("msg: Retrying to get the services for status update")
+		retry = retryNum[0]
+		if retry >= 2 {
+			utils.AviLog.Errorf("msg: getServices for status update retried 3 times, aborting")
+			return serviceMap
+		}
+	}
 
 	if bulk {
 		serviceLBList, err := mClient.CoreV1().Services("").List(metav1.ListOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus :%s", err)
+			utils.AviLog.Warnf("Could not get the service object for UpdateStatus :%s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getServices(serviceNSNames, bulk, retry+1)
+			}
 		}
 		for i := range serviceLBList.Items {
 			ing := serviceLBList.Items[i]
@@ -124,6 +136,10 @@ func getServices(serviceNSNames []string, bulk bool) map[string]*corev1.Service 
 		serviceLB, err := mClient.CoreV1().Services(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the service object for UpdateStatus :%s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getServices(serviceNSNames, bulk, retry+1)
+			}
 			continue
 		}
 

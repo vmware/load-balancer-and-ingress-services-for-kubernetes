@@ -66,6 +66,7 @@ const (
 	VRF_CONTEXT                   = "VRF_CONTEXT"
 	FULL_SYNC_INTERVAL            = "FULL_SYNC_INTERVAL"
 	DEFAULT_FILE_SUFFIX           = "avi.log"
+	K8S_ETIMEDOUT                 = "timed out"
 
 	// container-lib/api constants
 	AVIAPI_INITIATING   = "INITIATING"
