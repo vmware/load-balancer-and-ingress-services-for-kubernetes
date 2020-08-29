@@ -211,6 +211,9 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 	for aviSecret, securedHostNames := range secretHostsMap {
 		additionalTLS := TlsSettings{}
 		additionalTLS.SecretName = aviSecret
+		// Always add http -> https redirect rule for secure ingress
+		// for sni VS created using hostrule
+		additionalTLS.redirect = true
 		additionalTLSHostSvcMap := make(IngressHostMap)
 		for _, host := range securedHostNames {
 			if hostSvcMap, ok := additionalSecureHostMap[host]; ok {
