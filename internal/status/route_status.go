@@ -20,7 +20,6 @@ import (
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -103,13 +102,26 @@ func UpdateRouteStatus(options []UpdateStatusOptions, bulk bool) {
 	return
 }
 
-func getRoutes(routeNSNames []string, bulk bool) map[string]*routev1.Route {
+func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*routev1.Route {
+	retry := 0
 	routeMap := make(map[string]*routev1.Route)
+	if len(retryNum) > 0 {
+		utils.AviLog.Infof("msg: Retrying to get the routes for status update")
+		retry = retryNum[0]
+		if retry >= 2 {
+			utils.AviLog.Errorf("msg: getRoutes for status update retried 3 times, aborting")
+			return routeMap
+		}
+	}
 
 	if bulk {
 		routeList, err := utils.GetInformers().OshiftClient.RouteV1().Routes("").List(metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the route object for UpdateStatus :%s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getRoutes(routeNSNames, bulk, retry+1)
+			}
 		}
 		for i := range routeList.Items {
 			route := routeList.Items[i]
@@ -128,6 +140,10 @@ func getRoutes(routeNSNames []string, bulk bool) map[string]*routev1.Route {
 		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus :%s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getRoutes(routeNSNames, bulk, retry+1)
+			}
 			continue
 		}
 		routeMap[route.Namespace+"/"+route.Name] = route

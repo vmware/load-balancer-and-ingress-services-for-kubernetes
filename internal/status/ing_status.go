@@ -18,10 +18,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -252,16 +250,29 @@ func compareLBStatus(oldStatus, newStatus *corev1.LoadBalancerStatus) bool {
 
 // getIngresses fetches all ingresses and returns a map: {"namespace/name": ingressObj...}
 // if bulk is set to true, this fetches all ingresses in a single k8s api-server call
-func getIngresses(ingressNSNames []string, bulk bool) map[string]*networking.Ingress {
+func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[string]*networking.Ingress {
+	retry := 0
 	mClient := utils.GetInformers().ClientSet
 	ingressMap := make(map[string]*networking.Ingress)
 	var err error
+	if len(retryNum) > 0 {
+		utils.AviLog.Infof("msg: Retrying to get the ingress for status update")
+		retry = retryNum[0]
+		if retry >= 2 {
+			utils.AviLog.Errorf("msg: GetIngress for status update retried 3 times, aborting")
+			return ingressMap
+		}
+	}
 
 	if bulk {
 		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 			ingressList, err := mClient.ExtensionsV1beta1().Ingresses("").List(metav1.ListOptions{})
 			if err != nil {
-				utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus :%s", err)
+				utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %s", err)
+				// retry get if request timeout
+				if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+					return getIngresses(ingressNSNames, bulk, retry+1)
+				}
 			}
 			for _, ing := range ingressList.Items {
 				mIngress, ok := utils.ToNetworkingIngress(ing)
@@ -294,7 +305,11 @@ func getIngresses(ingressNSNames []string, bulk bool) map[string]*networking.Ing
 			ingObj, err = mClient.NetworkingV1beta1().Ingresses(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
 		}
 		if err != nil {
-			utils.AviLog.Warnf("msg: Could not get the ingress object for UpdateStatus :%s", err)
+			utils.AviLog.Warnf("msg: Could not get the ingress object for UpdateStatus: %s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getIngresses(ingressNSNames, bulk, retry+1)
+			}
 			continue
 		}
 
