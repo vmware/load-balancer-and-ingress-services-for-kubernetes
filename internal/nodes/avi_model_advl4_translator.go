@@ -108,7 +108,6 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		if !utils.HasElem(gwListeners, listener) {
 			continue
 		}
-
 		portProto := strings.Split(listener, "/") // format: protocol/port
 		svcNSName := strings.Split(svc, "/")
 		port, _ := strconv.Atoi(portProto[1])
@@ -119,6 +118,19 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			Protocol:   portProto[1],
 			PortName:   "",
 			VrfContext: lib.GetVrf(),
+		}
+
+		// If the service has multiple ports but the gateway specifies one of them as listeners then we pick the portname from the service and populate it in pool portname.
+		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error while retrieving service: %s", key, err)
+			return
+		}
+		// Obtain the matching portname from the svcObj
+		for _, svcPort := range svcObj.Spec.Ports {
+			if svcPort.Port == int32(port) {
+				poolNode.PortName = svcPort.Name
+			}
 		}
 
 		if servers := PopulateServers(poolNode, svcNSName[0], svcNSName[1], false, key); servers != nil {
@@ -138,7 +150,6 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			Tenant:   lib.GetTenant(),
 			PortPool: portPoolSet,
 		}
-
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 

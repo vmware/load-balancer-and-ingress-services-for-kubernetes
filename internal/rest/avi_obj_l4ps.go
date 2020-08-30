@@ -45,7 +45,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		if hppmap.Port != 0 {
 			var ports []int64
 			l4rule := &avimodels.L4Rule{}
-			ruleName := name + string(hppmap.Port)
+			ruleName := name + fmt.Sprint(hppmap.Port)
 			l4rule.Name = &ruleName
 			ports = append(ports, int64(hppmap.Port))
 			l4action := &avimodels.L4RuleAction{}
@@ -106,7 +106,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	}
 
 	utils.AviLog.Debug(spew.Sprintf("L4PolicySet Restop %v AviHttpPolicySetMeta %v\n",
-		rest_op, *hps_meta))
+		rest_op, utils.Stringify(hps_meta)))
 	return &rest_op
 }
 
