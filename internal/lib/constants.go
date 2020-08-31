@@ -75,6 +75,11 @@ const (
 	LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER = "LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
 	LB_ALGORITHM_CONSISTENT_HASH               = "LB_ALGORITHM_CONSISTENT_HASH"
 	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
+	GatewayNameLabelKey                        = "service.route.lbapi.run.tanzu.vmware.com/gateway-name"
+	GatewayNamespaceLabelKey                   = "service.route.lbapi.run.tanzu.vmware.com/gateway-namespace"
+	GatewayTypeLabelKey                        = "service.route.lbapi.run.tanzu.vmware.com/type"
+	AviGatewayController                       = "lbapi.run.tanzu.vmware.com/avi-lb"
+	DummyVSForStaleData                        = "DummyVSForStaleData"
 )
 
 const (

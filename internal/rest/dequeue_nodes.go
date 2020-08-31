@@ -45,12 +45,13 @@ func NewRestOperations(cache *avicache.AviObjCache, aviRestPoolClient *utils.Avi
 	return RestOperations{cache: cache, aviRestPoolClient: aviRestPoolClient}
 }
 
-func (rest *RestOperations) CleanupVS(key string) {
+func (rest *RestOperations) CleanupVS(key string, skipVS bool) {
 	namespace, name := utils.ExtractNamespaceObjectName(key)
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
-	utils.AviLog.Infof("key: %s, msg: cleanup mode, removing all VSes", key)
-	rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key)
+	utils.AviLog.Infof("key: %s, msg: cleanup mode, removing all stale objects", key)
+	rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, true)
+	utils.AviLog.Infof("key: %s, msg: cleanup mode, stale object removal done", key)
 }
 
 func (rest *RestOperations) DeQueueNodes(key string) {
@@ -71,7 +72,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 		}
 		if vs_cache_obj != nil {
 			utils.AviLog.Infof("key: %s, msg: nil model found, this is a vs deletion case", key)
-			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key)
+			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false)
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
@@ -300,7 +301,7 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 	return nil
 }
 
-func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string) bool {
+func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string, skipVS bool) bool {
 	var rest_ops []*utils.RestOp
 	sni_vs_keys := make([]string, len(vs_cache_obj.SNIChildCollection))
 	copy(sni_vs_keys, vs_cache_obj.SNIChildCollection)
@@ -313,7 +314,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 				Name:      passthroughChild,
 			}
 			passthroughChildCache := rest.getVsCacheObj(passthroughChildKey, key)
-			rest.deleteVSOper(passthroughChildKey, passthroughChildCache, namespace, key)
+			rest.deleteVSOper(passthroughChildKey, passthroughChildCache, namespace, key, skipVS)
 		}
 		for _, sni_uuid := range sni_vs_keys {
 			sniVsKey, ok := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sni_uuid)
@@ -322,9 +323,11 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 				rest.SNINodeDelete(delSNI, namespace, rest_ops, key)
 			}
 		}
-		rest_op, ok := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
-		if ok {
-			rest_ops = append(rest_ops, rest_op)
+		if !skipVS {
+			rest_op, ok := rest.AviVSDel(vs_cache_obj.Uuid, namespace, key)
+			if ok {
+				rest_ops = append(rest_ops, rest_op)
+			}
 		}
 		// Delete the vsvip explicitly if controller version is >= 20.1.1
 		c, err := semver.NewConstraint(">= " + lib.VSVIPDELCTRLVER)

@@ -38,6 +38,7 @@ type AviPoolCache struct {
 	PkiProfileCollection NamespaceName
 	LastModified         string
 	InvalidData          bool
+	HasReference         bool
 }
 
 type ServiceMetadataObj struct {
@@ -66,6 +67,7 @@ type AviDSCache struct {
 	LastModified     string
 	InvalidData      bool
 	CloudConfigCksum uint32
+	HasReference     bool
 }
 
 type AviCloudPropertyCache struct {
@@ -295,6 +297,7 @@ type AviSSLCache struct {
 	Cert             string
 	HasCARef         bool
 	CACertUUID       string
+	HasReference     bool
 }
 
 type AviPkiProfileCache struct {
@@ -304,6 +307,7 @@ type AviPkiProfileCache struct {
 	CloudConfigCksum uint32
 	LastModified     string
 	InvalidData      bool
+	HasReference     bool
 }
 
 type NextPage struct {
@@ -319,6 +323,7 @@ type AviPGCache struct {
 	CloudConfigCksum string
 	LastModified     string
 	InvalidData      bool
+	HasReference     bool
 }
 
 type AviVSVIPCache struct {
@@ -330,6 +335,7 @@ type AviVSVIPCache struct {
 	LastModified     string
 	InvalidData      bool
 	Vips             []string
+	HasReference     bool
 }
 
 type AviHTTPPolicyCache struct {
@@ -340,6 +346,7 @@ type AviHTTPPolicyCache struct {
 	PoolGroups       []string
 	LastModified     string
 	InvalidData      bool
+	HasReference     bool
 }
 
 type AviL4PolicyCache struct {
@@ -349,6 +356,7 @@ type AviL4PolicyCache struct {
 	CloudConfigCksum uint32
 	Pools            []string
 	LastModified     string
+	HasReference     bool
 }
 
 type AviVrfCache struct {
@@ -423,7 +431,7 @@ func (c *AviCache) AviCacheGetAllChildVSForParent(parentVsKey NamespaceName) []s
 	return uuids
 }
 
-func (c *AviCache) AviGetAllVSKeys() []NamespaceName {
+func (c *AviCache) AviGetAllKeys() []NamespaceName {
 	c.cache_lock.RLock()
 	defer c.cache_lock.RUnlock()
 	var keys []NamespaceName
