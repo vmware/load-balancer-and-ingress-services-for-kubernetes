@@ -35,7 +35,9 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 			continue
 		}
 
-		service := option.ServiceMetadata.Namespace + "/" + option.ServiceMetadata.ServiceName
+		// service TypeLB would have just one NamespaceServiceName considering one VS per svcLB
+		// does not apply for svcLBs exposed via gateways
+		service := option.ServiceMetadata.NamespaceServiceName[0]
 		option.IngSvc = service
 		servicesToUpdate = append(servicesToUpdate, service)
 		updateServiceOptions = append(updateServiceOptions, option)
@@ -64,7 +66,7 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 				continue
 			}
 
-			_, err := mClient.CoreV1().Services(svcMetadata.Namespace).UpdateStatus(service)
+			_, err := mClient.CoreV1().Services(service.Namespace).UpdateStatus(service)
 			if err != nil {
 				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
 				continue
@@ -79,7 +81,8 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 
 func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
 	mClient := utils.GetInformers().ClientSet
-	mLb, err := mClient.CoreV1().Services(svc_mdata_obj.Namespace).Get(svc_mdata_obj.ServiceName, metav1.GetOptions{})
+	serviceNSName := strings.Split(svc_mdata_obj.NamespaceServiceName[0], "/")
+	mLb, err := mClient.CoreV1().Services(serviceNSName[0]).Get(serviceNSName[1], metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the service status :%s", key, err)
 		return err
@@ -89,13 +92,13 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 			Ingress: []corev1.LoadBalancerIngress{},
 		},
 	}
-	_, err = mClient.CoreV1().Services(svc_mdata_obj.Namespace).UpdateStatus(mLb)
+	_, err = mClient.CoreV1().Services(serviceNSName[0]).UpdateStatus(mLb)
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 		return err
 	}
-	utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s/%s",
-		key, svc_mdata_obj.Namespace, svc_mdata_obj.ServiceName)
+
+	utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s", key, svc_mdata_obj.NamespaceServiceName[0])
 	return nil
 }
 

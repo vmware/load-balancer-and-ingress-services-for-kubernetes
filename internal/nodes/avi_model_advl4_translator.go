@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -30,17 +31,15 @@ import (
 func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
-	VsNode := o.ConstructAdvL4VsNode(gatewayName, namespace, key)
-	if VsNode == nil {
-		return
+	if VsNode := o.ConstructAdvL4VsNode(gatewayName, namespace, key); VsNode != nil {
+		o.ConstructAdvL4PolPoolNodes(VsNode, gatewayName, namespace, key)
+		utils.AviLog.Debugf("key: %s, msg: Created VSNode with gateway %v", key, utils.Stringify(VsNode))
+		o.AddModelNode(VsNode)
+		VsNode.CalculateCheckSum()
+		o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
+		utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
+		utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 	}
-	o.ConstructAdvL4PolPoolNodes(VsNode, gatewayName, namespace, key)
-	utils.AviLog.Debugf("key: %s, msg: Created VSNode with gateway %v", key, utils.Stringify(VsNode))
-	o.AddModelNode(VsNode)
-	VsNode.CalculateCheckSum()
-	o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
-	utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
-	utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 }
 
 func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string) *AviVsNode {
@@ -50,12 +49,29 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	found, listeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gatewayName)
 	if found {
 		vsName := lib.GetL4VSName(gatewayName, namespace)
-		// TODO: Add service metadata as all services associated with the VS.
+
+		var serviceNSNames []string
+		if found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName); found {
+			for svcListener, service := range services {
+				if utils.HasElem(listeners, svcListener) {
+					serviceNSNames = append(serviceNSNames, service)
+				}
+			}
+		}
+		if len(serviceNSNames) == 0 {
+			// do not create the VS altogether in case services are not present
+			return nil
+		}
+
 		avi_vs_meta := &AviVsNode{
 			Name:       vsName,
 			Tenant:     lib.GetTenant(),
 			EastWest:   false,
 			VrfContext: lib.GetVrf(),
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				NamespaceServiceName: serviceNSNames,
+				Gateway:              namespace + "/" + gatewayName,
+			},
 		}
 
 		if lib.GetSEGName() != lib.DEFAULT_GROUP {
@@ -104,7 +120,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		return
 	}
 
-	for svc, listener := range svcListeners {
+	for listener, svc := range svcListeners {
 		if !utils.HasElem(gwListeners, listener) {
 			continue
 		}

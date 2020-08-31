@@ -58,7 +58,7 @@ type SvcGWLister struct {
 	SvcGWStore *ObjectMapStore
 
 	// the protocol and port mapped here are of the service
-	// nsX/gw1 -> {ns1/svc1: proto1/port1, ns2/svc2: proto2/port2, ...}
+	// nsX/gw1 -> {proto1/port1: ns1/svc1, proto2/port2: ns2/svc2, ...}
 	GwSvcsStore *ObjectMapStore
 }
 
@@ -147,11 +147,11 @@ func (v *SvcGWLister) GetGwToSvcs(gateway string) (bool, map[string]string) {
 	return true, services.(map[string]string)
 }
 
-func (v *SvcGWLister) UpdateGatewayMappings(gateway, service, portprotocol string) {
+func (v *SvcGWLister) UpdateGatewayMappings(gateway, portprotocol, service string) {
 	v.SvcGWLock.Lock()
 	defer v.SvcGWLock.Unlock()
 	_, services := v.GetGwToSvcs(gateway)
-	services[service] = portprotocol
+	services[portprotocol] = service
 	v.GwSvcsStore.AddOrUpdate(gateway, services)
 	v.SvcGWStore.AddOrUpdate(service, gateway)
 }
@@ -160,12 +160,15 @@ func (v *SvcGWLister) RemoveGatewayMappings(gateway, service string) bool {
 	v.SvcGWLock.Lock()
 	defer v.SvcGWLock.Unlock()
 	_, services := v.GetGwToSvcs(gateway)
-	if _, ok := services[service]; ok {
-		delete(services, service)
-		if len(services) == 0 {
-			if success := v.GwSvcsStore.Delete(gateway); !success {
-				return false
-			}
+	for portproto, svc := range services {
+		if svc == service {
+			delete(services, portproto)
+		}
+	}
+
+	if len(services) == 0 {
+		if success := v.GwSvcsStore.Delete(gateway); !success {
+			return false
 		}
 	}
 	return v.SvcGWStore.Delete(service)

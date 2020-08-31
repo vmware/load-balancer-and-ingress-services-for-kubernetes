@@ -486,7 +486,7 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 	}
 	// Now remove the secret relationship
 	routeIgrObj.GetSvcLister().IngressMappings(namespace).RemoveIngressSecretMappings(objname)
-	utils.AviLog.Infof("key: %s, removed ingess mapping for: %s", key, objname)
+	utils.AviLog.Infof("key: %s, removed ingress mapping for: %s", key, objname)
 
 	// Remove the hosts mapping for this ingress
 	routeIgrObj.GetSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(objname)

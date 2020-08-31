@@ -387,7 +387,12 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 				utils.AviLog.Debug(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
-				if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
+				if svc_mdata_obj.Gateway != "" {
+					status.UpdateGatewayStatusAddress([]status.UpdateStatusOptions{{
+						Vip:             vs_cache_obj.Vip,
+						ServiceMetadata: svc_mdata_obj,
+					}}, false)
+				} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 					// This service needs an update of the status
 					status.UpdateL4LBStatus([]status.UpdateStatusOptions{{
 						Vip:             vs_cache_obj.Vip,
@@ -448,7 +453,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 			}
 
-			if svc_mdata_obj.ServiceName != "" && svc_mdata_obj.Namespace != "" {
+			if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 				// This service needs an update of the status
 				status.UpdateL4LBStatus([]status.UpdateStatusOptions{{
 					Vip:             vs_cache_obj.Vip,
@@ -491,7 +496,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
 				utils.AviLog.Debugf("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
 				// Reset the LB status field as well.
-				if vs_cache_obj.ServiceMetadataObj.ServiceName != "" && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
+				if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 					status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
 				}
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
