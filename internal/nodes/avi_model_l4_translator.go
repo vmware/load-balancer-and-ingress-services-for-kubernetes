@@ -262,7 +262,14 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 				if addr.NodeName != nil {
 					server.ServerNode = *addr.NodeName
 				}
-				pool_meta = append(pool_meta, server)
+				if allPort {
+					for _, port := range ss.Ports {
+						server.Port = port.Port
+						pool_meta = append(pool_meta, server)
+					}
+				} else {
+					pool_meta = append(pool_meta, server)
+				}
 			}
 		}
 	}
