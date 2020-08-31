@@ -16,11 +16,10 @@ package status
 
 import (
 	"errors"
-
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"strings"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
-
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,6 +50,9 @@ func UpdateHostRuleStatus(hr *akov1alpha1.HostRule, updateStatus UpdateCRDStatus
 		updatedHr, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Get(hr.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("hostrule not found %v", err)
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return UpdateHostRuleStatus(updatedHr, updateStatus, retry+1)
+			}
 			return err
 		}
 		return UpdateHostRuleStatus(updatedHr, updateStatus, retry+1)
@@ -79,6 +81,9 @@ func UpdateHTTPRuleStatus(rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatus
 		updatedRr, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Get(rr.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("httprule not found %v", err)
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return UpdateHTTPRuleStatus(updatedRr, updateStatus, retry+1)
+			}
 			return err
 		}
 		return UpdateHTTPRuleStatus(updatedRr, updateStatus, retry+1)
