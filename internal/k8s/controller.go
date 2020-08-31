@@ -42,6 +42,14 @@ import (
 var controllerInstance *AviController
 var ctrlonce sync.Once
 
+// These tags below are only applicable in case of advanced L4 features at the moment.
+
+// +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=services;services/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=configmap,verbs=get;list;watch;
+
 type AviController struct {
 	worker_id       uint32
 	worker_id_mutex sync.Mutex
