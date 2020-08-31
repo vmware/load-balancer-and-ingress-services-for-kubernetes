@@ -114,9 +114,6 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	for _, server := range pool_meta.Servers {
 		sip := server.Ip
 		port := pool_meta.Port
-		if server.Port != 0 {
-			port = server.Port
-		}
 		s := avimodels.Server{IP: &sip, Port: &port}
 		if server.ServerNode != "" {
 			sn := server.ServerNode
