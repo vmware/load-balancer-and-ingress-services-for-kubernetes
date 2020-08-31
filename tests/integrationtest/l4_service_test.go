@@ -217,7 +217,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			}
 		}
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(3))
+		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
 		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
 	}
@@ -259,7 +259,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 			}
 		}
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(3))
+		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].SharedVS).To(gomega.Equal(false))
 		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
 		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
@@ -334,7 +334,7 @@ func TestCreateServiceLBCacheSync(t *testing.T) {
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
 		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
+		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc"))
 	}
 
 	TearDownTestForSvcLB(t, g)
@@ -401,7 +401,7 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
 		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
+		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc"))
 	}
 
 	TearDownTestForSvcLB(t, g)
@@ -427,8 +427,8 @@ func TestCreateMultiportServiceLBCacheSync(t *testing.T) {
 	g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 	g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(3))
 	g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp(`^(cluster--[a-zA-Z0-9-]+-808(0|1|2))$`))
-	g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(3))
-	g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp(`^(cluster--[a-zA-Z0-9-]+-808(0|1|2))$`))
+	g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
+	g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp(`^(cluster--[a-zA-Z0-9-]+)$`))
 
 	TearDownTestForSvcLBMultiport(t, g)
 }

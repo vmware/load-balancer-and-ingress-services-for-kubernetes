@@ -119,7 +119,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	if !found || !foundGW {
 		return
 	}
-
+	var portPoolSet []AviHostPathPortPoolPG
 	for listener, svc := range svcListeners {
 		if !utils.HasElem(gwListeners, listener) {
 			continue
@@ -154,28 +154,26 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-		var portPoolSet []AviHostPathPortPoolPG
 		portPool := AviHostPathPortPoolPG{
 			Port:     uint32(port),
 			Pool:     pool_ref,
 			Protocol: portProto[0],
 		}
 		portPoolSet = append(portPoolSet, portPool)
-		l4policyNode := &AviL4PolicyNode{
-			Name:     lib.GetL4PolicyName(vsNode.Name, int32(port)),
-			Tenant:   lib.GetTenant(),
-			PortPool: portPoolSet,
-		}
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
-
-		l4Policies = append(l4Policies, l4policyNode)
 		poolNode.CalculateCheckSum()
-		l4policyNode.CalculateCheckSum()
 		o.AddModelNode(poolNode)
-		o.GraphChecksum = o.GraphChecksum + l4policyNode.GetCheckSum()
 		o.GraphChecksum = o.GraphChecksum + poolNode.GetCheckSum()
 	}
+	l4policyNode := &AviL4PolicyNode{
+		Name:     vsNode.Name,
+		Tenant:   lib.GetTenant(),
+		PortPool: portPoolSet,
+	}
+	l4Policies = append(l4Policies, l4policyNode)
+	l4policyNode.CalculateCheckSum()
+	o.GraphChecksum = o.GraphChecksum + l4policyNode.GetCheckSum()
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
 

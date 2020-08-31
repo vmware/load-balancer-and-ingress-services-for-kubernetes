@@ -51,7 +51,8 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 			ports = append(ports, int64(hppmap.Port))
 			l4action := &avimodels.L4RuleAction{}
 			actionSelect := &avimodels.L4RuleActionSelectPool{}
-			actionSelect.PoolRef = &hppmap.Pool
+			poolName := hppmap.Pool
+			actionSelect.PoolRef = &poolName
 			poolSelect := "L4_RULE_ACTION_SELECT_POOL"
 			actionSelect.ActionType = &poolSelect
 			l4action.SelectPool = actionSelect
