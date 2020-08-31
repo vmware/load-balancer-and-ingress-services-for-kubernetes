@@ -1,0 +1,39 @@
+{
+  "count": 2,
+  "results": [
+    {
+      "_last_modified": "1579409598079840",
+      "static_routes": [
+        {
+          "route_id": "1",
+          "prefix": {
+            "mask": 24,
+            "ip_addr": {
+              "type": "V4",
+              "addr": "10.244.0.0"
+            }
+          },
+          "next_hop": {
+            "type": "V4",
+            "addr": "10.52.2.23"
+          }
+        }
+      ],
+      "url": "https://10.52.3.238:9443/api/vrfcontext/vrfcontext-941fc441-4433-4827-b456-8f91bd85baf7",
+      "tenant_ref": "https://10.52.3.238:9443/api/tenant/admin",
+      "uuid": "vrfcontext-941fc441-4433-4827-b456-8f91bd85baf7",
+      "cloud_ref": "https://10.52.3.238:9443/api/cloud/cloud-bd840faa-1a58-4573-8510-1bdb955448df",
+      "system_default": true,
+      "name": "global"
+    },
+    {
+      "_last_modified": "1578321100116331",
+      "url": "https://10.52.3.238:9443/api/vrfcontext/vrfcontext-9fd27793-fcd7-4204-9f29-0085e8b2f178",
+      "tenant_ref": "https://10.52.3.238:9443/api/tenant/admin",
+      "name": "management",
+      "cloud_ref": "https://10.52.3.238:9443/api/cloud/cloud-bd840faa-1a58-4573-8510-1bdb955448df",
+      "system_default": true,
+      "uuid": "vrfcontext-9fd27793-fcd7-4204-9f29-0085e8b2f178"
+    }
+  ]
+}

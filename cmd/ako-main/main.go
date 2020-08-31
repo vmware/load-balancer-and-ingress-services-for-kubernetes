@@ -118,7 +118,12 @@ func InitializeAKC() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 	c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	k8s.PopulateCache()
+	err = k8s.PopulateCache()
+	if err != nil {
+		c.DisableSync = true
+		utils.AviLog.Errorf("failed to populate cache, disabling sync")
+		lib.ShutdownApi()
+	}
 	k8s.PopulateNodeCache(kubeClient)
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}
