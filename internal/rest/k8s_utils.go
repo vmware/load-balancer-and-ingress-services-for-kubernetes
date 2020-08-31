@@ -55,7 +55,7 @@ func (rest *RestOperations) SyncIngressStatus() {
 				option := status.UpdateStatusOptions{Vip: parentVsObj.Vip, ServiceMetadata: vsSvcMetadataObj, Key: "syncstatus"}
 				allIngressUpdateOptions = append(allIngressUpdateOptions, option)
 			}
-		} else if vsSvcMetadataObj.ServiceName != "" && vsSvcMetadataObj.Namespace != "" {
+		} else if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
 			// serviceLB
 			option := status.UpdateStatusOptions{Vip: vsCacheObj.Vip, ServiceMetadata: vsSvcMetadataObj, Key: "syncstatus"}
 			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions, option)

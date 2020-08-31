@@ -63,8 +63,15 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		}
 		fqdns = append(fqdns, fqdn)
 	}
-	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: lib.GetTenant(),
-		EastWest: false, ServiceMetadata: avicache.ServiceMetadataObj{ServiceName: svcObj.ObjectMeta.Name, Namespace: svcObj.ObjectMeta.Namespace, HostNames: fqdns}}
+	avi_vs_meta = &AviVsNode{
+		Name:     vsName,
+		Tenant:   lib.GetTenant(),
+		EastWest: false,
+		ServiceMetadata: avicache.ServiceMetadataObj{
+			NamespaceServiceName: []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name},
+			HostNames:            fqdns,
+		},
+	}
 
 	if lib.GetSEGName() != lib.DEFAULT_GROUP {
 		avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
