@@ -60,16 +60,18 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		svc_mdata := string(svc_mdata_json)
 		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 		seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
+		vsDownOnPoolDown := true
 		vs := avimodels.VirtualService{
-			Name:                  &name,
-			NetworkProfileRef:     &network_prof,
-			ApplicationProfileRef: &app_prof,
-			CloudConfigCksum:      &checksumstr,
-			CreatedBy:             &cr,
-			CloudRef:              &cloudRef,
-			ServiceMetadata:       &svc_mdata,
-			SeGroupRef:            &seGroupRef,
-			VrfContextRef:         &vrfContextRef,
+			Name:                        &name,
+			NetworkProfileRef:           &network_prof,
+			ApplicationProfileRef:       &app_prof,
+			CloudConfigCksum:            &checksumstr,
+			CreatedBy:                   &cr,
+			CloudRef:                    &cloudRef,
+			ServiceMetadata:             &svc_mdata,
+			SeGroupRef:                  &seGroupRef,
+			VrfContextRef:               &vrfContextRef,
+			RemoveListeningPortOnVsDown: &vsDownOnPoolDown,
 		}
 
 		if vs_meta.DefaultPoolGroup != "" {
