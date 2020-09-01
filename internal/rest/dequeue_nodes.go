@@ -55,7 +55,7 @@ func (rest *RestOperations) CleanupVS(key string, skipVS bool) {
 }
 
 func (rest *RestOperations) DeQueueNodes(key string) {
-	utils.AviLog.Debugf("key: %s, msg: start rest layer sync.", key)
+	utils.AviLog.Infof("key: %s, msg: start rest layer sync.", key)
 	namespace, name := utils.ExtractNamespaceObjectName(key)
 	// Got the key from the Graph Layer - let's fetch the model
 	ok, avimodelIntf := objects.SharedAviGraphLister().Get(key)

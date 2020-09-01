@@ -226,40 +226,40 @@ func (c *AviObjCache) DeleteUnmarked() {
 	var dsKeys, vsVipKeys, httpKeys, sslKeys []NamespaceName
 	var pgKeys, poolKeys, l4Keys []NamespaceName
 	for _, objkey := range c.DSCache.AviGetAllKeys() {
-		utils.AviLog.Infof("Reference Not found for datascript: %s", objkey)
 		intf, _ := c.DSCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviDSCache); ok {
 			if obj.HasReference == false {
+				utils.AviLog.Infof("Reference Not found for datascript: %s", objkey)
 				dsKeys = append(dsKeys, objkey)
 			}
 		}
 	}
 
 	for _, objkey := range c.HTTPPolicyCache.AviGetAllKeys() {
-		utils.AviLog.Infof("Reference Not found for http policy: %s", objkey)
 		intf, _ := c.HTTPPolicyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviHTTPPolicyCache); ok {
 			if obj.HasReference == false {
+				utils.AviLog.Infof("Reference Not found for http policy: %s", objkey)
 				httpKeys = append(httpKeys, objkey)
 			}
 		}
 	}
 
 	for _, objkey := range c.L4PolicyCache.AviGetAllKeys() {
-		utils.AviLog.Infof("Reference Not found for l4 policy: %s", objkey)
 		intf, _ := c.L4PolicyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviL4PolicyCache); ok {
 			if obj.HasReference == false {
-				poolKeys = append(poolKeys, objkey)
+				utils.AviLog.Infof("Reference Not found for l4 policy: %s", objkey)
+				l4Keys = append(l4Keys, objkey)
 			}
 		}
 	}
 
 	for _, objkey := range c.PgCache.AviGetAllKeys() {
-		utils.AviLog.Infof("Reference Not found for poolgroup: %s", objkey)
 		intf, _ := c.PgCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviPGCache); ok {
 			if obj.HasReference == false {
+				utils.AviLog.Infof("Reference Not found for poolgroup: %s", objkey)
 				pgKeys = append(pgKeys, objkey)
 			}
 		}
@@ -267,35 +267,36 @@ func (c *AviObjCache) DeleteUnmarked() {
 	}
 
 	for _, objkey := range c.PoolCache.AviGetAllKeys() {
-		utils.AviLog.Infof("Reference Not found for pool: %s", objkey)
 		intf, _ := c.PoolCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviPoolCache); ok {
 			if obj.HasReference == false {
+				utils.AviLog.Infof("Reference Not found for pool: %s", objkey)
 				poolKeys = append(poolKeys, objkey)
 			}
 		}
 	}
 
 	for _, objkey := range c.SSLKeyCache.AviGetAllKeys() {
-		utils.AviLog.Infof("Reference Not found for ssl key: %s", objkey)
 		intf, _ := c.SSLKeyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviSSLCache); ok {
 			if obj.HasReference == false {
+				utils.AviLog.Infof("Reference Not found for ssl key: %s", objkey)
 				sslKeys = append(sslKeys, objkey)
 			}
 		}
 	}
 
 	for _, objkey := range c.VSVIPCache.AviGetAllKeys() {
-		utils.AviLog.Infof("Reference Not found for vsvip: %s", objkey)
 		intf, _ := c.VSVIPCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviVSVIPCache); ok {
 			if obj.HasReference == false {
+				utils.AviLog.Infof("Reference Not found for vsvip: %s", objkey)
 				vsVipKeys = append(vsVipKeys, objkey)
 			}
 		}
 	}
 
+	// Only add this if we have stale data
 	vsMetaObj := AviVsCache{
 		Name:                 lib.DummyVSForStaleData,
 		VSVipKeyCollection:   vsVipKeys,
@@ -312,6 +313,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 	}
 	utils.AviLog.Infof("Dummy VS for stale objects Deletion %s", utils.Stringify(vsMetaObj))
 	c.VsCacheMeta.AviCacheAdd(vsKey, &vsMetaObj)
+
 }
 
 func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string, pgData *[]AviPGCache, override_uri ...NextPage) (*[]AviPGCache, int, error) {
@@ -1336,7 +1338,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 		}
 		k := NamespaceName{Namespace: utils.ADMIN_NS, Name: *l4pol.Name}
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
-		utils.AviLog.Debugf("Adding l4pol to Cache during refresh %s\n", k)
+		utils.AviLog.Infof("Adding l4pol to Cache during refresh %s\n", lib.L4PolicyChecksum(ports, protocol))
 	}
 	return nil
 }
@@ -1705,6 +1707,11 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 				}
 			}
 		}
+		if strings.Contains(protocol, utils.TCP) {
+			protocol = utils.TCP
+		} else {
+			protocol = utils.UDP
+		}
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
@@ -1712,9 +1719,10 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 			LastModified:     *l4pol.LastModified,
 			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol),
 		}
-		*l4PolicyData = append(*l4PolicyData, l4PolCacheObj)
 
+		*l4PolicyData = append(*l4PolicyData, l4PolCacheObj)
 	}
+
 	if result.Next != "" {
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/l4policyset")

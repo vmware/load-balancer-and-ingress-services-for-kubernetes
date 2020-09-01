@@ -33,7 +33,6 @@ func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName stri
 	defer o.Lock.Unlock()
 	if VsNode := o.ConstructAdvL4VsNode(gatewayName, namespace, key); VsNode != nil {
 		o.ConstructAdvL4PolPoolNodes(VsNode, gatewayName, namespace, key)
-		utils.AviLog.Debugf("key: %s, msg: Created VSNode with gateway %v", key, utils.Stringify(VsNode))
 		o.AddModelNode(VsNode)
 		VsNode.CalculateCheckSum()
 		o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
@@ -57,10 +56,6 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 					serviceNSNames = append(serviceNSNames, service)
 				}
 			}
-		}
-		if len(serviceNSNames) == 0 {
-			// do not create the VS altogether in case services are not present
-			return nil
 		}
 
 		avi_vs_meta := &AviVsNode{
@@ -108,7 +103,6 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 		return avi_vs_meta
 	}
-
 	return nil
 }
 
