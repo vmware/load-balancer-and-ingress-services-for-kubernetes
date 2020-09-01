@@ -671,6 +671,7 @@ func InitializeFakeAKOAPIServer() {
 	}
 
 	akoApi.InitFakeApi()
+	lib.SetApiServerInstance(akoApi)
 }
 
 const defaultMockFilePath = "../avimockobjects"
@@ -808,6 +809,21 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		(strings.Contains(r.URL.RawQuery, "thisisahostruleref") || strings.Contains(r.URL.RawQuery, "thisisahttpruleref")) {
 		w.WriteHeader(http.StatusOK)
 		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
+		w.Write(data)
+
+	} else if r.Method == "GET" &&
+		(strings.Contains(url, "/api/cloud/")) {
+		var data []byte
+		if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NONE") {
+			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NONE"))
+		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AZURE") {
+			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AZURE"))
+		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AWS") {
+			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AWS"))
+		} else {
+			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_VCENTER"))
+		}
+		w.WriteHeader(http.StatusOK)
 		w.Write(data)
 
 	} else if r.Method == "GET" && inArray(FakeAviObjects, object[1]) {
