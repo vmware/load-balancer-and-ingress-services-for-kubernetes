@@ -1,0 +1,99 @@
+# Please edit the object below. Lines beginning with a '#' will be ignored,
+# and an empty file will abort the edit. If an error occurs while saving this file will be
+# reopened with the relevant failures.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ako
+  namespace: avi-system
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers:
+      - env:
+        - name: CTRL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: username
+              name: avi-secret
+        - name: CTRL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: avi-secret
+        - name: CTRL_IPADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: controllerIP
+              name: avi-k8s-config
+        - name: ADVANCED_L4
+          valueFrom:
+            configMapKeyRef:
+              key: advancedL4
+              name: avi-k8s-config
+        - name: CLOUD_NAME
+          valueFrom:
+            configMapKeyRef:
+              key: cloudName
+              name: avi-k8s-config
+        image: avinetworks/ako:latest
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/status
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: ako
+        resources:
+          limits:
+            cpu: 250m
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 75Mi
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        resources: {}
+        securityContext: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: ako-sa
+      serviceAccountName: ako-sa
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      terminationGracePeriodSeconds: 10
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      - effect: NoSchedule
+        key: kubeadmNode
+        operator: Equal
+        value: master
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        
