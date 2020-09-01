@@ -175,7 +175,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	}
 
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus :%s", key, err)
+		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus: %s", key, err)
 		return err
 	}
 
@@ -285,7 +285,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		} else {
 			ingressList, err := mClient.NetworkingV1beta1().Ingresses("").List(metav1.ListOptions{})
 			if err != nil {
-				utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus :%s", err)
+				utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %s", err)
 			}
 			for i := range ingressList.Items {
 				ing := ingressList.Items[i]

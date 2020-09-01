@@ -326,7 +326,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			// Now let's get the VS key from this uuid
 			var foundvscache bool
 			vhParentKey, foundvscache = rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(vs_uuid)
-			utils.AviLog.Infof("key: %s, msg: extracted the VS key from the uuid :%s", key, vhParentKey)
+			utils.AviLog.Infof("key: %s, msg: extracted the VS key from the uuid: %s", key, vhParentKey)
 			if foundvscache {
 				parentVsObj = rest.getVsCacheObj(vhParentKey.(avicache.NamespaceName), key)
 				parentVsObj.AddToSNIChildCollection(uuid)
@@ -391,6 +391,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					status.UpdateGatewayStatusAddress([]status.UpdateStatusOptions{{
 						Vip:             vs_cache_obj.Vip,
 						ServiceMetadata: svc_mdata_obj,
+						Key:             key,
 					}}, false)
 				} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 					// This service needs an update of the status
@@ -412,7 +413,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					// Fetch the pool object from cache and check the service metadata
 					pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
 					if ok {
-						utils.AviLog.Infof("key: %s, msg: found pool :%s, will update status", key, poolkey.Name)
+						utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
 						pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 						if found {
 							if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
@@ -495,11 +496,14 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
 				vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
 				utils.AviLog.Debugf("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
-				// Reset the LB status field as well.
-				if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
-					status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
-				}
 				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
+			}
+
+			// Reset the LB status field as well.
+			if vs_cache_obj.ServiceMetadataObj.Gateway != "" {
+				status.DeleteGatewayStatusAddress(vs_cache_obj.ServiceMetadataObj, key)
+			} else if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+				status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
 			}
 
 			if (vs_cache_obj.ServiceMetadataObj.IngressName != "" || len(vs_cache_obj.ServiceMetadataObj.NamespaceIngressName) > 0) && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
@@ -682,7 +686,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 					return &rest_op, nil
 				}
 				// If it's not nil, return an error.
-				utils.AviLog.Warnf("key: %s, Error in vsvip GET operation :%s", key, err)
+				utils.AviLog.Warnf("key: %s, Error in vsvip GET operation: %s", key, err)
 				return nil, err
 			}
 			for i, fqdn := range vsvip_meta.FQDNs {

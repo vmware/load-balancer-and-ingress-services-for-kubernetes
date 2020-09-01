@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -27,7 +28,7 @@ import (
 )
 
 // Type: specific condition enums must be part of independent update functions
-type UpdateGatewayStatusOptions struct {
+type UpdateGWStatusConditionOptions struct {
 	Status             core.ConditionStatus // defaults to True
 	Message            string               // extended condition message
 	Reason             string               // reason for transition
@@ -50,14 +51,54 @@ func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
 			Type:  advl4v1alpha1pre1.IPAddressType,
 		}}
 		updateGatewayStatusObject(gw, &gwStatus)
+
+		utils.AviLog.Debugf("key: %s, msg: Updating corresponding service %v statuses for gateway %s",
+			option.Key, option.ServiceMetadata.NamespaceServiceName, option.ServiceMetadata.Gateway)
+		for _, svcData := range option.ServiceMetadata.NamespaceServiceName {
+			UpdateL4LBStatus([]UpdateStatusOptions{{
+				Vip: option.Vip,
+				Key: option.Key,
+				ServiceMetadata: avicache.ServiceMetadataObj{
+					NamespaceServiceName: []string{svcData},
+				},
+			}}, false)
+		}
 	}
 
 	return
 }
 
+func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key string) error {
+	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
+	gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gwNSName[0]).Get(gwNSName[1], metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
+		return err
+	}
+
+	// assuming 1 IP per gateway
+	gw.Status.Addresses = []advl4v1alpha1pre1.GatewayAddress{}
+	_, err = lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gwNSName[0]).UpdateStatus(gw)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the gateway status: %v", key, err)
+		return err
+	}
+
+	utils.AviLog.Debugf("key: %s, msg: Deleting corresponding service %v statuses for gateway %s",
+		key, svcMetadataObj.NamespaceServiceName, svcMetadataObj.Gateway)
+	for _, svcData := range svcMetadataObj.NamespaceServiceName {
+		DeleteL4LBStatus(avicache.ServiceMetadataObj{
+			NamespaceServiceName: []string{svcData},
+		}, key)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, svcMetadataObj.Gateway)
+	return nil
+}
+
 // supported GatewayConditionTypes
 // InvalidListeners, InvalidAddress, *Serviceable
-func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, gwConditionType advl4v1alpha1pre1.GatewayConditionType, updateStatus *UpdateGatewayStatusOptions) {
+func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, gwConditionType advl4v1alpha1pre1.GatewayConditionType, updateStatus *UpdateGWStatusConditionOptions) {
 	gwStatus := gw.Status
 	for _, condition := range gwStatus.Conditions {
 		if condition.Type == gwConditionType {
@@ -73,7 +114,7 @@ func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, gwConditionTy
 
 // supported ListenerConditionType
 // PortConflict, UnsupportedProtocol, InvalidRoutes, UnsupportedProtocol, *Serviceable
-func UpdateGatewayStatusListenerConditions(gw *advl4v1alpha1pre1.Gateway, port string, listenerConditionType advl4v1alpha1pre1.ListenerConditionType, updateStatus *UpdateGatewayStatusOptions) {
+func UpdateGatewayStatusListenerConditions(gw *advl4v1alpha1pre1.Gateway, port string, listenerConditionType advl4v1alpha1pre1.ListenerConditionType, updateStatus *UpdateGWStatusConditionOptions) {
 	gwStatus := gw.Status
 	for _, condition := range gwStatus.Listeners {
 		if condition.Port == port {

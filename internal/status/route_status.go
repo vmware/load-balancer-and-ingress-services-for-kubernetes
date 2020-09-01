@@ -117,7 +117,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 	if bulk {
 		routeList, err := utils.GetInformers().OshiftClient.RouteV1().Routes("").List(metav1.ListOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("Could not get the route object for UpdateStatus :%s", err)
+			utils.AviLog.Warnf("Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getRoutes(routeNSNames, bulk, retry+1)
@@ -139,7 +139,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 		}
 		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus :%s", err)
+			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getRoutes(routeNSNames, bulk, retry+1)
@@ -360,7 +360,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 	mRoute, err := utils.GetInformers().RouteInformer.Lister().Routes(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName)
 
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus :%s", key, err)
+		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus: %s", key, err)
 		return err
 	}
 

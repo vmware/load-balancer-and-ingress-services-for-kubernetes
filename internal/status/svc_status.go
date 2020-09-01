@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -30,14 +31,14 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 	var updateServiceOptions []UpdateStatusOptions
 
 	for _, option := range options {
-		if len(option.ServiceMetadata.HostNames) != 1 {
-			utils.AviLog.Error("Hostname length not appropriate for status update, not equals 1")
-			continue
-		}
-
 		// service TypeLB would have just one NamespaceServiceName considering one VS per svcLB
 		// does not apply for svcLBs exposed via gateways
 		service := option.ServiceMetadata.NamespaceServiceName[0]
+		if len(option.ServiceMetadata.HostNames) != 1 && !lib.GetAdvancedL4() {
+			utils.AviLog.Error("Service hostname not found for service %s status update", service)
+			continue
+		}
+
 		option.IngSvc = service
 		servicesToUpdate = append(servicesToUpdate, service)
 		updateServiceOptions = append(updateServiceOptions, option)
@@ -53,11 +54,15 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 				continue
 			}
 
+			var svcHostname string
+			if len(svcMetadata.HostNames) > 0 {
+				svcHostname = svcMetadata.HostNames[0]
+			}
 			service.Status = corev1.ServiceStatus{
 				LoadBalancer: corev1.LoadBalancerStatus{
 					Ingress: []corev1.LoadBalancerIngress{corev1.LoadBalancerIngress{
 						IP:       option.Vip,
-						Hostname: svcMetadata.HostNames[0],
+						Hostname: svcHostname,
 					}}}}
 
 			if sameStatus := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer); sameStatus {
@@ -84,7 +89,7 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 	serviceNSName := strings.Split(svc_mdata_obj.NamespaceServiceName[0], "/")
 	mLb, err := mClient.CoreV1().Services(serviceNSName[0]).Get(serviceNSName[1], metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the service status :%s", key, err)
+		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the service status: %s", key, err)
 		return err
 	}
 	mLb.Status = corev1.ServiceStatus{
@@ -120,7 +125,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 	if bulk {
 		serviceLBList, err := mClient.CoreV1().Services("").List(metav1.ListOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("Could not get the service object for UpdateStatus :%s", err)
+			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
 			// retry get if request timeout
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getServices(serviceNSNames, bulk, retry+1)
@@ -138,7 +143,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		nsNameSplit := strings.Split(namespaceName, "/")
 		serviceLB, err := mClient.CoreV1().Services(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("msg: Could not get the service object for UpdateStatus :%s", err)
+			utils.AviLog.Warnf("msg: Could not get the service object for UpdateStatus: %s", err)
 			// retry get if request timeout
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getServices(serviceNSNames, bulk, retry+1)
