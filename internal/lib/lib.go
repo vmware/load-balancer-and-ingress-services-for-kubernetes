@@ -70,6 +70,10 @@ func GetAKOUser() string {
 }
 
 func GetshardSize() uint32 {
+	if GetAdvancedL4() {
+		// shard to 8 go routines in the REST layer
+		return shardSizeMap["LARGE"]
+	}
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
 	shardSize, ok := shardSizeMap[shardVsSize]
 	if ok {
