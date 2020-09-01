@@ -26,6 +26,7 @@ var restChan chan bool
 var uuidMap map[string]bool
 
 const mockFilePath = "bootupmock"
+const invalidFilePath = "invalidmock1"
 
 var FakeAviObjects = []string{
 	"cloud",
@@ -44,7 +45,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("NETWORK_NAME", "net123")
 	os.Setenv("CLUSTER_NAME", "cluster")
-	os.Setenv("CLOUD_NAME", "Default-Cloud")
+	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	utils.CtrlVersion = "20.1.1"
@@ -92,7 +93,7 @@ func addConfigMap() {
 
 }
 
-func injectMW() {
+func injectMWForObjDeletion() {
 	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		var finalResponse []byte
 		url := r.URL.EscapedPath()
@@ -112,6 +113,22 @@ func injectMW() {
 			if len(uuidMap) == 0 {
 				restChan <- true
 			}
+		} else if r.Method == "GET" {
+			integrationtest.FeedMockCollectionData(w, r, mockFilePath)
+
+		} else if strings.Contains(url, "login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": "true"}`))
+		}
+	})
+}
+
+func injectMWForCloud() {
+	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.EscapedPath()
+		if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
+			integrationtest.FeedMockCollectionData(w, r, invalidFilePath)
+
 		} else if r.Method == "GET" {
 			integrationtest.FeedMockCollectionData(w, r, mockFilePath)
 
@@ -151,8 +168,19 @@ func TestObjDeletion(t *testing.T) {
 	uuidMap["vsvip-a590042a-358f-4693-bfa5-cb9d0c8c1931"] = true
 	//uuidMap["vsvip-82b41dd7-5b19-4007-85d4-530acea4d86b"] = true
 
-	injectMW()
+	injectMWForObjDeletion()
 	addConfigMap()
 	go k8s.PopulateCache()
-	waitAndverify(t)
+	// DeleteConfigMap(t)
+	integrationtest.ResetMiddleware()
+}
+
+// Injecting middleware to error out cloud properties cache update failure
+func TestNetworkIssueCacheValidationDuringBootup(t *testing.T) {
+	injectMWForCloud()
+	err := k8s.PopulateCache()
+	if err == nil {
+		t.Fatalf("Cache validation failed.")
+	}
+	integrationtest.ResetMiddleware()
 }

@@ -1,0 +1,25 @@
+{
+    "count": 1,
+    "results": [
+        {
+            "uuid": "cloud-34c21845-29fc-4317-9d62-5de6408c7849",
+            "vtype": "CLOUD_AZURE",
+            "license_tier": "ENTERPRISE_18",
+            "_last_modified": "1598925582640208",
+            "enable_vip_static_routes": false,
+            "url": "https://10.79.168.232/api/cloud/cloud-34c21845-29fc-4317-9d62-5de6408c7849",
+            "ip6_autocfg_enabled": false,
+            "tenant_ref": "https://10.79.168.232/api/tenant/admin",
+            "dns_resolution_on_se": false,
+            "dhcp_enabled": false,
+            "prefer_static_routes": false,
+            "autoscale_polling_interval": 60,
+            "license_type": "LIC_CORES",
+            "mtu": 1500,
+            "apic_mode": false,
+            "state_based_dns_registration": true,
+            "enable_vip_on_all_interfaces": false,
+            "name": "CLOUD_AZURE"
+          }
+    ]
+  }
