@@ -52,7 +52,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		var serviceNSNames []string
 		if found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName); found {
 			for svcListener, service := range services {
-				if utils.HasElem(listeners, svcListener) {
+				if utils.HasElem(listeners, svcListener) && !utils.HasElem(serviceNSNames, service) {
 					serviceNSNames = append(serviceNSNames, service)
 				}
 			}
@@ -180,10 +180,22 @@ func validateGatewayObj(key string, gateway *advl4v1alpha1pre1.Gateway) error {
 			key, gateway.Spec.Class, err)
 		return err
 	}
+
+	for _, listener := range gateway.Spec.Listeners {
+		gwName, nameOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNameLabelKey]
+		gwNamespace, nsOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNamespaceLabelKey]
+		if !nameOk || !nsOk ||
+			(nameOk && gwName != gateway.Name) ||
+			(nsOk && gwNamespace != gateway.Namespace) {
+			return errors.New("Incorrect gateway matchLabels configuration")
+		}
+	}
+
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
 		return errors.New("Unexpected controller")
 	}
+
 	return nil
 }

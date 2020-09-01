@@ -144,7 +144,7 @@ func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
 		}
 	}
 	_, routes := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
-	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved:  %v", key, routes)
+	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved: %v", key, routes)
 	if len(routes) == 0 {
 		return nil, false
 	}
@@ -164,9 +164,6 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 		}
 	} else {
 		foundOld, oldGateway := objects.ServiceGWLister().GetSvcToGw(namespace + "/" + svcName)
-		if foundOld {
-			allGateways = append(allGateways, oldGateway)
-		}
 
 		if gateway, portProtocols := parseL4ServiceForGateway(myService, key); gateway != "" {
 			for _, portProto := range portProtocols {
@@ -175,6 +172,9 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 			if !utils.HasElem(allGateways, gateway) {
 				allGateways = append(allGateways, gateway)
 			}
+		} else if foundOld && !utils.HasElem(allGateways, oldGateway) {
+			objects.ServiceGWLister().RemoveGatewayMappings(gateway, namespace+"/"+svcName)
+			allGateways = append(allGateways, oldGateway)
 		}
 	}
 
@@ -184,13 +184,13 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 
 func EPToRoute(epName string, namespace string, key string) ([]string, bool) {
 	routes, found := SvcToRoute(epName, namespace, key)
-	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved:  %v", key, routes)
+	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved: %v", key, routes)
 	return routes, found
 }
 
 func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 	gateways, found := SvcToGateway(epName, namespace, key)
-	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved:  %v", key, gateways)
+	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved: %v", key, gateways)
 	return gateways, found
 }
 
@@ -205,10 +205,14 @@ func GatewayChanges(gwName string, namespace string, key string) ([]string, bool
 	} else {
 		if gwListeners := parseGatewayForListeners(gateway, key); len(gwListeners) > 0 {
 			objects.ServiceGWLister().UpdateGWListeners(namespace+"/"+gwName, gwListeners)
+			objects.ServiceGWLister().UpdateGatewayGWclassMappings(namespace+"/"+gwName, gateway.Spec.Class)
+		} else {
+			objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
+			objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
 		}
-		gatewayClass := gateway.Spec.Class
-		objects.ServiceGWLister().UpdateGatewayGWclassMappings(namespace+"/"+gwName, gatewayClass)
 	}
+
+	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved: %v", key, allGateways)
 	return allGateways, true
 }
 
@@ -345,7 +349,7 @@ func parseServicesForRoute(routeSpec routev1.RouteSpec, key string) []string {
 		services = append(services, ab.Name)
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: total services retrieved  from route:  %v", key, services)
+	utils.AviLog.Debugf("key: %s, msg: total services retrieved from route: %v", key, services)
 	return services
 }
 
@@ -568,7 +572,7 @@ func filterIngressOnClass(ingress *v1beta1.Ingress) bool {
 		if ok && ingClass == lib.AVI_INGRESS_CLASS {
 			return true
 		} else {
-			utils.AviLog.Infof("AKO is not running as the default ingress controller. Not processing the ingress :%s . Please annotate the ingress class as 'avi'", ingress.Name)
+			utils.AviLog.Infof("AKO is not running as the default ingress controller. Not processing the ingress: %s . Please annotate the ingress class as 'avi'", ingress.Name)
 			return false
 		}
 	} else {
@@ -576,7 +580,7 @@ func filterIngressOnClass(ingress *v1beta1.Ingress) bool {
 		annotations := ingress.GetAnnotations()
 		ingClass, ok := annotations[lib.INGRESS_CLASS_ANNOT]
 		if ok && ingClass != lib.AVI_INGRESS_CLASS {
-			utils.AviLog.Infof("AKO is the default ingress controller but not processing the ingress :%s since ingress class is set to : %s", ingress.Name, ingClass)
+			utils.AviLog.Infof("AKO is the default ingress controller but not processing the ingress: %s since ingress class is set to : %s", ingress.Name, ingClass)
 			return false
 		} else {
 			return true
