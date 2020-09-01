@@ -132,6 +132,9 @@ const (
 
 	// TCPProtocolType accepts TCP sessions.
 	TCPProtocolType ProtocolType = "TCP"
+
+	// UDPProtocolType accepts UDP sessions.
+	UDPProtocolType ProtocolType = "UDP"
 )
 
 // HostnameMatchType specifies the types of matches that are valid
@@ -243,7 +246,7 @@ type Listener struct {
 	// Support: Core
 	//
 	// +required
-	// +kubebuilder:validation:Enum=HTTP;HTTPS;TLS;TCP
+	// +kubebuilder:validation:Enum=HTTP;HTTPS;TLS;TCP;UDP
 	Protocol ProtocolType `json:"protocol,omitempty" protobuf:"bytes,3,opt,name=protocol"`
 
 	// TLS is the TLS configuration for the Listener. This field
