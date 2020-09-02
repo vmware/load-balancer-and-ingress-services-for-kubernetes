@@ -72,7 +72,6 @@
         "license_tier": "ENTERPRISE_18",
         "state_based_dns_registration": true,
         "uuid": "cloud-b7942dad-554f-4c9f-8226-1220b7bb4c8c",
-        "ipam_provider_ref": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-d49243f3-65f3-4cd1-b93a-e0ec41df409e",
         "name": "Default-Cloud",
         "url": "https://10.52.3.116:9443/api/cloud/cloud-b7942dad-554f-4c9f-8226-1220b7bb4c8c",
         "tenant_ref": "https://10.52.3.116:9443/api/tenant/admin",
