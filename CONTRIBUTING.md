@@ -153,6 +153,7 @@ AKO can be tested from your laptop. Please follow the instructions:
         export FULL_SYNC_INTERVAL=1800
         export CLOUD_NAME=<Avi-cloud-name>
         export CLUSTER_NAME=<your-unique-cluster-name>
+        export NODE_NETWORK_LIST='[{"networkName":"Nw1","cidrs":["10.79.168.0/22"]}]'
         
      You can control additional settings by exporting respective variables from inside the deployment [file](https://github.com/avinetworks/ako/blob/master/helm/ako/templates/deployment.yaml).
 
