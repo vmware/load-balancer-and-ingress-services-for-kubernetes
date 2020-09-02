@@ -16,6 +16,7 @@ package rest
 
 import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -102,9 +103,12 @@ func (rest *RestOperations) SyncIngressStatus() {
 		}
 	}
 
-	status.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
-	status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
-	status.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
+	if lib.GetAdvancedL4() {
+		status.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
+	} else {
+		status.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
+		status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+	}
 	utils.AviLog.Infof("Status syncing completed")
 	return
 }
