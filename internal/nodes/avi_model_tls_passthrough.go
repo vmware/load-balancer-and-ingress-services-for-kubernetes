@@ -114,6 +114,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		poolNode.IngressName = objName
 		poolNode.PortName = obj.PortName
 		poolNode.Port = obj.Port
+		poolNode.TargetPort = obj.TargetPort
 		poolNode.ServiceMetadata = avicache.ServiceMetadataObj{
 			IngressName: objName, Namespace: namesapce, PoolRatio: obj.weight,
 			HostNames: []string{hostname},

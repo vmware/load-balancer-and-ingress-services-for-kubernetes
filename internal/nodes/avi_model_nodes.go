@@ -886,6 +886,7 @@ type AviPoolNode struct {
 	Tenant           string
 	CloudConfigCksum uint32
 	Port             int32
+	TargetPort       int32
 	PortName         string
 	Servers          []AviPoolMetaServer
 	Protocol         string
@@ -1004,6 +1005,7 @@ type IngressHostPathSvc struct {
 	Port        int32
 	weight      int32 //required for alternate backends in openshift route
 	PortName    string
+	TargetPort  int32
 }
 
 type IngressHostMap map[string][]IngressHostPathSvc
