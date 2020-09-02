@@ -50,7 +50,7 @@ func (rest *RestOperations) CleanupVS(key string, skipVS bool) {
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
 	utils.AviLog.Infof("key: %s, msg: cleanup mode, removing all stale objects", key)
-	rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, true)
+	rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, skipVS, false)
 	utils.AviLog.Infof("key: %s, msg: cleanup mode, stale object removal done", key)
 }
 
@@ -72,7 +72,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 		}
 		if vs_cache_obj != nil {
 			utils.AviLog.Infof("key: %s, msg: nil model found, this is a vs deletion case", key)
-			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false)
+			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false, false)
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
@@ -301,7 +301,7 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 	return nil
 }
 
-func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string, skipVS bool) bool {
+func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string, skipVS, skipVSVip bool) bool {
 	var rest_ops []*utils.RestOp
 	sni_vs_keys := make([]string, len(vs_cache_obj.SNIChildCollection))
 	copy(sni_vs_keys, vs_cache_obj.SNIChildCollection)
@@ -314,7 +314,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 				Name:      passthroughChild,
 			}
 			passthroughChildCache := rest.getVsCacheObj(passthroughChildKey, key)
-			rest.deleteVSOper(passthroughChildKey, passthroughChildCache, namespace, key, skipVS)
+			rest.deleteVSOper(passthroughChildKey, passthroughChildCache, namespace, key, skipVS, true)
 		}
 		for _, sni_uuid := range sni_vs_keys {
 			sniVsKey, ok := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sni_uuid)
@@ -329,12 +329,14 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 				rest_ops = append(rest_ops, rest_op)
 			}
 		}
-		// Delete the vsvip explicitly if controller version is >= 20.1.1
-		c, err := semver.NewConstraint(">= " + lib.VSVIPDELCTRLVER)
-		if err == nil {
-			currVersion, verErr := semver.NewVersion(utils.CtrlVersion)
-			if verErr == nil && c.Check(currVersion) {
-				rest_ops = rest.VSVipDelete(vs_cache_obj.VSVipKeyCollection, namespace, rest_ops, key)
+		if !skipVSVip {
+			// Delete the vsvip explicitly if controller version is >= 20.1.1
+			c, err := semver.NewConstraint(">= " + lib.VSVIPDELCTRLVER)
+			if err == nil {
+				currVersion, verErr := semver.NewVersion(utils.CtrlVersion)
+				if verErr == nil && c.Check(currVersion) {
+					rest_ops = rest.VSVipDelete(vs_cache_obj.VSVipKeyCollection, namespace, rest_ops, key)
+				}
 			}
 		}
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
@@ -755,6 +757,7 @@ func ExtractStatusCode(word string) string {
 }
 
 func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete the pools %s", key, utils.Stringify(pools_to_delete))
 	for _, del_pool := range pools_to_delete {
 		// fetch trhe pool uuid from cache
 		pool_key := avicache.NamespaceName{Namespace: namespace, Name: del_pool.Name}
@@ -775,6 +778,7 @@ func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName,
 }
 
 func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete the vsvips %s", key, utils.Stringify(vsvip_to_delete))
 	for _, del_vsvip := range vsvip_to_delete {
 		// fetch trhe pool uuid from cache
 		vsvip_key := avicache.NamespaceName{Namespace: namespace, Name: del_vsvip.Name}
@@ -1235,6 +1239,7 @@ func (rest *RestOperations) SSLKeyCertCU(sslkeyNodes []*nodes.AviTLSKeyCertNode,
 }
 
 func (rest *RestOperations) L4PolicyDelete(l4_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete l4 policies %s", key, utils.Stringify(l4_to_delete))
 	for _, del_l4 := range l4_to_delete {
 		// fetch trhe http policyset uuid from cache
 		l4_key := avicache.NamespaceName{Namespace: namespace, Name: del_l4.Name}
@@ -1290,6 +1295,7 @@ func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, c
 }
 
 func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete ssl keycert %s", key, utils.Stringify(ssl_to_delete))
 	var noCARefRestOps []*utils.RestOp
 	for _, del_ssl := range ssl_to_delete {
 		ssl_key := avicache.NamespaceName{Namespace: namespace, Name: del_ssl.Name}
@@ -1356,6 +1362,7 @@ func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviPkiProfileNode, pool
 }
 
 func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete pki profile %s", key, utils.Stringify(pkiProfileDelete))
 	for _, delPki := range pkiProfileDelete {
 		pkiProfile := avicache.NamespaceName{Namespace: namespace, Name: delPki.Name}
 		pkiCache, ok := rest.cache.PKIProfileCache.AviCacheGet(pkiProfile)

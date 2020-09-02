@@ -59,6 +59,7 @@ func PopulateCache() error {
 	aviclient := avicache.SharedAVIClients()
 	restlayer := rest.NewRestOperations(avi_obj_cache, aviclient)
 	staleVSKey := utils.ADMIN_NS + "/" + lib.DummyVSForStaleData
+	utils.AviLog.Infof("Starting clean up of stale objects")
 	restlayer.CleanupVS(staleVSKey, true)
 	staleCacheKey := avicache.NamespaceName{
 		Name:      lib.DummyVSForStaleData,
@@ -459,6 +460,7 @@ func (c *AviController) FullSyncK8s() {
 // DeleteModels : Delete models and add the model name in the queue.
 // The rest layer would pick up the model key and delete the objects in Avi
 func (c *AviController) DeleteModels() {
+	utils.AviLog.Infof("Deletion of all avi objects triggered")
 	allModels := objects.SharedAviGraphLister().GetAll()
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	for modelName, avimodelIntf := range allModels.(map[string]interface{}) {
@@ -478,6 +480,7 @@ func (c *AviController) DeleteModels() {
 			}
 		}
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
+		utils.AviLog.Infof("Deleting objects for model: %s", modelName)
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
 	}
 }

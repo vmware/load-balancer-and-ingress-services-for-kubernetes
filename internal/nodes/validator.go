@@ -252,7 +252,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 
 	if routeSpec.Port != nil {
 		if routeSpec.Port.TargetPort.Type == intstr.Int {
-			hostPathMapSvc.Port = routeSpec.Port.TargetPort.IntVal
+			hostPathMapSvc.TargetPort = routeSpec.Port.TargetPort.IntVal
 		} else if routeSpec.Port.TargetPort.Type == intstr.String {
 			hostPathMapSvc.PortName = routeSpec.Port.TargetPort.StrVal
 		}
