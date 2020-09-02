@@ -87,6 +87,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 				Tenant:        lib.GetTenant(),
 				PriorityLabel: priorityLabel,
 				Port:          obj.Port,
+				TargetPort:    obj.TargetPort,
 				ServiceMetadata: avicache.ServiceMetadataObj{
 					IngressName: ingName,
 					Namespace:   namespace,
