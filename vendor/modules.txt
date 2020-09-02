@@ -46,7 +46,7 @@ github.com/json-iterator/go
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
-# github.com/onsi/gomega v1.7.0
+# github.com/onsi/gomega v1.8.1
 github.com/onsi/gomega
 github.com/onsi/gomega/format
 github.com/onsi/gomega/internal/assertion
@@ -76,7 +76,7 @@ github.com/openshift/client-go/route/listers/route/v1
 github.com/pkg/errors
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
-# github.com/vmware-tanzu/service-apis v0.0.0-20200821143329-70f1ee2b34b5
+# github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
 github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned
 github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/scheme
@@ -138,6 +138,9 @@ golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 golang.org/x/time/rate
+# golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898
+golang.org/x/xerrors
+golang.org/x/xerrors/internal
 # google.golang.org/appengine v1.5.0
 google.golang.org/appengine/internal
 google.golang.org/appengine/internal/base

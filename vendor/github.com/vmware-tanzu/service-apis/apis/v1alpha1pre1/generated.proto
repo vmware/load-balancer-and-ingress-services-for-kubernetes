@@ -794,7 +794,7 @@ message Listener {
   // Support: Core
   //
   // +required
-  // +kubebuilder:validation:Enum=HTTP;HTTPS;TLS;TCP
+  // +kubebuilder:validation:Enum=HTTP;HTTPS;TLS;TCP;UDP
   optional string protocol = 3;
 
   // TLS is the TLS configuration for the Listener. This field
