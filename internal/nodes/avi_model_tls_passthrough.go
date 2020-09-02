@@ -61,6 +61,8 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 }
 
 func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namesapce, key string, redirect bool) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	vsList := o.GetAviVS()
 	if len(vsList) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: no VS found in the graph", key)
@@ -112,6 +114,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		poolNode.IngressName = objName
 		poolNode.PortName = obj.PortName
 		poolNode.Port = obj.Port
+		poolNode.TargetPort = obj.TargetPort
 		poolNode.ServiceMetadata = avicache.ServiceMetadataObj{
 			IngressName: objName, Namespace: namesapce, PoolRatio: obj.weight,
 			HostNames: []string{hostname},
@@ -197,6 +200,8 @@ func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode
 }
 
 func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key string, removeFqdn, removeRedir, secure bool) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	pgName := lib.GetClusterName() + "--" + hostname
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {

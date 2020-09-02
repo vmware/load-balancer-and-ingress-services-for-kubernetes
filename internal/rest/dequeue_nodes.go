@@ -755,6 +755,7 @@ func ExtractStatusCode(word string) string {
 }
 
 func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete the pools %s", key, utils.Stringify(pools_to_delete))
 	for _, del_pool := range pools_to_delete {
 		// fetch trhe pool uuid from cache
 		pool_key := avicache.NamespaceName{Namespace: namespace, Name: del_pool.Name}
@@ -775,6 +776,7 @@ func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName,
 }
 
 func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete the vsvips %s", key, utils.Stringify(vsvip_to_delete))
 	for _, del_vsvip := range vsvip_to_delete {
 		// fetch trhe pool uuid from cache
 		vsvip_key := avicache.NamespaceName{Namespace: namespace, Name: del_vsvip.Name}
@@ -1235,6 +1237,7 @@ func (rest *RestOperations) SSLKeyCertCU(sslkeyNodes []*nodes.AviTLSKeyCertNode,
 }
 
 func (rest *RestOperations) L4PolicyDelete(l4_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete l4 policies %s", key, utils.Stringify(l4_to_delete))
 	for _, del_l4 := range l4_to_delete {
 		// fetch trhe http policyset uuid from cache
 		l4_key := avicache.NamespaceName{Namespace: namespace, Name: del_l4.Name}
@@ -1290,6 +1293,7 @@ func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, c
 }
 
 func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete ssl keycert %s", key, utils.Stringify(ssl_to_delete))
 	var noCARefRestOps []*utils.RestOp
 	for _, del_ssl := range ssl_to_delete {
 		ssl_key := avicache.NamespaceName{Namespace: namespace, Name: del_ssl.Name}
@@ -1356,6 +1360,7 @@ func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviPkiProfileNode, pool
 }
 
 func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete pki profile %s", key, utils.Stringify(pkiProfileDelete))
 	for _, delPki := range pkiProfileDelete {
 		pkiProfile := avicache.NamespaceName{Namespace: namespace, Name: delPki.Name}
 		pkiCache, ok := rest.cache.PKIProfileCache.AviCacheGet(pkiProfile)
