@@ -58,6 +58,13 @@ func GetNamePrefix() string {
 	return NamePrefix
 }
 
+var DisableSync bool
+
+func SetDisableSync(state bool) {
+	DisableSync = state
+	utils.AviLog.Infof("Setting Disable Sync to: %v", state)
+}
+
 var AKOUser string
 
 func SetAKOUser() {
