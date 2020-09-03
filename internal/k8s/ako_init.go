@@ -315,7 +315,7 @@ func (c *AviController) FullSyncK8s() {
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	var vrfModelName string
-	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
 		lib.SetStaticRouteSyncHandler()

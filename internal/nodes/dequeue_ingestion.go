@@ -50,9 +50,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, fullsync)
-
-		if lib.IsNodePortMode() {
-			// Svc keys
+		if lib.IsNodePortMode() && !fullsync {
 			svcl4Keys, svcl7Keys := lib.GetSvcKeysForNodeCRUD()
 			for _, svcl4Key := range svcl4Keys {
 				handleL4Service(svcl4Key, fullsync)
