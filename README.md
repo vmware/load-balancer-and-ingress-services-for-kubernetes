@@ -71,7 +71,7 @@ AKO runs a simulation of the Kubernetes APIs using the kubernetes `FakeClient` a
 simulates the Avi controller by exploiting the `httptest` server from golang. In order to run
 the end to end unit tests, you can execute:
 
-    make int_tests
+    make int_test
 
     
 ## Contributing
