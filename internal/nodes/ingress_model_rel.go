@@ -166,15 +166,19 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 		foundOld, oldGateway := objects.ServiceGWLister().GetSvcToGw(namespace + "/" + svcName)
 
 		if gateway, portProtocols := parseL4ServiceForGateway(myService, key); gateway != "" {
+			svcListener := make(map[string]string)
 			for _, portProto := range portProtocols {
-				objects.ServiceGWLister().UpdateGatewayMappings(gateway, portProto, namespace+"/"+svcName)
+				svcListener[portProto] = namespace + "/" + svcName
 			}
+			objects.ServiceGWLister().UpdateGatewayMappings(gateway, svcListener, namespace+"/"+svcName)
 			if !utils.HasElem(allGateways, gateway) {
 				allGateways = append(allGateways, gateway)
 			}
-		} else if foundOld && !utils.HasElem(allGateways, oldGateway) {
-			objects.ServiceGWLister().RemoveGatewayMappings(gateway, namespace+"/"+svcName)
-			allGateways = append(allGateways, oldGateway)
+		} else if foundOld {
+			objects.ServiceGWLister().RemoveGatewayMappings(oldGateway, namespace+"/"+svcName)
+			if !utils.HasElem(allGateways, oldGateway) {
+				allGateways = append(allGateways, oldGateway)
+			}
 		}
 	}
 

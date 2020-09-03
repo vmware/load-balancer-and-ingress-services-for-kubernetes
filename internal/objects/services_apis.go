@@ -147,12 +147,10 @@ func (v *SvcGWLister) GetGwToSvcs(gateway string) (bool, map[string]string) {
 	return true, services.(map[string]string)
 }
 
-func (v *SvcGWLister) UpdateGatewayMappings(gateway, portprotocol, service string) {
+func (v *SvcGWLister) UpdateGatewayMappings(gateway string, svcListener map[string]string, service string) {
 	v.SvcGWLock.Lock()
 	defer v.SvcGWLock.Unlock()
-	_, services := v.GetGwToSvcs(gateway)
-	services[portprotocol] = service
-	v.GwSvcsStore.AddOrUpdate(gateway, services)
+	v.GwSvcsStore.AddOrUpdate(gateway, svcListener)
 	v.SvcGWStore.AddOrUpdate(service, gateway)
 }
 

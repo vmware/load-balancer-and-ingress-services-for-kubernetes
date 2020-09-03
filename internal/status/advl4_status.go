@@ -46,6 +46,10 @@ func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
 
 		// assuming 1 IP per gateway
 		gwStatus := gw.Status
+		if len(gwStatus.Addresses) > 0 && gwStatus.Addresses[0].Value == option.Vip {
+			continue
+		}
+
 		gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
 			Value: option.Vip,
 			Type:  advl4v1alpha1pre1.IPAddressType,
@@ -74,6 +78,11 @@ func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key 
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
 		return err
+	}
+
+	if len(gw.Status.Addresses) == 0 ||
+		(len(gw.Status.Addresses) > 0 && gw.Status.Addresses[0].Value == "") {
+		return nil
 	}
 
 	// assuming 1 IP per gateway
