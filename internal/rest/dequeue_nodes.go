@@ -866,7 +866,9 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 					restOp := rest.AviPoolBuild(pool, nil, key)
 					rest_ops = append(rest_ops, restOp)
 				}
-				rest_ops = rest.PkiProfileDelete(pool_pkiprofile_delete, namespace, rest_ops, key)
+				if len(pool_pkiprofile_delete) > 0 {
+					rest_ops = rest.PkiProfileDelete(pool_pkiprofile_delete, namespace, rest_ops, key)
+				}
 			}
 		}
 	} else {
@@ -1319,12 +1321,9 @@ func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceN
 func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviPkiProfileNode, pool_cache_obj *avicache.AviPoolCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	// Default is POST
 	var cache_pki_nodes []avicache.NamespaceName
-	if pool_cache_obj != nil {
+	if pool_cache_obj != nil && pki_node != nil {
 		cache_pki_nodes = make([]avicache.NamespaceName, 1)
 		copy(cache_pki_nodes, []avicache.NamespaceName{pool_cache_obj.PkiProfileCollection})
-		if pki_node == nil {
-			return cache_pki_nodes, rest_ops
-		}
 
 		pki_key := avicache.NamespaceName{Namespace: namespace, Name: pki_node.Name}
 		found := utils.HasElem(cache_pki_nodes, pki_key)
