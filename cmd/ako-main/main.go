@@ -139,20 +139,20 @@ func InitializeAKC() {
 	go c.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	<-stopCh
 	close(ctrlCh)
-	timeoutChan := make(chan struct{})
-	// Timeout after 60 seconds.
-	timeout := 60 * time.Second
+	doneChan := make(chan struct{})
 	go func() {
-		defer close(timeoutChan)
+		defer close(doneChan)
 		wgIngestion.Wait()
 		wgGraph.Wait()
 		wgFastRetry.Wait()
 	}()
+	// Timeout after 60 seconds.
+	timeout := 60 * time.Second
 	select {
-	case <-timeoutChan:
-		utils.AviLog.Warnf("Timed out while waiting for threads to return, going to stop AKO. Time waited 60 seconds")
+	case <-doneChan:
 		return
 	case <-time.After(timeout):
+		utils.AviLog.Warnf("Timed out while waiting for threads to return, going to stop AKO. Time waited 60 seconds")
 		return
 	}
 
