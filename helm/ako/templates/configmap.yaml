@@ -36,3 +36,4 @@ data:
     {{- range $.Values.configs.nodeNetworkCIDRs }}
     - {{ . }}
     {{- end }}
+  apiServerPort: {{ default "8080" .Values.configs.apiServerPort | quote }}

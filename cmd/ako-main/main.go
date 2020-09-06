@@ -47,7 +47,7 @@ func main() {
 }
 
 func InitializeAKOApi() {
-	akoApi := api.NewServer("8080", []models.ApiModel{})
+	akoApi := api.NewServer(lib.GetAkoApiServerPort(), []models.ApiModel{})
 	akoApi.InitApi()
 	lib.SetApiServerInstance(akoApi)
 }

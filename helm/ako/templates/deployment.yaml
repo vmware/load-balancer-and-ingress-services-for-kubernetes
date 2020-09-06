@@ -142,6 +142,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: nodeNetworkName
+          - name: AKO_API_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: apiServerPort
           - name: NODE_NETWORK_CIDRS
             valueFrom:
               configMapKeyRef:
@@ -190,7 +195,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/status
-              port: 8080
+              port:  {{ default "8080" .Values.configs.apiServerPort }}
             initialDelaySeconds: 5
             periodSeconds: 10
         

@@ -101,7 +101,7 @@ func NewServer(port string, models []models.ApiModel) *ApiServer {
 
 func (a *ApiServer) InitApi() {
 	go func() {
-		utils.AviLog.Infof("Starting API server")
+		utils.AviLog.Infof("Starting API server at %s", a.Server.Addr)
 		err := a.ListenAndServe()
 		if err != nil {
 			utils.AviLog.Infof("API server shutdown: %v", err)

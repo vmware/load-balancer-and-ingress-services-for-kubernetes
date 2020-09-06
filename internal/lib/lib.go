@@ -243,6 +243,16 @@ func GetNamespaceToSync() string {
 	return ""
 }
 
+// The port to run the AKO API server on
+func GetAkoApiServerPort() string {
+	port := os.Getenv("AKO_API_PORT")
+	if port != "" {
+		return port
+	}
+	// Default case, if not specified.
+	return "8080"
+}
+
 func GetSubnetIP() string {
 	subnetIP := os.Getenv(SUBNET_IP)
 	if subnetIP != "" {
