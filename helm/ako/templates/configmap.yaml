@@ -34,3 +34,4 @@ data:
   serviceEngineGroupName:  {{ .Values.configs.serviceEngineGroupName | quote }}
   nodeNetworkList: |-
     {{ .Values.configs.nodeNetworkList | mustToJson }}
+  apiServerPort: {{ default "8080" .Values.configs.apiServerPort | quote }}

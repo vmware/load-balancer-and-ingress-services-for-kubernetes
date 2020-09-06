@@ -39,6 +39,7 @@ configs:
   ## Advanced L4 allows users to control VS settings using the services-api. This disables all Ingress/Route features.
   ## Forces the L4 syncing to use Gateway object.
   advancedL4: "false"
+  apiServerPort: 8080 # Specify the port for the API server, default is set as 8080
 
 imagePullSecrets: []
 nameOverride: ""
