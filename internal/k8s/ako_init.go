@@ -96,12 +96,14 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	aviClientPool := avicache.SharedAVIClients()
 	if len(aviClientPool.AviClient) < 1 {
 		c.DisableSync = true
+		lib.SetDisableSync(true)
 		utils.AviLog.Errorf("could not get client to connect to Avi Controller, disabling sync")
 		lib.ShutdownApi()
 		return
 	}
 	aviclient := aviClientPool.AviClient[0]
 	c.DisableSync = !avicache.ValidateUserInput(aviclient) || deleteConfigFromConfigmap(cs)
+	lib.SetDisableSync(c.DisableSync)
 
 	utils.AviLog.Infof("Creating event broadcaster for handling configmap")
 	eventBroadcaster := record.NewBroadcaster()
@@ -118,6 +120,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			utils.AviLog.Infof("avi k8s configmap created")
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
 			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
+			lib.SetDisableSync(c.DisableSync)
 			if !firstboot && avicache.ValidateUserInput(aviclient) {
 				if delConfigFromData(cm.Data) {
 					c.DeleteModels()
@@ -145,6 +148,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			}
 			// if DeleteConfig value has changed, then check if we need to enable/disable sync
 			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
+			lib.SetDisableSync(c.DisableSync)
 			if avicache.ValidateUserInput(aviclient) {
 				if delConfigFromData(cm.Data) {
 					c.DeleteModels()
@@ -158,6 +162,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			if _, ok := validateAviConfigMap(obj); ok {
 				utils.AviLog.Warnf("avi k8s configmap deleted, disabling sync")
 				c.DisableSync = true
+				lib.SetDisableSync(true)
 				firstboot = false
 			}
 		},
