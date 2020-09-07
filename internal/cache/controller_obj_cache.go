@@ -17,6 +17,7 @@ package cache
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -95,18 +96,26 @@ func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient, cloud string) {
 	c.AviCloudPropertiesPopulate(client, cloud)
 }
 
-func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version string, cloud string) ([]NamespaceName, []NamespaceName) {
+func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version string, cloud string) ([]NamespaceName, []NamespaceName, error) {
 	SetTenant := session.SetTenant(lib.GetTenant())
 	SetTenant(client.AviSession)
 	SetVersion := session.SetVersion(version)
 	SetVersion(client.AviSession)
-	c.AviObjVrfCachePopulate(client, cloud)
+	vsCacheCopy := []NamespaceName{}
+	allVsKeys := []NamespaceName{}
+	err := c.AviObjVrfCachePopulate(client, cloud)
+	if err != nil {
+		return vsCacheCopy, allVsKeys, err
+	}
 	// Populate the VS cache
 	utils.AviLog.Infof("Refreshing all object cache")
 	c.AviRefreshObjectCache(client, cloud)
-	vsCacheCopy := c.VsCacheMeta.AviCacheGetAllParentVSKeys()
-	allVsKeys := c.VsCacheMeta.AviGetAllKeys()
-	c.AviObjVSCachePopulate(client, cloud, &allVsKeys)
+	vsCacheCopy = c.VsCacheMeta.AviCacheGetAllParentVSKeys()
+	allVsKeys = c.VsCacheMeta.AviGetAllKeys()
+	err = c.AviObjVSCachePopulate(client, cloud, &allVsKeys)
+	if err != nil {
+		return vsCacheCopy, allVsKeys, err
+	}
 	// Populate the SNI VS keys to their respective parents
 	c.PopulateVsMetaCache()
 	// Delete all the VS keys that are left in the copy.
@@ -116,9 +125,12 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version str
 		vsCacheCopy = Remove(vsCacheCopy, key)
 		c.VsCacheMeta.AviCacheDelete(key)
 	}
-	c.AviCloudPropertiesPopulate(client, cloud)
+	err = c.AviCloudPropertiesPopulate(client, cloud)
+	if err != nil {
+		return vsCacheCopy, allVsKeys, err
+	}
 	//vsCacheCopy at this time, is left with only the deleted keys
-	return vsCacheCopy, allVsKeys
+	return vsCacheCopy, allVsKeys, nil
 }
 
 func (c *AviObjCache) PopulateVsMetaCache() {
@@ -1758,16 +1770,16 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 	}
 }
 
-func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) error {
 	disableStaticRoute := os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC)
 	if disableStaticRoute == "true" {
 		utils.AviLog.Debugf("Static route sync disabled, skipping vrf cache population")
-		return
+		return nil
 	}
 	// Disable static route sync if ako is in  NodePort mode
 	if lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled in NodePort Mode")
-		return
+		return nil
 	}
 	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
 	vrfList := []*models.VrfContext{}
@@ -1775,13 +1787,13 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
-		return
+		return err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-		return
+		return err
 	}
 	for i := 0; i < result.Count; i++ {
 		vrf := models.VrfContext{}
@@ -1804,6 +1816,7 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		utils.AviLog.Debugf("Adding vrf to Cache %s\n", vrfName)
 		c.VrfCache.AviCacheAdd(vrfName, &vrfCacheObj)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud string, vsCacheCopy *[]NamespaceName, override_uri ...NextPage) error {
@@ -2313,36 +2326,37 @@ func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud st
 	return poolKeyCollection
 }
 
-func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, cloudName string) {
+func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, cloudName string) error {
 	uri := "/api/cloud/?name=" + cloudName
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("CloudProperties Get uri %v returned err %v", uri, err)
-		return
+		return err
 	}
 
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-		return
+		return err
 	}
 
 	if result.Count != 1 {
 		utils.AviLog.Errorf("Cloud details not found for cloud name: %s", cloudName)
-		return
+		return fmt.Errorf("Cloud details not found for cloud name: %s", cloudName)
 	}
 
 	cloud := models.Cloud{}
 	if err = json.Unmarshal(elems[0], &cloud); err != nil {
 		utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+		return err
 	}
 
 	vtype := *cloud.Vtype
 	cloud_obj := &AviCloudPropertyCache{Name: cloudName, VType: vtype}
 	if cloud.DNSProviderRef == nil {
 		utils.AviLog.Warnf("Cloud does not have a dns_provider_ref configured %v", cloudName)
-		return
+		return nil
 	}
 	dns_uuid := ExtractPattern(*cloud.DNSProviderRef, "ipamdnsproviderprofile-.*")
 	subdomains := c.AviDNSPropertyPopulate(client, dns_uuid)
@@ -2352,7 +2366,7 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 
 	if cloud.IPAMProviderRef == nil {
 		utils.AviLog.Warnf("Cloud does not have a ipam_provider_ref configured %v", cloudName)
-		return
+		return nil
 	}
 	ipam_uuid := ExtractPattern(*cloud.IPAMProviderRef, "ipamdnsproviderprofile-.*")
 	ipam := c.AviIPAMPropertyPopulate(client, ipam_uuid)
@@ -2362,7 +2376,7 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 
 	c.CloudKeyCache.AviCacheAdd(cloudName, cloud_obj)
 	utils.AviLog.Infof("Added CloudKeyCache cache key %v val %v", cloudName, cloud_obj)
-	return
+	return nil
 }
 
 func (c *AviObjCache) AviIPAMPropertyPopulate(client *clients.AviClient, ipamUUID string) string {
@@ -2538,26 +2552,26 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 	uri := "/api/cloud/?include_name&name=" + utils.CloudName
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 		return false
 	}
 
 	if result.Count != 1 {
-		utils.AviLog.Warnf("Cloud details not found for cloud name: %s", utils.CloudName)
+		utils.AviLog.Errorf("Cloud details not found for cloud name: %s", utils.CloudName)
 		return false
 	}
 
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
 		return false
 	}
 
 	cloud := models.Cloud{}
 	err = json.Unmarshal(elems[0], &cloud)
 	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
 		return false
 	}
 	vType := *cloud.Vtype
@@ -2566,7 +2580,13 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 	lib.SetCloudType(vType)
 
 	if lib.IsPublicCloud() && !lib.IsNodePortMode() {
-		utils.AviLog.Warnf("%v not allowed in ClusterIP mode.", vType)
+		utils.AviLog.Errorf("%v not allowed in ClusterIP mode.", vType)
+		return false
+	}
+
+	// IPAM is mandatory for vcenter and noaccess cloud
+	if !lib.IsPublicCloud() && cloud.IPAMProviderRef == nil {
+		utils.AviLog.Errorf("Cloud does not have a ipam_provider_ref configured")
 		return false
 	}
 

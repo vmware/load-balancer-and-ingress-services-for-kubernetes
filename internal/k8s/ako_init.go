@@ -40,13 +40,16 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-func PopulateCache() {
+func PopulateCache() error {
 	avi_rest_client_pool := avicache.SharedAVIClients()
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
-		avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
-
+		_, _, err := avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
+		if err != nil {
+			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
+			return err
+		}
 		// once the l3 cache is populated, we can call the updatestatus functions from here
 		restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
 		restlayer.SyncIngressStatus()
@@ -63,6 +66,7 @@ func PopulateCache() {
 		Namespace: utils.ADMIN_NS,
 	}
 	avi_obj_cache.VsCacheMeta.AviCacheDelete(staleCacheKey)
+	return nil
 }
 
 func PopulateNodeCache(cs *kubernetes.Clientset) {
@@ -321,7 +325,7 @@ func (c *AviController) FullSyncK8s() {
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	var vrfModelName string
-	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
 		lib.SetStaticRouteSyncHandler()

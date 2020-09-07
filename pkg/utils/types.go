@@ -256,6 +256,10 @@ func (e *WebSyncError) GetWebAPIError() error { return e.err }
 
 var CloudName string
 
+func SetCloudName(cloudName string) {
+	CloudName = cloudName
+}
+
 func init() {
 	CloudName = os.Getenv("CLOUD_NAME")
 	if CloudName == "" {
