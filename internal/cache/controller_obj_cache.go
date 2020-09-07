@@ -2604,7 +2604,7 @@ func CheckPublicCloud(client *clients.AviClient) bool {
 func CheckNodeNetwork(client *clients.AviClient) bool {
 
 	// Not applicable for NodePort mode and non vcenter clouds
-	if lib.IsNodePortMode() || lib.GetCloudType() != lib.CLOUD_VCENTER {
+	if lib.IsNodePortMode() || lib.GetCloudType() != lib.CLOUD_VCENTER || os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
 		utils.AviLog.Infof("Skipping the check for Node Network ")
 		return true
 	}
