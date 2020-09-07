@@ -8,26 +8,18 @@ image:
   repository: 10.79.172.11:5000/avi-buildops/ako
   pullPolicy: IfNotPresent
 
-configs:
-  controllerVersion: "18.2.8"
-  shardVSSize: "LARGE"
-  passthroughShardSize: "SMALL"
-  fullSyncFrequency: "300"
-  cloudName: "Default-Cloud"
-  clusterName: ""
-  defaultDomain: ""
-  disableStaticRouteSync: "false"
-  ingressApi: "corev1" #enum: extensionv1 and corev1 - if not set default to corev1
-  defaultIngController: "true"
-  subnetIP: "" # Subnet IP of the data network
-  subnetPrefix: "" # Subnet Prefix of the data network
-  networkName: "" # Network Name of the data network
-  l7ShardingScheme: "hostname"
-  cniPlugin: "" #enum: calico|canal|flannel|openshift
-  logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
-  deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI
-  serviceType: ClusterIP #enum NodePort|ClusterIP
-  serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
+### This section outlines the generic AKO settings
+AKOSettings:
+  logLevel: "WARN" #enum: INFO|DEBUG|WARN|ERROR
+  fullSyncFrequency: "1800" # This frequency controls how often AKO polls the Avi controller to update itself with cloud configurations.
+  apiServerPort: 8080 # Specify the port for the API server, default is set as 8080 // EmptyAllowed: false
+  deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI 
+  disableStaticRouteSync: "false" # If the POD networks are reachable from the Avi SE, set this knob to true.
+  clusterName: "my-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
+  cniPlugin: "" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift 
+
+### This section outlines the network settings for virtualservices. 
+NetworkSettings:
   ## This list of network and cidrs are used in pool placement network for vcenter cloud.
   ## Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
   nodeNetworkList: []
@@ -36,24 +28,33 @@ configs:
   #     cidrs:
   #       - 10.0.0.1/24
   #       - 11.0.0.1/24
+  subnetIP: "" # Subnet IP of the vip network
+  subnetPrefix: "" # Subnet Prefix of the vip network
+  networkName: "" # Network Name of the vip network
 
+### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
+L7Settings:
+  defaultIngController: "true"
+  l7ShardingScheme: "hostname"
+  serviceType: ClusterIP #enum NodePort|ClusterIP
+  shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL
+  passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
+### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
+L4Settings:
+  defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
+
+### This section outlines settings on the Avi controller that affects AKO's functionality.
+ControllerSettings:
+  serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
+  controllerVersion: "18.2.10" # The controller API version
+  cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
+
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""
   value: ""
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name:
 
 podSecurityContext: {}
   # fsGroup: 2000
