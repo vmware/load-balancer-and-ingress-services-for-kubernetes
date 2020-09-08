@@ -14,7 +14,6 @@
 package rest
 
 import (
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -101,7 +100,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 }
 
 func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObjectGraph) {
-	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Debugf("key: %s, msg: static route sync disabled\n", key)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)

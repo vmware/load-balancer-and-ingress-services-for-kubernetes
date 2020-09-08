@@ -1771,8 +1771,7 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 }
 
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) error {
-	disableStaticRoute := os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC)
-	if disableStaticRoute == "true" {
+	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Debugf("Static route sync disabled, skipping vrf cache population")
 		return nil
 	}
@@ -2483,7 +2482,7 @@ func checkRequiredValuesYaml() bool {
 func checkSegroupLabels(client *clients.AviClient) bool {
 
 	// Not applicable for NodePort mode / disable route is set as True
-	if lib.IsNodePortMode() || os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" {
+	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Infof("Skipping the check for SE group labels ")
 		return true
 	}

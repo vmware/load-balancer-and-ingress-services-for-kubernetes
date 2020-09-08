@@ -341,6 +341,18 @@ func GetDomain() string {
 func GetAdvancedL4() bool {
 	advanceL4 := os.Getenv(ADVANCED_L4)
 	if advanceL4 == "true" {
+
+		return true
+	}
+	return false
+}
+
+func GetDisableStaticRoute() bool {
+	disableStaticRoute := os.Getenv(DISABLE_STATIC_ROUTE_SYNC)
+	if disableStaticRoute == "true" && !GetAdvancedL4() {
+		return true
+	}
+	if IsNodePortMode() {
 		return true
 	}
 	return false
