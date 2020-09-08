@@ -14,6 +14,6 @@ type AppCookiePersistenceProfile struct {
 	// Required: true
 	PrstHdrName *string `json:"prst_hdr_name"`
 
-	// The length of time after a client's connections have closed before expiring the client's persistence to a server. Allowed values are 1-720.
+	// The length of time after a client's connections have closed before expiring the client's persistence to a server. Allowed values are 1-720. Unit is MIN.
 	Timeout *int32 `json:"timeout,omitempty"`
 }

@@ -59,6 +59,8 @@ github.com/avinetworks/sdk v0.0.0-20200522033656-f37e8cfc8e02 h1:uxqZzVWVLbS56C/
 github.com/avinetworks/sdk v0.0.0-20200608181946-b426a83ea163 h1:ex0XwUqaO9/v521M2JdQe0RYue/EAuK+IPZVMmTehlo=
 github.com/avinetworks/sdk v0.0.0-20200724112835-36cadc631f7f h1:B48QEjYdEEWHRzbgMpN0wdjNV0YZfK4BmGB9tG1fYlA=
 github.com/avinetworks/sdk v0.0.0-20200724112835-36cadc631f7f/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
+github.com/avinetworks/sdk v0.0.0-20200908155649-48d0ac51ea58 h1:CDN7TnSB1h6GIql/jiJeYhBjTEuHt+FcNetsxSpaFP0=
+github.com/avinetworks/sdk v0.0.0-20200908155649-48d0ac51ea58/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
 github.com/coreos/go-semver v0.3.0 h1:wkHLiw0WNATZnSG7epLsujiMCgPAc9xhjJ4tgnAxmfM=
 github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
 github.com/davecgh/go-spew v0.0.0-20151105211317-5215b55f46b2/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

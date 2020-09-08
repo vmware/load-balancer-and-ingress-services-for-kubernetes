@@ -20,6 +20,9 @@ type GslbGeoDbProfile struct {
 	// This field indicates that this object is replicated across GSLB federation. Field introduced in 17.1.3.
 	IsFederated *bool `json:"is_federated,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// A user-friendly name for the geodb profile. Field introduced in 17.1.1.
 	// Required: true
 	Name *string `json:"name"`

@@ -17,6 +17,9 @@ type AutoScaleLaunchConfig struct {
 	// Unique ID of the Amazon Machine Image (AMI)  or OpenStack VM ID.
 	ImageID *string `json:"image_id,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Placeholder for description of property mesos of obj type AutoScaleLaunchConfig field type str  type object
 	Mesos *AutoScaleMesosSettings `json:"mesos,omitempty"`
 

@@ -23,6 +23,9 @@ type WafPolicyPSMGroup struct {
 	// This field indicates that this group is used for learning. Field introduced in 18.2.3.
 	IsLearningGroup *bool `json:"is_learning_group,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Positive Security Model locations. These are used to partition the application name space. Field introduced in 18.2.3.
 	Locations []*WafPSMLocation `json:"locations,omitempty"`
 

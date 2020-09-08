@@ -14,7 +14,7 @@ type DNSAttack struct {
 	// Enable or disable the mitigation of the attack vector. Field introduced in 18.2.1.
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// Time in minutes after which mitigation will be deactivated. Allowed values are 1-4294967295. Special values are 0- 'blocked for ever'. Field introduced in 18.2.1.
+	// Time in minutes after which mitigation will be deactivated. Allowed values are 1-4294967295. Special values are 0- 'blocked for ever'. Field introduced in 18.2.1. Unit is MIN.
 	MaxMitigationAge *int32 `json:"max_mitigation_age,omitempty"`
 
 	// Mitigation action to perform for this DNS attack vector. Field introduced in 18.2.1.

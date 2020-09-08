@@ -21,6 +21,9 @@ type SecurityPolicy struct {
 	// Required: true
 	DNSPolicyIndex *int32 `json:"dns_policy_index"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// The name of the security policy. Field introduced in 18.2.1.
 	// Required: true
 	Name *string `json:"name"`

@@ -20,6 +20,9 @@ type PriorityLabels struct {
 	// Equivalent priority labels in descending order.
 	EquivalentLabels []*EquivalentLabels `json:"equivalent_labels,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// The name of the priority labels.
 	// Required: true
 	Name *string `json:"name"`

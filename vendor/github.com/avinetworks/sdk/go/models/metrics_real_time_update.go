@@ -7,7 +7,7 @@ package models
 // swagger:model MetricsRealTimeUpdate
 type MetricsRealTimeUpdate struct {
 
-	// Real time metrics collection duration in minutes. 0 for infinite. Special values are 0 - 'infinite'.
+	// Real time metrics collection duration in minutes. 0 for infinite. Special values are 0 - 'infinite'. Unit is MIN.
 	Duration *int32 `json:"duration,omitempty"`
 
 	// Enables real time metrics collection.  When disabled, 6 hour view is the most granular the system will track.

@@ -30,6 +30,12 @@ type WafPSMRule struct {
 	// Required: true
 	MatchValuePattern *string `json:"match_value_pattern"`
 
+	// If match_value_string_group_uuid and match_value_string_group_key are set, the referenced regular expression is used as match_value_pattern. Field introduced in 20.1.3.
+	MatchValueStringGroupKey *string `json:"match_value_string_group_key,omitempty"`
+
+	// The UUID of a *string group containing key used in match_value_string_group_key. It is a reference to an object of type StringGroup. Field introduced in 20.1.3.
+	MatchValueStringGroupRef *string `json:"match_value_string_group_ref,omitempty"`
+
 	// WAF Rule mode. This can be detection or enforcement. If this is not set, the Policy mode is used. This only takes effect if the policy allows delegation. Enum options - WAF_MODE_DETECTION_ONLY, WAF_MODE_ENFORCEMENT. Field introduced in 18.2.3.
 	Mode *string `json:"mode,omitempty"`
 

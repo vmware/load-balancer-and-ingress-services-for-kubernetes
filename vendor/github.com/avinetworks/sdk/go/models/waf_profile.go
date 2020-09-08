@@ -21,6 +21,9 @@ type WafProfile struct {
 	// List of Data Files Used for WAF Rules. Field introduced in 17.2.1.
 	Files []*WafDataFile `json:"files,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	//  Field introduced in 17.2.1.
 	// Required: true
 	Name *string `json:"name"`

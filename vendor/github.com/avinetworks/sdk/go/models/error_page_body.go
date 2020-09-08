@@ -17,6 +17,9 @@ type ErrorPageBody struct {
 	// Format of an error page body HTML or JSON. Enum options - ERROR_PAGE_FORMAT_HTML, ERROR_PAGE_FORMAT_JSON. Field introduced in 18.2.3.
 	Format *string `json:"format,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	//  Field introduced in 17.2.4.
 	// Required: true
 	Name *string `json:"name"`

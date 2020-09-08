@@ -17,7 +17,7 @@ type ApplicationLog struct {
 	// all_response_headers of ApplicationLog.
 	AllResponseHeaders *string `json:"all_response_headers,omitempty"`
 
-	// Number of app_response_time.
+	//  Unit is MILLISECONDS.
 	AppResponseTime *int64 `json:"app_response_time,omitempty"`
 
 	//  Enum options - NOT_UPDATED, BY_CONTENT_REWRITE_PROFILE, BY_DATA_SCRIPT. Field introduced in 17.1.1.
@@ -67,7 +67,7 @@ type ApplicationLog struct {
 	// client_os of ApplicationLog.
 	ClientOs *string `json:"client_os,omitempty"`
 
-	// Number of client_rtt.
+	//  Unit is MILLISECONDS.
 	// Required: true
 	ClientRtt *int32 `json:"client_rtt"`
 
@@ -84,7 +84,10 @@ type ApplicationLog struct {
 	// Placeholder for description of property connection_error_info of obj type ApplicationLog field type str  type object
 	ConnectionErrorInfo *ConnErrorInfo `json:"connection_error_info,omitempty"`
 
-	// Number of data_transfer_time.
+	// Critical error encountered during request processing. Field introduced in 20.1.3.
+	CriticalErrorEncountered *bool `json:"critical_error_encountered,omitempty"`
+
+	//  Unit is MILLISECONDS.
 	DataTransferTime *int64 `json:"data_transfer_time,omitempty"`
 
 	// Placeholder for description of property datascript_error_trace of obj type ApplicationLog field type str  type object
@@ -188,7 +191,7 @@ type ApplicationLog struct {
 	// Unique HTTP Request ID . Field introduced in 17.2.4.
 	RequestID *string `json:"request_id,omitempty"`
 
-	// Number of request_length.
+	//  Unit is BYTES.
 	RequestLength *int64 `json:"request_length,omitempty"`
 
 	// Flag to indicate if request was served locally because the remote site was down. Field introduced in 17.2.5.
@@ -206,13 +209,13 @@ type ApplicationLog struct {
 	// Number of response_headers.
 	ResponseHeaders *int32 `json:"response_headers,omitempty"`
 
-	// Number of response_length.
+	//  Unit is BYTES.
 	ResponseLength *int64 `json:"response_length,omitempty"`
 
-	// Number of response_time_first_byte.
+	//  Unit is MILLISECONDS.
 	ResponseTimeFirstByte *int64 `json:"response_time_first_byte,omitempty"`
 
-	// Number of response_time_last_byte.
+	//  Unit is MILLISECONDS.
 	ResponseTimeLastByte *int64 `json:"response_time_last_byte,omitempty"`
 
 	// rewritten_uri_path of ApplicationLog.
@@ -263,16 +266,16 @@ type ApplicationLog struct {
 	// Number of server_response_code.
 	ServerResponseCode *int32 `json:"server_response_code,omitempty"`
 
-	// Number of server_response_length.
+	//  Unit is BYTES.
 	ServerResponseLength *int64 `json:"server_response_length,omitempty"`
 
-	// Number of server_response_time_first_byte.
+	//  Unit is MILLISECONDS.
 	ServerResponseTimeFirstByte *int64 `json:"server_response_time_first_byte,omitempty"`
 
-	// Number of server_response_time_last_byte.
+	//  Unit is MILLISECONDS.
 	ServerResponseTimeLastByte *int64 `json:"server_response_time_last_byte,omitempty"`
 
-	// Number of server_rtt.
+	//  Unit is MILLISECONDS.
 	ServerRtt *int32 `json:"server_rtt,omitempty"`
 
 	// server_side_redirect_uri of ApplicationLog.
@@ -319,7 +322,7 @@ type ApplicationLog struct {
 	// ssl_version of ApplicationLog.
 	SslVersion *string `json:"ssl_version,omitempty"`
 
-	// Number of total_time.
+	//  Unit is MILLISECONDS.
 	TotalTime *int64 `json:"total_time,omitempty"`
 
 	// Placeholder for description of property udf of obj type ApplicationLog field type str  type boolean

@@ -20,6 +20,9 @@ type VsVip struct {
 	// Force placement on all Service Engines in the Service Engine Group (Container clouds only). Field introduced in 17.1.1.
 	EastWestPlacement *bool `json:"east_west_placement,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Name for the VsVip object. Field introduced in 17.1.1.
 	// Required: true
 	Name *string `json:"name"`

@@ -11,6 +11,9 @@ type Role struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Filters for granular object access control based on object labels. Multiple filters are merged using the AND operator. If empty, all objects according to the privileges will be accessible to the user. Field introduced in 20.1.3.
+	Filters []*RoleFilter `json:"filters,omitempty"`
+
 	// Name of the object.
 	// Required: true
 	Name *string `json:"name"`

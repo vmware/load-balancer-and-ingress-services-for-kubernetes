@@ -17,8 +17,11 @@ type PoolGroupDeploymentPolicy struct {
 	// User defined description for the object.
 	Description *string `json:"description,omitempty"`
 
-	// Duration of evaluation period for automatic deployment. Allowed values are 60-86400.
+	// Duration of evaluation period for automatic deployment. Allowed values are 60-86400. Unit is SEC.
 	EvaluationDuration *int32 `json:"evaluation_duration,omitempty"`
+
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// The name of the pool group deployment policy.
 	// Required: true
@@ -30,7 +33,7 @@ type PoolGroupDeploymentPolicy struct {
 	// deployment scheme. Enum options - BLUE_GREEN, CANARY.
 	Scheme *string `json:"scheme,omitempty"`
 
-	// Target traffic ratio before pool is made production. Allowed values are 1-100.
+	// Target traffic ratio before pool is made production. Allowed values are 1-100. Unit is RATIO.
 	TargetTestTrafficRatio *int32 `json:"target_test_traffic_ratio,omitempty"`
 
 	//  It is a reference to an object of type Tenant.

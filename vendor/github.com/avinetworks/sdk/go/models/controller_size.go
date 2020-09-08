@@ -13,6 +13,6 @@ type ControllerSize struct {
 	// Minimum number of cpu cores required. Field introduced in 20.1.1.
 	MinCpus *int32 `json:"min_cpus,omitempty"`
 
-	// Minimum memory required. Field introduced in 20.1.1.
+	// Minimum memory required. Field introduced in 20.1.1. Unit is GB.
 	MinMemory *int32 `json:"min_memory,omitempty"`
 }

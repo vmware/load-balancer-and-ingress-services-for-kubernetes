@@ -37,6 +37,6 @@ type CRL struct {
 	// Certificate Revocation list in plain text for readability.
 	Text *string `json:"text,omitempty"`
 
-	// Interval in minutes to check for CRL update. If not specified, interval will be 1 day. Allowed values are 30-MAX.
+	// Interval in minutes to check for CRL update. If not specified, interval will be 1 day. Allowed values are 30-525600. Unit is MIN.
 	UpdateInterval *int32 `json:"update_interval,omitempty"`
 }

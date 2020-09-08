@@ -17,6 +17,9 @@ type StringGroup struct {
 	// Configure Key Value in the *string group.
 	Kv []*KeyValue `json:"kv,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Enable the longest match, default is the shortest match. Field introduced in 18.2.8.
 	LongestMatch *bool `json:"longest_match,omitempty"`
 

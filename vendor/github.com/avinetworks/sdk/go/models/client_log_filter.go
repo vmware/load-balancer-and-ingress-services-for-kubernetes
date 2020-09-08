@@ -13,7 +13,7 @@ type ClientLogFilter struct {
 	// Placeholder for description of property client_ip of obj type ClientLogFilter field type str  type object
 	ClientIP *IPAddrMatch `json:"client_ip,omitempty"`
 
-	//  Special values are 0 - 'infinite'.
+	//  Special values are 0 - 'infinite'. Unit is MIN.
 	Duration *int32 `json:"duration,omitempty"`
 
 	// Placeholder for description of property enabled of obj type ClientLogFilter field type str  type boolean

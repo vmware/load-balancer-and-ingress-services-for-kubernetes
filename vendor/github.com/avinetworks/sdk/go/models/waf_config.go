@@ -22,13 +22,13 @@ type WafConfig struct {
 	// Enable to buffer response body for inspection. Field deprecated in 18.2.2. Field introduced in 17.2.3.
 	BufferResponseBodyForInspection *bool `json:"buffer_response_body_for_inspection,omitempty"`
 
-	// Maximum size for the client request body for file uploads. Allowed values are 1-32768. Field deprecated in 18.1.5. Field introduced in 17.2.1.
+	// Maximum size for the client request body for file uploads. Allowed values are 1-32768. Field deprecated in 18.1.5. Field introduced in 17.2.1. Unit is KB.
 	ClientFileUploadMaxBodySize *int32 `json:"client_file_upload_max_body_size,omitempty"`
 
-	// Maximum size for the client request body for non-file uploads. Allowed values are 1-32768. Field deprecated in 18.1.5. Field introduced in 17.2.1.
+	// Maximum size for the client request body for non-file uploads. Allowed values are 1-32768. Field deprecated in 18.1.5. Field introduced in 17.2.1. Unit is KB.
 	ClientNonfileUploadMaxBodySize *int32 `json:"client_nonfile_upload_max_body_size,omitempty"`
 
-	// Maximum size for the client request body scanned by WAF. Allowed values are 1-32768. Field introduced in 18.1.5, 18.2.1.
+	// Maximum size for the client request body scanned by WAF. Allowed values are 1-32768. Field introduced in 18.1.5, 18.2.1. Unit is KB.
 	ClientRequestMaxBodySize *int32 `json:"client_request_max_body_size,omitempty"`
 
 	// Deprecated (Moved to WafPolicy). Configure thresholds for confidence labels. Field deprecated in 20.1.1. Field introduced in 18.2.3.
@@ -46,7 +46,7 @@ type WafConfig struct {
 	// Deprecated (Moved to WafPolicy). Parameters for tuning Application learning. Field deprecated in 20.1.1. Field introduced in 18.2.3.
 	LearningParams *AppLearningParams `json:"learning_params,omitempty"`
 
-	// The maximum period of time WAF processing is allowed to take for a single request. A value of 0 (zero) means no limit and should not be chosen in production deployments. It is only used for exceptional situations where crashes of se_dp processes are acceptable. The behavior of the system if this time is exceeded depends on two other configuration settings, the WAF policy mode and the WAF failure mode. In WAF policy mode 'Detection', the request is allowed and flagged for both failure mode 'Closed' and 'Open'. In enforcement node, 'Closed' means the request is rejected, 'Open' means the request is allowed and flagged. Irrespective of these settings, no subsequent WAF rules of this or other phases will be executed once the maximum execution time has been exceeded. Allowed values are 0-5000. Field introduced in 17.2.12, 18.1.2.
+	// The maximum period of time WAF processing is allowed to take for a single request. A value of 0 (zero) means no limit and should not be chosen in production deployments. It is only used for exceptional situations where crashes of se_dp processes are acceptable. The behavior of the system if this time is exceeded depends on two other configuration settings, the WAF policy mode and the WAF failure mode. In WAF policy mode 'Detection', the request is allowed and flagged for both failure mode 'Closed' and 'Open'. In enforcement node, 'Closed' means the request is rejected, 'Open' means the request is allowed and flagged. Irrespective of these settings, no subsequent WAF rules of this or other phases will be executed once the maximum execution time has been exceeded. Allowed values are 0-5000. Field introduced in 17.2.12, 18.1.2. Unit is MILLISECONDS.
 	MaxExecutionTime *int32 `json:"max_execution_time,omitempty"`
 
 	// Deprecated (Moved to WafPolicy) Minimum confidence label required for auto rule updates. Enum options - CONFIDENCE_VERY_HIGH, CONFIDENCE_HIGH, CONFIDENCE_PROBABLE, CONFIDENCE_LOW, CONFIDENCE_NONE. Field deprecated in 20.1.1. Field introduced in 18.2.3.
@@ -80,7 +80,7 @@ type WafConfig struct {
 	// WAF Restricted HTTP Headers. Field introduced in 17.2.1.
 	RestrictedHeaders []string `json:"restricted_headers,omitempty"`
 
-	// Maximum size for response body scanned by WAF. Allowed values are 1-32768. Field introduced in 17.2.1.
+	// Maximum size for response body scanned by WAF. Allowed values are 1-32768. Field introduced in 17.2.1. Unit is KB.
 	ServerResponseMaxBodySize *int32 `json:"server_response_max_body_size,omitempty"`
 
 	// WAF Static File Extensions. GET and HEAD requests with no query args and one of these extensions are whitelisted and not checked by the ruleset. Field introduced in 17.2.5.

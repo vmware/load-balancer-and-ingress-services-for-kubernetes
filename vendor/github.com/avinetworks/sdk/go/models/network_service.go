@@ -14,6 +14,9 @@ type NetworkService struct {
 	//  It is a reference to an object of type Cloud. Field introduced in 18.2.5.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Name of the NetworkService. Field introduced in 18.2.5.
 	// Required: true
 	Name *string `json:"name"`

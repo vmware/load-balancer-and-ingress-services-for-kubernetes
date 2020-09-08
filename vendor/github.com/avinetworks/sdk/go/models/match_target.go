@@ -19,6 +19,9 @@ type MatchTarget struct {
 	// Configure the host header.
 	HostHdr *HostHdrMatch `json:"host_hdr,omitempty"`
 
+	// Configure IP reputation. Field introduced in 20.1.3.
+	IPReputationType *IPReputationTypeMatch `json:"ip_reputation_type,omitempty"`
+
 	// Configure HTTP methods.
 	Method *MethodMatch `json:"method,omitempty"`
 

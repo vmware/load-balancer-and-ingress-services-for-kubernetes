@@ -35,6 +35,9 @@ type SSLProfile struct {
 	// Enable SSL session re-use.
 	EnableSslSessionReuse *bool `json:"enable_ssl_session_reuse,omitempty"`
 
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
 	// Name of the object.
 	// Required: true
 	Name *string `json:"name"`
@@ -48,7 +51,7 @@ type SSLProfile struct {
 	// Placeholder for description of property ssl_rating of obj type SSLProfile field type str  type object
 	SslRating *SSLRating `json:"ssl_rating,omitempty"`
 
-	// The amount of time in seconds before an SSL session expires.
+	// The amount of time in seconds before an SSL session expires. Unit is SEC.
 	SslSessionTimeout *int32 `json:"ssl_session_timeout,omitempty"`
 
 	// Placeholder for description of property tags of obj type SSLProfile field type str  type object

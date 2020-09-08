@@ -14,7 +14,7 @@ type GatewayMonitor struct {
 	// The number of consecutive failed gateway health checks before a gateway is marked down. Allowed values are 3-50.
 	GatewayMonitorFailThreshold *int32 `json:"gateway_monitor_fail_threshold,omitempty"`
 
-	// The interval between two ping requests sent by the gateway monitor in milliseconds. If a value is not specified, requests are sent every second. Allowed values are 100-60000.
+	// The interval between two ping requests sent by the gateway monitor in milliseconds. If a value is not specified, requests are sent every second. Allowed values are 100-60000. Unit is MILLISECONDS.
 	GatewayMonitorInterval *int32 `json:"gateway_monitor_interval,omitempty"`
 
 	// The number of consecutive successful gateway health checks before a gateway that was marked down by the gateway monitor is marked up. Allowed values are 3-50.

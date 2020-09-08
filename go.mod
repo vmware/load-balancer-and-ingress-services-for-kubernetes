@@ -3,7 +3,7 @@ module github.com/avinetworks/ako
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/avinetworks/container-lib v0.0.0-20200805113307-80c6b5ecc46e
-	github.com/avinetworks/sdk v0.0.0-20200724112835-36cadc631f7f
+	github.com/avinetworks/sdk v0.0.0-20200908155649-48d0ac51ea58
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect

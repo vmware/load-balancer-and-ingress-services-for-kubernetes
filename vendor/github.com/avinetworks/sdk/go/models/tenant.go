@@ -27,6 +27,9 @@ type Tenant struct {
 	// Required: true
 	Name *string `json:"name"`
 
+	// Suggestive pool of key value pairs for recommending assignment of labels to objects in the User Interface. Every entry is unique in both key and value. Field introduced in 20.1.3.
+	SuggestedObjectLabels []*TenantLabel `json:"suggested_object_labels,omitempty"`
+
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
