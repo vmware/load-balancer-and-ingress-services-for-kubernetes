@@ -10,7 +10,7 @@ image:
 
 ### This section outlines the generic AKO settings
 AKOSettings:
-  logLevel: "WARN" #enum: INFO|DEBUG|WARN|ERROR
+  logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
   fullSyncFrequency: "1800" # This frequency controls how often AKO polls the Avi controller to update itself with cloud configurations.
   apiServerPort: 8080 # Specify the port for the API server, default is set as 8080 // EmptyAllowed: false
   deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI 

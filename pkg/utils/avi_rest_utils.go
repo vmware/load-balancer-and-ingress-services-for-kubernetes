@@ -55,15 +55,15 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 		// Retry 20 times with an interval of 10 seconds each.
 		aviClient, err := clients.NewAviClient(api_ep, username,
 			session.SetPassword(password), session.SetControllerStatusCheckLimits(20, 10), session.SetInsecure)
+		if err != nil {
+			AviLog.Warnf("NewAviClient returned err %v", err)
+			return &p, err
+		}
 		version, err := aviClient.AviSession.GetControllerVersion()
 		if err == nil && CtrlVersion == "" {
 			AviLog.Debugf("Setting the client version to %v", version)
 			session.SetVersion(version)
 			CtrlVersion = version
-		}
-		if err != nil {
-			AviLog.Warnf("NewAviClient returned err %v", err)
-			return &p, err
 		}
 
 		p.AviClient = append(p.AviClient, aviClient)
