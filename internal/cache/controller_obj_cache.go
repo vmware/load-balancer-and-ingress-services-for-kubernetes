@@ -2421,6 +2421,7 @@ func ValidateUserInput(client *clients.AviClient) bool {
 	isCloudValid := checkAndSetCloudType(client)
 	isRequiredValuesValid := checkRequiredValuesYaml()
 	if lib.GetAdvancedL4() && isCloudValid && isRequiredValuesValid {
+		utils.AviLog.Info("All values verified for advanced L4, proceeding with bootup")
 		return true
 	}
 
