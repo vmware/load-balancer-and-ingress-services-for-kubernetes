@@ -237,7 +237,7 @@ type AnalyticsProfile struct {
 	// Penalty for allowing weak signature algorithm(s). Allowed values are 0-5.
 	HsSecurityWeakSignatureAlgoPenalty *float64 `json:"hs_security_weak_signature_algo_penalty,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// The name of the analytics profile.

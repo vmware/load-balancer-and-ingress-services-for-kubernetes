@@ -84,6 +84,9 @@ type ApplicationLog struct {
 	// Placeholder for description of property connection_error_info of obj type ApplicationLog field type str  type object
 	ConnectionErrorInfo *ConnErrorInfo `json:"connection_error_info,omitempty"`
 
+	// Critical error encountered during request processing. Field introduced in 20.1.3.
+	CriticalErrorEncountered *bool `json:"critical_error_encountered,omitempty"`
+
 	//  Unit is MILLISECONDS.
 	DataTransferTime *int64 `json:"data_transfer_time,omitempty"`
 

@@ -57,7 +57,7 @@ type SSLKeyAndCertificate struct {
 	// Passphrase used to encrypt the private key.
 	KeyPassphrase *string `json:"key_passphrase,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name of the object.

@@ -32,7 +32,7 @@ type IPAMDNSProviderProfile struct {
 	// Provider details if type is Avi.
 	InternalProfile *IPAMDNSInternalProfile `json:"internal_profile,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name for the IPAM/DNS Provider profile.

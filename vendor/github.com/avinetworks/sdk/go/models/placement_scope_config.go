@@ -7,6 +7,9 @@ package models
 // swagger:model PlacementScopeConfig
 type PlacementScopeConfig struct {
 
+	// List of shared datastores to include or exclude. Field introduced in 20.1.2.
+	NsxtDatastores *NsxtDatastores `json:"nsxt_datastores,omitempty"`
+
 	// List of transport nodes include or exclude. Field introduced in 20.1.1.
 	NsxtHosts *NsxtHosts `json:"nsxt_hosts,omitempty"`
 

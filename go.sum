@@ -16,6 +16,8 @@ github.com/avinetworks/container-lib v0.0.0-20200805113307-80c6b5ecc46e h1:fBUMs
 github.com/avinetworks/container-lib v0.0.0-20200805113307-80c6b5ecc46e/go.mod h1:wlslasV754w0HIvZMVzXn76U77IT2cH/QuEuutJ0ASE=
 github.com/avinetworks/sdk v0.0.0-20200812060914-ba100c75801c h1:GsvjuI/E65E35vcS69wUTMgLalYbP4T4vfCWR2NhKVI=
 github.com/avinetworks/sdk v0.0.0-20200812060914-ba100c75801c/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
+github.com/avinetworks/sdk v0.0.0-20200908155649-48d0ac51ea58 h1:CDN7TnSB1h6GIql/jiJeYhBjTEuHt+FcNetsxSpaFP0=
+github.com/avinetworks/sdk v0.0.0-20200908155649-48d0ac51ea58/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
 github.com/davecgh/go-spew v0.0.0-20151105211317-5215b55f46b2/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
