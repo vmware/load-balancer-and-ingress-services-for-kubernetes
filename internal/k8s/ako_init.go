@@ -198,11 +198,13 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	var ingestionwg *sync.WaitGroup
 	var graphwg *sync.WaitGroup
 	var fastretrywg *sync.WaitGroup
+	var slowretrywg *sync.WaitGroup
 	if len(waitGroupMap) > 0 {
 		// Fetch all the waitgroups
 		ingestionwg, _ = waitGroupMap[0]["ingestion"]
 		graphwg, _ = waitGroupMap[0]["graph"]
 		fastretrywg, _ = waitGroupMap[0]["fastretry"]
+		slowretrywg, _ = waitGroupMap[0]["slowretry"]
 	}
 	c.Start(stopCh)
 	/** Sequence:
@@ -273,6 +275,10 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
 	fastRetryQueue.SyncFunc = SyncFromFastRetryLayer
 	fastRetryQueue.Run(stopCh, fastretrywg)
+
+	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
+	slowRetryQueue.SyncFunc = SyncFromSlowRetryLayer
+	slowRetryQueue.Run(stopCh, slowretrywg)
 LABEL:
 	for {
 		select {
@@ -532,6 +538,11 @@ func SyncFromIngestionLayer(key string, wg *sync.WaitGroup) error {
 
 func SyncFromFastRetryLayer(key string, wg *sync.WaitGroup) error {
 	retry.DequeueFastRetry(key)
+	return nil
+}
+
+func SyncFromSlowRetryLayer(key string, wg *sync.WaitGroup) error {
+	retry.DequeueSlowRetry(key)
 	return nil
 }
 

@@ -14,10 +14,12 @@
 package rest
 
 import (
+	"errors"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -372,17 +374,22 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, sslKey ...utils.NamespaceName) {
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
 	shardSize := lib.GetshardSize()
-	var fastRetry, retry bool
+	var retry, fastRetry bool
 	if shardSize != 0 {
 		bkt := utils.Bkt(key, shardSize)
 		utils.AviLog.Infof("key: %s, msg: processing in rest queue number: %v", key, bkt)
 		if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
 			aviclient := rest.aviRestPoolClient.AviClient[bkt]
-			err := rest.aviRestPoolClient.AviRestOperate(aviclient, rest_ops)
+			err := rest.AviRestOperateWrapper(aviclient, rest_ops)
 			if err != nil {
 				var publishKey string
 				if avimodel != nil && len(avimodel.GetAviVS()) > 0 {
 					publishKey = avimodel.GetAviVS()[0].Name
+				}
+				if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
+					// This is a candidate for slow retry
+					rest.PublishKeyToSlowRetryLayer(publishKey, aviclient, key)
+					return
 				}
 				utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
 				models.RestStatus.UpdateAviApiRestStatus("", err)
@@ -406,13 +413,14 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 							}
 						} else {
 							utils.AviLog.Warnf("key: %s, msg: Avi model not set", key)
+							retry = true
 						}
 					} else {
 						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
 					}
 				}
 				if retry {
-					rest.PublishKeyToRetryLayer(publishKey, aviclient, key, fastRetry)
+					rest.PublishKeyToRetryLayer(publishKey, aviclient, key)
 				}
 			} else {
 				models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
@@ -490,12 +498,35 @@ func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName
 	return restOps
 }
 
-func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, c *clients.AviClient, key string, fastRetry bool) {
+func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, c *clients.AviClient, key string) {
 	var bkt uint32
 	bkt = 0
 	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
 	fastRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, parentVsKey)
+}
+
+func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, c *clients.AviClient, key string) {
+	var bkt uint32
+	bkt = 0
+	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
+	slowRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
+	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, parentVsKey)
+}
+
+func (rest *RestOperations) AviRestOperateWrapper(aviClient *clients.AviClient, rest_ops []*utils.RestOp) error {
+	restTimeoutChan := make(chan error, 1)
+	go func() {
+		err := rest.aviRestPoolClient.AviRestOperate(aviClient, rest_ops)
+		restTimeoutChan <- err
+	}()
+	select {
+	case err := <-restTimeoutChan:
+		return err
+	case <-time.After(80 * time.Second):
+		utils.AviLog.Warnf("timed out waiting for rest response")
+		return errors.New("timed out waiting for rest response")
+	}
 }
 
 func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObjKey avicache.NamespaceName, rest_op *utils.RestOp, aviError session.AviError, c *clients.AviClient, avimodel *nodes.AviObjectGraph, key string) (bool, bool) {
