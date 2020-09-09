@@ -377,12 +377,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
 		for _, host := range svc_mdata_obj.HostNames {
 			if mRoute.Status.Ingress[i].Host == host {
-				// Check if this host is still present in the spec, if so - don't delete it
-				if !utils.HasElem(hostListIng, host) || isVSDelete {
-					mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
-				} else {
-					utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the route: %v", key, host)
-				}
+				mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 			}
 		}
 	}
