@@ -23,7 +23,7 @@ type VSDataScriptSet struct {
 	// UUID of IP Groups that could be referred by VSDataScriptSet objects. It is a reference to an object of type IpAddrGroup.
 	IpgroupRefs []string `json:"ipgroup_refs,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name for the virtual service datascript collection.

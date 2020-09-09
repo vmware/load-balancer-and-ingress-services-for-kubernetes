@@ -11,6 +11,9 @@ type VrfContext struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Key/value vrfcontext attributes. Field introduced in 20.1.2.
+	Attrs []*KeyValue `json:"attrs,omitempty"`
+
 	// BFD configuration profile. Field introduced in 20.1.1.
 	BfdProfile *BfdProfile `json:"bfd_profile,omitempty"`
 
