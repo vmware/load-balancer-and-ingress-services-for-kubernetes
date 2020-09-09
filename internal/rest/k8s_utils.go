@@ -18,6 +18,7 @@ import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -31,6 +32,9 @@ func (rest *RestOperations) SyncIngressStatus() {
 	var allIngressUpdateOptions []status.UpdateStatusOptions
 	var allServiceLBUpdateOptions []status.UpdateStatusOptions
 	for _, vsKey := range vsKeys {
+		if vsKey.Name == lib.DummyVSForStaleData {
+			continue
+		}
 		vsCache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if !ok {
 			continue

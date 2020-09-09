@@ -170,7 +170,7 @@ func TestCreateIngressWithFaultCacheSync(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes[0].PoolRefs)
-	}, 5*time.Second).Should(gomega.Equal(1))
+	}, 60*time.Second).Should(gomega.Equal(1))
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-6"}
@@ -212,7 +212,7 @@ func TestUpdatePoolCacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.PoolCache.AviCacheGet(poolKey)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)
 	poolCacheBeforeObj, _ := poolCacheBefore.(*cache.AviPoolCache)
 	oldPoolCksum := poolCacheBeforeObj.CloudConfigCksum
@@ -283,7 +283,7 @@ func TestDeletePoolCacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.PoolCache.AviCacheGet(newPoolKey)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 	newPoolCache, _ := mcache.PoolCache.AviCacheGet(newPoolKey)
 	newPoolCacheObj, _ := newPoolCache.(*cache.AviPoolCache)
 	g.Expect(newPoolCacheObj.Name).To(gomega.Not(gomega.ContainSubstring("foo.com")))
@@ -564,7 +564,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 		return found
-	}, 15*time.Second).Should(gomega.Equal(false))
+	}, 60*time.Second).Should(gomega.Equal(false))
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -662,7 +662,7 @@ func TestCUDSecretCacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(false))
+	}, 60*time.Second).Should(gomega.Equal(false))
 	_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	g.Expect(found).To(gomega.Equal(false))
 
@@ -685,7 +685,7 @@ func TestIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 5*time.Second).Should(gomega.Equal(1))
+	}, 60*time.Second).Should(gomega.Equal(1))
 	ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.Equal("10.250.250.16"))
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].Hostname).To(gomega.ContainSubstring("foo.com"))
@@ -724,7 +724,7 @@ func TestMultiHostIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get(ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 15*time.Second).Should(gomega.Equal(3))
+	}, 60*time.Second).Should(gomega.Equal(3))
 	ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get(ingressName, metav1.GetOptions{})
 
 	// fake avi controller server returns IP in the form: 10.250.250.1<Shard-VS-NUM>
@@ -799,7 +799,7 @@ func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get(ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 15*time.Second).Should(gomega.Equal(2))
+	}, 60*time.Second).Should(gomega.Equal(2))
 
 	KubeClient.ExtensionsV1beta1().Ingresses("default").Delete(ingressName, nil)
 	TearDownTestForIngress(t, modelName)
@@ -821,7 +821,7 @@ func TestDeleteSecretSecureIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get("foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 15*time.Second).Should(gomega.Equal(0))
+	}, 60*time.Second).Should(gomega.Equal(0))
 
 	TearDownIngressForCacheSyncCheck(t, modelName, g)
 }
