@@ -502,11 +502,17 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			} else {
 				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path, path.ServiceName)
 			}
+			hostSlice := []string{host}
 			poolNode := &AviPoolNode{
 				Name:       poolName,
 				PortName:   path.PortName,
 				Tenant:     lib.GetTenant(),
 				VrfContext: lib.GetVrf(),
+				ServiceMetadata: avicache.ServiceMetadataObj{
+					IngressName: ingName,
+					Namespace:   namespace,
+					HostNames:   hostSlice,
+				},
 			}
 
 			if hostpath.reencrypt == true {

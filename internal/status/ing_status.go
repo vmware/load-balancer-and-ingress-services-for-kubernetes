@@ -56,6 +56,10 @@ func UpdateIngressStatus(options []UpdateStatusOptions, bulk bool) {
 }
 
 func updateObject(mIngress *networking.Ingress, updateOption UpdateStatusOptions, retryNum ...int) error {
+	if updateOption.Vip == "" {
+		return nil
+	}
+
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]

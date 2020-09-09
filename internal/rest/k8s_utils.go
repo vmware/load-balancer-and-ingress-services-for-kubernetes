@@ -33,6 +33,9 @@ func (rest *RestOperations) SyncIngressStatus() {
 	var allServiceLBUpdateOptions []status.UpdateStatusOptions
 	var allGatewayUpdateOptions []status.UpdateStatusOptions
 	for _, vsKey := range vsKeys {
+		if vsKey.Name == lib.DummyVSForStaleData {
+			continue
+		}
 		vsCache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if !ok {
 			continue

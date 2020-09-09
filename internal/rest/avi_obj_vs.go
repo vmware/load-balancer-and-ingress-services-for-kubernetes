@@ -409,7 +409,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
 				// But before this a pool may have got created as a part of the macro operation, so update the ingress status here.
-				if rest_op.Method == utils.RestPost {
+				if rest_op.Method == utils.RestPost || rest_op.Method == utils.RestDelete {
 					for _, poolkey := range vs_cache_obj.PoolKeyCollection {
 						// Fetch the pool object from cache and check the service metadata
 						pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
