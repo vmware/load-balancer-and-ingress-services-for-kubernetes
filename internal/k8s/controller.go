@@ -16,7 +16,6 @@ package k8s
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"sync"
 
@@ -615,7 +614,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
 	}
 
-	if os.Getenv(lib.DISABLE_STATIC_ROUTE_SYNC) == "true" && !lib.IsNodePortMode() {
+	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
 		c.informers.NodeInformer.Informer().AddEventHandler(nodeEventHandler)
