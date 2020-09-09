@@ -26,3 +26,11 @@ func DequeueFastRetry(vsKey string) {
 	nodes.PublishKeyToRestLayer(modelName, "retry", sharedQueue)
 
 }
+
+func DequeueSlowRetry(vsKey string) {
+	utils.AviLog.Infof("Retrieved the key for slow retry: %s", vsKey)
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	modelName := utils.ADMIN_NS + "/" + vsKey
+	nodes.PublishKeyToRestLayer(modelName, "retry", sharedQueue)
+
+}

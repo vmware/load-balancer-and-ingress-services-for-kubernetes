@@ -4,7 +4,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/avinetworks/ako v0.0.0-20200818183048-9235bc726579 // indirect
 	github.com/avinetworks/container-lib v0.0.0-20200805113307-80c6b5ecc46e // indirect
-	github.com/avinetworks/sdk v0.0.0-20200908155649-48d0ac51ea58
+	github.com/avinetworks/sdk v0.0.0-20200910040148-2ed48a016241
 	github.com/davecgh/go-spew v1.1.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/gorilla/mux v1.7.4
