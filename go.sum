@@ -32,6 +32,11 @@ github.com/avinetworks/sdk v0.0.0-20200908155649-48d0ac51ea58 h1:CDN7TnSB1h6GIql
 github.com/avinetworks/sdk v0.0.0-20200908155649-48d0ac51ea58/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
 github.com/avinetworks/sdk v0.0.0-20200910040148-2ed48a016241 h1:dolIx15h9Ioz87HAdFRFzz4aUavgt5vWKsrJrPwYg2g=
 github.com/avinetworks/sdk v0.0.0-20200910040148-2ed48a016241/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
+github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd h1:W+4xqQczmklVpG+JQlY9nBQaSbhbv3MvGaFLX6UvNrY=
+github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
+github.com/coreos/etcd v0.5.0-alpha.5 h1:0Qi6Jzjk2CDuuGlIeecpu+em2nrjhOgz2wsIwCmQHmc=
+github.com/coreos/etcd v3.3.25+incompatible h1:0GQEw6h3YnuOVdtwygkIfJ+Omx0tZ8/QkVyXI4LkbeY=
+github.com/coreos/etcd v3.3.25+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/davecgh/go-spew v0.0.0-20151105211317-5215b55f46b2/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

@@ -54,7 +54,7 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	for i := uint32(0); i < num; i++ {
 		// Retry 20 times with an interval of 10 seconds each.
 		aviClient, err := clients.NewAviClient(api_ep, username,
-			session.SetPassword(password), session.ControllerStatusCheckDisabled(), session.SetInsecure)
+			session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetInsecure)
 		if err != nil {
 			AviLog.Warnf("NewAviClient returned err %v", err)
 			return &p, err
