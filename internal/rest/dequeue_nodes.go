@@ -530,8 +530,8 @@ func (rest *RestOperations) AviRestOperateWrapper(aviClient *clients.AviClient, 
 	select {
 	case err := <-restTimeoutChan:
 		return err
-	case <-time.After(80 * time.Second):
-		utils.AviLog.Warnf("timed out waiting for rest response")
+	case <-time.After(lib.ControllerReqWaitTime * time.Second):
+		utils.AviLog.Warnf("timed out waiting for rest response after %d seconds", lib.ControllerReqWaitTime)
 		return errors.New("timed out waiting for rest response")
 	}
 }
@@ -1398,7 +1398,7 @@ func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviPkiProfileNode, pool
 }
 
 func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
-	utils.AviLog.Infof("key: %s, msg: about to delete pki profile %s", key, utils.Stringify(pkiProfileDelete))
+	utils.AviLog.Debugf("key: %s, msg: about to delete pki profile %s", key, utils.Stringify(pkiProfileDelete))
 	for _, delPki := range pkiProfileDelete {
 		pkiProfile := avicache.NamespaceName{Namespace: namespace, Name: delPki.Name}
 		pkiCache, ok := rest.cache.PKIProfileCache.AviCacheGet(pkiProfile)
