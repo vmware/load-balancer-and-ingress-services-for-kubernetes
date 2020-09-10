@@ -80,6 +80,7 @@ const (
 	GatewayTypeLabelKey                        = "service.route.lbapi.run.tanzu.vmware.com/type"
 	AviGatewayController                       = "lbapi.run.tanzu.vmware.com/avi-lb"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
+	ControllerReqWaitTime                      = 300
 )
 
 const (
