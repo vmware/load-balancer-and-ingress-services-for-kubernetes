@@ -289,7 +289,7 @@ func TestHostnameUpdatePoolCacheSync(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		vs := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return vs[0].PoolRefs[0].Servers
-	}, 15*time.Second).Should(gomega.HaveLen(0))
+	}, 60*time.Second).Should(gomega.HaveLen(0))
 	// If we transition the service from Loadbalancer to clusterIP - pools' servers should get populated.
 	svcExample = (integrationtest.FakeService{
 		Name:         "avisvc",
