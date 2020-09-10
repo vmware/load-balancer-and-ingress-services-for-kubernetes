@@ -100,11 +100,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: disableStaticRouteSync
-          - name: INGRESS_API
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: ingressApi
            {{ if .Values.configs.syncNamespace  }}
           - name: SYNC_NAMESPACE
             valueFrom:
@@ -147,7 +142,7 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: serviceType
-          {{ if eq .Values.configs.serviceType "NodePort" }}
+          {{ if eq .Values.L7Settings.serviceType "NodePort" }}
           - name: NODE_KEY
             valueFrom:
               configMapKeyRef:

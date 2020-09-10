@@ -258,6 +258,9 @@ type AviSession struct {
 	ctrlStatusCheckRetryCount int
 	// Time interval in seconds within each retry to check controller status.
 	ctrlStatusCheckRetryInterval int
+
+	// this flag disables the checkcontrollerstatus method, instead client do their own retries
+	checkCtrlStatusDisabled bool
 }
 
 const DEFAULT_AVI_VERSION = "17.1.2"
@@ -473,6 +476,13 @@ func SetControllerStatusCheckLimits(numRetries, retryInterval int) func(*AviSess
 	}
 }
 
+func ControllerStatusCheckDisabled() func(*AviSession) error {
+	return func(avisess *AviSession) error {
+		avisess.checkCtrlStatusDisabled = true
+		return nil
+	}
+}
+
 // SetTransport - Use this for NewAviSession option argument for configuring http transport to enable connection
 func SetTransport(transport *http.Transport) func(*AviSession) error {
 	return func(sess *AviSession) error {
@@ -678,17 +688,22 @@ func (avisess *AviSession) restRequest(verb string, uri string, payload interfac
 		}
 	}
 	if retryReq {
-		check, httpResp, err := avisess.CheckControllerStatus()
-		if check == false {
-			resp.Body.Close()
-			glog.Errorf("restRequest Error during checking controller state %v", err)
-			return httpResp, err
+		if !avisess.checkCtrlStatusDisabled {
+			check, httpResp, err := avisess.CheckControllerStatus()
+			if check == false {
+				resp.Body.Close()
+				glog.Errorf("restRequest Error during checking controller state %v", err)
+				return httpResp, err
+			}
+			if err := avisess.initiateSession(); err != nil {
+				resp.Body.Close()
+				return nil, err
+			}
+			return avisess.restRequest(verb, uri, payload, tenant, errorResult, retry+1)
+		} else {
+			glog.Error("Error while client.Do, CheckControllerStatus disabled, not going to retry")
+			return nil, errors.New("Rest request error, returning to caller")
 		}
-		if err := avisess.initiateSession(); err != nil {
-			resp.Body.Close()
-			return nil, err
-		}
-		return avisess.restRequest(verb, uri, payload, tenant, errorResult, retry+1)
 	}
 	return resp, nil
 }
@@ -1019,7 +1034,7 @@ func (avisess *AviSession) restRequestInterfaceResponse(verb string, url string,
 		url = updateUri(url, opts)
 	}
 	httpResponse, rerror := avisess.restRequest(verb, url, payload, opts.tenant, nil)
-	if rerror != nil {
+	if rerror != nil || httpResponse == nil {
 		return rerror
 	}
 	var res []byte

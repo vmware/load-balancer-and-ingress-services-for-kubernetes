@@ -115,10 +115,9 @@ func injectMWForObjDeletion() {
 			}
 		} else if r.Method == "GET" {
 			integrationtest.FeedMockCollectionData(w, r, mockFilePath)
-
-		} else if strings.Contains(url, "login") {
+		} else if strings.Contains(url, "initial-data") {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"success": "true"}`))
+			w.Write([]byte(`{"version": {"Version": "20.1.2"}}`))
 		}
 	})
 }
@@ -128,7 +127,9 @@ func injectMWForCloud() {
 		url := r.URL.EscapedPath()
 		if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
 			integrationtest.FeedMockCollectionData(w, r, invalidFilePath)
-
+		} else if strings.Contains(url, "initial-data") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"version": {"Version": "20.1.2"}}`))
 		} else if r.Method == "GET" {
 			integrationtest.FeedMockCollectionData(w, r, mockFilePath)
 
