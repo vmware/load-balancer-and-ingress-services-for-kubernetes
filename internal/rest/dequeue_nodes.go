@@ -389,6 +389,13 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				}
 				if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
 					// This is a candidate for slow retry
+					if publishKey == "" {
+						// This is a delete case for the virtualservice. Derive the virtualservice from the 'key'
+						splitKeys := strings.Split(key, "/")
+						if len(splitKeys) == 2 {
+							publishKey = splitKeys[1]
+						}
+					}
 					rest.PublishKeyToSlowRetryLayer(publishKey, aviclient, key)
 					return
 				}
