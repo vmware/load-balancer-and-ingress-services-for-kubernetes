@@ -46,7 +46,7 @@ const (
 	FAST_RETRY_LAYER                           = "FastRetryLayer"
 	NOT_FOUND                                  = "HTTP code: 404"
 	STATUS_REDIRECT                            = "HTTP_REDIRECT_STATUS_CODE_302"
-	SLOW_SYNC_TIME                             = 120
+	SLOW_SYNC_TIME                             = 90 // seconds
 	LOG_LEVEL                                  = "logLevel"
 	SERVICE_TYPE                               = "SERVICE_TYPE"
 	NODE_PORT                                  = "NodePort"
