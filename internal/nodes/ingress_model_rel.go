@@ -153,29 +153,37 @@ func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
 
 func SvcToGateway(svcName string, namespace string, key string) ([]string, bool) {
 	var allGateways []string
+	svcNSName := namespace + "/" + svcName
 
 	myService, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil && errors.IsNotFound(err) {
 		// Garbage collect the svc if no route references exist
-		found, gateway := objects.ServiceGWLister().GetSvcToGw(namespace + "/" + svcName)
+		found, gateway := objects.ServiceGWLister().GetSvcToGw(svcNSName)
 		if found {
-			objects.ServiceGWLister().RemoveGatewayMappings(gateway, namespace+"/"+svcName)
+			objects.ServiceGWLister().RemoveGatewayMappings(gateway, svcNSName)
 			allGateways = append(allGateways, gateway)
 		}
 	} else {
-		foundOld, oldGateway := objects.ServiceGWLister().GetSvcToGw(namespace + "/" + svcName)
+		foundOld, oldGateway := objects.ServiceGWLister().GetSvcToGw(svcNSName)
 
-		if gateway, portProtocols := parseL4ServiceForGateway(myService, key); gateway != "" {
-			svcListener := make(map[string]string)
+		if gateway, portProtocols := ParseL4ServiceForGateway(myService, key); gateway != "" {
+			_, svcListeners := objects.ServiceGWLister().GetGwToSvcs(gateway)
 			for _, portProto := range portProtocols {
-				svcListener[portProto] = namespace + "/" + svcName
+				if val, ok := svcListeners[portProto]; ok {
+					if !utils.HasElem(val, svcNSName) {
+						val = append(val, svcNSName)
+					}
+					svcListeners[portProto] = val
+				} else {
+					svcListeners[portProto] = []string{svcNSName}
+				}
 			}
-			objects.ServiceGWLister().UpdateGatewayMappings(gateway, svcListener, namespace+"/"+svcName)
+			objects.ServiceGWLister().UpdateGatewayMappings(gateway, svcListeners, svcNSName)
 			if !utils.HasElem(allGateways, gateway) {
 				allGateways = append(allGateways, gateway)
 			}
 		} else if foundOld {
-			objects.ServiceGWLister().RemoveGatewayMappings(oldGateway, namespace+"/"+svcName)
+			objects.ServiceGWLister().RemoveGatewayMappings(oldGateway, svcNSName)
 			if !utils.HasElem(allGateways, oldGateway) {
 				allGateways = append(allGateways, oldGateway)
 			}
@@ -535,7 +543,7 @@ func parseSecretsForIngress(ingSpec v1beta1.IngressSpec, key string) []string {
 	return secrets
 }
 
-func parseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string) {
+func ParseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string) {
 	var gateway string
 	var portProtocols []string
 

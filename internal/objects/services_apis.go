@@ -139,15 +139,15 @@ func (v *SvcGWLister) GetSvcToGw(service string) (bool, string) {
 	return true, gateway.(string)
 }
 
-func (v *SvcGWLister) GetGwToSvcs(gateway string) (bool, map[string]string) {
+func (v *SvcGWLister) GetGwToSvcs(gateway string) (bool, map[string][]string) {
 	found, services := v.GwSvcsStore.Get(gateway)
 	if !found {
-		return false, make(map[string]string)
+		return false, make(map[string][]string)
 	}
-	return true, services.(map[string]string)
+	return true, services.(map[string][]string)
 }
 
-func (v *SvcGWLister) UpdateGatewayMappings(gateway string, svcListener map[string]string, service string) {
+func (v *SvcGWLister) UpdateGatewayMappings(gateway string, svcListener map[string][]string, service string) {
 	v.SvcGWLock.Lock()
 	defer v.SvcGWLock.Unlock()
 	v.GwSvcsStore.AddOrUpdate(gateway, svcListener)
@@ -157,14 +157,19 @@ func (v *SvcGWLister) UpdateGatewayMappings(gateway string, svcListener map[stri
 func (v *SvcGWLister) RemoveGatewayMappings(gateway, service string) bool {
 	v.SvcGWLock.Lock()
 	defer v.SvcGWLock.Unlock()
-	_, services := v.GetGwToSvcs(gateway)
-	for portproto, svc := range services {
-		if svc == service {
-			delete(services, portproto)
+	_, svcListeners := v.GetGwToSvcs(gateway)
+	for portproto, svcs := range svcListeners {
+		if utils.HasElem(svcs, service) {
+			svcs = utils.Remove(svcs, service)
+			if len(svcs) == 0 {
+				delete(svcListeners, portproto)
+			}
+			svcListeners[portproto] = svcs
+			v.GwSvcsStore.AddOrUpdate(gateway, svcListeners)
 		}
 	}
 
-	if len(services) == 0 {
+	if len(svcListeners) == 0 {
 		if success := v.GwSvcsStore.Delete(gateway); !success {
 			return false
 		}
