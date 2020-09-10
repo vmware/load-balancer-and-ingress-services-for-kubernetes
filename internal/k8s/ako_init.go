@@ -290,6 +290,7 @@ LABEL:
 	ingestionQueue.StopWorkers(stopCh)
 	graphQueue.StopWorkers(stopCh)
 	fastRetryQueue.StopWorkers(stopCh)
+	slowRetryQueue.StopWorkers(stopCh)
 }
 
 func (c *AviController) FullSync() {
