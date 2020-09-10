@@ -222,6 +222,9 @@ func routeStatusCheck(oldStatus []routev1.RouteIngress, hostname string) bool {
 }
 
 func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, retryNum ...int) error {
+	if updateOption.Vip == "" {
+		return nil
+	}
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
