@@ -61,7 +61,7 @@ multicloudtests:
 
 .PHONY: int_test
 int_test:
-	make -j 1 integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests
+	make -j 5 integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests
 
 .PHONY: scale_test
 scale_test:

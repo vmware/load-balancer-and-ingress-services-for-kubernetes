@@ -681,6 +681,7 @@ var FakeServerMiddleware InjectFault
 var FakeAviObjects = []string{
 	"cloud",
 	"ipamdnsproviderprofile",
+	"ipamdnsproviderprofiledomainlist",
 	"network",
 	"pool",
 	"poolgroup",
