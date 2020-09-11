@@ -382,20 +382,30 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 		if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
 			aviclient := rest.aviRestPoolClient.AviClient[bkt]
 			err := rest.AviRestOperateWrapper(aviclient, rest_ops)
-			if err != nil {
+			if err == nil {
+				models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
+				utils.AviLog.Debugf("key: %s, msg: rest call executed successfully, will update cache", key)
+				// Add to local obj caches
+				for _, rest_op := range rest_ops {
+					rest.PopulateOneCache(rest_op, aviObjKey, key)
+				}
+
+			} else if aviObjKey.Name == lib.DummyVSForStaleData {
+				utils.AviLog.Warnf("key: %s, msg: error in rest request %v, for %s, won't retry", key, err.Error(), lib.DummyVSForStaleData)
+			} else {
 				var publishKey string
 				if avimodel != nil && len(avimodel.GetAviVS()) > 0 {
 					publishKey = avimodel.GetAviVS()[0].Name
 				}
+				if publishKey == "" {
+					// This is a delete case for the virtualservice. Derive the virtualservice from the 'key'
+					splitKeys := strings.Split(key, "/")
+					if len(splitKeys) == 2 {
+						publishKey = splitKeys[1]
+					}
+				}
 				if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
 					// This is a candidate for slow retry
-					if publishKey == "" {
-						// This is a delete case for the virtualservice. Derive the virtualservice from the 'key'
-						splitKeys := strings.Split(key, "/")
-						if len(splitKeys) == 2 {
-							publishKey = splitKeys[1]
-						}
-					}
 					rest.PublishKeyToSlowRetryLayer(publishKey, aviclient, key)
 					return
 				}
@@ -430,14 +440,6 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				if retry {
 					rest.PublishKeyToRetryLayer(publishKey, aviclient, key)
 				}
-			} else {
-				models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
-				utils.AviLog.Debugf("key: %s, msg: rest call executed successfully, will update cache", key)
-				// Add to local obj caches
-				for _, rest_op := range rest_ops {
-					rest.PopulateOneCache(rest_op, aviObjKey, key)
-				}
-
 			}
 		}
 	}

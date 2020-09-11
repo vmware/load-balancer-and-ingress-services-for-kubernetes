@@ -21,8 +21,8 @@ data:
   l7ShardingScheme: {{ .Values.L7Settings.l7ShardingScheme | quote }}
   logLevel: {{ .Values.AKOSettings.logLevel | quote }}
   deleteConfig: {{ .Values.AKOSettings.deleteConfig | quote }}
-  {{ if .Values.configs.syncNamespace  }}
-  syncNamespace: {{ .Values.configs.syncNamespace | quote }}
+  {{ if .Values.AKOSettings.syncNamespace  }}
+  syncNamespace: {{ .Values.AKOSettings.syncNamespace | quote }}
   {{ end }}
   serviceType:  {{ .Values.L7Settings.serviceType | quote }}
   {{ if eq .Values.L7Settings.serviceType "NodePort" }}
