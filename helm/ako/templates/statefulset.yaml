@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: ako
   namespace: {{ .Release.Namespace }}
@@ -7,6 +7,7 @@ metadata:
     {{- include "ako.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  serviceName: ako
   selector:
     matchLabels:
       {{- include "ako.selectorLabels" . | nindent 6 }}
