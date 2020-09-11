@@ -15,8 +15,11 @@
 package utils
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"sync"
 
@@ -37,6 +40,7 @@ func SharedAVIClients() *AviRestClientPool {
 	ctrlUsername := os.Getenv("CTRL_USERNAME")
 	ctrlPassword := os.Getenv("CTRL_PASSWORD")
 	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
+
 	if ctrlUsername == "" || ctrlPassword == "" || ctrlIpAddress == "" {
 		AviLog.Fatal(`AVI controller information missing. Update them in kubernetes secret or via environment variables.`)
 	}
@@ -50,11 +54,30 @@ func SharedAVIClients() *AviRestClientPool {
 func NewAviRestClientPool(num uint32, api_ep string, username string,
 	password string) (*AviRestClientPool, error) {
 	var p AviRestClientPool
+	ctrlRootCa := os.Getenv("CTRL_ROOTCA")
+	var transport *http.Transport
+	if ctrlRootCa != "" {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM([]byte(ctrlRootCa))
 
+		transport =
+			&http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: caCertPool,
+				},
+			}
+	}
 	for i := uint32(0); i < num; i++ {
 		// Retry 20 times with an interval of 10 seconds each.
-		aviClient, err := clients.NewAviClient(api_ep, username,
-			session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetInsecure)
+		var aviClient *clients.AviClient
+		var err error
+		if ctrlRootCa != "" {
+			aviClient, err = clients.NewAviClient(api_ep, username,
+				session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+		} else {
+			aviClient, err = clients.NewAviClient(api_ep, username,
+				session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+		}
 		if err != nil {
 			AviLog.Warnf("NewAviClient returned err %v", err)
 			return &p, err

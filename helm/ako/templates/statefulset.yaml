@@ -51,6 +51,13 @@ spec:
               secretKeyRef:
                 name: avi-secret
                 key: password
+          {{ if .Values.avicredentials.rootca  }}
+          - name: CTRL_ROOTCA
+            valueFrom:
+              secretKeyRef:
+                name: avi-secret
+                key: rootca
+            {{ end }}
           - name: CTRL_IPADDRESS
             valueFrom:
               configMapKeyRef:
