@@ -76,6 +76,8 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 	for i, op := range rest_ops {
 		SetTenant := session.SetTenant(op.Tenant)
 		SetTenant(c.AviSession)
+		SetVersion := session.SetVersion(op.Version)
+		SetVersion(c.AviSession)
 		switch op.Method {
 		case RestPost:
 			op.Err = c.AviSession.Post(op.Path, op.Obj, &op.Response)
