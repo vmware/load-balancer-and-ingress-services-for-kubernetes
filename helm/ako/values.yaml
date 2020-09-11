@@ -56,6 +56,13 @@ nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""
   value: ""
 
+resources:
+  limits:
+    cpu: 250m
+    memory: 300Mi
+  requests:
+    cpu: 100m
+    memory: 75Mi
 
 podSecurityContext: {}
   # fsGroup: 2000
