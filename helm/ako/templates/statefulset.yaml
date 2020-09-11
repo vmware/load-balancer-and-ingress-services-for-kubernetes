@@ -101,7 +101,7 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: disableStaticRouteSync
-           {{ if .Values.configs.syncNamespace  }}
+           {{ if .Values.AKOSettings.syncNamespace  }}
           - name: SYNC_NAMESPACE
             valueFrom:
               configMapKeyRef:
