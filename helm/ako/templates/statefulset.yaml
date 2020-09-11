@@ -191,7 +191,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/status
-              port:  {{ default "8080" .Values.configs.apiServerPort }}
+              port:  {{ default "8080" .Values.AKOSettings.apiServerPort }}
             initialDelaySeconds: 5
             periodSeconds: 10
         
