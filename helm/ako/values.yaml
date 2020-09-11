@@ -49,7 +49,7 @@ ControllerSettings:
   serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
   controllerVersion: "18.2.10" # The controller API version
   cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
-
+  controllerIP: ""
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""
