@@ -1974,7 +1974,8 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 							if foundpg {
 								pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName.(string)}
 								poolgroupKeys = append(poolgroupKeys, pgKey)
-								poolKeys = c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
+								pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
+								poolKeys = append(poolKeys, pgpoolKeys...)
 								sharedVsOrL4 = true
 							}
 						}
@@ -2023,7 +2024,8 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 									// For each PG, formulate the key and then populate the pg collection cache
 									pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
 									poolgroupKeys = append(poolgroupKeys, pgKey)
-									poolKeys = c.AviPGPoolCachePopulate(client, cloud, pgName)
+									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName)
+									poolKeys = append(poolKeys, pgpoolKeys...)
 								}
 								httpKeys = append(httpKeys, httpKey)
 							}
@@ -2218,7 +2220,8 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 							if foundpg {
 								pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName.(string)}
 								poolgroupKeys = append(poolgroupKeys, pgKey)
-								poolKeys = c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
+								pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
+								poolKeys = append(poolKeys, pgpoolKeys...)
 							}
 						}
 					}
@@ -2256,7 +2259,8 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 									// For each PG, formulate the key and then populate the pg collection cache
 									pgKey := NamespaceName{Namespace: utils.ADMIN_NS, Name: pgName}
 									poolgroupKeys = append(poolgroupKeys, pgKey)
-									poolKeys = c.AviPGPoolCachePopulate(client, cloud, pgName)
+									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName)
+									poolKeys = append(poolKeys, pgpoolKeys...)
 								}
 								httpKeys = append(httpKeys, httpKey)
 							}
