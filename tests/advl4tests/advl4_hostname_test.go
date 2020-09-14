@@ -241,7 +241,7 @@ func TestAdvL4BestCase(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
-	modelName := "admin/cluster--default-my-gateway"
+	modelName := "admin/abc--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
@@ -254,7 +254,7 @@ func TestAdvL4BestCase(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
 	svc, _ := KubeClient.CoreV1().Services(ns).Get("svc", metav1.GetOptions{})
 	g.Expect(svc.Status.LoadBalancer.Ingress[0].IP).To(gomega.Equal("10.250.250.250"))
 
@@ -288,7 +288,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
-	modelName := "admin/cluster--default-my-gateway"
+	modelName := "admin/abc--default-my-gateway"
 
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
@@ -332,7 +332,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
-	modelName := "admin/cluster--default-my-gateway"
+	modelName := "admin/abc--default-my-gateway"
 
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupAdvLBService(t, "svc", ns, gatewayName, ns)

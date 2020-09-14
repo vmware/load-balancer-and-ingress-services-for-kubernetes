@@ -378,7 +378,7 @@ func GetClusterID() string {
 	if clusterID != "" {
 		clusterName := strings.Split(clusterID, ":")
 		if len(clusterName) > 1 {
-			return clusterName[1]
+			return clusterName[0]
 		}
 	}
 	return ""
