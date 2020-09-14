@@ -45,7 +45,7 @@ func PopulateCache() error {
 	avi_rest_client_pool := avicache.SharedAVIClients()
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
-	if len(avi_rest_client_pool.AviClient) > 0 {
+	if avi_rest_client_pool != nil && len(avi_rest_client_pool.AviClient) > 0 {
 		_, _, err := avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient[0], utils.CtrlVersion, utils.CloudName)
 		if err != nil {
 			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
@@ -61,12 +61,14 @@ func PopulateCache() error {
 	restlayer := rest.NewRestOperations(avi_obj_cache, aviclient)
 	staleVSKey := utils.ADMIN_NS + "/" + lib.DummyVSForStaleData
 	utils.AviLog.Infof("Starting clean up of stale objects")
-	restlayer.CleanupVS(staleVSKey, true)
-	staleCacheKey := avicache.NamespaceName{
-		Name:      lib.DummyVSForStaleData,
-		Namespace: utils.ADMIN_NS,
+	if aviclient != nil && len(aviclient.AviClient) > 0 {
+		restlayer.CleanupVS(staleVSKey, true)
+		staleCacheKey := avicache.NamespaceName{
+			Name:      lib.DummyVSForStaleData,
+			Namespace: utils.ADMIN_NS,
+		}
+		avi_obj_cache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 	}
-	avi_obj_cache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 	return nil
 }
 
@@ -103,7 +105,7 @@ func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) {
 	cs := k8sinfo.Cs
 	aviClientPool := avicache.SharedAVIClients()
-	if len(aviClientPool.AviClient) < 1 {
+	if aviClientPool == nil || len(aviClientPool.AviClient) < 1 {
 		c.DisableSync = true
 		lib.SetDisableSync(true)
 		utils.AviLog.Errorf("could not get client to connect to Avi Controller, disabling sync")

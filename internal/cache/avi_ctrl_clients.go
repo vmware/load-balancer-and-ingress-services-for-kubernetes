@@ -56,6 +56,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 				if err != nil {
 					connectionStatus = utils.AVIAPI_DISCONNECTED
 					utils.AviLog.Error("AVI controller initilization failed")
+					return nil
 				}
 				// set the tenant and controller version in avisession obj
 				for _, client := range AviClientInstance.AviClient {
