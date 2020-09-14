@@ -197,7 +197,7 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 	gw.Status = *updateStatus
 	_, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).UpdateStatus(gw)
 	if err != nil {
-		utils.AviLog.Errorf("msg: %d there was an error in updating the gateway status: %+v", retry, err)
+		utils.AviLog.Warnf("msg: %d there was an error in updating the gateway status: %+v", retry, err)
 		updatedGW, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Get(gw.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("gateway not found %v", err)
