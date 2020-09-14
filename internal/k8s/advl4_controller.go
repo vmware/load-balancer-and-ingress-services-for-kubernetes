@@ -61,9 +61,11 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Infof("key: %s, msg: ADD", key)
+
 			status.InitializeGatewayConditions(gw)
 			validateGatewayForStatusUpdates(key, gw)
 			checkGWForGatewayPortConflict(key, gw)
+
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 		},
@@ -77,8 +79,13 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
+
+				if ipChanged := checkGWForIPUpdate(key, gw, oldObj); ipChanged {
+					return
+				}
 				validateGatewayForStatusUpdates(key, gw)
 				checkGWForGatewayPortConflict(key, gw)
+
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			}
@@ -204,19 +211,17 @@ func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 		if val, ok := gwSvcListeners[portProtocol]; ok {
 			if !utils.HasElem(val, svc.Namespace+"/"+svc.Name) {
 				val = append(val, svc.Namespace+"/"+svc.Name)
-				if len(val) == 1 {
-					continue
-				}
 			}
-
-			portProtocolArr := strings.Split(portProtocol, "/")
-			status.UpdateGatewayStatusListenerConditions(gw, portProtocolArr[1], &status.UpdateGWStatusConditionOptions{
-				Type:   "PortConflict",
-				Status: corev1.ConditionTrue,
-				Reason: fmt.Sprintf("conflicting port configuration provided in service %s and %s/%s", val, svc.Namespace, svc.Name),
-			})
-			status.UpdateGatewayStatusObject(gw, &gw.Status)
-			return
+			if len(val) > 1 {
+				portProtocolArr := strings.Split(portProtocol, "/")
+				status.UpdateGatewayStatusListenerConditions(gw, portProtocolArr[1], &status.UpdateGWStatusConditionOptions{
+					Type:   "PortConflict",
+					Status: corev1.ConditionTrue,
+					Reason: fmt.Sprintf("conflicting port configuration provided in service %s and %s/%s", val, svc.Namespace, svc.Name),
+				})
+				status.UpdateGatewayStatusObject(gw, &gw.Status)
+				return
+			}
 		}
 	}
 
@@ -264,4 +269,37 @@ func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
 			return
 		}
 	}
+}
+
+func checkGWForIPUpdate(key string, gw, oldGw *advl4v1alpha1pre1.Gateway) bool {
+	var newIPAddress, oldIPAddress string
+	if len(gw.Spec.Addresses) > 0 {
+		newIPAddress = gw.Spec.Addresses[0].Value
+	}
+	if len(oldGw.Spec.Addresses) > 0 {
+		oldIPAddress = oldGw.Spec.Addresses[0].Value
+	}
+
+	// honor new IP coming in
+	// old: nil, new: X
+	if oldIPAddress == "" && newIPAddress != "" {
+		return false
+	}
+
+	// old: X, new: nil | old: X, new: Y
+	if newIPAddress != oldIPAddress {
+		errString := "IPAddress Updates on gateway not supported, Please recreate gateway object with the new preferred IPAddress"
+		status.UpdateGatewayStatusGWCondition(gw, &status.UpdateGWStatusConditionOptions{
+			Type:    "Pending",
+			Status:  corev1.ConditionTrue,
+			Reason:  "InvalidAddress",
+			Message: errString,
+		})
+		utils.AviLog.Errorf("key: %s, msg: %s Last IPAddress: %s, Current IPAddress: %s",
+			key, errString, oldIPAddress, newIPAddress)
+		status.UpdateGatewayStatusObject(gw, &gw.Status)
+		return true
+	}
+
+	return false
 }

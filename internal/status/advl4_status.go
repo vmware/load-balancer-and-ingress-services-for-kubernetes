@@ -115,6 +115,7 @@ func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key 
 // supported GatewayConditionTypes
 // InvalidListeners, InvalidAddress, *Serviceable
 func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, updateStatus *UpdateGWStatusConditionOptions) {
+	utils.AviLog.Debugf("Updating Gateway status gateway condition %v", utils.Stringify(updateStatus))
 	for i, _ := range gw.Status.Conditions {
 		if string(gw.Status.Conditions[i].Type) == updateStatus.Type {
 			gw.Status.Conditions[i].Status = updateStatus.Status
@@ -122,16 +123,17 @@ func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, updateStatus 
 			gw.Status.Conditions[i].Reason = updateStatus.Reason
 			gw.Status.Conditions[i].LastTransitionTime = metav1.Now()
 
-			if (updateStatus.Type == "Pending" && string(gw.Status.Conditions[i].Type) == "Ready") ||
-				(updateStatus.Type == "Ready" && string(gw.Status.Conditions[i].Type) == "Pending") {
-				// if Pending true, mark Ready as false automatically
-				// if Ready true, mark Pending as false automatically
-				gw.Status.Conditions[i].Status = corev1.ConditionFalse
-				gw.Status.Conditions[i].LastTransitionTime = metav1.Now()
-				gw.Status.Conditions[i].Message = updateStatus.Message
-				gw.Status.Conditions[i].Reason = updateStatus.Reason
+		}
 
-			}
+		if (updateStatus.Type == "Pending" && string(gw.Status.Conditions[i].Type) == "Ready") ||
+			(updateStatus.Type == "Ready" && string(gw.Status.Conditions[i].Type) == "Pending") {
+			// if Pending true, mark Ready as false automatically
+			// if Ready true, mark Pending as false automatically
+			gw.Status.Conditions[i].Status = corev1.ConditionFalse
+			gw.Status.Conditions[i].LastTransitionTime = metav1.Now()
+			gw.Status.Conditions[i].Message = updateStatus.Message
+			gw.Status.Conditions[i].Reason = updateStatus.Reason
+
 		}
 	}
 }
@@ -139,6 +141,7 @@ func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, updateStatus 
 // supported ListenerConditionType
 // PortConflict, InvalidRoutes, UnsupportedProtocol, *Serviceable
 func UpdateGatewayStatusListenerConditions(gw *advl4v1alpha1pre1.Gateway, portThing string, updateStatus *UpdateGWStatusConditionOptions) {
+	utils.AviLog.Debugf("Updating Gateway status listener condition port: %s %v", portThing, utils.Stringify(updateStatus))
 	for port, condition := range gw.Status.Listeners {
 		notFound := true
 		if condition.Port == portThing {
@@ -208,15 +211,18 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 }
 
 func InitializeGatewayConditions(gw *advl4v1alpha1pre1.Gateway) error {
+	if len(gw.Status.Conditions) > 0 {
+		// already initialised
+		return nil
+	}
+
 	gw.Status.Conditions = []advl4v1alpha1pre1.GatewayCondition{{
 		Type:               "Pending",
 		Status:             corev1.ConditionTrue,
-		Message:            "Initializing",
 		LastTransitionTime: metav1.Now(),
 	}, {
 		Type:               "Ready",
 		Status:             corev1.ConditionFalse,
-		Message:            "Initializing",
 		LastTransitionTime: metav1.Now(),
 	}}
 
@@ -227,7 +233,6 @@ func InitializeGatewayConditions(gw *advl4v1alpha1pre1.Gateway) error {
 			Conditions: []advl4v1alpha1pre1.ListenerCondition{{
 				Type:               "Ready",
 				Status:             corev1.ConditionFalse,
-				Message:            "Initializing",
 				LastTransitionTime: metav1.Now(),
 			}},
 		})

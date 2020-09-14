@@ -1139,7 +1139,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.
-							restOp, err := rest.AviVsVipBuild(vsvip, vsvip_cache_obj, key)
+							restOp, err := rest.AviVsVipBuild(vsvip, vsvip_cache_obj, vs_cache_obj, key)
 							if err == nil {
 								rest_ops = append(rest_ops, restOp)
 							}
@@ -1147,7 +1147,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 					}
 				} else {
 					// Not found - it should be a POST call.
-					restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
+					restOp, err := rest.AviVsVipBuild(vsvip, nil, nil, key)
 					if err == nil {
 						rest_ops = append(rest_ops, restOp)
 					}
@@ -1158,7 +1158,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 	} else {
 		// Everything is a POST call
 		for _, vsvip := range vsvip_nodes {
-			restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
+			restOp, err := rest.AviVsVipBuild(vsvip, nil, nil, key)
 			if err == nil {
 				rest_ops = append(rest_ops, restOp)
 			}

@@ -1,4 +1,4 @@
-package advl4test
+package advl4tests
 
 import (
 	"fmt"
@@ -74,6 +74,8 @@ func TestMain(m *testing.M) {
 	waitGroupMap["ingestion"] = wgIngestion
 	wgFastRetry := &sync.WaitGroup{}
 	waitGroupMap["fastretry"] = wgFastRetry
+	wgSlowRetry := &sync.WaitGroup{}
+	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)

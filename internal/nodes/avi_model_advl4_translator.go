@@ -82,7 +82,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			port, _ := strconv.Atoi(portProto[1])
 			pp := AviPortHostProtocol{Port: int32(port), Protocol: fmt.Sprint(portProto[0])}
 			portProtocols = append(portProtocols, pp)
-			if portProto[0] == "" || portProto[1] == utils.TCP {
+			if portProto[0] == "" || portProto[0] == utils.TCP {
 				isTCP = true
 			}
 		}
