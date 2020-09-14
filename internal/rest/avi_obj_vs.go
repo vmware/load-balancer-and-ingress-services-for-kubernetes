@@ -74,7 +74,10 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			VrfContextRef:               &vrfContextRef,
 			RemoveListeningPortOnVsDown: &vsDownOnPoolDown,
 		}
-
+		if lib.GetAdvancedL4() {
+			ignPool := true
+			vs.IgnPoolNetReach = &ignPool
+		}
 		if vs_meta.DefaultPoolGroup != "" {
 			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
 			vs.PoolGroupRef = &pool_ref
