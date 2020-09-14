@@ -370,9 +370,16 @@ func TestRouteServiceAdd(t *testing.T) {
 
 	aviModel := ValidateModelCommon(t, g)
 	g.Eventually(func() int {
-		pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
-		return len(pool.Servers)
-	}, 10*time.Second).Should(gomega.Equal(1))
+		vslist := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(vslist) == 0 {
+			return 0
+		}
+		pools := vslist[0].PoolRefs
+		if len(pools) == 0 {
+			return 0
+		}
+		return len(pools[0].Servers)
+	}, 60*time.Second).Should(gomega.Equal(1))
 
 	poolgroups := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolGroupRefs
 	pgmember := poolgroups[0].Members[0]
@@ -400,9 +407,16 @@ func TestRouteScaleEndpoint(t *testing.T) {
 
 	integrationtest.ScaleCreateEP(t, "default", "avisvc")
 	g.Eventually(func() int {
-		pool = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
-		return len(pool.Servers)
-	}, 10*time.Second).Should(gomega.Equal(2))
+		vslist := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(vslist) == 0 {
+			return 0
+		}
+		pools := vslist[0].PoolRefs
+		if len(pools) == 0 {
+			return 0
+		}
+		return len(pools[0].Servers)
+	}, 60*time.Second).Should(gomega.Equal(2))
 
 	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-avisvc"))
 	g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
@@ -486,9 +500,16 @@ func TestRouteUpdatePath(t *testing.T) {
 	pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
 
 	g.Eventually(func() int {
-		pool = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
-		return len(pool.Servers)
-	}, 10*time.Second).Should(gomega.Equal(1))
+		vslist := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(vslist) == 0 {
+			return 0
+		}
+		pools := vslist[0].PoolRefs
+		if len(pools) == 0 {
+			return 0
+		}
+		return len(pools[0].Servers)
+	}, 60*time.Second).Should(gomega.Equal(1))
 
 	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_bar-default-foo-avisvc"))
 
