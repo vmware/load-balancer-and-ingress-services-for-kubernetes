@@ -2596,8 +2596,8 @@ func CheckNodeNetwork(client *clients.AviClient) bool {
 	// check if node network and cidr's are valid
 	nodeNetworkMap, err := lib.GetNodeNetworkMap()
 	if err != nil {
-		utils.AviLog.Errorf("Fetching node network list failed with error: %s, syncing will be disabled.", err.Error())
-		return false
+		utils.AviLog.Warnf("Fetching node network list failed with error: %s, skipping the validation.", err.Error())
+		return true
 	}
 
 	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
