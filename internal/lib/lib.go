@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -535,4 +536,15 @@ func HasValidBackends(routeSpec routev1.RouteSpec, routeName, namespace, key str
 		svcList[altBackend.Name] = true
 	}
 	return true
+}
+
+func VSVipDelRequired() bool {
+	c, err := semver.NewConstraint(">= " + VSVIPDELCTRLVER)
+	if err == nil {
+		currVersion, verErr := semver.NewVersion(utils.CtrlVersion)
+		if verErr == nil && c.Check(currVersion) {
+			return true
+		}
+	}
+	return false
 }

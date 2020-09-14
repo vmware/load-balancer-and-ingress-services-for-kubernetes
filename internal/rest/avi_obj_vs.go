@@ -495,11 +495,16 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					hostFoundInParentPool = rest.isHostPresentInSharedPool(hostname, parent_vs_cache_obj, key)
 				}
 			}
-			if len(vs_cache_obj.VSVipKeyCollection) > 0 {
-				vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
-				vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
-				utils.AviLog.Debugf("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
-				rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
+
+			// try to delete the vsvip from cache only if the vs is not of type insecure passthrough
+			// and if controller version is >= 20.1.1
+			if vs_cache_obj.ServiceMetadataObj.PassthroughParentRef == "" {
+				if lib.VSVipDelRequired() && len(vs_cache_obj.VSVipKeyCollection) > 0 {
+					vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
+					vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
+					utils.AviLog.Infof("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
+					rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
+				}
 			}
 
 			// Reset the LB status field as well.
