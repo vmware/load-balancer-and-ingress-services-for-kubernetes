@@ -47,7 +47,7 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services;services/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=configmap,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
 
 type AviController struct {
 	worker_id       uint32
@@ -637,6 +637,8 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 			return configMap, true
 		}
 	} else if ok && configMap.Namespace == lib.AviNS && configMap.Name == lib.AviConfigMap {
+		return configMap, true
+	} else if ok && lib.GetAdvancedL4() && configMap.Namespace == lib.VMwareNS && configMap.Name == lib.AviConfigMap {
 		return configMap, true
 	}
 	return nil, false

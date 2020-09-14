@@ -56,7 +56,7 @@ func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 
 	ds, err := dynamic.NewForConfig(config)
 	if err != nil {
-		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
+		utils.AviLog.Infof("Error while creating dynamic client %v", err)
 		return nil, err
 	}
 	if dynamicClientSet == nil {

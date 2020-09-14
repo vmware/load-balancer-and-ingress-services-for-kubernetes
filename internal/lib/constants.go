@@ -15,13 +15,15 @@
 package lib
 
 const (
-	DISABLE_STATIC_ROUTE_SYNC                  = "DISABLE_STATIC_ROUTE_SYNC"
-	CNI_PLUGIN                                 = "CNI_PLUGIN"
-	CALICO_CNI                                 = "calico"
-	OPENSHIFT_CNI                              = "openshift"
-	INGRESS_API                                = "INGRESS_API"
-	AviConfigMap                               = "avi-k8s-config"
-	AviNS                                      = "avi-system"
+	DISABLE_STATIC_ROUTE_SYNC = "DISABLE_STATIC_ROUTE_SYNC"
+	CNI_PLUGIN                = "CNI_PLUGIN"
+	CALICO_CNI                = "calico"
+	OPENSHIFT_CNI             = "openshift"
+	INGRESS_API               = "INGRESS_API"
+	AviConfigMap              = "avi-k8s-config"
+	AviNS                     = "avi-system"
+	VMwareNS                  = "vmware-system-ako"
+
 	INGRESS_CLASS_ANNOT                        = "kubernetes.io/ingress.class"
 	AVI_INGRESS_CLASS                          = "avi"
 	SUBNET_IP                                  = "SUBNET_IP"
@@ -35,6 +37,7 @@ const (
 	DEFAULT_DOMAIN                             = "DEFAULT_DOMAIN"
 	ADVANCED_L4                                = "ADVANCED_L4"
 	CLUSTER_NAME                               = "CLUSTER_NAME"
+	CLUSTER_ID                                 = "CLUSTER_ID"
 	CLOUD_VCENTER                              = "CLOUD_VCENTER"
 	CLOUD_AZURE                                = "CLOUD_AZURE"
 	CLOUD_AWS                                  = "CLOUD_AWS"
