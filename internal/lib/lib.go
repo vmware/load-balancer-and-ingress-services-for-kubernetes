@@ -348,8 +348,10 @@ func GetAdvancedL4() bool {
 }
 
 func GetDisableStaticRoute() bool {
-	disableStaticRoute := os.Getenv(DISABLE_STATIC_ROUTE_SYNC)
-	if disableStaticRoute == "true" && !GetAdvancedL4() {
+	if GetAdvancedL4() {
+		return true
+	}
+	if ok, _ := strconv.ParseBool(os.Getenv(DISABLE_STATIC_ROUTE_SYNC)); ok {
 		return true
 	}
 	if IsNodePortMode() {
@@ -359,9 +361,25 @@ func GetDisableStaticRoute() bool {
 }
 
 func GetClusterName() string {
+	if GetAdvancedL4() {
+		return GetClusterID()
+	}
 	clusterName := os.Getenv(CLUSTER_NAME)
 	if clusterName != "" {
 		return clusterName
+	}
+	return ""
+}
+
+func GetClusterID() string {
+	clusterID := os.Getenv(CLUSTER_ID)
+	// The clusterID is an internal field only in the advanced L4 mode and we expect the format to be: domain-c8:3fb16b38-55f0-49fb-997d-c117487cd98d
+	// We want to truncate this string to just have the uuid.
+	if clusterID != "" {
+		clusterName := strings.Split(clusterID, ":")
+		if len(clusterName) > 1 {
+			return clusterName[1]
+		}
 	}
 	return ""
 }

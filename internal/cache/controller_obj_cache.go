@@ -2455,7 +2455,7 @@ func checkRequiredValuesYaml() bool {
 	if clusterName == "" {
 		utils.AviLog.Error("Required param clusterName not specified, syncing will be disabled")
 		return false
-	} else if len(clusterName) > 32 || !re.MatchString(clusterName) {
+	} else if !re.MatchString(clusterName) {
 		utils.AviLog.Error("clusterName must consist of alphanumeric characters or '-'/'_' (max 32 chars), syncing will be disabled")
 		return false
 	}
@@ -2473,12 +2473,15 @@ func checkRequiredValuesYaml() bool {
 	// check if config map exists
 	k8sClient := utils.GetInformers().ClientSet
 	aviCMNamespace := lib.AviNS
+	if lib.GetAdvancedL4() {
+		aviCMNamespace = lib.VMwareNS
+	}
 	if lib.GetNamespaceToSync() != "" {
 		aviCMNamespace = lib.GetNamespaceToSync()
 	}
 	_, err := k8sClient.CoreV1().ConfigMaps(aviCMNamespace).Get(lib.AviConfigMap, metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Errorf("Configmap %s/%s not found, error: %v, syncing will be disabled", lib.AviNS, lib.AviConfigMap, err)
+		utils.AviLog.Errorf("Configmap %s/%s not found, error: %v, syncing will be disabled", aviCMNamespace, lib.AviConfigMap, err)
 		return false
 	}
 

@@ -86,7 +86,11 @@ func delConfigFromData(data map[string]string) bool {
 }
 
 func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
-	cm, err := cs.CoreV1().ConfigMaps(lib.AviNS).Get(lib.AviConfigMap, metav1.GetOptions{})
+	cmNS := lib.AviNS
+	if lib.GetAdvancedL4() {
+		cmNS = lib.VMwareNS
+	}
+	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(lib.AviConfigMap, metav1.GetOptions{})
 	if err == nil {
 		return delConfigFromData(cm.Data)
 	}
