@@ -160,7 +160,6 @@ func UpdateGatewayStatusListenerConditions(gw *advl4v1alpha1pre1.Gateway, portTh
 					Type:               advl4v1alpha1pre1.ListenerConditionType(updateStatus.Type),
 					Status:             updateStatus.Status,
 					Reason:             updateStatus.Reason,
-					Message:            updateStatus.Message,
 					LastTransitionTime: metav1.Now(),
 				})
 			}

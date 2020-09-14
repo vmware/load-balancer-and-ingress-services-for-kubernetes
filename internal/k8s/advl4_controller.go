@@ -154,9 +154,10 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
 	if err != nil {
 		status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
-			Type:   "Pending",
-			Status: corev1.ConditionTrue,
-			Reason: fmt.Sprintf("Corresponding networking.x-k8s.io/gatewayclass not found %s", gateway.Spec.Class),
+			Type:    "Pending",
+			Status:  corev1.ConditionTrue,
+			Message: fmt.Sprintf("Corresponding networking.x-k8s.io/gatewayclass not found %s", gateway.Spec.Class),
+			Reason:  "InvalidGatewayClass",
 		})
 		utils.AviLog.Warnf("key: %s, msg: Corresponding networking.x-k8s.io/gatewayclass not found %s %v",
 			key, gateway.Spec.Class, err)
@@ -170,9 +171,10 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
 			status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
-				Type:   "Pending",
-				Status: corev1.ConditionTrue,
-				Reason: "Incorrect gateway matchLabels configuration",
+				Type:    "Pending",
+				Status:  corev1.ConditionTrue,
+				Message: "Incorrect gateway matchLabels configuration",
+				Reason:  "InvalidMatchLabels",
 			})
 			return
 		}
@@ -182,9 +184,10 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
 		status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
-			Type:   "Pending",
-			Status: corev1.ConditionTrue,
-			Reason: fmt.Sprintf("Unable to identify controller %s", gwClassObj.Spec.Controller),
+			Type:    "Pending",
+			Status:  corev1.ConditionTrue,
+			Message: fmt.Sprintf("Unable to identify controller %s", gwClassObj.Spec.Controller),
+			Reason:  "UnidentifiedController",
 		})
 	}
 }
