@@ -33,7 +33,9 @@ type Validator struct {
 
 func NewNodesValidator() *Validator {
 	validator := &Validator{}
-	validator.subDomains = GetDefaultSubDomain()
+	if !lib.GetAdvancedL4() {
+		validator.subDomains = GetDefaultSubDomain()
+	}
 	return validator
 }
 

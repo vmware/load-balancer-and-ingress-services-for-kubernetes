@@ -646,9 +646,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 				AutoAllocateIP: &auto_alloc,
 				SubnetUUID:     &networkRef,
 			}
-		} else if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
-			utils.AviLog.Warnf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
-			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
 		} else if lib.GetAdvancedL4() {
 			if vsvip_meta.IPAddress != "" {
 				auto_alloc = true
@@ -665,6 +662,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 					AutoAllocateIP: &auto_alloc,
 				}
 			}
+		} else if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
+			utils.AviLog.Warnf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
+			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
 		} else {
 			intCidr, err := strconv.ParseInt(lib.GetSubnetPrefix(), 10, 32)
 			if err != nil {

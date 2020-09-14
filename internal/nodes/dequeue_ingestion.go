@@ -165,7 +165,10 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 		return true
 	}
 	for _, services := range svcListeners {
-		if len(services) > 1 {
+		if len(services) == 0 {
+			utils.AviLog.Warnf("key: %s, msg: no services mapped to gateway port, skip VS creation", key)
+			return true
+		} else if len(services) > 1 {
 			utils.AviLog.Warnf("key: %s, msg: multiple services %v mapped to gateway port, skip VS creation for portconflict", key, services)
 			return true
 		}

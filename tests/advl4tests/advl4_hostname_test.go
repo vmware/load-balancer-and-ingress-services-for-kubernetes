@@ -28,11 +28,10 @@ var AdvL4Client *advl4fake.Clientset
 var ctrl *k8s.AviController
 
 func TestMain(m *testing.M) {
-	os.Setenv("CLUSTER_NAME", "cluster")
+	os.Setenv("CLUSTER_ID", "abc:cluster")
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("ADVANCED_L4", "true")
-	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	// CRDClient = crdfake.NewSimpleClientset()
@@ -88,11 +87,11 @@ func TestMain(m *testing.M) {
 func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
+			Namespace: "vmware-system-ako",
 			Name:      "avi-k8s-config",
 		},
 	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	KubeClient.CoreV1().ConfigMaps("vmware-system-ako").Create(aviCM)
 	integrationtest.PollForSyncStart(ctrl, 10)
 }
 
