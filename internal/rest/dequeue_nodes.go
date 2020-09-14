@@ -25,9 +25,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-
-	"github.com/Masterminds/semver"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -332,12 +329,8 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		}
 		if !skipVSVip {
 			// Delete the vsvip explicitly if controller version is >= 20.1.1
-			c, err := semver.NewConstraint(">= " + lib.VSVIPDELCTRLVER)
-			if err == nil {
-				currVersion, verErr := semver.NewVersion(utils.CtrlVersion)
-				if verErr == nil && c.Check(currVersion) {
-					rest_ops = rest.VSVipDelete(vs_cache_obj.VSVipKeyCollection, namespace, rest_ops, key)
-				}
+			if lib.VSVipDelRequired() {
+				rest_ops = rest.VSVipDelete(vs_cache_obj.VSVipKeyCollection, namespace, rest_ops, key)
 			}
 		}
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
