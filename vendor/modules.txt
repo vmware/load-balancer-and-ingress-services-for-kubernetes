@@ -79,8 +79,10 @@ github.com/spf13/pflag
 # github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
 github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned
+github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/fake
 github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/scheme
 github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1pre1
+github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1pre1/fake
 github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions
 github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/apis
 github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/apis/v1alpha1pre1

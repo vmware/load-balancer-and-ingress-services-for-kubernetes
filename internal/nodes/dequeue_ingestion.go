@@ -158,8 +158,20 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 	if err != nil {
 		return true
 	}
-	return false
 
+	// check if the gateway is mapped to only single backend service, if not delete
+	found, svcListeners := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gwName)
+	if !found {
+		return true
+	}
+	for _, services := range svcListeners {
+		if len(services) > 1 {
+			utils.AviLog.Warnf("key: %s, msg: multiple services %v mapped to gateway port, skip VS creation for portconflict", key, services)
+			return true
+		}
+	}
+
+	return false
 }
 
 func handleRoute(key string, fullsync bool, routeNames []string) {

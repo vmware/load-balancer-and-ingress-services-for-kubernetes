@@ -24,3 +24,6 @@ rules:
   - apiGroups: ["ako.vmware.com"]
     resources: ["hostrules", "hostrules/status", "httprules", "httprules/status"]
     verbs: ["get","watch","list","patch", "update"]
+  - apiGroups: ["networking.x-k8s.io"]
+    resources: ["gateways", "gateways/status", "gatewayclasses", "gatewayclasses/status"]
+    verbs: ["get","watch","list","patch", "update"]

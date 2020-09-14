@@ -15,16 +15,23 @@
 package k8s
 
 import (
+	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"k8s.io/client-go/tools/cache"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	advl4crd "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
 	advl4informer "github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 func NewAdvL4Informers(cs advl4crd.Interface) {
@@ -54,6 +61,11 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Infof("key: %s, msg: ADD", key)
+
+			status.InitializeGatewayConditions(gw)
+			validateGatewayForStatusUpdates(key, gw)
+			checkGWForGatewayPortConflict(key, gw)
+
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 		},
@@ -67,6 +79,13 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
+
+				if ipChanged := checkGWForIPUpdate(key, gw, oldObj); ipChanged {
+					return
+				}
+				validateGatewayForStatusUpdates(key, gw)
+				checkGWForGatewayPortConflict(key, gw)
+
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			}
@@ -127,4 +146,160 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
 
 	return
+}
+
+func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gateway) {
+	defer status.UpdateGatewayStatusObject(gateway, &gateway.Status)
+
+	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
+	if err != nil {
+		status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
+			Type:   "Pending",
+			Status: corev1.ConditionTrue,
+			Reason: fmt.Sprintf("Corresponding networking.x-k8s.io/gatewayclass not found %s", gateway.Spec.Class),
+		})
+		utils.AviLog.Warnf("key: %s, msg: Corresponding networking.x-k8s.io/gatewayclass not found %s %v",
+			key, gateway.Spec.Class, err)
+		return
+	}
+
+	for _, listener := range gateway.Spec.Listeners {
+		gwName, nameOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNameLabelKey]
+		gwNamespace, nsOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNamespaceLabelKey]
+		if !nameOk || !nsOk ||
+			(nameOk && gwName != gateway.Name) ||
+			(nsOk && gwNamespace != gateway.Namespace) {
+			status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
+				Type:   "Pending",
+				Status: corev1.ConditionTrue,
+				Reason: "Incorrect gateway matchLabels configuration",
+			})
+			return
+		}
+	}
+
+	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
+	if gwClassObj.Spec.Controller != lib.AviGatewayController {
+		// Return an error since this is not our object.
+		status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
+			Type:   "Pending",
+			Status: corev1.ConditionTrue,
+			Reason: fmt.Sprintf("Unable to identify controller %s", gwClassObj.Spec.Controller),
+		})
+	}
+}
+
+func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
+	gateway, portProtocols := nodes.ParseL4ServiceForGateway(svc, key)
+	if gateway == "" {
+		return
+	}
+	found, gwSvcListeners := objects.ServiceGWLister().GetGwToSvcs(gateway)
+	if !found {
+		return
+	}
+
+	gwNSName := strings.Split(gateway, "/")
+	gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to find gateway: %v", key, err)
+		return
+	}
+
+	// detect port conflict
+	for _, portProtocol := range portProtocols {
+		if val, ok := gwSvcListeners[portProtocol]; ok {
+			if !utils.HasElem(val, svc.Namespace+"/"+svc.Name) {
+				val = append(val, svc.Namespace+"/"+svc.Name)
+			}
+			if len(val) > 1 {
+				portProtocolArr := strings.Split(portProtocol, "/")
+				status.UpdateGatewayStatusListenerConditions(gw, portProtocolArr[1], &status.UpdateGWStatusConditionOptions{
+					Type:   "PortConflict",
+					Status: corev1.ConditionTrue,
+					Reason: fmt.Sprintf("conflicting port configuration provided in service %s and %s/%s", val, svc.Namespace, svc.Name),
+				})
+				status.UpdateGatewayStatusObject(gw, &gw.Status)
+				return
+			}
+		}
+	}
+
+	// detect unsupported protocol
+	// TODO
+
+	return
+}
+
+func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
+	found, gwSvcListeners := objects.ServiceGWLister().GetGwToSvcs(gw.Namespace + "/" + gw.Name)
+	if !found {
+		return
+	}
+
+	var gwProtocols []string
+	// port conflicts
+	for _, listener := range gw.Spec.Listeners {
+		portProtoGW := string(listener.Protocol) + "/" + strconv.Itoa(int(listener.Port))
+		if !utils.HasElem(gwProtocols, string(listener.Protocol)) {
+			gwProtocols = append(gwProtocols, string(listener.Protocol))
+		}
+
+		if val, ok := gwSvcListeners[portProtoGW]; ok && len(val) > 1 {
+			status.UpdateGatewayStatusListenerConditions(gw, strconv.Itoa(int(listener.Port)), &status.UpdateGWStatusConditionOptions{
+				Type:   "PortConflict",
+				Status: corev1.ConditionTrue,
+				Reason: fmt.Sprintf("conflicting port configuration provided in service %s and %v", val, gwSvcListeners[portProtoGW]),
+			})
+			status.UpdateGatewayStatusObject(gw, &gw.Status)
+			return
+		}
+	}
+
+	// unsupported protocol
+	for portProto, svcs := range gwSvcListeners {
+		svcProtocol := strings.Split(portProto, "/")[0]
+		if !utils.HasElem(gwProtocols, svcProtocol) {
+			status.UpdateGatewayStatusListenerConditions(gw, strings.Split(portProto, "/")[1], &status.UpdateGWStatusConditionOptions{
+				Type:   "UnsupportedProtocol",
+				Status: corev1.ConditionTrue,
+				Reason: fmt.Sprintf("Unsupported protocol found in services %v", svcs),
+			})
+			status.UpdateGatewayStatusObject(gw, &gw.Status)
+			return
+		}
+	}
+}
+
+func checkGWForIPUpdate(key string, gw, oldGw *advl4v1alpha1pre1.Gateway) bool {
+	var newIPAddress, oldIPAddress string
+	if len(gw.Spec.Addresses) > 0 {
+		newIPAddress = gw.Spec.Addresses[0].Value
+	}
+	if len(oldGw.Spec.Addresses) > 0 {
+		oldIPAddress = oldGw.Spec.Addresses[0].Value
+	}
+
+	// honor new IP coming in
+	// old: nil, new: X
+	if oldIPAddress == "" && newIPAddress != "" {
+		return false
+	}
+
+	// old: X, new: nil | old: X, new: Y
+	if newIPAddress != oldIPAddress {
+		errString := "IPAddress Updates on gateway not supported, Please recreate gateway object with the new preferred IPAddress"
+		status.UpdateGatewayStatusGWCondition(gw, &status.UpdateGWStatusConditionOptions{
+			Type:    "Pending",
+			Status:  corev1.ConditionTrue,
+			Reason:  "InvalidAddress",
+			Message: errString,
+		})
+		utils.AviLog.Errorf("key: %s, msg: %s Last IPAddress: %s, Current IPAddress: %s",
+			key, errString, oldIPAddress, newIPAddress)
+		status.UpdateGatewayStatusObject(gw, &gw.Status)
+		return true
+	}
+
+	return false
 }

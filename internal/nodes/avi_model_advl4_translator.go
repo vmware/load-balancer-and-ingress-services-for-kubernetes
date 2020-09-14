@@ -48,12 +48,14 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	found, listeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gatewayName)
 	if found {
 		vsName := lib.GetL4VSName(gatewayName, namespace)
+		gw, _ := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
 
 		var serviceNSNames []string
 		if found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName); found {
 			for svcListener, service := range services {
-				if utils.HasElem(listeners, svcListener) && !utils.HasElem(serviceNSNames, service) {
-					serviceNSNames = append(serviceNSNames, service)
+				// assume it to have only a single backend service, the check is in isGatewayDelete
+				if utils.HasElem(listeners, svcListener) && len(service) == 1 && !utils.HasElem(serviceNSNames, service[0]) {
+					serviceNSNames = append(serviceNSNames, service[0])
 				}
 			}
 		}
@@ -80,7 +82,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			port, _ := strconv.Atoi(portProto[1])
 			pp := AviPortHostProtocol{Port: int32(port), Protocol: fmt.Sprint(portProto[0])}
 			portProtocols = append(portProtocols, pp)
-			if portProto[0] == "" || portProto[1] == utils.TCP {
+			if portProto[0] == "" || portProto[0] == utils.TCP {
 				isTCP = true
 			}
 		}
@@ -99,6 +101,11 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			EastWest:   false,
 			VrfContext: lib.GetVrf(),
 		}
+
+		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == advl4v1alpha1pre1.IPAddressType {
+			vsVipNode.IPAddress = gw.Spec.Addresses[0].Value
+		}
+
 		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 		utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 		return avi_vs_meta
@@ -115,11 +122,12 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	}
 	var portPoolSet []AviHostPathPortPoolPG
 	for listener, svc := range svcListeners {
-		if !utils.HasElem(gwListeners, listener) {
+		if !utils.HasElem(gwListeners, listener) || len(svc) != 1 {
 			continue
 		}
 		portProto := strings.Split(listener, "/") // format: protocol/port
-		svcNSName := strings.Split(svc, "/")
+		// assume it to have only a single backed service, the check is in isGatewayDelete
+		svcNSName := strings.Split(svc[0], "/")
 		port, _ := strconv.Atoi(portProto[1])
 
 		poolNode := &AviPoolNode{
@@ -170,7 +178,6 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	o.GraphChecksum = o.GraphChecksum + l4policyNode.GetCheckSum()
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
-
 }
 
 func validateGatewayObj(key string, gateway *advl4v1alpha1pre1.Gateway) error {

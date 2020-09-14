@@ -59,9 +59,13 @@ bootuptests:
 multicloudtests:
 	$(GOTEST) -mod=vendor -v ./tests/multicloudtests -failfast
 
+.PHONY: advl4tests
+advl4tests:
+	$(GOTEST) -mod=vendor -v ./tests/advl4tests -failfast
+
 .PHONY: int_test
 int_test:
-	make -j 1 integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests
+	make -j 1 integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests
 
 .PHONY: scale_test
 scale_test:

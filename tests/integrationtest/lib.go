@@ -413,6 +413,7 @@ func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 type FakeService struct {
 	Namespace    string
 	Name         string
+	Labels       map[string]string
 	Type         corev1.ServiceType
 	annotations  map[string]string
 	ServicePorts []Serviceport
@@ -445,6 +446,7 @@ func (svc FakeService) Service() *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: svc.Namespace,
 			Name:      svc.Name,
+			Labels:    svc.Labels,
 		},
 	}
 	return svcExample

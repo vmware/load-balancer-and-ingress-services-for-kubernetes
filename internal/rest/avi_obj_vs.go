@@ -30,6 +30,7 @@ import (
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const VSVIP_NOTFOUND = "VsVip object not found"
@@ -569,13 +570,14 @@ func (rest *RestOperations) isHostPresentInSharedPool(hostname string, parentVs 
 	return false
 }
 
-func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
+func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, vs_cache *avicache.AviVsCache, key string) (*utils.RestOp, error) {
 	name := vsvip_meta.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
 	var rest_op utils.RestOp
+	vipId, ipType := "1", "V4"
 
 	if cache_obj != nil {
 		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name)
@@ -596,6 +598,41 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			}
 		}
 		vsvip.DNSInfo = dns_info_arr
+
+		// handling static IP updates in case of advl4 workflows
+		if lib.GetAdvancedL4() && len(cache_obj.Vips) > 0 {
+			if cache_obj.Vips[0] != vsvip_meta.IPAddress &&
+				vs_cache != nil &&
+				vs_cache.ServiceMetadataObj.Gateway != "" {
+
+				errString := "IPAddress Updates on gateway not supported, Please recreate gateway object with the new preferred IPAddress"
+				utils.AviLog.Warnf("key: %s, msg: %s", key, errString)
+
+				gwNSName := strings.Split(vs_cache.ServiceMetadataObj.Gateway, "/")
+				if gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1]); err == nil {
+					status.UpdateGatewayStatusGWCondition(gw, &status.UpdateGWStatusConditionOptions{
+						Type:    "Pending",
+						Status:  corev1.ConditionTrue,
+						Reason:  "InvalidAddress",
+						Message: errString,
+					})
+					status.UpdateGatewayStatusObject(gw, &gw.Status)
+				}
+			} else {
+				auto_alloc := true
+				var vips []*avimodels.Vip
+				vips = append(vips, &avimodels.Vip{
+					VipID:          &vipId,
+					AutoAllocateIP: &auto_alloc,
+					IPAddress: &avimodels.IPAddr{
+						Type: &ipType,
+						Addr: &vsvip_meta.IPAddress,
+					},
+				})
+				vsvip.Vip = vips
+			}
+		}
+
 		path = "/api/vsvip/" + cache_obj.Uuid
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsvip,
 			Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
@@ -613,8 +650,20 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			utils.AviLog.Warnf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
 			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
 		} else if lib.GetAdvancedL4() {
-			vip = avimodels.Vip{
-				AutoAllocateIP: &auto_alloc,
+			if vsvip_meta.IPAddress != "" {
+				auto_alloc = true
+				vip = avimodels.Vip{
+					VipID:          &vipId,
+					AutoAllocateIP: &auto_alloc,
+					IPAddress: &avimodels.IPAddr{
+						Type: &ipType,
+						Addr: &vsvip_meta.IPAddress,
+					},
+				}
+			} else {
+				vip = avimodels.Vip{
+					AutoAllocateIP: &auto_alloc,
+				}
 			}
 		} else {
 			intCidr, err := strconv.ParseInt(lib.GetSubnetPrefix(), 10, 32)

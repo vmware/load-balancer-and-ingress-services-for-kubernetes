@@ -293,6 +293,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			var key string
 			if isSvcLb {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
+				if lib.GetAdvancedL4() {
+					checkSvcForGatewayPortConflict(svc, key)
+				}
 			} else {
 				if lib.GetAdvancedL4() {
 					return
@@ -349,6 +352,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				var key string
 				if isSvcLb {
 					key = utils.L4LBService + "/" + utils.ObjKey(svc)
+					if lib.GetAdvancedL4() {
+						checkSvcForGatewayPortConflict(svc, key)
+					}
 				} else {
 					if lib.GetAdvancedL4() {
 						return

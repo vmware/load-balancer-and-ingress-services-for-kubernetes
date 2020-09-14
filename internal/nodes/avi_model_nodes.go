@@ -489,7 +489,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum, passthoughChecksum uint32
+	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum, passthoughChecksum, vsvipChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		dsChecksum += ds.GetCheckSum()
@@ -512,7 +512,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 	}
 
 	for _, vsvipref := range v.VSVIPRefs {
-		vsvipref.CalculateCheckSum()
+		vsvipChecksum += vsvipref.GetCheckSum()
 	}
 
 	for _, l4policy := range v.L4PolicyRefs {
@@ -536,6 +536,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		utils.Hash(v.NetworkProfile) +
 		utils.Hash(utils.Stringify(portproto)) +
 		sslkeyChecksum +
+		vsvipChecksum +
 		utils.Hash(vsRefs) +
 		l4policyChecksum +
 		passthoughChecksum
@@ -722,7 +723,8 @@ type AviVSVIPNode struct {
 	FQDNs                   []string
 	EastWest                bool
 	VrfContext              string
-	SecurePassthoughNode    *AviVsNode
+	IPAddress               string
+	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 }
 
@@ -735,7 +737,7 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 func (v *AviVSVIPNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	sort.Strings(v.FQDNs)
-	checksum := utils.Hash(utils.Stringify(v.FQDNs))
+	checksum := utils.Hash(utils.Stringify(v.FQDNs)) + utils.Hash(v.IPAddress)
 	v.CloudConfigCksum = checksum
 }
 
