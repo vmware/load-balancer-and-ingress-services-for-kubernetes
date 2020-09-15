@@ -44,10 +44,12 @@ var ctrlonce sync.Once
 // These tags below are only applicable in case of advanced L4 features at the moment.
 
 // +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services;services/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
+// +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 
 type AviController struct {
 	worker_id       uint32
@@ -653,14 +655,10 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
-	go c.informers.NSInformer.Informer().Run(stopCh)
-	go c.informers.NodeInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
-		c.informers.NSInformer.Informer().HasSynced,
-		c.informers.NodeInformer.Informer().HasSynced,
 	}
 
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {
@@ -695,9 +693,12 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go c.informers.RouteInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.RouteInformer.Informer().HasSynced)
 		}
-
+		go c.informers.NSInformer.Informer().Run(stopCh)
+		go c.informers.NodeInformer.Informer().Run(stopCh)
 		go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
 		go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)
+		informersList = append(informersList, c.informers.NSInformer.Informer().HasSynced)
 		// separate wait steps to try getting hostrules synced first,
 		// since httprule has a key relation to hostrules.
 		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {
