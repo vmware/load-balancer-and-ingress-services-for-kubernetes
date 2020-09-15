@@ -419,23 +419,25 @@ func DSChecksum(pgrefs []string) uint32 {
 }
 
 func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Clientset) []string {
-	//allInformers := []string{}
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.SecretInformer,
-		utils.NSInformer,
-		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	informerTimeout := int64(120)
-	_, err := oclient.RouteV1().Routes("").List(metav1.ListOptions{TimeoutSeconds: &informerTimeout})
-	if err == nil {
-		// Openshift cluster with route support, we will just add route informer
-		allInformers = append(allInformers, utils.RouteInformer)
-	} else {
-		// Kubernetes cluster
-		allInformers = append(allInformers, utils.IngressInformer)
+	if !GetAdvancedL4() {
+		allInformers = append(allInformers, utils.NSInformer)
+		allInformers = append(allInformers, utils.NodeInformer)
+
+		informerTimeout := int64(120)
+		_, err := oclient.RouteV1().Routes("").List(metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+		if err == nil {
+			// Openshift cluster with route support, we will just add route informer
+			allInformers = append(allInformers, utils.RouteInformer)
+		} else {
+			// Kubernetes cluster
+			allInformers = append(allInformers, utils.IngressInformer)
+		}
 	}
 	return allInformers
 }
