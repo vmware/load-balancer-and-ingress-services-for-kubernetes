@@ -140,7 +140,7 @@ func init() {
 	encoderCfg.EncodeLevel = zapcore.CapitalLevelEncoder
 	logpath = getFileName()
 	file, err = os.OpenFile(logpath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		panic(err)
 	}
