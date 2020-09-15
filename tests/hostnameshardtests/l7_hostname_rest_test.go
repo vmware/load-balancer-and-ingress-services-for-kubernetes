@@ -901,7 +901,7 @@ func TestHostnameMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get(ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 10*time.Second).Should(gomega.Equal(2))
+	}, 60*time.Second).Should(gomega.Equal(2))
 	ingress, _ := KubeClient.ExtensionsV1beta1().Ingresses("default").Get(ingressName, metav1.GetOptions{})
 
 	// donot update status
