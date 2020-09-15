@@ -240,7 +240,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		utils.AviLog.Infof("key: %s, msg: SNI delete candidates are : %s", key, sni_to_delete)
 		var rest_ops []*utils.RestOp
 		for _, del_sni := range sni_to_delete {
-			rest.SNINodeDelete(del_sni, namespace, rest_ops, key)
+			rest.SNINodeDelete(del_sni, namespace, rest_ops, avimodel, key)
 			rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 		}
 	}
@@ -318,7 +318,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 			sniVsKey, ok := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sni_uuid)
 			if ok {
 				delSNI := sniVsKey.(avicache.NamespaceName)
-				rest.SNINodeDelete(delSNI, namespace, rest_ops, key)
+				rest.SNINodeDelete(delSNI, namespace, rest_ops, nil, key)
 			}
 		}
 		if !skipVS {
@@ -345,7 +345,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 	return false
 }
 
-func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string) bool {
+func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, avimodel *nodes.AviObjectGraph, namespace, key string) bool {
 	var rest_ops []*utils.RestOp
 
 	if vs_cache_obj != nil {
@@ -358,7 +358,7 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
-		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 		return true
 	}
 	return false
@@ -919,7 +919,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 	return cache_pool_nodes, rest_ops
 }
 
-func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) {
+func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, avimodel *nodes.AviObjectGraph, key string) {
 	utils.AviLog.Infof("key: %s, msg: about to delete the SNI child %s", key, del_sni)
 	sni_key := avicache.NamespaceName{Namespace: namespace, Name: del_sni.Name}
 	sni_cache_obj := rest.getVsCacheObj(sni_key, key)
@@ -951,7 +951,7 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 				sni_cache_obj = rest.getVsCacheObj(sni_key, key)
 			}
 		}
-		rest.deleteSniVs(sni_key, sni_cache_obj, namespace, key)
+		rest.deleteSniVs(sni_key, sni_cache_obj, avimodel, namespace, key)
 	}
 
 }
