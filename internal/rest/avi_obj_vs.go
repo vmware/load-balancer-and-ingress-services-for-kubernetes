@@ -60,18 +60,16 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		svc_mdata := string(svc_mdata_json)
 		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 		seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
-		vsDownOnPoolDown := true
 		vs := avimodels.VirtualService{
-			Name:                        &name,
-			NetworkProfileRef:           &network_prof,
-			ApplicationProfileRef:       &app_prof,
-			CloudConfigCksum:            &checksumstr,
-			CreatedBy:                   &cr,
-			CloudRef:                    &cloudRef,
-			ServiceMetadata:             &svc_mdata,
-			SeGroupRef:                  &seGroupRef,
-			VrfContextRef:               &vrfContextRef,
-			RemoveListeningPortOnVsDown: &vsDownOnPoolDown,
+			Name:                  &name,
+			NetworkProfileRef:     &network_prof,
+			ApplicationProfileRef: &app_prof,
+			CloudConfigCksum:      &checksumstr,
+			CreatedBy:             &cr,
+			CloudRef:              &cloudRef,
+			ServiceMetadata:       &svc_mdata,
+			SeGroupRef:            &seGroupRef,
+			VrfContextRef:         &vrfContextRef,
 		}
 
 		if vs_meta.DefaultPoolGroup != "" {
@@ -133,6 +131,8 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 
 		if len(vs_meta.L4PolicyRefs) > 0 {
+			vsDownOnPoolDown := true
+			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
 			var i int32
 			i = 0
 			var l4Policies []*avimodels.L4Policies
