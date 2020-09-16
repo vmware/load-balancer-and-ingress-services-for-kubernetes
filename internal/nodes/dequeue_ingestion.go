@@ -159,19 +159,30 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 		return true
 	}
 
+	found, gwListeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
+	if !found {
+		return true
+	}
+
 	// check if the gateway is mapped to only single backend service, if not delete
 	found, svcListeners := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gwName)
 	if !found {
 		return true
 	}
-	for _, services := range svcListeners {
-		if len(services) == 0 {
-			utils.AviLog.Warnf("key: %s, msg: no services mapped to gateway port, skip VS creation", key)
-			return true
-		} else if len(services) > 1 {
-			utils.AviLog.Warnf("key: %s, msg: multiple services %v mapped to gateway port, skip VS creation for portconflict", key, services)
-			return true
+	var validGwServices []string
+	for svcPortProto, services := range svcListeners {
+		if utils.HasElem(gwListeners, svcPortProto) {
+			if len(services) > 1 {
+				utils.AviLog.Warnf("key: %s, msg: multiple services %v mapped to gateway port, skip VS creation for portconflict", key, services)
+				return true
+			}
+			validGwServices = append(validGwServices, services...)
 		}
+	}
+
+	if len(validGwServices) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: no services mapped to gateway port, skip VS creation", key)
+		return true
 	}
 
 	return false

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -80,9 +81,6 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
 
-				if ipChanged := checkGWForIPUpdate(key, gw, oldObj); ipChanged {
-					return
-				}
 				validateGatewayForStatusUpdates(key, gw)
 				checkGWForGatewayPortConflict(key, gw)
 
@@ -195,8 +193,12 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 	gateway, portProtocols := nodes.ParseL4ServiceForGateway(svc, key)
 	if gateway == "" {
+		status.DeleteL4LBStatus(avicache.ServiceMetadataObj{
+			NamespaceServiceName: []string{svc.Namespace + "/" + svc.Name},
+		}, key)
 		return
 	}
+
 	found, gwSvcListeners := objects.ServiceGWLister().GetGwToSvcs(gateway)
 	if !found {
 		return
@@ -206,6 +208,9 @@ func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 	gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to find gateway: %v", key, err)
+		status.DeleteL4LBStatus(avicache.ServiceMetadataObj{
+			NamespaceServiceName: []string{svc.Namespace + "/" + svc.Name},
+		}, key)
 		return
 	}
 

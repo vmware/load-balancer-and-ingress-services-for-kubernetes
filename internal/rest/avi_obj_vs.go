@@ -30,7 +30,6 @@ import (
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const VSVIP_NOTFOUND = "VsVip object not found"
@@ -510,6 +509,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 			// Reset the LB status field as well.
 			if vs_cache_obj.ServiceMetadataObj.Gateway != "" {
 				status.DeleteGatewayStatusAddress(vs_cache_obj.ServiceMetadataObj, key)
+				status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
 			} else if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 				status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
 			}
@@ -609,20 +609,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			if cache_obj.Vips[0] != vsvip_meta.IPAddress &&
 				vs_cache != nil &&
 				vs_cache.ServiceMetadataObj.Gateway != "" {
-
-				errString := "IPAddress Updates on gateway not supported, Please recreate gateway object with the new preferred IPAddress"
-				utils.AviLog.Warnf("key: %s, msg: %s", key, errString)
-
-				gwNSName := strings.Split(vs_cache.ServiceMetadataObj.Gateway, "/")
-				if gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1]); err == nil {
-					status.UpdateGatewayStatusGWCondition(gw, &status.UpdateGWStatusConditionOptions{
-						Type:    "Pending",
-						Status:  corev1.ConditionTrue,
-						Reason:  "InvalidAddress",
-						Message: errString,
-					})
-					status.UpdateGatewayStatusObject(gw, &gw.Status)
-				}
+				// do nothing
 			} else {
 				auto_alloc := true
 				var vips []*avimodels.Vip

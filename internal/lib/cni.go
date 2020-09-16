@@ -91,7 +91,7 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 	case OPENSHIFT_CNI:
 		informers.HostSubnetInformer = f.ForResource(HostSubnetGVR)
 	default:
-		utils.AviLog.Infof("Skipped iniializing dynamic informers %s \n", GetCNIPlugin())
+		utils.AviLog.Infof("Skipped initializing dynamic informers %s \n", GetCNIPlugin())
 	}
 
 	dynamicInformerInstance = informers
