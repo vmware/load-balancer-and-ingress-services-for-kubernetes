@@ -163,6 +163,7 @@ func (v *SvcGWLister) RemoveGatewayMappings(gateway, service string) bool {
 			svcs = utils.Remove(svcs, service)
 			if len(svcs) == 0 {
 				delete(svcListeners, portproto)
+				continue
 			}
 			svcListeners[portproto] = svcs
 			v.GwSvcsStore.AddOrUpdate(gateway, svcListeners)

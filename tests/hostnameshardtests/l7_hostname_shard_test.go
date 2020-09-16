@@ -2067,10 +2067,14 @@ func TestScaleEndpoints(t *testing.T) {
 			return len(nodes[0].PoolRefs[0].Servers)
 		}, 10*time.Second).Should(gomega.Equal(2))
 
-		g.Eventually(func() int {
+		g.Eventually(func() bool {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs[1].Servers)
-		}, 10*time.Second).Should(gomega.Equal(2))
+			if len(nodes[0].PoolRefs) == 2 &&
+				len(nodes[0].PoolRefs[1].Servers) == 2 {
+				return true
+			}
+			return false
+		}, 10*time.Second).Should(gomega.Equal(true))
 
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))

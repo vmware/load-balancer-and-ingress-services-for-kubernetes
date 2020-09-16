@@ -165,27 +165,38 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 		}
 	} else {
 		foundOld, oldGateway := objects.ServiceGWLister().GetSvcToGw(svcNSName)
-
-		if gateway, portProtocols := ParseL4ServiceForGateway(myService, key); gateway != "" {
-			_, svcListeners := objects.ServiceGWLister().GetGwToSvcs(gateway)
-			for _, portProto := range portProtocols {
-				if val, ok := svcListeners[portProto]; ok {
-					if !utils.HasElem(val, svcNSName) {
-						val = append(val, svcNSName)
-					}
-					svcListeners[portProto] = val
-				} else {
-					svcListeners[portProto] = []string{svcNSName}
-				}
-			}
-			objects.ServiceGWLister().UpdateGatewayMappings(gateway, svcListeners, svcNSName)
-			if !utils.HasElem(allGateways, gateway) {
-				allGateways = append(allGateways, gateway)
-			}
-		} else if foundOld {
+		if foundOld {
 			objects.ServiceGWLister().RemoveGatewayMappings(oldGateway, svcNSName)
 			if !utils.HasElem(allGateways, oldGateway) {
 				allGateways = append(allGateways, oldGateway)
+			}
+		}
+
+		if gateway, svcPortProtocols := ParseL4ServiceForGateway(myService, key); gateway != "" {
+			_, svcListeners := objects.ServiceGWLister().GetGwToSvcs(gateway)
+			newSvcListeners := svcListeners
+			for _, portProto := range svcPortProtocols {
+				if val, ok := newSvcListeners[portProto]; ok && !utils.HasElem(val, svcNSName) {
+					newSvcListeners[portProto] = append(val, svcNSName)
+				} else {
+					newSvcListeners[portProto] = []string{svcNSName}
+				}
+			}
+
+			for portProto, svcs := range svcListeners {
+				if utils.HasElem(svcs, svcNSName) {
+					if !utils.HasElem(svcPortProtocols, portProto) {
+						svcs = utils.Remove(svcs, svcNSName)
+					}
+					} else {
+						svcs = append(svcs, svcNSName)
+						newSvcListeners[portProto] = svcs
+					}
+				}
+
+			objects.ServiceGWLister().UpdateGatewayMappings(gateway, newSvcListeners, svcNSName)
+			if !utils.HasElem(allGateways, gateway) {
+				allGateways = append(allGateways, gateway)
 			}
 		}
 	}

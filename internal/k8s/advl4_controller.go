@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -80,9 +81,6 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
 
-				if ipChanged := checkGWForIPUpdate(key, gw, oldObj); ipChanged {
-					return
-				}
 				validateGatewayForStatusUpdates(key, gw)
 				checkGWForGatewayPortConflict(key, gw)
 
@@ -154,9 +152,10 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
 	if err != nil {
 		status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
-			Type:   "Pending",
-			Status: corev1.ConditionTrue,
-			Reason: fmt.Sprintf("Corresponding networking.x-k8s.io/gatewayclass not found %s", gateway.Spec.Class),
+			Type:    "Pending",
+			Status:  corev1.ConditionTrue,
+			Message: fmt.Sprintf("Corresponding networking.x-k8s.io/gatewayclass not found %s", gateway.Spec.Class),
+			Reason:  "InvalidGatewayClass",
 		})
 		utils.AviLog.Warnf("key: %s, msg: Corresponding networking.x-k8s.io/gatewayclass not found %s %v",
 			key, gateway.Spec.Class, err)
@@ -170,9 +169,10 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
 			status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
-				Type:   "Pending",
-				Status: corev1.ConditionTrue,
-				Reason: "Incorrect gateway matchLabels configuration",
+				Type:    "Pending",
+				Status:  corev1.ConditionTrue,
+				Message: "Incorrect gateway matchLabels configuration",
+				Reason:  "InvalidMatchLabels",
 			})
 			return
 		}
@@ -182,9 +182,10 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
 		status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
-			Type:   "Pending",
-			Status: corev1.ConditionTrue,
-			Reason: fmt.Sprintf("Unable to identify controller %s", gwClassObj.Spec.Controller),
+			Type:    "Pending",
+			Status:  corev1.ConditionTrue,
+			Message: fmt.Sprintf("Unable to identify controller %s", gwClassObj.Spec.Controller),
+			Reason:  "UnidentifiedController",
 		})
 	}
 }
@@ -192,8 +193,12 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 	gateway, portProtocols := nodes.ParseL4ServiceForGateway(svc, key)
 	if gateway == "" {
+		status.DeleteL4LBStatus(avicache.ServiceMetadataObj{
+			NamespaceServiceName: []string{svc.Namespace + "/" + svc.Name},
+		}, key)
 		return
 	}
+
 	found, gwSvcListeners := objects.ServiceGWLister().GetGwToSvcs(gateway)
 	if !found {
 		return
@@ -203,6 +208,9 @@ func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 	gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to find gateway: %v", key, err)
+		status.DeleteL4LBStatus(avicache.ServiceMetadataObj{
+			NamespaceServiceName: []string{svc.Namespace + "/" + svc.Name},
+		}, key)
 		return
 	}
 
