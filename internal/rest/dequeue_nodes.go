@@ -422,8 +422,18 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 								utils.AviLog.Warnf("key: %s, msg: retry count exhausted, skipping", key)
 							}
 						} else {
-							utils.AviLog.Warnf("key: %s, msg: Avi model not set", key)
-							retry = true
+							utils.AviLog.Warnf("key: %s, msg: Avi model not set, possibly a DELETE call", key)
+							aviError, ok := rest_ops[i].Err.(session.AviError)
+							// If it's 404, don't retry
+							if ok {
+								statuscode := aviError.HttpStatusCode
+								if statuscode != 404 {
+									rest.PublishKeyToSlowRetryLayer(publishKey, aviclient, key)
+									return
+								} else {
+									rest.AviVsCacheDel(rest_ops[i], aviObjKey, key)
+								}
+							}
 						}
 					} else {
 						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
