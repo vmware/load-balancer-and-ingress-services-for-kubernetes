@@ -15,8 +15,10 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -95,7 +97,8 @@ func getFileName() string {
 	if input == "" {
 		input = DEFAULT_FILE_SUFFIX
 	}
-	return getFilePath() + getPodName() + input
+	fileName := fmt.Sprintf("%s%s%s.%d", getFilePath(), getPodName(), input, time.Now().Unix())
+	return fileName
 }
 
 func getFilePath() string {
@@ -140,7 +143,7 @@ func init() {
 	encoderCfg.EncodeLevel = zapcore.CapitalLevelEncoder
 	logpath = getFileName()
 	file, err = os.OpenFile(logpath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
