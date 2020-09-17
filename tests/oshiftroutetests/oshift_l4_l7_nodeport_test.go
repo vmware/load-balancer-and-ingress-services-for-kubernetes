@@ -344,8 +344,11 @@ func TestAlternateBackendNoPathInNodePort(t *testing.T) {
 
 	aviModel := ValidateModelCommon(t, g)
 
+	g.Eventually(func() int {
+		pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
+		return len(pools)
+	}, 60*time.Second).Should(gomega.Equal(2))
 	pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
-	g.Expect(pools).To(gomega.HaveLen(2))
 	for _, pool := range pools {
 		if pool.Name == "cluster--foo.com-default-foo-avisvc" || pool.Name == "cluster--foo.com-default-foo-absvc2" {
 			g.Expect(len(pool.Servers)).To(gomega.Equal(1))

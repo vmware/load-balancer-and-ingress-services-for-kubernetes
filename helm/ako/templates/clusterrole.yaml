@@ -24,3 +24,14 @@ rules:
   - apiGroups: ["ako.vmware.com"]
     resources: ["hostrules", "hostrules/status", "httprules", "httprules/status"]
     verbs: ["get","watch","list","patch", "update"]
+{{- if .Values.rbac.pspEnable }}
+  - apiGroups:
+    - policy
+    - extensions
+    resources:
+    - podsecuritypolicies
+    verbs:
+    - use
+    resourceNames:
+    - {{ template "ako.name" . }}
+{{- end }}
