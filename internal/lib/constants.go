@@ -81,6 +81,7 @@ const (
 	AviGatewayController                       = "lbapi.run.tanzu.vmware.com/avi-lb"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
 	ControllerReqWaitTime                      = 300
+	PassthroughInsecure                        = "-insecure"
 )
 
 const (
