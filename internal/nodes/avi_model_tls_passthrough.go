@@ -166,7 +166,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 
 	if passChildVS == nil {
 		passChildVS = &AviVsNode{
-			Name: secureSharedVS.Name + "-insecure", Tenant: lib.GetTenant(), EastWest: false, VrfContext: lib.GetVrf(),
+			Name: secureSharedVS.Name + lib.PassthroughInsecure, Tenant: lib.GetTenant(), EastWest: false, VrfContext: lib.GetVrf(),
 		}
 		if lib.GetSEGName() != lib.DEFAULT_GROUP {
 			passChildVS.ServiceEngineGroup = lib.GetSEGName()
