@@ -44,6 +44,7 @@ func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
 		gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gatewayNSName[0]).Get(gatewayNSName[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Infof("key: %s, msg: unable to find gateway object %s", option.Key, option.ServiceMetadata.Gateway)
+			continue
 		}
 
 		// assuming 1 IP per gateway
