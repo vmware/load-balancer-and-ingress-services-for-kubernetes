@@ -40,7 +40,6 @@ import (
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -130,8 +129,8 @@ func (ing FakeIngress) Ingress(multiport ...bool) *extensionv1beta1.Ingress {
 			Rules: []extensionv1beta1.IngressRule{},
 		},
 		Status: extensionv1beta1.IngressStatus{
-			LoadBalancer: v1.LoadBalancerStatus{
-				Ingress: []v1.LoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -200,7 +199,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *extensionv1beta1.Ingress {
 		if len(ing.HostNames) >= i+1 {
 			hostname = ing.HostNames[i]
 		}
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP:       ing.Ips[i],
 			Hostname: hostname,
 		})
@@ -219,8 +218,8 @@ func (ing FakeIngress) SecureIngress() *extensionv1beta1.Ingress {
 			Rules: []extensionv1beta1.IngressRule{},
 		},
 		Status: extensionv1beta1.IngressStatus{
-			LoadBalancer: v1.LoadBalancerStatus{
-				Ingress: []v1.LoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -247,12 +246,12 @@ func (ing FakeIngress) SecureIngress() *extensionv1beta1.Ingress {
 	}
 
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -270,8 +269,8 @@ func (ing FakeIngress) IngressNoHost() *extensionv1beta1.Ingress {
 			Rules: []extensionv1beta1.IngressRule{},
 		},
 		Status: extensionv1beta1.IngressStatus{
-			LoadBalancer: v1.LoadBalancerStatus{
-				Ingress: []v1.LoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -292,12 +291,12 @@ func (ing FakeIngress) IngressNoHost() *extensionv1beta1.Ingress {
 		})
 	}
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -315,8 +314,8 @@ func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 			Rules: []extensionv1beta1.IngressRule{},
 		},
 		Status: extensionv1beta1.IngressStatus{
-			LoadBalancer: v1.LoadBalancerStatus{
-				Ingress: []v1.LoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -349,12 +348,12 @@ func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 		})
 	}
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, v1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -423,7 +422,7 @@ type Serviceport struct {
 	PortName   string
 	PortNumber int32
 	NodePort   int32
-	Protocol   v1.Protocol
+	Protocol   corev1.Protocol
 	TargetPort int
 }
 

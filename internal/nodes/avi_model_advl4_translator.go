@@ -133,7 +133,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		poolNode := &AviPoolNode{
 			Name:       lib.GetAdvL4PoolName(svcNSName[1], namespace, int32(port)),
 			Tenant:     lib.GetTenant(),
-			Protocol:   portProto[1],
+			Protocol:   portProto[0],
 			PortName:   "",
 			VrfContext: lib.GetVrf(),
 		}
