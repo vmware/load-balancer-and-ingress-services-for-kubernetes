@@ -132,7 +132,11 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			}
 			vs.HTTPPolicies = httpPolicyCollection
 		}
-
+		if strings.Contains(*vs.Name, lib.PassthroughPrefix) && !strings.HasSuffix(*vs.Name, lib.PassthroughInsecure) {
+			// This is a passthrough secure VS, we want the VS to be down if all the pools are down.
+			vsDownOnPoolDown := true
+			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
+		}
 		if len(vs_meta.L4PolicyRefs) > 0 {
 			vsDownOnPoolDown := true
 			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
