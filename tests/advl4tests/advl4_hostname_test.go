@@ -362,7 +362,6 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(gwUpdate); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
-	fmt.Println("COMING HERE2")
 
 	// vsNode must get deleted
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -386,13 +385,400 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(gwUpdate); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
-	fmt.Println("COMING HERE3")
 
 	// vsNode must come back up
 	g.Eventually(func() int {
 		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 10*time.Second).Should(gomega.Equal(1))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4ProtocolChangeInService(t *testing.T) {
+	// gw/tcp/8081 svc/tcp/8081  -> svc/udp/8081
+	// service protocol changes VS deleted
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && len(nodes[0].PoolRefs) == 1 {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	svcUpdate := integrationtest.FakeService{
+		Name:      "svc",
+		Namespace: ns,
+		Labels: map[string]string{
+			lib.GatewayNameLabelKey:      gatewayName,
+			lib.GatewayNamespaceLabelKey: ns,
+			lib.GatewayTypeLabelKey:      "direct",
+		},
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
+	}.Service()
+	fmt.Println(utils.Stringify(svcUpdate))
+	svcUpdate.ResourceVersion = "2"
+	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel == nil {
+			return false
+		}
+		return true
+	}, 20*time.Second).Should(gomega.Equal(false))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4PortChangeInService(t *testing.T) {
+	// gw/tcp/8081 svc/tcp/8081 -> svc/tcp/8080
+	// service port changes VS deleted
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && len(nodes[0].PoolRefs) == 1 {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	svcUpdate := integrationtest.FakeService{
+		Name:      "svc",
+		Namespace: ns,
+		Labels: map[string]string{
+			lib.GatewayNameLabelKey:      gatewayName,
+			lib.GatewayNamespaceLabelKey: ns,
+			lib.GatewayTypeLabelKey:      "direct",
+		},
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
+	}.Service()
+	fmt.Println(utils.Stringify(svcUpdate))
+	svcUpdate.ResourceVersion = "2"
+	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel == nil {
+			return false
+		}
+		return true
+	}, 20*time.Second).Should(gomega.Equal(false))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4LabelUpdatesInService(t *testing.T) {
+	// correct labels, label mismatch, correct labels, delete labels
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && len(nodes[0].PoolRefs) == 1 {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	svcUpdate := integrationtest.FakeService{
+		Name:      "svc",
+		Namespace: ns,
+		Labels: map[string]string{
+			lib.GatewayNameLabelKey:      "BADGATEWAY",
+			lib.GatewayNamespaceLabelKey: ns,
+			lib.GatewayTypeLabelKey:      "direct",
+		},
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
+	}.Service()
+	fmt.Println(utils.Stringify(svcUpdate))
+	svcUpdate.ResourceVersion = "2"
+	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel == nil {
+			return false
+		}
+		return true
+	}, 20*time.Second).Should(gomega.Equal(false))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4LabelUpdatesInGateway(t *testing.T) {
+	// correct labels, label mismatch, correct labels, delete labels
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && len(nodes[0].PoolRefs) == 1 {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	gwUpdate := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{{
+			Port:     int32(8081),
+			Protocol: "TCP",
+			Labels: map[string]string{
+				lib.GatewayNameLabelKey:      "BADGATEWAY",
+				lib.GatewayNamespaceLabelKey: ns,
+				lib.GatewayTypeLabelKey:      "direct",
+			},
+		}},
+	}.Gateway()
+	gwUpdate.ResourceVersion = "2"
+	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(gwUpdate); err != nil {
+		t.Fatalf("error in updating Gateway: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel == nil {
+			return false
+		}
+		return true
+	}, 20*time.Second).Should(gomega.Equal(false))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
+	// svc/tcp/8081
+	// change gateway listener port to 8080, VS deletes
+	// change svc port to 8080, VS creates, with 8080 exposed port
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 &&
+				len(nodes[0].PoolRefs) == 1 &&
+				nodes[0].PoolRefs[0].Protocol == "TCP" {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	gwUpdate := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{{
+			Port:     int32(8080),
+			Protocol: "TCP",
+			Labels: map[string]string{
+				lib.GatewayNameLabelKey:      gatewayName,
+				lib.GatewayNamespaceLabelKey: ns,
+				lib.GatewayTypeLabelKey:      "direct",
+			},
+		}},
+	}.Gateway()
+	gwUpdate.ResourceVersion = "2"
+	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(gwUpdate); err != nil {
+		t.Fatalf("error in updating Gateway: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel == nil {
+			return false
+		}
+		return true
+	}, 20*time.Second).Should(gomega.Equal(false))
+
+	// match service to chaged gateway port: 8080
+	svcUpdate := integrationtest.FakeService{
+		Name:      "svc",
+		Namespace: ns,
+		Labels: map[string]string{
+			lib.GatewayNameLabelKey:      gatewayName,
+			lib.GatewayNamespaceLabelKey: ns,
+			lib.GatewayTypeLabelKey:      "direct",
+		},
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
+	}.Service()
+	fmt.Println(utils.Stringify(svcUpdate))
+	svcUpdate.ResourceVersion = "2"
+	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 &&
+				len(nodes[0].PoolRefs) == 1 &&
+				nodes[0].PoolRefs[0].Protocol == "TCP" {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
+	// svc/tcp/8080
+	// change gateway listener protocol to UDP, VS deletes
+	// change svc protocol to UDP, VS creates, with UDP protocol
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 &&
+				len(nodes[0].PoolRefs) == 1 &&
+				nodes[0].PoolRefs[0].Protocol == "TCP" {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	gwUpdate := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{{
+			Port:     int32(8081),
+			Protocol: "UDP",
+			Labels: map[string]string{
+				lib.GatewayNameLabelKey:      gatewayName,
+				lib.GatewayNamespaceLabelKey: ns,
+				lib.GatewayTypeLabelKey:      "direct",
+			},
+		}},
+	}.Gateway()
+	gwUpdate.ResourceVersion = "2"
+	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(gwUpdate); err != nil {
+		t.Fatalf("error in updating Gateway: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel == nil {
+			return false
+		}
+		return true
+	}, 20*time.Second).Should(gomega.Equal(false))
+
+	// match service to chaged gateway protocol: UDP
+	svcUpdate := integrationtest.FakeService{
+		Name:      "svc",
+		Namespace: ns,
+		Labels: map[string]string{
+			lib.GatewayNameLabelKey:      gatewayName,
+			lib.GatewayNamespaceLabelKey: ns,
+			lib.GatewayTypeLabelKey:      "direct",
+		},
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
+	}.Service()
+	fmt.Println(utils.Stringify(svcUpdate))
+	svcUpdate.ResourceVersion = "2"
+	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 &&
+				len(nodes[0].PoolRefs) == 1 &&
+				nodes[0].PoolRefs[0].Protocol == "UDP" {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
