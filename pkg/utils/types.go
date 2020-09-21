@@ -98,6 +98,7 @@ type RestOp struct {
 	PatchOp  string
 	Response interface{}
 	Err      error
+	Message  string // Optional field - can be used to carry forward err/msgs to k8s objects
 	Model    string
 	Version  string
 	ObjName  string // Optional field - right only to be used for delete.

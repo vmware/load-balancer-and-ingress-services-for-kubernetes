@@ -278,36 +278,3 @@ func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
 		}
 	}
 }
-
-func checkGWForIPUpdate(key string, gw, oldGw *advl4v1alpha1pre1.Gateway) bool {
-	var newIPAddress, oldIPAddress string
-	if len(gw.Spec.Addresses) > 0 {
-		newIPAddress = gw.Spec.Addresses[0].Value
-	}
-	if len(oldGw.Spec.Addresses) > 0 {
-		oldIPAddress = oldGw.Spec.Addresses[0].Value
-	}
-
-	// honor new IP coming in
-	// old: nil, new: X
-	if oldIPAddress == "" && newIPAddress != "" {
-		return false
-	}
-
-	// old: X, new: nil | old: X, new: Y
-	if newIPAddress != oldIPAddress {
-		errString := "IPAddress Updates on gateway not supported, Please recreate gateway object with the new preferred IPAddress"
-		status.UpdateGatewayStatusGWCondition(gw, &status.UpdateGWStatusConditionOptions{
-			Type:    "Pending",
-			Status:  corev1.ConditionTrue,
-			Reason:  "InvalidAddress",
-			Message: errString,
-		})
-		utils.AviLog.Errorf("key: %s, msg: %s Last IPAddress: %s, Current IPAddress: %s",
-			key, errString, oldIPAddress, newIPAddress)
-		status.UpdateGatewayStatusObject(gw, &gw.Status)
-		return true
-	}
-
-	return false
-}
