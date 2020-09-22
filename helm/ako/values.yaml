@@ -62,10 +62,13 @@ resources:
     memory: 300Mi
   requests:
     cpu: 100m
-    memory: 75Mi
+    memory: 200Mi
 
 podSecurityContext: {}
-  # fsGroup: 2000
+
+rbac:
+  # Creates the pod security policy if set to true
+  pspEnable: false
 
 
 avicredentials:
