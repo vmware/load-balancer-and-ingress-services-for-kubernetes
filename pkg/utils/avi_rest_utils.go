@@ -53,7 +53,10 @@ func SharedAVIClients() *AviRestClientPool {
 
 func NewAviRestClientPool(num uint32, api_ep string, username string,
 	password string) (*AviRestClientPool, error) {
-	var p AviRestClientPool
+	var clientPool AviRestClientPool
+	var wg sync.WaitGroup
+	var globalErr error
+
 	ctrlRootCa := os.Getenv("CTRL_ROOTCA")
 	var transport *http.Transport
 	if ctrlRootCa != "" {
@@ -67,34 +70,49 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 				},
 			}
 	}
-	for i := uint32(0); i < num; i++ {
-		// Retry 20 times with an interval of 10 seconds each.
-		var aviClient *clients.AviClient
-		var err error
-		if ctrlRootCa != "" {
-			aviClient, err = clients.NewAviClient(api_ep, username,
-				session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
-		} else {
-			aviClient, err = clients.NewAviClient(api_ep, username,
-				session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
-		}
-		if err != nil {
-			AviLog.Warnf("NewAviClient returned err %v", err)
-			return &p, err
-		}
-		if err == nil && aviClient.AviSession != nil {
-			version, err := aviClient.AviSession.GetControllerVersion()
-			if err == nil && CtrlVersion == "" {
-				AviLog.Debugf("Setting the client version to %v", version)
-				session.SetVersion(version)
-				CtrlVersion = version
-			}
-		}
 
-		p.AviClient = append(p.AviClient, aviClient)
+	for i := uint32(0); i < num; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if globalErr != nil {
+				return
+			}
+
+			var aviClient *clients.AviClient
+			var err error
+
+			if ctrlRootCa != "" {
+				aviClient, err = clients.NewAviClient(api_ep, username,
+					session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+			} else {
+				aviClient, err = clients.NewAviClient(api_ep, username,
+					session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+			}
+			if err != nil {
+				AviLog.Warnf("NewAviClient returned err %v", err)
+				globalErr = err
+				return
+			}
+			if err == nil && aviClient.AviSession != nil {
+				version, err := aviClient.AviSession.GetControllerVersion()
+				if err == nil && CtrlVersion == "" {
+					AviLog.Debugf("Setting the client version to %v", version)
+					session.SetVersion(version)
+					CtrlVersion = version
+				}
+			}
+
+			clientPool.AviClient = append(clientPool.AviClient, aviClient)
+		}()
 	}
 
-	return &p, nil
+	wg.Wait()
+	if globalErr != nil {
+		return &clientPool, globalErr
+	}
+
+	return &clientPool, nil
 }
 
 func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*RestOp) error {
