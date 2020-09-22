@@ -296,6 +296,9 @@ func GetSEGName() string {
 	if segName != "" {
 		return segName
 	}
+	if GetAdvancedL4() {
+		return DefaultSEGroup
+	}
 	return ""
 }
 
