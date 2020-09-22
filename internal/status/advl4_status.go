@@ -122,8 +122,8 @@ func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, updateStatus 
 			// if Ready true, mark Pending as false automatically
 			gw.Status.Conditions[i].Status = corev1.ConditionFalse
 			gw.Status.Conditions[i].LastTransitionTime = metav1.Now()
-			gw.Status.Conditions[i].Message = updateStatus.Message
-			gw.Status.Conditions[i].Reason = updateStatus.Reason
+			gw.Status.Conditions[i].Message = ""
+			gw.Status.Conditions[i].Reason = ""
 		}
 
 		if updateStatus.Type == "Ready" {

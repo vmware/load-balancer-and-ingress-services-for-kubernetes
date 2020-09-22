@@ -25,11 +25,11 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const VSVIP_NOTFOUND = "VsVip object not found"
@@ -582,14 +582,14 @@ func (rest *RestOperations) isHostPresentInSharedPool(hostname string, parentVs 
 	return false
 }
 
-func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, vs_cache *avicache.AviVsCache, key string) (*utils.RestOp, error) {
+func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
 	name := vsvip_meta.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
 	var rest_op utils.RestOp
-	vipId, ipType := "1", "V4"
+	vipId, ipType := "0", "V4"
 
 	if cache_obj != nil {
 		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name)
@@ -612,24 +612,18 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		vsvip.DNSInfo = dns_info_arr
 
 		// handling static IP updates in case of advl4 workflows
-		if lib.GetAdvancedL4() && len(cache_obj.Vips) > 0 {
-			if cache_obj.Vips[0] != vsvip_meta.IPAddress &&
-				vs_cache != nil &&
-				vs_cache.ServiceMetadataObj.Gateway != "" {
-				// do nothing
-			} else {
-				auto_alloc := true
-				var vips []*avimodels.Vip
-				vips = append(vips, &avimodels.Vip{
-					VipID:          &vipId,
-					AutoAllocateIP: &auto_alloc,
-					IPAddress: &avimodels.IPAddr{
-						Type: &ipType,
-						Addr: &vsvip_meta.IPAddress,
-					},
-				})
-				vsvip.Vip = vips
-			}
+		if lib.GetAdvancedL4() && vsvip_meta.IPAddress != "" {
+			auto_alloc := true
+			var vips []*avimodels.Vip
+			vips = append(vips, &avimodels.Vip{
+				VipID:          &vipId,
+				AutoAllocateIP: &auto_alloc,
+				IPAddress: &avimodels.IPAddr{
+					Type: &ipType,
+					Addr: &vsvip_meta.IPAddress,
+				},
+			})
+			vsvip.Vip = vips
 		}
 
 		path = "/api/vsvip/" + cache_obj.Uuid
@@ -800,8 +794,34 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 
 func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for vsvip err: %s, response: %s", key, rest_op.Err, rest_op.Response)
-		return errors.New("Errored vsvip rest_op")
+		if rest_op.Message == "" {
+			utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for vsvip err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+			return errors.New("Errored vsvip rest_op")
+		}
+
+		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
+		if ok {
+			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
+			if found && vs_cache_obj.ServiceMetadataObj.Gateway != "" {
+				gwNSName := strings.Split(vs_cache_obj.ServiceMetadataObj.Gateway, "/")
+				gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Gateway object not found, skippig status update %v", key, err)
+					return err
+				}
+
+				status.UpdateGatewayStatusGWCondition(gw, &status.UpdateGWStatusConditionOptions{
+					Type:    "Pending",
+					Status:  corev1.ConditionTrue,
+					Reason:  "InvalidAddress",
+					Message: rest_op.Message,
+				})
+				status.UpdateGatewayStatusObject(gw, &gw.Status)
+				utils.AviLog.Warnf("key: %s, msg: IPAddress Updates on gateway not supported, Please recreate gateway object with the new preferred IPAddress", key)
+				return errors.New(rest_op.Message)
+			}
+
+		}
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "vsvip", key)

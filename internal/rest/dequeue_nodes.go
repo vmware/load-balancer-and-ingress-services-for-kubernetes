@@ -377,6 +377,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			if err == nil {
 				models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
 				utils.AviLog.Debugf("key: %s, msg: rest call executed successfully, will update cache", key)
+
 				// Add to local obj caches
 				for _, rest_op := range rest_ops {
 					rest.PopulateOneCache(rest_op, aviObjKey, key)
@@ -406,6 +407,12 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				for i := len(rest_ops) - 1; i >= 0; i-- {
 					// Go over each of the failed requests and enqueue them to the worker queue for retry.
 					if rest_ops[i].Err != nil {
+						// check for VSVIP errors for blocked IP address updates
+						if lib.GetAdvancedL4() && checkVsVipUpdateErrors(key, rest_ops[i]) {
+							rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
+							continue
+						}
+
 						// If it's for a SNI child, publish the parent VS's key
 						if avimodel != nil && len(avimodel.GetAviVS()) > 0 {
 							utils.AviLog.Warnf("key: %s, msg: Retrieved key for Retry:%s, object: %s", key, publishKey, rest_ops[i].ObjName)
@@ -439,6 +446,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
 					}
 				}
+
 				if retry {
 					rest.PublishKeyToRetryLayer(publishKey, aviclient, key)
 				}
@@ -447,8 +455,26 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 	}
 }
 
+func checkVsVipUpdateErrors(key string, rest_op *utils.RestOp) bool {
+	if aviError, ok := rest_op.Err.(session.AviError); ok {
+		if aviError.HttpStatusCode == 400 &&
+			rest_op.Model == "VsVip" &&
+			(strings.Contains(rest_op.Err.Error(), lib.AviControllerVSVipIDChangeError) ||
+				strings.Contains(rest_op.Err.Error(), lib.AviControllerRecreateVIPError)) {
+			utils.AviLog.Warnf("key: %s, msg: Unsupported call for vsvip %d: %v", key, aviError.HttpStatusCode, rest_op.Err)
+			// this adds error as a message, useful for sending Avi errors to k8s object statuses, if required
+			rest_op.Message = rest_op.Err.Error()
+			return true
+		}
+	}
+	return false
+}
+
 func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey avicache.NamespaceName, key string) {
-	if rest_op.Err == nil && (rest_op.Method == utils.RestPost || rest_op.Method == utils.RestPut || rest_op.Method == utils.RestPatch) {
+	if (rest_op.Err == nil || rest_op.Message != "") &&
+		(rest_op.Method == utils.RestPost ||
+			rest_op.Method == utils.RestPut ||
+			rest_op.Method == utils.RestPatch) {
 		utils.AviLog.Infof("key: %s, msg: creating/updating %s cache, method: %s", key, rest_op.Model, rest_op.Method)
 		if rest_op.Model == "PKIprofile" {
 			rest.AviPkiProfileAdd(rest_op, aviObjKey, key)
@@ -542,7 +568,6 @@ func (rest *RestOperations) AviRestOperateWrapper(aviClient *clients.AviClient, 
 }
 
 func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObjKey avicache.NamespaceName, rest_op *utils.RestOp, aviError session.AviError, c *clients.AviClient, avimodel *nodes.AviObjectGraph, key string) (bool, bool) {
-
 	var fastRetry bool
 	statuscode := aviError.HttpStatusCode
 	errorStr := aviError.Error()
@@ -779,6 +804,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 			utils.AviLog.Infof("key :%s, msg: Controller request timed out, will re-init session by retrying", key)
 
 		} else {
+
 			// We don't want to handle any other error code like 400 etc.
 			utils.AviLog.Infof("key: %s, msg: Detected error code %d that we don't support, not going to retry", key, statuscode)
 			retry = false
@@ -1142,7 +1168,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.
-							restOp, err := rest.AviVsVipBuild(vsvip, vsvip_cache_obj, vs_cache_obj, key)
+							restOp, err := rest.AviVsVipBuild(vsvip, vsvip_cache_obj, key)
 							if err == nil {
 								rest_ops = append(rest_ops, restOp)
 							}
@@ -1150,7 +1176,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 					}
 				} else {
 					// Not found - it should be a POST call.
-					restOp, err := rest.AviVsVipBuild(vsvip, nil, nil, key)
+					restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
 					if err == nil {
 						rest_ops = append(rest_ops, restOp)
 					}
@@ -1161,7 +1187,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 	} else {
 		// Everything is a POST call
 		for _, vsvip := range vsvip_nodes {
-			restOp, err := rest.AviVsVipBuild(vsvip, nil, nil, key)
+			restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
 			if err == nil {
 				rest_ops = append(rest_ops, restOp)
 			}
