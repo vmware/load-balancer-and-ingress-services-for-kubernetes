@@ -116,7 +116,7 @@ func (rest *RestOperations) AviL4PolicyDel(uuid string, tenant string, key strin
 	path := "/api/l4policyset/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
-	utils.AviLog.Debug(spew.Sprintf("L4 Policy Set DELETE Restop %v \n",
+	utils.AviLog.Infof(spew.Sprintf("L4 Policy Set DELETE Restop %v \n",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
