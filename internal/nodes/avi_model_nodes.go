@@ -735,10 +735,7 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 }
 
 func (v *AviVSVIPNode) CalculateCheckSum() {
-	// A sum of fields for this VS.
-	sort.Strings(v.FQDNs)
-	checksum := utils.Hash(utils.Stringify(v.FQDNs)) + utils.Hash(v.IPAddress)
-	v.CloudConfigCksum = checksum
+	v.CloudConfigCksum = lib.VSVipChecksum(v.FQDNs, v.IPAddress)
 }
 
 func (v *AviVSVIPNode) GetNodeType() string {

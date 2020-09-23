@@ -169,12 +169,12 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
+		vsvip_to_delete, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		pools_to_delete, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, vs_cache_obj, namespace, rest_ops, key)
 		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
 		httppol_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
 		l4pol_to_delete, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, vs_cache_obj, namespace, rest_ops, key)
-		vsvip_to_delete, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		utils.AviLog.Debugf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, strconv.Itoa(int(aviVsNode.GetCheckSum())))
 		if vs_cache_obj.CloudConfigCksum == strconv.Itoa(int(aviVsNode.GetCheckSum())) {
 			utils.AviLog.Debugf("key: %s, msg: the checksums are same for vs %s, not doing anything", key, vs_cache_obj.Name)
@@ -188,12 +188,12 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key)
 	} else {
 		var rest_ops []*utils.RestOp
+		_, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
-		_, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 
 		// The cache was not found - it's a POST call.
 		restOp := rest.AviVsBuild(aviVsNode, utils.RestPost, nil, key)
@@ -1164,7 +1164,13 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 						sort.Strings(vsvip_cache_obj.FQDNs)
 						// Cache found. Let's compare the checksums
 						utils.AviLog.Debugf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
-						if utils.Hash(utils.Stringify(vsvip_cache_obj.FQDNs)) == vsvip.GetCheckSum() {
+						var cacheVSVipChecksum uint32
+						if vsvip.IPAddress != "" && len(vsvip_cache_obj.Vips) > 0 {
+							cacheVSVipChecksum = lib.VSVipChecksum(vsvip_cache_obj.FQDNs, vsvip_cache_obj.Vips[0])
+						} else {
+							cacheVSVipChecksum = lib.VSVipChecksum(vsvip_cache_obj.FQDNs, "")
+						}
+						if cacheVSVipChecksum == vsvip.GetCheckSum() {
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.

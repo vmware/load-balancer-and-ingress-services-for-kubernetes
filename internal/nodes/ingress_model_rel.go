@@ -188,11 +188,11 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 					if !utils.HasElem(svcPortProtocols, portProto) {
 						svcs = utils.Remove(svcs, svcNSName)
 					}
-					} else {
-						svcs = append(svcs, svcNSName)
-						newSvcListeners[portProto] = svcs
-					}
+				} else {
+					svcs = append(svcs, svcNSName)
+					newSvcListeners[portProto] = svcs
 				}
+			}
 
 			objects.ServiceGWLister().UpdateGatewayMappings(gateway, newSvcListeners, svcNSName)
 			if !utils.HasElem(allGateways, gateway) {
@@ -201,7 +201,7 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 		}
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %v", key, allGateways)
+	utils.AviLog.Infof("key: %s, msg: Gateways retrieved %v", key, allGateways)
 	return allGateways, true
 }
 

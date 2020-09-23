@@ -108,8 +108,8 @@ func GetL4PoolName(vsName string, port int32) string {
 	return vsName + "--" + strconv.Itoa(int(port))
 }
 
-func GetAdvL4PoolName(svcName, namespace string, port int32) string {
-	return NamePrefix + namespace + "-" + svcName + "--" + strconv.Itoa(int(port))
+func GetAdvL4PoolName(svcName, namespace, gwName string, port int32) string {
+	return NamePrefix + namespace + "-" + svcName + "-" + gwName + "--" + strconv.Itoa(int(port))
 }
 
 func GetL4PGName(vsName string, port int32) string {
@@ -514,6 +514,18 @@ func GetPassthroughShardVSName(s string, key string) string {
 	vsName := shardVsPrefix + fmt.Sprint(vsNum)
 	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
 	return vsName
+}
+
+func VSVipChecksum(FQDNs []string, IPAddress string) uint32 {
+	sort.Strings(FQDNs)
+	var checksum uint32
+	if len(FQDNs) != 0 {
+		checksum = utils.Hash(utils.Stringify(FQDNs))
+	}
+	if IPAddress != "" {
+		checksum = checksum + utils.Hash(IPAddress)
+	}
+	return checksum
 }
 
 // GetLabels returns the key value pair used for tagging the segroups and routes in vrfcontext
