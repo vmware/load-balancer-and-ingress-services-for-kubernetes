@@ -31,17 +31,16 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 	var updateServiceOptions []UpdateStatusOptions
 
 	for _, option := range options {
-		// service TypeLB would have just one NamespaceServiceName considering one VS per svcLB
-		// does not apply for svcLBs exposed via gateways
-		service := option.ServiceMetadata.NamespaceServiceName[0]
 		if len(option.ServiceMetadata.HostNames) != 1 && !lib.GetAdvancedL4() {
-			utils.AviLog.Error("Service hostname not found for service %s status update", service)
+			utils.AviLog.Error("Service hostname not found for service %v status update", option.ServiceMetadata.NamespaceServiceName)
 			continue
 		}
 
-		option.IngSvc = service
-		servicesToUpdate = append(servicesToUpdate, service)
-		updateServiceOptions = append(updateServiceOptions, option)
+		for _, svc := range option.ServiceMetadata.NamespaceServiceName {
+			option.IngSvc = svc
+			servicesToUpdate = append(servicesToUpdate, svc)
+			updateServiceOptions = append(updateServiceOptions, option)
+		}
 	}
 
 	serviceMap := getServices(servicesToUpdate, bulk)
@@ -86,24 +85,26 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 
 func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
 	mClient := utils.GetInformers().ClientSet
-	serviceNSName := strings.Split(svc_mdata_obj.NamespaceServiceName[0], "/")
-	mLb, err := mClient.CoreV1().Services(serviceNSName[0]).Get(serviceNSName[1], metav1.GetOptions{})
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the service status: %s", key, err)
-		return err
-	}
-	mLb.Status = corev1.ServiceStatus{
-		LoadBalancer: corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{},
-		},
-	}
-	_, err = mClient.CoreV1().Services(serviceNSName[0]).UpdateStatus(mLb)
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
-		return err
-	}
+	for _, service := range svc_mdata_obj.NamespaceServiceName {
+		serviceNSName := strings.Split(service, "/")
+		mLb, err := mClient.CoreV1().Services(serviceNSName[0]).Get(serviceNSName[1], metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the service status: %s", key, err)
+			return err
+		}
+		mLb.Status = corev1.ServiceStatus{
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
+			},
+		}
+		_, err = mClient.CoreV1().Services(serviceNSName[0]).UpdateStatus(mLb)
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
+			return err
+		}
 
-	utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s", key, svc_mdata_obj.NamespaceServiceName[0])
+		utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s", key, svc_mdata_obj.NamespaceServiceName[0])
+	}
 	return nil
 }
 
