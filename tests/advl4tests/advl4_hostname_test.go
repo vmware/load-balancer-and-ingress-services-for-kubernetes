@@ -1,7 +1,6 @@
 package advl4tests
 
 import (
-	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -431,7 +430,6 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
-	fmt.Println(utils.Stringify(svcUpdate))
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
 		t.Fatalf("error in updating Service: %v", err)
@@ -484,7 +482,6 @@ func TestAdvL4PortChangeInService(t *testing.T) {
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
 	}.Service()
-	fmt.Println(utils.Stringify(svcUpdate))
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
 		t.Fatalf("error in updating Service: %v", err)
@@ -536,7 +533,6 @@ func TestAdvL4LabelUpdatesInService(t *testing.T) {
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
-	fmt.Println(utils.Stringify(svcUpdate))
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
 		t.Fatalf("error in updating Service: %v", err)
@@ -674,7 +670,6 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
 	}.Service()
-	fmt.Println(utils.Stringify(svcUpdate))
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
 		t.Fatalf("error in updating Service: %v", err)
@@ -762,7 +757,6 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
-	fmt.Println(utils.Stringify(svcUpdate))
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
 		t.Fatalf("error in updating Service: %v", err)
@@ -784,4 +778,67 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
+	// svc/tcp/8081, gw1/tcp/8081, gw2/tcp/8081
+	// change gateway from gw1 to gw2, gw1 VS deletes, gw2 VS is created
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gateway1Name, gateway2Name, ns := "avi-lb", "my-gateway1", "my-gateway2", "default"
+	modelName1 := "admin/abc--default-my-gateway1"
+	modelName2 := "admin/abc--default-my-gateway2"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gateway1Name, ns, gwClassName)
+	SetupGateway(t, gateway2Name, ns, gwClassName)
+	SetupAdvLBService(t, "svc", ns, gateway1Name, ns)
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName1); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && nodes[0].Name == "abc--default-my-gateway1" {
+				return true
+			}
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName1)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs).Should(gomega.HaveLen(1))
+
+	// change service gw binding from gw1 to gw2
+	svcUpdate := integrationtest.FakeService{
+		Name:      "svc",
+		Namespace: ns,
+		Labels: map[string]string{
+			lib.GatewayNameLabelKey:      gateway2Name,
+			lib.GatewayNamespaceLabelKey: ns,
+			lib.GatewayTypeLabelKey:      "direct",
+		},
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
+	}.Service()
+	svcUpdate.ResourceVersion = "2"
+	if _, err := KubeClient.CoreV1().Services(ns).Update(svcUpdate); err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	VerifyGatewayVSNodeDeletion(g, modelName1)
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName2); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && nodes[0].Name == "abc--default-my-gateway2" {
+				return true
+			}
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gateway1Name, ns)
+	TeardownGateway(t, gateway2Name, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName2)
 }
