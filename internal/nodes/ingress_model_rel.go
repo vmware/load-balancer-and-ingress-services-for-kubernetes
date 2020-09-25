@@ -184,12 +184,8 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 			}
 
 			for portProto, svcs := range svcListeners {
-				if utils.HasElem(svcs, svcNSName) {
-					if !utils.HasElem(svcPortProtocols, portProto) {
-						svcs = utils.Remove(svcs, svcNSName)
-					}
-				} else {
-					svcs = append(svcs, svcNSName)
+				if utils.HasElem(svcs, svcNSName) && !utils.HasElem(svcPortProtocols, portProto) {
+					svcs = utils.Remove(svcs, svcNSName)
 					newSvcListeners[portProto] = svcs
 				}
 			}

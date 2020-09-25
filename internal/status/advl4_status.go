@@ -72,7 +72,7 @@ func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
 			ServiceMetadata: avicache.ServiceMetadataObj{
 				NamespaceServiceName: option.ServiceMetadata.NamespaceServiceName,
 			},
-		}}, true)
+		}}, false)
 	}
 
 	return
