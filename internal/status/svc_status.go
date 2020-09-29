@@ -92,6 +92,12 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 			utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the service status: %s", key, err)
 			return err
 		}
+		// If the status is empty, there's no need to update anything.
+		if len(mLb.Status.LoadBalancer.Ingress) == 0 {
+			// status is already reset, just return
+			utils.AviLog.Debugf("Status already reset, returning")
+			return nil
+		}
 		mLb.Status = corev1.ServiceStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{},

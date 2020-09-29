@@ -94,7 +94,7 @@ func TestCreateIngressCacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ = objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(true))
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-6"}
