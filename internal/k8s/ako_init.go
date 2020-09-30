@@ -253,25 +253,23 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	graphQueue.Run(stopCh, graphwg)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
-	if lib.GetAdvancedL4() {
-		// Set the error to nil
-		err = nil
-		interval = 1800 //seconds, hard coded.
-	}
 	// Set up the workers but don't start draining them.
+	if lib.GetAdvancedL4() {
+		err = nil
+	}
 	c.SetupEventHandlers(informers)
 	if err != nil {
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
 	} else {
 		// First boot sync
 		c.FullSyncK8s()
-		if interval != 0 {
+		if interval != 0 && !lib.GetAdvancedL4() {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
 			worker.SyncFunction = c.FullSync
 			worker.QuickSyncFunction = c.FullSyncK8s
 			go worker.Run()
 		} else {
-			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
+			utils.AviLog.Infof("Full sync not configured to run, either full sync frequency is set to 0 or AKO is running in advancedL4 mode")
 		}
 	}
 
