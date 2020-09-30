@@ -1,11 +1,12 @@
 FROM golang:latest AS build
 ENV BUILD_PATH="github.com/vmware/load-balancer-and-ingress-services-for-kubernetes"
+ENV AKO_VERSION="v1.3.2"
 RUN mkdir -p $GOPATH/src/$BUILD_PATH
 
 COPY . $GOPATH/src/$BUILD_PATH
 WORKDIR $GOPATH/src/$BUILD_PATH
 
-RUN GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -o $GOPATH/bin/akc -mod=vendor $BUILD_PATH/cmd/ako-main
+RUN GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -o $GOPATH/bin/akc -ldflags="-X 'main.version=$AKO_VERSION'" -mod=vendor $BUILD_PATH/cmd/ako-main
 
 FROM photon:latest
 RUN yum install -y tar.x86_64
