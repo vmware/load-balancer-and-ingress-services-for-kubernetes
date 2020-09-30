@@ -15,6 +15,7 @@
 package status
 
 import (
+	"encoding/json"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -23,6 +24,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 )
 
 func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
@@ -103,7 +105,12 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		}
-		_, err = mClient.CoreV1().Services(serviceNSName[0]).UpdateStatus(mLb)
+
+		patchPayload, _ := json.Marshal(map[string]interface{}{
+			"status": mLb.Status,
+		})
+
+		_, err = mClient.CoreV1().Services(serviceNSName[0]).Patch(serviceNSName[1], types.MergePatchType, patchPayload, "status")
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 			return err
