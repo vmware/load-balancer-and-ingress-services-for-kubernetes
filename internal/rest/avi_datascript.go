@@ -88,7 +88,7 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "vsdatascriptset", key)
-	utils.AviLog.Warnf("The datascriptset object response %v", rest_op.Response)
+	utils.AviLog.Debugf("The datascriptset object response %v", rest_op.Response)
 	if ok != nil || resp_elems == nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to find datascriptset obj in resp %v", key, rest_op.Response)
 		return errors.New("datascriptset not found")
