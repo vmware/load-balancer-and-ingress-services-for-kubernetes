@@ -811,13 +811,14 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 					return err
 				}
 
-				status.UpdateGatewayStatusGWCondition(gw, &status.UpdateGWStatusConditionOptions{
+				gwStatus := gw.Status.DeepCopy()
+				status.UpdateGatewayStatusGWCondition(gwStatus, &status.UpdateGWStatusConditionOptions{
 					Type:    "Pending",
 					Status:  corev1.ConditionTrue,
 					Reason:  "InvalidAddress",
 					Message: rest_op.Message,
 				})
-				status.UpdateGatewayStatusObject(gw, &gw.Status)
+				status.UpdateGatewayStatusObject(gw, gwStatus)
 				utils.AviLog.Warnf("key: %s, msg: IPAddress Updates on gateway not supported, Please recreate gateway object with the new preferred IPAddress", key)
 				return errors.New(rest_op.Message)
 			}
