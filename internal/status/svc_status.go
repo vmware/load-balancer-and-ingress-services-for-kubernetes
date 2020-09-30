@@ -93,24 +93,11 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 	mClient := utils.GetInformers().ClientSet
 	for _, service := range svc_mdata_obj.NamespaceServiceName {
 		serviceNSName := strings.Split(service, "/")
-		mLb, err := mClient.CoreV1().Services(serviceNSName[0]).Get(serviceNSName[1], metav1.GetOptions{})
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the service status: %s", key, err)
-			return err
-		}
-		// If the status is empty, there's no need to update anything.
-		if len(mLb.Status.LoadBalancer.Ingress) == 0 {
-			// status is already reset, just return
-			utils.AviLog.Debugf("Status already reset, returning")
-			return nil
-		}
-		mLb.Status = corev1.ServiceStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
-			},
-		}
+		patchPayload, _ := json.Marshal(map[string]interface{}{
+			"status": nil,
+		})
 
-		_, err = mClient.CoreV1().Services(serviceNSName[0]).UpdateStatus(mLb)
+		_, err := mClient.CoreV1().Services(serviceNSName[0]).Patch(serviceNSName[1], types.MergePatchType, patchPayload, "status")
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 			return err
