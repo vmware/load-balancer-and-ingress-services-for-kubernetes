@@ -78,12 +78,12 @@ func TestMain(m *testing.M) {
 	waitGroupMap["graph"] = wgGraph
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
-	AddConfigMap()
+	addConfigMap()
 	integrationtest.KubeClient = KubeClient
 	os.Exit(m.Run())
 }
 
-func AddConfigMap() {
+func addConfigMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "vmware-system-ako",
@@ -271,7 +271,7 @@ func TestAdvL4BestCase(t *testing.T) {
 	g.Eventually(func() int {
 		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
-	}, 10*time.Second).Should(gomega.Equal(0))
+	}, 20*time.Second).Should(gomega.Equal(0))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
