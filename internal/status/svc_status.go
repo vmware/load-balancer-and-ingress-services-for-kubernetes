@@ -72,7 +72,11 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 				continue
 			}
 
-			_, err := mClient.CoreV1().Services(service.Namespace).UpdateStatus(service)
+			patchPayload, _ := json.Marshal(map[string]interface{}{
+				"status": service.Status,
+			})
+
+			_, err := mClient.CoreV1().Services(service.Namespace).Patch(service.Name, types.MergePatchType, patchPayload, "status")
 			if err != nil {
 				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
 				continue
@@ -106,11 +110,7 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 			},
 		}
 
-		patchPayload, _ := json.Marshal(map[string]interface{}{
-			"status": mLb.Status,
-		})
-
-		_, err = mClient.CoreV1().Services(serviceNSName[0]).Patch(serviceNSName[1], types.MergePatchType, patchPayload, "status")
+		_, err = mClient.CoreV1().Services(serviceNSName[0]).UpdateStatus(mLb)
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 			return err
