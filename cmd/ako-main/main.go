@@ -38,6 +38,7 @@ import (
 var (
 	masterURL  string
 	kubeconfig string
+	version    = "dev"
 )
 
 func main() {
@@ -56,6 +57,7 @@ func InitializeAKOApi() {
 func InitializeAKC() {
 	var err error
 	kubeCluster := false
+	utils.AviLog.Info("AKO is running with version: ", version)
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
