@@ -15,8 +15,10 @@
 package status
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -28,6 +30,7 @@ import (
 	core "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 )
 
 type UpdateGWStatusConditionOptions struct {
@@ -137,6 +140,7 @@ func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, updateStatus 
 
 // supported ListenerConditionType
 // PortConflict, InvalidRoutes, UnsupportedProtocol, *Serviceable
+// pass portString as empty string for updating status in all ports
 func UpdateGatewayStatusListenerConditions(gw *advl4v1alpha1pre1.Gateway, portString string, updateStatus *UpdateGWStatusConditionOptions) {
 	utils.AviLog.Debugf("Updating Gateway status listener condition port: %s %v", portString, utils.Stringify(updateStatus))
 	for port, condition := range gw.Status.Listeners {
@@ -178,11 +182,6 @@ func UpdateGatewayStatusListenerConditions(gw *advl4v1alpha1pre1.Gateway, portSt
 			Status: corev1.ConditionTrue,
 			Reason: fmt.Sprintf("port %s error %s", portString, updateStatus.Type),
 		})
-		UpdateGatewayStatusGWCondition(gw, &UpdateGWStatusConditionOptions{
-			Type:   "Ready",
-			Status: corev1.ConditionFalse,
-			Reason: "NotReady",
-		})
 	}
 }
 
@@ -195,8 +194,15 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 		}
 	}
 
-	gw.Status = *updateStatus
-	_, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).UpdateStatus(gw)
+	if reflect.DeepEqual(gw.Status, *updateStatus) {
+		return nil
+	}
+
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": updateStatus,
+	})
+
+	_, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(gw.Name, types.MergePatchType, patchPayload, "status")
 	if err != nil {
 		utils.AviLog.Warnf("msg: %d there was an error in updating the gateway status: %+v", retry, err)
 		updatedGW, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Get(gw.Name, metav1.GetOptions{})
@@ -239,7 +245,6 @@ func InitializeGatewayConditions(gw *advl4v1alpha1pre1.Gateway) error {
 		})
 	}
 	gw.Status.Listeners = listenerStatuses
-	gw.Status.Addresses = []advl4v1alpha1pre1.GatewayAddress{}
 
 	return UpdateGatewayStatusObject(gw, &gw.Status)
 }
