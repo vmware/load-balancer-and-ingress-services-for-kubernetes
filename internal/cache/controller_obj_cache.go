@@ -628,7 +628,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 	if len(nextPage) == 1 {
 		uri = nextPage[0].Next_uri
 	} else {
-		uri = "/api/vsvip/?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true" + "&cloud_ref.name=" + cloud
+		uri = "/api/vsvip/?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true" + "&cloud_ref.name=" + cloud + "&page_size=100"
 	}
 
 	result, err := AviGetCollectionRaw(client, uri)
