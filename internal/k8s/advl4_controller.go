@@ -63,8 +63,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Infof("key: %s, msg: ADD", key)
 
-			status.InitializeGatewayConditions(gw)
-			validateGatewayForStatusUpdates(key, gw)
+			InformerStatusUpdatesForGateway(key, gw)
 			checkGWForGatewayPortConflict(key, gw)
 
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -81,7 +80,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
 
-				validateGatewayForStatusUpdates(key, gw)
+				InformerStatusUpdatesForGateway(key, gw)
 				checkGWForGatewayPortConflict(key, gw)
 
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -146,10 +145,11 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 	return
 }
 
-func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gateway) {
+func InformerStatusUpdatesForGateway(key string, gateway *advl4v1alpha1pre1.Gateway) {
 	gwStatus := gateway.Status.DeepCopy()
 	defer status.UpdateGatewayStatusObject(gateway, gwStatus)
 
+	status.InitializeGatewayConditions(gwStatus, &gateway.Spec, false)
 	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
 	if err != nil {
 		status.UpdateGatewayStatusGWCondition(gwStatus, &status.UpdateGWStatusConditionOptions{
