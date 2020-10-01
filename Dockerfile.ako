@@ -10,5 +10,6 @@ RUN GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -o $GOPATH/bin/akc -mod=vendo
 FROM photon:latest
 RUN yum install -y tar.x86_64
 COPY --from=build /go/bin/akc .
+COPY ./scripts/pre_stop_hook.sh /var/pre_stop_hook.sh
 EXPOSE 8080
 ENTRYPOINT ["./akc"]
