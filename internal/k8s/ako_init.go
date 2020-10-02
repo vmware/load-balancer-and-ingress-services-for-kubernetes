@@ -120,7 +120,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(utils.AviLog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
-	firstboot := true
 
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -132,13 +131,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
 			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
 			lib.SetDisableSync(c.DisableSync)
-			if !firstboot && avicache.ValidateUserInput(aviclient) {
-				if delConfigFromData(cm.Data) {
-					c.DeleteModels()
-				} else {
-					quickSyncCh <- struct{}{}
-				}
-			}
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			cm, ok := validateAviConfigMap(obj)
@@ -170,12 +162,8 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 
 		},
 		DeleteFunc: func(obj interface{}) {
-			if _, ok := validateAviConfigMap(obj); ok {
-				utils.AviLog.Warnf("avi k8s configmap deleted, disabling sync")
-				c.DisableSync = true
-				lib.SetDisableSync(true)
-				firstboot = false
-			}
+			utils.AviLog.Warnf("avi k8s configmap deleted, shutting down api server")
+			lib.ShutdownApi()
 		},
 	}
 
