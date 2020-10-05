@@ -99,7 +99,7 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 
 		_, err := mClient.CoreV1().Services(serviceNSName[0]).Patch(serviceNSName[1], types.MergePatchType, patchPayload, "status")
 		if err != nil {
-			utils.AviLog.Errorf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
+			utils.AviLog.Warnf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 			return err
 		}
 

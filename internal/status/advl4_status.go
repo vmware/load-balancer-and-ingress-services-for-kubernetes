@@ -50,15 +50,15 @@ func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
 	// in which case gateway will be fetched again in updateObject, as part of a retry
 	gatewayMap := getGateways(gatewaysToUpdate, bulk)
 	for _, option := range updateGWOptions {
-		if gw := gatewayMap[option.IngSvc]; gw != nil {
-			updateServiceOptions = append(updateServiceOptions, UpdateStatusOptions{
-				Vip: option.Vip,
-				Key: option.Key,
-				ServiceMetadata: avicache.ServiceMetadataObj{
-					NamespaceServiceName: option.ServiceMetadata.NamespaceServiceName,
-				},
-			})
+		updateServiceOptions = append(updateServiceOptions, UpdateStatusOptions{
+			Vip: option.Vip,
+			Key: option.Key,
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				NamespaceServiceName: option.ServiceMetadata.NamespaceServiceName,
+			},
+		})
 
+		if gw := gatewayMap[option.IngSvc]; gw != nil {
 			// assuming 1 IP per gateway
 			gwStatus := gw.Status.DeepCopy()
 			gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
@@ -68,16 +68,15 @@ func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
 
 			// when statuses are synced during bootup
 			InitializeGatewayConditions(gwStatus, &gw.Spec, true)
+			UpdateGatewayStatusGWCondition(gwStatus, &UpdateGWStatusConditionOptions{
+				Type:   "Ready",
+				Status: corev1.ConditionTrue,
+			})
 			UpdateGatewayStatusObject(gw, gwStatus)
-		} else {
-			utils.AviLog.Infof("key: %s, msg: unable to find gateway object %s", option.Key, option.ServiceMetadata.Gateway)
-			DeleteL4LBStatus(avicache.ServiceMetadataObj{
-				NamespaceServiceName: option.ServiceMetadata.NamespaceServiceName,
-			}, option.Key)
 		}
 	}
 
-	UpdateL4LBStatus(updateServiceOptions, true)
+	UpdateL4LBStatus(updateServiceOptions, bulk)
 	return
 }
 
@@ -142,10 +141,10 @@ func UpdateGatewayStatusGWCondition(gwStatus *advl4v1alpha1pre1.GatewayStatus, u
 		} else {
 			inverseCondition = corev1.ConditionFalse
 		}
+		// if Pending true, mark Ready as false automatically...
+		// if Ready true, mark Pending as false automatically...
 		if (updateStatus.Type == "Pending" && string(gwStatus.Conditions[i].Type) == "Ready") ||
-		(updateStatus.Type == "Ready" && string(gwStatus.Conditions[i].Type) == "Pending") {
-			// if Pending true, mark Ready as false automatically...
-			// if Ready true, mark Pending as false automatically...
+			(updateStatus.Type == "Ready" && string(gwStatus.Conditions[i].Type) == "Pending") {
 			gwStatus.Conditions[i].Status = inverseCondition
 			gwStatus.Conditions[i].LastTransitionTime = metav1.Now()
 			gwStatus.Conditions[i].Message = ""
@@ -220,7 +219,7 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 			return errors.New("msg: UpdateGatewayStatus retried 5 times, aborting")
 		}
 	}
-	if reflect.DeepEqual(gw.Status, *updateStatus) {
+	if compareGatewayStatuses(&gw.Status, updateStatus) {
 		return nil
 	}
 
@@ -344,4 +343,28 @@ func getGateways(gwNSNames []string, bulk bool, retryNum ...int) map[string]*adv
 	}
 
 	return gwMap
+}
+
+// do not compare lastTransitionTime updates in gateway
+func compareGatewayStatuses(old, new *advl4v1alpha1pre1.GatewayStatus) bool {
+	oldStatus, newStatus := old.DeepCopy(), new.DeepCopy()
+	currentTime := metav1.Now()
+	for i, _ := range oldStatus.Conditions {
+		oldStatus.Conditions[i].LastTransitionTime = currentTime
+	}
+	for _, listener := range oldStatus.Listeners {
+		for i, _ := range listener.Conditions {
+			listener.Conditions[i].LastTransitionTime = currentTime
+		}
+	}
+	for i, _ := range newStatus.Conditions {
+		newStatus.Conditions[i].LastTransitionTime = currentTime
+	}
+	for _, listener := range newStatus.Listeners {
+		for i, _ := range listener.Conditions {
+			listener.Conditions[i].LastTransitionTime = currentTime
+		}
+	}
+
+	return reflect.DeepEqual(oldStatus, newStatus)
 }
