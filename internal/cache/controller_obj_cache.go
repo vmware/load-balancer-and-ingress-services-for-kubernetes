@@ -1759,7 +1759,7 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 	l4CacheData := c.L4PolicyCache.ShallowCopy()
 	for i, l4PolCacheObj := range l4PolData {
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: l4PolCacheObj.Name}
-		utils.AviLog.Infof("Adding key to l4 cache :%s", utils.Stringify(l4PolCacheObj))
+		utils.AviLog.Debugf("Adding key to l4 cache :%s", utils.Stringify(l4PolCacheObj))
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolData[i])
 		delete(l4CacheData, k)
 	}

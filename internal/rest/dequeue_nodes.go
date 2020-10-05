@@ -413,7 +413,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				_, validAviError := err.(session.AviError)
 				if !validAviError && avimodel != nil && avimodel.GetRetryCounter() != 0 {
 					// We may face this error if the connection is idle for some time
-					utils.AviLog.Errorf("key:%s, error in parsing the error to avi error: %v, adding to fast retry queue", key, err.Error())
+					utils.AviLog.Errorf("key: %s, error in parsing the error to avi error: %v, adding to fast retry queue", key, err.Error())
 					rest.PublishKeyToRetryLayer(publishKey, aviclient, key)
 					return false
 				}
