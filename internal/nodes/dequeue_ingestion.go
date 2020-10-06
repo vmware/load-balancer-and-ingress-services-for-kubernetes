@@ -55,11 +55,20 @@ func DequeueIngestion(key string, fullsync bool) {
 				handleL4Service(svcl4Key, fullsync)
 			}
 			for _, svcl7Key := range svcl7Keys {
+				_, namespace, svcName := extractTypeNameNamespace(svcl7Key)
 				if ingressFound {
-					handleIngress(svcl7Key, fullsync, ingressNames)
+					filteredIngressFound, filteredIngressNames := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
+					if !filteredIngressFound {
+						continue
+					}
+					handleIngress(svcl7Key, fullsync, filteredIngressNames)
 				}
 				if routeFound {
-					handleRoute(svcl7Key, fullsync, routeNames)
+					filteredRouteFound, filteredRouteNames := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
+					if !filteredRouteFound {
+						continue
+					}
+					handleRoute(svcl7Key, fullsync, filteredRouteNames)
 				}
 			}
 		}
