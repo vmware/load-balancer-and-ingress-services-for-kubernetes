@@ -546,13 +546,17 @@ func (avisess *AviSession) restRequest(verb string, uri string, payload interfac
 		avisess.collectCookiesFromResp(resp)
 
 		if resp.StatusCode == 401 && len(avisess.sessionid) != 0 && uri != "login" {
-			resp.Body.Close()
 			glog.Infof("Retrying url %s; retry %d due to Status Code %d", url, retry, resp.StatusCode)
 			err := avisess.initiateSession()
 			if err != nil {
+				resp.Body.Close()
 				return nil, err
 			}
+			if avisess.ctrlStatusCheckDisabled {
+				return resp, nil
+			}
 			retryReq = true
+			resp.Body.Close()
 		} else if resp.StatusCode == 419 || (resp.StatusCode >= 500 && resp.StatusCode < 599) {
 			resp.Body.Close()
 			retryReq = true

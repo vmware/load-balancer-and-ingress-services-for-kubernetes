@@ -410,12 +410,19 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						publishKey = splitKeys[1]
 					}
 				}
-				_, validAviError := err.(session.AviError)
-				if !validAviError && avimodel != nil && avimodel.GetRetryCounter() != 0 {
-					// We may face this error if the connection is idle for some time
-					utils.AviLog.Errorf("key: %s, error in parsing the error to avi error: %v, adding to fast retry queue", key, err.Error())
-					rest.PublishKeyToRetryLayer(publishKey, aviclient, key)
-					return false
+
+				if webSyncErr, ok := err.(*utils.WebSyncError); ok {
+					aviError, ok := webSyncErr.GetWebAPIError().(session.AviError)
+					if ok && aviError.HttpStatusCode == 401 {
+						if avimodel != nil && avimodel.GetRetryCounter() != 0 {
+							utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to fast retry queue", key)
+							rest.PublishKeyToRetryLayer(publishKey, aviclient, key)
+						} else {
+							utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to slow retry queue", key)
+							rest.PublishKeyToSlowRetryLayer(publishKey, aviclient, key)
+						}
+						return false
+					}
 				}
 				if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
 					// This is a candidate for slow retry
