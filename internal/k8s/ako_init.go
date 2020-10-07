@@ -255,6 +255,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	// Set up the workers but don't start draining them.
 	if lib.GetAdvancedL4() {
 		err = nil
+		interval = 300 // seconds, hardcoded for now.
 	}
 	c.SetupEventHandlers(informers)
 	if err != nil {
@@ -262,13 +263,13 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	} else {
 		// First boot sync
 		c.FullSyncK8s()
-		if interval != 0 && !lib.GetAdvancedL4() {
+		if interval != 0 {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
 			worker.SyncFunction = c.FullSync
 			worker.QuickSyncFunction = c.FullSyncK8s
 			go worker.Run()
 		} else {
-			utils.AviLog.Infof("Full sync not configured to run, either full sync frequency is set to 0 or AKO is running in advancedL4 mode")
+			utils.AviLog.Infof("Full sync not configured to run since interval is set to 0")
 		}
 	}
 
@@ -307,7 +308,13 @@ func (c *AviController) FullSync() {
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
-		avi_obj_cache.AviCacheRefresh(avi_rest_client_pool.AviClient[0], utils.CloudName)
+		if !lib.GetAdvancedL4() {
+			avi_obj_cache.AviCacheRefresh(avi_rest_client_pool.AviClient[0], utils.CloudName)
+		} else {
+			// In this case we just sync the Gateway status to the LB status
+			restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
+			restlayer.SyncObjectStatuses()
+		}
 		allModelsMap := objects.SharedAviGraphLister().GetAll()
 		var allModels []string
 		for modelName, _ := range allModelsMap.(map[string]interface{}) {
