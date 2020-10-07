@@ -486,7 +486,7 @@ func checkVsVipUpdateErrors(key string, rest_op *utils.RestOp) bool {
 				strings.Contains(rest_op.Err.Error(), lib.AviControllerRecreateVIPError)) {
 			utils.AviLog.Warnf("key: %s, msg: Unsupported call for vsvip %d: %v", key, aviError.HttpStatusCode, rest_op.Err)
 			// this adds error as a message, useful for sending Avi errors to k8s object statuses, if required
-			rest_op.Message = rest_op.Err.Error()
+			rest_op.Message = *aviError.Message
 			return true
 		}
 	}

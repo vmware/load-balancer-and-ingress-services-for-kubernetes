@@ -28,7 +28,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -53,7 +52,7 @@ func PopulateCache() error {
 		}
 		// once the l3 cache is populated, we can call the updatestatus functions from here
 		restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
-		restlayer.SyncIngressStatus()
+		restlayer.SyncObjectStatuses()
 	}
 
 	// Delete Stale objects by deleting model for dummy VS
@@ -422,8 +421,8 @@ func (c *AviController) FullSyncK8s() {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
 		} else {
 			for _, gatewayObj := range gatewayObjs {
-				status.InitializeGatewayConditions(gatewayObj)
 				key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+				InformerStatusUpdatesForGateway(key, gatewayObj)
 				nodes.DequeueIngestion(key, true)
 			}
 		}

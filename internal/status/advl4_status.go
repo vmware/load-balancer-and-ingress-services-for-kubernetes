@@ -15,8 +15,10 @@
 package status
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -28,6 +30,7 @@ import (
 	core "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 )
 
 type UpdateGWStatusConditionOptions struct {
@@ -37,45 +40,59 @@ type UpdateGWStatusConditionOptions struct {
 	Reason  string               // reason for transition
 }
 
-// TODO: handle bulk during bootup
 func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
-	for _, option := range options {
-		gatewayNSName := strings.Split(option.ServiceMetadata.Gateway, "/")
-		gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gatewayNSName[0]).Get(gatewayNSName[1], metav1.GetOptions{})
-		if err != nil {
+	gatewaysToUpdate, updateGWOptions := parseOptionsFromMetadata(options, bulk)
+	var updateServiceOptions []UpdateStatusOptions
+
+	// gatewayMap: {ns/gateway: gatewayObj}
+	// this pre-fetches all gateways to be candidates for status update
+	// after pre-fetching, if a status update comes for that gateway, then the pre-fetched gateway would be stale
+	// in which case gateway will be fetched again in updateObject, as part of a retry
+	gatewayMap := getGateways(gatewaysToUpdate, bulk)
+	for _, option := range updateGWOptions {
+		if gw := gatewayMap[option.IngSvc]; gw != nil {
+			updateServiceOptions = append(updateServiceOptions, UpdateStatusOptions{
+				Vip: option.Vip,
+				Key: option.Key,
+				ServiceMetadata: avicache.ServiceMetadataObj{
+					NamespaceServiceName: option.ServiceMetadata.NamespaceServiceName,
+				},
+			})
+
+			// assuming 1 IP per gateway
+			gwStatus := gw.Status.DeepCopy()
+			gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
+				Value: option.Vip,
+				Type:  advl4v1alpha1pre1.IPAddressType,
+			}}
+
+			// when statuses are synced during bootup
+			InitializeGatewayConditions(gwStatus, &gw.Spec, true)
+			UpdateGatewayStatusObject(gw, gwStatus)
+		} else {
 			utils.AviLog.Infof("key: %s, msg: unable to find gateway object %s", option.Key, option.ServiceMetadata.Gateway)
-			continue
-		}
-
-		// assuming 1 IP per gateway
-		gwStatus := gw.Status
-		if len(gwStatus.Addresses) > 0 && gwStatus.Addresses[0].Value == option.Vip {
-			continue
-		}
-
-		gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
-			Value: option.Vip,
-			Type:  advl4v1alpha1pre1.IPAddressType,
-		}}
-		UpdateGatewayStatusGWCondition(gw, &UpdateGWStatusConditionOptions{
-			Type:   "Ready",
-			Status: corev1.ConditionTrue,
-		})
-		UpdateGatewayStatusObject(gw, &gwStatus)
-
-		utils.AviLog.Debugf("key: %s, msg: Updating corresponding service %v statuses for gateway %s",
-			option.Key, option.ServiceMetadata.NamespaceServiceName, option.ServiceMetadata.Gateway)
-
-		UpdateL4LBStatus([]UpdateStatusOptions{{
-			Vip: option.Vip,
-			Key: option.Key,
-			ServiceMetadata: avicache.ServiceMetadataObj{
+			DeleteL4LBStatus(avicache.ServiceMetadataObj{
 				NamespaceServiceName: option.ServiceMetadata.NamespaceServiceName,
-			},
-		}}, false)
+			}, option.Key)
+		}
 	}
 
+	UpdateL4LBStatus(updateServiceOptions, true)
 	return
+}
+
+func parseOptionsFromMetadata(options []UpdateStatusOptions, bulk bool) ([]string, []UpdateStatusOptions) {
+	var objectsToUpdate []string
+	var updateGWOptions []UpdateStatusOptions
+
+	for _, option := range options {
+		if option.ServiceMetadata.Gateway != "" {
+			option.IngSvc = option.ServiceMetadata.Gateway
+			objectsToUpdate = append(objectsToUpdate, option.ServiceMetadata.Gateway)
+			updateGWOptions = append(updateGWOptions, option)
+		}
+	}
+	return objectsToUpdate, updateGWOptions
 }
 
 func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key string) error {
@@ -92,13 +109,14 @@ func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key 
 	}
 
 	// assuming 1 IP per gateway
-	gw.Status.Addresses = []advl4v1alpha1pre1.GatewayAddress{}
-	UpdateGatewayStatusGWCondition(gw, &UpdateGWStatusConditionOptions{
+	gwStatus := gw.Status.DeepCopy()
+	gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{}
+	UpdateGatewayStatusGWCondition(gwStatus, &UpdateGWStatusConditionOptions{
 		Type:   "Pending",
 		Status: corev1.ConditionTrue,
 		Reason: "virtualservice deleted/notfound",
 	})
-	UpdateGatewayStatusObject(gw, &gw.Status)
+	UpdateGatewayStatusObject(gw, gwStatus)
 
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, svcMetadataObj.Gateway)
 	return nil
@@ -106,60 +124,73 @@ func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key 
 
 // supported GatewayConditionTypes
 // InvalidListeners, InvalidAddress, *Serviceable
-func UpdateGatewayStatusGWCondition(gw *advl4v1alpha1pre1.Gateway, updateStatus *UpdateGWStatusConditionOptions) {
+func UpdateGatewayStatusGWCondition(gwStatus *advl4v1alpha1pre1.GatewayStatus, updateStatus *UpdateGWStatusConditionOptions) {
 	utils.AviLog.Debugf("Updating Gateway status gateway condition %v", utils.Stringify(updateStatus))
-	for i, _ := range gw.Status.Conditions {
-		if string(gw.Status.Conditions[i].Type) == updateStatus.Type {
-			gw.Status.Conditions[i].Status = updateStatus.Status
-			gw.Status.Conditions[i].Message = updateStatus.Message
-			gw.Status.Conditions[i].Reason = updateStatus.Reason
-			gw.Status.Conditions[i].LastTransitionTime = metav1.Now()
+	InitializeGatewayConditions(gwStatus, nil, false)
+
+	for i, _ := range gwStatus.Conditions {
+		if string(gwStatus.Conditions[i].Type) == updateStatus.Type {
+			gwStatus.Conditions[i].Status = updateStatus.Status
+			gwStatus.Conditions[i].Message = updateStatus.Message
+			gwStatus.Conditions[i].Reason = updateStatus.Reason
+			gwStatus.Conditions[i].LastTransitionTime = metav1.Now()
 		}
 
-		if (updateStatus.Type == "Pending" && string(gw.Status.Conditions[i].Type) == "Ready") ||
-			(updateStatus.Type == "Ready" && string(gw.Status.Conditions[i].Type) == "Pending") {
-			// if Pending true, mark Ready as false automatically
-			// if Ready true, mark Pending as false automatically
-			gw.Status.Conditions[i].Status = corev1.ConditionFalse
-			gw.Status.Conditions[i].LastTransitionTime = metav1.Now()
-			gw.Status.Conditions[i].Message = ""
-			gw.Status.Conditions[i].Reason = ""
+		var inverseCondition corev1.ConditionStatus
+		if updateStatus.Status == corev1.ConditionFalse {
+			inverseCondition = corev1.ConditionTrue
+		} else {
+			inverseCondition = corev1.ConditionFalse
 		}
-
-		if updateStatus.Type == "Ready" {
-			UpdateGatewayStatusListenerConditions(gw, "", &UpdateGWStatusConditionOptions{
-				Type:   "Ready",
-				Status: corev1.ConditionTrue,
-			})
+		if (updateStatus.Type == "Pending" && string(gwStatus.Conditions[i].Type) == "Ready") ||
+		(updateStatus.Type == "Ready" && string(gwStatus.Conditions[i].Type) == "Pending") {
+			// if Pending true, mark Ready as false automatically...
+			// if Ready true, mark Pending as false automatically...
+			gwStatus.Conditions[i].Status = inverseCondition
+			gwStatus.Conditions[i].LastTransitionTime = metav1.Now()
+			gwStatus.Conditions[i].Message = ""
+			gwStatus.Conditions[i].Reason = ""
 		}
 	}
+
+	var listenerConditionStatus corev1.ConditionStatus
+	if updateStatus.Type == "Ready" {
+		listenerConditionStatus = corev1.ConditionTrue
+	} else {
+		listenerConditionStatus = corev1.ConditionFalse
+	}
+	UpdateGatewayStatusListenerConditions(gwStatus, "", &UpdateGWStatusConditionOptions{
+		Type:   "Ready",
+		Status: listenerConditionStatus,
+	})
 }
 
 // supported ListenerConditionType
 // PortConflict, InvalidRoutes, UnsupportedProtocol, *Serviceable
-func UpdateGatewayStatusListenerConditions(gw *advl4v1alpha1pre1.Gateway, portString string, updateStatus *UpdateGWStatusConditionOptions) {
+// pass portString as empty string for updating status in all ports
+func UpdateGatewayStatusListenerConditions(gwStatus *advl4v1alpha1pre1.GatewayStatus, portString string, updateStatus *UpdateGWStatusConditionOptions) {
 	utils.AviLog.Debugf("Updating Gateway status listener condition port: %s %v", portString, utils.Stringify(updateStatus))
-	for port, condition := range gw.Status.Listeners {
+	for port, condition := range gwStatus.Listeners {
 		notFound := true
 		if condition.Port == portString || portString == "" {
 			for i, portCondition := range condition.Conditions {
-				if updateStatus.Type == "Ready" && updateStatus.Type != string(portCondition.Type) {
-					gw.Status.Listeners[port].Conditions[i].Status = corev1.ConditionFalse
-					gw.Status.Listeners[port].Conditions[i].Message = ""
-					gw.Status.Listeners[port].Conditions[i].Reason = ""
+				if updateStatus.Type == "Ready" && updateStatus.Type != string(portCondition.Type) && updateStatus.Status == corev1.ConditionTrue {
+					gwStatus.Listeners[port].Conditions[i].Status = corev1.ConditionFalse
+					gwStatus.Listeners[port].Conditions[i].Message = ""
+					gwStatus.Listeners[port].Conditions[i].Reason = ""
 				}
 
 				if string(portCondition.Type) == updateStatus.Type {
-					gw.Status.Listeners[port].Conditions[i].Status = updateStatus.Status
-					gw.Status.Listeners[port].Conditions[i].Message = updateStatus.Message
-					gw.Status.Listeners[port].Conditions[i].Reason = updateStatus.Reason
-					gw.Status.Listeners[port].Conditions[i].LastTransitionTime = metav1.Now()
+					gwStatus.Listeners[port].Conditions[i].Status = updateStatus.Status
+					gwStatus.Listeners[port].Conditions[i].Message = updateStatus.Message
+					gwStatus.Listeners[port].Conditions[i].Reason = updateStatus.Reason
+					gwStatus.Listeners[port].Conditions[i].LastTransitionTime = metav1.Now()
 					notFound = false
 				}
 			}
 
 			if notFound {
-				gw.Status.Listeners[port].Conditions = append(gw.Status.Listeners[port].Conditions, advl4v1alpha1pre1.ListenerCondition{
+				gwStatus.Listeners[port].Conditions = append(gwStatus.Listeners[port].Conditions, advl4v1alpha1pre1.ListenerCondition{
 					Type:               advl4v1alpha1pre1.ListenerConditionType(updateStatus.Type),
 					Status:             updateStatus.Status,
 					Reason:             updateStatus.Reason,
@@ -173,15 +204,10 @@ func UpdateGatewayStatusListenerConditions(gw *advl4v1alpha1pre1.Gateway, portSt
 	// gateway Condition back from Ready to Pending
 	badTypes := []string{"PortConflict", "InvalidRoutes", "UnsupportedProtocol"}
 	if utils.HasElem(badTypes, updateStatus.Type) {
-		UpdateGatewayStatusGWCondition(gw, &UpdateGWStatusConditionOptions{
+		UpdateGatewayStatusGWCondition(gwStatus, &UpdateGWStatusConditionOptions{
 			Type:   "Pending",
 			Status: corev1.ConditionTrue,
 			Reason: fmt.Sprintf("port %s error %s", portString, updateStatus.Type),
-		})
-		UpdateGatewayStatusGWCondition(gw, &UpdateGWStatusConditionOptions{
-			Type:   "Ready",
-			Status: corev1.ConditionFalse,
-			Reason: "NotReady",
 		})
 	}
 }
@@ -194,9 +220,15 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 			return errors.New("msg: UpdateGatewayStatus retried 5 times, aborting")
 		}
 	}
+	if reflect.DeepEqual(gw.Status, *updateStatus) {
+		return nil
+	}
 
-	gw.Status = *updateStatus
-	_, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).UpdateStatus(gw)
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": updateStatus,
+	})
+
+	_, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(gw.Name, types.MergePatchType, patchPayload, "status")
 	if err != nil {
 		utils.AviLog.Warnf("msg: %d there was an error in updating the gateway status: %+v", retry, err)
 		updatedGW, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Get(gw.Name, metav1.GetOptions{})
@@ -207,39 +239,109 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 		return UpdateGatewayStatusObject(updatedGW, updateStatus, retry+1)
 	}
 
-	utils.AviLog.Infof("msg: Successfully updated the gateway %s/%s status %+v", gw.Namespace, gw.Name, utils.Stringify(updateStatus))
+	utils.AviLog.Debugf("msg: Successfully updated the gateway %s/%s status %+v", gw.Namespace, gw.Name, utils.Stringify(updateStatus))
 	return nil
 }
 
-func InitializeGatewayConditions(gw *advl4v1alpha1pre1.Gateway) error {
-	if len(gw.Status.Conditions) > 0 {
-		// already initialised
-		return nil
+func InitializeGatewayConditions(gwStatus *advl4v1alpha1pre1.GatewayStatus, gwSpec *advl4v1alpha1pre1.GatewaySpec, gwReady bool) {
+	if len(gwStatus.Conditions) == 0 {
+		gwStatus.Conditions = []advl4v1alpha1pre1.GatewayCondition{{
+			Type:               "Pending",
+			Status:             corev1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+		}, {
+			Type:               "Ready",
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Now(),
+		}}
 	}
 
-	gw.Status.Conditions = []advl4v1alpha1pre1.GatewayCondition{{
-		Type:               "Pending",
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-	}, {
-		Type:               "Ready",
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-	}}
+	if gwSpec == nil {
+		return
+	}
+
+	gwPortMap := make(map[string][]advl4v1alpha1pre1.ListenerCondition)
+	for _, listenerStatus := range gwStatus.Listeners {
+		gwPortMap[listenerStatus.Port] = listenerStatus.Conditions
+	}
 
 	var listenerStatuses []advl4v1alpha1pre1.ListenerStatus
-	for _, listener := range gw.Spec.Listeners {
-		listenerStatuses = append(listenerStatuses, advl4v1alpha1pre1.ListenerStatus{
-			Port: strconv.Itoa(int(listener.Port)),
-			Conditions: []advl4v1alpha1pre1.ListenerCondition{{
-				Type:               "Ready",
-				Status:             corev1.ConditionFalse,
-				LastTransitionTime: metav1.Now(),
-			}},
-		})
+	for _, listener := range gwSpec.Listeners {
+		if val, ok := gwPortMap[strconv.Itoa(int(listener.Port))]; ok {
+			listenerStatuses = append(listenerStatuses, advl4v1alpha1pre1.ListenerStatus{
+				Port:       strconv.Itoa(int(listener.Port)),
+				Conditions: val,
+			})
+		} else {
+			var portCondition corev1.ConditionStatus
+			if gwReady {
+				portCondition = corev1.ConditionTrue
+			} else {
+				portCondition = corev1.ConditionFalse
+			}
+			listenerStatuses = append(listenerStatuses, advl4v1alpha1pre1.ListenerStatus{
+				Port: strconv.Itoa(int(listener.Port)),
+				Conditions: []advl4v1alpha1pre1.ListenerCondition{{
+					Type:               "Ready",
+					Status:             portCondition,
+					LastTransitionTime: metav1.Now(),
+				}},
+			})
+		}
 	}
-	gw.Status.Listeners = listenerStatuses
-	gw.Status.Addresses = []advl4v1alpha1pre1.GatewayAddress{}
 
-	return UpdateGatewayStatusObject(gw, &gw.Status)
+	gwStatus.Listeners = listenerStatuses
+	if len(gwStatus.Addresses) == 0 {
+		gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{}
+	}
+	return
+}
+
+// getGateways fetches all ingresses and returns a map: {"namespace/name": ingressObj...}
+// if bulk is set to true, this fetches all ingresses in a single k8s api-server call
+func getGateways(gwNSNames []string, bulk bool, retryNum ...int) map[string]*advl4v1alpha1pre1.Gateway {
+	retry := 0
+	gwMap := make(map[string]*advl4v1alpha1pre1.Gateway)
+	if len(retryNum) > 0 {
+		utils.AviLog.Infof("msg: Retrying to get the gateway for status update")
+		retry = retryNum[0]
+		if retry >= 2 {
+			utils.AviLog.Errorf("msg: getGateways for status update retried 3 times, aborting")
+			return gwMap
+		}
+	}
+
+	if bulk {
+		gwList, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways("").List(metav1.ListOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Could not get the gateway object for UpdateStatus: %s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getGateways(gwNSNames, bulk, retry+1)
+			}
+		} else {
+			for i := range gwList.Items {
+				ing := gwList.Items[i]
+				gwMap[ing.Namespace+"/"+ing.Name] = &ing
+			}
+		}
+		return gwMap
+	}
+
+	for _, namespaceName := range gwNSNames {
+		nsNameSplit := strings.Split(namespaceName, "/")
+		gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("msg: Could not get the gateway object for UpdateStatus: %s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getGateways(gwNSNames, bulk, retry+1)
+			}
+		} else {
+			gwMap[gw.Namespace+"/"+gw.Name] = gw
+		}
+
+	}
+
+	return gwMap
 }

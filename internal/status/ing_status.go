@@ -263,7 +263,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		utils.AviLog.Infof("msg: Retrying to get the ingress for status update")
 		retry = retryNum[0]
 		if retry >= 2 {
-			utils.AviLog.Errorf("msg: GetIngress for status update retried 3 times, aborting")
+			utils.AviLog.Errorf("msg: getIngresses for status update retried 3 times, aborting")
 			return ingressMap
 		}
 	}
@@ -290,6 +290,10 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 			ingressList, err := mClient.NetworkingV1beta1().Ingresses("").List(metav1.ListOptions{})
 			if err != nil {
 				utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %s", err)
+				// retry get if request timeout
+				if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+					return getIngresses(ingressNSNames, bulk, retry+1)
+				}
 			}
 			for i := range ingressList.Items {
 				ing := ingressList.Items[i]
@@ -314,7 +318,6 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
-			continue
 		}
 
 		mIngress, ok := utils.ToNetworkingIngress(ingObj)

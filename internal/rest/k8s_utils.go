@@ -22,10 +22,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-// SyncIngressStatus gets data from L3 cache and does a status update on the ingress objects
+// SyncObjectStatuses gets data from L3 cache and does a status update on the ingress objects
 // based on the service metadata objects it finds in the cache
 // This is executed once AKO is done with populating the L3 cache in reboot scenarios
-func (rest *RestOperations) SyncIngressStatus() {
+func (rest *RestOperations) SyncObjectStatuses() {
 	vsKeys := rest.cache.VsCacheMeta.AviGetAllKeys()
 	utils.AviLog.Debugf("Ingress status sync for vsKeys %+v", utils.Stringify(vsKeys))
 

@@ -63,8 +63,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Infof("key: %s, msg: ADD", key)
 
-			status.InitializeGatewayConditions(gw)
-			validateGatewayForStatusUpdates(key, gw)
+			InformerStatusUpdatesForGateway(key, gw)
 			checkGWForGatewayPortConflict(key, gw)
 
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -81,7 +80,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
 
-				validateGatewayForStatusUpdates(key, gw)
+				InformerStatusUpdatesForGateway(key, gw)
 				checkGWForGatewayPortConflict(key, gw)
 
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -146,12 +145,14 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 	return
 }
 
-func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gateway) {
-	defer status.UpdateGatewayStatusObject(gateway, &gateway.Status)
+func InformerStatusUpdatesForGateway(key string, gateway *advl4v1alpha1pre1.Gateway) {
+	gwStatus := gateway.Status.DeepCopy()
+	defer status.UpdateGatewayStatusObject(gateway, gwStatus)
 
+	status.InitializeGatewayConditions(gwStatus, &gateway.Spec, false)
 	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
 	if err != nil {
-		status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
+		status.UpdateGatewayStatusGWCondition(gwStatus, &status.UpdateGWStatusConditionOptions{
 			Type:    "Pending",
 			Status:  corev1.ConditionTrue,
 			Message: fmt.Sprintf("Corresponding networking.x-k8s.io/gatewayclass not found %s", gateway.Spec.Class),
@@ -168,7 +169,7 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
-			status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
+			status.UpdateGatewayStatusGWCondition(gwStatus, &status.UpdateGWStatusConditionOptions{
 				Type:    "Pending",
 				Status:  corev1.ConditionTrue,
 				Message: "Incorrect gateway matchLabels configuration",
@@ -181,7 +182,7 @@ func validateGatewayForStatusUpdates(key string, gateway *advl4v1alpha1pre1.Gate
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
-		status.UpdateGatewayStatusGWCondition(gateway, &status.UpdateGWStatusConditionOptions{
+		status.UpdateGatewayStatusGWCondition(gwStatus, &status.UpdateGWStatusConditionOptions{
 			Type:    "Pending",
 			Status:  corev1.ConditionTrue,
 			Message: fmt.Sprintf("Unable to identify controller %s", gwClassObj.Spec.Controller),
@@ -222,12 +223,13 @@ func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 			}
 			if len(val) > 1 {
 				portProtocolArr := strings.Split(portProtocol, "/")
-				status.UpdateGatewayStatusListenerConditions(gw, portProtocolArr[1], &status.UpdateGWStatusConditionOptions{
+				gwStatus := gw.Status.DeepCopy()
+				status.UpdateGatewayStatusListenerConditions(gwStatus, portProtocolArr[1], &status.UpdateGWStatusConditionOptions{
 					Type:   "PortConflict",
 					Status: corev1.ConditionTrue,
 					Reason: fmt.Sprintf("conflicting port configuration provided in service %s and %s/%s", val, svc.Namespace, svc.Name),
 				})
-				status.UpdateGatewayStatusObject(gw, &gw.Status)
+				status.UpdateGatewayStatusObject(gw, gwStatus)
 				return
 			}
 		}
@@ -254,12 +256,13 @@ func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
 		}
 
 		if val, ok := gwSvcListeners[portProtoGW]; ok && len(val) > 1 {
-			status.UpdateGatewayStatusListenerConditions(gw, strconv.Itoa(int(listener.Port)), &status.UpdateGWStatusConditionOptions{
+			gwStatus := gw.Status.DeepCopy()
+			status.UpdateGatewayStatusListenerConditions(gwStatus, strconv.Itoa(int(listener.Port)), &status.UpdateGWStatusConditionOptions{
 				Type:   "PortConflict",
 				Status: corev1.ConditionTrue,
 				Reason: fmt.Sprintf("conflicting port configuration provided in service %s and %v", val, gwSvcListeners[portProtoGW]),
 			})
-			status.UpdateGatewayStatusObject(gw, &gw.Status)
+			status.UpdateGatewayStatusObject(gw, gwStatus)
 			return
 		}
 	}
@@ -268,12 +271,13 @@ func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
 	for portProto, svcs := range gwSvcListeners {
 		svcProtocol := strings.Split(portProto, "/")[0]
 		if !utils.HasElem(gwProtocols, svcProtocol) {
-			status.UpdateGatewayStatusListenerConditions(gw, strings.Split(portProto, "/")[1], &status.UpdateGWStatusConditionOptions{
+			gwStatus := gw.Status.DeepCopy()
+			status.UpdateGatewayStatusListenerConditions(gwStatus, strings.Split(portProto, "/")[1], &status.UpdateGWStatusConditionOptions{
 				Type:   "UnsupportedProtocol",
 				Status: corev1.ConditionTrue,
 				Reason: fmt.Sprintf("Unsupported protocol found in services %v", svcs),
 			})
-			status.UpdateGatewayStatusObject(gw, &gw.Status)
+			status.UpdateGatewayStatusObject(gw, gwStatus)
 			return
 		}
 	}
