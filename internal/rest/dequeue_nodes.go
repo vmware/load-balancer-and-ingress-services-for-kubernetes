@@ -156,6 +156,33 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	rest.ExecuteRestAndPopulateCache(restOps, vrfKey, avimodel, key)
 }
 
+// CheckAndPublishForRetry : Check if the error is of type 401, has string "Rest request error" or was timed out,
+// then publish the key to retry layer. These error do not depend on the objet state, hence cache refresh is not required.
+func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key string, avimodel *nodes.AviObjectGraph) bool {
+	if err == nil {
+		return false
+	}
+	if webSyncErr, ok := err.(*utils.WebSyncError); ok {
+		aviError, ok := webSyncErr.GetWebAPIError().(session.AviError)
+		if ok && aviError.HttpStatusCode == 401 {
+			if avimodel != nil && avimodel.GetRetryCounter() != 0 {
+				utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to fast retry queue", key)
+				rest.PublishKeyToRetryLayer(publishKey, key)
+			} else {
+				utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to slow retry queue", key)
+				rest.PublishKeyToSlowRetryLayer(publishKey, key)
+			}
+			return true
+		}
+	}
+	if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
+		utils.AviLog.Warnf("key: %s, msg: got error while executing rest request: %s, adding to slow retry queue", key, err.Error())
+		rest.PublishKeyToSlowRetryLayer(publishKey, key)
+		return true
+	}
+	return false
+}
+
 func (rest *RestOperations) RestOperation(vsName string, namespace string, avimodel *nodes.AviObjectGraph, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
 	var pools_to_delete []avicache.NamespaceName
 	var pgs_to_delete []avicache.NamespaceName
@@ -164,12 +191,30 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var sni_to_delete []avicache.NamespaceName
 	var httppol_to_delete []avicache.NamespaceName
 	var l4pol_to_delete []avicache.NamespaceName
+	var vsvipErr error
+	var publishKey string
+
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: vsName}
 	aviVsNode := avimodel.GetAviVS()[0]
+	if avimodel != nil && len(avimodel.GetAviVS()) > 0 {
+		publishKey = avimodel.GetAviVS()[0].Name
+	}
+	if publishKey == "" {
+		// This is a delete case for the virtualservice. Derive the virtualservice from the 'key'
+		splitKeys := strings.Split(key, "/")
+		if len(splitKeys) == 2 {
+			publishKey = splitKeys[1]
+		}
+	}
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
-		vsvip_to_delete, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
+		vsvip_to_delete, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
+		if vsvipErr != nil {
+			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
+				return
+			}
+		}
 		pools_to_delete, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, vs_cache_obj, namespace, rest_ops, key)
 		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
 		httppol_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
@@ -190,7 +235,13 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		}
 	} else {
 		var rest_ops []*utils.RestOp
-		_, rest_ops = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
+		_, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
+		if vsvipErr != nil {
+			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
+				return
+			}
+		}
+
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
@@ -411,23 +462,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					}
 				}
 
-				if webSyncErr, ok := err.(*utils.WebSyncError); ok {
-					aviError, ok := webSyncErr.GetWebAPIError().(session.AviError)
-					if ok && aviError.HttpStatusCode == 401 {
-						if avimodel != nil && avimodel.GetRetryCounter() != 0 {
-							utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to fast retry queue", key)
-							rest.PublishKeyToRetryLayer(publishKey, aviclient, key)
-						} else {
-							utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to slow retry queue", key)
-							rest.PublishKeyToSlowRetryLayer(publishKey, aviclient, key)
-						}
-						return false
-					}
-				}
-				if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
-					// This is a candidate for slow retry
-					utils.AviLog.Warnf("key: %s, msg: got error while executing rest request: %s, adding to slow retry queue", key, err.Error())
-					rest.PublishKeyToSlowRetryLayer(publishKey, aviclient, key)
+				if rest.CheckAndPublishForRetry(err, publishKey, key, avimodel) {
 					return false
 				}
 				utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
@@ -463,7 +498,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 							if ok {
 								statuscode := aviError.HttpStatusCode
 								if statuscode != 404 {
-									rest.PublishKeyToSlowRetryLayer(publishKey, aviclient, key)
+									rest.PublishKeyToSlowRetryLayer(publishKey, key)
 									return false
 								} else {
 									rest.AviVsCacheDel(rest_ops[i], aviObjKey, key)
@@ -476,7 +511,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				}
 
 				if retry {
-					rest.PublishKeyToRetryLayer(publishKey, aviclient, key)
+					rest.PublishKeyToRetryLayer(publishKey, key)
 				}
 				return false
 			}
@@ -566,7 +601,7 @@ func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName
 	return restOps
 }
 
-func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, c *clients.AviClient, key string) {
+func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, key string) {
 	var bkt uint32
 	bkt = 0
 	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
@@ -574,7 +609,7 @@ func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, c *client
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, parentVsKey)
 }
 
-func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, c *clients.AviClient, key string) {
+func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, key string) {
 	var bkt uint32
 	bkt = 0
 	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
@@ -1176,7 +1211,7 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 	return cache_ds_nodes, rest_ops
 }
 
-func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp, error) {
 	var cache_vsvip_nodes []avicache.NamespaceName
 	if vs_cache_obj != nil {
 		cache_vsvip_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.VSVipKeyCollection))
@@ -1207,6 +1242,8 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 							restOp, err := rest.AviVsVipBuild(vsvip, vsvip_cache_obj, key)
 							if err == nil {
 								rest_ops = append(rest_ops, restOp)
+							} else {
+								return cache_vsvip_nodes, rest_ops, err
 							}
 						}
 					}
@@ -1215,6 +1252,8 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 					restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
 					if err == nil {
 						rest_ops = append(rest_ops, restOp)
+					} else {
+						return cache_vsvip_nodes, rest_ops, err
 					}
 				}
 
@@ -1226,13 +1265,15 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 			restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
 			if err == nil {
 				rest_ops = append(rest_ops, restOp)
+			} else {
+				return cache_vsvip_nodes, rest_ops, err
 			}
 		}
 
 	}
 	utils.AviLog.Debugf("key: %s, msg: the vsvip rest_op is %s", key, utils.Stringify(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the vsvip to be deleted are: %s", key, cache_vsvip_nodes)
-	return cache_vsvip_nodes, rest_ops
+	return cache_vsvip_nodes, rest_ops, nil
 }
 
 func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {

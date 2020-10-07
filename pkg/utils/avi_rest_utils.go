@@ -138,14 +138,13 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 			op.Err = fmt.Errorf("Unknown RestOp %v", op.Method)
 		}
 		if op.Err != nil {
-			AviLog.Warnf(`RestOp method %v path %v tenant %v Obj %s 
-                    returned err %v`, op.Method, op.Path, op.Tenant,
-				spew.Sprint(op.Obj), Stringify(op.Response))
+			AviLog.Warnf(`RestOp method %v path %v tenant %v Obj %s returned err %s with response %s`,
+				op.Method, op.Path, op.Tenant, spew.Sprint(op.Obj), Stringify(op.Err), Stringify(op.Response))
 			for j := i + 1; j < len(rest_ops); j++ {
 				rest_ops[j].Err = errors.New("Aborted due to prev error")
 			}
 			// Wrap the error into a websync error.
-			err := &WebSyncError{err: op.Err, operation: string(op.Method)}
+			err := &WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			return err
 		} else {
 			AviLog.Debugf(`RestOp method %v path %v tenant %v response %v`,

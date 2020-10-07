@@ -247,13 +247,13 @@ type SkipSyncError struct {
 }
 
 type WebSyncError struct {
-	err       error
-	operation string
+	Err       error
+	Operation string
 }
 
-func (e *WebSyncError) Error() string         { return fmt.Sprintf("Error during %s: %v", e.operation, e.err) }
+func (e *WebSyncError) Error() string         { return fmt.Sprintf("Error during %s: %v", e.Operation, e.Err) }
 func (e *SkipSyncError) Error() string        { return e.Msg }
-func (e *WebSyncError) GetWebAPIError() error { return e.err }
+func (e *WebSyncError) GetWebAPIError() error { return e.Err }
 
 var CloudName string
 
