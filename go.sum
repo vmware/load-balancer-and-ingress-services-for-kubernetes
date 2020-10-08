@@ -35,6 +35,7 @@ github.com/avinetworks/sdk v0.0.0-20200910040148-2ed48a016241/go.mod h1:BcllDeAF
 github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd h1:W+4xqQczmklVpG+JQlY9nBQaSbhbv3MvGaFLX6UvNrY=
 github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
 github.com/avinetworks/sdk v0.0.0-20200910092938-580bed7585cb h1:i6jbYz4bcAN6ropnUUmfG0RCQv+w/SC/MkCXCIUUaAs=
+github.com/avinetworks/sdk v0.0.0-20200921035123-787ceaed92c5 h1:yTqiP3xkjLNhfC7NOkWYz7YxaFhWpGLlSxBJbluJofg=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/blang/semver v3.5.0+incompatible/go.mod h1:kRBLl5iJ+tD4TcOOxsy/0fnwebNt5EWlYSAyrTnjyyk=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
