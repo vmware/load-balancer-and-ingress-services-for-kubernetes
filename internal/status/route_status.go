@@ -15,6 +15,7 @@
 package status
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -25,6 +26,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 )
 
 func ParseOptionsFromMetadata(options []UpdateStatusOptions, bulk bool) ([]string, []UpdateStatusOptions) {
@@ -189,8 +191,11 @@ func UpdateRouteStatusWithErrMsg(routeName, namespace, msg string, retryNum ...i
 			oldRouteStatus.Ingress, mRoute.Status.Ingress)
 		return nil
 	}
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": mRoute.Status,
+	})
+	_, err := utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(mRoute.Name, types.MergePatchType, patchPayload, "status")
 
-	_, err := utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).UpdateStatus(mRoute)
 	if err != nil {
 		utils.AviLog.Errorf("msg: there was an error in updating the route status: %v", err)
 		// fetch updated route and feed for update status
@@ -281,7 +286,11 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 		return nil
 	}
 
-	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).UpdateStatus(mRoute)
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": mRoute.Status,
+	})
+	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(mRoute.Name, types.MergePatchType, patchPayload, "status")
+
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the route status: %v", key, err)
 		// fetch updated route and feed for update status
@@ -395,8 +404,10 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 		return nil
 	}
-
-	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(svc_mdata_obj.Namespace).UpdateStatus(mRoute)
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": mRoute.Status,
+	})
+	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(mRoute.Name, types.MergePatchType, patchPayload, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
 		return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
