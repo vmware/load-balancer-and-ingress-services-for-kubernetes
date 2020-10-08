@@ -24,11 +24,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
-	mClient := utils.GetInformers().ClientSet
 	var servicesToUpdate []string
 	var updateServiceOptions []UpdateStatusOptions
 
@@ -76,7 +75,7 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 				"status": service.Status,
 			})
 
-			_, err := mClient.CoreV1().Services(service.Namespace).Patch(service.Name, types.MergePatchType, patchPayload, "status")
+			_, err := utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(service.Name, types.MergePatchType, patchPayload, "status")
 			if err != nil {
 				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
 				continue
@@ -90,14 +89,13 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 }
 
 func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
-	mClient := utils.GetInformers().ClientSet
 	for _, service := range svc_mdata_obj.NamespaceServiceName {
 		serviceNSName := strings.Split(service, "/")
 		patchPayload, _ := json.Marshal(map[string]interface{}{
 			"status": nil,
 		})
 
-		_, err := mClient.CoreV1().Services(serviceNSName[0]).Patch(serviceNSName[1], types.MergePatchType, patchPayload, "status")
+		_, err := utils.GetInformers().ClientSet.CoreV1().Services(serviceNSName[0]).Patch(serviceNSName[1], types.MergePatchType, patchPayload, "status")
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 			return err
