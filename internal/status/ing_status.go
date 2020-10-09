@@ -15,6 +15,7 @@
 package status
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -25,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 )
 
 type UpdateStatusOptions struct {
@@ -117,9 +119,15 @@ func updateObject(mIngress *networking.Ingress, updateOption UpdateStatusOptions
 			utils.AviLog.Error(err)
 			return err
 		}
-		_, err = mClient.ExtensionsV1beta1().Ingresses(mIng.Namespace).UpdateStatus(mIng)
+		patchPayload, _ := json.Marshal(map[string]interface{}{
+			"status": mIng.Status,
+		})
+		_, err = mClient.ExtensionsV1beta1().Ingresses(mIng.Namespace).Patch(mIng.Name, types.MergePatchType, patchPayload, "status")
 	} else {
-		_, err = mClient.NetworkingV1beta1().Ingresses(mIngress.Namespace).UpdateStatus(mIngress)
+		patchPayload, _ := json.Marshal(map[string]interface{}{
+			"status": mIngress.Status,
+		})
+		_, err = mClient.ExtensionsV1beta1().Ingresses(mIngress.Namespace).Patch(mIngress.Name, types.MergePatchType, patchPayload, "status")
 	}
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
@@ -216,12 +224,29 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
 		mIng, ok := utils.ToExtensionIngress(mIngress)
 		if !ok {
-			utils.AviLog.Warn("Unable to convert obj type interface to extensions/v1beta1 ingress")
+			err = errors.New("Unable to convert obj type interface to extensions/v1beta1 ingress")
+			utils.AviLog.Error(err)
+			return err
 		}
-
-		_, err = mClient.ExtensionsV1beta1().Ingresses(mIngress.Namespace).UpdateStatus(mIng)
+		patchPayload, _ := json.Marshal(map[string]interface{}{
+			"status": mIng.Status,
+		})
+		if len(mIng.Status.LoadBalancer.Ingress) == 0 {
+			patchPayload, _ = json.Marshal(map[string]interface{}{
+				"status": nil,
+			})
+		}
+		_, err = mClient.ExtensionsV1beta1().Ingresses(mIng.Namespace).Patch(mIng.Name, types.MergePatchType, patchPayload, "status")
 	} else {
-		_, err = mClient.NetworkingV1beta1().Ingresses(svc_mdata_obj.Namespace).UpdateStatus(mIngress)
+		patchPayload, _ := json.Marshal(map[string]interface{}{
+			"status": mIngress.Status,
+		})
+		if len(mIngress.Status.LoadBalancer.Ingress) == 0 {
+			patchPayload, _ = json.Marshal(map[string]interface{}{
+				"status": nil,
+			})
+		}
+		_, err = mClient.ExtensionsV1beta1().Ingresses(mIngress.Namespace).Patch(mIngress.Name, types.MergePatchType, patchPayload, "status")
 	}
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
