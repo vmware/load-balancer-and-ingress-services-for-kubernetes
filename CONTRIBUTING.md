@@ -149,12 +149,14 @@ AKO can be tested from your laptop. Please follow the instructions:
         export CTRL_PASSWORD=<password>
         export CTRL_IPADDRESS=<controller-ip>
         export CTRL_VERSION=<controller-api-version>
-        export SHARD_VS_SIZE=<LARGE.MEDIUM,SMALL>
+        export SHARD_VS_SIZE=<LARGE,MEDIUM,SMALL>
         export FULL_SYNC_INTERVAL=1800
         export CLOUD_NAME=<Avi-cloud-name>
         export CLUSTER_NAME=<your-unique-cluster-name>
         export NODE_NETWORK_LIST='[{"networkName":"Nw1","cidrs":["10.79.168.0/22"]}]'
+        export SEG_NAME=<se-group-name>
         
+     NODE_NETWORK_LIST is a managment network name and a CIDR of that network. SEG_NAME can be empty for advance L4 deployment.
      You can control additional settings by exporting respective variables from inside the deployment [file](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/helm/ako/templates/statefulset.yaml).
 
   4. Run: ./bin/ako
