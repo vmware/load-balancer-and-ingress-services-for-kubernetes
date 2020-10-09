@@ -29,7 +29,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 var (
@@ -140,7 +139,7 @@ func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
 		// Garbage collect the svc if no route references exist
 		_, routes := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
 		if len(routes) == 0 {
-			objects.SharedSvcLister().IngressMappings(namespace).DeleteSvcToIngMapping(svcName)
+			objects.OshiftRouteSvcLister().IngressMappings(namespace).DeleteSvcToIngMapping(svcName)
 		}
 	}
 	_, routes := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
@@ -297,51 +296,25 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 }
 
 func NodeToIng(nodeName string, namespace string, key string) ([]string, bool) {
-	// Get all Ingress in the system, as node create/update affects all ingresses in the system
+	// As node create/update affects all ingresses in the system
+	// Post this, filtered ingresses for each service is fetched for all services.
 	if !lib.IsNodePortMode() || utils.GetInformers().IngressInformer == nil {
 		return nil, false
 	}
 	ingresses := []string{}
-	ingressObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the ingress: %s", err)
-		return nil, false
-	}
-
-	for _, ingObj := range ingressObjs {
-		ingObjValidated, ok := utils.ToNetworkingIngress(ingObj)
-		if !ok {
-			utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
-		}
-		ingresses = append(ingresses, ingObjValidated.Name)
-	}
-	if len(ingresses) == 0 {
-		return nil, false
-	}
-	utils.AviLog.Debugf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
 	return ingresses, true
+
 }
 
 func NodeToRoute(nodeName string, namespace string, key string) ([]string, bool) {
-	// Get all routes in the system, as node create/update affects all routes in the system
+	// As node create/update affects all routes in the system return true in NodePort mode.
+	// post this, filtered routes for each service is fetched for all services.
 	if !lib.IsNodePortMode() || utils.GetInformers().RouteInformer == nil {
 		return nil, false
 	}
 	routes := []string{}
-	routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the routes: %s", err)
-		return nil, false
-	}
-
-	for _, routeObj := range routeObjs {
-		routes = append(routes, routeObj.Name)
-	}
-	if len(routes) == 0 {
-		return nil, false
-	}
-	utils.AviLog.Debugf("key: %s, msg: total routes retrieved:  %s", key, routes)
 	return routes, true
+
 }
 
 func EPToIng(epName string, namespace string, key string) ([]string, bool) {
