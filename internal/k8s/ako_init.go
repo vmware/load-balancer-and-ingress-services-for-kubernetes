@@ -244,7 +244,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	if lib.GetAdvancedL4() {
 		// Set the error to nil
 		err = nil
-		interval = 1800 //seconds, hard coded.
+		interval = 300 // seconds, hardcoded for now.
 	}
 	// Set up the workers but don't start draining them.
 	c.SetupEventHandlers(informers)
@@ -298,7 +298,13 @@ func (c *AviController) FullSync() {
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
-		avi_obj_cache.AviCacheRefresh(avi_rest_client_pool.AviClient[0], utils.CloudName)
+		if !lib.GetAdvancedL4() {
+			avi_obj_cache.AviCacheRefresh(avi_rest_client_pool.AviClient[0], utils.CloudName)
+		} else {
+			// In this case we just sync the Gateway status to the LB status
+			restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
+			restlayer.SyncObjectStatuses()
+		}
 		allModelsMap := objects.SharedAviGraphLister().GetAll()
 		var allModels []string
 		for modelName, _ := range allModelsMap.(map[string]interface{}) {
