@@ -4,6 +4,7 @@ GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
+AKO_VERSION=v1.3.2
 REL_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/cmd/ako-main
 
 
@@ -12,7 +13,7 @@ all: build docker
 
 .PHONY: build
 build: 
-		$(GOBUILD) -o bin/$(BINARY_NAME_AKO)  -mod=vendor $(REL_PATH_AKO)
+		$(GOBUILD) -o bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'"  -mod=vendor $(REL_PATH_AKO)
 
 .PHONY: clean
 clean: 
