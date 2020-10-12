@@ -776,7 +776,10 @@ func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVi
 	rawData, err := client.AviSession.GetRaw(uri)
 	if err != nil {
 		utils.AviLog.Warnf("VsVip Get uri %v returned err %v", uri, err)
-		return nil, err
+		webSyncErr := &utils.WebSyncError{
+			Err: err, Operation: string(utils.RestGet),
+		}
+		return nil, webSyncErr
 	}
 	vsvip := avimodels.VsVip{}
 	json.Unmarshal(rawData, &vsvip)
