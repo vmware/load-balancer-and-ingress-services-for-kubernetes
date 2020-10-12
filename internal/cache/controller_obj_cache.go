@@ -2430,8 +2430,8 @@ func ValidateUserInput(client *clients.AviClient) bool {
 		return true
 	}
 
-	isSegroupValid := checkSegroupLabels(client)
-	isNodeNetworkValid := checkNodeNetwork(client)
+	isSegroupValid := isCloudValid && checkSegroupLabels(client)
+	isNodeNetworkValid := isCloudValid && checkNodeNetwork(client)
 	isValid := isCloudValid &&
 		isSegroupValid &&
 		isNodeNetworkValid &&
@@ -2450,13 +2450,7 @@ func ValidateUserInput(client *clients.AviClient) bool {
 }
 
 func checkRequiredValuesYaml() bool {
-	clusterName := lib.GetClusterName()
-	re := regexp.MustCompile("^[a-zA-Z0-9-_]*$")
-	if clusterName == "" {
-		utils.AviLog.Error("Required param clusterName not specified, syncing will be disabled")
-		return false
-	} else if !re.MatchString(clusterName) {
-		utils.AviLog.Error("clusterName must consist of alphanumeric characters or '-'/'_' (max 32 chars), syncing will be disabled")
+	if !lib.IsClusterNameValid() {
 		return false
 	}
 	lib.SetNamePrefix()

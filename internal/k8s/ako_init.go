@@ -59,8 +59,8 @@ func PopulateCache() error {
 	aviclient := avicache.SharedAVIClients()
 	restlayer := rest.NewRestOperations(avi_obj_cache, aviclient)
 	staleVSKey := utils.ADMIN_NS + "/" + lib.DummyVSForStaleData
-	utils.AviLog.Infof("Starting clean up of stale objects")
-	if aviclient != nil && len(aviclient.AviClient) > 0 {
+	if lib.IsClusterNameValid() && aviclient != nil && len(aviclient.AviClient) > 0 {
+		utils.AviLog.Infof("Starting clean up of stale objects")
 		restlayer.CleanupVS(staleVSKey, true)
 		staleCacheKey := avicache.NamespaceName{
 			Name:      lib.DummyVSForStaleData,
@@ -157,9 +157,10 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				return
 			}
 			// if DeleteConfig value has changed, then check if we need to enable/disable sync
-			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
+			isValidUserInput := avicache.ValidateUserInput(aviclient)
+			c.DisableSync = !isValidUserInput || delConfigFromData(cm.Data)
 			lib.SetDisableSync(c.DisableSync)
-			if avicache.ValidateUserInput(aviclient) {
+			if isValidUserInput {
 				if delConfigFromData(cm.Data) {
 					c.DeleteModels()
 				} else {

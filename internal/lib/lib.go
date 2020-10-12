@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -386,6 +387,18 @@ func GetClusterID() string {
 		}
 	}
 	return ""
+}
+func IsClusterNameValid() bool {
+	clusterName := GetClusterName()
+	re := regexp.MustCompile("^[a-zA-Z0-9-_]*$")
+	if clusterName == "" {
+		utils.AviLog.Error("Required param clusterName not specified, syncing will be disabled")
+		return false
+	} else if !re.MatchString(clusterName) {
+		utils.AviLog.Error("clusterName must consist of alphanumeric characters or '-'/'_' (max 32 chars), syncing will be disabled")
+		return false
+	}
+	return true
 }
 
 var StaticRouteSyncChan chan struct{}
