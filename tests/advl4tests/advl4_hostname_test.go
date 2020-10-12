@@ -218,12 +218,14 @@ func SetupAdvLBService(t *testing.T, svcname, namespace, gwname, gwnamespace str
 	if _, err := KubeClient.CoreV1().Services(namespace).Create(svcCreate); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
+	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
 }
 
 func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
 	if err := KubeClient.CoreV1().Services(namespace).Delete(svcname, nil); err != nil {
 		t.Fatalf("error in deleting AdvLB Service: %v", err)
 	}
+	integrationtest.DelEP(t, namespace, svcname)
 }
 
 func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
@@ -266,6 +268,7 @@ func TestAdvL4BestCase(t *testing.T) {
 	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
 	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
 	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
 
 	TeardownGatewayClass(t, gwClassName)
 	g.Eventually(func() int {
@@ -841,4 +844,55 @@ func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
 	TeardownGateway(t, gateway2Name, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName2)
+}
+
+func TestAdvL4EndpointDeleteCreate(t *testing.T) {
+	// svc/tcp/8081, gw1/tcp/8081
+	// scale deployment to
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	// delete endpoints
+	integrationtest.DelEP(t, ns, "svc")
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 &&
+				len(nodes[0].PoolRefs) == 1 &&
+				len(nodes[0].PoolRefs[0].Servers) == 0 {
+				return true
+			}
+		}
+		return false
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	// create new endpoints
+	newIP := "2.2.2"
+	integrationtest.CreateEP(t, ns, "svc", false, true, newIP)
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 &&
+				len(nodes[0].PoolRefs) == 1 &&
+				len(nodes[0].PoolRefs[0].Servers) == 3 {
+				return true
+			}
+		}
+		return false
+	}, 40*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(1))
+	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).Should(gomega.ContainSubstring(newIP))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
 }
