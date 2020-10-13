@@ -57,11 +57,11 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	var wg sync.WaitGroup
 	var globalErr error
 
-	ctrlRootCa := os.Getenv("CTRL_ROOTCA")
+	rootPEMCerts := os.Getenv("CTRL_CA_DATA")
 	var transport *http.Transport
-	if ctrlRootCa != "" {
+	if rootPEMCerts != "" {
 		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM([]byte(ctrlRootCa))
+		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
 
 		transport =
 			&http.Transport{
@@ -82,7 +82,7 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 			var aviClient *clients.AviClient
 			var err error
 
-			if ctrlRootCa != "" {
+			if rootPEMCerts != "" {
 				aviClient, err = clients.NewAviClient(api_ep, username,
 					session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
 			} else {
