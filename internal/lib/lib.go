@@ -388,6 +388,7 @@ func GetClusterID() string {
 	}
 	return ""
 }
+
 func IsClusterNameValid() bool {
 	clusterName := GetClusterName()
 	re := regexp.MustCompile("^[a-zA-Z0-9-_]*$")
@@ -573,6 +574,16 @@ func VSVipDelRequired() bool {
 	if err == nil {
 		currVersion, verErr := semver.NewVersion(utils.CtrlVersion)
 		if verErr == nil && c.Check(currVersion) {
+			return true
+		}
+	}
+	return false
+}
+
+func ContainsFinalizer(o metav1.Object, finalizer string) bool {
+	f := o.GetFinalizers()
+	for _, e := range f {
+		if e == finalizer {
 			return true
 		}
 	}
