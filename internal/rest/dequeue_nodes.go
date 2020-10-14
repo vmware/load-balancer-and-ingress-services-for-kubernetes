@@ -165,7 +165,10 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key s
 	if webSyncErr, ok := err.(*utils.WebSyncError); ok {
 		aviError, ok := webSyncErr.GetWebAPIError().(session.AviError)
 		if ok && aviError.HttpStatusCode == 401 {
-			if avimodel != nil && avimodel.GetRetryCounter() != 0 {
+			if strings.Contains(*aviError.Message, "Invalid credentials") {
+				utils.AviLog.Errorf("key: %s, msg: Invalid credentials error, Shutting down API Server", key)
+				lib.ShutdownApi()
+			} else if avimodel != nil && avimodel.GetRetryCounter() != 0 {
 				utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to fast retry queue", key)
 				rest.PublishKeyToRetryLayer(publishKey, key)
 			} else {
