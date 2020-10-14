@@ -219,6 +219,16 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 			return errors.New("msg: UpdateGatewayStatus retried 5 times, aborting")
 		}
 	}
+
+	// if an IP address is present on the gateway object, it is fair to assume that the gateway corresponds to a VS in avi
+	// in case the IP is not present, the gateway can be deleted freely since deleting that would be a NOOP for AKO
+	// so we add finalizer when an IP is updated to the gateway, and remove it when we delete the IP address.
+	if len(updateStatus.Addresses) > 0 && updateStatus.Addresses[0].Value != "" {
+		lib.CheckAndSetGatewayFinalizer(gw)
+	} else {
+		lib.RemoveGatewayFinalizer(gw)
+	}
+
 	if compareGatewayStatuses(&gw.Status, updateStatus) {
 		return nil
 	}
