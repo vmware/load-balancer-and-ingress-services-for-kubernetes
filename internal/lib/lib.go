@@ -503,8 +503,9 @@ func GetCloudType() string {
 }
 
 func IsPublicCloud() bool {
-
-	if GetCloudType() == CLOUD_AZURE || GetCloudType() == CLOUD_AWS {
+	cloudType := GetCloudType()
+	if cloudType == CLOUD_AZURE || cloudType == CLOUD_AWS ||
+		cloudType == CLOUD_GCP {
 		return true
 	}
 	return false

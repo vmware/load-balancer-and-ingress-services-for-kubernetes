@@ -41,6 +41,7 @@ const (
 	CLOUD_VCENTER                              = "CLOUD_VCENTER"
 	CLOUD_AZURE                                = "CLOUD_AZURE"
 	CLOUD_AWS                                  = "CLOUD_AWS"
+	CLOUD_GCP                                  = "CLOUD_GCP"
 	CLOUD_NONE                                 = "CLOUD_NONE"
 	DEFAULT_SHARD_SCHEME                       = "hostname"
 	HOSTNAME_SHARD_SCHEME                      = "hostname"
