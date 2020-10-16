@@ -299,7 +299,7 @@ func TestAzureCloudValidation(t *testing.T) {
 	os.Setenv("NETWORK_NAME", "net123")
 }
 
-// TestAWSCloudInClusterIPMode tests case where AWS CLOUD is configured in ClousterIP mode. Sync should be disabled.
+// TestAWSCloudInClusterIPMode tests case where AWS CLOUD is configured in ClousterIP mode. Sync should be allowed.
 func TestAWSCloudInClusterIPMode(t *testing.T) {
 	os.Setenv("CLOUD_NAME", "CLOUD_AWS")
 	utils.SetCloudName("CLOUD_AWS")
@@ -307,13 +307,13 @@ func TestAWSCloudInClusterIPMode(t *testing.T) {
 
 	AddConfigMap(t)
 
-	if !ctrl.DisableSync {
-		t.Fatalf("CLOUD_AWS should not be allowed in ClusterIP mode")
+	if ctrl.DisableSync {
+		t.Fatalf("CLOUD_AWS should be allowed in ClusterIP mode")
 	}
 	DeleteConfigMap(t)
 }
 
-// TestAzureCloudInClusterIPMode tests case where Azure cloud is configured in ClousterIP mode. Sync should be disabled.
+// TestAzureCloudInClusterIPMode tests case where Azure cloud is configured in ClusterIP mode. Sync should be allowed.
 func TestAzureCloudInClusterIPMode(t *testing.T) {
 	os.Setenv("CLOUD_NAME", "CLOUD_AZURE")
 	utils.SetCloudName("CLOUD_AZURE")
@@ -321,8 +321,23 @@ func TestAzureCloudInClusterIPMode(t *testing.T) {
 
 	AddConfigMap(t)
 
-	if !ctrl.DisableSync {
-		t.Fatalf("CLOUD_AZURE should not be allowed in ClusterIP mode")
+	if ctrl.DisableSync {
+		t.Fatalf("CLOUD_AZURE should be allowed in ClusterIP mode")
+	}
+	DeleteConfigMap(t)
+
+}
+
+// TestGCPCloudInClusterIPMode tests case where GCP cloud is configured in ClusterIP mode. Sync should be allowed.
+func TestGCPCloudInClusterIPMode(t *testing.T) {
+	os.Setenv("CLOUD_NAME", "CLOUD_GCP")
+	utils.SetCloudName("CLOUD_GCP")
+	os.Setenv("SERVICE_TYPE", "ClusterIP")
+
+	AddConfigMap(t)
+
+	if ctrl.DisableSync {
+		t.Fatalf("CLOUD_GCP should  be allowed in ClusterIP mode")
 	}
 	DeleteConfigMap(t)
 

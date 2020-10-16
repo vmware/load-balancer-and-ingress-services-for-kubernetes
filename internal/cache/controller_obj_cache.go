@@ -2582,11 +2582,6 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 	utils.AviLog.Infof("Setting cloud vType: %v", vType)
 	lib.SetCloudType(vType)
 
-	if lib.IsPublicCloud() && !lib.IsNodePortMode() {
-		utils.AviLog.Errorf("%v not allowed in ClusterIP mode.", vType)
-		return false
-	}
-
 	// IPAM is mandatory for vcenter and noaccess cloud
 	if !lib.IsPublicCloud() && cloud.IPAMProviderRef == nil {
 		utils.AviLog.Errorf("Cloud does not have a ipam_provider_ref configured")
