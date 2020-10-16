@@ -6,6 +6,7 @@ require (
 	github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd
 	github.com/coreos/etcd v3.3.25+incompatible
 	github.com/davecgh/go-spew v1.1.1
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/gorilla/mux v1.7.4
 	github.com/onsi/gomega v1.8.1
 	github.com/openshift/api v0.0.0-20200311183032-85e16cc5dd7c

@@ -162,6 +162,12 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 		return true
 	}
 
+	// check if deletiontimesttamp is present to see intended delete
+	if gateway.GetDeletionTimestamp() != nil {
+		utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
+		return true
+	}
+
 	// Check if the gateway has a valid gwclass or not.
 	err = validateGatewayObj(key, gateway)
 	if err != nil {
