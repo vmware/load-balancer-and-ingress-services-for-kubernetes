@@ -147,14 +147,16 @@ func RandomSeq(n int) string {
 var informer sync.Once
 var informerInstance *Informers
 
+const informerDefaultResync = 12 * time.Hour
+
 func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface, namespace string) *Informers {
 	cs := kubeClient.ClientSet
 	var kubeInformerFactory kubeinformers.SharedInformerFactory
 	if namespace == "" {
-		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, informerDefaultResync)
 	} else {
 		// The informer factory only allows to initialize 1 namespace filter. Not a set of namespaces.
-		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30, kubeinformers.WithNamespace(namespace))
+		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, informerDefaultResync, kubeinformers.WithNamespace(namespace))
 		AviLog.Infof("Initialized informer factory for namespace :%s", namespace)
 	}
 	informers := &Informers{}
