@@ -187,7 +187,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-
+	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
 	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient)
 	var ingestionwg *sync.WaitGroup

@@ -113,8 +113,8 @@ func InitializeAKC() {
 
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
-		utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	}
+	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient)
 	if lib.GetAdvancedL4() {
