@@ -76,9 +76,9 @@ func TestMain(m *testing.M) {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
+	addConfigMap()
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
-	addConfigMap()
 	integrationtest.KubeClient = KubeClient
 	os.Exit(m.Run())
 }
@@ -256,8 +256,14 @@ func TestAdvL4BestCase(t *testing.T) {
 		}
 		return ""
 	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
-	svc, _ := KubeClient.CoreV1().Services(ns).Get("svc", metav1.GetOptions{})
-	g.Expect(svc.Status.LoadBalancer.Ingress[0].IP).To(gomega.Equal("10.250.250.250"))
+
+	g.Eventually(func() string {
+		svc, _ := KubeClient.CoreV1().Services(ns).Get("svc", metav1.GetOptions{})
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			return svc.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.250"))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
