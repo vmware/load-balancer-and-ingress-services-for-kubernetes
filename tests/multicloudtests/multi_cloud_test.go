@@ -106,6 +106,16 @@ func AddConfigMap(t *testing.T) {
 	time.Sleep(10 * time.Second)
 }
 
+func AddCMap() {
+    aviCM := &corev1.ConfigMap{
+        ObjectMeta: metav1.ObjectMeta{
+            Namespace: "avi-system",
+            Name:      "avi-k8s-config",
+        },
+    }
+    kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+}
+
 func DeleteConfigMap(t *testing.T) {
 	options := metav1.DeleteOptions{}
 	err := kubeClient.CoreV1().ConfigMaps("avi-system").Delete("avi-k8s-config", &options)
@@ -244,6 +254,7 @@ func TestMain(m *testing.M) {
 	keyChan = make(chan string)
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
+        AddCMap()
 	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh, quickSyncCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)
@@ -252,7 +263,7 @@ func TestMain(m *testing.M) {
 
 // Cloud does not have a ipam_provider_ref configured, sync should be disabled
 func TestVcenterCloudNoIpamDuringBootup(t *testing.T) {
-
+        DeleteConfigMap(t)
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
 	utils.SetCloudName("CLOUD_VCENTER")
 	os.Setenv("SERVICE_TYPE", "ClusterIP")

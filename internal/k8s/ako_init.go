@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -101,7 +102,7 @@ func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
-func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) {
+func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {
 	cs := k8sinfo.Cs
 	aviClientPool := avicache.SharedAVIClients()
 	if aviClientPool == nil || len(aviClientPool.AviClient) < 1 {
@@ -109,10 +110,13 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 		lib.SetDisableSync(true)
 		utils.AviLog.Errorf("could not get client to connect to Avi Controller, disabling sync")
 		lib.ShutdownApi()
-		return
+		return errors.New("Unable to contact the avi controller on bootup")
 	}
 	aviclient := aviClientPool.AviClient[0]
 	c.DisableSync = !avicache.ValidateUserInput(aviclient) || deleteConfigFromConfigmap(cs)
+	if c.DisableSync {
+		return errors.New("Sync is disabled because of configmap unavailability during bootup")
+	}
 	lib.SetDisableSync(c.DisableSync)
 
 	utils.AviLog.Infof("Creating event broadcaster for handling configmap")
@@ -177,6 +181,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	} else {
 		utils.AviLog.Info("Caches synced")
 	}
+	return nil
 }
 
 func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
@@ -252,7 +257,13 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
 	} else {
 		// First boot sync
-		c.FullSyncK8s()
+		err = c.FullSyncK8s()
+		if err != nil {
+			// Something bad sync. We need to return and shutdown the API server
+			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO: %s", err)
+			lib.ShutdownApi()
+			return
+		}
 		if interval != 0 {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
 			worker.SyncFunction = c.FullSync
@@ -326,10 +337,10 @@ func (c *AviController) FullSync() {
 	}
 }
 
-func (c *AviController) FullSyncK8s() {
+func (c *AviController) FullSyncK8s() error {
 	if c.DisableSync {
 		utils.AviLog.Infof("Sync disabled, skipping full sync")
-		return
+		return nil
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	var vrfModelName string
@@ -362,6 +373,7 @@ func (c *AviController) FullSyncK8s() {
 	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
+		return err
 	} else {
 		for _, svcObj := range svcObjs {
 			isSvcLb := isServiceLBType(svcObj)
@@ -426,6 +438,7 @@ func (c *AviController) FullSyncK8s() {
 		gatewayObjs, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways("").List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
+			return err
 		} else {
 			for _, gatewayObj := range gatewayObjs {
 				key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
@@ -437,6 +450,7 @@ func (c *AviController) FullSyncK8s() {
 		gwClassObjs, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
+			return err
 		} else {
 			for _, gwClassObj := range gwClassObjs {
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
@@ -498,7 +512,7 @@ func (c *AviController) FullSyncK8s() {
 			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
 	}
-	return
+	return nil
 }
 
 // DeleteModels : Delete models and add the model name in the queue.

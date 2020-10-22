@@ -78,17 +78,14 @@ func setupQueue(stopCh <-chan struct{}) {
 	ingestionQueue.Run(stopCh, wgIngestion)
 }
 
-func addConfigMap(t *testing.T) {
+func addConfigMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "avi-system",
 			Name:      "avi-k8s-config",
 		},
 	}
-	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
-	if err != nil {
-		t.Fatalf("error in adding configmap: %v", err)
-	}
+	kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
 }
 
 func TestMain(m *testing.M) {
@@ -102,6 +99,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	crdClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(crdClient)
+        addConfigMap()
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -131,22 +129,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestAviConfigMap(t *testing.T) {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
-	if err != nil {
-		t.Fatalf("error in adding configmap: %v", err)
-	}
-	time.Sleep(30 * time.Second)
-	if ctrl.DisableSync {
-		t.Fatalf("sync not enabled after adding configmap")
-	}
-}
 
 func TestSvc(t *testing.T) {
 	svcExample := &corev1.Service{
