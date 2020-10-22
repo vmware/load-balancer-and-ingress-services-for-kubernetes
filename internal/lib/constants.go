@@ -92,6 +92,7 @@ const (
 	AviControllerVSVipIDChangeError            = "Changing an existing VIP's vip_id is not supported"
 	AviControllerRecreateVIPError              = "If a new preferred IP is needed, please recreate the VIP"
 	DefaultSEGroup                             = "Default-Group"
+	GatewayFinalizer                           = "gateway.ako.vmware.com"
 )
 
 const (

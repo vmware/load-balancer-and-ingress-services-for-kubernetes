@@ -408,7 +408,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 
 func TestAdvL4ProtocolChangeInService(t *testing.T) {
 	// gw/tcp/8081 svc/tcp/8081  -> svc/udp/8081
-	// service protocol changes VS deleted
+	// service protocol changes Pool deleted
 	g := gomega.NewGomegaWithT(t)
 
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
@@ -446,11 +446,14 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		if found && aviModel == nil {
-			return false
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 0 {
+				return true
+			}
 		}
-		return true
-	}, 20*time.Second).Should(gomega.Equal(false))
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -460,7 +463,7 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 
 func TestAdvL4PortChangeInService(t *testing.T) {
 	// gw/tcp/8081 svc/tcp/8081 -> svc/tcp/8080
-	// service port changes VS deleted
+	// service port changes Pools deleted
 	g := gomega.NewGomegaWithT(t)
 
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
@@ -498,11 +501,14 @@ func TestAdvL4PortChangeInService(t *testing.T) {
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		if found && aviModel == nil {
-			return false
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 0 {
+				return true
+			}
 		}
-		return true
-	}, 20*time.Second).Should(gomega.Equal(false))
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -549,11 +555,14 @@ func TestAdvL4LabelUpdatesInService(t *testing.T) {
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		if found && aviModel == nil {
-			return false
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 0 {
+				return true
+			}
 		}
-		return true
-	}, 20*time.Second).Should(gomega.Equal(false))
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -661,11 +670,14 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		if found && aviModel == nil {
-			return false
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 0 {
+				return true
+			}
 		}
-		return true
-	}, 20*time.Second).Should(gomega.Equal(false))
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
 
 	// match service to chaged gateway port: 8080
 	svcUpdate := integrationtest.FakeService{
@@ -748,11 +760,14 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		if found && aviModel == nil {
-			return false
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 0 {
+				return true
+			}
 		}
-		return true
-	}, 20*time.Second).Should(gomega.Equal(false))
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
 
 	// match service to chaged gateway protocol: UDP
 	svcUpdate := integrationtest.FakeService{
@@ -834,7 +849,17 @@ func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
 		t.Fatalf("error in updating Service: %v", err)
 	}
 
-	VerifyGatewayVSNodeDeletion(g, modelName1)
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName1)
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes[0].PoolRefs) == 0 {
+				return true
+			}
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName2); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()

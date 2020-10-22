@@ -15,8 +15,13 @@
 package lib
 
 import (
+	"encoding/json"
+
+	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	advl4crd "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
 	advl4informer "github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/apis/v1alpha1pre1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var AdvL4Clientset advl4crd.Interface
@@ -43,4 +48,34 @@ func SetAdvL4Informers(c *AdvL4Informers) {
 
 func GetAdvL4Informers() *AdvL4Informers {
 	return AKOAdvL4Informers
+}
+
+func RemoveGatewayFinalizer(gw *advl4v1alpha1pre1.Gateway) {
+	finalizers := utils.Remove(gw.GetFinalizers(), GatewayFinalizer)
+	gw.SetFinalizers(finalizers)
+	UpdateGatewayFinalizer(gw)
+}
+
+func CheckAndSetGatewayFinalizer(gw *advl4v1alpha1pre1.Gateway) {
+	if !ContainsFinalizer(gw, GatewayFinalizer) {
+		finalizers := append(gw.GetFinalizers(), GatewayFinalizer)
+		gw.SetFinalizers(finalizers)
+		UpdateGatewayFinalizer(gw)
+	}
+}
+
+func UpdateGatewayFinalizer(gw *advl4v1alpha1pre1.Gateway) {
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"metadata": map[string][]string{
+			"finalizers": gw.GetFinalizers(),
+		},
+	})
+
+	_, err := GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(gw.Name, types.MergePatchType, patchPayload)
+	if err != nil {
+		utils.AviLog.Warnf("error while patching the gateway with updated finalizers, %v", err)
+		return
+	}
+
+	utils.AviLog.Infof("Successfully patched the gateway with finalizers: %v", gw.GetFinalizers())
 }

@@ -74,7 +74,8 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*advl4v1alpha1pre1.Gateway)
 			gw := new.(*advl4v1alpha1pre1.Gateway)
-			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) {
+
+			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
