@@ -128,7 +128,11 @@ func InitializeAKC() {
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
-	c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	if err != nil {
+		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")
+		return
+	}
 	err = k8s.PopulateCache()
 	if err != nil {
 		c.DisableSync = true
