@@ -24,7 +24,7 @@ type FullSyncThread struct {
 	QuickSyncChan     chan string
 	Interval          time.Duration
 	SyncFunction      func()
-	QuickSyncFunction func()
+	QuickSyncFunction func() error
 }
 
 func NewFullSyncThread(interval time.Duration) *FullSyncThread {
