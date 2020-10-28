@@ -5,22 +5,11 @@
                 "cluster_id": "1",
                 "cluster_name" : "kubernetes",
                 "kubeconfig_file": "/home/aviuser/kubeconfig",
-                "cniPlugin": "canal",
-                "cloudName": "Default-Cloud",
-                "disableStaticRouteSync": "false",
-                "defaultIngController": "",
-                "NetworkName": "management",
-                "vrfRefName": "global",
-                "platform": {
-                    "type": "vcenter",
-                    "user": "",
-                    "password": "",
-                    "url": ""
-                }
+                "cniPlugin": "canal"
             }
         ]
     },
-    "Test": {
+    "TestParams": {
         "namespace" : "scale-test",
         "appName" : "scale-test-app",
         "serviceNamePrefix" : "scale-test-service",
@@ -28,22 +17,11 @@
     },
     "Controller": [
         {
-            "datacenter": "w1-avi-jenkins",
-            "name": "jenkins-ako-1-controller-1",
-            "cluster": "vmware-write",
+            "name": "controller-1",
             "ip": "",
             "username" : "",
             "password" : "",
-            "mask": "255.255.254.0",
-            "networks": {
-                "mgmt": "Mgmt"
-            },
-            "cloud_name": "Default-Cloud",
-            "host": "w1-avi-jenkins-s1813.eng.vmware.com",
-            "static": "yes",
-            "datastore": "w1-avi-jenkins-s1813-ds01",
-            "type": "controller",
-            "gateway": "10.50.61.253"
+            "cloud_name": ""
         }
     ]
 

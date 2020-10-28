@@ -70,6 +70,4 @@ int_test:
 
 .PHONY: scale_test
 scale_test:
-	$(GOTEST) -mod=vendor -v ./tests/scaletest -failfast -timeout $(TIMEOUT) $(NUMGOROUTINES) 
-
-
+	$(GOTEST) -mod=vendor -v ./tests/scaletest -failfast -timeout $(Timeout) $(NumGoRoutines) $(TestbedFilePath)
