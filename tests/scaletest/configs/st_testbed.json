@@ -1,0 +1,28 @@
+{
+    "Ako_params": {
+        "num_clusters": 1,
+        "clusters": [{
+                "cluster_id": "1",
+                "cluster_name" : "kubernetes",
+                "kubeconfig_file": "/home/aviuser/kubeconfig",
+                "cniPlugin": "canal"
+            }
+        ]
+    },
+    "TestParams": {
+        "namespace" : "scale-test",
+        "appName" : "scale-test-app",
+        "serviceNamePrefix" : "scale-test-service",
+        "ingressNamePrefix" : "scale-test-ingress"
+    },
+    "Controller": [
+        {
+            "name": "controller-1",
+            "ip": "",
+            "username" : "",
+            "password" : "",
+            "cloud_name": ""
+        }
+    ]
+
+}
