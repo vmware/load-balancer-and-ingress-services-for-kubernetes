@@ -16,6 +16,7 @@ package lib
 
 const (
 	DISABLE_STATIC_ROUTE_SYNC = "DISABLE_STATIC_ROUTE_SYNC"
+	ENABLE_RHI                = "ENABLE_RHI"
 	CNI_PLUGIN                = "CNI_PLUGIN"
 	CALICO_CNI                = "calico"
 	OPENSHIFT_CNI             = "openshift"

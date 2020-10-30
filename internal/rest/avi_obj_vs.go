@@ -60,6 +60,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		svc_mdata := string(svc_mdata_json)
 		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 		seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
+		enableRHI := lib.GetEnableRHI() // We don't impact the checksum of the VS since it's a global setting in AKO.
 		vs := avimodels.VirtualService{
 			Name:                  &name,
 			NetworkProfileRef:     &network_prof,
@@ -70,6 +71,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			ServiceMetadata:       &svc_mdata,
 			SeGroupRef:            &seGroupRef,
 			VrfContextRef:         &vrfContextRef,
+			EnableRhi:             &enableRHI,
 		}
 		if lib.GetAdvancedL4() {
 			ignPool := true

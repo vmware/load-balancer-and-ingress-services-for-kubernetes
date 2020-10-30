@@ -109,7 +109,7 @@ func TestMain(m *testing.M) {
 	defer AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
-        AddConfigMap()
+	AddConfigMap()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
