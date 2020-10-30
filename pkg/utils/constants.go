@@ -51,6 +51,7 @@ const (
 	SYSTEM_UDP_FAST_PATH          = "System-UDP-Fast-Path"
 	DEFAULT_TCP_NW_PROFILE        = "System-TCP-Proxy"
 	DEFAULT_L4_APP_PROFILE        = "System-L4-Application"
+	TCP_NW_FAST_PATH              = "System-TCP-Fast-Path"
 	DEFAULT_L7_APP_PROFILE        = "System-HTTP"
 	DEFAULT_L7_SECURE_APP_PROFILE = "System-Secure-HTTP"
 	DEFAULT_SHARD_VS_PREFIX       = "Shard-VS-"
