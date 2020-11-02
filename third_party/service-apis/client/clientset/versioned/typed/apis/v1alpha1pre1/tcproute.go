@@ -23,7 +23,7 @@ import (
 	"time"
 
 	v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
-	scheme "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/scheme"
+	scheme "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

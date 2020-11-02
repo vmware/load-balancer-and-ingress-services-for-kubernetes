@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
-	apis "github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/apis"
-	internalinterfaces "github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/internalinterfaces"
+	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
+	apis "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis"
+	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

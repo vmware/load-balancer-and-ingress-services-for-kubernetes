@@ -23,9 +23,9 @@ import (
 	time "time"
 
 	apisv1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
-	versioned "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1pre1 "github.com/vmware-tanzu/service-apis/pkg/client/listers/apis/v1alpha1pre1"
+	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
+	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/internalinterfaces"
+	v1alpha1pre1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/listers/apis/v1alpha1pre1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

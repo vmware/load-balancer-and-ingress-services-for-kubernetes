@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	networkingv1alpha1pre1 "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1pre1"
+	networkingv1alpha1pre1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/typed/apis/v1alpha1pre1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

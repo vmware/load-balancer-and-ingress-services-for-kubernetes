@@ -19,8 +19,8 @@ limitations under the License.
 package apis
 
 import (
-	v1alpha1pre1 "github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/apis/v1alpha1pre1"
-	internalinterfaces "github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1pre1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis/v1alpha1pre1"
+	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

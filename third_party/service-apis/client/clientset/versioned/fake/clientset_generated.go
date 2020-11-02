@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
-	networkingv1alpha1pre1 "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1pre1"
-	fakenetworkingv1alpha1pre1 "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1pre1/fake"
+	clientset "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
+	networkingv1alpha1pre1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/typed/apis/v1alpha1pre1"
+	fakenetworkingv1alpha1pre1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/typed/apis/v1alpha1pre1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

@@ -20,7 +20,7 @@ package v1alpha1pre1
 
 import (
 	v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
-	"github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/scheme"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

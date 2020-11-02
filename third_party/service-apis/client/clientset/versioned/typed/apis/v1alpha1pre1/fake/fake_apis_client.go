@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1pre1 "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1pre1"
+	v1alpha1pre1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/typed/apis/v1alpha1pre1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
