@@ -14,6 +14,7 @@
 package k8stest
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -27,7 +28,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"
-	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
+	networking "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -99,7 +100,7 @@ func AddConfigMap(t *testing.T) {
 			Name:      "avi-k8s-config",
 		},
 	}
-	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding configmap: %v", err)
 	}
@@ -107,18 +108,17 @@ func AddConfigMap(t *testing.T) {
 }
 
 func AddCMap() {
-    aviCM := &corev1.ConfigMap{
-        ObjectMeta: metav1.ObjectMeta{
-            Namespace: "avi-system",
-            Name:      "avi-k8s-config",
-        },
-    }
-    kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	aviCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "avi-system",
+			Name:      "avi-k8s-config",
+		},
+	}
+	kubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
 func DeleteConfigMap(t *testing.T) {
-	options := metav1.DeleteOptions{}
-	err := kubeClient.CoreV1().ConfigMaps("avi-system").Delete("avi-k8s-config", &options)
+	err := kubeClient.CoreV1().ConfigMaps("avi-system").Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting configmap: %v", err)
 	}
@@ -137,35 +137,35 @@ func ValidateIngress(t *testing.T) {
 			Name:      "testsvc",
 		},
 	}
-	_, err := kubeClient.CoreV1().Services("red-ns").Create(svcExample)
+	_, err := kubeClient.CoreV1().Services("red-ns").Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 	waitAndverify(t, "L4LBService/red-ns/testsvc")
 
-	ingrExample := &extensionv1beta1.Ingress{
+	ingrExample := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "red-ns",
 			Name:      "testingr",
 		},
-		Spec: extensionv1beta1.IngressSpec{
-			Backend: &extensionv1beta1.IngressBackend{
+		Spec: networking.IngressSpec{
+			Backend: &networking.IngressBackend{
 				ServiceName: "testsvc",
 			},
 		},
 	}
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses("red-ns").Create(ingrExample)
+	_, err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Create(context.TODO(), ingrExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	waitAndverify(t, "Ingress/red-ns/testingr")
 	// delete svc and ingress
-	err = kubeClient.CoreV1().Services("red-ns").Delete("testsvc", &metav1.DeleteOptions{})
+	err = kubeClient.CoreV1().Services("red-ns").Delete(context.TODO(), "testsvc", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting Service: %v", err)
 	}
 	waitAndverify(t, "L4LBService/red-ns/testsvc")
-	err = kubeClient.ExtensionsV1beta1().Ingresses("red-ns").Delete("testingr", &metav1.DeleteOptions{})
+	err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Delete(context.TODO(), "testingr", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -191,7 +191,7 @@ func ValidateNode(t *testing.T) {
 			},
 		},
 	}
-	_, err := kubeClient.CoreV1().Nodes().Create(nodeExample)
+	_, err := kubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -199,13 +199,13 @@ func ValidateNode(t *testing.T) {
 
 	nodeExample.ObjectMeta.ResourceVersion = "2"
 	nodeExample.Spec.PodCIDR = "10.230.0.0/24"
-	_, err = kubeClient.CoreV1().Nodes().Update(nodeExample)
+	_, err = kubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Node: %v", err)
 	}
 	waitAndverify(t, utils.NodeObj+"/testnode")
 
-	err = kubeClient.CoreV1().Nodes().Delete("testnode", nil)
+	err = kubeClient.CoreV1().Nodes().Delete(context.TODO(), "testnode", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in Deleting Node: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestMain(m *testing.M) {
 	keyChan = make(chan string)
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
-        AddCMap()
+	AddCMap()
 	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh, quickSyncCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)
@@ -263,7 +263,7 @@ func TestMain(m *testing.M) {
 
 // Cloud does not have a ipam_provider_ref configured, sync should be disabled
 func TestVcenterCloudNoIpamDuringBootup(t *testing.T) {
-        DeleteConfigMap(t)
+	DeleteConfigMap(t)
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
 	utils.SetCloudName("CLOUD_VCENTER")
 	os.Setenv("SERVICE_TYPE", "ClusterIP")

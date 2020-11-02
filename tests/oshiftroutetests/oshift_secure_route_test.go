@@ -15,6 +15,7 @@
 package oshiftroutetests
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (rt FakeRoute) SecureRoute() *routev1.Route {
@@ -136,7 +138,7 @@ func TestSecureRoute(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -159,14 +161,14 @@ func TestUpdatePathSecureRoute(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/bar"}.SecureRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -190,14 +192,14 @@ func TestUpdateHostnameSecureRoute(t *testing.T) {
 
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Hostname: "bar.com", Path: "/foo"}.SecureRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -224,14 +226,14 @@ func TestSecureToInsecureRoute(t *testing.T) {
 
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.Route()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -252,14 +254,14 @@ func TestInsecureToSecureRoute(t *testing.T) {
 
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -285,7 +287,7 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultModelName)
 	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(route1)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -293,7 +295,7 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
-	_, err = OshiftClient.RouteV1().Routes("test").Create(route2)
+	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -302,7 +304,7 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 
 	CheckMultiSNIMultiNS(t, g, aviModel)
 
-	err = OshiftClient.RouteV1().Routes("test").Delete(DefaultRouteName, nil)
+	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), DefaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
@@ -318,7 +320,7 @@ func TestSecureRouteAlternateBackend(t *testing.T) {
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -366,14 +368,14 @@ func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.SecureABRoute(150)
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -421,14 +423,14 @@ func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/bar"}.SecureABRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -476,14 +478,14 @@ func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -528,7 +530,7 @@ func TestSecureRouteInsecureRedirect(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -552,7 +554,7 @@ func TestSecureRouteInsecureAllow(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -592,14 +594,14 @@ func TestSecureRouteInsecureAllowToRedirect(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -624,14 +626,14 @@ func TestSecureRouteInsecureAllowToNone(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyNone
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -656,14 +658,14 @@ func TestSecureRouteInsecureRedirectToAllow(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -712,14 +714,14 @@ func TestSecureRouteInsecureRedirectToNone(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyNone
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -743,7 +745,7 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
 	route1.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(route1)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -752,7 +754,7 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	route2.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err = OshiftClient.RouteV1().Routes("test").Create(route2)
+	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -761,7 +763,7 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 
 	CheckMultiSNIMultiNS(t, g, aviModel)
 
-	err = OshiftClient.RouteV1().Routes("test").Delete(DefaultRouteName, nil)
+	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), DefaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
@@ -776,7 +778,7 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
 	route1.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(route1)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -785,7 +787,7 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	route2.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
-	_, err = OshiftClient.RouteV1().Routes("test").Create(route2)
+	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -820,7 +822,7 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	// sni VS
 	CheckMultiSNIMultiNS(t, g, aviModel)
 
-	err = OshiftClient.RouteV1().Routes("test").Delete(DefaultRouteName, nil)
+	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), DefaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
@@ -835,7 +837,7 @@ func TestReencryptRoute(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -862,14 +864,14 @@ func TestRemoveReencryptRoute(t *testing.T) {
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationEdge
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -898,7 +900,7 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -951,7 +953,7 @@ func TestReencryptRouteWithDestinationCA(t *testing.T) {
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
 	routeExample.Spec.TLS.DestinationCACertificate = "abc"
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -982,14 +984,14 @@ func TestReencryptRouteRemoveDestinationCA(t *testing.T) {
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
 	routeExample.Spec.TLS.DestinationCACertificate = "abc"
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample.Spec.TLS.DestinationCACertificate = ""
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
