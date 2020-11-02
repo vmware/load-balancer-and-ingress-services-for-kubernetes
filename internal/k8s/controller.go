@@ -27,7 +27,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -121,7 +121,7 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 }
 
 // Consider an ingress has been updated only if spec/annotation is updated
-func isIngressUpdated(oldIngress, newIngress *v1beta1.Ingress) bool {
+func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 	if oldIngress.ResourceVersion == newIngress.ResourceVersion {
 		return false
 	}
@@ -645,7 +645,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				ingress, ok = tombstone.Obj.(*v1beta1.Ingress)
+				ingress, ok = tombstone.Obj.(*networkingv1.Ingress)
 				if !ok {
 					utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
 					return

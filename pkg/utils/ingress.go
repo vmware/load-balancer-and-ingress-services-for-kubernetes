@@ -15,13 +15,9 @@
 package utils
 
 import (
-	"os"
-
 	extension "k8s.io/api/extensions/v1beta1"
-	networking "k8s.io/api/networking/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes"
 )
 
 var IngressApiMap = map[string]string{
@@ -43,26 +39,27 @@ var (
 	}
 )
 
-func GetIngressApi(kc kubernetes.Interface) string {
-	ingressAPI := os.Getenv("INGRESS_API")
-	if ingressAPI != "" {
-		ingressAPI, ok := IngressApiMap[ingressAPI]
-		if !ok {
-			return CoreV1IngressInformer
-		}
-		return ingressAPI
-	}
+// func GetIngressApi(kc kubernetes.Interface) string {
+// 	ingressAPI := os.Getenv("INGRESS_API")
+// 	if ingressAPI != "" {
+// 		ingressAPI, ok := IngressApiMap[ingressAPI]
+// 		if !ok {
+// 			return CoreV1IngressInformer
+// 		}
+// 		return ingressAPI
+// 	}
 
-	var timeout int64
-	timeout = 120
+// 	var timeout int64
+// 	timeout = 120
 
-	_, ingErr := kc.NetworkingV1beta1().Ingresses("").List(metav1.ListOptions{TimeoutSeconds: &timeout})
-	if ingErr != nil {
-		AviLog.Infof("networkingv1 ingresses not found, setting informer for extensionsv1: %v", ingErr)
-		return ExtV1IngressInformer
-	}
-	return CoreV1IngressInformer
-}
+// 	_, ingErr := kc.NetworkingV1().Ingresses("").List(metav1.ListOptions{TimeoutSeconds: &timeout})
+// 	// _, ingErr := kc.NetworkingV1().Ingresses("").List(metav1.ListOptions{TimeoutSeconds: &timeout})
+// 	if ingErr != nil {
+// 		AviLog.Infof("networkingv1 ingresses not found, setting informer for extensionsv1: %v", ingErr)
+// 		return ExtV1IngressInformer
+// 	}
+// 	return CoreV1IngressInformer
+// }
 
 func fromExtensions(old *extension.Ingress) (*networking.Ingress, error) {
 	networkingIngress := &networking.Ingress{}

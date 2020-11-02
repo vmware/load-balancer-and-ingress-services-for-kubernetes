@@ -92,7 +92,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		if !isTCP {
 			avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 		} else {
-			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+			avi_vs_meta.NetworkProfile = utils.ESSENTIALS_TCP_NW_PROFILE
 		}
 
 		vsVipNode := &AviVSVIPNode{

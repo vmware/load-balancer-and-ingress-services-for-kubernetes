@@ -15,6 +15,7 @@
 package status
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -96,7 +97,7 @@ func parseOptionsFromMetadata(options []UpdateStatusOptions, bulk bool) ([]strin
 
 func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key string) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
-	gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gwNSName[0]).Get(gwNSName[1], metav1.GetOptions{})
+	gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
 		return err
@@ -237,10 +238,10 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 		"status": updateStatus,
 	})
 
-	_, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(gw.Name, types.MergePatchType, patchPayload, "status")
+	_, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("msg: %d there was an error in updating the gateway status: %+v", retry, err)
-		updatedGW, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Get(gw.Name, metav1.GetOptions{})
+		updatedGW, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Get(context.TODO(), gw.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("gateway not found %v", err)
 			return err
@@ -321,7 +322,7 @@ func getGateways(gwNSNames []string, bulk bool, retryNum ...int) map[string]*adv
 	}
 
 	if bulk {
-		gwList, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways("").List(metav1.ListOptions{})
+		gwList, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the gateway object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -339,7 +340,7 @@ func getGateways(gwNSNames []string, bulk bool, retryNum ...int) map[string]*adv
 
 	for _, namespaceName := range gwNSNames {
 		nsNameSplit := strings.Split(namespaceName, "/")
-		gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
+		gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the gateway object for UpdateStatus: %s", err)
 			// retry get if request timeout

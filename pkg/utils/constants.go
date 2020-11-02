@@ -50,6 +50,7 @@ const (
 	UDP                           = "UDP"
 	SYSTEM_UDP_FAST_PATH          = "System-UDP-Fast-Path"
 	DEFAULT_TCP_NW_PROFILE        = "System-TCP-Proxy"
+	ESSENTIALS_TCP_NW_PROFILE     = "System-TCP-Fast-Path"
 	DEFAULT_L4_APP_PROFILE        = "System-L4-Application"
 	TCP_NW_FAST_PATH              = "System-TCP-Fast-Path"
 	DEFAULT_L7_APP_PROFILE        = "System-HTTP"

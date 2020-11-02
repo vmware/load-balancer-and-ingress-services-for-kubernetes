@@ -15,16 +15,16 @@
 package status
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
-	networking "k8s.io/api/networking/v1beta1"
+	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 )
@@ -70,7 +70,6 @@ func updateObject(mIngress *networking.Ingress, updateOption UpdateStatusOptions
 		}
 	}
 
-	var err error
 	mClient := utils.GetInformers().ClientSet
 	hostnames, key := updateOption.ServiceMetadata.HostNames, updateOption.Key
 	oldIngressStatus := mIngress.Status.LoadBalancer.DeepCopy()
@@ -112,23 +111,10 @@ func updateObject(mIngress *networking.Ingress, updateOption UpdateStatusOptions
 		return nil
 	}
 
-	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		mIng, ok := utils.ToExtensionIngress(mIngress)
-		if !ok {
-			err = errors.New("Unable to convert obj type interface to extensions/v1beta1 ingress")
-			utils.AviLog.Error(err)
-			return err
-		}
-		patchPayload, _ := json.Marshal(map[string]interface{}{
-			"status": mIng.Status,
-		})
-		_, err = mClient.ExtensionsV1beta1().Ingresses(mIng.Namespace).Patch(mIng.Name, types.MergePatchType, patchPayload, "status")
-	} else {
-		patchPayload, _ := json.Marshal(map[string]interface{}{
-			"status": mIngress.Status,
-		})
-		_, err = mClient.NetworkingV1beta1().Ingresses(mIngress.Namespace).Patch(mIngress.Name, types.MergePatchType, patchPayload, "status")
-	}
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": mIngress.Status,
+	})
+	_, err := mClient.NetworkingV1().Ingresses(mIngress.Namespace).Patch(context.TODO(), mIngress.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
 		// fetch updated ingress and feed for update status
@@ -177,15 +163,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	}
 
 	mClient := utils.GetInformers().ClientSet
-	var ingObj interface{}
-	var err error
-
-	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		ingObj, err = mClient.ExtensionsV1beta1().Ingresses(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName, metav1.GetOptions{})
-	} else {
-		ingObj, err = mClient.NetworkingV1beta1().Ingresses(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName, metav1.GetOptions{})
-	}
-
+	ingObj, err := mClient.NetworkingV1().Ingresses(svc_mdata_obj.Namespace).Get(context.TODO(), svc_mdata_obj.IngressName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus: %s", key, err)
 		return err
@@ -223,33 +201,15 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 		return nil
 	}
 
-	if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-		mIng, ok := utils.ToExtensionIngress(mIngress)
-		if !ok {
-			err = errors.New("Unable to convert obj type interface to extensions/v1beta1 ingress")
-			utils.AviLog.Error(err)
-			return err
-		}
-		patchPayload, _ := json.Marshal(map[string]interface{}{
-			"status": mIng.Status,
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": mIngress.Status,
+	})
+	if len(mIngress.Status.LoadBalancer.Ingress) == 0 {
+		patchPayload, _ = json.Marshal(map[string]interface{}{
+			"status": nil,
 		})
-		if len(mIng.Status.LoadBalancer.Ingress) == 0 {
-			patchPayload, _ = json.Marshal(map[string]interface{}{
-				"status": nil,
-			})
-		}
-		_, err = mClient.ExtensionsV1beta1().Ingresses(mIng.Namespace).Patch(mIng.Name, types.MergePatchType, patchPayload, "status")
-	} else {
-		patchPayload, _ := json.Marshal(map[string]interface{}{
-			"status": mIngress.Status,
-		})
-		if len(mIngress.Status.LoadBalancer.Ingress) == 0 {
-			patchPayload, _ = json.Marshal(map[string]interface{}{
-				"status": nil,
-			})
-		}
-		_, err = mClient.NetworkingV1beta1().Ingresses(mIngress.Namespace).Patch(mIngress.Name, types.MergePatchType, patchPayload, "status")
 	}
+	_, err = mClient.NetworkingV1().Ingresses(svc_mdata_obj.Namespace).Patch(context.TODO(), mIngress.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
 		return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
@@ -285,7 +245,6 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 	retry := 0
 	mClient := utils.GetInformers().ClientSet
 	ingressMap := make(map[string]*networking.Ingress)
-	var err error
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("msg: Retrying to get the ingress for status update")
 		retry = retryNum[0]
@@ -296,55 +255,33 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 	}
 
 	if bulk {
-		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-			ingressList, err := mClient.ExtensionsV1beta1().Ingresses("").List(metav1.ListOptions{})
-			if err != nil {
-				utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %s", err)
-				// retry get if request timeout
-				if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
-					return getIngresses(ingressNSNames, bulk, retry+1)
-				}
+		ingressList, err := mClient.NetworkingV1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
-			for _, ing := range ingressList.Items {
-				mIngress, ok := utils.ToNetworkingIngress(ing)
-				if !ok {
-					utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress %s", ing.Name)
-					continue
-				}
-				ingressMap[mIngress.Namespace+"/"+mIngress.Name] = mIngress
-			}
-		} else {
-			ingressList, err := mClient.NetworkingV1beta1().Ingresses("").List(metav1.ListOptions{})
-			if err != nil {
-				utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %s", err)
-				// retry get if request timeout
-				if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
-					return getIngresses(ingressNSNames, bulk, retry+1)
-				}
-			}
-			for i := range ingressList.Items {
-				ing := ingressList.Items[i]
-				ingressMap[ing.Namespace+"/"+ing.Name] = &ing
-			}
+		}
+		for i := range ingressList.Items {
+			ing := ingressList.Items[i]
+			ingressMap[ing.Namespace+"/"+ing.Name] = &ing
 		}
 
 		return ingressMap
 	}
 
 	for _, namespaceName := range ingressNSNames {
-		var ingObj interface{}
 		nsNameSplit := strings.Split(namespaceName, "/")
-		if lib.GetIngressApi() == utils.ExtV1IngressInformer {
-			ingObj, err = mClient.ExtensionsV1beta1().Ingresses(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
-		} else {
-			ingObj, err = mClient.NetworkingV1beta1().Ingresses(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
-		}
+
+		ingObj, err := mClient.NetworkingV1().Ingresses(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the ingress object for UpdateStatus: %s", err)
 			// retry get if request timeout
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
+			continue
 		}
 
 		mIngress, ok := utils.ToNetworkingIngress(ingObj)

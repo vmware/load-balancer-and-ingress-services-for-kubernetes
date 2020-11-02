@@ -14,6 +14,7 @@
 package lib
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strings"
@@ -116,7 +117,7 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 
 	if GetCNIPlugin() == CALICO_CNI && dynamicClientSet != nil {
 		crdClient := dynamicClient.Resource(CalicoBlockaffinityGVR)
-		crdList, err := crdClient.List(metav1.ListOptions{})
+		crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Errorf("Error getting CRD %v", err)
 			return nil, err
@@ -140,7 +141,7 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 
 	} else if GetCNIPlugin() == OPENSHIFT_CNI && dynamicClientSet != nil {
 		crdClient := dynamicClient.Resource(HostSubnetGVR)
-		crdList, err := crdClient.List(metav1.ListOptions{})
+		crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Errorf("Error getting CRD %v", err)
 			return nil, err

@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -91,7 +92,7 @@ func delConfigFromData(data map[string]string) bool {
 
 func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 	cmNS := lib.GetAKONamespace()
-	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(lib.AviConfigMap, metav1.GetOptions{})
+	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
 	if err == nil {
 		return delConfigFromData(cm.Data)
 	}

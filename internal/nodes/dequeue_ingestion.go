@@ -31,7 +31,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
 	var ingressFound, routeFound bool
 	var ingressNames, routeNames []string
-	utils.AviLog.Debugf("key: %s, msg: starting graph Sync", key)
+	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
@@ -47,7 +47,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// if we get update for object of type k8s node, create vrf graph
 	// if in NodePort Mode we update pool servers
 	if objType == utils.NodeObj {
-		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
+		utils.AviLog.Infof("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, fullsync)
 		if lib.IsNodePortMode() && !fullsync {
 			svcl4Keys, svcl7Keys := lib.GetSvcKeysForNodeCRUD()
@@ -310,6 +310,7 @@ func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool 
 
 func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsync bool) {
 	utils.AviLog.Debugf("key: %s, Got node Object %s\n", key, nodename)
+	utils.AviLog.Infof("%v\n", utils.GetInformers().NodeInformer)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
 	if err == nil {
 		utils.AviLog.Debugf("key: %s, Node Object %v\n", key, nodeObj)

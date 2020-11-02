@@ -15,6 +15,7 @@
 package nodes
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -410,7 +411,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 			return false
 		}
 	} else {
-		secretObj, err := mClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+		secretObj, err := mClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 		if err != nil || secretObj == nil {
 			// This secret has been deleted.
 			ok, ingNames := svcLister.IngressMappings(namespace).GetSecretToIng(secretName)
