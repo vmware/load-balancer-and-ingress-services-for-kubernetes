@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1pre1
 
 import (
+	"context"
 	time "time"
 
 	apisv1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
@@ -61,13 +62,13 @@ func NewFilteredGatewayInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NetworkingV1alpha1pre1().Gateways(namespace).List(options)
+				return client.NetworkingV1alpha1pre1().Gateways(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NetworkingV1alpha1pre1().Gateways(namespace).Watch(options)
+				return client.NetworkingV1alpha1pre1().Gateways(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&apisv1alpha1pre1.Gateway{},
