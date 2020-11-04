@@ -1,7 +1,6 @@
 module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
 require (
-	github.com/Azure/go-autorest v11.1.2+incompatible // indirect
 	github.com/Masterminds/semver v1.5.0
 	github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd
 	github.com/coreos/etcd v3.3.25+incompatible
