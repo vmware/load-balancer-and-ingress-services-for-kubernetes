@@ -222,7 +222,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 		}
 		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
-		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
+		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
 	}
 
 	TearDownTestForSvcLBMultiport(t, g)
@@ -265,7 +265,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(nodes[0].SharedVS).To(gomega.Equal(false))
 		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
-		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
+		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
 	}
 
 	TearDownTestForSvcLBMultiport(t, g)
