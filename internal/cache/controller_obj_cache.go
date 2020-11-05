@@ -2359,24 +2359,15 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 
 	vtype := *cloud.Vtype
 	cloud_obj := &AviCloudPropertyCache{Name: cloudName, VType: vtype}
-	if cloud.DNSProviderRef == nil {
-		utils.AviLog.Warnf("Cloud does not have a dns_provider_ref configured %v", cloudName)
+
+	subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
+	if len(subdomains) == 0 {
+		utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
 		return nil
-	}
-	dns_uuid := ExtractPattern(*cloud.DNSProviderRef, "ipamdnsproviderprofile-.*")
-	subdomains := c.AviDNSPropertyPopulate(client, dns_uuid)
-	if subdomains != nil {
-		cloud_obj.NSIpamDNS = subdomains
 	}
 
-	if cloud.IPAMProviderRef == nil {
-		utils.AviLog.Warnf("Cloud does not have a ipam_provider_ref configured %v", cloudName)
-		return nil
-	}
-	ipam_uuid := ExtractPattern(*cloud.IPAMProviderRef, "ipamdnsproviderprofile-.*")
-	ipam := c.AviIPAMPropertyPopulate(client, ipam_uuid)
-	if ipam != "" {
-		cloud_obj.NSIpam = ipam
+	if subdomains != nil {
+		cloud_obj.NSIpamDNS = subdomains
 	}
 
 	c.CloudKeyCache.AviCacheAdd(cloudName, cloud_obj)
@@ -2384,38 +2375,25 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	return nil
 }
 
-func (c *AviObjCache) AviIPAMPropertyPopulate(client *clients.AviClient, ipamUUID string) string {
-	var ipamProvider models.IPAMDNSProviderProfile
-	uri := "/api/ipamdnsproviderprofile/" + ipamUUID
+func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, cloudUUID string) []string {
+	type IPAMDNSProviderProfileDomainList struct {
 
-	err := AviGet(client, uri, &ipamProvider)
-	if err != nil {
-		utils.AviLog.Warnf("IPAMProperty Get uri %v returned err %v", uri, err)
-		return ""
+		// List of service domains.
+		Domains []*string `json:"domains,omitempty"`
 	}
-
-	ipamName := *ipamProvider.Name
-	return ipamName
-}
-
-func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, dnsUUID string) []string {
-	var dnsProvider models.IPAMDNSProviderProfile
 	var dnsSubDomains []string
-	uri := "/api/ipamdnsproviderprofile/" + dnsUUID
+	domainList := IPAMDNSProviderProfileDomainList{}
+	uri := "/api/ipamdnsproviderprofiledomainlist?cloud_uuid=" + cloudUUID
 
-	err := AviGet(client, uri, &dnsProvider)
+	err := AviGet(client, uri, &domainList)
 	if err != nil {
 		utils.AviLog.Warnf("DNSProperty Get uri %v returned err %v", uri, err)
 		return nil
 	}
 
-	utils.AviLog.Debugf("DNSProperty Get uri %v returned %v ", uri, dnsProvider.Name)
-
-	dnsProfile := dnsProvider.InternalProfile
-	// Support multiple dns profiles.
-	for _, dnsProf := range dnsProfile.DNSServiceDomain {
-		utils.AviLog.Debugf("Found DNS Domain name: %v", *dnsProf.DomainName)
-		dnsSubDomains = append(dnsSubDomains, *dnsProf.DomainName)
+	for _, subdomain := range domainList.Domains {
+		utils.AviLog.Debugf("Found DNS Domain name: %v", *subdomain)
+		dnsSubDomains = append(dnsSubDomains, *subdomain)
 	}
 
 	return dnsSubDomains
@@ -2707,13 +2685,16 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 	return true
 }
 
-func ExtractPattern(word string, pattern string) string {
-	r, _ := regexp.Compile(pattern)
+func ExtractPattern(word string, pattern string) (string, error) {
+	r, err := regexp.Compile(pattern)
+	if err != nil {
+		return "", err
+	}
 	result := r.FindAllString(word, -1)
 	if len(result) == 1 {
-		return result[0][:len(result[0])]
+		return result[0][:len(result[0])], nil
 	}
-	return ""
+	return "", nil
 }
 
 func ExtractUuid(word, pattern string) string {
