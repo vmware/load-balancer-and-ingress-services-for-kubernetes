@@ -138,7 +138,7 @@ func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, b
 	if !ok {
 		return &ingrModel, errors.New("Could not convert ingress to net v1beta"), processObj
 	}
-	processObj = filterIngressOnClass(ingObj)
+	processObj = filterIngressOnClass(ingObj) && utils.NSFilterFunction(namespace, utils.GetGlobalK8NSObj(), nil, true)
 	ingrModel.spec = ingObj.Spec
 	return &ingrModel, nil, processObj
 }

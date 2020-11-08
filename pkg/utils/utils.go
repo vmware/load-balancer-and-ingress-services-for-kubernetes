@@ -311,3 +311,101 @@ func Remove(arr []string, item string) []string {
 	}
 	return arr
 }
+
+var GlobalK8NSObj *K8ValidNamespaces = &K8ValidNamespaces{}
+
+func GetGlobalK8NSObj() *K8ValidNamespaces {
+	return GlobalK8NSObj
+}
+
+func IsNSPresent(namespace string, obj *K8ValidNamespaces) bool {
+	obj.validNSList.lock.RLock()
+	defer obj.validNSList.lock.RUnlock()
+	_, flag := obj.validNSList.nsList[namespace]
+	AviLog.Debugf("Is Namespace [%s] valid? -->[%v]", namespace, flag)
+	return flag
+}
+
+func InitializeNSSync(label string) {
+	AviLog.Debugf("In InitializeNSSync function, namespace label to check is: %s\n", label)
+	if label != "" {
+		segments := strings.Split(label, "=")
+		seg0 := strings.Trim(segments[0], " ")
+		seg1 := strings.Trim(segments[1], " ")
+		if len(segments) != 2 || seg0 == "" || seg1 == "" {
+			AviLog.Error("Error occured while parsing labels.")
+			return
+		}
+		GlobalK8NSObj.EnableMigration = true
+		GlobalK8NSObj.nsFilter.key = seg0
+		GlobalK8NSObj.nsFilter.value = seg1
+		GlobalK8NSObj.validNSList.nsList = make(map[string]bool)
+	}
+}
+
+//Get namespace label filter key and value
+func GetNSFilter(obj *K8ValidNamespaces) (string, string) {
+	var key string
+	var value string
+	if obj.nsFilter.key != "" {
+		key = obj.nsFilter.key
+	}
+	if obj.nsFilter.value != "" {
+		value = obj.nsFilter.value
+	}
+	return key, value
+}
+
+func AddNamespace(namespace string, obj *K8ValidNamespaces) {
+	obj.validNSList.lock.Lock()
+	defer obj.validNSList.lock.Unlock()
+	obj.validNSList.nsList[namespace] = true
+}
+
+func DeleteNamespace(namespace string, obj *K8ValidNamespaces) {
+	obj.validNSList.lock.Lock()
+	defer obj.validNSList.lock.Unlock()
+	delete(obj.validNSList.nsList, namespace)
+}
+
+func NSFilterFunction(namespace string, obj *K8ValidNamespaces, nsLabels map[string]string, nonNSK8ResFlag bool) bool {
+	//Return true if there is no migration labels mentioned
+	if !obj.EnableMigration {
+		return true
+	}
+	//For k8 resources other than namespace check NS already present or not
+	if nonNSK8ResFlag && IsNSPresent(namespace, obj) {
+		return true
+	}
+
+	//Following code will be called for Namespace case only from nsevent handler
+	if len(nsLabels) != 0 {
+		// if namespace have labels
+		nsKey, nsValue := GetNSFilter(obj)
+		val, ok := nsLabels[nsKey]
+		if ok && val == nsValue {
+			AviLog.Debugf("Namespace filter passed for namespace: [%s]", namespace)
+			return true
+		}
+	}
+	return false
+}
+func retrieveNSList(nsList map[string]bool) []string {
+	var namespaces []string
+	for k := range nsList {
+		namespaces = append(namespaces, k)
+	}
+	return namespaces
+}
+func GetAllNamespacesToSync(obj *K8ValidNamespaces) []string {
+	var nsList []string
+	if !obj.EnableMigration {
+		return nsList
+	}
+	obj.validNSList.lock.RLock()
+	defer obj.validNSList.lock.RUnlock()
+	lst := retrieveNSList(obj.validNSList.nsList)
+	nsList = append(nsList, lst...)
+
+	return nsList
+}

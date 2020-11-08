@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+
 	"os"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ import (
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	advl4 "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -133,12 +135,14 @@ func InitializeAKC() {
 		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")
 		return
 	}
+
 	err = k8s.PopulateCache()
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
+	c.InitializeNameSpaceSync()
 	k8s.PopulateNodeCache(kubeClient)
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}

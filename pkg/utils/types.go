@@ -16,6 +16,7 @@ package utils
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
@@ -176,6 +177,26 @@ type K8sAviVsMeta struct {
 	EastWest           bool
 	CloudConfigCksum   string
 	DefaultPoolGroup   string
+}
+
+/*
+ * Structures related with Namespace migration functionality
+ */
+//stores key and values fetched from values.yaml"
+type NamespaceFilter struct {
+	key   string
+	value string
+}
+
+//Stores list of valid namespaces with lock
+type K8NamespaceList struct {
+	nsList map[string]bool
+	lock   sync.RWMutex
+}
+type K8ValidNamespaces struct {
+	nsFilter        NamespaceFilter
+	EnableMigration bool
+	validNSList     K8NamespaceList
 }
 
 /*

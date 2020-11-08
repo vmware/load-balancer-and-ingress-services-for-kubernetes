@@ -26,6 +26,9 @@ data:
   {{ if .Values.AKOSettings.syncNamespace  }}
   syncNamespace: {{ .Values.AKOSettings.syncNamespace | quote }}
   {{ end }}
+  {{ if .Values.AKOSettings.namespaceSyncLabel  }}
+  namespaceSyncLabel: {{ .Values.AKOSettings.namespaceSyncLabel | quote }}
+  {{ end }}
   serviceType:  {{ .Values.L7Settings.serviceType | quote }}
   {{ if eq .Values.L7Settings.serviceType "NodePort" }}
   nodeKey: {{ .Values.nodePortSelector.key | quote }}

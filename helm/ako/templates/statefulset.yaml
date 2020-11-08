@@ -124,6 +124,13 @@ spec:
                 name: avi-k8s-config
                 key: syncNamespace
           {{ end }}
+          {{ if .Values.AKOSettings.namespaceSyncLabel }}
+          - name: NAMESPACE_SYNC_LABEL
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: namespaceSyncLabel
+          {{end}}
           - name: SUBNET_IP
             valueFrom:
               configMapKeyRef:

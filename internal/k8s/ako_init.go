@@ -29,11 +29,12 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	ingruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -370,6 +371,9 @@ func (c *AviController) FullSyncK8s() error {
 			utils.AviLog.Warnf("Timed out while waiting for rest layer to respond, moving on with bootup")
 		}
 	}
+	//nsList := utils.GetAllNamespacesToSync(c.nsFilterObj)
+	nsList := utils.GetAllNamespacesToSync(utils.GetGlobalK8NSObj())
+	utils.AviLog.Debugf("In FullSynck8... Namespace list obtained is: [%v]", nsList)
 
 	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
 	if err != nil {
@@ -412,30 +416,51 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 
+		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
-			ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
+			var ingObjs []ingruntime.Object
+			nsFilterObj := utils.GetGlobalK8NSObj()
+			if !nsFilterObj.EnableMigration {
+				utils.AviLog.Debug("FullSyncK8.. Syncing ingresses from all namespaces.")
+				ingObjs, err = utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
+			} else {
+				for i := 0; i < len(nsList); i++ {
+					utils.AviLog.Debugf("FullSyncK8. For ingresses, Namespace is: [%s]", nsList[i])
+					ingObjs1, err1 := utils.GetInformers().IngressInformer.Lister().ByNamespace(nsList[i]).List(labels.Set(nil).AsSelector())
+					if err1 != nil {
+						utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s for namespace %s", err1, nsList[i])
+					} else {
+						ingObjs = append(ingObjs, ingObjs1...)
+					}
+					err = nil
+				}
+			}
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
 			} else {
 				for _, ingObj := range ingObjs {
 					key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+					utils.AviLog.Debugf("FullSyncK8.. Dequeue for ingress key: [%v]", key)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
 		}
+		//Route Section
 		if utils.GetInformers().RouteInformer != nil {
-			ingObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
+			routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
 			} else {
-				for _, ingObj := range ingObjs {
+				for _, routeObj := range routeObjs {
 					// to do move to container-lib
-					key := utils.OshiftRoute + "/" + utils.ObjKey(ingObj)
+					key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
 		}
 	} else {
+		//Gateway Section
+
 		gatewayObjs, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways("").List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
@@ -570,4 +595,17 @@ func SyncFromNodesLayer(key string, wg *sync.WaitGroup) error {
 	restlayer := rest.NewRestOperations(cache, aviclient)
 	restlayer.DeQueueNodes(key)
 	return nil
+}
+
+//Controller Specific method
+func (c *AviController) InitializeNameSpaceSync() {
+	nsLabelToSync := lib.GetLabelToSyncNameSpace()
+	utils.AviLog.Debugf("Initializing NameSpace Sync. Received namespace label: [%s]", nsLabelToSync)
+	utils.InitializeNSSync(nsLabelToSync)
+	nsFilterObj := utils.GetGlobalK8NSObj()
+	if !nsFilterObj.EnableMigration {
+		utils.AviLog.Info("Namespace Sync is disabled.")
+		return
+	}
+	utils.AviLog.Debug("Namespace Sync is enabled")
 }

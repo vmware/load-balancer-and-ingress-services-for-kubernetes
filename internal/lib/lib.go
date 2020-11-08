@@ -265,6 +265,12 @@ func GetEnableRHI() bool {
 	}
 	utils.AviLog.Debugf("Enable RHI set to false")
 	return false
+func GetLabelToSyncNameSpace() string {
+	label := os.Getenv("NAMESPACE_SYNC_LABEL")
+	if label != "" {
+		return label
+	}
+	return ""
 }
 
 // The port to run the AKO API server on

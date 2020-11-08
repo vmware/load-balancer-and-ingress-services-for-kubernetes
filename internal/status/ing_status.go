@@ -206,7 +206,9 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 		for _, host := range svc_mdata_obj.HostNames {
 			if status.Hostname == host {
 				// Check if this host is still present in the spec, if so - don't delete it
-				if !utils.HasElem(hostListIng, host) || isVSDelete {
+				//NS migration case: if false -> ns invalid event happend so remove status
+				nsMigrationFilterFlag := utils.NSFilterFunction(svc_mdata_obj.Namespace, utils.GetGlobalK8NSObj(), nil, true)
+				if !utils.HasElem(hostListIng, host) || isVSDelete || !nsMigrationFilterFlag {
 					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 				} else {
 					utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the ingress: %v", key, host)

@@ -56,8 +56,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 
 		var parsedIng IngressConfig
 		processIng := true
-
-		processIng = filterIngressOnClass(ingObj)
+		processIng = filterIngressOnClass(ingObj) && utils.NSFilterFunction(namespace, utils.GetGlobalK8NSObj(), nil, true)
 		if !processIng {
 			// If the ingress class is not right, let's delete it.
 			o.DeletePoolForIngress(namespace, ingName, key, vsNode)
