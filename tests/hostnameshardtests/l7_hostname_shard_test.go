@@ -197,6 +197,44 @@ func TestL7Model(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
+func TestNoBackendL7Model(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	SetUpTestForIngress(t, modelName)
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, _ := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
+		t.Fatalf("Couldn't find Model for DELETE event %v", modelName)
+	}
+	ingrFake := (integrationtest.FakeIngress{
+		Name:      "foo-with-targets",
+		Namespace: "default",
+		DnsNames:  []string{"foo.com"},
+		Paths:     []string{"/"},
+	}).IngressOnlyHostNoBackend()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+
+	TearDownTestForIngress(t, modelName)
+}
+
 func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
