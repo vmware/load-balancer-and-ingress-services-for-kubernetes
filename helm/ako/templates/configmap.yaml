@@ -16,6 +16,7 @@ data:
   disableStaticRouteSync: {{ .Values.AKOSettings.disableStaticRouteSync | quote }}
   defaultIngController: {{ .Values.L7Settings.defaultIngController | quote }}
   subnetIP: {{ .Values.NetworkSettings.subnetIP | quote }}
+  enableRHI: {{ .Values.NetworkSettings.enableRHI | quote }}
   subnetPrefix: {{ .Values.NetworkSettings.subnetPrefix | quote }}
   networkName: {{ .Values.NetworkSettings.networkName | quote }}
   l7ShardingScheme: {{ .Values.L7Settings.l7ShardingScheme | quote }}

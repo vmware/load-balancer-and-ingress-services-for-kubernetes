@@ -102,6 +102,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: clusterName
+          - name: ENABLE_RHI
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: enableRHI
           - name: DEFAULT_DOMAIN
             valueFrom:
               configMapKeyRef:

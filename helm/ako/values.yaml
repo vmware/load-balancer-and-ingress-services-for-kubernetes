@@ -31,6 +31,7 @@ NetworkSettings:
   subnetIP: "" # Subnet IP of the vip network
   subnetPrefix: "" # Subnet Prefix of the vip network
   networkName: "" # Network Name of the vip network
+  enableRHI: false # This is a cluster wide setting for BGP peering.
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
 L7Settings:

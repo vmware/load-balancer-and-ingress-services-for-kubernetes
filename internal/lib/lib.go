@@ -258,6 +258,15 @@ func GetNamespaceToSync() string {
 	return ""
 }
 
+func GetEnableRHI() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv(ENABLE_RHI)); ok {
+		utils.AviLog.Debugf("Enable RHI set to true")
+		return true
+	}
+	utils.AviLog.Debugf("Enable RHI set to false")
+	return false
+}
+
 // The port to run the AKO API server on
 func GetAkoApiServerPort() string {
 	port := os.Getenv("AKO_API_PORT")
