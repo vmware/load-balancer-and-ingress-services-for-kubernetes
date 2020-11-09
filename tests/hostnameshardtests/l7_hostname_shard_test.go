@@ -15,8 +15,10 @@
 package hostnameshardtests
 
 import (
+	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -29,6 +31,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
@@ -37,6 +40,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
+
+var KubeClient *k8sfake.Clientset
+var CRDClient *crdfake.Clientset
+var ctrl *k8s.AviController
+var akoApiServer *api.FakeApiServer
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -69,7 +77,7 @@ func TestMain(m *testing.M) {
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 
-	integrationtest.InitializeFakeAKOAPIServer()
+	akoApiServer = integrationtest.InitializeFakeAKOAPIServer()
 
 	integrationtest.NewAviFakeClientInstance()
 	defer integrationtest.AviFakeClientInstance.Close()
@@ -87,16 +95,12 @@ func TestMain(m *testing.M) {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
-        AddConfigMap()
+	AddConfigMap()
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	integrationtest.KubeClient = KubeClient
 	os.Exit(m.Run())
 }
-
-var KubeClient *k8sfake.Clientset
-var CRDClient *crdfake.Clientset
-var ctrl *k8s.AviController
 
 func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
@@ -2534,4 +2538,33 @@ func TestL7WrongSubDomainMultiSNI(t *testing.T) {
 	VerifySNIIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, modelName)
+}
+
+func TestClusterRuntimeUpSinceChange(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	onBootup := true
+
+	// Injecting middleware for cluster runtime up_since time changes for api shutdown
+	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.EscapedPath()
+		if r.Method == "GET" && strings.Contains(url, "/api/cluster/runtime") {
+			if onBootup {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"node_states": [{"name": "10.79.169.60","role": "CLUSTER_LEADER","up_since": "2020-10-28 04:58:48"}]}`))
+				onBootup = false
+			} else {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"node_states": [{"name": "10.79.169.60","role": "CLUSTER_LEADER","up_since": "2020-10-28 05:58:48"}]}`))
+			}
+			return
+		}
+		integrationtest.NormalControllerServer(w, r)
+	})
+
+	ctrl.FullSync()
+	ctrl.FullSync()
+	g.Eventually(func() bool {
+		return akoApiServer.Shutdown
+	}, 60*time.Second).Should(gomega.Equal(true))
+	integrationtest.ResetMiddleware()
 }

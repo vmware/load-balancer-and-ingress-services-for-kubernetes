@@ -309,6 +309,7 @@ func (c *AviController) FullSync() {
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
+		avi_obj_cache.AviClusterStatusPopulate(avi_rest_client_pool.AviClient[0])
 		if !lib.GetAdvancedL4() {
 			avi_obj_cache.AviCacheRefresh(avi_rest_client_pool.AviClient[0], utils.CloudName)
 		} else {

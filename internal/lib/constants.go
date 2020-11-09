@@ -93,6 +93,7 @@ const (
 	AviControllerRecreateVIPError              = "If a new preferred IP is needed, please recreate the VIP"
 	DefaultSEGroup                             = "Default-Group"
 	GatewayFinalizer                           = "gateway.ako.vmware.com"
+	ClusterStatusCacheKey                      = "cluster-runtime"
 )
 
 const (

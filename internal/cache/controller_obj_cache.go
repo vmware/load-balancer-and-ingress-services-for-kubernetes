@@ -38,18 +38,19 @@ import (
 )
 
 type AviObjCache struct {
-	PgCache         *AviCache
-	DSCache         *AviCache
-	PoolCache       *AviCache
-	CloudKeyCache   *AviCache
-	HTTPPolicyCache *AviCache
-	L4PolicyCache   *AviCache
-	SSLKeyCache     *AviCache
-	PKIProfileCache *AviCache
-	VSVIPCache      *AviCache
-	VrfCache        *AviCache
-	VsCacheMeta     *AviCache
-	VsCacheLocal    *AviCache
+	PgCache            *AviCache
+	DSCache            *AviCache
+	PoolCache          *AviCache
+	CloudKeyCache      *AviCache
+	HTTPPolicyCache    *AviCache
+	L4PolicyCache      *AviCache
+	SSLKeyCache        *AviCache
+	PKIProfileCache    *AviCache
+	VSVIPCache         *AviCache
+	VrfCache           *AviCache
+	VsCacheMeta        *AviCache
+	VsCacheLocal       *AviCache
+	ClusterStatusCache *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -66,6 +67,7 @@ func NewAviObjCache() *AviObjCache {
 	c.VSVIPCache = NewAviCache()
 	c.VrfCache = NewAviCache()
 	c.PKIProfileCache = NewAviCache()
+	c.ClusterStatusCache = NewAviCache()
 	return &c
 }
 
@@ -2329,6 +2331,54 @@ func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud st
 		}
 	}
 	return poolKeyCollection
+}
+
+func (c *AviObjCache) AviClusterStatusPopulate(client *clients.AviClient) error {
+	uri := "/api/cluster/runtime"
+	var response map[string]interface{}
+	err := AviGet(client, uri, &response)
+	if err != nil {
+		utils.AviLog.Warnf("Cluster status Get uri %v returned err %v", uri, err)
+		return err
+	}
+
+	// clusterRuntime would be nil on bootup, and must not change after that, if it does
+	// AKO apiserver is shutdown and AKO restarted
+	var runtimeCache *AviClusterRuntimeCache
+	clusterRuntime, ok := c.ClusterStatusCache.AviCacheGet(lib.ClusterStatusCacheKey)
+	if ok {
+		runtimeCache, ok = clusterRuntime.(*AviClusterRuntimeCache)
+		if !ok {
+			utils.AviLog.Warnf("ClusterRuntime is not of type AviClusterRuntimeCache")
+			return fmt.Errorf("ClusterRuntime is not of type AviClusterRuntimeCache")
+		}
+	} else {
+		utils.AviLog.Infof("Unable to find ClusterRuntime in cache")
+	}
+
+	nodeStates := response["node_states"].([]interface{})
+	for _, node := range nodeStates {
+		nodeObj := node.(map[string]interface{})
+		if nodeObj["role"].(string) == "CLUSTER_LEADER" {
+			if runtimeCache != nil &&
+				(runtimeCache.UpSince != nodeObj["up_since"].(string) || runtimeCache.Name != nodeObj["name"].(string)) {
+				// reboot AKO
+				utils.AviLog.Warnf("Avi controller leader node or leader uptime changed, shutting down AKO")
+				lib.ShutdownApi()
+				return nil
+			}
+
+			setCacheVal := &AviClusterRuntimeCache{
+				Name:    nodeObj["name"].(string),
+				UpSince: nodeObj["up_since"].(string),
+			}
+			c.ClusterStatusCache.AviCacheAdd(lib.ClusterStatusCacheKey, setCacheVal)
+			utils.AviLog.Infof("Added ClusterStatusCache cache key %v val %v", lib.ClusterStatusCacheKey, setCacheVal)
+			break
+		}
+	}
+
+	return nil
 }
 
 func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, cloudName string) error {
