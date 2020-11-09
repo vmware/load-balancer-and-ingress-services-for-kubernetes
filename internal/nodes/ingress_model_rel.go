@@ -161,7 +161,10 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 		}
 
 		// simple validator check for duplicate hostpaths, logs Warning if duplicates found
-		validateSpecFromHostnameCache(key, ingObj.Namespace, ingObj.Name, ingObj.Spec)
+		success := validateSpecFromHostnameCache(key, ingObj.Namespace, ingObj.Name, ingObj.Spec)
+		if !success {
+			return ingresses, false
+		}
 
 		services := parseServicesForIngress(ingObj.Spec, key)
 		for _, svc := range services {
@@ -434,8 +437,10 @@ func parseServicesForIngress(ingSpec v1beta1.IngressSpec, key string) []string {
 	// Figure out the service names that are part of this ingress
 	var services []string
 	for _, rule := range ingSpec.Rules {
-		for _, path := range rule.IngressRuleValue.HTTP.Paths {
-			services = append(services, path.Backend.ServiceName)
+		if rule.IngressRuleValue.HTTP != nil {
+			for _, path := range rule.IngressRuleValue.HTTP.Paths {
+				services = append(services, path.Backend.ServiceName)
+			}
 		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: total services retrieved  from corev1:  %s", key, services)
