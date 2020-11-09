@@ -34,7 +34,6 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
-	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
@@ -665,14 +664,15 @@ func DelEP(t *testing.T, ns string, Name string) {
 	}
 }
 
-func InitializeFakeAKOAPIServer() {
+func InitializeFakeAKOAPIServer() *api.FakeApiServer {
 	utils.AviLog.Infof("Initializing Fake AKO API server")
-	akoApi := &api.ApiServer{
-		Models: []apimodels.ApiModel{},
+	akoApi := &api.FakeApiServer{
+		Port: "54321",
 	}
 
-	akoApi.InitFakeApi()
+	akoApi.InitApi()
 	lib.SetApiServerInstance(akoApi)
+	return akoApi
 }
 
 const defaultMockFilePath = "../avimockobjects"
@@ -838,6 +838,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 	} else if strings.Contains(url, "initial-data") {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"version": {"Version": "20.1.2"}}`))
+	} else if strings.Contains(url, "/api/cluster/runtime") {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"node_states": [{"name": "10.79.169.60","role": "CLUSTER_LEADER","up_since": "2020-10-28 04:58:48"}]}`))
 	}
 }
 

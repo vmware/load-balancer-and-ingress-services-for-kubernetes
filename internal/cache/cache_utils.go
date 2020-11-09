@@ -77,6 +77,11 @@ type AviCloudPropertyCache struct {
 	NSIpamDNS []string
 }
 
+type AviClusterRuntimeCache struct {
+	Name    string
+	UpSince string
+}
+
 type AviVsCache struct {
 	Name                 string
 	Tenant               string
