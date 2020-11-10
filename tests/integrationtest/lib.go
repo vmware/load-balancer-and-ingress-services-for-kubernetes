@@ -302,6 +302,27 @@ func (ing FakeIngress) IngressNoHost() *extensionv1beta1.Ingress {
 	return ingress
 }
 
+func (ing FakeIngress) IngressOnlyHostNoBackend() *extensionv1beta1.Ingress {
+	ingress := &extensionv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   ing.Namespace,
+			Name:        ing.Name,
+			Annotations: ing.annotations,
+		},
+		Spec: extensionv1beta1.IngressSpec{
+			Rules: nil,
+		},
+
+	}
+	ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+		IngressRuleValue: extensionv1beta1.IngressRuleValue{
+			HTTP: nil,
+		},
+	})
+
+	return ingress
+}
+
 func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 	ingress := &extensionv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
