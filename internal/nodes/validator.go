@@ -54,18 +54,23 @@ func (v *Validator) IsValiddHostName(hostname string) bool {
 	return false
 }
 
-func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec v1beta1.IngressSpec) {
+func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec v1beta1.IngressSpec) bool {
 	nsIngress := ns + "/" + ingName
 	for _, rule := range ingSpec.Rules {
-		for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
-			found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
-			if found && len(val) > 0 && utils.HasElem(val, nsIngress) && len(val) > 1 {
-				// TODO: push in ako apiserver
-				utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
+		if rule.IngressRuleValue.HTTP != nil {
+			for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
+				found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
+				if found && len(val) > 0 && utils.HasElem(val, nsIngress) && len(val) > 1 {
+					// TODO: push in ako apiserver
+					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
+				}
 			}
+		} else {
+			utils.AviLog.Warnf("key: %s, msg: Found Ingress: %s without service backends. Not going to process.", key, ingName)
+			return false
 		}
 	}
-	return
+	return true
 }
 
 func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec routev1.RouteSpec) {
@@ -155,21 +160,22 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 		} else {
 			secretHostsMap[secretName] = append(secretHostsMap[secretName], hostName)
 		}
-
-		for _, path := range rule.IngressRuleValue.HTTP.Paths {
-			hostPathMapSvc := IngressHostPathSvc{
-				Path:        path.Path,
-				ServiceName: path.Backend.ServiceName,
-				Port:        path.Backend.ServicePort.IntVal,
-				PortName:    path.Backend.ServicePort.StrVal,
+		if rule.IngressRuleValue.HTTP != nil {
+			for _, path := range rule.IngressRuleValue.HTTP.Paths {
+				hostPathMapSvc := IngressHostPathSvc{
+					Path:        path.Path,
+					ServiceName: path.Backend.ServiceName,
+					Port:        path.Backend.ServicePort.IntVal,
+					PortName:    path.Backend.ServicePort.StrVal,
+				}
+				if hostPathMapSvc.Port == 0 {
+					// Default to port 80 if not set in the ingress object
+					hostPathMapSvc.Port = 80
+				}
+				// for ingress use 100 as default weight
+				hostPathMapSvc.weight = 100
+				hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
 			}
-			if hostPathMapSvc.Port == 0 {
-				// Default to port 80 if not set in the ingress object
-				hostPathMapSvc.Port = 80
-			}
-			// for ingress use 100 as default weight
-			hostPathMapSvc.weight = 100
-			hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
 		}
 
 		if useHostRuleSSL {
