@@ -12,9 +12,9 @@ require (
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 	go.uber.org/zap v1.15.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	k8s.io/api v0.19.2
-	k8s.io/apimachinery v0.19.2
-	k8s.io/client-go v0.19.2
+	k8s.io/api v0.19.3
+	k8s.io/apimachinery v0.19.3
+	k8s.io/client-go v0.19.3
 )
 
 go 1.13
