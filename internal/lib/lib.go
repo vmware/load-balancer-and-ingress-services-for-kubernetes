@@ -433,11 +433,15 @@ func IsClusterNameValid() bool {
 }
 
 var StaticRouteSyncChan chan struct{}
+var ConfigDeleteSyncChan chan struct{}
 
 var akoApi api.ApiServerInterface
 
 func SetStaticRouteSyncHandler() {
 	StaticRouteSyncChan = make(chan struct{})
+}
+func SetConfigDeleteSyncChan() {
+	ConfigDeleteSyncChan = make(chan struct{})
 }
 
 func SetApiServerInstance(akoApiInstance api.ApiServerInterface) {

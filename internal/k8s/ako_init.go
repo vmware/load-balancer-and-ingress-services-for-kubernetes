@@ -29,6 +29,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -132,7 +134,11 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			}
 			utils.AviLog.Infof("avi k8s configmap created")
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
-			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
+			delModels := delConfigFromData(cm.Data)
+			if !delModels {
+				status.AddConfigmapFinalizer()
+			}
+			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delModels
 			lib.SetDisableSync(c.DisableSync)
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -161,6 +167,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 					c.DeleteModels()
 				} else {
 					quickSyncCh <- struct{}{}
+					status.AddConfigmapFinalizer()
 				}
 			}
 
@@ -553,6 +560,21 @@ func (c *AviController) DeleteModels() {
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 		utils.AviLog.Infof("Deleting objects for model: %s", modelName)
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
+	}
+
+	// Wait for maximum 30 minutes for the sync to get completed
+	timeout := make(chan bool, 1)
+	go func() {
+		time.Sleep(lib.AviObjDeletionTime * time.Minute)
+		timeout <- true
+	}()
+	lib.SetConfigDeleteSyncChan()
+	select {
+	case <-lib.ConfigDeleteSyncChan:
+		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through configMap update")
+		status.RemoveConfigmapFinalizer()
+	case <-timeout:
+		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 	}
 }
 

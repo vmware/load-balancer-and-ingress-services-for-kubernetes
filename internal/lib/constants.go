@@ -95,7 +95,8 @@ const (
 	DefaultSEGroup                             = "Default-Group"
 	GatewayFinalizer                           = "gateway.ako.vmware.com"
 	ClusterStatusCacheKey                      = "cluster-runtime"
-
+	ConfigmapFinalizer                         = "ako.vmware.com/config"
+	AviObjDeletionTime                         = 30 // Minutes
 	//Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"
 	NsFilterDelete = "DELETE"
