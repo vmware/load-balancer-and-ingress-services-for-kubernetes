@@ -168,14 +168,14 @@ func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
 	ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Errorf("NS to ingress queue add: Error occured while retrieving ingresss for namespace:[%s]", namespace)
-	} else {
-		for _, ingObj := range ingObjs {
-			key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: %s for namespace:[%s]", key, msg, namespace)
-		}
+		utils.AviLog.Errorf("NS to ingress queue add: Error occured while retrieving ingresss for namespace: %s", namespace)
+		return
+	}
+	for _, ingObj := range ingObjs {
+		key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 
 }
@@ -204,12 +204,12 @@ func AddNameSpaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 			nsFilterObj := utils.GetGlobalK8NSObj()
 			if utils.NSFilterFunction(ns.GetName(), nsFilterObj, nsLabels, false) {
 				utils.AddNamespace(ns.GetName(), nsFilterObj)
-				utils.AviLog.Debugf("NS Add event: Namespace passed filter:[%s] ", ns.GetName())
+				utils.AviLog.Debugf("NS Add event: Namespace passed filter: %s", ns.GetName())
 			} else {
 				//Case: previoulsy deleted valid NS, added back with no labels or invalid labels but nsList contain that ns
-				utils.AviLog.Debugf("NS Add event: Namespace did not pass filter: [%s]", ns.GetName())
-				if utils.IsNSPresent(ns.GetName(), nsFilterObj) {
-					utils.AviLog.Debugf("Ns Add event: Deleting previous valid namespace: [%s] from valid NS List", ns.GetName())
+				utils.AviLog.Debugf("NS Add event: Namespace did not pass filter: %s", ns.GetName())
+				if utils.NSFilterFunction(ns.GetName(), nsFilterObj, nil, true) {
+					utils.AviLog.Debugf("Ns Add event: Deleting previous valid namespace: %s from valid NS List", ns.GetName())
 					utils.DeleteNamespace(ns.GetName(), nsFilterObj)
 				}
 			}
@@ -229,15 +229,15 @@ func AddNameSpaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 				if !nsOldFlag && nsNewFlag {
 					//Case 1: Namespace updated with valid labels
 					//Call ingress add
-					utils.AviLog.Debugf("Adding ingresses for namespaces:[%s]", nsCur.GetName())
+					utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
 					utils.AddNamespace(nsCur.GetName(), nsFilterObj)
-					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), "ADD")
+					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.Add)
 				} else if nsOldFlag && !nsNewFlag {
 					//Case 2: Old valid namespace updated with invalid labels
 					//Call ingress delete
-					utils.AviLog.Debugf("Deleting ingresses for namespaces:[%s]", nsCur.GetName())
+					utils.AviLog.Debugf("Deleting ingresses for namespaces: %s", nsCur.GetName())
 					utils.DeleteNamespace(nsCur.GetName(), nsFilterObj)
-					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), "DELETE")
+					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.Delete)
 				}
 
 			}
@@ -570,7 +570,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			} else {
-				utils.AviLog.Debugf("Ingress add event: Namespace: [%s]  didn't qualify filter. Not adding ingress", namespace)
+				utils.AviLog.Debugf("Ingress add event: Namespace: %s didn't qualify filter. Not adding ingress", namespace)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -599,7 +599,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			} else {
-				utils.AviLog.Debugf("Ingress Delete event: NS [%s] didn't qualify. Not deleting ingress", namespace)
+				utils.AviLog.Debugf("Ingress Delete event: NS %s didn't qualify. Not deleting ingress", namespace)
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -621,7 +621,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					c.workqueue[bkt].AddRateLimited(key)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				} else {
-					utils.AviLog.Debugf("Ingress update Event. NS [%s] didn't qualify. Not updating ingress", namespace)
+					utils.AviLog.Debugf("Ingress update Event. NS %s didn't qualify. Not updating ingress", namespace)
 				}
 			}
 		},

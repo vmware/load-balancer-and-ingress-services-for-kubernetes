@@ -95,6 +95,10 @@ const (
 	DefaultSEGroup                             = "Default-Group"
 	GatewayFinalizer                           = "gateway.ako.vmware.com"
 	ClusterStatusCacheKey                      = "cluster-runtime"
+
+	//Specifies command used in namespace event handler
+	Add    = "ADD"
+	Delete = "DELETE"
 )
 
 const (

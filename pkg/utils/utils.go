@@ -322,25 +322,15 @@ func IsNSPresent(namespace string, obj *K8ValidNamespaces) bool {
 	obj.validNSList.lock.RLock()
 	defer obj.validNSList.lock.RUnlock()
 	_, flag := obj.validNSList.nsList[namespace]
-	AviLog.Debugf("Is Namespace [%s] valid? -->[%v]", namespace, flag)
+	AviLog.Debugf("Namespace %s is accepted : %v", namespace, flag)
 	return flag
 }
 
-func InitializeNSSync(label string) {
-	AviLog.Debugf("In InitializeNSSync function, namespace label to check is: %s\n", label)
-	if label != "" {
-		segments := strings.Split(label, "=")
-		seg0 := strings.Trim(segments[0], " ")
-		seg1 := strings.Trim(segments[1], " ")
-		if len(segments) != 2 || seg0 == "" || seg1 == "" {
-			AviLog.Error("Error occured while parsing labels.")
-			return
-		}
-		GlobalK8NSObj.EnableMigration = true
-		GlobalK8NSObj.nsFilter.key = seg0
-		GlobalK8NSObj.nsFilter.value = seg1
-		GlobalK8NSObj.validNSList.nsList = make(map[string]bool)
-	}
+func InitializeNSSync(labelKey, labelVal string) {
+	GlobalK8NSObj.EnableMigration = true
+	GlobalK8NSObj.nsFilter.key = labelKey
+	GlobalK8NSObj.nsFilter.value = labelVal
+	GlobalK8NSObj.validNSList.nsList = make(map[string]bool)
 }
 
 //Get namespace label filter key and value
@@ -384,7 +374,7 @@ func NSFilterFunction(namespace string, obj *K8ValidNamespaces, nsLabels map[str
 		nsKey, nsValue := GetNSFilter(obj)
 		val, ok := nsLabels[nsKey]
 		if ok && val == nsValue {
-			AviLog.Debugf("Namespace filter passed for namespace: [%s]", namespace)
+			AviLog.Debugf("Namespace filter passed for namespace: %s", namespace)
 			return true
 		}
 	}
@@ -396,16 +386,4 @@ func retrieveNSList(nsList map[string]bool) []string {
 		namespaces = append(namespaces, k)
 	}
 	return namespaces
-}
-func GetAllNamespacesToSync(obj *K8ValidNamespaces) []string {
-	var nsList []string
-	if !obj.EnableMigration {
-		return nsList
-	}
-	obj.validNSList.lock.RLock()
-	defer obj.validNSList.lock.RUnlock()
-	lst := retrieveNSList(obj.validNSList.nsList)
-	nsList = append(nsList, lst...)
-
-	return nsList
 }
