@@ -735,10 +735,10 @@ func TestEditPathIngress(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Eventually(func() []*avinodes.AviPoolNode {
 			return nodes[0].PoolRefs
-		}, 5*time.Second).Should(gomega.HaveLen(1))
+		}, 20*time.Second).Should(gomega.HaveLen(1))
 		g.Eventually(func() string {
 			return nodes[0].PoolRefs[0].Name
-		}, 5*time.Second).Should(gomega.Equal("cluster--foo.com.avi.internal_bar-default-ingress-edit"))
+		}, 20*time.Second).Should(gomega.Equal("cluster--foo.com.avi.internal_bar-default-ingress-edit"))
 		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com.avi.internal/bar"))
 		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
