@@ -1,5 +1,7 @@
-FROM golang:latest AS build
-ENV BUILD_PATH="github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/"
+ARG golang_src_repo=golang:latest
+ARG photon_src_repo=photon:latest
+FROM ${golang_src_repo} as build
+ENV BUILD_PATH="github.com/vmware/load-balancer-and-ingress-services-for-kubernetes"
 RUN mkdir -p $GOPATH/src/$BUILD_PATH
 
 COPY . $GOPATH/src/$BUILD_PATH
@@ -7,7 +9,8 @@ WORKDIR $GOPATH/src/$BUILD_PATH
 
 RUN GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -o $GOPATH/bin/akc -mod=vendor $BUILD_PATH/cmd/ako-main
 
-FROM photon:latest
+ARG photon_src_repo=photon:latest
+FROM ${photon_src_repo}
 RUN yum install -y tar.x86_64
 COPY --from=build /go/bin/akc .
 EXPOSE 8080

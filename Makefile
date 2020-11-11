@@ -32,8 +32,19 @@ endif
 ifndef BUILD_TIME
 	$(eval BUILD_TIME=$(shell date +%Y-%m-%d_%H:%M:%S_%Z))
 endif
-	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" -f Dockerfile.ako .
 
+ifdef GOLANG_SRC_REPO
+	$(eval BUILD_ARG_GOLANG=--build-arg golang_src_repo=$(GOLANG_SRC_REPO))
+else
+	$(eval BUILD_ARG_GOLANG=)
+endif
+
+ifdef PHOTON_SRC_REPO
+	$(eval BUILD_ARG_PHOTON=--build-arg photon_src_repo=$(PHOTON_SRC_REPO))
+else
+	$(eval BUILD_ARG_PHOTON=)
+endif
+	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) -f Dockerfile.ako .
 
 .PHONY: test
 test:
