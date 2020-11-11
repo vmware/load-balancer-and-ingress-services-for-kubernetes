@@ -127,7 +127,7 @@ func updateObject(mIngress *networking.Ingress, updateOption UpdateStatusOptions
 		patchPayload, _ := json.Marshal(map[string]interface{}{
 			"status": mIngress.Status,
 		})
-		_, err = mClient.ExtensionsV1beta1().Ingresses(mIngress.Namespace).Patch(mIngress.Name, types.MergePatchType, patchPayload, "status")
+		_, err = mClient.NetworkingV1beta1().Ingresses(mIngress.Namespace).Patch(mIngress.Name, types.MergePatchType, patchPayload, "status")
 	}
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
@@ -246,7 +246,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 				"status": nil,
 			})
 		}
-		_, err = mClient.ExtensionsV1beta1().Ingresses(mIngress.Namespace).Patch(mIngress.Name, types.MergePatchType, patchPayload, "status")
+		_, err = mClient.NetworkingV1beta1().Ingresses(mIngress.Namespace).Patch(mIngress.Name, types.MergePatchType, patchPayload, "status")
 	}
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
