@@ -164,8 +164,14 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 		}
 		if rule.IngressRuleValue.HTTP != nil {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
+				pathType := networkingv1beta1.PathTypeImplementationSpecific
+				if path.PathType != nil {
+					pathType = *path.PathType
+				}
+
 				hostPathMapSvc := IngressHostPathSvc{
 					Path:        path.Path,
+					PathType:    pathType,
 					ServiceName: path.Backend.ServiceName,
 					Port:        path.Backend.ServicePort.IntVal,
 					PortName:    path.Backend.ServicePort.StrVal,

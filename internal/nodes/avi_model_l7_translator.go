@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -472,10 +473,22 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			var httpPolicySet []AviHostPathPortPoolPG
 
 			httpPGPath := AviHostPathPortPoolPG{Host: host}
+			
+			if path.PathType == networkingv1beta1.PathTypeExact {
+				httpPGPath.MatchCriteria = "EQUALS"
+			} else {
+				// PathTypePrefix and PathTypeImplementationSpecific
+				// default behaviour for AKO set be Prefix match on the path
+				httpPGPath.MatchCriteria = "BEGINS_WITH"
+				if !strings.HasSuffix(path.Path, "/") {
+					path.Path = path.Path + "/"
+				}
+			}
+			
 			if path.Path != "" {
 				httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			}
-			httpPGPath.MatchCriteria = "BEGINS_WITH"
+
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
 			var pgNode *AviPoolGroupNode
 			// There can be multiple services for the same path in case of alternate backend.

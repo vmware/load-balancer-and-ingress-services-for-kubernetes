@@ -4,6 +4,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd
 	github.com/coreos/etcd v3.3.25+incompatible // indirect
+	github.com/googleapis/gnostic v0.5.3 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/onsi/gomega v1.8.1
