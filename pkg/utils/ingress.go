@@ -15,110 +15,33 @@
 package utils
 
 import (
-	extension "k8s.io/api/extensions/v1beta1"
-	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"context"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
-var IngressApiMap = map[string]string{
-	"corev1":      CoreV1IngressInformer,
-	"extensionv1": ExtV1IngressInformer,
-}
+var ingressClassEnabled *bool
 
-var (
-	ExtensionsIngress = schema.GroupVersionResource{
-		Group:    "extensions",
-		Version:  "v1beta1",
-		Resource: "ingresses",
+func IsIngressClassEnabled(kc ...kubernetes.Interface) bool {
+	if ingressClassEnabled != nil {
+		return *ingressClassEnabled
 	}
 
-	NetworkingIngress = schema.GroupVersionResource{
-		Group:    "networking.k8s.io",
-		Version:  "v1beta1",
-		Resource: "ingresses",
-	}
-)
-
-// func GetIngressApi(kc kubernetes.Interface) string {
-// 	ingressAPI := os.Getenv("INGRESS_API")
-// 	if ingressAPI != "" {
-// 		ingressAPI, ok := IngressApiMap[ingressAPI]
-// 		if !ok {
-// 			return CoreV1IngressInformer
-// 		}
-// 		return ingressAPI
-// 	}
-
-// 	var timeout int64
-// 	timeout = 120
-
-// 	_, ingErr := kc.NetworkingV1().Ingresses("").List(metav1.ListOptions{TimeoutSeconds: &timeout})
-// 	// _, ingErr := kc.NetworkingV1().Ingresses("").List(metav1.ListOptions{TimeoutSeconds: &timeout})
-// 	if ingErr != nil {
-// 		AviLog.Infof("networkingv1 ingresses not found, setting informer for extensionsv1: %v", ingErr)
-// 		return ExtV1IngressInformer
-// 	}
-// 	return CoreV1IngressInformer
-// }
-
-func fromExtensions(old *extension.Ingress) (*networking.Ingress, error) {
-	networkingIngress := &networking.Ingress{}
-
-	err := runtimeScheme.Convert(old, networkingIngress, nil)
-	if err != nil {
-		return nil, err
+	if kc == nil {
+		return false
 	}
 
-	return networkingIngress, nil
-}
-
-func fromNetworking(old *networking.Ingress) (*extension.Ingress, error) {
-	extensionsIngress := &extension.Ingress{}
-
-	err := runtimeScheme.Convert(old, extensionsIngress, nil)
-	if err != nil {
-		return nil, err
+	var isPresent bool
+	timeout := int64(120)
+	_, ingClassError := kc[0].NetworkingV1beta1().IngressClasses().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
+	if ingClassError != nil {
+		AviLog.Infof("ingress class resources not found/enabled on cluster: %v", ingClassError)
+		isPresent = false
+	} else {
+		isPresent = true
 	}
 
-	return extensionsIngress, nil
-}
-
-// ToNetworkingIngress converts obj interface to networking.Ingress
-func ToNetworkingIngress(obj interface{}) (*networking.Ingress, bool) {
-	oldVersion, inExtension := obj.(*extension.Ingress)
-	if inExtension {
-		ing, err := fromExtensions(oldVersion)
-		if err != nil {
-			AviLog.Warnf("unexpected error converting Ingress from extensions package: %v", err)
-			return nil, false
-		}
-
-		return ing, true
-	}
-
-	if ing, ok := obj.(*networking.Ingress); ok {
-		return ing, true
-	}
-
-	return nil, false
-}
-
-// ToExtensionIngress converts obj interface to extension.Ingress
-func ToExtensionIngress(obj interface{}) (*extension.Ingress, bool) {
-	oldVersion, inExtension := obj.(*networking.Ingress)
-	if inExtension {
-		ing, err := fromNetworking(oldVersion)
-		if err != nil {
-			AviLog.Warnf("unexpected error converting Ingress from networking package: %v", err)
-			return nil, false
-		}
-
-		return ing, true
-	}
-
-	if ing, ok := obj.(*extension.Ingress); ok {
-		return ing, true
-	}
-
-	return nil, false
+	ingressClassEnabled = &isPresent
+	return *ingressClassEnabled
 }

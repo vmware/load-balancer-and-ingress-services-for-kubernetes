@@ -29,8 +29,7 @@ import (
 	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
-	networking "k8s.io/api/networking/v1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -42,8 +41,7 @@ var runtimeScheme = k8sruntime.NewScheme()
 func init() {
 	//Setting the package-wide version
 	CtrlVersion = os.Getenv("CTRL_VERSION")
-	extensions.AddToScheme(runtimeScheme)
-	networking.AddToScheme(runtimeScheme)
+	networkingv1beta1.AddToScheme(runtimeScheme)
 }
 
 func IsV4(addr string) bool {
@@ -107,7 +105,7 @@ func CrudHashKey(obj_type string, obj interface{}) string {
 		ns = svc.Namespace
 		name = svc.Name
 	case "Ingress":
-		ing := obj.(*networking.Ingress)
+		ing := obj.(*networkingv1beta1.Ingress)
 		ns = ing.Namespace
 		name = ing.Name
 	default:
@@ -190,9 +188,11 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case ConfigMapInformer:
 			informers.ConfigMapInformer = akoNSInformerFactory.Core().V1().ConfigMaps()
 		case IngressInformer:
-			inginformer, _ := kubeInformerFactory.ForResource(NetworkingIngress)
-			informers.IngressInformer = inginformer
-			informers.IngressVersion = CoreV1IngressInformer
+			informers.IngressInformer = kubeInformerFactory.Networking().V1beta1().Ingresses()
+		case IngressClassInformer:
+			if IsIngressClassEnabled(cs) {
+				informers.IngressClassInformer = kubeInformerFactory.Networking().V1beta1().IngressClasses()
+			}
 		case RouteInformer:
 			if ocs != nil {
 				oshiftInformerFactory := oshiftinformers.NewSharedInformerFactory(ocs, time.Second*30)

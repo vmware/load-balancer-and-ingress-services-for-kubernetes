@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 )
 
 func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {
@@ -180,29 +181,3 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
 }
 
-func validateGatewayObj(key string, gateway *advl4v1alpha1pre1.Gateway) error {
-	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Unable to fetch corresponding networking.x-k8s.io/gatewayclass %s %v",
-			key, gateway.Spec.Class, err)
-		return err
-	}
-
-	for _, listener := range gateway.Spec.Listeners {
-		gwName, nameOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNameLabelKey]
-		gwNamespace, nsOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNamespaceLabelKey]
-		if !nameOk || !nsOk ||
-			(nameOk && gwName != gateway.Name) ||
-			(nsOk && gwNamespace != gateway.Namespace) {
-			return errors.New("Incorrect gateway matchLabels configuration")
-		}
-	}
-
-	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
-	if gwClassObj.Spec.Controller != lib.AviGatewayController {
-		// Return an error since this is not our object.
-		return errors.New("Unexpected controller")
-	}
-
-	return nil
-}

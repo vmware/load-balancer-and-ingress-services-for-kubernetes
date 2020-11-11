@@ -35,11 +35,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var IngressApiMap = map[string]string{
-	"corev1":      utils.CoreV1IngressInformer,
-	"extensionv1": utils.ExtV1IngressInformer,
-}
-
 var ShardSchemeMap = map[string]string{
 	"hostname":  "hostname",
 	"namespace": "namespace",
@@ -489,6 +484,7 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 		} else {
 			// Kubernetes cluster
 			allInformers = append(allInformers, utils.IngressInformer)
+			allInformers = append(allInformers, utils.IngressClassInformer)
 		}
 	}
 	return allInformers

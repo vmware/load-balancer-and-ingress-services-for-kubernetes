@@ -419,9 +419,7 @@ func (c *AviController) FullSyncK8s() error {
 
 		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
-
-			ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
-
+			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses("").List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
 			} else {

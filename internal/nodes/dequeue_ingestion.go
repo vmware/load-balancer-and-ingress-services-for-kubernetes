@@ -20,7 +20,6 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -168,8 +167,8 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 		return true
 	}
 
-	// Check if the gateway has a valid gwclass or not.
-	err = validateGatewayObj(key, gateway)
+	// Check if the gateway has a valid gateway class
+	err = validateGatewayForClass(key, gateway)
 	if err != nil {
 		return true
 	}
@@ -280,6 +279,11 @@ func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, st
 		return arr[0], arr[1]
 	}
 
+	if objType == utils.IngressClass {
+		arr := strings.Split(nsname, "/")
+		return arr[0], arr[1]
+	}
+
 	return namespace, nsname
 }
 
@@ -310,7 +314,6 @@ func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool 
 
 func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsync bool) {
 	utils.AviLog.Debugf("key: %s, Got node Object %s\n", key, nodename)
-	utils.AviLog.Infof("%v\n", utils.GetInformers().NodeInformer)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
 	if err == nil {
 		utils.AviLog.Debugf("key: %s, Node Object %v\n", key, nodeObj)
