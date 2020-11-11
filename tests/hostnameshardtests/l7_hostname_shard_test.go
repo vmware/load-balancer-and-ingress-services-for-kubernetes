@@ -221,7 +221,7 @@ func TestNoBackendL7Model(t *testing.T) {
 		Paths:     []string{"/"},
 	}).IngressOnlyHostNoBackend()
 
-	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestNoBackendL7Model(t *testing.T) {
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
 
-	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}

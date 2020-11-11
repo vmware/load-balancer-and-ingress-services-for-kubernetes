@@ -15,7 +15,6 @@
 package nodes
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -26,7 +25,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 )
 
 func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {

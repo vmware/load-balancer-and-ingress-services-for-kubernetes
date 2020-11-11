@@ -337,19 +337,19 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 	return ingress
 }
 
-func (ing FakeIngress) IngressOnlyHostNoBackend() *extensionv1beta1.Ingress {
-	ingress := &extensionv1beta1.Ingress{
+func (ing FakeIngress) IngressOnlyHostNoBackend() *networking.Ingress {
+	ingress := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ing.Namespace,
 			Name:        ing.Name,
 			Annotations: ing.annotations,
 		},
-		Spec: extensionv1beta1.IngressSpec{
+		Spec: networking.IngressSpec{
 			Rules: nil,
 		},
 	}
-	ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
-		IngressRuleValue: extensionv1beta1.IngressRuleValue{
+	ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+		IngressRuleValue: networking.IngressRuleValue{
 			HTTP: nil,
 		},
 	})
@@ -357,8 +357,8 @@ func (ing FakeIngress) IngressOnlyHostNoBackend() *extensionv1beta1.Ingress {
 	return ingress
 }
 
-func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
-	ingress := &extensionv1beta1.Ingress{
+func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
+	ingress := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ing.Namespace,
 			Name:        ing.Name,

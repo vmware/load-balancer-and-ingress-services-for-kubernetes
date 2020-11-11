@@ -15,6 +15,7 @@
 package nodes
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -28,7 +29,7 @@ import (
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -119,7 +120,7 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 	routeObj, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).Get(routeName)
 	if err != nil {
 		// Detect a delete condition here.
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			// Remove all the Ingress to Services mapping.
 			// Remove the references of this ingress from the Services
 			objects.OshiftRouteSvcLister().IngressMappings(namespace).RemoveIngressMappings(routeName)
@@ -141,7 +142,7 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 
 func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
 	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		// Garbage collect the svc if no route references exist
 		_, routes := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
 		if len(routes) == 0 {
@@ -161,7 +162,7 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 	svcNSName := namespace + "/" + svcName
 
 	myService, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		// Garbage collect the svc if no route references exist
 		found, gateway := objects.ServiceGWLister().GetSvcToGw(svcNSName)
 		if found {
@@ -222,7 +223,7 @@ func GatewayChanges(gwName string, namespace string, key string) ([]string, bool
 	var allGateways []string
 	allGateways = append(allGateways, namespace+"/"+gwName)
 	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		// Remove all the Gateway to Services mapping.
 		objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
 		objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
@@ -252,7 +253,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 
 	if err != nil {
 		// Detect a delete condition here.
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			// Remove all the Ingress to Services mapping.
 			// Remove the references of this ingress from the Services
 			objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
@@ -295,7 +296,7 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		// Detect a delete condition here.
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			// Garbage collect the service if no ingress references exist
 			_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
 			if len(ingresses) == 0 {
@@ -372,7 +373,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 
 	allIngresses := make([]string, 0)
 	hostrule, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrname)
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted\n", key)
 		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
 		objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
@@ -438,7 +439,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 	pathRules := make(map[string]string)
 	var ok bool
 
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HTTPRule Deleted\n", key)
 		_, oldFqdn = objects.SharedCRDLister().GetHTTPRuleFqdnMapping(namespace + "/" + rrname)
 		_, x := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(oldFqdn)
