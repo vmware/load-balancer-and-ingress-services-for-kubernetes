@@ -84,7 +84,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 			return
 		}
 		if avimodel.IsVrf {
-			utils.AviLog.Warnf("key: %s, msg: processing vrf object\n", key)
+			utils.AviLog.Infof("key: %s, msg: processing vrf object\n", key)
 			rest.vrfCU(key, name, avimodel)
 			return
 		}
@@ -674,7 +674,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					// PG error with pool object not found.
 					aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
 					// After the refresh - get the members
-					pgKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: pgObjName}
+					pgKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pgObjName}
 					pgCache, ok := rest.cache.PgCache.AviCacheGet(pgKey)
 					if ok {
 						pgCacheObj, _ := pgCache.(*avicache.AviPGCache)

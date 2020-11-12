@@ -214,13 +214,24 @@ func GetVrf() string {
 	return VRFContext
 }
 
+func GetAdminTenant() string {
+	return utils.ADMIN_NS
+}
+
 func GetTenant() string {
-	// tenant := os.Getenv("CTRL_TENANT")
-	// if tenant == "" {
-	// 	tenant = utils.ADMIN_NS
-	// }
-	tenant := utils.ADMIN_NS
-	return tenant
+	tenantName := os.Getenv("TENANT_NAME")
+	if tenantName != "" {
+		return tenantName
+	}
+	return utils.ADMIN_NS
+}
+
+func GetTenantsPerCluster() bool {
+	tpc := os.Getenv("TENANTS_PER_CLUSTER")
+	if tpc == "true" {
+		return true
+	}
+	return false
 }
 
 func GetIngressApi() string {
@@ -510,6 +521,12 @@ func GetCloudType() string {
 		return CLOUD_VCENTER
 	}
 	return CloudType
+}
+
+var IsCloudInAdminTenant = true
+
+func SetIsCloudInAdminTenant(isCloudInAdminTenant bool) {
+	IsCloudInAdminTenant = isCloudInAdminTenant
 }
 
 func IsPublicCloud() bool {

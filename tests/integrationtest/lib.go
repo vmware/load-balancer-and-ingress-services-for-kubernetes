@@ -312,7 +312,6 @@ func (ing FakeIngress) IngressOnlyHostNoBackend() *extensionv1beta1.Ingress {
 		Spec: extensionv1beta1.IngressSpec{
 			Rules: nil,
 		},
-
 	}
 	ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
 		IngressRuleValue: extensionv1beta1.IngressRuleValue{
@@ -711,6 +710,7 @@ var FakeAviObjects = []string{
 	"vrfcontext",
 	"vsdatascriptset",
 	"serviceenginegroup",
+	"tenant",
 }
 
 type InjectFault func(w http.ResponseWriter, r *http.Request)

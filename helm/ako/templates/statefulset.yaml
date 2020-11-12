@@ -97,6 +97,16 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: cloudName
+          - name: TENANT_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: tenantName
+          - name: TENANTS_PER_CLUSTER
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: tenantsPerCluster
           - name: CLUSTER_NAME
             valueFrom:
               configMapKeyRef:

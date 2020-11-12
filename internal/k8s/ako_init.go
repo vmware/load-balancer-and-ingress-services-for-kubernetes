@@ -59,13 +59,13 @@ func PopulateCache() error {
 	// Delete Stale objects by deleting model for dummy VS
 	aviclient := avicache.SharedAVIClients()
 	restlayer := rest.NewRestOperations(avi_obj_cache, aviclient)
-	staleVSKey := utils.ADMIN_NS + "/" + lib.DummyVSForStaleData
+	staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
 	if lib.IsClusterNameValid() && aviclient != nil && len(aviclient.AviClient) > 0 {
 		utils.AviLog.Infof("Starting clean up of stale objects")
 		restlayer.CleanupVS(staleVSKey, true)
 		staleCacheKey := avicache.NamespaceName{
 			Name:      lib.DummyVSForStaleData,
-			Namespace: utils.ADMIN_NS,
+			Namespace: lib.GetTenant(),
 		}
 		avi_obj_cache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 	}
