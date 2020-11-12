@@ -96,9 +96,20 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	} else {
 		avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	}
+
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
-	vsVipNode := &AviVSVIPNode{Name: vsVipName, Tenant: lib.GetTenant(),
-		FQDNs: fqdns, EastWest: false, VrfContext: vrfcontext}
+	vsVipNode := &AviVSVIPNode{
+		Name:       vsVipName,
+		Tenant:     lib.GetTenant(),
+		FQDNs:      fqdns,
+		EastWest:   false,
+		VrfContext: vrfcontext,
+	}
+
+	if svcObj.Spec.LoadBalancerIP != "" {
+		vsVipNode.IPAddress = svcObj.Spec.LoadBalancerIP
+	}
+
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta
