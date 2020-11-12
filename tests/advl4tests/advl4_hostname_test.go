@@ -99,6 +99,7 @@ type FakeGateway struct {
 	Name      string
 	Namespace string
 	GWClass   string
+	IPAddress string
 	Listeners []FakeGWListener
 }
 
@@ -132,6 +133,13 @@ func (gw FakeGateway) Gateway() *advl4v1alpha1pre1.Gateway {
 			Class:     gw.GWClass,
 			Listeners: fakeListeners,
 		},
+	}
+
+	if gw.IPAddress != "" {
+		gateway.Spec.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
+			Type:  advl4v1alpha1pre1.IPAddressType,
+			Value: gw.IPAddress,
+		}}
 	}
 
 	return gateway
@@ -282,6 +290,54 @@ func TestAdvL4BestCase(t *testing.T) {
 		return len(gw.Status.Addresses)
 	}, 20*time.Second).Should(gomega.Equal(0))
 
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4WithStaticIP(t *testing.T) {
+	// create gwclass, create gw, create 1svc
+	// check graph VsNode IPAddress val in vsvip ref
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+	staticIP := "80.80.80.80"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	gateway := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		IPAddress: staticIP,
+		Listeners: []FakeGWListener{{
+			Port:     int32(8081),
+			Protocol: "TCP",
+			Labels: map[string]string{
+				lib.GatewayNameLabelKey:      gatewayName,
+				lib.GatewayNamespaceLabelKey: ns,
+				lib.GatewayTypeLabelKey:      "direct",
+			},
+		}},
+	}
+	gwCreate := gateway.Gateway()
+	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Create(gwCreate); err != nil {
+		t.Fatalf("error in adding Gateway: %v", err)
+	}
+
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && len(nodes[0].VSVIPRefs) > 0 {
+				return nodes[0].VSVIPRefs[0].IPAddress
+			}
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal(staticIP))
+
+	TeardownGatewayClass(t, gwClassName)
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, modelName)
