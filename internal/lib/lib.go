@@ -267,6 +267,16 @@ func GetEnableRHI() bool {
 	return false
 }
 
+func GetLabelToSyncNameSpace() (string, string) {
+	labelKey := os.Getenv("NAMESPACE_SYNC_LABEL_KEY")
+	labelValue := os.Getenv("NAMESPACE_SYNC_LABEL_VALUE")
+
+	if strings.Trim(labelKey, " ") != "" && strings.Trim(labelValue, " ") != "" {
+		return labelKey, labelValue
+	}
+	return "", ""
+}
+
 // The port to run the AKO API server on
 func GetAkoApiServerPort() string {
 	port := os.Getenv("AKO_API_PORT")

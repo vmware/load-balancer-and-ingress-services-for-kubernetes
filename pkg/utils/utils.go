@@ -311,3 +311,79 @@ func Remove(arr []string, item string) []string {
 	}
 	return arr
 }
+
+var globalNSFilterObj *K8ValidNamespaces = &K8ValidNamespaces{}
+
+func GetGlobalNSFilter() *K8ValidNamespaces {
+	return globalNSFilterObj
+}
+
+func IsNSPresent(namespace string, obj *K8ValidNamespaces) bool {
+	obj.validNSList.lock.RLock()
+	defer obj.validNSList.lock.RUnlock()
+	_, flag := obj.validNSList.nsList[namespace]
+	AviLog.Debugf("Namespace %s is accepted : %v", namespace, flag)
+	return flag
+}
+
+func InitializeNSSync(labelKey, labelVal string) {
+	globalNSFilterObj.EnableMigration = true
+	globalNSFilterObj.nsFilter.key = labelKey
+	globalNSFilterObj.nsFilter.value = labelVal
+	globalNSFilterObj.validNSList.nsList = make(map[string]bool)
+}
+
+//Get namespace label filter key and value
+func GetNSFilter(obj *K8ValidNamespaces) (string, string) {
+	var key string
+	var value string
+	if obj.nsFilter.key != "" {
+		key = obj.nsFilter.key
+	}
+	if obj.nsFilter.value != "" {
+		value = obj.nsFilter.value
+	}
+	return key, value
+}
+
+func AddNamespaceToFilter(namespace string, obj *K8ValidNamespaces) {
+	obj.validNSList.lock.Lock()
+	defer obj.validNSList.lock.Unlock()
+	obj.validNSList.nsList[namespace] = true
+}
+
+func DeleteNamespaceFromFilter(namespace string, obj *K8ValidNamespaces) {
+	obj.validNSList.lock.Lock()
+	defer obj.validNSList.lock.Unlock()
+	delete(obj.validNSList.nsList, namespace)
+}
+
+func CheckIfNamespaceAccepted(namespace string, obj *K8ValidNamespaces, nsLabels map[string]string, nonNSK8ResFlag bool) bool {
+	//Return true if there is no migration labels mentioned
+	if !obj.EnableMigration {
+		return true
+	}
+	//For k8 resources other than namespace check NS already present or not
+	if nonNSK8ResFlag && IsNSPresent(namespace, obj) {
+		return true
+	}
+
+	//Following code will be called for Namespace case only from nsevent handler
+	if len(nsLabels) != 0 {
+		// if namespace have labels
+		nsKey, nsValue := GetNSFilter(obj)
+		val, ok := nsLabels[nsKey]
+		if ok && val == nsValue {
+			AviLog.Debugf("Namespace filter passed for namespace: %s", namespace)
+			return true
+		}
+	}
+	return false
+}
+func retrieveNSList(nsList map[string]bool) []string {
+	var namespaces []string
+	for k := range nsList {
+		namespaces = append(namespaces, k)
+	}
+	return namespaces
+}
