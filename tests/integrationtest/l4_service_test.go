@@ -128,7 +128,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestAviNodeCreationSinglePort(t *testing.T) {
+func TestAviSvcCreationSinglePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForSvcLB(t)
 
@@ -186,7 +186,7 @@ func TestAviNodeCreationSinglePort(t *testing.T) {
 	TearDownTestForSvcLB(t, g)
 }
 
-func TestAviNodeCreationMultiPort(t *testing.T) {
+func TestAviSvcCreationMultiPort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, MULTIPORTSVC)
 
@@ -228,7 +228,7 @@ func TestAviNodeCreationMultiPort(t *testing.T) {
 	TearDownTestForSvcLBMultiport(t, g)
 }
 
-func TestAviNodeMultiPortApplicationProf(t *testing.T) {
+func TestAviSvcMultiPortApplicationProf(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, MULTIPORTSVC)
 
@@ -271,7 +271,7 @@ func TestAviNodeMultiPortApplicationProf(t *testing.T) {
 	TearDownTestForSvcLBMultiport(t, g)
 }
 
-func TestAviNodeUpdateEndpoint(t *testing.T) {
+func TestAviSvcUpdateEndpoint(t *testing.T) {
 	var err error
 	g := gomega.NewGomegaWithT(t)
 	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, SINGLEPORTSVC)
@@ -569,5 +569,36 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		_, found = mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 40*time.Second).Should(gomega.Equal(true))
+	TearDownTestForSvcLB(t, g)
+}
+
+func TestAviSvcCreationWithStaticIP(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	staticIP := "80.80.80.80"
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	svcExample := (FakeService{
+		Name:           SINGLEPORTSVC,
+		Namespace:      NAMESPACE,
+		Type:           corev1.ServiceTypeLoadBalancer,
+		LoadBalancerIP: staticIP,
+		ServicePorts:   []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(svcExample)
+	if err != nil {
+		t.Fatalf("error in creating Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	PollForCompletion(t, SINGLEPORTMODEL, 5)
+
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && len(nodes[0].VSVIPRefs) > 0 {
+				return nodes[0].VSVIPRefs[0].IPAddress
+			}
+		}
+		return ""
+	}, 20*time.Second).Should(gomega.Equal(staticIP))
 	TearDownTestForSvcLB(t, g)
 }

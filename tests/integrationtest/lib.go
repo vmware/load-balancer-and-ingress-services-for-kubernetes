@@ -312,7 +312,6 @@ func (ing FakeIngress) IngressOnlyHostNoBackend() *extensionv1beta1.Ingress {
 		Spec: extensionv1beta1.IngressSpec{
 			Rules: nil,
 		},
-
 	}
 	ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
 		IngressRuleValue: extensionv1beta1.IngressRuleValue{
@@ -430,12 +429,13 @@ func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 }
 
 type FakeService struct {
-	Namespace    string
-	Name         string
-	Labels       map[string]string
-	Type         corev1.ServiceType
-	annotations  map[string]string
-	ServicePorts []Serviceport
+	Namespace      string
+	Name           string
+	Labels         map[string]string
+	Type           corev1.ServiceType
+	LoadBalancerIP string
+	annotations    map[string]string
+	ServicePorts   []Serviceport
 }
 
 type Serviceport struct {
@@ -459,8 +459,9 @@ func (svc FakeService) Service() *corev1.Service {
 	}
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
-			Type:  svc.Type,
-			Ports: ports,
+			Type:           svc.Type,
+			Ports:          ports,
+			LoadBalancerIP: svc.LoadBalancerIP,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: svc.Namespace,
