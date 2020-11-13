@@ -131,7 +131,7 @@ func GetL7SharedPGName(vsName string) string {
 }
 
 func GetL7PoolName(priorityLabel, namespace, ingName string, args ...string) string {
-	priorityLabel = strings.Replace(priorityLabel, "/", "_", 1)
+	priorityLabel = strings.ReplaceAll(priorityLabel, "/", "_")
 	poolName := NamePrefix + priorityLabel + "-" + namespace + "-" + ingName
 	if len(args) > 0 {
 		svcName := args[0]
@@ -152,7 +152,7 @@ func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) st
 }
 
 func GetSniPoolName(ingName, namespace, host, path string, args ...string) string {
-	path = strings.Replace(path, "/", "_", 1)
+	path = strings.ReplaceAll(path, "/", "_")
 	poolName := NamePrefix + namespace + "-" + host + path + "-" + ingName
 	if len(args) > 0 {
 		svcName := args[0]
