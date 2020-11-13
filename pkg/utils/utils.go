@@ -312,10 +312,10 @@ func Remove(arr []string, item string) []string {
 	return arr
 }
 
-var GlobalK8NSObj *K8ValidNamespaces = &K8ValidNamespaces{}
+var globalNSFilterObj *K8ValidNamespaces = &K8ValidNamespaces{}
 
-func GetGlobalK8NSObj() *K8ValidNamespaces {
-	return GlobalK8NSObj
+func GetGlobalNSFilter() *K8ValidNamespaces {
+	return globalNSFilterObj
 }
 
 func IsNSPresent(namespace string, obj *K8ValidNamespaces) bool {
@@ -327,10 +327,10 @@ func IsNSPresent(namespace string, obj *K8ValidNamespaces) bool {
 }
 
 func InitializeNSSync(labelKey, labelVal string) {
-	GlobalK8NSObj.EnableMigration = true
-	GlobalK8NSObj.nsFilter.key = labelKey
-	GlobalK8NSObj.nsFilter.value = labelVal
-	GlobalK8NSObj.validNSList.nsList = make(map[string]bool)
+	globalNSFilterObj.EnableMigration = true
+	globalNSFilterObj.nsFilter.key = labelKey
+	globalNSFilterObj.nsFilter.value = labelVal
+	globalNSFilterObj.validNSList.nsList = make(map[string]bool)
 }
 
 //Get namespace label filter key and value
@@ -346,19 +346,19 @@ func GetNSFilter(obj *K8ValidNamespaces) (string, string) {
 	return key, value
 }
 
-func AddNamespace(namespace string, obj *K8ValidNamespaces) {
+func AddNamespaceToFilter(namespace string, obj *K8ValidNamespaces) {
 	obj.validNSList.lock.Lock()
 	defer obj.validNSList.lock.Unlock()
 	obj.validNSList.nsList[namespace] = true
 }
 
-func DeleteNamespace(namespace string, obj *K8ValidNamespaces) {
+func DeleteNamespaceFromFilter(namespace string, obj *K8ValidNamespaces) {
 	obj.validNSList.lock.Lock()
 	defer obj.validNSList.lock.Unlock()
 	delete(obj.validNSList.nsList, namespace)
 }
 
-func NSFilterFunction(namespace string, obj *K8ValidNamespaces, nsLabels map[string]string, nonNSK8ResFlag bool) bool {
+func CheckIfNamespaceAccepted(namespace string, obj *K8ValidNamespaces, nsLabels map[string]string, nonNSK8ResFlag bool) bool {
 	//Return true if there is no migration labels mentioned
 	if !obj.EnableMigration {
 		return true

@@ -97,8 +97,8 @@ const (
 	ClusterStatusCacheKey                      = "cluster-runtime"
 
 	//Specifies command used in namespace event handler
-	Add    = "ADD"
-	Delete = "DELETE"
+	NsFilterAdd    = "ADD"
+	NsFilterDelete = "DELETE"
 )
 
 const (

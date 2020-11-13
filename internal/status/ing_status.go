@@ -207,7 +207,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 			if status.Hostname == host {
 				// Check if this host is still present in the spec, if so - don't delete it
 				//NS migration case: if false -> ns invalid event happend so remove status
-				nsMigrationFilterFlag := utils.NSFilterFunction(svc_mdata_obj.Namespace, utils.GetGlobalK8NSObj(), nil, true)
+				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace, utils.GetGlobalNSFilter(), nil, true)
 				if !utils.HasElem(hostListIng, host) || isVSDelete || !nsMigrationFilterFlag {
 					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 				} else {

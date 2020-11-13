@@ -423,7 +423,7 @@ func (c *AviController) FullSyncK8s() error {
 				for _, ingObj := range ingObjs {
 					ingLabel := utils.ObjKey(ingObj)
 					ns := strings.Split(ingLabel, "/")
-					if utils.NSFilterFunction(ns[0], utils.GetGlobalK8NSObj(), nil, true) {
+					if utils.CheckIfNamespaceAccepted(ns[0], utils.GetGlobalNSFilter(), nil, true) {
 						key := utils.Ingress + "/" + ingLabel
 						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
 						nodes.DequeueIngestion(key, true)
@@ -591,7 +591,7 @@ func (c *AviController) InitializeNameSpaceSync() {
 		utils.AviLog.Debugf("Initializing NameSpace Sync. Received namespace label: %s = %s", nsLabelToSyncKey, nsLabelToSyncVal)
 		utils.InitializeNSSync(nsLabelToSyncKey, nsLabelToSyncVal)
 	}
-	nsFilterObj := utils.GetGlobalK8NSObj()
+	nsFilterObj := utils.GetGlobalNSFilter()
 	if !nsFilterObj.EnableMigration {
 		utils.AviLog.Info("Namespace Sync is disabled.")
 		return
