@@ -149,7 +149,7 @@ var informerInstance *Informers
 
 func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface, namespace string, adv_l4 bool) *Informers {
 	cs := kubeClient.ClientSet
-	var kubeInformerFactory, configMapInformerFactory kubeinformers.SharedInformerFactory
+	var kubeInformerFactory, akoNSInformerFactory kubeinformers.SharedInformerFactory
 	if namespace == "" {
 		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync)
 	} else {
@@ -157,18 +157,16 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(namespace))
 		AviLog.Infof("Initialized informer factory for namespace :%s", namespace)
 	}
-	// We listen to configmaps only in `avi-system or vmware-system-ako`
+	// We listen to configmaps only in`avi-system or vmware-system-ako`
+	var akoNS string
 	if adv_l4 {
-		// Advanced L4 is for vmware-system-ako
-		configmapns := VMWARE_SYSTEM_AKO
-		configMapInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(configmapns))
-		AviLog.Infof("Initializing configmap informer in %v", configmapns)
+		akoNS = VMWARE_SYSTEM_AKO // Advanced L4 is for vmware-system-ako
 	} else {
-		// Regular AKO
-		configmapns := AKO_DEFAULT_NS
-		configMapInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(configmapns))
-		AviLog.Infof("Initializing configmap informer in %v", configmapns)
+		akoNS = AKO_DEFAULT_NS // Regular AKO
 	}
+	akoNSInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(akoNS))
+	AviLog.Infof("Initializing configmap informer in %v", akoNS)
+
 	informers := &Informers{}
 	informers.KubeClientIntf = kubeClient
 	for _, informer := range registeredInformers {
@@ -182,11 +180,15 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case EndpointInformer:
 			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
 		case SecretInformer:
-			informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
+			if adv_l4 {
+				informers.SecretInformer = akoNSInformerFactory.Core().V1().Secrets()
+			} else {
+				informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
+			}
 		case NodeInformer:
 			informers.NodeInformer = kubeInformerFactory.Core().V1().Nodes()
 		case ConfigMapInformer:
-			informers.ConfigMapInformer = configMapInformerFactory.Core().V1().ConfigMaps()
+			informers.ConfigMapInformer = akoNSInformerFactory.Core().V1().ConfigMaps()
 		case IngressInformer:
 			ingressAPI := GetIngressApi(cs)
 			if ingressAPI == ExtV1IngressInformer {
