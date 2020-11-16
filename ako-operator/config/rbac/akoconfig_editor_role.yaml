@@ -1,0 +1,24 @@
+# permissions for end users to edit akoconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: akoconfig-editor-role
+rules:
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - akoconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - akoconfigs/status
+  verbs:
+  - get

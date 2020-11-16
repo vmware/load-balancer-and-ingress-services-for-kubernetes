@@ -4,6 +4,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd
 	github.com/davecgh/go-spew v1.1.1
+	github.com/go-logr/logr v0.2.0
 	github.com/gorilla/mux v1.7.4
 	github.com/onsi/gomega v1.8.1
 	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
@@ -14,6 +15,7 @@ require (
 	k8s.io/api v0.19.3
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3
+	sigs.k8s.io/controller-runtime v0.4.0
 )
 
 go 1.15

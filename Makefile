@@ -5,6 +5,7 @@ GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
 AKO_VERSION=v1.3.2
+<<<<<<< HEAD
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 
@@ -13,6 +14,11 @@ ifdef GOLANG_SRC_REPO
 else
 	BUILD_GO_IMG=golang:latest
 endif
+=======
+REL_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/cmd/ako-main
+REL_PATH_AKO_OPERATOR=ako-operator
+AKO_OPERATOR_IMAGE=ako-operator
+>>>>>>> a55d7401... Add an operator for deploying and managing AKO
 
 .PHONY:all
 all: build docker
@@ -52,7 +58,43 @@ ifdef PHOTON_SRC_REPO
 else
 	$(eval BUILD_ARG_PHOTON=)
 endif
+
+ifdef UBI_SRC_REPO
+	$(eval BUILD_ARG_UBI=--build-arg ubi_src_repo=$(UBI_SRC_REPO))
+else
+	$(eval BUILD_ARG_UBI=)
+endif
 	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) -f Dockerfile.ako .
+
+.PHONY: ako-operator-docker
+ako-operator-docker:
+ifndef BUILD_TAG
+	$(eval BUILD_TAG=$(shell ./hack/jenkins/get_build_version.sh "dummy" 0))
+endif
+
+ifndef BUILD_TIME
+	$(eval BUILD_TIME=$(shell date +%Y-%m-%d_%H:%M:%S_%Z))
+endif
+
+ifdef GOLANG_SRC_REPO
+	$(eval BUILD_ARG_GOLANG=--build-arg golang_src_repo=$(GOLANG_SRC_REPO))
+else
+	$(eval BUILD_ARG_GOLANG=)
+endif
+
+ifdef PHOTON_SRC_REPO
+	$(eval BUILD_ARG_PHOTON=--build-arg photon_src_repo=$(PHOTON_SRC_REPO))
+else
+	$(eval BUILD_ARG_PHOTON=)
+endif
+
+ifdef UBI_SRC_REPO
+	$(eval BUILD_ARG_UBI=--build-arg ubi_src_repo=$(UBI_SRC_REPO))
+else
+	$(eval BUILD_ARG_UBI=)
+endif
+	sudo docker build -t $(AKO_OPERATOR_IMAGE):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI)  -f Dockerfile.ako-operator .
+
 
 .PHONY: k8stest
 k8stest:
