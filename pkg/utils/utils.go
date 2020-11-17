@@ -147,7 +147,7 @@ func RandomSeq(n int) string {
 var informer sync.Once
 var informerInstance *Informers
 
-func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface, namespace string, adv_l4 bool) *Informers {
+func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface, namespace string, akoNSBoundInformer bool) *Informers {
 	cs := kubeClient.ClientSet
 	var kubeInformerFactory, akoNSInformerFactory kubeinformers.SharedInformerFactory
 	if namespace == "" {
@@ -159,7 +159,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 	}
 	// We listen to configmaps only in`avi-system or vmware-system-ako`
 	var akoNS string
-	if adv_l4 {
+	if akoNSBoundInformer {
 		akoNS = VMWARE_SYSTEM_AKO // Advanced L4 is for vmware-system-ako
 	} else {
 		akoNS = AKO_DEFAULT_NS // Regular AKO
@@ -180,7 +180,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case EndpointInformer:
 			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
 		case SecretInformer:
-			if adv_l4 {
+			if akoNSBoundInformer {
 				informers.SecretInformer = akoNSInformerFactory.Core().V1().Secrets()
 			} else {
 				informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
@@ -220,7 +220,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 
 func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args ...map[string]interface{}) *Informers {
 	var oshiftclient oshiftclientset.Interface
-	var instantiateOnce, ok, adv_l4 bool = true, true, false
+	var instantiateOnce, ok, akoNSBoundInformer bool = true, true, false
 	var namespace string
 	if len(args) > 0 {
 		for k, v := range args[0] {
@@ -231,11 +231,13 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 					AviLog.Warnf("arg instantiateOnce is not of type bool")
 				}
 			case INFORMERS_ADVANCED_L4:
-				adv_l4, ok = v.(bool)
+				akoNSBoundInformer, ok = v.(bool)
 				if !ok {
 					AviLog.Infof("Running AKO in avi-system namespace")
 				}
 			case INFORMERS_OPENSHIFT_CLIENT:
+				// this would initialize secret/configmap informer for AKO namespace in openshift
+				akoNSBoundInformer = true
 				oshiftclient, ok = v.(oshiftclientset.Interface)
 				if !ok {
 					AviLog.Warnf("arg oshiftclient is not of type oshiftclientset.Interface")
@@ -251,10 +253,10 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 		}
 	}
 	if !instantiateOnce {
-		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace, adv_l4)
+		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace, akoNSBoundInformer)
 	}
 	informer.Do(func() {
-		informerInstance = instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace, adv_l4)
+		informerInstance = instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace, akoNSBoundInformer)
 	})
 	return informerInstance
 }
