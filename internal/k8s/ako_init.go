@@ -135,9 +135,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			utils.AviLog.Infof("avi k8s configmap created")
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
 			delModels := delConfigFromData(cm.Data)
-			if !delModels {
-				status.AddConfigmapFinalizer()
-			}
 			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delModels
 			lib.SetDisableSync(c.DisableSync)
 		},
@@ -167,7 +164,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 					c.DeleteModels()
 				} else {
 					quickSyncCh <- struct{}{}
-					status.AddConfigmapFinalizer()
 				}
 			}
 
@@ -539,6 +535,7 @@ func (c *AviController) FullSyncK8s() error {
 // The rest layer would pick up the model key and delete the objects in Avi
 func (c *AviController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
+	status.AddStatefulSetFinalizer()
 	allModels := objects.SharedAviGraphLister().GetAll()
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	for modelName, avimodelIntf := range allModels.(map[string]interface{}) {
@@ -572,10 +569,10 @@ func (c *AviController) DeleteModels() {
 	select {
 	case <-lib.ConfigDeleteSyncChan:
 		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through configMap update")
-		status.RemoveConfigmapFinalizer()
 	case <-timeout:
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 	}
+	status.RemoveStatefulsetFinalizer()
 }
 
 func SyncFromIngestionLayer(key string, wg *sync.WaitGroup) error {

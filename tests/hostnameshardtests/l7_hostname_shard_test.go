@@ -2610,11 +2610,6 @@ func TestClusterRuntimeUpSinceChange(t *testing.T) {
 func TestConfigmapUpdateObjDeletion(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var cm *corev1.ConfigMap
-	g.Eventually(func() int {
-		cm, _ = KubeClient.CoreV1().ConfigMaps("avi-system").Get("avi-k8s-config", metav1.GetOptions{})
-		return len(cm.GetFinalizers())
-	}, 20*time.Second).Should(gomega.Equal(1))
-	g.Expect(cm.GetFinalizers()[0]).To(gomega.Equal(lib.ConfigmapFinalizer))
 
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
