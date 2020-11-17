@@ -21,6 +21,7 @@ const (
 	OPENSHIFT_CNI             = "openshift"
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
+	AviSecret                 = "avi-secret"
 	AviNS                     = "avi-system"
 	VMwareNS                  = "vmware-system-ako"
 
