@@ -72,6 +72,45 @@ func AddConfigMap() {
 	PollForSyncStart(ctrl, 10)
 }
 
+//Fake Namespace
+type FakeNameSpace struct {
+	Name   string
+	Labels map[string]string
+}
+
+func (namespace FakeNameSpace) Namespace() *corev1.Namespace {
+	FakeNamespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   namespace.Name,
+			Labels: namespace.Labels,
+		},
+	}
+	return FakeNamespace
+}
+func AddNameSpace(nsName string, labels map[string]string) error {
+	nsMetaOptions := (FakeNameSpace{
+		Name:   nsName,
+		Labels: labels,
+	}).Namespace()
+	nsMetaOptions.ResourceVersion = "1"
+	_, err := KubeClient.CoreV1().Namespaces().Create(nsMetaOptions)
+	return err
+}
+
+func UpdateNameSpace(nsName string, labels map[string]string) error {
+	nsMetaOptions := (FakeNameSpace{
+		Name:   nsName,
+		Labels: labels,
+	}).Namespace()
+	nsMetaOptions.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Namespaces().Update(nsMetaOptions)
+	return err
+}
+
+func DeleteNamespace(nsName string) {
+	KubeClient.CoreV1().Namespaces().Delete(nsName, &metav1.DeleteOptions{})
+}
+
 // Fake Secret
 type FakeSecret struct {
 	Cert      string
@@ -695,6 +734,20 @@ func InitializeFakeAKOAPIServer() *api.FakeApiServer {
 	akoApi.InitApi()
 	lib.SetApiServerInstance(akoApi)
 	return akoApi
+}
+
+//s: namespace or hostname
+func GetShardVSNumber(s string) string {
+	var vsNum uint32
+	shardSize := lib.GetshardSize()
+	if shardSize != 0 {
+
+		vsNum = utils.Bkt(s, shardSize)
+	} else {
+		return ""
+	}
+	vsNumber := fmt.Sprint(vsNum)
+	return vsNumber
 }
 
 const defaultMockFilePath = "../avimockobjects"
