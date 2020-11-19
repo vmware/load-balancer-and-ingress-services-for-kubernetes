@@ -278,7 +278,7 @@ func GetEnableRHI() bool {
 	return false
 }
 
-func GetLabelToSyncNameSpace() (string, string) {
+func GetLabelToSyncNamespace() (string, string) {
 	labelKey := os.Getenv("NAMESPACE_SYNC_LABEL_KEY")
 	labelValue := os.Getenv("NAMESPACE_SYNC_LABEL_VALUE")
 

@@ -142,7 +142,7 @@ func InitializeAKC() {
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-	c.InitializeNameSpaceSync()
+	c.InitializeNamespaceSync()
 	k8s.PopulateNodeCache(kubeClient)
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}

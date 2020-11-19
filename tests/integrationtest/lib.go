@@ -87,7 +87,7 @@ func (namespace FakeNameSpace) Namespace() *corev1.Namespace {
 	}
 	return FakeNamespace
 }
-func AddNameSpace(nsName string, labels map[string]string) error {
+func AddNamespace(nsName string, labels map[string]string) error {
 	nsMetaOptions := (FakeNameSpace{
 		Name:   nsName,
 		Labels: labels,
@@ -97,7 +97,7 @@ func AddNameSpace(nsName string, labels map[string]string) error {
 	return err
 }
 
-func UpdateNameSpace(nsName string, labels map[string]string) error {
+func UpdateNamespace(nsName string, labels map[string]string) error {
 	nsMetaOptions := (FakeNameSpace{
 		Name:   nsName,
 		Labels: labels,
