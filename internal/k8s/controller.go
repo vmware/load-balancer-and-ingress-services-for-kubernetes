@@ -166,7 +166,7 @@ func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 	return false
 }
 func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
-	ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(namespace).List(labels.Set(nil).AsSelector())
+	ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("NS to ingress queue add: Error occured while retrieving ingresss for namespace: %s", namespace)
 		return

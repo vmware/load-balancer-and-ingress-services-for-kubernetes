@@ -1,10 +1,13 @@
 # github.com/Masterminds/semver v1.5.0
+## explicit
 github.com/Masterminds/semver
 # github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd
+## explicit
 github.com/avinetworks/sdk/go/clients
 github.com/avinetworks/sdk/go/models
 github.com/avinetworks/sdk/go/session
 # github.com/davecgh/go-spew v1.1.1
+## explicit
 github.com/davecgh/go-spew/spew
 # github.com/evanphx/json-patch v4.9.0+incompatible
 github.com/evanphx/json-patch
@@ -17,7 +20,7 @@ github.com/gogo/protobuf/sortkeys
 github.com/golang/glog
 # github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7
 github.com/golang/groupcache/lru
-# github.com/golang/protobuf v1.4.3
+# github.com/golang/protobuf v1.4.2
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
@@ -31,12 +34,12 @@ github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/google/gofuzz v1.1.0
 github.com/google/gofuzz
-# github.com/googleapis/gnostic v0.5.3
+# github.com/googleapis/gnostic v0.4.1
 github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions
-github.com/googleapis/gnostic/jsonschema
 github.com/googleapis/gnostic/openapiv2
 # github.com/gorilla/mux v1.7.4
+## explicit
 github.com/gorilla/mux
 # github.com/hashicorp/golang-lru v0.5.1
 github.com/hashicorp/golang-lru
@@ -50,6 +53,7 @@ github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
 # github.com/onsi/gomega v1.8.1
+## explicit
 github.com/onsi/gomega
 github.com/onsi/gomega/format
 github.com/onsi/gomega/internal/assertion
@@ -63,8 +67,10 @@ github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
 # github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
+## explicit
 github.com/openshift/api/route/v1
 # github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
+## explicit
 github.com/openshift/client-go/route/clientset/versioned
 github.com/openshift/client-go/route/clientset/versioned/fake
 github.com/openshift/client-go/route/clientset/versioned/scheme
@@ -80,12 +86,14 @@ github.com/pkg/errors
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
 # github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
+## explicit
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
 # go.uber.org/atomic v1.6.0
 go.uber.org/atomic
 # go.uber.org/multierr v1.5.0
 go.uber.org/multierr
 # go.uber.org/zap v1.15.0
+## explicit
 go.uber.org/zap
 go.uber.org/zap/buffer
 go.uber.org/zap/internal/bufferpool
@@ -179,12 +187,12 @@ google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
 # gopkg.in/natefinch/lumberjack.v2 v2.0.0
+## explicit
 gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v2 v2.3.0
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
-gopkg.in/yaml.v3
 # k8s.io/api v0.19.3
+## explicit
 k8s.io/api/admissionregistration/v1
 k8s.io/api/admissionregistration/v1beta1
 k8s.io/api/apps/v1
@@ -227,6 +235,7 @@ k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
 # k8s.io/apimachinery v0.19.3
+## explicit
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/api/meta
 k8s.io/apimachinery/pkg/api/resource
@@ -270,6 +279,7 @@ k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/client-go v0.19.3
+## explicit
 k8s.io/client-go/discovery
 k8s.io/client-go/discovery/fake
 k8s.io/client-go/dynamic
