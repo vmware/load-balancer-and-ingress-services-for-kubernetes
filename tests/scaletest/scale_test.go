@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"time"
 	"strconv"
 	"sync"
 	"testing"
+	"time"
+
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/onsi/gomega"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/scaletest/lib"
@@ -78,14 +79,15 @@ func Setup() {
 	os.Setenv("CTRL_USERNAME", testbedParams.Controller[0].UserName)
 	os.Setenv("CTRL_PASSWORD", testbedParams.Controller[0].Password)
 	os.Setenv("CTRL_IPADDRESS", testbedParams.Controller[0].Ip)
+	lib.KubeInit(testbedParams.AkoParam.Clusters[0].KubeConfigFilePath)
 	AviClients, err = lib.SharedAVIClients(2)
-	if err!=nil{
+	if err != nil {
 		fmt.Println("ERROR : Creating Avi Client : ", err)
 		os.Exit(0)
 	}
 	err = lib.CreateApp(appName, namespace)
 	if err != nil {
-		fmt.Println("ERROR : Creation of Deployment " + appName + " failed due to the error : ", err)
+		fmt.Println("ERROR : Creation of Deployment "+appName+" failed due to the error : ", err)
 		os.Exit(0)
 	}
 	listOfServicesCreated, err = lib.CreateService(serviceNamePrefix, appName, namespace, 2)
@@ -97,16 +99,16 @@ func Setup() {
 
 func Cleanup() {
 	err := lib.DeleteService(listOfServicesCreated, namespace)
-	if err!=nil{
+	if err != nil {
 		fmt.Println("ERROR : Cleanup of Services ", listOfServicesCreated, " failed due to the error : ", err)
 	}
 	err = lib.DeleteApp(appName, namespace)
-	if err!=nil{
-		fmt.Println("ERROR : Cleanup of Deployment " + appName + " failed due to the error : ", err)
+	if err != nil {
+		fmt.Println("ERROR : Cleanup of Deployment "+appName+" failed due to the error : ", err)
 	}
 }
 
-func DiffOfLists(list1 []string, list2 []string) []string{
+func DiffOfLists(list1 []string, list2 []string) []string {
 	diffMap := map[string]int{}
 	var diffString []string
 	for _, l1 := range list1 {
@@ -138,10 +140,10 @@ func PoolVerification(t *testing.T) bool {
 		if ingressType == INSECURE {
 			ingressPoolName := clusterName + "--" + ingressesCreated[i] + ".avi.internal-" + namespace + "-" + ingressesCreated[i]
 			ingressPoolList = append(ingressPoolList, ingressPoolName)
-		}else if ingressType == SECURE{
+		} else if ingressType == SECURE {
 			ingressPoolName := clusterName + "--" + namespace + "-" + ingressesCreated[i] + ".avi.internal-" + ingressesCreated[i]
 			ingressPoolList = append(ingressPoolList, ingressPoolName)
-		}else if ingressType == MULTIHOST{
+		} else if ingressType == MULTIHOST {
 			ingressPoolName := clusterName + "--" + namespace + "-" + ingressesCreated[i] + "-secure.avi.internal-" + ingressesCreated[i]
 			ingressPoolList = append(ingressPoolList, ingressPoolName)
 			ingressPoolName = clusterName + "--" + ingressesCreated[i] + "-insecure.avi.internal-" + namespace + "-" + ingressesCreated[i]
@@ -158,16 +160,16 @@ func PoolVerification(t *testing.T) bool {
 	return false
 }
 
-func VSVerification(t *testing.T) bool{
+func VSVerification(t *testing.T) bool {
 	VSes := lib.FetchVirtualServices(t, AviClients[0])
 	var ingressVSList []string
 	var VSList []string
 	for i := 0; i < len(ingressesCreated); i++ {
-		if ingressType != MULTIHOST{
-			ingressVSName := clusterName + "--" + ingressesCreated[i] + ".avi.internal" 
+		if ingressType != MULTIHOST {
+			ingressVSName := clusterName + "--" + ingressesCreated[i] + ".avi.internal"
 			ingressVSList = append(ingressVSList, ingressVSName)
-		}else{
-			ingressVSName := clusterName + "--" + ingressesCreated[i] + "-secure.avi.internal" 
+		} else {
+			ingressVSName := clusterName + "--" + ingressesCreated[i] + "-secure.avi.internal"
 			ingressVSList = append(ingressVSList, ingressVSName)
 		}
 	}
@@ -181,14 +183,14 @@ func VSVerification(t *testing.T) bool{
 	return false
 }
 
-func Verify(t *testing.T) bool{
+func Verify(t *testing.T) bool {
 	if ingressType != INSECURE {
-		if PoolVerification(t)==true && VSVerification(t)==true{
+		if PoolVerification(t) == true && VSVerification(t) == true {
 			t.Logf("Pools and VSes verified")
 			return true
 		}
-	}else{
-		if PoolVerification(t)==true{
+	} else {
+		if PoolVerification(t) == true {
 			t.Logf("Pools verified")
 			return true
 		}
@@ -199,7 +201,7 @@ func Verify(t *testing.T) bool{
 func parallelInsecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName string, namespace string, numOfIng int, startIndex int) {
 	defer wg.Done()
 	ingresses, err := lib.CreateInsecureIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
-	if err!=nil{
+	if err != nil {
 		t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 	}
 	ingressesCreated = append(ingressesCreated, ingresses...)
@@ -208,7 +210,7 @@ func parallelInsecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceNa
 func parallelSecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName string, namespace string, numOfIng int, startIndex int) {
 	defer wg.Done()
 	ingresses, err := lib.CreateSecureIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
-	if err!=nil{
+	if err != nil {
 		t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 	}
 	ingressesCreated = append(ingressesCreated, ingresses...)
@@ -217,7 +219,7 @@ func parallelSecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName
 func parallelMultiHostIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName []string, namespace string, numOfIng int, startIndex int) {
 	defer wg.Done()
 	ingresses, err := lib.CreateMultiHostIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
-	if err!=nil{
+	if err != nil {
 		t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 	}
 	ingressesCreated = append(ingressesCreated, ingresses...)
@@ -226,13 +228,13 @@ func parallelMultiHostIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceN
 func parallelIngressDeletion(t *testing.T, wg *sync.WaitGroup, namespace string, listOfIngressToDelete []string) {
 	defer wg.Done()
 	ingresses, err := lib.DeleteIngress(namespace, listOfIngressToDelete)
-	if err!=nil{
+	if err != nil {
 		t.Fatalf("Failed to delete ingresses as : %v", err)
 	}
 	ingressesDeleted = append(ingressesDeleted, ingresses...)
 }
 
-func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int){
+func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) {
 	ingressesCreated = []string{}
 	var blockSize = numOfIng / numGoRoutines
 	var remIng = numOfIng % numGoRoutines
@@ -282,9 +284,9 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int){
 	t.Logf("Created %d %s Ingresses Parallely", numOfIng, ingressType)
 	t.Logf("Verifiying Avi objects ...")
 	pollInterval, _ := time.ParseDuration(testPollInterval)
-	waitTimeIncr,_ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
-	for waitTime:=0 ; waitTime<testCaseTimeOut;{
-		if Verify(t) == true{
+	waitTimeIncr, _ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
+	for waitTime := 0; waitTime < testCaseTimeOut; {
+		if Verify(t) == true {
 			return
 		}
 		time.Sleep(pollInterval)
@@ -293,7 +295,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int){
 	t.Fatalf("Error : Verification failed\n")
 }
 
-func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int, AviClient *clients.AviClient){
+func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int, AviClient *clients.AviClient) {
 	var blockSize = numOfIng / numGoRoutines
 	var remIng = numOfIng % numGoRoutines
 	g := gomega.NewGomegaWithT(t)
@@ -332,26 +334,26 @@ func ParallelIngressHelper(t *testing.T, numOfIng int) {
 	t.Logf("%d %s Ingress creation deletion along with verification is done", numOfIng, ingressType)
 }
 
-func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int){
+func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 	switch {
 	case ingressType == INSECURE:
 		t.Logf("Creating %d %s Ingresses Serially...", numOfIng, ingressType)
 		ingressesCreated, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfIng)
-		if err!=nil{
+		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}
 	case ingressType == SECURE:
 		t.Logf("Creating %d %s Ingresses Serially...", numOfIng, ingressType)
 		ingressesCreated, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfIng)
-		if err!=nil{
+		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}
 	case ingressType == MULTIHOST:
 		t.Logf("Creating %d %s Ingresses Serially...", numOfIng, ingressType)
 		ingressesCreated, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, numOfIng)
-		if err!=nil{
+		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}
 	}
@@ -359,23 +361,23 @@ func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int){
 	t.Logf("Created %d %s Ingresses Serially", numOfIng, ingressType)
 	t.Logf("Verifiying Avi objects ...")
 	pollInterval, _ := time.ParseDuration(testPollInterval)
-	waitTimeIncr,_ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
-	for waitTime:=0 ; waitTime<testCaseTimeOut;{
-		if Verify(t) == true{
+	waitTimeIncr, _ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
+	for waitTime := 0; waitTime < testCaseTimeOut; {
+		if Verify(t) == true {
 			return
 		}
 		time.Sleep(pollInterval)
 		waitTime = waitTime + waitTimeIncr
 	}
 	t.Fatalf("Error : Verification failed\n")
-	
+
 }
 
-func DeleteIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int, AviClient *clients.AviClient){
+func DeleteIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int, AviClient *clients.AviClient) {
 	g := gomega.NewGomegaWithT(t)
 	t.Logf("Deleting %d %s Ingresses Serially...", numOfIng, ingressType)
 	ingressesDeleted, err := lib.DeleteIngress(namespace, ingressesCreated)
-	if err!=nil{
+	if err != nil {
 		t.Fatalf("Failed to delete ingresses as : %v", err)
 	}
 	g.Expect(ingressesDeleted).To(gomega.HaveLen(numOfIng))
@@ -394,12 +396,11 @@ func SerialIngressHelper(t *testing.T, numOfIng int) {
 	VSes := lib.FetchVirtualServices(t, AviClients[0])
 	initialNumOfVSes = len(VSes)
 	CreateIngressesSerial(t, numOfIng, initialNumOfPools)
-	DeleteIngressesSerial(t, numOfIng, initialNumOfPools,  AviClients[0])
+	DeleteIngressesSerial(t, numOfIng, initialNumOfPools, AviClients[0])
 	t.Logf("%d %s Ingress serially creation deletion along with verification is done", numOfIng, ingressType)
 }
 
 func TestMain(t *testing.M) {
-	lib.KubeInit()
 	Setup()
 	t.Run()
 	Cleanup()
@@ -410,57 +411,57 @@ func TestParallel200InsecureIngresses(t *testing.T) {
 	ParallelIngressHelper(t, 200)
 }
 
-func TestParallel200SecureIngresses(t *testing.T){
+func TestParallel200SecureIngresses(t *testing.T) {
 	ingressType = SECURE
 	ParallelIngressHelper(t, 200)
 }
 
-func TestParallel200MultiHostIngresses(t *testing.T){
+func TestParallel200MultiHostIngresses(t *testing.T) {
 	ingressType = MULTIHOST
 	ParallelIngressHelper(t, 200)
 }
 
-func TestSerial200InsecureIngresses(t *testing.T){
+func TestSerial200InsecureIngresses(t *testing.T) {
 	ingressType = INSECURE
 	SerialIngressHelper(t, 200)
 }
 
-func TestSerial200SecureIngresses(t *testing.T){
+func TestSerial200SecureIngresses(t *testing.T) {
 	ingressType = SECURE
 	SerialIngressHelper(t, 200)
 }
 
-func TestSerial200MultiHostIngresses(t *testing.T){
+func TestSerial200MultiHostIngresses(t *testing.T) {
 	ingressType = MULTIHOST
 	SerialIngressHelper(t, 200)
 }
 
-func TestParallel500InsecureIngresses(t *testing.T){
+func TestParallel500InsecureIngresses(t *testing.T) {
 	ingressType = INSECURE
 	ParallelIngressHelper(t, 500)
 }
 
-func TestParallel500SecureIngresses(t *testing.T){
+func TestParallel500SecureIngresses(t *testing.T) {
 	ingressType = SECURE
 	ParallelIngressHelper(t, 500)
 }
 
-func TestParallel500MultiHostIngresses(t *testing.T){
+func TestParallel500MultiHostIngresses(t *testing.T) {
 	ingressType = MULTIHOST
 	ParallelIngressHelper(t, 500)
 }
 
-func TestSerial500InsecureIngresses(t *testing.T){
+func TestSerial500InsecureIngresses(t *testing.T) {
 	ingressType = INSECURE
 	SerialIngressHelper(t, 500)
 }
 
-func TestSerial500SecureIngresses(t *testing.T){
+func TestSerial500SecureIngresses(t *testing.T) {
 	ingressType = SECURE
 	SerialIngressHelper(t, 500)
 }
 
-func TestSerial500MultiHostIngresses(t *testing.T){
+func TestSerial500MultiHostIngresses(t *testing.T) {
 	ingressType = MULTIHOST
 	SerialIngressHelper(t, 500)
 }

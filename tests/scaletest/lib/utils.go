@@ -16,14 +16,14 @@ package lib
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/avinetworks/sdk/go/clients"
-	"github.com/avinetworks/sdk/go/models"
-	"github.com/avinetworks/sdk/go/session"
 	"os"
 	"strconv"
 	"sync"
 	"testing"
+
+	"github.com/avinetworks/sdk/go/clients"
+	"github.com/avinetworks/sdk/go/models"
+	"github.com/avinetworks/sdk/go/session"
 )
 
 type AviRestClientPool struct {
@@ -51,7 +51,6 @@ func SharedAVIClients(numClients uint32) ([]*clients.AviClient, error) {
 	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
 	err := NewError("")
 	if ctrlUsername == "" || ctrlPassword == "" || ctrlIpAddress == "" {
-		fmt.Println("Hi there ... ")
 		err = NewError("AVI controller information missing.")
 		return AviClientInstance.AviClient, err
 	}
