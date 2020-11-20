@@ -73,12 +73,12 @@ func AddConfigMap() {
 }
 
 //Fake Namespace
-type FakeNameSpace struct {
+type FakeNamespace struct {
 	Name   string
 	Labels map[string]string
 }
 
-func (namespace FakeNameSpace) Namespace() *corev1.Namespace {
+func (namespace FakeNamespace) Namespace() *corev1.Namespace {
 	FakeNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   namespace.Name,
@@ -88,7 +88,7 @@ func (namespace FakeNameSpace) Namespace() *corev1.Namespace {
 	return FakeNamespace
 }
 func AddNamespace(nsName string, labels map[string]string) error {
-	nsMetaOptions := (FakeNameSpace{
+	nsMetaOptions := (FakeNamespace{
 		Name:   nsName,
 		Labels: labels,
 	}).Namespace()
@@ -98,7 +98,7 @@ func AddNamespace(nsName string, labels map[string]string) error {
 }
 
 func UpdateNamespace(nsName string, labels map[string]string) error {
-	nsMetaOptions := (FakeNameSpace{
+	nsMetaOptions := (FakeNamespace{
 		Name:   nsName,
 		Labels: labels,
 	}).Namespace()
