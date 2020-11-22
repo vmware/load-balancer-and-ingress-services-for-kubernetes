@@ -1,0 +1,12 @@
+{{ if .Capabilities.APIVersions.Has "networking.k8s.io/v1/IngressClass" }}
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: avi-lb
+spec:
+  controller: ako.vmware.com/avi-lb
+  parameters:
+    apiGroup: ako.vmware.com
+    kind: IngressParameters
+    name: external-lb
+{{ end }}

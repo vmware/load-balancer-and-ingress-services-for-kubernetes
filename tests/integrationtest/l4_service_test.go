@@ -584,7 +584,7 @@ func TestAviSvcCreationWithStaticIP(t *testing.T) {
 		LoadBalancerIP: staticIP,
 		ServicePorts:   []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(svcExample)
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}

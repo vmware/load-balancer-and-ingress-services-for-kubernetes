@@ -14,6 +14,7 @@
 package k8stest
 
 import (
+	"context"
 	"os"
 	"sync"
 	"testing"
@@ -25,7 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"
-	networking "k8s.io/api/networking/v1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -85,7 +86,7 @@ func addConfigMap() {
 			Name:      "avi-k8s-config",
 		},
 	}
-	kubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	kubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
 func TestMain(m *testing.M) {
@@ -138,7 +139,7 @@ func TestSvc(t *testing.T) {
 			Name:      "testsvc",
 		},
 	}
-	_, err := kubeClient.CoreV1().Services("red-ns").Create(svcExample)
+	_, err := kubeClient.CoreV1().Services("red-ns").Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -153,7 +154,7 @@ func TestEndpoint(t *testing.T) {
 		},
 		Subsets: []corev1.EndpointSubset{},
 	}
-	_, err := kubeClient.CoreV1().Endpoints("red-ns").Create(epExample)
+	_, err := kubeClient.CoreV1().Endpoints("red-ns").Create(context.TODO(), epExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
@@ -161,18 +162,18 @@ func TestEndpoint(t *testing.T) {
 }
 
 func TestIngress(t *testing.T) {
-	ingrExample := &networking.Ingress{
+	ingrExample := &networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "red-ns",
 			Name:      "testingr",
 		},
-		Spec: networking.IngressSpec{
-			Backend: &networking.IngressBackend{
+		Spec: networkingv1beta1.IngressSpec{
+			Backend: &networkingv1beta1.IngressBackend{
 				ServiceName: "testsvc",
 			},
 		},
 	}
-	_, err := kubeClient.NetworkingV1beta1().Ingresses("red-ns").Create(ingrExample)
+	_, err := kubeClient.NetworkingV1beta1().Ingresses("red-ns").Create(context.TODO(), ingrExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -180,36 +181,36 @@ func TestIngress(t *testing.T) {
 }
 
 func TestIngressUpdate(t *testing.T) {
-	ingrUpdate := &networking.Ingress{
+	ingrUpdate := &networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "red-ns",
 			Name:      "testingr-update",
 		},
-		Spec: networking.IngressSpec{
-			Backend: &networking.IngressBackend{
+		Spec: networkingv1beta1.IngressSpec{
+			Backend: &networkingv1beta1.IngressBackend{
 				ServiceName: "testsvc",
 			},
 		},
 	}
-	_, err := kubeClient.NetworkingV1beta1().Ingresses("red-ns").Create(ingrUpdate)
+	_, err := kubeClient.NetworkingV1beta1().Ingresses("red-ns").Create(context.TODO(), ingrUpdate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	waitAndverify(t, "Ingress/red-ns/testingr-update")
 
-	ingrUpdate = &networking.Ingress{
+	ingrUpdate = &networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "red-ns",
 			Name:      "testingr-update",
 		},
-		Spec: networking.IngressSpec{
-			Backend: &networking.IngressBackend{
+		Spec: networkingv1beta1.IngressSpec{
+			Backend: &networkingv1beta1.IngressBackend{
 				ServiceName: "testsvc2",
 			},
 		},
 	}
 	ingrUpdate.ResourceVersion = "2"
-	_, err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Update(ingrUpdate)
+	_, err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Update(context.TODO(), ingrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -218,24 +219,24 @@ func TestIngressUpdate(t *testing.T) {
 
 // If spec/annotation is not updated, the ingress key should not be added to ingestion queue
 func TestIngressNoUpdate(t *testing.T) {
-	ingrNoUpdate := &networking.Ingress{
+	ingrNoUpdate := &networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "red-ns",
 			Name:      "testingr-noupdate",
 		},
-		Spec: networking.IngressSpec{
-			Backend: &networking.IngressBackend{
+		Spec: networkingv1beta1.IngressSpec{
+			Backend: &networkingv1beta1.IngressBackend{
 				ServiceName: "testsvc",
 			},
 		},
 	}
-	_, err := kubeClient.NetworkingV1beta1().Ingresses("red-ns").Create(ingrNoUpdate)
+	_, err := kubeClient.NetworkingV1beta1().Ingresses("red-ns").Create(context.TODO(), ingrNoUpdate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	waitAndverify(t, "Ingress/red-ns/testingr-noupdate")
 
-	ingrNoUpdate.Status = networking.IngressStatus{
+	ingrNoUpdate.Status = networkingv1beta1.IngressStatus{
 		LoadBalancer: corev1.LoadBalancerStatus{
 			Ingress: []corev1.LoadBalancerIngress{
 				{
@@ -246,12 +247,12 @@ func TestIngressNoUpdate(t *testing.T) {
 		},
 	}
 	ingrNoUpdate.ResourceVersion = "2"
-	_, err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Update(ingrNoUpdate)
+	_, err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Update(context.TODO(), ingrNoUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	ingrNoUpdate.Status = networking.IngressStatus{
+	ingrNoUpdate.Status = networkingv1beta1.IngressStatus{
 		LoadBalancer: corev1.LoadBalancerStatus{
 			Ingress: []corev1.LoadBalancerIngress{
 				{
@@ -266,7 +267,7 @@ func TestIngressNoUpdate(t *testing.T) {
 		},
 	}
 	ingrNoUpdate.ResourceVersion = "3"
-	_, err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Update(ingrNoUpdate)
+	_, err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Update(context.TODO(), ingrNoUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -292,7 +293,7 @@ func TestNode(t *testing.T) {
 			},
 		},
 	}
-	_, err := kubeClient.CoreV1().Nodes().Create(nodeExample)
+	_, err := kubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -300,13 +301,13 @@ func TestNode(t *testing.T) {
 
 	nodeExample.ObjectMeta.ResourceVersion = "2"
 	nodeExample.Spec.PodCIDR = "10.230.0.0/24"
-	_, err = kubeClient.CoreV1().Nodes().Update(nodeExample)
+	_, err = kubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Node: %v", err)
 	}
 	waitAndverify(t, utils.NodeObj+"/testnode")
 
-	err = kubeClient.CoreV1().Nodes().Delete("testnode", nil)
+	err = kubeClient.CoreV1().Nodes().Delete(context.TODO(), "testnode", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in Deleting Node: %v", err)
 	}

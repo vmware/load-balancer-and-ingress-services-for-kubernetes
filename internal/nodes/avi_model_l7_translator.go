@@ -473,20 +473,21 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			var httpPolicySet []AviHostPathPortPoolPG
 
 			httpPGPath := AviHostPathPortPoolPG{Host: host}
-			
+
 			if path.PathType == networkingv1beta1.PathTypeExact {
 				httpPGPath.MatchCriteria = "EQUALS"
 			} else {
 				// PathTypePrefix and PathTypeImplementationSpecific
 				// default behaviour for AKO set be Prefix match on the path
 				httpPGPath.MatchCriteria = "BEGINS_WITH"
-				if !strings.HasSuffix(path.Path, "/") {
-					path.Path = path.Path + "/"
-				}
 			}
-			
+
 			if path.Path != "" {
-				httpPGPath.Path = append(httpPGPath.Path, path.Path)
+				httpPolicyPath := path.Path
+				if !strings.HasSuffix(httpPolicyPath, "/") {
+					httpPolicyPath = path.Path + "/"
+				}
+				httpPGPath.Path = append(httpPGPath.Path, httpPolicyPath)
 			}
 
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
