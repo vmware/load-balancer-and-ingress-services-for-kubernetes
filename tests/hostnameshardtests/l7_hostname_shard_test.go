@@ -2606,23 +2606,3 @@ func TestClusterRuntimeUpSinceChange(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(true))
 	integrationtest.ResetMiddleware()
 }
-
-func TestConfigmapUpdateObjDeletion(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-	var cm *corev1.ConfigMap
-
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	aviCM.Data = make(map[string]string)
-	aviCM.Data["deleteConfig"] = "true"
-	KubeClient.CoreV1().ConfigMaps("avi-system").Update(aviCM)
-
-	g.Eventually(func() int {
-		cm, _ = KubeClient.CoreV1().ConfigMaps("avi-system").Get("avi-k8s-config", metav1.GetOptions{})
-		return len(cm.GetFinalizers())
-	}, 20*time.Second).Should(gomega.Equal(0))
-}
