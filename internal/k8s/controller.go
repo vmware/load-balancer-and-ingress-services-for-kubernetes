@@ -193,7 +193,7 @@ func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, names
  * 2) invalid to valid --> Call ingress add
  */
 
-func AddNameSpaceEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
+func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
 	namespaceEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -752,7 +752,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	nsFilterObj := utils.GetGlobalNSFilter()
 	if nsFilterObj.EnableMigration && c.informers.NSInformer != nil {
 		utils.AviLog.Debug("Adding namespace event handler")
-		namespaceEventHandler := AddNameSpaceEventHandler(numWorkers, c)
+		namespaceEventHandler := AddNamespaceEventHandler(numWorkers, c)
 		c.informers.NSInformer.Informer().AddEventHandler(namespaceEventHandler)
 	}
 

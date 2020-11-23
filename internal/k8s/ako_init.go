@@ -585,10 +585,10 @@ func SyncFromNodesLayer(key string, wg *sync.WaitGroup) error {
 }
 
 //Controller Specific method
-func (c *AviController) InitializeNameSpaceSync() {
-	nsLabelToSyncKey, nsLabelToSyncVal := lib.GetLabelToSyncNameSpace()
+func (c *AviController) InitializeNamespaceSync() {
+	nsLabelToSyncKey, nsLabelToSyncVal := lib.GetLabelToSyncNamespace()
 	if nsLabelToSyncKey != "" {
-		utils.AviLog.Debugf("Initializing NameSpace Sync. Received namespace label: %s = %s", nsLabelToSyncKey, nsLabelToSyncVal)
+		utils.AviLog.Debugf("Initializing Namespace Sync. Received namespace label: %s = %s", nsLabelToSyncKey, nsLabelToSyncVal)
 		utils.InitializeNSSync(nsLabelToSyncKey, nsLabelToSyncVal)
 	}
 	nsFilterObj := utils.GetGlobalNSFilter()

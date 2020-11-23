@@ -89,6 +89,11 @@ advl4tests:
 	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast
 
+.PHONY: namespacesynctests 
+namespacesynctests:
+	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast
+
 .PHONY: int_test
 int_test:
 	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
@@ -98,7 +103,8 @@ int_test:
 	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast && \
 	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast && \
 	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast && \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast
+	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast && \
+	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast 
 
 .PHONY: scale_test
 scale_test:
