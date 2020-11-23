@@ -64,6 +64,8 @@ func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error,
 		namespace: namespace,
 	}
 	processObj := true
+	processObj = utils.CheckIfNamespaceAccepted(namespace, utils.GetGlobalNSFilter(), nil, true)
+
 	routeObj, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).Get(name)
 	if err != nil {
 		return &routeModel, err, processObj
