@@ -352,6 +352,15 @@ func GetAdvancedL4() bool {
 	return false
 }
 
+func CheckControllerVersionCompatibility(version, maxVersion string) bool {
+	if c, err := semver.NewConstraint(fmt.Sprintf("> %s", maxVersion)); err == nil {
+		if currentVersion, err := semver.NewVersion(version); err == nil && c.Check(currentVersion) {
+			return true
+		}
+	}
+	return false
+}
+
 func GetDisableStaticRoute() bool {
 	if GetAdvancedL4() {
 		return true
