@@ -91,12 +91,12 @@ advl4tests:
 
 .PHONY: namespacesynctests 
 namespacesynctests:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast
 
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests
+	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests
 
 .PHONY: scale_test
 scale_test:

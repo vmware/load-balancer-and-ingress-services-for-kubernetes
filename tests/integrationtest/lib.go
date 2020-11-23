@@ -94,7 +94,7 @@ func AddNamespace(nsName string, labels map[string]string) error {
 		Labels: labels,
 	}).Namespace()
 	nsMetaOptions.ResourceVersion = "1"
-	_, err := KubeClient.CoreV1().Namespaces().Create(nsMetaOptions)
+	_, err := KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
 	return err
 }
 
@@ -104,12 +104,12 @@ func UpdateNamespace(nsName string, labels map[string]string) error {
 		Labels: labels,
 	}).Namespace()
 	nsMetaOptions.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Namespaces().Update(nsMetaOptions)
+	_, err := KubeClient.CoreV1().Namespaces().Update(context.TODO(), nsMetaOptions, metav1.UpdateOptions{})
 	return err
 }
 
 func DeleteNamespace(nsName string) {
-	KubeClient.CoreV1().Namespaces().Delete(nsName, &metav1.DeleteOptions{})
+	KubeClient.CoreV1().Namespaces().Delete(context.TODO(), nsName, metav1.DeleteOptions{})
 }
 
 // Fake Secret
@@ -190,7 +190,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 								StrVal: "foo0",
 							}},
 						},
-					}},
+						}},
 				},
 			})
 			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
@@ -204,7 +204,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 								StrVal: "foo1",
 							}},
 						},
-					}},
+						}},
 				},
 			})
 		} else {
@@ -219,7 +219,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 								IntVal: 8080,
 							}},
 						},
-					}},
+						}},
 				},
 			})
 		}
@@ -275,7 +275,7 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 							IntVal: 8080,
 						}},
 					},
-				}},
+					}},
 			},
 		})
 	}
@@ -320,7 +320,7 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 							IntVal: 8080,
 						}},
 					},
-				}},
+					}},
 			},
 		})
 	}
