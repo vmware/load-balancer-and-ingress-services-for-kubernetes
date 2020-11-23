@@ -71,6 +71,7 @@ const (
 	CertTypeVS                                 = "SSL_CERTIFICATE_TYPE_VIRTUALSERVICE"
 	CertTypeCA                                 = "SSL_CERTIFICATE_TYPE_CA"
 	VSVIPDELCTRLVER                            = "20.1.1"
+	Advl4ControllerVersion                     = "20.1.2"
 	HostRule                                   = "HostRule"
 	HTTPRule                                   = "HTTPRule"
 	DummySecret                                = "@avisslkeycertrefdummy"
