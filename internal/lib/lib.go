@@ -523,14 +523,6 @@ func IsNodePortMode() bool {
 	return false
 }
 
-func GetAKONamespace() string {
-	if GetAdvancedL4() {
-		return VMwareNS
-	} else {
-		return AviNS
-	}
-}
-
 func GetNodePortsSelector() map[string]string {
 	nodePortsSelectorLabels := make(map[string]string)
 	if IsNodePortMode() {
