@@ -572,11 +572,12 @@ func (c *AviController) DeleteModels() {
 	lib.SetConfigDeleteSyncChan()
 	select {
 	case <-lib.ConfigDeleteSyncChan:
+		status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus)
 		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
 	case <-timeout:
+		status.AddStatefulSetStatus(lib.ObjectDeletionTimeoutStatus)
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 	}
-	status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus)
 }
 
 func SyncFromIngestionLayer(key string, wg *sync.WaitGroup) error {
