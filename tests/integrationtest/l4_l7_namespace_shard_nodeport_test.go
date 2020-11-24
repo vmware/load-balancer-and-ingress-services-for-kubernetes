@@ -35,7 +35,7 @@ func SetUpTestForIngressInNodePortMode(t *testing.T, model_Name string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("L7_SHARD_SCHEME", "namespace")
 	objects.SharedAviGraphLister().Delete(model_Name)
-        AddConfigMap()
+	AddConfigMap()
 	CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
 }
 
@@ -352,4 +352,64 @@ func TestNoHostIngressInNodePort(t *testing.T) {
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngressInNodePortMode(t, model_Name)
+}
+
+func TestNoHostIngressInNodePortWithMultiTenantEnabled(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// enable tenants per cluster
+	SetAkoTenant()
+	defer ResetAkoTenant()
+
+	// set nodeport mode
+	SetNodePortMode()
+	defer SetClusterIPMode()
+	modelName := fmt.Sprintf("%s/cluster--Shared-L7-6", AKOTENANT)
+	SetUpTestForIngressInNodePortMode(t, modelName)
+	nodeIP := "10.1.1.2"
+	CreateNode(t, "testNode1", nodeIP)
+	defer DeleteNode(t, "testNode1")
+
+	ingrFake := (FakeIngress{
+		Name:        "ingress-nohost",
+		Namespace:   "default",
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).IngressNoHost()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+		// Tenant should be akotenant instead of admin
+		g.Expect(nodes[0].Tenant).To(gomega.Equal(AKOTENANT))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+		fmt.Println(nodes[0].PoolRefs[0].Name)
+		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
+		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
+
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+
+		pool := nodes[0].PoolGroupRefs[0].Members[0]
+		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=cluster--ingress-nohost.default.com_foo-default-ingress-nohost"))
+		g.Expect(*pool.PriorityLabel).To(gomega.Equal("ingress-nohost.default.com/foo"))
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngressInNodePortMode(t, modelName)
 }
