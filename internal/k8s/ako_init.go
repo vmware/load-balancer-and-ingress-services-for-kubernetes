@@ -29,6 +29,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -132,7 +134,11 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			}
 			utils.AviLog.Infof("avi k8s configmap created")
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
-			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
+			delModels := delConfigFromData(cm.Data)
+			if !delModels {
+				status.ResetStatefulSetStatus()
+			}
+			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delModels
 			lib.SetDisableSync(c.DisableSync)
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -160,6 +166,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				if delConfigFromData(cm.Data) {
 					c.DeleteModels()
 				} else {
+					status.ResetStatefulSetStatus()
 					quickSyncCh <- struct{}{}
 				}
 			}
@@ -532,6 +539,7 @@ func (c *AviController) FullSyncK8s() error {
 // The rest layer would pick up the model key and delete the objects in Avi
 func (c *AviController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
+	status.AddStatefulSetStatus(lib.ObjectDeletionStartStatus)
 	allModels := objects.SharedAviGraphLister().GetAll()
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	for modelName, avimodelIntf := range allModels.(map[string]interface{}) {
@@ -554,6 +562,21 @@ func (c *AviController) DeleteModels() {
 		utils.AviLog.Infof("Deleting objects for model: %s", modelName)
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
 	}
+
+	// Wait for maximum 30 minutes for the sync to get completed
+	timeout := make(chan bool, 1)
+	go func() {
+		time.Sleep(lib.AviObjDeletionTime * time.Minute)
+		timeout <- true
+	}()
+	lib.SetConfigDeleteSyncChan()
+	select {
+	case <-lib.ConfigDeleteSyncChan:
+		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
+	case <-timeout:
+		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
+	}
+	status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus)
 }
 
 func SyncFromIngestionLayer(key string, wg *sync.WaitGroup) error {

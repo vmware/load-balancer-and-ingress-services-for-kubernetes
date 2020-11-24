@@ -407,8 +407,29 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_ops = rest.L4PolicyDelete(vs_cache_obj.L4PolicyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
-		return rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
+		success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
+		if success {
+			vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
+			utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
+			if len(vsKeysPending) == 0 {
+				// All VSes got deleted, done with deleteConfig operation. Now notify the user
+				if lib.ConfigDeleteSyncChan != nil {
+					utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
+					close(lib.ConfigDeleteSyncChan)
+					lib.ConfigDeleteSyncChan = nil
+				}
+			}
+		}
+		return success
 	}
+
+	// All VSes got deleted, done with deleteConfig operation. Now notify the user
+	if lib.ConfigDeleteSyncChan != nil {
+		utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
+		close(lib.ConfigDeleteSyncChan)
+		lib.ConfigDeleteSyncChan = nil
+	}
+
 	return true
 }
 
