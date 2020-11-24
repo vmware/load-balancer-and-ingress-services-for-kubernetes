@@ -100,6 +100,7 @@ const (
 	AKOStatefulSet                             = "ako"
 	ObjectDeletionStartStatus                  = "objDeletionStarted"
 	ObjectDeletionDoneStatus                   = "objDeletionDone"
+	ObjectDeletionTimeoutStatus                = "objDeletionTimeout"
 	//Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"
 	NsFilterDelete = "DELETE"
