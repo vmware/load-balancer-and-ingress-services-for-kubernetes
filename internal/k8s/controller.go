@@ -546,6 +546,66 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.dynamicInformers.HostSubnetInformer.Informer().AddEventHandler(hostSubnetHandler)
 	}
 
+	secretEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			secret := obj.(*corev1.Secret)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+			key := "Secret" + "/" + utils.ObjKey(secret)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			secret, ok := obj.(*corev1.Secret)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				secret, ok = tombstone.Obj.(*corev1.Secret)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a Secret: %#v", obj)
+					return
+				}
+			}
+			if validateAviSecret(secret) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+				key := "Secret" + "/" + utils.ObjKey(secret)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			}
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldobj := old.(*corev1.Secret)
+			secret := cur.(*corev1.Secret)
+			if oldobj.ResourceVersion != secret.ResourceVersion && !reflect.DeepEqual(secret.Data, oldobj.Data) {
+				if validateAviSecret(secret) {
+					// Only add the key if the resource versions have changed.
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+					key := "Secret" + "/" + utils.ObjKey(secret)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			}
+		},
+	}
+
+	if c.informers.SecretInformer != nil {
+		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
+	}
+
 	if lib.GetAdvancedL4() {
 		// servicesAPI handlers GW/GWClass
 		c.SetupAdvL4EventHandlers(numWorkers)
@@ -627,58 +687,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 	}
 
-	secretEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			secret := obj.(*corev1.Secret)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
-			key := "Secret" + "/" + utils.ObjKey(secret)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			secret, ok := obj.(*corev1.Secret)
-			if !ok {
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-					return
-				}
-				secret, ok = tombstone.Obj.(*corev1.Secret)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
-					return
-				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
-			key := "Secret" + "/" + utils.ObjKey(secret)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oldobj := old.(*corev1.Secret)
-			secret := cur.(*corev1.Secret)
-			if oldobj.ResourceVersion != secret.ResourceVersion {
-				// Only add the key if the resource versions have changed.
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
-				key := "Secret" + "/" + utils.ObjKey(secret)
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
-		},
-	}
-
 	nodeEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -731,7 +739,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	if c.informers.IngressInformer != nil {
 		c.informers.IngressInformer.Informer().AddEventHandler(ingressEventHandler)
-		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
 	}
 
 	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
@@ -765,21 +772,31 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 		if configMap.Name == lib.AviConfigMap {
 			return configMap, true
 		}
-	} else if ok && configMap.Namespace == lib.AviNS && configMap.Name == lib.AviConfigMap {
-		return configMap, true
-	} else if ok && lib.GetAdvancedL4() && configMap.Namespace == lib.VMwareNS && configMap.Name == lib.AviConfigMap {
+	} else if ok && configMap.Namespace == lib.GetAKONamespace() && configMap.Name == lib.AviConfigMap {
 		return configMap, true
 	}
 	return nil, false
 }
 
+func validateAviSecret(secret *corev1.Secret) bool {
+	if secret.Namespace == lib.GetAKONamespace() && secret.Name == lib.AviSecret {
+		// if the secret is updated or deleted we shutdown API server
+		utils.AviLog.Warnf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
+		lib.ShutdownApi()
+		return false
+	}
+	return true
+}
+
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
+	go c.informers.SecretInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
+		c.informers.SecretInformer.Informer().HasSynced,
 	}
 
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {
@@ -806,14 +823,14 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	} else {
 		if c.informers.IngressInformer != nil {
 			go c.informers.IngressInformer.Informer().Run(stopCh)
-			go c.informers.SecretInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
-			informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 		}
+
 		if c.informers.RouteInformer != nil {
 			go c.informers.RouteInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.RouteInformer.Informer().HasSynced)
 		}
+
 		go c.informers.NSInformer.Informer().Run(stopCh)
 		go c.informers.NodeInformer.Informer().Run(stopCh)
 		go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)

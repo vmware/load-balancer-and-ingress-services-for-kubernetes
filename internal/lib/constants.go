@@ -22,6 +22,7 @@ const (
 	OPENSHIFT_CNI             = "openshift"
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
+	AviSecret                 = "avi-secret"
 	AviNS                     = "avi-system"
 	VMwareNS                  = "vmware-system-ako"
 
@@ -70,6 +71,7 @@ const (
 	CertTypeVS                                 = "SSL_CERTIFICATE_TYPE_VIRTUALSERVICE"
 	CertTypeCA                                 = "SSL_CERTIFICATE_TYPE_CA"
 	VSVIPDELCTRLVER                            = "20.1.1"
+	Advl4ControllerVersion                     = "20.1.2"
 	HostRule                                   = "HostRule"
 	HTTPRule                                   = "HTTPRule"
 	DummySecret                                = "@avisslkeycertrefdummy"

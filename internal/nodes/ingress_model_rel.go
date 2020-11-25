@@ -57,6 +57,7 @@ var (
 		Type:               "Secret",
 		GetParentIngresses: SecretToIng,
 		GetParentRoutes:    SecretToIng,
+		GetParentGateways:  SecretToGateway,
 	}
 	Route = GraphSchema{
 		Type:            utils.OshiftRoute,
@@ -332,6 +333,10 @@ func SecretToIng(secretName string, namespace string, key string) ([]string, boo
 	if ok {
 		return ingNames, true
 	}
+	return nil, false
+}
+
+func SecretToGateway(secretName string, namespace string, key string) ([]string, bool) {
 	return nil, false
 }
 
