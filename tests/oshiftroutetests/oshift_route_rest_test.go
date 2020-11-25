@@ -56,6 +56,9 @@ func TestInsecureRouteStatusCheck(t *testing.T) {
 		if (len(route.Status.Ingress)) != 1 {
 			return ""
 		}
+		if route.Status.Ingress[0].Conditions[0].LastTransitionTime == nil {
+			return ""
+		}
 		return route.Status.Ingress[0].Conditions[0].Message
 	}, 30*time.Second).Should(gomega.Equal("10.250.250.10"))
 
