@@ -607,7 +607,7 @@ func validateGatewayForClass(key string, gateway *advl4v1alpha1pre1.Gateway) err
 	return nil
 }
 
-func filterIngressOnClass(key string, ingress *networkingv1beta1.Ingress) bool {
+func filterIngressOnClassAnnotation(key string, ingress *networkingv1beta1.Ingress) bool {
 	// If Avi is not the default ingress, then filter on ingress class.
 	if !lib.GetDefaultIngController() {
 		annotations := ingress.GetAnnotations()
@@ -633,8 +633,8 @@ func filterIngressOnClass(key string, ingress *networkingv1beta1.Ingress) bool {
 
 func validateIngressForClass(key string, ingress *networkingv1beta1.Ingress) bool {
 	// see whether ingress class resources are present or not
-	if !utils.IsIngressClassEnabled() {
-		return filterIngressOnClass(key, ingress)
+	if !utils.GetIngressClassEnabled() {
+		return filterIngressOnClassAnnotation(key, ingress)
 	}
 
 	if ingress.Spec.IngressClassName == nil {

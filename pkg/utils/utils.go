@@ -190,7 +190,8 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case IngressInformer:
 			informers.IngressInformer = kubeInformerFactory.Networking().V1beta1().Ingresses()
 		case IngressClassInformer:
-			if IsIngressClassEnabled(cs) {
+			SetIngressClassEnabled(cs)
+			if GetIngressClassEnabled() {
 				informers.IngressClassInformer = kubeInformerFactory.Networking().V1beta1().IngressClasses()
 			}
 		case RouteInformer:

@@ -23,18 +23,14 @@ import (
 
 var ingressClassEnabled *bool
 
-func IsIngressClassEnabled(kc ...kubernetes.Interface) bool {
+func SetIngressClassEnabled(kc kubernetes.Interface) {
 	if ingressClassEnabled != nil {
-		return *ingressClassEnabled
-	}
-
-	if kc == nil {
-		return false
+		return
 	}
 
 	var isPresent bool
 	timeout := int64(120)
-	_, ingClassError := kc[0].NetworkingV1beta1().IngressClasses().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
+	_, ingClassError := kc.NetworkingV1beta1().IngressClasses().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
 	if ingClassError != nil {
 		AviLog.Infof("ingress class resources not found/enabled on cluster: %v", ingClassError)
 		isPresent = false
@@ -43,5 +39,8 @@ func IsIngressClassEnabled(kc ...kubernetes.Interface) bool {
 	}
 
 	ingressClassEnabled = &isPresent
+}
+
+func GetIngressClassEnabled() bool {
 	return *ingressClassEnabled
 }
