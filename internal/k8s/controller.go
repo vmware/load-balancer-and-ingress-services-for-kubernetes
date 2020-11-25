@@ -278,17 +278,17 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
 			nsFilterObj := utils.GetGlobalNSFilter()
-			if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
-				key := utils.OshiftRoute + "/" + utils.ObjKey(route)
-				bkt := utils.Bkt(namespace, numWorkers)
-				if !lib.HasValidBackends(route.Spec, route.Name, namespace, key) {
-					status.UpdateRouteStatusWithErrMsg(route.Name, namespace, lib.DuplicateBackends)
-				}
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			} else {
+			if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
 				utils.AviLog.Debugf("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
+				return
 			}
+			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
+			bkt := utils.Bkt(namespace, numWorkers)
+			if !lib.HasValidBackends(route.Spec, route.Name, namespace, key) {
+				status.UpdateRouteStatusWithErrMsg(route.Name, namespace, lib.DuplicateBackends)
+			}
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -309,14 +309,14 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
 			nsFilterObj := utils.GetGlobalNSFilter()
-			if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
-				key := utils.OshiftRoute + "/" + utils.ObjKey(route)
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			} else {
-				utils.AviLog.Debugf("Route delete event: Namespace: %s didn't qualify filter. Not adding route", namespace)
+			if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				utils.AviLog.Debugf("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
+				return
 			}
+			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
@@ -327,17 +327,17 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			if isRouteUpdated(oldRoute, newRoute) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
 				nsFilterObj := utils.GetGlobalNSFilter()
-				if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
-					key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
-					bkt := utils.Bkt(namespace, numWorkers)
-					if !lib.HasValidBackends(newRoute.Spec, newRoute.Name, namespace, key) {
-						status.UpdateRouteStatusWithErrMsg(newRoute.Name, namespace, lib.DuplicateBackends)
-					}
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				} else {
+				if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
 					utils.AviLog.Debugf("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
+					return
 				}
+				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
+				bkt := utils.Bkt(namespace, numWorkers)
+				if !lib.HasValidBackends(newRoute.Spec, newRoute.Name, namespace, key) {
+					status.UpdateRouteStatusWithErrMsg(newRoute.Name, namespace, lib.DuplicateBackends)
+				}
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
 		},
 	}
