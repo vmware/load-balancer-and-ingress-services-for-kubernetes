@@ -179,6 +179,20 @@ func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, names
 	}
 
 }
+func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
+	routeObjs, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("NS to route queue add: Error occured while retrieving routes for namespace: %s", namespace)
+		return
+	}
+	for _, routeObj := range routeObjs {
+		key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+	}
+
+}
 
 /*
  * Namespace Add event: will be called during each boot or newNS added. In add event
@@ -231,13 +245,21 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 					//Call ingress add
 					utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
 					utils.AddNamespaceToFilter(nsCur.GetName(), nsFilterObj)
-					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					if utils.GetInformers().IngressInformer != nil {
+						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					} else if utils.GetInformers().RouteInformer != nil {
+						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
 				} else if oldNSAccepted && !newNSAccepted {
 					//Case 2: Old valid namespace updated with invalid labels
 					//Call ingress delete
 					utils.AviLog.Debugf("Deleting ingresses for namespaces: %s", nsCur.GetName())
 					utils.DeleteNamespaceFromFilter(nsCur.GetName(), nsFilterObj)
-					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					if utils.GetInformers().IngressInformer != nil {
+						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					} else if utils.GetInformers().RouteInformer != nil {
+						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					}
 				}
 
 			}
@@ -255,6 +277,11 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
+			nsFilterObj := utils.GetGlobalNSFilter()
+			if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				utils.AviLog.Debugf("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
+				return
+			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
 			bkt := utils.Bkt(namespace, numWorkers)
 			if !lib.HasValidBackends(route.Spec, route.Name, namespace, key) {
@@ -281,6 +308,11 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				}
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
+			nsFilterObj := utils.GetGlobalNSFilter()
+			if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				utils.AviLog.Debugf("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
+				return
+			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -294,6 +326,11 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			newRoute := cur.(*routev1.Route)
 			if isRouteUpdated(oldRoute, newRoute) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
+				nsFilterObj := utils.GetGlobalNSFilter()
+				if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+					utils.AviLog.Debugf("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
+					return
+				}
 				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
 				bkt := utils.Bkt(namespace, numWorkers)
 				if !lib.HasValidBackends(newRoute.Spec, newRoute.Name, namespace, key) {

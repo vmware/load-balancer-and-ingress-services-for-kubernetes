@@ -443,8 +443,13 @@ func (c *AviController) FullSyncK8s() error {
 			} else {
 				for _, routeObj := range routeObjs {
 					// to do move to container-lib
-					key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
-					nodes.DequeueIngestion(key, true)
+					routeLabel := utils.ObjKey(routeObj)
+					ns := strings.Split(routeLabel, "/")
+					if utils.CheckIfNamespaceAccepted(ns[0], utils.GetGlobalNSFilter(), nil, true) {
+						key := utils.OshiftRoute + "/" + routeLabel
+						utils.AviLog.Debugf("Dequeue for route key: %v", key)
+						nodes.DequeueIngestion(key, true)
+					}
 				}
 			}
 		}
