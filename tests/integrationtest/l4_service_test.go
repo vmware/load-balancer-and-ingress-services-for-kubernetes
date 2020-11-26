@@ -94,6 +94,7 @@ func TestMain(m *testing.M) {
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.IngressInformer,
+		utils.IngressClassInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,
@@ -109,7 +110,6 @@ func TestMain(m *testing.M) {
 	defer AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
-	AddConfigMap()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
@@ -122,9 +122,12 @@ func TestMain(m *testing.M) {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
-	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
+
 	AddConfigMap()
+	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	AddDefaultIngressClass()
+
+	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }
 

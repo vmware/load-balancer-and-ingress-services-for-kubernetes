@@ -73,6 +73,22 @@ func AddConfigMap() {
 	PollForSyncStart(ctrl, 10)
 }
 
+func AddDefaultIngressClass() {
+	aviIngressClass := &networking.IngressClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "avi-lb",
+			Annotations: map[string]string{
+				lib.DefaultIngressClassAnnotation: "true",
+			},
+		},
+		Spec: networking.IngressClassSpec{
+			Controller: "ako.vmware.com/avi-lb",
+		},
+	}
+
+	KubeClient.NetworkingV1beta1().IngressClasses().Create(context.TODO(), aviIngressClass, metav1.CreateOptions{})
+}
+
 //Fake Namespace
 type FakeNamespace struct {
 	Name   string

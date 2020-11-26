@@ -42,10 +42,8 @@ func TestMain(m *testing.M) {
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
-		utils.IngressInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
-		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)

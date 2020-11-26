@@ -61,6 +61,7 @@ func TestMain(m *testing.M) {
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.IngressInformer,
+		utils.IngressClassInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,

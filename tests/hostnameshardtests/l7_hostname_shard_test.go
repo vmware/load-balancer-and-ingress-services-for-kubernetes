@@ -15,8 +15,8 @@
 package hostnameshardtests
 
 import (
-	"net/http"
 	"context"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -63,6 +63,7 @@ func TestMain(m *testing.M) {
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.IngressInformer,
+		utils.IngressClassInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,
@@ -96,10 +97,13 @@ func TestMain(m *testing.M) {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
+
 	AddConfigMap()
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	integrationtest.KubeClient = KubeClient
+	integrationtest.AddDefaultIngressClass()
+
+	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }
 

@@ -164,10 +164,13 @@ func TestMain(m *testing.M) {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
+
 	AddConfigMap()
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	integrationtest.KubeClient = KubeClient
+	integrationtest.AddDefaultIngressClass()
+
+	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 
 	DefaultRouteName = "foo"
 	DefaultNamespace = "default"

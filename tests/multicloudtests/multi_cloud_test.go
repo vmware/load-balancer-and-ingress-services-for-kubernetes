@@ -52,6 +52,7 @@ var RegisteredInformers = []string{
 	utils.ServiceInformer,
 	utils.EndpointInformer,
 	utils.IngressInformer,
+	utils.IngressClassInformer,
 	utils.SecretInformer,
 	utils.NSInformer,
 	utils.NodeInformer,

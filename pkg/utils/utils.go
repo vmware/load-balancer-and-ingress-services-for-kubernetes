@@ -155,6 +155,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(namespace))
 		AviLog.Infof("Initialized informer factory for namespace :%s", namespace)
 	}
+
 	// We listen to configmaps only in`avi-system or vmware-system-ako`
 	var akoNS string
 	if akoNSBoundInformer {
@@ -162,6 +163,9 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 	} else {
 		akoNS = AKO_DEFAULT_NS // Regular AKO
 	}
+
+	SetIngressClassEnabled(cs)
+
 	akoNSInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(akoNS))
 	AviLog.Infof("Initializing configmap informer in %v", akoNS)
 
@@ -190,7 +194,6 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case IngressInformer:
 			informers.IngressInformer = kubeInformerFactory.Networking().V1beta1().Ingresses()
 		case IngressClassInformer:
-			SetIngressClassEnabled(cs)
 			if GetIngressClassEnabled() {
 				informers.IngressClassInformer = kubeInformerFactory.Networking().V1beta1().IngressClasses()
 			}

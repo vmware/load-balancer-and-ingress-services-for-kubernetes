@@ -99,12 +99,12 @@ func TestMain(m *testing.M) {
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	crdClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(crdClient)
-	addConfigMap()
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.IngressInformer,
+		utils.IngressClassInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,
@@ -123,6 +123,7 @@ func TestMain(m *testing.M) {
 	keyChan = make(chan string)
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
+	addConfigMap()
 	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh, quickSyncCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)
