@@ -20,15 +20,16 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
 
 // HTTPRuleLister helps list HTTPRules.
+// All objects returned here must be treated as read-only.
 type HTTPRuleLister interface {
 	// List lists all HTTPRules in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.HTTPRule, err error)
 	// HTTPRules returns an object that can list and get HTTPRules.
 	HTTPRules(namespace string) HTTPRuleNamespaceLister
@@ -59,10 +60,13 @@ func (s *hTTPRuleLister) HTTPRules(namespace string) HTTPRuleNamespaceLister {
 }
 
 // HTTPRuleNamespaceLister helps list and get HTTPRules.
+// All objects returned here must be treated as read-only.
 type HTTPRuleNamespaceLister interface {
 	// List lists all HTTPRules in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.HTTPRule, err error)
 	// Get retrieves the HTTPRule from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.HTTPRule, error)
 	HTTPRuleNamespaceListerExpansion
 }

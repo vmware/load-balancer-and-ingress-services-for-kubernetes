@@ -15,6 +15,7 @@
 package status
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -44,10 +45,10 @@ func UpdateHostRuleStatus(hr *akov1alpha1.HostRule, updateStatus UpdateCRDStatus
 	hr.Status.Status = updateStatus.Status
 	hr.Status.Error = updateStatus.Error
 
-	_, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).UpdateStatus(hr)
+	_, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).UpdateStatus(context.TODO(), hr, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("msg: there was an error in updating the hostrule status: %+v", err)
-		updatedHr, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Get(hr.Name, metav1.GetOptions{})
+		updatedHr, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Get(context.TODO(), hr.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("hostrule not found %v", err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
@@ -75,10 +76,10 @@ func UpdateHTTPRuleStatus(rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatus
 	rr.Status.Status = updateStatus.Status
 	rr.Status.Error = updateStatus.Error
 
-	_, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).UpdateStatus(rr)
+	_, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).UpdateStatus(context.TODO(), rr, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("msg: %d there was an error in updating the httprule status: %+v", retry, err)
-		updatedRr, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Get(rr.Name, metav1.GetOptions{})
+		updatedRr, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Get(context.TODO(), rr.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("httprule not found %v", err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {

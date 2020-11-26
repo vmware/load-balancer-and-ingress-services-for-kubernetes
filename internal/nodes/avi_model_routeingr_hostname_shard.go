@@ -23,7 +23,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
-	networking "k8s.io/api/networking/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -54,7 +54,7 @@ type K8sIngressModel struct {
 	key       string
 	name      string
 	namespace string
-	spec      networking.IngressSpec
+	spec      networkingv1beta1.IngressSpec
 }
 
 func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error, bool) {
@@ -130,15 +130,11 @@ func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, b
 		namespace: namespace,
 	}
 	processObj := true
-	myIng, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(namespace).Get(name)
+	ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(name)
 	if err != nil {
 		return &ingrModel, err, processObj
 	}
-	ingObj, ok := utils.ToNetworkingIngress(myIng)
-	if !ok {
-		return &ingrModel, errors.New("Could not convert ingress to net v1beta"), processObj
-	}
-	processObj = filterIngressOnClass(ingObj) && utils.CheckIfNamespaceAccepted(namespace, utils.GetGlobalNSFilter(), nil, true)
+	processObj = validateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace, utils.GetGlobalNSFilter(), nil, true)
 	ingrModel.spec = ingObj.Spec
 	return &ingrModel, nil, processObj
 }

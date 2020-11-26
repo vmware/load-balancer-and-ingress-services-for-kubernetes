@@ -15,6 +15,7 @@
 package objects
 
 import (
+	"context"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -38,7 +39,7 @@ func SharedNodeLister() *K8sNodeStore {
 }
 
 func (o *K8sNodeStore) PopulateAllNodes(cs *kubernetes.Clientset) {
-	allNodes, _ := cs.CoreV1().Nodes().List(metav1.ListOptions{})
+	allNodes, _ := cs.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	utils.AviLog.Infof("Got %d nodes", len(allNodes.Items))
 	for i, node := range allNodes.Items {
 		o.AddOrUpdate(node.Name, &allNodes.Items[i])

@@ -15,6 +15,7 @@
 package namespacesynctests
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -57,6 +58,7 @@ func TestMain(m *testing.M) {
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.IngressInformer,
+		utils.IngressClassInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,
@@ -90,12 +92,14 @@ func TestMain(m *testing.M) {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
+
 	AddConfigMap()
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	integrationtest.KubeClient = KubeClient
+	integrationtest.AddDefaultIngressClass()
 
 	SetupNamespaceSync("app", "migrate", "namespace")
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
-	integrationtest.KubeClient = KubeClient
 	os.Exit(m.Run())
 }
 func AddConfigMap() {
@@ -105,7 +109,7 @@ func AddConfigMap() {
 			Name:      "avi-k8s-config",
 		},
 	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
 
 	integrationtest.PollForSyncStart(ctrl, 10)
 }
@@ -131,7 +135,7 @@ func UpdateIngress(t *testing.T, modelName, namespace string) {
 	})
 	ingrFake := ingressObject.Ingress()
 	ingrFake.ResourceVersion = "22"
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses(namespace).Update(ingrFake); err != nil {
+	if _, err := KubeClient.NetworkingV1beta1().Ingresses(namespace).Update(context.TODO(), ingrFake, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -161,7 +165,7 @@ func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngr
 	}
 
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses(namespace).Create(ingrFake); err != nil {
+	if _, err := KubeClient.NetworkingV1beta1().Ingresses(namespace).Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -169,11 +173,11 @@ func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngr
 
 func TearDownTestForIngressNamespace(t *testing.T, modelName, namespace string, g *gomega.GomegaWithT) {
 
-	if err := KubeClient.ExtensionsV1beta1().Ingresses(namespace).Delete("foo-with-targets", &metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1beta1().Ingresses(namespace).Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't Delete Ingress: %v", err)
 	}
 	g.Eventually(func() error {
-		_, err := KubeClient.ExtensionsV1beta1().Ingresses(namespace).Get("foo-with-targets", metav1.GetOptions{})
+		_, err := KubeClient.NetworkingV1beta1().Ingresses(namespace).Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return err
 	}, 30*time.Second).Should(gomega.Not(gomega.BeNil()))
 

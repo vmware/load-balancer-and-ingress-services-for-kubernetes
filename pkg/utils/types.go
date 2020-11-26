@@ -22,8 +22,8 @@ import (
 	avimodels "github.com/avinetworks/sdk/go/models"
 	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
-	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	netinformers "k8s.io/client-go/informers/networking/v1beta1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -68,17 +68,18 @@ type KubeClientIntf struct {
 }
 
 type Informers struct {
-	ConfigMapInformer coreinformers.ConfigMapInformer
-	ServiceInformer   coreinformers.ServiceInformer
-	EpInformer        coreinformers.EndpointsInformer
-	PodInformer       coreinformers.PodInformer
-	NSInformer        coreinformers.NamespaceInformer
-	SecretInformer    coreinformers.SecretInformer
-	RouteInformer     oshiftinformers.RouteInformer
-	NodeInformer      coreinformers.NodeInformer
-	IngressInformer   informers.GenericInformer
-	OshiftClient      oshiftclientset.Interface
-	IngressVersion    string
+	ConfigMapInformer    coreinformers.ConfigMapInformer
+	ServiceInformer      coreinformers.ServiceInformer
+	EpInformer           coreinformers.EndpointsInformer
+	PodInformer          coreinformers.PodInformer
+	NSInformer           coreinformers.NamespaceInformer
+	SecretInformer       coreinformers.SecretInformer
+	RouteInformer        oshiftinformers.RouteInformer
+	NodeInformer         coreinformers.NodeInformer
+	IngressInformer      netinformers.IngressInformer
+	IngressClassInformer netinformers.IngressClassInformer
+	OshiftClient         oshiftclientset.Interface
+	IngressVersion       string
 	KubeClientIntf
 }
 

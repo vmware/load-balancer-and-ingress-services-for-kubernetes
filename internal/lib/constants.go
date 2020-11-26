@@ -89,6 +89,7 @@ const (
 	GatewayNamespaceLabelKey                   = "service.route.lbapi.run.tanzu.vmware.com/gateway-namespace"
 	GatewayTypeLabelKey                        = "service.route.lbapi.run.tanzu.vmware.com/type"
 	AviGatewayController                       = "lbapi.run.tanzu.vmware.com/avi-lb"
+	AviIngressController                       = "ako.vmware.com/avi-lb"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
 	ControllerReqWaitTime                      = 300
 	PassthroughInsecure                        = "-insecure"
@@ -103,6 +104,8 @@ const (
 	ObjectDeletionStartStatus                  = "objDeletionStarted"
 	ObjectDeletionDoneStatus                   = "objDeletionDone"
 	ObjectDeletionTimeoutStatus                = "objDeletionTimeout"
+	DefaultIngressClassAnnotation              = "ingressclass.kubernetes.io/is-default-class"
+
 	//Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"
 	NsFilterDelete = "DELETE"

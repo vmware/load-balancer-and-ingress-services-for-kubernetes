@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,11 +34,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
-
-var IngressApiMap = map[string]string{
-	"corev1":      utils.CoreV1IngressInformer,
-	"extensionv1": utils.ExtV1IngressInformer,
-}
 
 var ShardSchemeMap = map[string]string{
 	"hostname":  "hostname",
@@ -232,15 +228,6 @@ func GetTenantsPerCluster() bool {
 		return true
 	}
 	return false
-}
-
-func GetIngressApi() string {
-	ingressApi := os.Getenv(INGRESS_API)
-	ingressApi, ok := IngressApiMap[ingressApi]
-	if !ok {
-		return utils.CoreV1IngressInformer
-	}
-	return ingressApi
 }
 
 func GetShardScheme() string {
@@ -490,13 +477,14 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
-		_, err := oclient.RouteV1().Routes("").List(metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+		_, err := oclient.RouteV1().Routes("").List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 		if err == nil {
 			// Openshift cluster with route support, we will just add route informer
 			allInformers = append(allInformers, utils.RouteInformer)
 		} else {
 			// Kubernetes cluster
 			allInformers = append(allInformers, utils.IngressInformer)
+			allInformers = append(allInformers, utils.IngressClassInformer)
 		}
 	}
 	return allInformers

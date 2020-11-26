@@ -19,8 +19,8 @@ all: build docker
 
 .PHONY: build
 build: 
-		sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-		$(GOBUILD) -o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" /go/src/$(REL_PATH_AKO)
+		sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+		$(GOBUILD) -o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor /go/src/$(REL_PATH_AKO)
 
 .PHONY: clean
 clean: 
@@ -54,59 +54,51 @@ else
 endif
 	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) -f Dockerfile.ako .
 
-.PHONY: test
-test:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/k8stest -failfast
+.PHONY: k8stest
+k8stest:
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/k8stest -failfast
 
 .PHONY: integrationtest
 integrationtest:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast
 
 .PHONY: hostnameshardtests
 hostnameshardtests:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/hostnameshardtests -failfast
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hostnameshardtests -failfast
 
 .PHONY: oshiftroutetests
 oshiftroutetests:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast
 
 .PHONY: bootuptests
 bootuptests:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast
 
 .PHONY: multicloudtests
 multicloudtests:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast
 
 .PHONY: advl4tests
 advl4tests:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast
 
 .PHONY: namespacesynctests 
 namespacesynctests:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast
 
 .PHONY: int_test
 int_test:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/k8stest -failfast && \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast && \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/hostnameshardtests -failfast && \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast && \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast && \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast && \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast && \
-	$(GOTEST) -v $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast 
+	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests
 
 .PHONY: scale_test
 scale_test:
-	sudo docker run -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -mod=vendor -v ./tests/scaletest -failfast -timeout $(Timeout) $(NumGoRoutines) $(TestbedFilePath)
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor ./tests/scaletest -failfast -timeout $(Timeout) $(NumGoRoutines) $(TestbedFilePath)

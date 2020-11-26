@@ -15,6 +15,7 @@
 package status
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -117,7 +118,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 	}
 
 	if bulk {
-		routeList, err := utils.GetInformers().OshiftClient.RouteV1().Routes("").List(metav1.ListOptions{})
+		routeList, err := utils.GetInformers().OshiftClient.RouteV1().Routes("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -139,7 +140,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 			utils.AviLog.Warnf("msg: namespaceName %s has wrong format", namespaceName)
 			continue
 		}
-		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(nsNameSplit[1], metav1.GetOptions{})
+		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -191,11 +192,11 @@ func UpdateRouteStatusWithErrMsg(routeName, namespace, msg string, retryNum ...i
 			oldRouteStatus.Ingress, mRoute.Status.Ingress)
 		return nil
 	}
+
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": mRoute.Status,
 	})
-	_, err := utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(mRoute.Name, types.MergePatchType, patchPayload, "status")
-
+	_, err := utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("msg: there was an error in updating the route status: %v", err)
 		// fetch updated route and feed for update status
@@ -289,8 +290,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": mRoute.Status,
 	})
-	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(mRoute.Name, types.MergePatchType, patchPayload, "status")
-
+	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the route status: %v", key, err)
 		// fetch updated route and feed for update status
@@ -404,10 +404,11 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 		return nil
 	}
+
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": mRoute.Status,
 	})
-	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(mRoute.Name, types.MergePatchType, patchPayload, "status")
+	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(svc_mdata_obj.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
 		return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)

@@ -20,7 +20,6 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -168,8 +167,8 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 		return true
 	}
 
-	// Check if the gateway has a valid gwclass or not.
-	err = validateGatewayObj(key, gateway)
+	// Check if the gateway has a valid gateway class
+	err = validateGatewayForClass(key, gateway)
 	if err != nil {
 		return true
 	}
@@ -276,6 +275,11 @@ func handleIngress(key string, fullsync bool, ingressNames []string) {
 
 func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, string) {
 	if objType == lib.HostRule || objType == lib.HTTPRule {
+		arr := strings.Split(nsname, "/")
+		return arr[0], arr[1]
+	}
+
+	if objType == utils.IngressClass {
 		arr := strings.Split(nsname, "/")
 		return arr[0], arr[1]
 	}

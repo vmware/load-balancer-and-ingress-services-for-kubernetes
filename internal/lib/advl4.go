@@ -15,18 +15,20 @@
 package lib
 
 import (
+	"context"
 	"encoding/json"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
-	advl4crd "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
-	advl4informer "github.com/vmware-tanzu/service-apis/pkg/client/informers/externalversions/apis/v1alpha1pre1"
+	advl4crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
+	advl4informer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis/v1alpha1pre1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 var AdvL4Clientset advl4crd.Interface
 
-// crd "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned/typed/ako/v1alpha1"
+// crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/typed/ako/v1alpha1"
 func SetAdvL4Clientset(cs advl4crd.Interface) {
 	AdvL4Clientset = cs
 }
@@ -71,7 +73,7 @@ func UpdateGatewayFinalizer(gw *advl4v1alpha1pre1.Gateway) {
 		},
 	})
 
-	_, err := GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(gw.Name, types.MergePatchType, patchPayload)
+	_, err := GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("error while patching the gateway with updated finalizers, %v", err)
 		return

@@ -15,6 +15,7 @@
 package integrationtest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -39,7 +40,7 @@ import (
 	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	extensionv1beta1 "k8s.io/api/extensions/v1beta1"
+	networking "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -67,9 +68,25 @@ func AddConfigMap() {
 			Name:      "avi-k8s-config",
 		},
 	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
 
 	PollForSyncStart(ctrl, 10)
+}
+
+func AddDefaultIngressClass() {
+	aviIngressClass := &networking.IngressClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "avi-lb",
+			Annotations: map[string]string{
+				lib.DefaultIngressClassAnnotation: "true",
+			},
+		},
+		Spec: networking.IngressClassSpec{
+			Controller: "ako.vmware.com/avi-lb",
+		},
+	}
+
+	KubeClient.NetworkingV1beta1().IngressClasses().Create(context.TODO(), aviIngressClass, metav1.CreateOptions{})
 }
 
 //Fake Namespace
@@ -93,7 +110,7 @@ func AddNamespace(nsName string, labels map[string]string) error {
 		Labels: labels,
 	}).Namespace()
 	nsMetaOptions.ResourceVersion = "1"
-	_, err := KubeClient.CoreV1().Namespaces().Create(nsMetaOptions)
+	_, err := KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
 	return err
 }
 
@@ -103,12 +120,12 @@ func UpdateNamespace(nsName string, labels map[string]string) error {
 		Labels: labels,
 	}).Namespace()
 	nsMetaOptions.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Namespaces().Update(nsMetaOptions)
+	_, err := KubeClient.CoreV1().Namespaces().Update(context.TODO(), nsMetaOptions, metav1.UpdateOptions{})
 	return err
 }
 
 func DeleteNamespace(nsName string) {
-	KubeClient.CoreV1().Namespaces().Delete(nsName, &metav1.DeleteOptions{})
+	KubeClient.CoreV1().Namespaces().Delete(context.TODO(), nsName, metav1.DeleteOptions{})
 }
 
 // Fake Secret
@@ -140,7 +157,7 @@ func AddSecret(secretName string, namespace string, cert string, key string) {
 		Namespace: namespace,
 		Name:      secretName,
 	}).Secret()
-	KubeClient.CoreV1().Secrets(namespace).Create(fakeSecret)
+	KubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), fakeSecret, metav1.CreateOptions{})
 }
 
 // Fake ingress
@@ -156,17 +173,17 @@ type FakeIngress struct {
 	TlsSecretDNS map[string][]string
 }
 
-func (ing FakeIngress) Ingress(multiport ...bool) *extensionv1beta1.Ingress {
-	ingress := &extensionv1beta1.Ingress{
+func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
+	ingress := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ing.Namespace,
 			Name:        ing.Name,
 			Annotations: ing.annotations,
 		},
-		Spec: extensionv1beta1.IngressSpec{
-			Rules: []extensionv1beta1.IngressRule{},
+		Spec: networking.IngressSpec{
+			Rules: []networking.IngressRule{},
 		},
-		Status: extensionv1beta1.IngressStatus{
+		Status: networking.IngressStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{},
 			},
@@ -178,56 +195,53 @@ func (ing FakeIngress) Ingress(multiport ...bool) *extensionv1beta1.Ingress {
 			path = ing.Paths[i]
 		}
 		if len(multiport) > 0 {
-			ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 				Host: dnsName,
-				IngressRuleValue: extensionv1beta1.IngressRuleValue{
-					HTTP: &extensionv1beta1.HTTPIngressRuleValue{
-						Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+				IngressRuleValue: networking.IngressRuleValue{
+					HTTP: &networking.HTTPIngressRuleValue{
+						Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
 							Path: "/foo",
-							Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 								Type:   intstr.String,
 								StrVal: "foo0",
 							}},
 						},
-						},
-					},
+						}},
 				},
 			})
-			ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 				Host: dnsName,
-				IngressRuleValue: extensionv1beta1.IngressRuleValue{
-					HTTP: &extensionv1beta1.HTTPIngressRuleValue{
-						Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+				IngressRuleValue: networking.IngressRuleValue{
+					HTTP: &networking.HTTPIngressRuleValue{
+						Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
 							Path: "/bar",
-							Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 								Type:   intstr.String,
 								StrVal: "foo1",
 							}},
 						},
-						},
-					},
+						}},
 				},
 			})
 		} else {
-			ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 				Host: dnsName,
-				IngressRuleValue: extensionv1beta1.IngressRuleValue{
-					HTTP: &extensionv1beta1.HTTPIngressRuleValue{
-						Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+				IngressRuleValue: networking.IngressRuleValue{
+					HTTP: &networking.HTTPIngressRuleValue{
+						Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
 							Path: path,
-							Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 								Type:   intstr.Int,
 								IntVal: 8080,
 							}},
 						},
-						},
-					},
+						}},
 				},
 			})
 		}
 	}
 	for secret, hosts := range ing.TlsSecretDNS {
-		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
+		ingress.Spec.TLS = append(ingress.Spec.TLS, networking.IngressTLS{
 			Hosts:      hosts,
 			SecretName: secret,
 		})
@@ -245,17 +259,17 @@ func (ing FakeIngress) Ingress(multiport ...bool) *extensionv1beta1.Ingress {
 	return ingress
 }
 
-func (ing FakeIngress) SecureIngress() *extensionv1beta1.Ingress {
-	ingress := &extensionv1beta1.Ingress{
+func (ing FakeIngress) SecureIngress() *networking.Ingress {
+	ingress := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ing.Namespace,
 			Name:        ing.Name,
 			Annotations: ing.annotations,
 		},
-		Spec: extensionv1beta1.IngressSpec{
-			Rules: []extensionv1beta1.IngressRule{},
+		Spec: networking.IngressSpec{
+			Rules: []networking.IngressRule{},
 		},
-		Status: extensionv1beta1.IngressStatus{
+		Status: networking.IngressStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{},
 			},
@@ -266,19 +280,18 @@ func (ing FakeIngress) SecureIngress() *extensionv1beta1.Ingress {
 		if len(ing.Paths) > i {
 			path = ing.Paths[i]
 		}
-		ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+		ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 			Host: dnsName,
-			IngressRuleValue: extensionv1beta1.IngressRuleValue{
-				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+			IngressRuleValue: networking.IngressRuleValue{
+				HTTP: &networking.HTTPIngressRuleValue{
+					Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
 						Path: path,
-						Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 							Type:   intstr.Int,
 							IntVal: 8080,
 						}},
 					},
-					},
-				},
+					}},
 			},
 		})
 	}
@@ -296,35 +309,34 @@ func (ing FakeIngress) SecureIngress() *extensionv1beta1.Ingress {
 	return ingress
 }
 
-func (ing FakeIngress) IngressNoHost() *extensionv1beta1.Ingress {
-	ingress := &extensionv1beta1.Ingress{
+func (ing FakeIngress) IngressNoHost() *networking.Ingress {
+	ingress := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ing.Namespace,
 			Name:        ing.Name,
 			Annotations: ing.annotations,
 		},
-		Spec: extensionv1beta1.IngressSpec{
-			Rules: []extensionv1beta1.IngressRule{},
+		Spec: networking.IngressSpec{
+			Rules: []networking.IngressRule{},
 		},
-		Status: extensionv1beta1.IngressStatus{
+		Status: networking.IngressStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
 	for _, path := range ing.Paths {
-		ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
-			IngressRuleValue: extensionv1beta1.IngressRuleValue{
-				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionv1beta1.HTTPIngressPath{extensionv1beta1.HTTPIngressPath{
+		ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+			IngressRuleValue: networking.IngressRuleValue{
+				HTTP: &networking.HTTPIngressRuleValue{
+					Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
 						Path: path,
-						Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 							Type:   intstr.Int,
 							IntVal: 8080,
 						}},
 					},
-					},
-				},
+					}},
 			},
 		})
 	}
@@ -341,19 +353,19 @@ func (ing FakeIngress) IngressNoHost() *extensionv1beta1.Ingress {
 	return ingress
 }
 
-func (ing FakeIngress) IngressOnlyHostNoBackend() *extensionv1beta1.Ingress {
-	ingress := &extensionv1beta1.Ingress{
+func (ing FakeIngress) IngressOnlyHostNoBackend() *networking.Ingress {
+	ingress := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ing.Namespace,
 			Name:        ing.Name,
 			Annotations: ing.annotations,
 		},
-		Spec: extensionv1beta1.IngressSpec{
+		Spec: networking.IngressSpec{
 			Rules: nil,
 		},
 	}
-	ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
-		IngressRuleValue: extensionv1beta1.IngressRuleValue{
+	ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+		IngressRuleValue: networking.IngressRuleValue{
 			HTTP: nil,
 		},
 	})
@@ -361,38 +373,38 @@ func (ing FakeIngress) IngressOnlyHostNoBackend() *extensionv1beta1.Ingress {
 	return ingress
 }
 
-func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
-	ingress := &extensionv1beta1.Ingress{
+func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
+	ingress := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ing.Namespace,
 			Name:        ing.Name,
 			Annotations: ing.annotations,
 		},
-		Spec: extensionv1beta1.IngressSpec{
-			Rules: []extensionv1beta1.IngressRule{},
+		Spec: networking.IngressSpec{
+			Rules: []networking.IngressRule{},
 		},
-		Status: extensionv1beta1.IngressStatus{
+		Status: networking.IngressStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
 	for _, dnsName := range ing.DnsNames {
-		var ingrPaths []extensionv1beta1.HTTPIngressPath
+		var ingrPaths []networking.HTTPIngressPath
 		for _, path := range ing.Paths {
-			ingrPath := extensionv1beta1.HTTPIngressPath{
+			ingrPath := networking.HTTPIngressPath{
 				Path: path,
-				Backend: extensionv1beta1.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+				Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 					Type:   intstr.Int,
 					IntVal: 8080,
 				}},
 			}
 			ingrPaths = append(ingrPaths, ingrPath)
 		}
-		ingress.Spec.Rules = append(ingress.Spec.Rules, extensionv1beta1.IngressRule{
+		ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 			Host: dnsName,
-			IngressRuleValue: extensionv1beta1.IngressRuleValue{
-				HTTP: &extensionv1beta1.HTTPIngressRuleValue{
+			IngressRuleValue: networking.IngressRuleValue{
+				HTTP: &networking.HTTPIngressRuleValue{
 					Paths: ingrPaths,
 				},
 			},
@@ -400,7 +412,7 @@ func (ing FakeIngress) IngressMultiPath() *extensionv1beta1.Ingress {
 	}
 
 	for secret, hosts := range ing.TlsSecretDNS {
-		ingress.Spec.TLS = append(ingress.Spec.TLS, extensionv1beta1.IngressTLS{
+		ingress.Spec.TLS = append(ingress.Spec.TLS, networking.IngressTLS{
 			Hosts:      hosts,
 			SecretName: secret,
 		})
@@ -580,7 +592,7 @@ func CreateNode(t *testing.T, nodeName string, nodeIP string) {
 		NodeIP:  nodeIP,
 	}).Node()
 
-	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample)
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -591,7 +603,7 @@ func CreateNode(t *testing.T, nodeName string, nodeIP string) {
 func DeleteNode(t *testing.T, nodeName string) {
 	modelName := "admin/global"
 	objects.SharedAviGraphLister().Delete(modelName)
-	err := KubeClient.CoreV1().Nodes().Delete(nodeName, nil)
+	err := KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting Node: %v", err)
 	}
@@ -631,14 +643,14 @@ func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, mu
 	}
 
 	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts}).Service()
-	_, err := KubeClient.CoreV1().Services(ns).Create(svcExample)
+	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 }
 
 func DelSVC(t *testing.T, ns string, Name string) {
-	err := KubeClient.CoreV1().Services(ns).Delete(Name, nil)
+	err := KubeClient.CoreV1().Services(ns).Delete(context.TODO(), Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting Service: %v", err)
 	}
@@ -694,7 +706,7 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: Name},
 		Subsets:    endpointSubsets,
 	}
-	_, err := KubeClient.CoreV1().Endpoints(ns).Create(epExample)
+	_, err := KubeClient.CoreV1().Endpoints(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
@@ -712,14 +724,14 @@ func ScaleCreateEP(t *testing.T, ns string, Name string) {
 		}},
 	}
 	epExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Endpoints(ns).Update(epExample)
+	_, err := KubeClient.CoreV1().Endpoints(ns).Update(context.TODO(), epExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 }
 
 func DelEP(t *testing.T, ns string, Name string) {
-	err := KubeClient.CoreV1().Endpoints(ns).Delete(Name, nil)
+	err := KubeClient.CoreV1().Endpoints(ns).Delete(context.TODO(), Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting Endpoint: %v", err)
 	}
@@ -955,10 +967,10 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 //UpdateIngress wrapper over ingress update call.
 //internally calls Ingress() for fakeIngress object
 //performs a get for ingress object so it will update only if ingress exists
-func (ing FakeIngress) UpdateIngress() (*extensionv1beta1.Ingress, error) {
+func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 
 	//check if resource already exists
-	ingress, err := KubeClient.ExtensionsV1beta1().Ingresses(ing.Namespace).Get(ing.Name, metav1.GetOptions{})
+	ingress, err := KubeClient.NetworkingV1beta1().Ingresses(ing.Namespace).Get(context.TODO(), ing.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -969,7 +981,7 @@ func (ing FakeIngress) UpdateIngress() (*extensionv1beta1.Ingress, error) {
 	newIngress.ResourceVersion = strconv.Itoa(rv + 1)
 
 	//update ingress resource
-	updatedIngress, err := KubeClient.ExtensionsV1beta1().Ingresses(newIngress.Namespace).Update(newIngress)
+	updatedIngress, err := KubeClient.NetworkingV1beta1().Ingresses(newIngress.Namespace).Update(context.TODO(), newIngress, metav1.UpdateOptions{})
 	return updatedIngress, err
 }
 
@@ -1027,13 +1039,13 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
 	}
 
 	hrCreate := hostrule.HostRule()
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Create(hrCreate); err != nil {
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 }
 
 func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, hrname string) {
-	if err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Delete(hrname, nil); err != nil {
+	if err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 	VerifyMetadataHostRule(g, vskey, "default/"+hrname, false)
@@ -1094,13 +1106,13 @@ func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 	}
 
 	rrCreate := httprule.HTTPRule()
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules("default").Create(rrCreate); err != nil {
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HTTPRule: %v", err)
 	}
 }
 
 func TeardownHTTPRule(t *testing.T, rrname string) {
-	if err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules("default").Delete(rrname, nil); err != nil {
+	if err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HTTPRule: %v", err)
 	}
 }

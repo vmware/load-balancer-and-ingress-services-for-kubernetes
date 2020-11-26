@@ -1,6 +1,7 @@
 package bootuptests
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -60,6 +61,7 @@ func TestMain(m *testing.M) {
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.IngressInformer,
+		utils.IngressClassInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,
@@ -89,7 +91,7 @@ func addConfigMap() {
 			Name:      "avi-k8s-config",
 		},
 	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(aviCM)
+	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
 
 }
 

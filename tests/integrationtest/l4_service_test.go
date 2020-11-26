@@ -15,6 +15,7 @@
 package integrationtest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -79,7 +80,6 @@ func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 }
 
 func TestMain(m *testing.M) {
-	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("NETWORK_NAME", "net123")
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
@@ -94,6 +94,7 @@ func TestMain(m *testing.M) {
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.IngressInformer,
+		utils.IngressClassInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,
@@ -109,7 +110,6 @@ func TestMain(m *testing.M) {
 	defer AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
-	AddConfigMap()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
@@ -122,9 +122,12 @@ func TestMain(m *testing.M) {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
-	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
+
 	AddConfigMap()
+	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	AddDefaultIngressClass()
+
+	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }
 
@@ -156,7 +159,7 @@ func TestAviSvcCreationSinglePort(t *testing.T) {
 		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(svcExample)
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -174,7 +177,7 @@ func TestAviSvcCreationSinglePort(t *testing.T) {
 		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.ResourceVersion = "3"
-	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(svcExample)
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -285,7 +288,7 @@ func TestAviSvcUpdateEndpoint(t *testing.T) {
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	if _, err = KubeClient.CoreV1().Endpoints(NAMESPACE).Update(epExample); err != nil {
+	if _, err = KubeClient.CoreV1().Endpoints(NAMESPACE).Update(context.TODO(), epExample, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("Error in updating the Endpoint: %v", err)
 	}
 
@@ -458,7 +461,7 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	if _, err = KubeClient.CoreV1().Endpoints(NAMESPACE).Update(epExample); err != nil {
+	if _, err = KubeClient.CoreV1().Endpoints(NAMESPACE).Update(context.TODO(), epExample, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("Error in updating the Endpoint: %v", err)
 	}
 
@@ -584,7 +587,7 @@ func TestAviSvcCreationWithStaticIP(t *testing.T) {
 		LoadBalancerIP: staticIP,
 		ServicePorts:   []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(svcExample)
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}

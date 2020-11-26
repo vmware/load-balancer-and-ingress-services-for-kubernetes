@@ -15,6 +15,7 @@
 package integrationtest
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -29,13 +30,14 @@ import (
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func SetUpTestForIngressInNodePortMode(t *testing.T, model_Name string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("L7_SHARD_SCHEME", "namespace")
 	objects.SharedAviGraphLister().Delete(model_Name)
-        AddConfigMap()
+	AddConfigMap()
 	CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
 }
 
@@ -96,7 +98,7 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(svcExample)
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -114,7 +116,7 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
 	}).Service()
 	svcExample.ResourceVersion = "3"
-	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(svcExample)
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -233,7 +235,7 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -268,7 +270,7 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err = KubeClient.ExtensionsV1beta1().Ingresses("randomNamespacethatyeildsdiff").Create(randoming)
+	_, err = KubeClient.NetworkingV1beta1().Ingresses("randomNamespacethatyeildsdiff").Create(context.TODO(), randoming, metav1.CreateOptions{})
 	model_Name = "admin/cluster--Shared-L7-5"
 	PollForCompletion(t, model_Name, 5)
 	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
@@ -287,11 +289,11 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	err = KubeClient.ExtensionsV1beta1().Ingresses("randomNamespacethatyeildsdiff").Delete("foo-with-targets", nil)
+	err = KubeClient.NetworkingV1beta1().Ingresses("randomNamespacethatyeildsdiff").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -318,7 +320,7 @@ func TestNoHostIngressInNodePort(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressNoHost()
 
-	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -345,7 +347,7 @@ func TestNoHostIngressInNodePort(t *testing.T) {
 		t.Fatalf("Could not find model: %s", model_Name)
 	}
 
-	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-nohost", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}

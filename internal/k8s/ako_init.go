@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -91,7 +92,7 @@ func delConfigFromData(data map[string]string) bool {
 
 func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 	cmNS := lib.GetAKONamespace()
-	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(lib.AviConfigMap, metav1.GetOptions{})
+	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
 	if err == nil {
 		return delConfigFromData(cm.Data)
 	}
@@ -418,9 +419,7 @@ func (c *AviController) FullSyncK8s() error {
 
 		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
-
-			ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
-
+			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses("").List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
 			} else {
