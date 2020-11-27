@@ -311,7 +311,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 
 func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) bool {
 
-	if len(oldStatus) == 0 || len(newStatus) == 0 {
+	if len(oldStatus) != len(newStatus) {
 		return false
 	}
 	exists := []string{}
