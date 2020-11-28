@@ -20,15 +20,16 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
 
 // HostRuleLister helps list HostRules.
+// All objects returned here must be treated as read-only.
 type HostRuleLister interface {
 	// List lists all HostRules in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.HostRule, err error)
 	// HostRules returns an object that can list and get HostRules.
 	HostRules(namespace string) HostRuleNamespaceLister
@@ -59,10 +60,13 @@ func (s *hostRuleLister) HostRules(namespace string) HostRuleNamespaceLister {
 }
 
 // HostRuleNamespaceLister helps list and get HostRules.
+// All objects returned here must be treated as read-only.
 type HostRuleNamespaceLister interface {
 	// List lists all HostRules in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.HostRule, err error)
 	// Get retrieves the HostRule from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.HostRule, error)
 	HostRuleNamespaceListerExpansion
 }

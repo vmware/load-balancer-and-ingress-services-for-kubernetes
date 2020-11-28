@@ -16,16 +16,20 @@ package utils
 import (
 	"fmt"
 	"os"
+	"sync"
+	"time"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
-	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	netinformers "k8s.io/client-go/informers/networking/v1beta1"
 	"k8s.io/client-go/kubernetes"
 )
 
 type EvType string
+
+var InformerDefaultResync = 12 * time.Hour
 
 const (
 	CreateEv            EvType = "CREATE"
@@ -54,6 +58,9 @@ const (
 	INFORMERS_INSTANTIATE_ONCE string = "instantiateOnce"
 	INFORMERS_OPENSHIFT_CLIENT string = "oshiftClient"
 	INFORMERS_NAMESPACE        string = "namespace"
+	INFORMERS_ADVANCED_L4      string = "informersAdvL4"
+	VMWARE_SYSTEM_AKO          string = "vmware-system-ako"
+	AKO_DEFAULT_NS             string = "avi-system"
 )
 
 type KubeClientIntf struct {
@@ -61,17 +68,18 @@ type KubeClientIntf struct {
 }
 
 type Informers struct {
-	ConfigMapInformer coreinformers.ConfigMapInformer
-	ServiceInformer   coreinformers.ServiceInformer
-	EpInformer        coreinformers.EndpointsInformer
-	PodInformer       coreinformers.PodInformer
-	NSInformer        coreinformers.NamespaceInformer
-	SecretInformer    coreinformers.SecretInformer
-	RouteInformer     oshiftinformers.RouteInformer
-	NodeInformer      coreinformers.NodeInformer
-	IngressInformer   informers.GenericInformer
-	OshiftClient      oshiftclientset.Interface
-	IngressVersion    string
+	ConfigMapInformer    coreinformers.ConfigMapInformer
+	ServiceInformer      coreinformers.ServiceInformer
+	EpInformer           coreinformers.EndpointsInformer
+	PodInformer          coreinformers.PodInformer
+	NSInformer           coreinformers.NamespaceInformer
+	SecretInformer       coreinformers.SecretInformer
+	RouteInformer        oshiftinformers.RouteInformer
+	NodeInformer         coreinformers.NodeInformer
+	IngressInformer      netinformers.IngressInformer
+	IngressClassInformer netinformers.IngressClassInformer
+	OshiftClient         oshiftclientset.Interface
+	IngressVersion       string
 	KubeClientIntf
 }
 
@@ -170,6 +178,26 @@ type K8sAviVsMeta struct {
 	EastWest           bool
 	CloudConfigCksum   string
 	DefaultPoolGroup   string
+}
+
+/*
+ * Structures related with Namespace migration functionality
+ */
+//stores key and values fetched from values.yaml"
+type NamespaceFilter struct {
+	key   string
+	value string
+}
+
+//Stores list of valid namespaces with lock
+type K8NamespaceList struct {
+	nsList map[string]bool
+	lock   sync.RWMutex
+}
+type K8ValidNamespaces struct {
+	nsFilter        NamespaceFilter
+	EnableMigration bool
+	validNSList     K8NamespaceList
 }
 
 /*

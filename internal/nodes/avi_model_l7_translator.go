@@ -15,16 +15,17 @@
 package nodes
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -37,7 +38,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
 	utils.AviLog.Infof("key: %s, msg: Building the L7 pools for namespace: %s, ingName: %s", key, namespace, ingName)
 
-	myIng, err := utils.GetInformers().IngressInformer.Lister().ByNamespace(namespace).Get(ingName)
+	ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(ingName)
 
 	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := o.GetPoolGroupByName(pgName)
@@ -49,15 +50,9 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 	if err != nil {
 		o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 	} else {
-		ingObj, ok := utils.ToNetworkingIngress(myIng)
-		if !ok {
-			utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
-		}
-
 		var parsedIng IngressConfig
 		processIng := true
-
-		processIng = filterIngressOnClass(ingObj)
+		processIng = validateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace, utils.GetGlobalNSFilter(), nil, true)
 		if !processIng {
 			// If the ingress class is not right, let's delete it.
 			o.DeletePoolForIngress(namespace, ingName, key, vsNode)
@@ -189,13 +184,13 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			}
 		}
 	}
+
 	// Reset the PG Node members and rebuild them
 	pgNode.Members = nil
 	for _, poolNode := range vsNode[0].PoolRefs {
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel})
 	}
-
 }
 
 func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vsNode []*AviVsNode) {
@@ -411,7 +406,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 			return false
 		}
 	} else {
-		secretObj, err := mClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+		secretObj, err := mClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 		if err != nil || secretObj == nil {
 			// This secret has been deleted.
 			ok, ingNames := svcLister.IngressMappings(namespace).GetSecretToIng(secretName)
@@ -478,10 +473,23 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			var httpPolicySet []AviHostPathPortPoolPG
 
 			httpPGPath := AviHostPathPortPoolPG{Host: host}
-			if path.Path != "" {
-				httpPGPath.Path = append(httpPGPath.Path, path.Path)
+
+			if path.PathType == networkingv1beta1.PathTypeExact {
+				httpPGPath.MatchCriteria = "EQUALS"
+			} else {
+				// PathTypePrefix and PathTypeImplementationSpecific
+				// default behaviour for AKO set be Prefix match on the path
+				httpPGPath.MatchCriteria = "BEGINS_WITH"
 			}
-			httpPGPath.MatchCriteria = "BEGINS_WITH"
+
+			if path.Path != "" {
+				httpPolicyPath := path.Path
+				if !strings.HasSuffix(httpPolicyPath, "/") {
+					httpPolicyPath = path.Path + "/"
+				}
+				httpPGPath.Path = append(httpPGPath.Path, httpPolicyPath)
+			}
+
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
 			var pgNode *AviPoolGroupNode
 			// There can be multiple services for the same path in case of alternate backend.

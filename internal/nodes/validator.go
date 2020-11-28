@@ -23,7 +23,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
-	"k8s.io/api/networking/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -56,18 +56,23 @@ func (v *Validator) IsValiddHostName(hostname string) bool {
 	return false
 }
 
-func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec v1beta1.IngressSpec) {
+func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec networkingv1beta1.IngressSpec) bool {
 	nsIngress := ns + "/" + ingName
 	for _, rule := range ingSpec.Rules {
-		for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
-			found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
-			if found && len(val) > 0 && utils.HasElem(val, nsIngress) && len(val) > 1 {
-				// TODO: push in ako apiserver
-				utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
+		if rule.IngressRuleValue.HTTP != nil {
+			for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
+				found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
+				if found && len(val) > 0 && utils.HasElem(val, nsIngress) && len(val) > 1 {
+					// TODO: push in ako apiserver
+					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
+				}
 			}
+		} else {
+			utils.AviLog.Warnf("key: %s, msg: Found Ingress: %s without service backends. Not going to process.", key, ingName)
+			return false
 		}
 	}
-	return
+	return true
 }
 
 func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec routev1.RouteSpec) {
@@ -112,7 +117,7 @@ func sslKeyCertHostRulePresent(key, host string) (bool, string) {
 
 // ParseHostPathForIngress handling for hostrule: if the host has a hostrule, and that hostrule has a tls.sslkeycertref then
 // move that host in the tls.hosts, this should be only in case of hostname sharding
-func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v1beta1.IngressSpec, key string) IngressConfig {
+func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec networkingv1beta1.IngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
@@ -157,21 +162,28 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec v
 		} else {
 			secretHostsMap[secretName] = append(secretHostsMap[secretName], hostName)
 		}
+		if rule.IngressRuleValue.HTTP != nil {
+			for _, path := range rule.IngressRuleValue.HTTP.Paths {
+				pathType := networkingv1beta1.PathTypeImplementationSpecific
+				if path.PathType != nil {
+					pathType = *path.PathType
+				}
 
-		for _, path := range rule.IngressRuleValue.HTTP.Paths {
-			hostPathMapSvc := IngressHostPathSvc{
-				Path:        path.Path,
-				ServiceName: path.Backend.ServiceName,
-				Port:        path.Backend.ServicePort.IntVal,
-				PortName:    path.Backend.ServicePort.StrVal,
+				hostPathMapSvc := IngressHostPathSvc{
+					Path:        path.Path,
+					PathType:    pathType,
+					ServiceName: path.Backend.ServiceName,
+					Port:        path.Backend.ServicePort.IntVal,
+					PortName:    path.Backend.ServicePort.StrVal,
+				}
+				if hostPathMapSvc.Port == 0 {
+					// Default to port 80 if not set in the ingress object
+					hostPathMapSvc.Port = 80
+				}
+				// for ingress use 100 as default weight
+				hostPathMapSvc.weight = 100
+				hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
 			}
-			if hostPathMapSvc.Port == 0 {
-				// Default to port 80 if not set in the ingress object
-				hostPathMapSvc.Port = 80
-			}
-			// for ingress use 100 as default weight
-			hostPathMapSvc.weight = 100
-			hostPathMapSvcList = append(hostPathMapSvcList, hostPathMapSvc)
 		}
 
 		if useHostRuleSSL {

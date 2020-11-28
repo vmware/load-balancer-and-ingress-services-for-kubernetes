@@ -17,6 +17,11 @@ AKOSettings:
   disableStaticRouteSync: "false" # If the POD networks are reachable from the Avi SE, set this knob to true.
   clusterName: "my-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
   cniPlugin: "" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift 
+  #NamespaceSelector contains label key and value used for namespacemigration
+  #Same label has to be present on namespace/s which needs migration/sync to AKO
+  nameSpaceSelector:
+    labelKey: ""
+    labelValue: ""
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:
@@ -31,6 +36,7 @@ NetworkSettings:
   subnetIP: "" # Subnet IP of the vip network
   subnetPrefix: "" # Subnet Prefix of the vip network
   networkName: "" # Network Name of the vip network
+  enableRHI: false # This is a cluster wide setting for BGP peering.
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
 L7Settings:
@@ -51,6 +57,8 @@ ControllerSettings:
   controllerVersion: "18.2.10" # The controller API version
   cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
   controllerIP: ""
+  tenantsPerCluster: "false" # If set to true, AKO will map each kubernetes cluster uniquely to a tenant in Avi
+  tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI. // Required only if tenantsPerCluster is set to True
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""
@@ -74,7 +82,7 @@ rbac:
 avicredentials:
   username:
   password:
-  rootca:
+  certificateAuthorityData:
 
 
 service:

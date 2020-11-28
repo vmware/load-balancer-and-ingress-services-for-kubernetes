@@ -15,6 +15,8 @@
 package k8s
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -28,11 +30,13 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -58,13 +62,13 @@ func PopulateCache() error {
 	// Delete Stale objects by deleting model for dummy VS
 	aviclient := avicache.SharedAVIClients()
 	restlayer := rest.NewRestOperations(avi_obj_cache, aviclient)
-	staleVSKey := utils.ADMIN_NS + "/" + lib.DummyVSForStaleData
+	staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
 	if lib.IsClusterNameValid() && aviclient != nil && len(aviclient.AviClient) > 0 {
 		utils.AviLog.Infof("Starting clean up of stale objects")
 		restlayer.CleanupVS(staleVSKey, true)
 		staleCacheKey := avicache.NamespaceName{
 			Name:      lib.DummyVSForStaleData,
-			Namespace: utils.ADMIN_NS,
+			Namespace: lib.GetTenant(),
 		}
 		avi_obj_cache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 	}
@@ -87,11 +91,8 @@ func delConfigFromData(data map[string]string) bool {
 }
 
 func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
-	cmNS := lib.AviNS
-	if lib.GetAdvancedL4() {
-		cmNS = lib.VMwareNS
-	}
-	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(lib.AviConfigMap, metav1.GetOptions{})
+	cmNS := lib.GetAKONamespace()
+	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
 	if err == nil {
 		return delConfigFromData(cm.Data)
 	}
@@ -101,7 +102,7 @@ func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
-func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) {
+func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {
 	cs := k8sinfo.Cs
 	aviClientPool := avicache.SharedAVIClients()
 	if aviClientPool == nil || len(aviClientPool.AviClient) < 1 {
@@ -109,10 +110,13 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 		lib.SetDisableSync(true)
 		utils.AviLog.Errorf("could not get client to connect to Avi Controller, disabling sync")
 		lib.ShutdownApi()
-		return
+		return errors.New("Unable to contact the avi controller on bootup")
 	}
 	aviclient := aviClientPool.AviClient[0]
 	c.DisableSync = !avicache.ValidateUserInput(aviclient) || deleteConfigFromConfigmap(cs)
+	if c.DisableSync {
+		return errors.New("Sync is disabled because of configmap unavailability during bootup")
+	}
 	lib.SetDisableSync(c.DisableSync)
 
 	utils.AviLog.Infof("Creating event broadcaster for handling configmap")
@@ -128,7 +132,11 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			}
 			utils.AviLog.Infof("avi k8s configmap created")
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
-			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delConfigFromData(cm.Data)
+			delModels := delConfigFromData(cm.Data)
+			if !delModels {
+				status.ResetStatefulSetStatus()
+			}
+			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delModels
 			lib.SetDisableSync(c.DisableSync)
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -156,6 +164,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				if delConfigFromData(cm.Data) {
 					c.DeleteModels()
 				} else {
+					status.ResetStatefulSetStatus()
 					quickSyncCh <- struct{}{}
 				}
 			}
@@ -177,6 +186,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	} else {
 		utils.AviLog.Info("Caches synced")
 	}
+	return nil
 }
 
 func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
@@ -187,7 +197,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-
+	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
 	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient)
 	var ingestionwg *sync.WaitGroup
@@ -252,7 +262,13 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
 	} else {
 		// First boot sync
-		c.FullSyncK8s()
+		err = c.FullSyncK8s()
+		if err != nil {
+			// Something bad sync. We need to return and shutdown the API server
+			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO: %s", err)
+			lib.ShutdownApi()
+			return
+		}
 		if interval != 0 {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
 			worker.SyncFunction = c.FullSync
@@ -298,6 +314,7 @@ func (c *AviController) FullSync() {
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if len(avi_rest_client_pool.AviClient) > 0 {
+		avi_obj_cache.AviClusterStatusPopulate(avi_rest_client_pool.AviClient[0])
 		if !lib.GetAdvancedL4() {
 			avi_obj_cache.AviCacheRefresh(avi_rest_client_pool.AviClient[0], utils.CloudName)
 		} else {
@@ -326,10 +343,10 @@ func (c *AviController) FullSync() {
 	}
 }
 
-func (c *AviController) FullSyncK8s() {
+func (c *AviController) FullSyncK8s() error {
 	if c.DisableSync {
 		utils.AviLog.Infof("Sync disabled, skipping full sync")
-		return
+		return nil
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	var vrfModelName string
@@ -362,6 +379,7 @@ func (c *AviController) FullSyncK8s() {
 	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
+		return err
 	} else {
 		for _, svcObj := range svcObjs {
 			isSvcLb := isServiceLBType(svcObj)
@@ -399,33 +417,49 @@ func (c *AviController) FullSyncK8s() {
 			}
 		}
 
+		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
-			ingObjs, err := utils.GetInformers().IngressInformer.Lister().ByNamespace("").List(labels.Set(nil).AsSelector())
+			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses("").List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
 			} else {
 				for _, ingObj := range ingObjs {
-					key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-					nodes.DequeueIngestion(key, true)
+					ingLabel := utils.ObjKey(ingObj)
+					ns := strings.Split(ingLabel, "/")
+					if utils.CheckIfNamespaceAccepted(ns[0], utils.GetGlobalNSFilter(), nil, true) {
+						key := utils.Ingress + "/" + ingLabel
+						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+						nodes.DequeueIngestion(key, true)
+					}
+
 				}
 			}
 		}
+		//Route Section
 		if utils.GetInformers().RouteInformer != nil {
-			ingObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
+			routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
 			} else {
-				for _, ingObj := range ingObjs {
+				for _, routeObj := range routeObjs {
 					// to do move to container-lib
-					key := utils.OshiftRoute + "/" + utils.ObjKey(ingObj)
-					nodes.DequeueIngestion(key, true)
+					routeLabel := utils.ObjKey(routeObj)
+					ns := strings.Split(routeLabel, "/")
+					if utils.CheckIfNamespaceAccepted(ns[0], utils.GetGlobalNSFilter(), nil, true) {
+						key := utils.OshiftRoute + "/" + routeLabel
+						utils.AviLog.Debugf("Dequeue for route key: %v", key)
+						nodes.DequeueIngestion(key, true)
+					}
 				}
 			}
 		}
 	} else {
+		//Gateway Section
+
 		gatewayObjs, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways("").List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
+			return err
 		} else {
 			for _, gatewayObj := range gatewayObjs {
 				key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
@@ -437,6 +471,7 @@ func (c *AviController) FullSyncK8s() {
 		gwClassObjs, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
+			return err
 		} else {
 			for _, gwClassObj := range gwClassObjs {
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
@@ -498,13 +533,14 @@ func (c *AviController) FullSyncK8s() {
 			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
 	}
-	return
+	return nil
 }
 
 // DeleteModels : Delete models and add the model name in the queue.
 // The rest layer would pick up the model key and delete the objects in Avi
 func (c *AviController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
+	status.AddStatefulSetStatus(lib.ObjectDeletionStartStatus)
 	allModels := objects.SharedAviGraphLister().GetAll()
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	for modelName, avimodelIntf := range allModels.(map[string]interface{}) {
@@ -526,6 +562,22 @@ func (c *AviController) DeleteModels() {
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 		utils.AviLog.Infof("Deleting objects for model: %s", modelName)
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
+	}
+
+	// Wait for maximum 30 minutes for the sync to get completed
+	timeout := make(chan bool, 1)
+	go func() {
+		time.Sleep(lib.AviObjDeletionTime * time.Minute)
+		timeout <- true
+	}()
+	lib.SetConfigDeleteSyncChan()
+	select {
+	case <-lib.ConfigDeleteSyncChan:
+		status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus)
+		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
+	case <-timeout:
+		status.AddStatefulSetStatus(lib.ObjectDeletionTimeoutStatus)
+		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 	}
 }
 
@@ -555,4 +607,19 @@ func SyncFromNodesLayer(key string, wg *sync.WaitGroup) error {
 	restlayer := rest.NewRestOperations(cache, aviclient)
 	restlayer.DeQueueNodes(key)
 	return nil
+}
+
+//Controller Specific method
+func (c *AviController) InitializeNamespaceSync() {
+	nsLabelToSyncKey, nsLabelToSyncVal := lib.GetLabelToSyncNamespace()
+	if nsLabelToSyncKey != "" {
+		utils.AviLog.Debugf("Initializing Namespace Sync. Received namespace label: %s = %s", nsLabelToSyncKey, nsLabelToSyncVal)
+		utils.InitializeNSSync(nsLabelToSyncKey, nsLabelToSyncVal)
+	}
+	nsFilterObj := utils.GetGlobalNSFilter()
+	if !nsFilterObj.EnableMigration {
+		utils.AviLog.Info("Namespace Sync is disabled.")
+		return
+	}
+	utils.AviLog.Info("Namespace Sync is enabled")
 }

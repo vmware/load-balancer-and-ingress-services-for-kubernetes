@@ -15,6 +15,7 @@
 package integrationtest
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
 	"github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestNodeAdd(t *testing.T) {
@@ -36,7 +38,7 @@ func TestNodeAdd(t *testing.T) {
 		NodeIP:  nodeip,
 	}).Node()
 
-	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample)
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -71,7 +73,7 @@ func TestNodeUpdate(t *testing.T) {
 	nodeExample.ObjectMeta.ResourceVersion = "2"
 	nodeExample.Spec.PodCIDR = "10.245.0.0/24"
 
-	_, err := KubeClient.CoreV1().Nodes().Update(nodeExample)
+	_, err := KubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Node: %v", err)
 	}
@@ -96,7 +98,7 @@ func TestNodeDel(t *testing.T) {
 	modelName := "admin/global"
 	nodeName := "testNode1"
 	objects.SharedAviGraphLister().Delete(modelName)
-	err := KubeClient.CoreV1().Nodes().Delete(nodeName, nil)
+	err := KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting Node: %v", err)
 	}
@@ -123,7 +125,7 @@ func TestNodeAddNoPodCIDR(t *testing.T) {
 		NodeIP:  nodeip,
 	}).Node()
 
-	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample)
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -159,11 +161,11 @@ func TestMultiNodeAdd(t *testing.T) {
 		NodeIP:  nodeip2,
 	}).Node()
 
-	_, err := KubeClient.CoreV1().Nodes().Create(nodeExample1)
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
-	_, err = KubeClient.CoreV1().Nodes().Create(nodeExample2)
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}

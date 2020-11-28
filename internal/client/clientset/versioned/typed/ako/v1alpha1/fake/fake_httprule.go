@@ -19,8 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
+	"context"
 
+	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,7 +41,7 @@ var httprulesResource = schema.GroupVersionResource{Group: "ako.vmware.com", Ver
 var httprulesKind = schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1alpha1", Kind: "HTTPRule"}
 
 // Get takes name of the hTTPRule, and returns the corresponding hTTPRule object, and an error if there is any.
-func (c *FakeHTTPRules) Get(name string, options v1.GetOptions) (result *v1alpha1.HTTPRule, err error) {
+func (c *FakeHTTPRules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.HTTPRule, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(httprulesResource, c.ns, name), &v1alpha1.HTTPRule{})
 
@@ -51,7 +52,7 @@ func (c *FakeHTTPRules) Get(name string, options v1.GetOptions) (result *v1alpha
 }
 
 // List takes label and field selectors, and returns the list of HTTPRules that match those selectors.
-func (c *FakeHTTPRules) List(opts v1.ListOptions) (result *v1alpha1.HTTPRuleList, err error) {
+func (c *FakeHTTPRules) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.HTTPRuleList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(httprulesResource, httprulesKind, c.ns, opts), &v1alpha1.HTTPRuleList{})
 
@@ -73,14 +74,14 @@ func (c *FakeHTTPRules) List(opts v1.ListOptions) (result *v1alpha1.HTTPRuleList
 }
 
 // Watch returns a watch.Interface that watches the requested hTTPRules.
-func (c *FakeHTTPRules) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeHTTPRules) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(httprulesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a hTTPRule and creates it.  Returns the server's representation of the hTTPRule, and an error, if there is any.
-func (c *FakeHTTPRules) Create(hTTPRule *v1alpha1.HTTPRule) (result *v1alpha1.HTTPRule, err error) {
+func (c *FakeHTTPRules) Create(ctx context.Context, hTTPRule *v1alpha1.HTTPRule, opts v1.CreateOptions) (result *v1alpha1.HTTPRule, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(httprulesResource, c.ns, hTTPRule), &v1alpha1.HTTPRule{})
 
@@ -91,7 +92,7 @@ func (c *FakeHTTPRules) Create(hTTPRule *v1alpha1.HTTPRule) (result *v1alpha1.HT
 }
 
 // Update takes the representation of a hTTPRule and updates it. Returns the server's representation of the hTTPRule, and an error, if there is any.
-func (c *FakeHTTPRules) Update(hTTPRule *v1alpha1.HTTPRule) (result *v1alpha1.HTTPRule, err error) {
+func (c *FakeHTTPRules) Update(ctx context.Context, hTTPRule *v1alpha1.HTTPRule, opts v1.UpdateOptions) (result *v1alpha1.HTTPRule, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(httprulesResource, c.ns, hTTPRule), &v1alpha1.HTTPRule{})
 
@@ -103,7 +104,7 @@ func (c *FakeHTTPRules) Update(hTTPRule *v1alpha1.HTTPRule) (result *v1alpha1.HT
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeHTTPRules) UpdateStatus(hTTPRule *v1alpha1.HTTPRule) (*v1alpha1.HTTPRule, error) {
+func (c *FakeHTTPRules) UpdateStatus(ctx context.Context, hTTPRule *v1alpha1.HTTPRule, opts v1.UpdateOptions) (*v1alpha1.HTTPRule, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(httprulesResource, "status", c.ns, hTTPRule), &v1alpha1.HTTPRule{})
 
@@ -114,7 +115,7 @@ func (c *FakeHTTPRules) UpdateStatus(hTTPRule *v1alpha1.HTTPRule) (*v1alpha1.HTT
 }
 
 // Delete takes name of the hTTPRule and deletes it. Returns an error if one occurs.
-func (c *FakeHTTPRules) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeHTTPRules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(httprulesResource, c.ns, name), &v1alpha1.HTTPRule{})
 
@@ -122,15 +123,15 @@ func (c *FakeHTTPRules) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeHTTPRules) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(httprulesResource, c.ns, listOptions)
+func (c *FakeHTTPRules) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(httprulesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.HTTPRuleList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched hTTPRule.
-func (c *FakeHTTPRules) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.HTTPRule, err error) {
+func (c *FakeHTTPRules) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.HTTPRule, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(httprulesResource, c.ns, name, pt, data, subresources...), &v1alpha1.HTTPRule{})
 

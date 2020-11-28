@@ -19,8 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
+	"context"
 
+	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,7 +41,7 @@ var hostrulesResource = schema.GroupVersionResource{Group: "ako.vmware.com", Ver
 var hostrulesKind = schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1alpha1", Kind: "HostRule"}
 
 // Get takes name of the hostRule, and returns the corresponding hostRule object, and an error if there is any.
-func (c *FakeHostRules) Get(name string, options v1.GetOptions) (result *v1alpha1.HostRule, err error) {
+func (c *FakeHostRules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.HostRule, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(hostrulesResource, c.ns, name), &v1alpha1.HostRule{})
 
@@ -51,7 +52,7 @@ func (c *FakeHostRules) Get(name string, options v1.GetOptions) (result *v1alpha
 }
 
 // List takes label and field selectors, and returns the list of HostRules that match those selectors.
-func (c *FakeHostRules) List(opts v1.ListOptions) (result *v1alpha1.HostRuleList, err error) {
+func (c *FakeHostRules) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.HostRuleList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(hostrulesResource, hostrulesKind, c.ns, opts), &v1alpha1.HostRuleList{})
 
@@ -73,14 +74,14 @@ func (c *FakeHostRules) List(opts v1.ListOptions) (result *v1alpha1.HostRuleList
 }
 
 // Watch returns a watch.Interface that watches the requested hostRules.
-func (c *FakeHostRules) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeHostRules) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(hostrulesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a hostRule and creates it.  Returns the server's representation of the hostRule, and an error, if there is any.
-func (c *FakeHostRules) Create(hostRule *v1alpha1.HostRule) (result *v1alpha1.HostRule, err error) {
+func (c *FakeHostRules) Create(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.CreateOptions) (result *v1alpha1.HostRule, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(hostrulesResource, c.ns, hostRule), &v1alpha1.HostRule{})
 
@@ -91,7 +92,7 @@ func (c *FakeHostRules) Create(hostRule *v1alpha1.HostRule) (result *v1alpha1.Ho
 }
 
 // Update takes the representation of a hostRule and updates it. Returns the server's representation of the hostRule, and an error, if there is any.
-func (c *FakeHostRules) Update(hostRule *v1alpha1.HostRule) (result *v1alpha1.HostRule, err error) {
+func (c *FakeHostRules) Update(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.UpdateOptions) (result *v1alpha1.HostRule, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(hostrulesResource, c.ns, hostRule), &v1alpha1.HostRule{})
 
@@ -103,7 +104,7 @@ func (c *FakeHostRules) Update(hostRule *v1alpha1.HostRule) (result *v1alpha1.Ho
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeHostRules) UpdateStatus(hostRule *v1alpha1.HostRule) (*v1alpha1.HostRule, error) {
+func (c *FakeHostRules) UpdateStatus(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.UpdateOptions) (*v1alpha1.HostRule, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(hostrulesResource, "status", c.ns, hostRule), &v1alpha1.HostRule{})
 
@@ -114,7 +115,7 @@ func (c *FakeHostRules) UpdateStatus(hostRule *v1alpha1.HostRule) (*v1alpha1.Hos
 }
 
 // Delete takes name of the hostRule and deletes it. Returns an error if one occurs.
-func (c *FakeHostRules) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeHostRules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(hostrulesResource, c.ns, name), &v1alpha1.HostRule{})
 
@@ -122,15 +123,15 @@ func (c *FakeHostRules) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeHostRules) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(hostrulesResource, c.ns, listOptions)
+func (c *FakeHostRules) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(hostrulesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.HostRuleList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched hostRule.
-func (c *FakeHostRules) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.HostRule, err error) {
+func (c *FakeHostRules) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.HostRule, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(hostrulesResource, c.ns, name, pt, data, subresources...), &v1alpha1.HostRule{})
 

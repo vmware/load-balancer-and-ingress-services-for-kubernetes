@@ -15,6 +15,7 @@
 package oshiftroutetests
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func SetUpTestForRouteInNodePort(t *testing.T, modelName string) {
@@ -57,7 +59,7 @@ func TestRouteNoPathInNodePort(t *testing.T) {
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 
 	routeExample := FakeRoute{}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -95,7 +97,7 @@ func TestRouteDefaultPathInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -132,7 +134,7 @@ func TestRouteClusterIPSvcDefaultPathInNodePort(t *testing.T) {
 
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -169,7 +171,7 @@ func TestRouteBadServiceInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo", ServiceName: "badsvc"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -196,7 +198,7 @@ func TestRouteScaleEndpointInNodePort(t *testing.T) {
 
 	SetUpTestForRoute(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -233,13 +235,13 @@ func TestMultiRouteSameHostInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample1 := FakeRoute{Path: "/foo", ServiceName: "avisvc"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample1)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample2 := FakeRoute{Name: "bar", Path: "/bar", ServiceName: "avisvc"}.Route()
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample2)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -271,7 +273,7 @@ func TestMultiRouteSameHostInNodePort(t *testing.T) {
 		}
 	}
 
-	err = OshiftClient.RouteV1().Routes(DefaultNamespace).Delete("bar", nil)
+	err = OshiftClient.RouteV1().Routes(DefaultNamespace).Delete(context.TODO(), "bar", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
@@ -291,13 +293,13 @@ func TestRouteUpdatePathInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/bar"}.Route()
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -337,7 +339,7 @@ func TestAlternateBackendNoPathInNodePort(t *testing.T) {
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeNodePort, false)
 	routeExample := FakeRoute{}.ABRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -388,7 +390,7 @@ func TestAlternateBackendDefaultPathInNodePort(t *testing.T) {
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeNodePort, false)
 	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -436,7 +438,7 @@ func TestNodeCUDForOshiftRouteInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -458,7 +460,7 @@ func TestNodeCUDForOshiftRouteInNodePort(t *testing.T) {
 	}).Node()
 	nodeExample.ResourceVersion = "2"
 
-	_, err = KubeClient.CoreV1().Nodes().Update(nodeExample)
+	_, err = KubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -504,7 +506,7 @@ func TestSecureRouteInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -534,13 +536,13 @@ func TestSecureToInsecureRouteInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.Route()
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(routeExample)
+	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -567,14 +569,14 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(route1)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeNodePort, false)
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
-	_, err = OshiftClient.RouteV1().Routes("test").Create(route2)
+	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -608,7 +610,7 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 		}
 	}
 
-	err = OshiftClient.RouteV1().Routes("test").Delete(DefaultRouteName, nil)
+	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), DefaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
@@ -628,7 +630,7 @@ func TestPassthroughRouteInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -655,7 +657,7 @@ func TestPassthroughRouteDelSvcInNodePort(t *testing.T) {
 
 	SetUpTestForRouteInNodePort(t, DefaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}

@@ -15,6 +15,7 @@
 package hostnameshardtests
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -37,7 +38,7 @@ func TestHostnameCreateHostRule(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(hrname, metav1.GetOptions{})
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -72,7 +73,7 @@ func TestHostnameCreateHostRuleBeforeIngress(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(hrname, metav1.GetOptions{})
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -157,7 +158,7 @@ func TestHostnameMultiIngressToSecureHostRule(t *testing.T) {
 		ServiceName: "avisvc",
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("red").Create(ingrFake); err != nil {
+	if _, err := KubeClient.NetworkingV1beta1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -184,7 +185,7 @@ func TestHostnameMultiIngressToSecureHostRule(t *testing.T) {
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 
-	if err := KubeClient.ExtensionsV1beta1().Ingresses("red").Delete("foo-with-targets-2", nil); err != nil {
+	if err := KubeClient.NetworkingV1beta1().Ingresses("red").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
@@ -210,7 +211,7 @@ func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 		ServiceName: "avisvc",
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("red").Create(ingrFake); err != nil {
+	if _, err := KubeClient.NetworkingV1beta1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -242,7 +243,7 @@ func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 		SslKeyCertificate: "thisisahostruleref-sslkey",
 	}.HostRule()
 	hrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
@@ -262,7 +263,7 @@ func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-with-targets"))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--red-voo.com_voo-voo-with-targets"))
 
-	if err := KubeClient.ExtensionsV1beta1().Ingresses("red").Delete("voo-with-targets", nil); err != nil {
+	if err := KubeClient.NetworkingV1beta1().Ingresses("red").Delete(context.TODO(), "voo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't Delete the Ingress %v", err)
 	}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--voo.com"}
@@ -291,12 +292,12 @@ func TestHostnameGoodToBadHostRule(t *testing.T) {
 		ApplicationProfile: "thisisahostruleref-appprof",
 	}.HostRule()
 	hrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(hrname, metav1.GetOptions{})
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
@@ -359,7 +360,7 @@ func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
 		SslKeyCertificate: "thisisahostruleref-sslkey",
 	}.HostRule()
 	hrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
@@ -380,7 +381,7 @@ func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
 		SslKeyCertificate: "thisisahostruleref-sslkey",
 	}.HostRule()
 	hrUpdate.ResourceVersion = "3"
-	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
@@ -427,7 +428,7 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 	}
 
 	ingrFake := ingressObject.Ingress(true)
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
+	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -490,7 +491,7 @@ func TestHostNameHTTPRuleHostSwitch(t *testing.T) {
 		ServiceName: "avisvc",
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake); err != nil {
+	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -522,7 +523,7 @@ func TestHostNameHTTPRuleHostSwitch(t *testing.T) {
 		}},
 	}.HTTPRule()
 	rrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HTTPRules("default").Update(rrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HTTPRules("default").Update(context.TODO(), rrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
@@ -541,7 +542,7 @@ func TestHostNameHTTPRuleHostSwitch(t *testing.T) {
 		return false
 	}, 25*time.Second).Should(gomega.Equal(true))
 
-	if err := KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("voo-with-targets", nil); err != nil {
+	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "voo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
