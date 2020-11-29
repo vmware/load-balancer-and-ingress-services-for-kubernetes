@@ -48,6 +48,7 @@ var ctrl *k8s.AviController
 
 var DefaultRouteName, DefaultNamespace, DefaultHostname, DefaultService string
 var DefaultModelName string
+var DefaultKey, DefaultValue string
 
 // Candiate to move to lib
 type FakeRoute struct {
@@ -123,7 +124,6 @@ func TestMain(m *testing.M) {
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(CRDClient)
-
 	OshiftClient = oshiftfake.NewSimpleClientset()
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = OshiftClient
@@ -169,6 +169,9 @@ func TestMain(m *testing.M) {
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
+	DefaultKey = "app"
+	DefaultValue = "migrate"
+	SetupRouteNamespaceSync(DefaultKey, DefaultValue, "")
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 
@@ -192,14 +195,23 @@ func AddConfigMap() {
 
 	integrationtest.PollForSyncStart(ctrl, 10)
 }
+func AddLabelToNamespace(key, value, namespace, modelName string, t *testing.T) {
+
+	nsLabel := map[string]string{
+		key: value,
+	}
+	integrationtest.AddNamespace(namespace, nsLabel)
+}
 
 func SetUpTestForRoute(t *testing.T, modelName string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("L7_SHARD_SCHEME", "hostname")
-
+	AddLabelToNamespace(DefaultKey, DefaultValue, DefaultNamespace, modelName, t)
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
+
+	integrationtest.CreateSVC(t, DefaultNamespace, "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DefaultNamespace, "avisvc", false, false, "1.1.1")
+	integrationtest.PollForCompletion(t, modelName, 5)
 }
 
 func TearDownTestForRoute(t *testing.T, modelName string) {
@@ -238,7 +250,7 @@ func ValidateModelCommon(t *testing.T, g *gomega.GomegaWithT) interface{} {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(DefaultModelName)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(true))
+	}, 30*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(DefaultModelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 
@@ -257,6 +269,7 @@ func ValidateModelCommon(t *testing.T, g *gomega.GomegaWithT) interface{} {
 
 func TestRouteNoPath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+	DefaultNamespace = "default"
 	SetUpTestForRoute(t, DefaultModelName)
 
 	routeExample := FakeRoute{}.Route()

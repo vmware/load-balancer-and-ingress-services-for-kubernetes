@@ -182,6 +182,7 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 	}
 
 	// creating insecure red/foo.com/bar
+	AddLabelToNamespace(DefaultKey, DefaultValue, "red", modelName, t)
 	routeExample := FakeRoute{
 		Name:      "insecure-foo",
 		Namespace: "red",
@@ -235,6 +236,7 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 	}
 
 	// creating insecure red/voo.com/voo
+	AddLabelToNamespace(DefaultKey, DefaultValue, "red", modelName, t)
 	routeExampleVoo := FakeRoute{
 		Name:      "voo",
 		Namespace: "red",

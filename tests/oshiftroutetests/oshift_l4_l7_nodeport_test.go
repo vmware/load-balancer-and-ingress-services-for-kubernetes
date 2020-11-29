@@ -32,7 +32,7 @@ import (
 func SetUpTestForRouteInNodePort(t *testing.T, modelName string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("L7_SHARD_SCHEME", "hostname")
-
+	AddLabelToNamespace(DefaultKey, DefaultValue, DefaultNamespace, modelName, t)
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
 }
@@ -573,7 +573,7 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-
+	AddLabelToNamespace(DefaultKey, DefaultValue, "test", DefaultModelName, t)
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeNodePort, false)
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})

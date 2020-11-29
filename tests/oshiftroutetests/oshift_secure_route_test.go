@@ -291,7 +291,7 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-
+	AddLabelToNamespace(DefaultKey, DefaultValue, "test", DefaultModelName, t)
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
@@ -749,7 +749,7 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-
+	AddLabelToNamespace(DefaultKey, DefaultValue, "test", DefaultModelName, t)
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
@@ -782,7 +782,7 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-
+	AddLabelToNamespace(DefaultKey, DefaultValue, "test", DefaultModelName, t)
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
