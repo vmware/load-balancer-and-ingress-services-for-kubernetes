@@ -233,7 +233,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 		// If it's an ingress case, check if the service of type clusterIP or not.
 		found, _ := objects.SharedClusterIpLister().Get(ns + "/" + serviceName)
 		if !found {
-			utils.AviLog.Warnf("key: %s, msg: service pointed by the ingress object is not of type ClusterIP", key)
+			utils.AviLog.Warnf("key: %s, msg: service pointed by the ingress object is not found in ClusterIP store", key)
 			return nil
 		}
 	}

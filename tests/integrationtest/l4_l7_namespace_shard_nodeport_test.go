@@ -379,7 +379,7 @@ func TestNoHostIngressInNodePortWithMultiTenantEnabled(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressNoHost()
 
-	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -407,7 +407,7 @@ func TestNoHostIngressInNodePortWithMultiTenantEnabled(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("ingress-nohost", nil)
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-nohost", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
