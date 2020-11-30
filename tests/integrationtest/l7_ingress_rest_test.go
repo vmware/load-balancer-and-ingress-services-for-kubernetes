@@ -116,7 +116,6 @@ func TestCreateIngressCacheSync(t *testing.T) {
 
 	TearDownIngressForCacheSyncCheck(t, modelName, g)
 }
-
 func TestCreateIngressWithFaultCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var found bool
@@ -824,5 +823,32 @@ func TestDeleteSecretSecureIngressStatusCheck(t *testing.T) {
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 60*time.Second).Should(gomega.Equal(0))
 
+	TearDownIngressForCacheSyncCheck(t, modelName, g)
+}
+
+func TestCreateIngressCacheSyncWithMultiTenant(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetAkoTenant()
+	defer ResetAkoTenant()
+	var found bool
+	modelName := fmt.Sprintf("%s/cluster--Shared-L7-6", AKOTENANT)
+	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+
+	g.Eventually(func() bool {
+		found, _ = objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AKOTENANT, Name: "cluster--Shared-L7-6"}
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+	if !found {
+		t.Fatalf("Cache not found for VS: %v", vsKey)
+	}
+	vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+	if !ok {
+		t.Fatalf("Invalid VS object. Cannot cast.")
+	}
+	g.Expect(vsCacheObj.Name).To(gomega.Equal("cluster--Shared-L7-6"))
 	TearDownIngressForCacheSyncCheck(t, modelName, g)
 }

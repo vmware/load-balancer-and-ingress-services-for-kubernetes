@@ -146,6 +146,51 @@ func TestL7Model(t *testing.T) {
 	TearDownTestForIngress(t, model_Name)
 }
 
+func TestL7ModelWithMultiTenant(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetAkoTenant()
+	defer ResetAkoTenant()
+	model_Name := fmt.Sprintf("%s/cluster--Shared-L7-6", AKOTENANT)
+	SetUpTestForIngress(t, model_Name)
+	PollForCompletion(t, model_Name, 5)
+	found, _ := objects.SharedAviGraphLister().Get(model_Name)
+	if found {
+		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
+		t.Fatalf("Couldn't find model for DELETE event %v", model_Name)
+	}
+	ingrFake := (FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com.avi.internal"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	_, err := KubeClient.ExtensionsV1beta1().Ingresses("default").Create(ingrFake)
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	PollForCompletion(t, model_Name, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+		// Tenant should be akotenant instead of admin
+		g.Expect(nodes[0].Tenant).To(gomega.Equal(AKOTENANT))
+	} else {
+		t.Fatalf("Could not find model: %v", err)
+	}
+	err = KubeClient.ExtensionsV1beta1().Ingresses("default").Delete("foo-with-targets", nil)
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, model_Name)
+}
+
 func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
