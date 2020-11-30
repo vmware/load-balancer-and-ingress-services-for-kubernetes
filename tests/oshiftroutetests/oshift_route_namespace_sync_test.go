@@ -68,7 +68,7 @@ func UpdateRoute(t *testing.T, modelName, namespace string) {
 
 }
 func TearDownTest(t *testing.T, modelName, namespace string) {
-	if err := OshiftClient.RouteV1().Routes(namespace).Delete(context.TODO(), DefaultRouteName, metav1.DeleteOptions{}); err != nil {
+	if err := OshiftClient.RouteV1().Routes(namespace).Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't delete route, err: %v", err)
 	}
 
@@ -126,7 +126,7 @@ func TestNSSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 	UpdateRoute(t, modelName1, namespace1)
 
 	g.Eventually(func() error {
-		_, err := OshiftClient.RouteV1().Routes(namespace1).Get(context.TODO(), DefaultRouteName, metav1.GetOptions{})
+		_, err := OshiftClient.RouteV1().Routes(namespace1).Get(context.TODO(), defaultRouteName, metav1.GetOptions{})
 		return err
 	}, 30*time.Second).Should(gomega.BeNil())
 
