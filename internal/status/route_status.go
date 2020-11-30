@@ -172,10 +172,12 @@ func UpdateRouteStatusWithErrMsg(routeName, namespace, msg string, retryNum ...i
 	oldRouteStatus := mRoute.Status.DeepCopy()
 
 	mRoute.Status.Ingress = []routev1.RouteIngress{}
+	now := metav1.Now()
 	condition := routev1.RouteIngressCondition{
-		Status: corev1.ConditionFalse,
-		Reason: msg,
-		Type:   routev1.RouteAdmitted,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: &now,
+		Reason:             msg,
+		Type:               routev1.RouteAdmitted,
 	}
 
 	rtIngress := routev1.RouteIngress{
@@ -258,10 +260,12 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 	// Handle fresh hostname update
 	if updateOption.Vip != "" {
 		for _, host := range hostnames {
+			now := metav1.Now()
 			condition := routev1.RouteIngressCondition{
-				Message: updateOption.Vip,
-				Status:  corev1.ConditionTrue,
-				Type:    routev1.RouteAdmitted,
+				Message:            updateOption.Vip,
+				Status:             corev1.ConditionTrue,
+				LastTransitionTime: &now,
+				Type:               routev1.RouteAdmitted,
 			}
 			rtIngress := routev1.RouteIngress{
 				Host:       host,
@@ -306,14 +310,18 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 }
 
 func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) bool {
+
 	if len(oldStatus) != len(newStatus) {
 		return false
 	}
-
 	exists := []string{}
 	for _, status := range oldStatus {
 		if len(status.Conditions) < 1 {
 			continue
+		}
+		// For older created routes, time will be nil
+		if status.Conditions[0].LastTransitionTime == nil {
+			return false
 		}
 		ip := status.Conditions[0].Message
 		reason := status.Conditions[0].Reason
