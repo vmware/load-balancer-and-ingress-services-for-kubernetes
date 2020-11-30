@@ -4,7 +4,7 @@ This operator takes care of deploying, managing and removing AKO from openshift/
 
 ### Pre-reqs before deploying the operator
 - CRD for `AKOConfig` must be installed.
-- Asecret called `avi-secret` must be installed. This contains the username
+- A secret called `avi-secret` must be installed. This contains the username
   and password for the Avi controller (Currently, not enforced).
 - And, CRD definitions for `HostRule` and `HttpRule` must be installed
   (Currently, not enforced).
@@ -13,7 +13,7 @@ Run `make install` to install the above definitions.
 
 ### Installing the operator
 #### Out of cluster execution
-To run the operator outside of a cluster, firs build the binary:
+To run the operator outside of a cluster, first build the binary:
 ```
 cd ako-operator
 make ako-operator
