@@ -387,7 +387,7 @@ func (c *AviController) FullSyncK8s() error {
 			if isSvcLb {
 				key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
 			} else {
-				if !lib.GetAdvancedL4() {
+				if lib.GetAdvancedL4() {
 					continue
 				}
 				key = utils.Service + "/" + utils.ObjKey(svcObj)
