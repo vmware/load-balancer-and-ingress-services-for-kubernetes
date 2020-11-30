@@ -5,20 +5,15 @@ GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
 AKO_VERSION=v1.3.2
-<<<<<<< HEAD
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
+AKO_OPERATOR_IMAGE=ako-operator
 
 ifdef GOLANG_SRC_REPO
 	BUILD_GO_IMG=$(GOLANG_SRC_REPO)
 else
 	BUILD_GO_IMG=golang:latest
 endif
-=======
-REL_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/cmd/ako-main
-REL_PATH_AKO_OPERATOR=ako-operator
-AKO_OPERATOR_IMAGE=ako-operator
->>>>>>> a55d7401... Add an operator for deploying and managing AKO
 
 .PHONY:all
 all: build docker

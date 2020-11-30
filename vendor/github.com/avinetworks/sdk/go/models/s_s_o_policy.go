@@ -18,7 +18,7 @@ type SSOPolicy struct {
 	// Authorization Policy Settings. Field introduced in 18.2.5.
 	AuthorizationPolicy *AuthorizationPolicy `json:"authorization_policy,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name of the SSO Policy. Field introduced in 18.2.3.

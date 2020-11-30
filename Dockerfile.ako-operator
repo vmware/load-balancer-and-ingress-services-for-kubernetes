@@ -20,7 +20,6 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -o $GOPATH/bin
 FROM ${ubi_src_repo}
 
 LABEL name="ako-operator"
-LABEL maintainer="AKO team"
 LABEL summary="An AKO operator to deploy AKO controller"
 LABEL version=${ako_version}
 LABEL release="1"
