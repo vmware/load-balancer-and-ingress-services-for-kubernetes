@@ -42,7 +42,7 @@ func createOrUpdateClusterRole(ctx context.Context, ako akov1alpha1.AKOConfig, l
 	cr := BuildClusterrole(ako, r, log)
 	if oldCR.ObjectMeta.GetName() != "" {
 		if reflect.DeepEqual(oldCR.Rules, cr.Rules) {
-			log.Info("no updates required for clusterrole")
+			log.V(0).Info("no updates required for clusterrole")
 			return nil
 		}
 		err := r.Update(ctx, &cr)

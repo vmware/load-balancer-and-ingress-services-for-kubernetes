@@ -75,7 +75,7 @@ func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, l
 
 	if oldSf.ObjectMeta.GetName() != "" && !rebootRequired {
 		if !isSfUpdateRequired(oldSf, sf) {
-			log.Info("no updates required to the statefulset")
+			log.V(0).Info("no updates required to the statefulset")
 			return nil
 		}
 		err := r.Client.Update(ctx, &sf)

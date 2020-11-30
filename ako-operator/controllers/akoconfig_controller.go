@@ -97,7 +97,7 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// akoconfig object got deleted, before we come here, so just return
 		return ctrl.Result{}, nil
 	} else if err != nil {
-		log.Info("unable to fetch AKOConfig object", "err", err)
+		log.V(0).Info("unable to fetch AKOConfig object", "err", err)
 		return ctrl.Result{}, err
 	}
 
@@ -126,32 +126,32 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
 	// reconcile all the required artifacts for AKO
-	err := r.ReconcileConfigmap(ctx, ako, log)
+	err := createOrUpdateConfigMap(ctx, ako, log, r)
 	if err != nil {
 		return err
 	}
 
-	err = r.ReconcileServiceAccount(ctx, ako, log)
+	err = createOrUpdateServiceAccount(ctx, ako, log, r)
 	if err != nil {
 		return err
 	}
 
-	err = r.ReconcileClusterRole(ctx, ako, log)
+	err = createOrUpdateClusterRole(ctx, ako, log, r)
 	if err != nil {
 		return err
 	}
 
-	err = r.ReconcileClusterroleBinding(ctx, ako, log)
+	err = createOrUpdateClusterroleBinding(ctx, ako, log, r)
 	if err != nil {
 		return err
 	}
 
-	err = r.ReconcilePodSecurityPolicy(ctx, ako, log)
+	err = createOrUpdatePodSecurityPolicy(ctx, ako, log, r)
 	if err != nil {
 		return err
 	}
 
-	err = r.ReconcileStatefulSet(ctx, ako, log)
+	err = createOrUpdateStatefulSet(ctx, ako, log, r)
 	if err != nil {
 		return err
 	}
@@ -190,51 +190,4 @@ func (r *AKOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.StatefulSet{}).
 		Complete(r)
-}
-
-func (r *AKOConfigReconciler) ReconcileConfigmap(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
-	err := createOrUpdateConfigMap(ctx, ako, log, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-func (r *AKOConfigReconciler) ReconcileStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
-	err := createOrUpdateStatefulSet(ctx, ako, log, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *AKOConfigReconciler) ReconcilePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
-	err := createOrUpdatePodSecurityPolicy(ctx, ako, log, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *AKOConfigReconciler) ReconcileClusterRole(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
-	err := createOrUpdateClusterRole(ctx, ako, log, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *AKOConfigReconciler) ReconcileServiceAccount(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
-	err := createOrUpdateServiceAccount(ctx, ako, log, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *AKOConfigReconciler) ReconcileClusterroleBinding(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
-	err := createOrUpdateClusterroleBinding(ctx, ako, log, r)
-	if err != nil {
-		return err
-	}
-	return err
 }

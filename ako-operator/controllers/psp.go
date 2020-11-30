@@ -51,7 +51,7 @@ func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOCon
 	psp := BuildPodSecurityPolicy(ako, r, log)
 	if oldPSP.ObjectMeta.GetName() != "" {
 		if reflect.DeepEqual(oldPSP.Spec, psp.Spec) {
-			log.Info("no updates required for podsecuritypolicy")
+			log.V(0).Info("no updates required for podsecuritypolicy")
 			return nil
 		}
 		err := r.Update(ctx, &psp)
