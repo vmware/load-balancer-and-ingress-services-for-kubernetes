@@ -73,7 +73,7 @@ func ValidatePassthroughModel(t *testing.T, g *gomega.WithT, modelName string) i
 func VerifyPassthroughRouteDeletion(t *testing.T, g *gomega.WithT, modelName string, poolCount, childcount int) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 
-	err := OshiftClient.RouteV1().Routes(DefaultNamespace).Delete(context.TODO(), DefaultRouteName, metav1.DeleteOptions{})
+	err := OshiftClient.RouteV1().Routes(defaultNamespace).Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
@@ -131,7 +131,7 @@ func TestPassthroughRoute(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestPassthroughRedirectRoute(t *testing.T) {
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -178,14 +178,14 @@ func TestPassthroughRemoveRedirectRoute(t *testing.T) {
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyNone
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -205,14 +205,14 @@ func TestPassthroughAddRedirectRoute(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestPassthroughToInsecureRoute(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestPassthroughToInsecureRoute(t *testing.T) {
 
 	routeExample.Spec.TLS = nil
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestPassthroughToInsecureRoute(t *testing.T) {
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
 	TearDownTestForRoute(t, DefaultPassthroughModel)
-	objects.SharedAviGraphLister().Delete(DefaultModelName)
+	objects.SharedAviGraphLister().Delete(defaultModelName)
 }
 
 func TestInsecureToPassthroughRoute(t *testing.T) {
@@ -282,7 +282,7 @@ func TestInsecureToPassthroughRoute(t *testing.T) {
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestInsecureToPassthroughRoute(t *testing.T) {
 
 	routeExample = FakeRoute{Path: "/foo"}.PassthroughRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -316,14 +316,14 @@ func TestInsecureToPassthroughRoute(t *testing.T) {
 
 	VerifyPassthroughRouteDeletion(t, g, DefaultPassthroughModel, 0, 0)
 	TearDownTestForRoute(t, DefaultPassthroughModel)
-	objects.SharedAviGraphLister().Delete(DefaultModelName)
+	objects.SharedAviGraphLister().Delete(defaultModelName)
 }
 
 func TestPassthroughToSecureRoute(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestPassthroughToSecureRoute(t *testing.T) {
 
 	routeExample = FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -342,7 +342,7 @@ func TestPassthroughToSecureRoute(t *testing.T) {
 		return len(vsvipNode.FQDNs)
 	}, 50*time.Second).Should(gomega.Equal(0))
 
-	aviModel := ValidateSniModel(t, g, DefaultModelName)
+	aviModel := ValidateSniModel(t, g, defaultModelName)
 
 	g.Eventually(func() int {
 		return len(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes)
@@ -351,25 +351,25 @@ func TestPassthroughToSecureRoute(t *testing.T) {
 	g.Eventually(func() string {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return sniVS.VHDomainNames[0]
-	}, 60*time.Second).Should(gomega.Equal(DefaultHostname))
+	}, 60*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNode(g, sniVS)
 
-	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestSecureToPassthroughRoute(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.PassthroughRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -383,7 +383,7 @@ func TestSecureToPassthroughRoute(t *testing.T) {
 
 	VerifyPassthroughRouteDeletion(t, g, DefaultPassthroughModel, 0, 0)
 	TearDownTestForRoute(t, DefaultPassthroughModel)
-	objects.SharedAviGraphLister().Delete(DefaultModelName)
+	objects.SharedAviGraphLister().Delete(defaultModelName)
 }
 
 func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
@@ -395,7 +395,7 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughABRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -447,14 +447,14 @@ func TestPassthroughRouteRemoveAlternateBackends(t *testing.T) {
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughABRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.PassthroughRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -475,14 +475,14 @@ func TestMultiplePassthroughRoutes(t *testing.T) {
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample2 := FakeRoute{Name: "bar", Hostname: "bar.com", Path: "/bar"}.PassthroughRoute()
 	routeExample2.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample2, metav1.CreateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -533,11 +533,11 @@ func TestMultiplePassthroughRoutes(t *testing.T) {
 		g.Expect(redir.RedirectPorts[0].StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
 	}
 
-	err = OshiftClient.RouteV1().Routes(DefaultNamespace).Delete(context.TODO(), DefaultRouteName, metav1.DeleteOptions{})
+	err = OshiftClient.RouteV1().Routes(defaultNamespace).Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
-	err = OshiftClient.RouteV1().Routes(DefaultNamespace).Delete(context.TODO(), "bar", metav1.DeleteOptions{})
+	err = OshiftClient.RouteV1().Routes(defaultNamespace).Delete(context.TODO(), "bar", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}

@@ -111,7 +111,13 @@ func AddNamespace(nsName string, labels map[string]string) error {
 		Labels: labels,
 	}).Namespace()
 	nsMetaOptions.ResourceVersion = "1"
-	_, err := KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
+	_, err := KubeClient.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	if err != nil {
+		_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
+		if err != nil {
+			utils.AviLog.Errorf("Error occured while Adding namespace : %v", err)
+		}
+	}
 	return err
 }
 

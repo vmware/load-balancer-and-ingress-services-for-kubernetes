@@ -32,7 +32,7 @@ import (
 func SetUpTestForRouteInNodePort(t *testing.T, modelName string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("L7_SHARD_SCHEME", "hostname")
-
+	AddLabelToNamespace(defaultKey, defaultValue, defaultNamespace, modelName, t)
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
 }
@@ -56,10 +56,10 @@ func TestRouteNoPathInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 
 	routeExample := FakeRoute{}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -82,7 +82,7 @@ func TestRouteNoPathInNodePort(t *testing.T) {
 	g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com"))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
 // TestRouteDefaultPathInNodePort tests route creation with nodeport service in NodePort mode with default path.
@@ -95,9 +95,9 @@ func TestRouteDefaultPathInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestRouteDefaultPathInNodePort(t *testing.T) {
 	g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
 // TestRouteClusterIPSvcDefaultPathInNodePort tests route creation with Cluster IP in NodePort mode.
@@ -132,9 +132,9 @@ func TestRouteClusterIPSvcDefaultPathInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRoute(t, DefaultModelName)
+	SetUpTestForRoute(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestRouteClusterIPSvcDefaultPathInNodePort(t *testing.T) {
 	g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestRouteBadServiceInNodePort(t *testing.T) {
@@ -169,9 +169,9 @@ func TestRouteBadServiceInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo", ServiceName: "badsvc"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestRouteBadServiceInNodePort(t *testing.T) {
 	g.Expect(len(pool.Servers)).To(gomega.Equal(0))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
 // TestRouteScaleEndpointInNodePort tests that scaling an endpoint has no effect on pool servers in nodeport
@@ -196,9 +196,9 @@ func TestRouteScaleEndpointInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRoute(t, DefaultModelName)
+	SetUpTestForRoute(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -221,7 +221,7 @@ func TestRouteScaleEndpointInNodePort(t *testing.T) {
 	g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestMultiRouteSameHostInNodePort(t *testing.T) {
@@ -233,15 +233,15 @@ func TestMultiRouteSameHostInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample1 := FakeRoute{Path: "/foo", ServiceName: "avisvc"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample1, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample2 := FakeRoute{Name: "bar", Path: "/bar", ServiceName: "avisvc"}.Route()
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample2, metav1.CreateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -273,13 +273,13 @@ func TestMultiRouteSameHostInNodePort(t *testing.T) {
 		}
 	}
 
-	err = OshiftClient.RouteV1().Routes(DefaultNamespace).Delete(context.TODO(), "bar", metav1.DeleteOptions{})
+	err = OshiftClient.RouteV1().Routes(defaultNamespace).Delete(context.TODO(), "bar", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
 func TestRouteUpdatePathInNodePort(t *testing.T) {
@@ -291,15 +291,15 @@ func TestRouteUpdatePathInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/bar"}.Route()
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -324,7 +324,7 @@ func TestRouteUpdatePathInNodePort(t *testing.T) {
 	}
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
 func TestAlternateBackendNoPathInNodePort(t *testing.T) {
@@ -336,10 +336,10 @@ func TestAlternateBackendNoPathInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeNodePort, false)
 	routeExample := FakeRoute{}.ABRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -373,7 +373,7 @@ func TestAlternateBackendNoPathInNodePort(t *testing.T) {
 	}
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
 }
@@ -387,10 +387,10 @@ func TestAlternateBackendDefaultPathInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeNodePort, false)
 	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -421,7 +421,7 @@ func TestAlternateBackendDefaultPathInNodePort(t *testing.T) {
 	}
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
 }
@@ -436,9 +436,9 @@ func TestNodeCUDForOshiftRouteInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -451,7 +451,7 @@ func TestNodeCUDForOshiftRouteInNodePort(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(1))
 
 	// Update the Node's resource version
-	objects.SharedAviGraphLister().Delete(DefaultModelName)
+	objects.SharedAviGraphLister().Delete(defaultModelName)
 	nodeExample := (integrationtest.FakeNode{
 		Name:    "testNodeNP",
 		PodCIDR: "10.244.0.0/24",
@@ -464,11 +464,11 @@ func TestNodeCUDForOshiftRouteInNodePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
-	integrationtest.PollForCompletion(t, DefaultModelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(DefaultModelName)
+	integrationtest.PollForCompletion(t, defaultModelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(defaultModelName)
 	if found {
 		// model should not be sent for this update as only the resource ver is changed.
-		t.Fatalf("Model found for node add %v", DefaultModelName)
+		t.Fatalf("Model found for node add %v", defaultModelName)
 	}
 
 	// Add another node and check if that is added in the pool servers
@@ -492,7 +492,7 @@ func TestNodeCUDForOshiftRouteInNodePort(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(1))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
 func TestSecureRouteInNodePort(t *testing.T) {
@@ -504,25 +504,25 @@ func TestSecureRouteInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
-	aviModel := ValidateSniModel(t, g, DefaultModelName)
+	aviModel := ValidateSniModel(t, g, defaultModelName)
 
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
 	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 	g.Eventually(func() string {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return sniVS.VHDomainNames[0]
-	}, 50*time.Second).Should(gomega.Equal(DefaultHostname))
+	}, 50*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNode(g, sniVS)
 
-	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
 func TestSecureToInsecureRouteInNodePort(t *testing.T) {
@@ -534,15 +534,15 @@ func TestSecureToInsecureRouteInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	routeExample = FakeRoute{Path: "/foo"}.Route()
-	_, err = OshiftClient.RouteV1().Routes(DefaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating route: %v", err)
 	}
@@ -554,8 +554,8 @@ func TestSecureToInsecureRouteInNodePort(t *testing.T) {
 		return len(sniNodes)
 	}, 50*time.Second).Should(gomega.Equal(0))
 
-	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
 func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
@@ -567,13 +567,13 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-
+	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeNodePort, false)
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
@@ -581,14 +581,14 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
-	aviModel := ValidateSniModel(t, g, DefaultModelName)
+	aviModel := ValidateSniModel(t, g, defaultModelName)
 
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
 	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 	g.Eventually(func() string {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return sniVS.VHDomainNames[0]
-	}, 50*time.Second).Should(gomega.Equal(DefaultHostname))
+	}, 50*time.Second).Should(gomega.Equal(defaultHostname))
 
 	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
@@ -610,12 +610,12 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 		}
 	}
 
-	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), DefaultRouteName, metav1.DeleteOptions{})
+	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the route %v", err)
 	}
-	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
-	TearDownTestForRouteInNodePort(t, DefaultModelName)
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRouteInNodePort(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
 }
 
@@ -628,9 +628,9 @@ func TestPassthroughRouteInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -655,9 +655,9 @@ func TestPassthroughRouteDelSvcInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	SetUpTestForRouteInNodePort(t, DefaultModelName)
+	SetUpTestForRouteInNodePort(t, defaultModelName)
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}

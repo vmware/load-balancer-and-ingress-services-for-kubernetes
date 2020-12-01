@@ -36,7 +36,7 @@ func TestRouteCreateHostRule(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestRouteCreateHostRule(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := lib.GetCRDClientset().AkoV1alpha1().HostRules(DefaultNamespace).Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := lib.GetCRDClientset().AkoV1alpha1().HostRules(defaultNamespace).Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 50*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -69,8 +69,8 @@ func TestRouteCreateHostRule(t *testing.T) {
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
@@ -81,13 +81,13 @@ func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules(DefaultNamespace).Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules(defaultNamespace).Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 50*time.Second).Should(gomega.Equal("Accepted"))
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -115,8 +115,8 @@ func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 		}
 		return ""
 	}, 50*time.Second).Should(gomega.Equal(""))
-	VerifySecureRouteDeletion(t, g, DefaultModelName, 0, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
@@ -128,7 +128,7 @@ func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -164,7 +164,7 @@ func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
@@ -177,11 +177,12 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 	// creating secure default/foo.com/foo
 	SetUpTestForRoute(t, modelName)
 	secRouteExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), secRouteExample, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), secRouteExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	// creating insecure red/foo.com/bar
+	AddLabelToNamespace(defaultKey, defaultValue, "red", modelName, t)
 	routeExample := FakeRoute{
 		Name:      "insecure-foo",
 		Namespace: "red",
@@ -230,11 +231,12 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 	// creating insecure default/foo.com/foo
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	// creating insecure red/voo.com/voo
+	AddLabelToNamespace(defaultKey, defaultValue, "red", modelName, t)
 	routeExampleVoo := FakeRoute{
 		Name:      "voo",
 		Namespace: "red",
@@ -299,7 +301,7 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	VerifySecureRouteDeletion(t, g, modelName, 1, 0, "red/voo")
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestOshiftGoodToBadHostRule(t *testing.T) {
@@ -310,7 +312,7 @@ func TestOshiftGoodToBadHostRule(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -354,7 +356,7 @@ func TestOshiftGoodToBadHostRule(t *testing.T) {
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestOshiftInsecureHostAndHostrule(t *testing.T) {
@@ -365,7 +367,7 @@ func TestOshiftInsecureHostAndHostrule(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
@@ -384,7 +386,7 @@ func TestOshiftInsecureHostAndHostrule(t *testing.T) {
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
@@ -397,7 +399,7 @@ func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
@@ -452,7 +454,7 @@ func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
@@ -466,11 +468,11 @@ func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExampleFoo := FakeRoute{Path: "/foo"}.SecureRoute()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExampleFoo, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleFoo, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	routeExampleBar := FakeRoute{Name: "foobar", Path: "/bar"}.SecureRoute()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExampleBar, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleBar, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -510,7 +512,7 @@ func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 
 	VerifySecureRouteDeletion(t, g, modelName, 0, 1)
 	VerifySecureRouteDeletion(t, g, modelName, 0, 0, "default/foobar")
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
@@ -526,11 +528,11 @@ func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 	// creates foo.com insecure
 	SetUpTestForRoute(t, modelName)
 	routeExampleFoo := FakeRoute{Path: "/foo"}.SecureRoute()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExampleFoo, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleFoo, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	routeExampleVoo := FakeRoute{Name: "voo", Hostname: "voo.com", Path: "/foo"}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExampleVoo, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleVoo, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -584,5 +586,5 @@ func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 	integrationtest.TeardownHTTPRule(t, rrnameFoo)
 	VerifyRouteDeletion(t, g, aviModel, 0, "default/voo")
 	VerifySecureRouteDeletion(t, g, modelName, 0, 0)
-	TearDownTestForRoute(t, DefaultModelName)
+	TearDownTestForRoute(t, defaultModelName)
 }
