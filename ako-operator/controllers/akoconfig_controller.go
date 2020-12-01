@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	CleanupFinalizer = "ako.vmware.com/finalizer"
+	CleanupFinalizer = "ako.vmware.com/cleanup"
 )
 
 var (

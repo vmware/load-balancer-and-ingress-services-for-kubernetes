@@ -2,7 +2,7 @@ apiVersion: ako.vmware.com/v1alpha1
 kind: AKOConfig
 metadata:
   finalizers:
-  - ako.vmware.com/finalizer
+  - ako.vmware.com/cleanup
   name: ako-sample
   namespace: avi-system
 spec:
