@@ -33,29 +33,29 @@ func createOrUpdateClusterRole(ctx context.Context, ako akov1alpha1.AKOConfig, l
 	if err := r.Get(ctx, getCRName(), &oldCR); err != nil {
 		log.V(0).Info("no existing clusterrole with name", "name", getCRName())
 	} else {
-		if oldCR.ObjectMeta.GetName() != "" {
+		if oldCR.GetName() != "" {
 			log.V(0).Info("a clusterrole with name already exists, it will be updated", "name",
-				oldCR.ObjectMeta.GetName())
+				oldCR.GetName())
 		}
 	}
 
 	cr := BuildClusterrole(ako, r, log)
-	if oldCR.ObjectMeta.GetName() != "" {
+	if oldCR.GetName() != "" {
 		if reflect.DeepEqual(oldCR.Rules, cr.Rules) {
 			log.V(0).Info("no updates required for clusterrole")
 			return nil
 		}
 		err := r.Update(ctx, &cr)
 		if err != nil {
-			log.Error(err, "unable to update clusterrole", "namespace", cr.ObjectMeta.GetNamespace(),
-				"name", cr.ObjectMeta.GetName())
+			log.Error(err, "unable to update clusterrole", "namespace", cr.GetNamespace(), "name",
+				cr.GetName())
 			return err
 		}
 	} else {
 		err := r.Create(ctx, &cr)
 		if err != nil {
-			log.Error(err, "unable to create clusterrole", "namespace", cr.ObjectMeta.GetNamespace(),
-				"name", cr.ObjectMeta.GetName())
+			log.Error(err, "unable to create clusterrole", "namespace", cr.GetNamespace(),
+				"name", cr.GetName())
 			return err
 		}
 	}

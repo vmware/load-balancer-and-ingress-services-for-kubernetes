@@ -39,19 +39,19 @@ func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, l
 	if err := r.Get(ctx, getSFNamespacedName(), &oldSf); err != nil {
 		log.V(0).Info("no pre-existing statefulset with name", "name", StatefulSetName)
 	} else {
-		if oldSf.ObjectMeta.GetName() != "" {
-			log.V(0).Info("statefulset present", "name", oldSf.ObjectMeta.GetName())
+		if oldSf.GetName() != "" {
+			log.V(0).Info("statefulset present", "name", oldSf.GetName())
 		}
 	}
 
-	if oldSf.ObjectMeta.GetName() != "" && rebootRequired {
+	if oldSf.GetName() != "" && rebootRequired {
 		log.V(0).Info("rebooting AKO as configmap has been changed")
 		err := r.Client.Delete(ctx, &oldSf)
 		if err != nil {
 			// won't set rebootrequired to true here, as we will keep on rebooting AKO till the error
 			// is resolved
-			log.Error(err, "error while rebooting ako statefulset", "name", oldSf.ObjectMeta.GetName(),
-				"namespace", oldSf.ObjectMeta.GetNamespace())
+			log.Error(err, "error while rebooting ako statefulset", "name", oldSf.GetName(),
+				"namespace", oldSf.GetNamespace())
 			return err
 		}
 		rebootRequired = false
@@ -73,22 +73,22 @@ func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, l
 		log.Error(err, "error in setting controller reference to statefulset, statefulset changes would be ignored")
 	}
 
-	if oldSf.ObjectMeta.GetName() != "" && !rebootRequired {
+	if oldSf.GetName() != "" && !rebootRequired {
 		if !isSfUpdateRequired(oldSf, sf) {
 			log.V(0).Info("no updates required to the statefulset")
 			return nil
 		}
 		err := r.Client.Update(ctx, &sf)
 		if err != nil {
-			log.Error(err, "unable to update statefulset", "namespace", sf.ObjectMeta.GetNamespace(),
-				"name", sf.ObjectMeta.GetName())
+			log.Error(err, "unable to update statefulset", "namespace", sf.GetNamespace(),
+				"name", sf.GetName())
 			return err
 		}
 	} else {
 		err := r.Create(ctx, &sf)
 		if err != nil {
-			log.Error(err, "unable to create statefulset", "namespace", sf.ObjectMeta.GetNamespace(),
-				"name", sf.ObjectMeta.GetName())
+			log.Error(err, "unable to create statefulset", "namespace", sf.GetNamespace(),
+				"name", sf.GetName())
 			return err
 		}
 	}
@@ -207,7 +207,7 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig) (appsv1.StatefulSet, error) {
 		return sf, err
 	}
 	template := v1.PodTemplateSpec{}
-	template.ObjectMeta.SetLabels(akoLabels)
+	template.SetLabels(akoLabels)
 	template.Spec = v1.PodSpec{
 		ServiceAccountName: ServiceAccountName,
 		Volumes:            volumes,

@@ -32,8 +32,8 @@ func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOCon
 	if err := r.Get(ctx, getPSPName(), &oldPSP); err != nil {
 		log.V(0).Info("no pre-existing podsecuritypolicy with name", "name", PSPName)
 	} else {
-		if oldPSP.ObjectMeta.GetName() != "" {
-			log.V(0).Info("pre-existing podsecuritypolicy, will be updated", "name", oldPSP.ObjectMeta.GetName())
+		if oldPSP.GetName() != "" {
+			log.V(0).Info("pre-existing podsecuritypolicy, will be updated", "name", oldPSP.GetName())
 		}
 	}
 
@@ -49,22 +49,22 @@ func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOCon
 	}
 
 	psp := BuildPodSecurityPolicy(ako, r, log)
-	if oldPSP.ObjectMeta.GetName() != "" {
+	if oldPSP.GetName() != "" {
 		if reflect.DeepEqual(oldPSP.Spec, psp.Spec) {
 			log.V(0).Info("no updates required for podsecuritypolicy")
 			return nil
 		}
 		err := r.Update(ctx, &psp)
 		if err != nil {
-			log.Error(err, "unable to update podsecuritypolicy", "namespace", psp.ObjectMeta.GetNamespace(),
-				"name", psp.ObjectMeta.GetName())
+			log.Error(err, "unable to update podsecuritypolicy", "namespace", psp.GetNamespace(),
+				"name", psp.GetName())
 			return err
 		}
 	} else {
 		err := r.Create(ctx, &psp)
 		if err != nil {
-			log.Error(err, "unable to create podsecuritypolicy", "namespace", psp.ObjectMeta.GetNamespace(),
-				"name", psp.ObjectMeta.GetName())
+			log.Error(err, "unable to create podsecuritypolicy", "namespace", psp.GetNamespace(),
+				"name", psp.GetName())
 			return err
 		}
 	}

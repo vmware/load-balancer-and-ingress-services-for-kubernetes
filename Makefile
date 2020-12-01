@@ -9,6 +9,34 @@ PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubern
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 AKO_OPERATOR_IMAGE=ako-operator
 
+.PHONY: glob-vars
+glob-vars:
+ifndef BUILD_TAG
+	$(eval BUILD_TAG=$(shell ./hack/jenkins/get_build_version.sh "dummy" 0))
+endif
+
+ifndef BUILD_TIME
+	$(eval BUILD_TIME=$(shell date +%Y-%m-%d_%H:%M:%S_%Z))
+endif
+
+ifdef GOLANG_SRC_REPO
+	$(eval BUILD_ARG_GOLANG=--build-arg golang_src_repo=$(GOLANG_SRC_REPO))
+else
+	$(eval BUILD_ARG_GOLANG=)
+endif
+
+ifdef PHOTON_SRC_REPO
+	$(eval BUILD_ARG_PHOTON=--build-arg photon_src_repo=$(PHOTON_SRC_REPO))
+else
+	$(eval BUILD_ARG_PHOTON=)
+endif
+
+ifdef UBI_SRC_REPO
+	$(eval BUILD_ARG_UBI=--build-arg ubi_src_repo=$(UBI_SRC_REPO))
+else
+	$(eval BUILD_ARG_UBI=)
+endif
+
 ifdef GOLANG_SRC_REPO
 	BUILD_GO_IMG=$(GOLANG_SRC_REPO)
 else
@@ -19,12 +47,12 @@ endif
 all: build docker
 
 .PHONY: build
-build: 
+build:
 		sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) -o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor /go/src/$(REL_PATH_AKO)
 
 .PHONY: clean
-clean: 
+clean:
 		$(GOCLEAN) -mod=vendor $(REL_PATH_AKO)
 		rm -f bin/$(BINARY_NAME_AKO)
 
@@ -33,63 +61,12 @@ deps:
 	dep ensure -v
 
 .PHONY: docker
-docker:
-ifndef BUILD_TAG
-	$(eval BUILD_TAG=$(shell ./hack/jenkins/get_build_version.sh "dummy" 0))
-endif
-
-ifndef BUILD_TIME
-	$(eval BUILD_TIME=$(shell date +%Y-%m-%d_%H:%M:%S_%Z))
-endif
-
-ifdef GOLANG_SRC_REPO
-	$(eval BUILD_ARG_GOLANG=--build-arg golang_src_repo=$(GOLANG_SRC_REPO))
-else
-	$(eval BUILD_ARG_GOLANG=)
-endif
-
-ifdef PHOTON_SRC_REPO
-	$(eval BUILD_ARG_PHOTON=--build-arg photon_src_repo=$(PHOTON_SRC_REPO))
-else
-	$(eval BUILD_ARG_PHOTON=)
-endif
-
-ifdef UBI_SRC_REPO
-	$(eval BUILD_ARG_UBI=--build-arg ubi_src_repo=$(UBI_SRC_REPO))
-else
-	$(eval BUILD_ARG_UBI=)
-endif
+docker: glob-vars
 	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) -f Dockerfile.ako .
 
 .PHONY: ako-operator-docker
-ako-operator-docker:
-ifndef BUILD_TAG
-	$(eval BUILD_TAG=$(shell ./hack/jenkins/get_build_version.sh "dummy" 0))
-endif
-
-ifndef BUILD_TIME
-	$(eval BUILD_TIME=$(shell date +%Y-%m-%d_%H:%M:%S_%Z))
-endif
-
-ifdef GOLANG_SRC_REPO
-	$(eval BUILD_ARG_GOLANG=--build-arg golang_src_repo=$(GOLANG_SRC_REPO))
-else
-	$(eval BUILD_ARG_GOLANG=)
-endif
-
-ifdef PHOTON_SRC_REPO
-	$(eval BUILD_ARG_PHOTON=--build-arg photon_src_repo=$(PHOTON_SRC_REPO))
-else
-	$(eval BUILD_ARG_PHOTON=)
-endif
-
-ifdef UBI_SRC_REPO
-	$(eval BUILD_ARG_UBI=--build-arg ubi_src_repo=$(UBI_SRC_REPO))
-else
-	$(eval BUILD_ARG_UBI=)
-endif
+ako-operator-docker: glob-vars
 	sudo docker build -t $(AKO_OPERATOR_IMAGE):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI)  -f Dockerfile.ako-operator .
-
 
 .PHONY: k8stest
 k8stest:

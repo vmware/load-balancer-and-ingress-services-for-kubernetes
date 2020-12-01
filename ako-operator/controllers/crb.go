@@ -34,9 +34,9 @@ func createOrUpdateClusterroleBinding(ctx context.Context, ako akov1alpha1.AKOCo
 	if err := r.Get(ctx, getCRBName(), &oldCRB); err != nil {
 		log.V(0).Info("no existing clusterrolebinding with name", "name", CRBName)
 	} else {
-		if oldCRB.ObjectMeta.GetName() != "" {
+		if oldCRB.GetName() != "" {
 			log.V(0).Info("a clusterrolebinding with name already exists, will update", "name",
-				oldCRB.ObjectMeta.GetName())
+				oldCRB.GetName())
 		}
 	}
 
@@ -48,15 +48,15 @@ func createOrUpdateClusterroleBinding(ctx context.Context, ako akov1alpha1.AKOCo
 		}
 		err := r.Update(ctx, &crb)
 		if err != nil {
-			log.Error(err, "unable to update clusterrolebinding", "namespace", crb.ObjectMeta.GetNamespace(),
-				"name", crb.ObjectMeta.GetName())
+			log.Error(err, "unable to update clusterrolebinding", "namespace", crb.GetNamespace(),
+				"name", crb.GetName())
 			return err
 		}
 	} else {
 		err := r.Create(ctx, &crb)
 		if err != nil {
-			log.Error(err, "unable to create clusterrolebinding", "namespace", crb.ObjectMeta.GetNamespace(),
-				"name", crb.ObjectMeta.GetName())
+			log.Error(err, "unable to create clusterrolebinding", "namespace", crb.GetNamespace(),
+				"name", crb.GetName())
 			return err
 		}
 	}

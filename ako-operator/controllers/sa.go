@@ -16,9 +16,9 @@ func createOrUpdateServiceAccount(ctx context.Context, ako akov1alpha1.AKOConfig
 	if err := r.Get(ctx, getSAName(), &oldSA); err != nil {
 		log.V(0).Info("no existing serviceaccount with name", "name", AKOServiceAccount)
 	} else {
-		if oldSA.ObjectMeta.GetName() != "" {
+		if oldSA.GetName() != "" {
 			log.V(0).Info("a serviceaccount with name already exists, won't update", "name",
-				oldSA.ObjectMeta.GetName())
+				oldSA.GetName())
 			return nil
 		}
 	}
@@ -26,8 +26,8 @@ func createOrUpdateServiceAccount(ctx context.Context, ako akov1alpha1.AKOConfig
 	sa := BuildServiceAccount(ako, r, log)
 	err := r.Create(ctx, &sa)
 	if err != nil {
-		log.Error(err, "unable to create serviceaccount", "namespace", sa.ObjectMeta.GetNamespace(),
-			"name", sa.ObjectMeta.GetName())
+		log.Error(err, "unable to create serviceaccount", "namespace", sa.GetNamespace(),
+			"name", sa.GetName())
 		return err
 	}
 	return nil

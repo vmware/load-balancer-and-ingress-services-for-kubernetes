@@ -101,12 +101,12 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	if !ako.ObjectMeta.DeletionTimestamp.IsZero() {
-		if finalizerInList(ako.ObjectMeta.Finalizers, CleanupFinalizer) {
+	if !ako.GetDeletionTimestamp().IsZero() {
+		if finalizerInList(ako.GetFinalizers(), CleanupFinalizer) {
 			if err := r.CleanupArtifacts(ctx, log); err != nil {
 				return ctrl.Result{}, err
 			}
-			ako.ObjectMeta.Finalizers = removeFinalizer(ako.ObjectMeta.Finalizers, CleanupFinalizer)
+			ako.Finalizers = removeFinalizer(ako.Finalizers, CleanupFinalizer)
 			if err := r.Update(ctx, &ako); err != nil {
 				return ctrl.Result{}, err
 			}

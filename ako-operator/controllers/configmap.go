@@ -51,9 +51,9 @@ func createOrUpdateConfigMap(ctx context.Context, ako akov1alpha1.AKOConfig, log
 		log.V(0).Info("error getting a configmap with name", "name", ConfigMapName, "err", err)
 	} else {
 		log.V(1).Info("old configmap", "old cm", oldCM)
-		if oldCM.ObjectMeta.GetName() != "" {
+		if oldCM.GetName() != "" {
 			log.V(0).Info("a configmap with the same name already exists, it will be updated", "name",
-				oldCM.ObjectMeta.GetName())
+				oldCM.GetName())
 		}
 	}
 
@@ -66,28 +66,27 @@ func createOrUpdateConfigMap(ctx context.Context, ako akov1alpha1.AKOConfig, log
 		log.Error(err, "error in setting controller reference, configmap changes would be ignored")
 	}
 
-	if oldCM.ObjectMeta.GetName() != "" {
+	if oldCM.GetName() != "" {
 		SetIfRebootRequired(oldCM, cm)
 		// "avi-k8s-config" configmap already exists, we just need to update that
 		// updating shouldn't change the existing finalizers
-		existingFinalizers := oldCM.ObjectMeta.Finalizers
-		for _, f := range oldCM.GetObjectMeta().GetFinalizers() {
-			if !utils.HasElem(cm.ObjectMeta.Finalizers, f) {
-				cm.ObjectMeta.Finalizers = append(cm.ObjectMeta.Finalizers, f)
+		existingFinalizers := oldCM.GetFinalizers()
+		for _, f := range existingFinalizers {
+			if !utils.HasElem(cm.GetFinalizers(), f) {
+				cm.Finalizers = append(cm.Finalizers, f)
 			}
 		}
-		cm.ObjectMeta.Finalizers = existingFinalizers
 		err := r.Update(ctx, &cm)
 		if err != nil {
-			log.Error(err, "unable to update configmap", "namespace", cm.ObjectMeta.GetNamespace(),
-				"name", cm.ObjectMeta.GetName())
+			log.Error(err, "unable to update configmap", "namespace", cm.GetNamespace(), "name",
+				cm.GetName())
 			return err
 		}
 	} else {
 		err := r.Create(ctx, &cm)
 		if err != nil {
-			log.Error(err, "unable to create configmap", "namespace", cm.ObjectMeta.GetNamespace(),
-				"name", cm.ObjectMeta.GetName())
+			log.Error(err, "unable to create configmap", "namespace", cm.GetNamespace(), "name",
+				cm.GetName())
 			return err
 		}
 	}
@@ -101,8 +100,8 @@ func createOrUpdateConfigMap(ctx context.Context, ako akov1alpha1.AKOConfig, log
 	// update this object in the global list
 	objList := getObjectList()
 	objList[types.NamespacedName{
-		Name:      cm.ObjectMeta.GetName(),
-		Namespace: cm.ObjectMeta.GetNamespace(),
+		Name:      cm.GetName(),
+		Namespace: cm.GetNamespace(),
 	}] = &newCM
 
 	return nil
