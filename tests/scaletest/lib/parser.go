@@ -31,6 +31,7 @@ type TestParams struct {
 	AppName           string `json:"appName"`
 	ServiceNamePrefix string `json:"serviceNamePrefix"`
 	IngressNamePrefix string `json:"ingressNamePrefix"`
+	DnsVSUUID         string `json:"dnsVSUUID"`
 }
 
 type Controller struct {

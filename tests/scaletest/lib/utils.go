@@ -68,7 +68,7 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	var p AviRestClientPool
 	for i := uint32(0); i < num; i++ {
 		aviClient, err := clients.NewAviClient(api_ep, username,
-			session.SetPassword(password), session.SetControllerStatusCheckLimits(50, 10), session.SetInsecure)
+			session.SetPassword(password), session.SetControllerStatusCheckLimits(25, 15), session.SetInsecure)
 		if err != nil {
 			return &p, err
 		}
@@ -212,4 +212,46 @@ func FetchPools(t *testing.T, AviClient *clients.AviClient) []models.Pool {
 		}
 	}
 	return pools
+}
+
+func FetchDnsVsFqdn(t *testing.T, dnsVsUuid string, AviClient *clients.AviClient) []models.DNSRecord {
+	uri := "api/virtualservice"
+	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		t.Logf("Get uri %v returned err for pool %v", uri, err)
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		t.Logf("Failed to unmarshal VS data, err: %v", err)
+	}
+	virtualservice := models.VirtualServiceRuntime{}
+	for i := 0; i < len(elems); i++ {
+		vs := models.VirtualServiceRuntime{}
+		err = json.Unmarshal(elems[i], &vs)
+		if *vs.UUID == dnsVsUuid {
+			virtualservice = vs
+			break
+		}
+	}
+	ipamDNSRecords := []models.DNSRecord{}
+	for i := 0; i < len(virtualservice.IPAMDNSRecords); i++ {
+		dnsRecord := models.DNSRecord{}
+		dnsRecord = *virtualservice.IPAMDNSRecords[i]
+		ipamDNSRecords = append(ipamDNSRecords, dnsRecord)
+	}
+	return ipamDNSRecords
+}
+
+func FetchDNSARecordsFQDN(t *testing.T, dnsVsUuid string, AviClient *clients.AviClient) []string {
+	ipamDNSRecords := FetchDnsVsFqdn(t, dnsVsUuid, AviClient)
+	var FQDNList []string
+	for i := 0; i < len(ipamDNSRecords); i++ {
+		if *ipamDNSRecords[i].Type == "DNS_RECORD_A" {
+			for j := 0; j < len(ipamDNSRecords[i].Fqdn); j++ {
+				FQDNList = append(FQDNList, ipamDNSRecords[i].Fqdn[j])
+			}
+		}
+	}
+	return FQDNList
 }

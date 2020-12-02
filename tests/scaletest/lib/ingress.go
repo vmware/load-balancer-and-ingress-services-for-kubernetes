@@ -16,6 +16,7 @@ package lib
 
 import (
 	"flag"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -30,6 +31,7 @@ import (
 	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/retry"
 )
 
 var ingressResource = schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}
@@ -41,6 +43,7 @@ const PORT = 8080
 const SUBDOMAIN = ".avi.internal"
 const SECRETNAME = "ingress-host-tls"
 const INGRESSAPIVERSION = "extensions/v1beta1"
+const UPDATEPATH = "new.host.internal"
 
 func CreateApp(appName string, namespace string) error {
 	deploymentSpec := &appsV1.Deployment{
@@ -145,8 +148,9 @@ func DeleteService(serviceNameList []string, namespace string) error {
 	return nil
 }
 
-func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespace string, num int, startIndex ...int) ([]string, error) {
+func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespace string, num int, startIndex ...int) ([]string, []string, error) {
 	var listOfIngressCreated []string
+	var ingressHostNames []string
 	var startInd int
 	if len(startIndex) == 0 {
 		startInd = 0
@@ -155,6 +159,7 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 	}
 	for i := startInd; i < num+startInd; i++ {
 		ingressName := ingressNamePrefix + strconv.Itoa(i)
+		hostName := ingressName + SUBDOMAIN
 		ingress := &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": INGRESSAPIVERSION,
@@ -166,7 +171,7 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 				"spec": map[string]interface{}{
 					"rules": []map[string]interface{}{
 						{
-							"host": ingressName + SUBDOMAIN,
+							"host": hostName,
 							"http": map[string]interface{}{
 								"paths": []map[string]interface{}{
 									{
@@ -184,16 +189,18 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 		}
 		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ingress, metaV1.CreateOptions{})
 		if err != nil {
-			return listOfIngressCreated, err
+			return nil, listOfIngressCreated, err
 		}
 		listOfIngressCreated = append(listOfIngressCreated, ingressName)
+		ingressHostNames = append(ingressHostNames, hostName)
 
 	}
-	return listOfIngressCreated, nil
+	return listOfIngressCreated, ingressHostNames, nil
 }
 
-func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace string, num int, startIndex ...int) ([]string, error) {
+func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace string, num int, startIndex ...int) ([]string, []string, error) {
 	var listOfIngressCreated []string
+	var ingressHostNames []string
 	var startInd int
 	if len(startIndex) == 0 {
 		startInd = 0
@@ -202,6 +209,7 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 	}
 	for i := startInd; i < num+startInd; i++ {
 		ingressName := ingressNamePrefix + strconv.Itoa(i)
+		hostName := ingressName + SUBDOMAIN
 		ingress := &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": INGRESSAPIVERSION,
@@ -221,7 +229,7 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 					},
 					"rules": []map[string]interface{}{
 						{
-							"host": ingressName + SUBDOMAIN,
+							"host": hostName,
 							"http": map[string]interface{}{
 								"paths": []map[string]interface{}{
 									{
@@ -239,16 +247,19 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 		}
 		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ingress, metaV1.CreateOptions{})
 		if err != nil {
-			return listOfIngressCreated, err
+			return nil, listOfIngressCreated, err
 		}
 		listOfIngressCreated = append(listOfIngressCreated, ingressName)
+		ingressHostNames = append(ingressHostNames, hostName)
 
 	}
-	return listOfIngressCreated, nil
+	return listOfIngressCreated, ingressHostNames, nil
 }
 
-func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, namespace string, num int, startIndex ...int) ([]string, error) {
+func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, namespace string, num int, startIndex ...int) ([]string, []string, []string, error) {
 	var listOfIngressCreated []string
+	var ingressSecureHostNames []string
+	var ingressInsecureHostNames []string
 	var startInd int
 	if len(startIndex) == 0 {
 		startInd = 0
@@ -257,6 +268,8 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 	}
 	for i := startInd; i < num+startInd; i++ {
 		ingressName := ingressNamePrefix + "-multi-host-" + strconv.Itoa(i)
+		hostNameSecure := ingressName + "-secure" + SUBDOMAIN
+		hostNameInsecure := ingressName + "-insecure" + SUBDOMAIN
 		ingress := &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": INGRESSAPIVERSION,
@@ -270,13 +283,13 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 						{
 							"secretName": SECRETNAME,
 							"hosts": []interface{}{
-								ingressName + "-secure" + SUBDOMAIN,
+								hostNameSecure,
 							},
 						},
 					},
 					"rules": []map[string]interface{}{
 						{
-							"host": ingressName + "-secure" + SUBDOMAIN,
+							"host": hostNameSecure,
 							"http": map[string]interface{}{
 								"paths": []map[string]interface{}{
 									{
@@ -289,7 +302,7 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 							},
 						},
 						{
-							"host": ingressName + "-insecure" + SUBDOMAIN,
+							"host": hostNameInsecure,
 							"http": map[string]interface{}{
 								"paths": []map[string]interface{}{
 									{
@@ -307,12 +320,14 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 		}
 		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ingress, metaV1.CreateOptions{})
 		if err != nil {
-			return listOfIngressCreated, err
+			return nil, nil, listOfIngressCreated, err
 		}
 		listOfIngressCreated = append(listOfIngressCreated, ingressName)
+		ingressSecureHostNames = append(ingressSecureHostNames, hostNameSecure)
+		ingressInsecureHostNames = append(ingressInsecureHostNames, hostNameInsecure)
 
 	}
-	return listOfIngressCreated, nil
+	return listOfIngressCreated, ingressSecureHostNames, ingressInsecureHostNames, nil
 }
 
 func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, error) {
@@ -331,15 +346,50 @@ func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, 
 	return listOfDeletedIngresses, nil
 }
 
-func ListIngress(t *testing.T, namespace string) error {
-	t.Logf("Listing ingress in namespace %q:\n", namespace)
+func UpdateIngress(namespace string, listOfIngressToUpdate []string) ([]string, error) {
+	for i := 0; i < len(listOfIngressToUpdate); i++ {
+		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			result, getErr := kubeClient.Resource(ingressResource).Namespace(namespace).Get(listOfIngressToUpdate[i], metaV1.GetOptions{})
+			if getErr != nil {
+				panic(fmt.Errorf("Failed to get latest version of Ingress: %v", getErr))
+			}
+
+			rules, found, err := unstructured.NestedSlice(result.Object, "spec", "rules")
+			if err != nil || !found || rules == nil {
+				panic(fmt.Errorf("Ingress rules not found or error in spec: %v", err))
+			}
+			if err := unstructured.SetNestedField(rules[0].(map[string]interface{}), UPDATEPATH, "host"); err != nil {
+				panic(err)
+			}
+			if err := unstructured.SetNestedField(result.Object, rules, "spec", "rules"); err != nil {
+				panic(err)
+			}
+			_, updateErr := kubeClient.Resource(ingressResource).Namespace(namespace).Update(result, metaV1.UpdateOptions{})
+			return updateErr
+		})
+		if retryErr != nil {
+			panic(fmt.Errorf("Update failed: %v", retryErr))
+		}
+	}
+	return listOfIngressToUpdate, nil
+}
+
+func ListIngress(t *testing.T, namespace string) ([]string, error) {
+	var listOfIngress []string
 	list, err := kubeClient.Resource(ingressResource).Namespace(namespace).List(metaV1.ListOptions{})
 	if err != nil {
-		return err
+		return listOfIngress, err
 	}
 	for _, d := range list.Items {
-		t.Logf(" * %v", d)
+		listOfIngress = append(listOfIngress, d.GetName())
+	}
+	return listOfIngress, nil
+}
 
+func DeletePod(podName string, namespace string) error {
+	err := coreV1Client.Pods(namespace).Delete(podName, &metaV1.DeleteOptions{})
+	if err != nil {
+		return err
 	}
 	return nil
 }
