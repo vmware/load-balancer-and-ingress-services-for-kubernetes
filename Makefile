@@ -9,6 +9,13 @@ PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubern
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 AKO_OPERATOR_IMAGE=ako-operator
 
+
+ifdef GOLANG_SRC_REPO
+	BUILD_GO_IMG=$(GOLANG_SRC_REPO)
+else
+	BUILD_GO_IMG=golang:latest
+endif
+
 .PHONY: glob-vars
 glob-vars:
 ifndef BUILD_TAG
@@ -37,17 +44,12 @@ else
 	$(eval BUILD_ARG_UBI=)
 endif
 
-ifdef GOLANG_SRC_REPO
-	BUILD_GO_IMG=$(GOLANG_SRC_REPO)
-else
-	BUILD_GO_IMG=golang:latest
-endif
 
 .PHONY:all
 all: build docker
 
 .PHONY: build
-build:
+build: glob-vars
 		sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) -o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor /go/src/$(REL_PATH_AKO)
 

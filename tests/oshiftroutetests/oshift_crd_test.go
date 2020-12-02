@@ -196,8 +196,11 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() bool {
-		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		t.Logf("model found: %v, %v", found, aviModel)
+		if found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			t.Logf("nodes: %v", nodes)
 			if len(nodes[0].SniNodes) > 0 &&
 				len(nodes[0].SniNodes[0].PoolRefs) == 2 &&
 				len(nodes[0].PoolRefs) == 0 {
