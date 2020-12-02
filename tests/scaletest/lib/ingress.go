@@ -348,7 +348,6 @@ func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, 
 	return listOfDeletedIngresses, nil
 }
 
-<<<<<<< HEAD
 func UpdateIngress(namespace string, listOfIngressToUpdate []string) ([]string, error) {
 	for i := 0; i < len(listOfIngressToUpdate); i++ {
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -380,11 +379,6 @@ func UpdateIngress(namespace string, listOfIngressToUpdate []string) ([]string, 
 func ListIngress(t *testing.T, namespace string) ([]string, error) {
 	var listOfIngress []string
 	list, err := kubeClient.Resource(ingressResource).Namespace(namespace).List(metaV1.ListOptions{})
-=======
-func ListIngress(t *testing.T, namespace string) error {
-	t.Logf("Listing ingress in namespace %q:\n", namespace)
-	list, err := kubeClient.Resource(ingressResource).Namespace(namespace).List(ctx, metaV1.ListOptions{})
->>>>>>> st-integration
 	if err != nil {
 		return listOfIngress, err
 	}

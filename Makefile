@@ -100,9 +100,5 @@ int_test:
 
 .PHONY: scale_test
 scale_test:
-<<<<<<< HEAD
-	$(GOTEST) -mod=vendor -v ./tests/scaletest -failfast -timeout $(Timeout) $(NumOfIng) $(NumGoRoutines) $(TestbedFilePath)
-=======
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor ./tests/scaletest -failfast -timeout $(Timeout) $(NumGoRoutines) $(TestbedFilePath)
->>>>>>> st-integration
