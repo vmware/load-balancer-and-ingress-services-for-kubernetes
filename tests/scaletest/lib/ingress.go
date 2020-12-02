@@ -37,7 +37,7 @@ var ingressResource = schema.GroupVersionResource{Group: "extensions", Version: 
 var kubeClient dynamic.Interface
 var coreV1Client corev1.CoreV1Interface
 var appsV1Client appsv1.AppsV1Interface
-var ctx context.Context
+var ctx = context.TODO()
 
 const PORT = 8080
 const SUBDOMAIN = ".avi.internal"
