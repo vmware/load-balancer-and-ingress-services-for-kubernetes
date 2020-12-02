@@ -25,7 +25,6 @@ import (
 
 // AviApiRestStatus holds status details for AKO/AMKO <-> AVI connection
 type AviApiRestStatus struct {
-	sync.Mutex
 	ConnectionStatus string            `json:"connection_status"`
 	Errors           []RestStatusError `json:"errors"`
 }
@@ -40,7 +39,8 @@ var reststatusonce sync.Once
 
 // StatusModel implements ApiModel
 type StatusModel struct {
-	AviApi AviApiRestStatus `json:"avi_api"`
+	AviApi     AviApiRestStatus `json:"avi_api"`
+	statusLock sync.RWMutex
 }
 
 func (a *StatusModel) InitModel() {
@@ -72,8 +72,8 @@ func (a *StatusModel) ApiOperationMap() []OperationMap {
 
 // utility function to be used by modules to update RestStatus.AviApi
 func (a *StatusModel) UpdateAviApiRestStatus(connectionStatus string, err error) {
-	a.AviApi.Lock()
-	defer a.AviApi.Unlock()
+	a.statusLock.Lock()
+	defer a.statusLock.Unlock()
 	aviApiRestStatus := a.AviApi
 	var setConnectionStatus string
 
