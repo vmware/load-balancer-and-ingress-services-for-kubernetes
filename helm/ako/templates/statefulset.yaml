@@ -55,12 +55,12 @@ spec:
               secretKeyRef:
                 name: avi-secret
                 key: password
-          {{ if .Values.avicredentials.rootca  }}
+          {{ if .Values.avicredentials.certificateAuthorityData  }}
           - name: CTRL_CA_DATA
             valueFrom:
               secretKeyRef:
                 name: avi-secret
-                key: rootca
+                key: certificateAuthorityData
             {{ end }}
           - name: CTRL_IPADDRESS
             valueFrom:
@@ -97,11 +97,26 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: cloudName
+          - name: TENANT_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: tenantName
+          - name: TENANTS_PER_CLUSTER
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: tenantsPerCluster
           - name: CLUSTER_NAME
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: clusterName
+          - name: ENABLE_RHI
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: enableRHI
           - name: DEFAULT_DOMAIN
             valueFrom:
               configMapKeyRef:
@@ -119,6 +134,16 @@ spec:
                 name: avi-k8s-config
                 key: syncNamespace
           {{ end }}
+          - name: NAMESPACE_SYNC_LABEL_KEY
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nsSyncLabelKey
+          - name: NAMESPACE_SYNC_LABEL_VALUE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nsSyncLabelValue
           - name: SUBNET_IP
             valueFrom:
               configMapKeyRef:

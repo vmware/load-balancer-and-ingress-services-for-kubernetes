@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+
 	"os"
 	"sync"
 	"time"
@@ -27,9 +28,9 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	advl4 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
-	advl4 "github.com/vmware-tanzu/service-apis/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -113,8 +114,8 @@ func InitializeAKC() {
 
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
-		utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	}
+	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient)
 	if lib.GetAdvancedL4() {
@@ -128,13 +129,19 @@ func InitializeAKC() {
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
-	c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	if err != nil {
+		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")
+		return
+	}
+
 	err = k8s.PopulateCache()
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
+	c.InitializeNamespaceSync()
 	k8s.PopulateNodeCache(kubeClient)
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}

@@ -37,6 +37,8 @@ func SharedSvcLister() *SvcLister {
 			ingSecretStore:      NewObjectStore(),
 			secretHostNameStore: NewObjectStore(),
 			ingHostStore:        NewObjectStore(),
+			classIngStore:       NewObjectStore(),
+			ingClassStore:       NewObjectStore(),
 		}
 	})
 	return svclisterinstance
@@ -51,6 +53,8 @@ func OshiftRouteSvcLister() *SvcLister {
 			ingSecretStore:      NewObjectStore(),
 			secretHostNameStore: NewObjectStore(),
 			ingHostStore:        NewObjectStore(),
+			classIngStore:       NewObjectStore(),
+			ingClassStore:       NewObjectStore(),
 		}
 	})
 	return oshiftroutesvclister
@@ -63,17 +67,21 @@ type SvcLister struct {
 	ingSecretStore      *ObjectStore
 	ingHostStore        *ObjectStore
 	secretHostNameStore *ObjectStore
+	ingClassStore       *ObjectStore
+	classIngStore       *ObjectStore
 }
 
 type SvcNSCache struct {
 	namespace       string
-	svcIngobjects   *ObjectMapStore
+	svcIngObject    *ObjectMapStore
 	secretIngObject *ObjectMapStore
+	classIngObject  *ObjectMapStore
 	IngressLock     sync.RWMutex
 	IngNSCache
 	SecretIngNSCache
 	IngHostCache
 	SecretHostNameNSCache
+	IngClassNSCache
 }
 
 // stores path/policies for a hostname
@@ -87,38 +95,46 @@ type RouteIngrhost struct {
 }
 
 type IngNSCache struct {
-	ingSvcobjects *ObjectMapStore
+	ingSvcObjects *ObjectMapStore
 }
 
 type SecretIngNSCache struct {
-	secretIngobjects *ObjectMapStore
+	ingSecretObjects *ObjectMapStore
 }
 
 type SecretHostNameNSCache struct {
 	SecretLock            sync.RWMutex
-	secretHostNameobjects *ObjectMapStore
+	secretHostNameObjects *ObjectMapStore
+}
+
+type IngClassNSCache struct {
+	ingClassObjects *ObjectMapStore
 }
 
 type IngHostCache struct {
-	ingHostobjects *ObjectMapStore
+	ingHostObjects *ObjectMapStore
 }
 
 func (v *SvcLister) IngressMappings(ns string) *SvcNSCache {
 	return &SvcNSCache{
 		namespace:       ns,
-		svcIngobjects:   v.svcIngStore.GetNSStore(ns),
+		svcIngObject:    v.svcIngStore.GetNSStore(ns),
 		secretIngObject: v.secretIngStore.GetNSStore(ns),
+		classIngObject:  v.classIngStore.GetNSStore(ns),
 		IngNSCache: IngNSCache{
-			ingSvcobjects: v.ingSvcStore.GetNSStore(ns),
+			ingSvcObjects: v.ingSvcStore.GetNSStore(ns),
 		},
 		SecretHostNameNSCache: SecretHostNameNSCache{
-			secretHostNameobjects: v.secretHostNameStore.GetNSStore(ns),
+			secretHostNameObjects: v.secretHostNameStore.GetNSStore(ns),
 		},
 		SecretIngNSCache: SecretIngNSCache{
-			secretIngobjects: v.ingSecretStore.GetNSStore(ns),
+			ingSecretObjects: v.ingSecretStore.GetNSStore(ns),
 		},
 		IngHostCache: IngHostCache{
-			ingHostobjects: v.ingHostStore.GetNSStore(ns),
+			ingHostObjects: v.ingHostStore.GetNSStore(ns),
+		},
+		IngClassNSCache: IngClassNSCache{
+			ingClassObjects: v.ingClassStore.GetNSStore(ns),
 		},
 	}
 }
@@ -126,8 +142,7 @@ func (v *SvcLister) IngressMappings(ns string) *SvcNSCache {
 //=====All service to ingress mapping methods are here.
 
 func (v *SvcNSCache) GetSvcToIng(svcName string) (bool, []string) {
-	// Need checks if it's found or not?
-	found, ingNames := v.svcIngobjects.Get(svcName)
+	found, ingNames := v.svcIngObject.Get(svcName)
 	if !found {
 		return false, make([]string, 0)
 	}
@@ -135,21 +150,19 @@ func (v *SvcNSCache) GetSvcToIng(svcName string) (bool, []string) {
 }
 
 func (v *SvcNSCache) DeleteSvcToIngMapping(svcName string) bool {
-	// Need checks if it's found or not?
-	success := v.svcIngobjects.Delete(svcName)
+	success := v.svcIngObject.Delete(svcName)
 	utils.AviLog.Debugf("Deleted the service mappings for svc: %s", svcName)
 	return success
 }
 
 func (v *SvcNSCache) UpdateSvcToIngMapping(svcName string, ingressList []string) {
 	utils.AviLog.Debugf("Updated the service mappings with svc: %s, ingresses: %s", svcName, ingressList)
-	v.svcIngobjects.AddOrUpdate(svcName, ingressList)
+	v.svcIngObject.AddOrUpdate(svcName, ingressList)
 }
 
 //=====All secret to ingress mapping methods are here.
 
 func (v *SvcNSCache) GetSecretToIng(secretName string) (bool, []string) {
-	// Need checks if it's found or not?
 	found, ingNames := v.secretIngObject.Get(secretName)
 	if !found {
 		return false, make([]string, 0)
@@ -158,7 +171,6 @@ func (v *SvcNSCache) GetSecretToIng(secretName string) (bool, []string) {
 }
 
 func (v *SvcNSCache) DeleteSecretToIngMapping(secretName string) bool {
-	// Need checks if it's found or not?
 	success := v.secretIngObject.Delete(secretName)
 	utils.AviLog.Debugf("Deleted the ingress mappings for secret: %s", secretName)
 	return success
@@ -169,11 +181,31 @@ func (v *SvcNSCache) UpdateSecretToIngMapping(secretName string, ingressList []s
 	v.secretIngObject.AddOrUpdate(secretName, ingressList)
 }
 
+//=====All ingress class to ingress mapping methods are here.
+
+func (v *SvcNSCache) GetClassToIng(className string) (bool, []string) {
+	found, ingNames := v.classIngObject.Get(className)
+	if !found {
+		return false, make([]string, 0)
+	}
+	return true, ingNames.([]string)
+}
+
+func (v *SvcNSCache) DeleteClassToIngMapping(className string) bool {
+	success := v.classIngObject.Delete(className)
+	utils.AviLog.Debugf("Deleted the ingress mappings for class: %s", className)
+	return success
+}
+
+func (v *SvcNSCache) UpdateClassToIngMapping(className string, ingressList []string) {
+	utils.AviLog.Debugf("Updated the class mappings with class: %s, ingresses: %s", className, ingressList)
+	v.classIngObject.AddOrUpdate(className, ingressList)
+}
+
 //=====All ingress to service mapping methods are here.
 
 func (v *IngNSCache) GetIngToSvc(ingName string) (bool, []string) {
-	// Need checks if it's found or not?
-	found, svcNames := v.ingSvcobjects.Get(ingName)
+	found, svcNames := v.ingSvcObjects.Get(ingName)
 	if !found {
 		return false, make([]string, 0)
 	}
@@ -181,21 +213,19 @@ func (v *IngNSCache) GetIngToSvc(ingName string) (bool, []string) {
 }
 
 func (v *IngNSCache) DeleteIngToSvcMapping(ingName string) bool {
-	// Need checks if it's found or not?
-	success := v.ingSvcobjects.Delete(ingName)
+	success := v.ingSvcObjects.Delete(ingName)
 	return success
 }
 
 func (v *IngNSCache) UpdateIngToSvcMapping(ingName string, svcList []string) {
 	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, svcs: %s", ingName, svcList)
-	v.ingSvcobjects.AddOrUpdate(ingName, svcList)
+	v.ingSvcObjects.AddOrUpdate(ingName, svcList)
 }
 
-//=====All ingress to secret mapping methods are here.
+//=====All ingress to secret mapping methods are here
 
 func (v *SecretIngNSCache) GetIngToSecret(ingName string) (bool, []string) {
-	// Need checks if it's found or not?
-	found, secretNames := v.secretIngobjects.Get(ingName)
+	found, secretNames := v.ingSecretObjects.Get(ingName)
 	if !found {
 		return false, make([]string, 0)
 	}
@@ -203,20 +233,39 @@ func (v *SecretIngNSCache) GetIngToSecret(ingName string) (bool, []string) {
 }
 
 func (v *SecretIngNSCache) DeleteIngToSecretMapping(ingName string) bool {
-	// Need checks if it's found or not?
-	success := v.secretIngobjects.Delete(ingName)
+	success := v.ingSecretObjects.Delete(ingName)
 	return success
 }
 
 func (v *SecretIngNSCache) UpdateIngToSecretMapping(ingName string, secretList []string) {
 	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, secrets: %s", ingName, secretList)
-	v.secretIngobjects.AddOrUpdate(ingName, secretList)
+	v.ingSecretObjects.AddOrUpdate(ingName, secretList)
+}
+
+//=====All ingress to ingress class mapping methods are here.
+
+func (v *IngClassNSCache) GetIngToClass(ingName string) (bool, string) {
+	found, class := v.ingClassObjects.Get(ingName)
+	if !found {
+		return false, ""
+	}
+	return true, class.(string)
+}
+
+func (v *IngClassNSCache) DeleteIngToClassMapping(ingName string) bool {
+	success := v.ingClassObjects.Delete(ingName)
+	return success
+}
+
+func (v *IngClassNSCache) UpdateIngToClassMapping(ingName string, class string) {
+	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, class: %s", ingName, class)
+	v.ingClassObjects.AddOrUpdate(ingName, class)
 }
 
 //=====All secret to hostname mapping goes here.
 
 func (v *SecretHostNameNSCache) GetSecretToHostname(secretName string) (bool, []string) {
-	found, hostNames := v.secretHostNameobjects.Get(secretName)
+	found, hostNames := v.secretHostNameObjects.Get(secretName)
 	if !found {
 		return false, make([]string, 0)
 	}
@@ -224,8 +273,7 @@ func (v *SecretHostNameNSCache) GetSecretToHostname(secretName string) (bool, []
 }
 
 func (v *SecretHostNameNSCache) DeleteSecretToHostNameMapping(secretName string) bool {
-	// Need checks if it's found or not?
-	success := v.secretHostNameobjects.Delete(secretName)
+	success := v.secretHostNameObjects.Delete(secretName)
 	return success
 }
 
@@ -244,7 +292,7 @@ func (v *SecretHostNameNSCache) UpdateSecretToHostNameMapping(secretName string,
 		hostnames = []string{hostName}
 	}
 	utils.AviLog.Debugf("Updated the secret mappings for secret: %s, hostnames: %s", secretName, hostnames)
-	v.secretHostNameobjects.AddOrUpdate(secretName, hostnames)
+	v.secretHostNameObjects.AddOrUpdate(secretName, hostnames)
 }
 
 func (v *SecretHostNameNSCache) DecrementSecretToHostNameMapping(secretName string, hostName string) []string {
@@ -261,13 +309,12 @@ func (v *SecretHostNameNSCache) DecrementSecretToHostNameMapping(secretName stri
 	}
 	utils.AviLog.Debugf("After Decrement secret: %s, hostnames: %s", secretName, hostnames)
 
-	v.secretHostNameobjects.AddOrUpdate(secretName, hostnames)
+	v.secretHostNameObjects.AddOrUpdate(secretName, hostnames)
 	return hostnames
 }
 
 func (v *IngHostCache) GetIngToHost(ingName string) (bool, map[string]map[string][]string) {
-	// Need checks if it's found or not?
-	found, hosts := v.ingHostobjects.Get(ingName)
+	found, hosts := v.ingHostObjects.Get(ingName)
 	if !found {
 		return false, make(map[string]map[string][]string, 0)
 	}
@@ -275,7 +322,7 @@ func (v *IngHostCache) GetIngToHost(ingName string) (bool, map[string]map[string
 }
 
 func (v *IngHostCache) GetRouteIngToHost(ingName string) (bool, map[string]*RouteIngrhost) {
-	found, hosts := v.ingHostobjects.Get(ingName)
+	found, hosts := v.ingHostObjects.Get(ingName)
 	if !found {
 		return false, make(map[string]*RouteIngrhost)
 	}
@@ -284,17 +331,17 @@ func (v *IngHostCache) GetRouteIngToHost(ingName string) (bool, map[string]*Rout
 
 func (v *IngHostCache) UpdateRouteIngToHostMapping(ingName string, hostMap map[string]*RouteIngrhost) {
 	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostMap)
-	v.ingHostobjects.AddOrUpdate(ingName, hostMap)
+	v.ingHostObjects.AddOrUpdate(ingName, hostMap)
 }
 
 func (v *IngHostCache) DeleteIngToHostMapping(ingName string) bool {
-	success := v.ingHostobjects.Delete(ingName)
+	success := v.ingHostObjects.Delete(ingName)
 	return success
 }
 
 func (v *IngHostCache) UpdateIngToHostMapping(ingName string, hostMap map[string]map[string][]string) {
 	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostMap)
-	v.ingHostobjects.AddOrUpdate(ingName, hostMap)
+	v.ingHostObjects.AddOrUpdate(ingName, hostMap)
 }
 
 //===All cross mapping update methods are here.
@@ -328,6 +375,17 @@ func (v *SvcNSCache) UpdateIngressSecretsMappings(ingName string, secret string)
 		utils.AviLog.Debugf("Updated the ingress: %s to secrets: %s", ingName, secrets)
 		v.UpdateIngToSecretMapping(ingName, secrets)
 	}
+}
+
+func (v *SvcNSCache) UpdateIngressClassMappings(ingName string, ingClass string) {
+	v.IngressLock.Lock()
+	defer v.IngressLock.Unlock()
+	_, ingresses := v.GetClassToIng(ingClass)
+	if !utils.HasElem(ingresses, ingName) {
+		ingresses = append(ingresses, ingName)
+		v.UpdateClassToIngMapping(ingClass, ingresses)
+	}
+	v.UpdateIngToClassMapping(ingName, ingClass)
 }
 
 func (v *SvcNSCache) RemoveIngressMappings(ingName string) {
@@ -368,4 +426,18 @@ func (v *SvcNSCache) RemoveIngressSecretMappings(ingName string) {
 	}
 	// Remove the ingress from the ingress --> secret map
 	v.DeleteIngToSecretMapping(ingName)
+}
+
+func (v *SvcNSCache) RemoveIngressClassMappings(ingName string) {
+	v.IngressLock.Lock()
+	defer v.IngressLock.Unlock()
+	ok, class := v.GetIngToClass(ingName)
+	if ok {
+		found, ingresses := v.GetClassToIng(class)
+		if found {
+			ingresses = utils.Remove(ingresses, ingName)
+			v.UpdateClassToIngMapping(class, ingresses)
+		}
+	}
+	v.DeleteIngToClassMapping(ingName)
 }

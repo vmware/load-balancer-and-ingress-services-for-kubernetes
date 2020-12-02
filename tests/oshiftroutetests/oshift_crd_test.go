@@ -15,6 +15,7 @@
 package oshiftroutetests
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func TestRouteCreateHostRule(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -44,7 +45,7 @@ func TestRouteCreateHostRule(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := lib.GetCRDClientset().AkoV1alpha1().HostRules(DefaultNamespace).Get(hrname, metav1.GetOptions{})
+		hostrule, _ := lib.GetCRDClientset().AkoV1alpha1().HostRules(DefaultNamespace).Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 50*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -80,13 +81,13 @@ func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules(DefaultNamespace).Get(hrname, metav1.GetOptions{})
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules(DefaultNamespace).Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 50*time.Second).Should(gomega.Equal("Accepted"))
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -127,7 +128,7 @@ func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -176,7 +177,7 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 	// creating secure default/foo.com/foo
 	SetUpTestForRoute(t, modelName)
 	secRouteExample := FakeRoute{Path: "/foo"}.SecureRoute()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(secRouteExample); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), secRouteExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -186,7 +187,7 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 		Namespace: "red",
 		Path:      "/bar",
 	}.Route()
-	_, err := OshiftClient.RouteV1().Routes("red").Create(routeExample)
+	_, err := OshiftClient.RouteV1().Routes("red").Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -229,7 +230,7 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 	// creating insecure default/foo.com/foo
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -240,7 +241,7 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 		Hostname:  "voo.com",
 		Path:      "/voo",
 	}.Route()
-	if _, err := OshiftClient.RouteV1().Routes("red").Create(routeExampleVoo); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes("red").Create(context.TODO(), routeExampleVoo, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -273,7 +274,7 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 		SslKeyCertificate: "thisisahostruleref-sslkey",
 	}.HostRule()
 	hrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
@@ -309,7 +310,7 @@ func TestOshiftGoodToBadHostRule(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -327,12 +328,12 @@ func TestOshiftGoodToBadHostRule(t *testing.T) {
 		ApplicationProfile: "thisisahostruleref-appprof",
 	}.HostRule()
 	hrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(hrname, metav1.GetOptions{})
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Rejected"))
 
@@ -364,7 +365,7 @@ func TestOshiftInsecureHostAndHostrule(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
@@ -396,7 +397,7 @@ func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExample); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
@@ -411,7 +412,7 @@ func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 		SslKeyCertificate: "thisisahostruleref-sslkey",
 	}.HostRule()
 	hrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
@@ -434,7 +435,7 @@ func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 		SslKeyCertificate: "thisisahostruleref-sslkey",
 	}.HostRule()
 	hrUpdate.ResourceVersion = "3"
-	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(hrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
@@ -465,11 +466,11 @@ func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 
 	SetUpTestForRoute(t, modelName)
 	routeExampleFoo := FakeRoute{Path: "/foo"}.SecureRoute()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExampleFoo); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExampleFoo, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	routeExampleBar := FakeRoute{Name: "foobar", Path: "/bar"}.SecureRoute()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExampleBar); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExampleBar, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -525,11 +526,11 @@ func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 	// creates foo.com insecure
 	SetUpTestForRoute(t, modelName)
 	routeExampleFoo := FakeRoute{Path: "/foo"}.SecureRoute()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExampleFoo); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExampleFoo, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	routeExampleVoo := FakeRoute{Name: "voo", Hostname: "voo.com", Path: "/foo"}.Route()
-	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(routeExampleVoo); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(DefaultNamespace).Create(context.TODO(), routeExampleVoo, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -559,7 +560,7 @@ func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 		}},
 	}.HTTPRule()
 	rrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HTTPRules("default").Update(rrUpdate); err != nil {
+	if _, err := CRDClient.AkoV1alpha1().HTTPRules("default").Update(context.TODO(), rrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 

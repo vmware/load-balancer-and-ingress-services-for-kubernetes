@@ -24,10 +24,10 @@ import (
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 )
 
 /*
@@ -1001,6 +1001,7 @@ type AviPoolMetaServer struct {
 type IngressHostPathSvc struct {
 	ServiceName string
 	Path        string
+	PathType	networkingv1beta1.PathType
 	Port        int32
 	weight      int32 //required for alternate backends in openshift route
 	PortName    string

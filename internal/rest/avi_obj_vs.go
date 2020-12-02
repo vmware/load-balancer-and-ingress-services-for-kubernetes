@@ -60,6 +60,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		svc_mdata := string(svc_mdata_json)
 		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 		seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
+		enableRHI := lib.GetEnableRHI() // We don't impact the checksum of the VS since it's a global setting in AKO.
 		vs := avimodels.VirtualService{
 			Name:                  &name,
 			NetworkProfileRef:     &network_prof,
@@ -70,6 +71,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			ServiceMetadata:       &svc_mdata,
 			SeGroupRef:            &seGroupRef,
 			VrfContextRef:         &vrfContextRef,
+			EnableRhi:             &enableRHI,
 		}
 		if lib.GetAdvancedL4() {
 			ignPool := true
@@ -612,8 +614,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		}
 		vsvip.DNSInfo = dns_info_arr
 
-		// handling static IP updates in case of advl4 workflows
-		if lib.GetAdvancedL4() && vsvip_meta.IPAddress != "" {
+		// handling static IP updates, this would throw an error
+		// for advl4 the error is propogated to the gateway status
+		if vsvip_meta.IPAddress != "" {
 			auto_alloc := true
 			var vips []*avimodels.Vip
 			vips = append(vips, &avimodels.Vip{
@@ -633,33 +636,21 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	} else {
 		auto_alloc := true
 		var vips []*avimodels.Vip
-		var vip avimodels.Vip
+
+		// all vsvip models would have auto_alloc set to true even in case of static IP programming
+		vip := avimodels.Vip{AutoAllocateIP: &auto_alloc}
 		networkRef := lib.GetNetworkName()
 		if lib.IsPublicCloud() && lib.GetNetworkName() != "" {
-			vip = avimodels.Vip{
-				AutoAllocateIP: &auto_alloc,
-				SubnetUUID:     &networkRef,
-			}
-		} else if lib.GetAdvancedL4() {
-			if vsvip_meta.IPAddress != "" {
-				auto_alloc = true
-				vip = avimodels.Vip{
-					VipID:          &vipId,
-					AutoAllocateIP: &auto_alloc,
-					IPAddress: &avimodels.IPAddr{
-						Type: &ipType,
-						Addr: &vsvip_meta.IPAddress,
-					},
-				}
-			} else {
-				vip = avimodels.Vip{
-					AutoAllocateIP: &auto_alloc,
-				}
+			vip.SubnetUUID = &networkRef
+		} else if vsvip_meta.IPAddress != "" {
+			vip.VipID = &vipId
+			vip.IPAddress = &avimodels.IPAddr{
+				Type: &ipType,
+				Addr: &vsvip_meta.IPAddress,
 			}
 		} else if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
 			utils.AviLog.Warnf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
-			vip = avimodels.Vip{AutoAllocateIP: &auto_alloc}
-		} else {
+		} else if !lib.GetAdvancedL4() {
 			intCidr, err := strconv.ParseInt(lib.GetSubnetPrefix(), 10, 32)
 			if err != nil {
 				utils.AviLog.Warnf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
@@ -671,12 +662,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			subnet_ip_obj := avimodels.IPAddr{Type: &subnet_atype, Addr: &subnet_addr}
 			subnet_obj := avimodels.IPAddrPrefix{IPAddr: &subnet_ip_obj, Mask: &subnet_mask}
 			networkRef = "/api/network/?name=" + lib.GetNetworkName()
-			vip = avimodels.Vip{
-				AutoAllocateIP: &auto_alloc,
-				IPAMNetworkSubnet: &avimodels.IPNetworkSubnet{
-					Subnet:     &subnet_obj,
-					NetworkRef: &networkRef,
-				},
+			vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
+				Subnet:     &subnet_obj,
+				NetworkRef: &networkRef,
 			}
 		}
 

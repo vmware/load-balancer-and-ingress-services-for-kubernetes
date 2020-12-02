@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,11 +34,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
-
-var IngressApiMap = map[string]string{
-	"corev1":      utils.CoreV1IngressInformer,
-	"extensionv1": utils.ExtV1IngressInformer,
-}
 
 var ShardSchemeMap = map[string]string{
 	"hostname":  "hostname",
@@ -131,7 +127,7 @@ func GetL7SharedPGName(vsName string) string {
 }
 
 func GetL7PoolName(priorityLabel, namespace, ingName string, args ...string) string {
-	priorityLabel = strings.Replace(priorityLabel, "/", "_", 1)
+	priorityLabel = strings.ReplaceAll(priorityLabel, "/", "_")
 	poolName := NamePrefix + priorityLabel + "-" + namespace + "-" + ingName
 	if len(args) > 0 {
 		svcName := args[0]
@@ -152,7 +148,7 @@ func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) st
 }
 
 func GetSniPoolName(ingName, namespace, host, path string, args ...string) string {
-	path = strings.Replace(path, "/", "_", 1)
+	path = strings.ReplaceAll(path, "/", "_")
 	poolName := NamePrefix + namespace + "-" + host + path + "-" + ingName
 	if len(args) > 0 {
 		svcName := args[0]
@@ -214,22 +210,24 @@ func GetVrf() string {
 	return VRFContext
 }
 
-func GetTenant() string {
-	// tenant := os.Getenv("CTRL_TENANT")
-	// if tenant == "" {
-	// 	tenant = utils.ADMIN_NS
-	// }
-	tenant := utils.ADMIN_NS
-	return tenant
+func GetAdminTenant() string {
+	return utils.ADMIN_NS
 }
 
-func GetIngressApi() string {
-	ingressApi := os.Getenv(INGRESS_API)
-	ingressApi, ok := IngressApiMap[ingressApi]
-	if !ok {
-		return utils.CoreV1IngressInformer
+func GetTenant() string {
+	tenantName := os.Getenv("TENANT_NAME")
+	if tenantName != "" {
+		return tenantName
 	}
-	return ingressApi
+	return utils.ADMIN_NS
+}
+
+func GetTenantsPerCluster() bool {
+	tpc := os.Getenv("TENANTS_PER_CLUSTER")
+	if tpc == "true" {
+		return true
+	}
+	return false
 }
 
 func GetShardScheme() string {
@@ -256,6 +254,25 @@ func GetNamespaceToSync() string {
 		return namespace
 	}
 	return ""
+}
+
+func GetEnableRHI() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv(ENABLE_RHI)); ok {
+		utils.AviLog.Debugf("Enable RHI set to true")
+		return true
+	}
+	utils.AviLog.Debugf("Enable RHI set to false")
+	return false
+}
+
+func GetLabelToSyncNamespace() (string, string) {
+	labelKey := os.Getenv("NAMESPACE_SYNC_LABEL_KEY")
+	labelValue := os.Getenv("NAMESPACE_SYNC_LABEL_VALUE")
+
+	if strings.Trim(labelKey, " ") != "" && strings.Trim(labelValue, " ") != "" {
+		return labelKey, labelValue
+	}
+	return "", ""
 }
 
 // The port to run the AKO API server on
@@ -352,6 +369,15 @@ func GetAdvancedL4() bool {
 	return false
 }
 
+func CheckControllerVersionCompatibility(version, maxVersion string) bool {
+	if c, err := semver.NewConstraint(fmt.Sprintf("> %s", maxVersion)); err == nil {
+		if currentVersion, err := semver.NewVersion(version); err == nil && c.Check(currentVersion) {
+			return true
+		}
+	}
+	return false
+}
+
 func GetDisableStaticRoute() bool {
 	if GetAdvancedL4() {
 		return true
@@ -388,6 +414,7 @@ func GetClusterID() string {
 	}
 	return ""
 }
+
 func IsClusterNameValid() bool {
 	clusterName := GetClusterName()
 	re := regexp.MustCompile("^[a-zA-Z0-9-_]*$")
@@ -402,14 +429,18 @@ func IsClusterNameValid() bool {
 }
 
 var StaticRouteSyncChan chan struct{}
+var ConfigDeleteSyncChan chan struct{}
 
-var akoApi *api.ApiServer
+var akoApi api.ApiServerInterface
 
 func SetStaticRouteSyncHandler() {
 	StaticRouteSyncChan = make(chan struct{})
 }
+func SetConfigDeleteSyncChan() {
+	ConfigDeleteSyncChan = make(chan struct{})
+}
 
-func SetApiServerInstance(akoApiInstance *api.ApiServer) {
+func SetApiServerInstance(akoApiInstance api.ApiServerInterface) {
 	akoApi = akoApiInstance
 }
 
@@ -446,13 +477,14 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
-		_, err := oclient.RouteV1().Routes("").List(metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+		_, err := oclient.RouteV1().Routes("").List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 		if err == nil {
 			// Openshift cluster with route support, we will just add route informer
 			allInformers = append(allInformers, utils.RouteInformer)
 		} else {
 			// Kubernetes cluster
 			allInformers = append(allInformers, utils.IngressInformer)
+			allInformers = append(allInformers, utils.IngressClassInformer)
 		}
 	}
 	return allInformers
@@ -502,9 +534,16 @@ func GetCloudType() string {
 	return CloudType
 }
 
-func IsPublicCloud() bool {
+var IsCloudInAdminTenant = true
 
-	if GetCloudType() == CLOUD_AZURE || GetCloudType() == CLOUD_AWS {
+func SetIsCloudInAdminTenant(isCloudInAdminTenant bool) {
+	IsCloudInAdminTenant = isCloudInAdminTenant
+}
+
+func IsPublicCloud() bool {
+	cloudType := GetCloudType()
+	if cloudType == CLOUD_AZURE || cloudType == CLOUD_AWS ||
+		cloudType == CLOUD_GCP {
 		return true
 	}
 	return false
@@ -577,4 +616,24 @@ func VSVipDelRequired() bool {
 		}
 	}
 	return false
+}
+
+func ContainsFinalizer(o metav1.Object, finalizer string) bool {
+	f := o.GetFinalizers()
+	for _, e := range f {
+		if e == finalizer {
+			return true
+		}
+	}
+	return false
+}
+
+// GetAKONamespace returns the namespace of AKO pod.
+// In Advance L4 Mode this is vmware-system-ako
+// In all other cases this is avi-system
+func GetAKONamespace() string {
+	if GetAdvancedL4() {
+		return VMwareNS
+	}
+	return AviNS
 }

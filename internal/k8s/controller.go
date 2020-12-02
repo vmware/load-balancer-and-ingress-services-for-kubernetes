@@ -27,8 +27,9 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/networking/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -120,7 +121,7 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 }
 
 // Consider an ingress has been updated only if spec/annotation is updated
-func isIngressUpdated(oldIngress, newIngress *v1beta1.Ingress) bool {
+func isIngressUpdated(oldIngress, newIngress *networkingv1beta1.Ingress) bool {
 	if oldIngress.ResourceVersion == newIngress.ResourceVersion {
 		return false
 	}
@@ -153,11 +154,134 @@ func isRouteUpdated(oldRoute, newRoute *routev1.Route) bool {
 	return false
 }
 
+func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
+	if oldNS.ResourceVersion == newNS.ResourceVersion {
+		return false
+	}
+	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
+	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
+	if oldLabelHash != newLabelHash {
+		return true
+	}
+	return false
+}
+func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
+	ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("NS to ingress queue add: Error occured while retrieving ingresss for namespace: %s", namespace)
+		return
+	}
+	for _, ingObj := range ingObjs {
+		key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+	}
+
+}
+func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
+	routeObjs, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("NS to route queue add: Error occured while retrieving routes for namespace: %s", namespace)
+		return
+	}
+	for _, routeObj := range routeObjs {
+		key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+	}
+
+}
+
+/*
+ * Namespace Add event: will be called during each boot or newNS added. In add event
+ * handler, just add valid namespaces as Ingress handling, present in namespace, will be done
+ * during fullk8sync for reboot case or individual ingress handler called for ingress add event
+ * (For second case, user will add namespace first and then ingress, so just validating namespace
+ * should be enough)
+ */
+/* Namespace Delete event: no op. Let individual event handler take care
+ */
+/* Namespace update event:  2 cases to handle : NS label changed from 1) valid to invalid --> Call ingress delete
+ * 2) invalid to valid --> Call ingress add
+ */
+
+func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
+	namespaceEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			ns := obj.(*corev1.Namespace)
+			nsLabels := ns.GetLabels()
+			nsFilterObj := utils.GetGlobalNSFilter()
+			if utils.CheckIfNamespaceAccepted(ns.GetName(), nsFilterObj, nsLabels, false) {
+				utils.AddNamespaceToFilter(ns.GetName(), nsFilterObj)
+				utils.AviLog.Debugf("NS Add event: Namespace passed filter: %s", ns.GetName())
+			} else {
+				//Case: previoulsy deleted valid NS, added back with no labels or invalid labels but nsList contain that ns
+				utils.AviLog.Debugf("NS Add event: Namespace did not pass filter: %s", ns.GetName())
+				if utils.CheckIfNamespaceAccepted(ns.GetName(), nsFilterObj, nil, true) {
+					utils.AviLog.Debugf("Ns Add event: Deleting previous valid namespace: %s from valid NS List", ns.GetName())
+					utils.DeleteNamespaceFromFilter(ns.GetName(), nsFilterObj)
+				}
+			}
+
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			nsOld := old.(*corev1.Namespace)
+			nsCur := cur.(*corev1.Namespace)
+			nsFilterObj := utils.GetGlobalNSFilter()
+			if isNamespaceUpdated(nsOld, nsCur) {
+				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsFilterObj, nsOld.Labels, false)
+				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsFilterObj, nsCur.Labels, false)
+
+				if !oldNSAccepted && newNSAccepted {
+					//Case 1: Namespace updated with valid labels
+					//Call ingress add
+					utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
+					utils.AddNamespaceToFilter(nsCur.GetName(), nsFilterObj)
+					if utils.GetInformers().IngressInformer != nil {
+						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					} else if utils.GetInformers().RouteInformer != nil {
+						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
+				} else if oldNSAccepted && !newNSAccepted {
+					//Case 2: Old valid namespace updated with invalid labels
+					//Call ingress delete
+					utils.AviLog.Debugf("Deleting ingresses for namespaces: %s", nsCur.GetName())
+					utils.DeleteNamespaceFromFilter(nsCur.GetName(), nsFilterObj)
+					if utils.GetInformers().IngressInformer != nil {
+						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					} else if utils.GetInformers().RouteInformer != nil {
+						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					}
+				}
+
+			}
+
+		},
+	}
+	return namespaceEventHandler
+}
+
 func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
 	routeEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
+			nsFilterObj := utils.GetGlobalNSFilter()
+			if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				utils.AviLog.Debugf("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
+				return
+			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
 			bkt := utils.Bkt(namespace, numWorkers)
 			if !lib.HasValidBackends(route.Spec, route.Name, namespace, key) {
@@ -184,6 +308,11 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				}
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
+			nsFilterObj := utils.GetGlobalNSFilter()
+			if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				utils.AviLog.Debugf("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
+				return
+			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -197,6 +326,11 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			newRoute := cur.(*routev1.Route)
 			if isRouteUpdated(oldRoute, newRoute) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
+				nsFilterObj := utils.GetGlobalNSFilter()
+				if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+					utils.AviLog.Debugf("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
+					return
+				}
 				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
 				bkt := utils.Bkt(namespace, numWorkers)
 				if !lib.HasValidBackends(newRoute.Spec, newRoute.Name, namespace, key) {
@@ -449,72 +583,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.dynamicInformers.HostSubnetInformer.Informer().AddEventHandler(hostSubnetHandler)
 	}
 
-	if lib.GetAdvancedL4() {
-		// servicesAPI handlers GW/GWClass
-		c.SetupAdvL4EventHandlers(numWorkers)
-		return
-	}
-
-	ingressEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ingress, ok := utils.ToNetworkingIngress(obj)
-			if !ok {
-				utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
-			}
-
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			key := utils.Ingress + "/" + utils.ObjKey(ingress)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ingress, ok := utils.ToNetworkingIngress(obj)
-			if !ok {
-				// ingress was deleted but its final state is unrecorded.
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-					return
-				}
-				ingress, ok = tombstone.Obj.(*v1beta1.Ingress)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
-					return
-				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			key := utils.Ingress + "/" + utils.ObjKey(ingress)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oldobj, okOld := utils.ToNetworkingIngress(old)
-			ingress, okNew := utils.ToNetworkingIngress(cur)
-			if !okOld || !okNew {
-				utils.AviLog.Errorf("Unable to convert obj type interface to networking/v1beta1 ingress")
-			}
-
-			if isIngressUpdated(oldobj, ingress) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-				key := utils.Ingress + "/" + utils.ObjKey(ingress)
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
-		},
-	}
-
 	secretEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -540,15 +608,17 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 				secret, ok = tombstone.Obj.(*corev1.Secret)
 				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
+					utils.AviLog.Errorf("Tombstone contained object that is not a Secret: %#v", obj)
 					return
 				}
 			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
-			key := "Secret" + "/" + utils.ObjKey(secret)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			if validateAviSecret(secret) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+				key := "Secret" + "/" + utils.ObjKey(secret)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
@@ -556,13 +626,92 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			oldobj := old.(*corev1.Secret)
 			secret := cur.(*corev1.Secret)
-			if oldobj.ResourceVersion != secret.ResourceVersion {
-				// Only add the key if the resource versions have changed.
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
-				key := "Secret" + "/" + utils.ObjKey(secret)
+			if oldobj.ResourceVersion != secret.ResourceVersion && !reflect.DeepEqual(secret.Data, oldobj.Data) {
+				if validateAviSecret(secret) {
+					// Only add the key if the resource versions have changed.
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+					key := "Secret" + "/" + utils.ObjKey(secret)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			}
+		},
+	}
+
+	if c.informers.SecretInformer != nil {
+		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
+	}
+
+	if lib.GetAdvancedL4() {
+		// servicesAPI handlers GW/GWClass
+		c.SetupAdvL4EventHandlers(numWorkers)
+		return
+	}
+
+	ingressEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			ingress := obj.(*networkingv1beta1.Ingress)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
+			nsFilterObj := utils.GetGlobalNSFilter()
+			if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			} else {
+				utils.AviLog.Debugf("Ingress add event: Namespace: %s didn't qualify filter. Not adding ingress", namespace)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			ingress, ok := obj.(*networkingv1beta1.Ingress)
+			if !ok {
+				// ingress was deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				ingress, ok = tombstone.Obj.(*networkingv1beta1.Ingress)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
+			nsFilterObj := utils.GetGlobalNSFilter()
+			if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				key := utils.Ingress + "/" + utils.ObjKey(ingress)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			} else {
+				utils.AviLog.Debugf("Ingress Delete event: NS %s didn't qualify. Not deleting ingress", namespace)
+			}
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldobj := old.(*networkingv1beta1.Ingress)
+			ingress := cur.(*networkingv1beta1.Ingress)
+			if isIngressUpdated(oldobj, ingress) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
+				nsFilterObj := utils.GetGlobalNSFilter()
+				if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+					key := utils.Ingress + "/" + utils.ObjKey(ingress)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				} else {
+					utils.AviLog.Debugf("Ingress update Event. NS %s didn't qualify. Not updating ingress", namespace)
+				}
 			}
 		},
 	}
@@ -619,7 +768,62 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	if c.informers.IngressInformer != nil {
 		c.informers.IngressInformer.Informer().AddEventHandler(ingressEventHandler)
-		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
+	}
+
+	if c.informers.IngressClassInformer != nil {
+		ingressClassEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ingClass := obj.(*networkingv1beta1.IngressClass)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingClass))
+				key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ingClass, ok := obj.(*networkingv1beta1.IngressClass)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					ingClass, ok = tombstone.Obj.(*networkingv1beta1.IngressClass)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an IngressClass: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingClass))
+				key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldobj := old.(*networkingv1beta1.IngressClass)
+				ingClass := cur.(*networkingv1beta1.IngressClass)
+				if oldobj.ResourceVersion != ingClass.ResourceVersion {
+					// Only add the key if the resource versions have changed.
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingClass))
+					key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			},
+		}
+		
+		c.informers.IngressClassInformer.Informer().AddEventHandler(ingressClassEventHandler)
 	}
 
 	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
@@ -635,6 +839,15 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	// Add CRD handlers HostRule/HTTPRule
 	c.SetupAKOCRDEventHandlers(numWorkers)
+
+	//Add namespace event handler if migration is enabled and informer not nil
+	nsFilterObj := utils.GetGlobalNSFilter()
+	if nsFilterObj.EnableMigration && c.informers.NSInformer != nil {
+		utils.AviLog.Debug("Adding namespace event handler")
+		namespaceEventHandler := AddNamespaceEventHandler(numWorkers, c)
+		c.informers.NSInformer.Informer().AddEventHandler(namespaceEventHandler)
+	}
+
 }
 
 func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
@@ -644,21 +857,31 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 		if configMap.Name == lib.AviConfigMap {
 			return configMap, true
 		}
-	} else if ok && configMap.Namespace == lib.AviNS && configMap.Name == lib.AviConfigMap {
-		return configMap, true
-	} else if ok && lib.GetAdvancedL4() && configMap.Namespace == lib.VMwareNS && configMap.Name == lib.AviConfigMap {
+	} else if ok && configMap.Namespace == lib.GetAKONamespace() && configMap.Name == lib.AviConfigMap {
 		return configMap, true
 	}
 	return nil, false
 }
 
+func validateAviSecret(secret *corev1.Secret) bool {
+	if secret.Namespace == lib.GetAKONamespace() && secret.Name == lib.AviSecret {
+		// if the secret is updated or deleted we shutdown API server
+		utils.AviLog.Warnf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
+		lib.ShutdownApi()
+		return false
+	}
+	return true
+}
+
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
+	go c.informers.SecretInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
+		c.informers.SecretInformer.Informer().HasSynced,
 	}
 
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {
@@ -685,20 +908,27 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	} else {
 		if c.informers.IngressInformer != nil {
 			go c.informers.IngressInformer.Informer().Run(stopCh)
-			go c.informers.SecretInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
-			informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 		}
+
 		if c.informers.RouteInformer != nil {
 			go c.informers.RouteInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.RouteInformer.Informer().HasSynced)
 		}
+
+		if c.informers.IngressClassInformer != nil {
+			go c.informers.IngressClassInformer.Informer().Run(stopCh)
+			informersList = append(informersList, c.informers.IngressClassInformer.Informer().HasSynced)
+		}
+
 		go c.informers.NSInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.NSInformer.Informer().HasSynced)
+
 		go c.informers.NodeInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)
+
 		go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
 		go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)
-		informersList = append(informersList, c.informers.NSInformer.Informer().HasSynced)
 		// separate wait steps to try getting hostrules synced first,
 		// since httprule has a key relation to hostrules.
 		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {

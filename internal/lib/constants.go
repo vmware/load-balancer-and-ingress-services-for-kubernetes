@@ -16,11 +16,13 @@ package lib
 
 const (
 	DISABLE_STATIC_ROUTE_SYNC = "DISABLE_STATIC_ROUTE_SYNC"
+	ENABLE_RHI                = "ENABLE_RHI"
 	CNI_PLUGIN                = "CNI_PLUGIN"
 	CALICO_CNI                = "calico"
 	OPENSHIFT_CNI             = "openshift"
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
+	AviSecret                 = "avi-secret"
 	AviNS                     = "avi-system"
 	VMwareNS                  = "vmware-system-ako"
 
@@ -41,6 +43,7 @@ const (
 	CLOUD_VCENTER                              = "CLOUD_VCENTER"
 	CLOUD_AZURE                                = "CLOUD_AZURE"
 	CLOUD_AWS                                  = "CLOUD_AWS"
+	CLOUD_GCP                                  = "CLOUD_GCP"
 	CLOUD_NONE                                 = "CLOUD_NONE"
 	DEFAULT_SHARD_SCHEME                       = "hostname"
 	HOSTNAME_SHARD_SCHEME                      = "hostname"
@@ -68,6 +71,7 @@ const (
 	CertTypeVS                                 = "SSL_CERTIFICATE_TYPE_VIRTUALSERVICE"
 	CertTypeCA                                 = "SSL_CERTIFICATE_TYPE_CA"
 	VSVIPDELCTRLVER                            = "20.1.1"
+	Advl4ControllerVersion                     = "20.1.2"
 	HostRule                                   = "HostRule"
 	HTTPRule                                   = "HTTPRule"
 	DummySecret                                = "@avisslkeycertrefdummy"
@@ -85,12 +89,26 @@ const (
 	GatewayNamespaceLabelKey                   = "service.route.lbapi.run.tanzu.vmware.com/gateway-namespace"
 	GatewayTypeLabelKey                        = "service.route.lbapi.run.tanzu.vmware.com/type"
 	AviGatewayController                       = "lbapi.run.tanzu.vmware.com/avi-lb"
+	AviIngressController                       = "ako.vmware.com/avi-lb"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
 	ControllerReqWaitTime                      = 300
 	PassthroughInsecure                        = "-insecure"
 	AviControllerVSVipIDChangeError            = "Changing an existing VIP's vip_id is not supported"
 	AviControllerRecreateVIPError              = "If a new preferred IP is needed, please recreate the VIP"
 	DefaultSEGroup                             = "Default-Group"
+	GatewayFinalizer                           = "gateway.ako.vmware.com"
+	ClusterStatusCacheKey                      = "cluster-runtime"
+	AviObjDeletionTime                         = 30 // Minutes
+	AKOConditionType                           = "akoStatus"
+	AKOStatefulSet                             = "ako"
+	ObjectDeletionStartStatus                  = "objDeletionStarted"
+	ObjectDeletionDoneStatus                   = "objDeletionDone"
+	ObjectDeletionTimeoutStatus                = "objDeletionTimeout"
+	DefaultIngressClassAnnotation              = "ingressclass.kubernetes.io/is-default-class"
+
+	//Specifies command used in namespace event handler
+	NsFilterAdd    = "ADD"
+	NsFilterDelete = "DELETE"
 )
 
 const (

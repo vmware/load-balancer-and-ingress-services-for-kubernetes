@@ -62,7 +62,7 @@ func GetSvcKeysForNodeCRUD() (svcl4Keys []string, svcl7Keys []string) {
 
 	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
+		utils.AviLog.Errorf("Unable to retrieve the services : %s", err)
 		return
 	}
 	for _, svc := range svcObjs {

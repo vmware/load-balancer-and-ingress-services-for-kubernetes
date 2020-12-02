@@ -20,7 +20,6 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -162,35 +161,20 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 		return true
 	}
 
-	// Check if the gateway has a valid gwclass or not.
-	err = validateGatewayObj(key, gateway)
+	// check if deletiontimesttamp is present to see intended delete
+	if gateway.GetDeletionTimestamp() != nil {
+		utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
+		return true
+	}
+
+	// Check if the gateway has a valid gateway class
+	err = validateGatewayForClass(key, gateway)
 	if err != nil {
 		return true
 	}
 
-	found, gwListeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
+	found, _ := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
 	if !found {
-		return true
-	}
-
-	// check if the gateway is mapped to only single backend service, if not delete
-	found, svcListeners := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gwName)
-	if !found {
-		return true
-	}
-	var validGwServices []string
-	for svcPortProto, services := range svcListeners {
-		if utils.HasElem(gwListeners, svcPortProto) {
-			if len(services) > 1 {
-				utils.AviLog.Warnf("key: %s, msg: multiple services %v mapped to gateway port, skip VS creation for portconflict", key, services)
-				return true
-			}
-			validGwServices = append(validGwServices, services...)
-		}
-	}
-
-	if len(validGwServices) == 0 {
-		utils.AviLog.Warnf("key: %s, msg: no services mapped to gateway port, skip VS creation", key)
 		return true
 	}
 
@@ -291,6 +275,11 @@ func handleIngress(key string, fullsync bool, ingressNames []string) {
 
 func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, string) {
 	if objType == lib.HostRule || objType == lib.HTTPRule {
+		arr := strings.Split(nsname, "/")
+		return arr[0], arr[1]
+	}
+
+	if objType == utils.IngressClass {
 		arr := strings.Split(nsname, "/")
 		return arr[0], arr[1]
 	}

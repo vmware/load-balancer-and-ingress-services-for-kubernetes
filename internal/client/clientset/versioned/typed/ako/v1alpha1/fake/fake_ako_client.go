@@ -20,7 +20,6 @@ package fake
 
 import (
 	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned/typed/ako/v1alpha1"
-
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

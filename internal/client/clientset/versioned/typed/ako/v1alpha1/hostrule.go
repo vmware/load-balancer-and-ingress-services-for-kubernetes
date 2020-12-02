@@ -19,11 +19,11 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"time"
 
 	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	scheme "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned/scheme"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -38,15 +38,15 @@ type HostRulesGetter interface {
 
 // HostRuleInterface has methods to work with HostRule resources.
 type HostRuleInterface interface {
-	Create(*v1alpha1.HostRule) (*v1alpha1.HostRule, error)
-	Update(*v1alpha1.HostRule) (*v1alpha1.HostRule, error)
-	UpdateStatus(*v1alpha1.HostRule) (*v1alpha1.HostRule, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1alpha1.HostRule, error)
-	List(opts v1.ListOptions) (*v1alpha1.HostRuleList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.HostRule, err error)
+	Create(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.CreateOptions) (*v1alpha1.HostRule, error)
+	Update(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.UpdateOptions) (*v1alpha1.HostRule, error)
+	UpdateStatus(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.UpdateOptions) (*v1alpha1.HostRule, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.HostRule, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.HostRuleList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.HostRule, err error)
 	HostRuleExpansion
 }
 
@@ -65,20 +65,20 @@ func newHostRules(c *AkoV1alpha1Client, namespace string) *hostRules {
 }
 
 // Get takes name of the hostRule, and returns the corresponding hostRule object, and an error if there is any.
-func (c *hostRules) Get(name string, options v1.GetOptions) (result *v1alpha1.HostRule, err error) {
+func (c *hostRules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.HostRule, err error) {
 	result = &v1alpha1.HostRule{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("hostrules").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of HostRules that match those selectors.
-func (c *hostRules) List(opts v1.ListOptions) (result *v1alpha1.HostRuleList, err error) {
+func (c *hostRules) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.HostRuleList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -89,13 +89,13 @@ func (c *hostRules) List(opts v1.ListOptions) (result *v1alpha1.HostRuleList, er
 		Resource("hostrules").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested hostRules.
-func (c *hostRules) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *hostRules) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -106,87 +106,90 @@ func (c *hostRules) Watch(opts v1.ListOptions) (watch.Interface, error) {
 		Resource("hostrules").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a hostRule and creates it.  Returns the server's representation of the hostRule, and an error, if there is any.
-func (c *hostRules) Create(hostRule *v1alpha1.HostRule) (result *v1alpha1.HostRule, err error) {
+func (c *hostRules) Create(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.CreateOptions) (result *v1alpha1.HostRule, err error) {
 	result = &v1alpha1.HostRule{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("hostrules").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(hostRule).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a hostRule and updates it. Returns the server's representation of the hostRule, and an error, if there is any.
-func (c *hostRules) Update(hostRule *v1alpha1.HostRule) (result *v1alpha1.HostRule, err error) {
+func (c *hostRules) Update(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.UpdateOptions) (result *v1alpha1.HostRule, err error) {
 	result = &v1alpha1.HostRule{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("hostrules").
 		Name(hostRule.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(hostRule).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *hostRules) UpdateStatus(hostRule *v1alpha1.HostRule) (result *v1alpha1.HostRule, err error) {
+func (c *hostRules) UpdateStatus(ctx context.Context, hostRule *v1alpha1.HostRule, opts v1.UpdateOptions) (result *v1alpha1.HostRule, err error) {
 	result = &v1alpha1.HostRule{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("hostrules").
 		Name(hostRule.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(hostRule).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the hostRule and deletes it. Returns an error if one occurs.
-func (c *hostRules) Delete(name string, options *v1.DeleteOptions) error {
+func (c *hostRules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("hostrules").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *hostRules) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *hostRules) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("hostrules").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched hostRule.
-func (c *hostRules) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.HostRule, err error) {
+func (c *hostRules) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.HostRule, err error) {
 	result = &v1alpha1.HostRule{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("hostrules").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

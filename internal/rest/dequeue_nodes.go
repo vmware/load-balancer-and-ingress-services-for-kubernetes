@@ -84,7 +84,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 			return
 		}
 		if avimodel.IsVrf {
-			utils.AviLog.Warnf("key: %s, msg: processing vrf object\n", key)
+			utils.AviLog.Infof("key: %s, msg: processing vrf object\n", key)
 			rest.vrfCU(key, name, avimodel)
 			return
 		}
@@ -407,8 +407,29 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_ops = rest.L4PolicyDelete(vs_cache_obj.L4PolicyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
-		return rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
+		success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key)
+		if success {
+			vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
+			utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
+			if len(vsKeysPending) == 0 {
+				// All VSes got deleted, done with deleteConfig operation. Now notify the user
+				if lib.ConfigDeleteSyncChan != nil {
+					utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
+					close(lib.ConfigDeleteSyncChan)
+					lib.ConfigDeleteSyncChan = nil
+				}
+			}
+		}
+		return success
 	}
+
+	// All VSes got deleted, done with deleteConfig operation. Now notify the user
+	if lib.ConfigDeleteSyncChan != nil {
+		utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
+		close(lib.ConfigDeleteSyncChan)
+		lib.ConfigDeleteSyncChan = nil
+	}
+
 	return true
 }
 
@@ -674,7 +695,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					// PG error with pool object not found.
 					aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
 					// After the refresh - get the members
-					pgKey := avicache.NamespaceName{Namespace: utils.ADMIN_NS, Name: pgObjName}
+					pgKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pgObjName}
 					pgCache, ok := rest.cache.PgCache.AviCacheGet(pgKey)
 					if ok {
 						pgCacheObj, _ := pgCache.(*avicache.AviPGCache)

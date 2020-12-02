@@ -3,6 +3,7 @@
         "num_clusters": 1,
         "clusters": [{
                 "cluster_id": "1",
+<<<<<<< HEAD
 <<<<<<< Updated upstream
                 "cluster_name" : "",
                 "kubeconfig_file": "",
@@ -11,6 +12,23 @@
                 "kubeconfig_file": "/root/.kube/config",
 >>>>>>> Stashed changes
                 "cniPlugin": "canal"
+=======
+                "cluster_name" : "kubernetes",
+                "kubeconfig_file": "/root/.kube/config",
+                "cniPlugin": "canal",
+                "disableStaticRouteSync": "false",
+                "defaultIngController": "",
+                "NetworkName": "net1",
+                "vrfRefName": "global",
+                "platform": {
+                    "type": "vcenter",
+                    "vcenter_configuration": {
+                        "user": "",
+                        "password": "",
+                        "vcenter_url": ""
+                    }
+                }
+>>>>>>> st-integration
             }
         ]
     },
@@ -20,14 +38,24 @@
         "serviceNamePrefix" : "scale-test-service",
         "ingressNamePrefix" : "scale-test-ingress"
     },
-    "Controller": [
+    "Vm": [
         {
-            "name": "controller-1",
+            "datacenter": "",
+            "name": "",
+            "cluster": "",
             "ip": "",
+            "mask": "",
+            "networks": {
+                "mgmt": ""
+            },
+            "cloud_name": "",
+            "host": "",
+            "static": "",
+            "datastore": "",
+            "type": "",
             "username" : "",
             "password" : "",
-            "cloud_name": ""
+            "gateway": ""
         }
     ]
-
 }

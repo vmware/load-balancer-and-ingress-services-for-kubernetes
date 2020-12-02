@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned"
 	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/informers/externalversions/internalinterfaces"
 	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/listers/ako/v1alpha1"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -62,13 +62,13 @@ func NewFilteredHTTPRuleInformer(client versioned.Interface, namespace string, r
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AkoV1alpha1().HTTPRules(namespace).List(options)
+				return client.AkoV1alpha1().HTTPRules(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AkoV1alpha1().HTTPRules(namespace).Watch(options)
+				return client.AkoV1alpha1().HTTPRules(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&akov1alpha1.HTTPRule{},

@@ -71,17 +71,17 @@ var (
 
 func Setup() {
 	var testbedParams lib.TestbedFields
-	timeout = os.Args[4]
-	testbedFileName = os.Args[7]
+	timeout = os.Args[3]
+	testbedFileName = os.Args[5]
 	testbed, err := os.Open(testbedFileName)
 	if err != nil {
-		fmt.Println("ERROR : Error opening testbed file ", testbedFileName)
+		fmt.Println("ERROR : Error opening testbed file ", testbedFileName, " with error : ", err)
 		os.Exit(0)
 	}
 	defer testbed.Close()
 	byteValue, _ := ioutil.ReadAll(testbed)
 	json.Unmarshal(byteValue, &testbedParams)
-	numGoRoutines, err = strconv.Atoi(os.Args[6])
+	numGoRoutines, err = strconv.Atoi(os.Args[4])
 	if err != nil {
 		numGoRoutines = 5
 	}
@@ -97,9 +97,10 @@ func Setup() {
 	clusterName = testbedParams.AkoParam.Clusters[0].ClusterName
 	dnsVSUUID = testbedParams.TestParams.DnsVSUUID
 	akoPodName = testbedParams.TestParams.AkoPodName
-	os.Setenv("CTRL_USERNAME", testbedParams.Controller[0].UserName)
-	os.Setenv("CTRL_PASSWORD", testbedParams.Controller[0].Password)
-	os.Setenv("CTRL_IPADDRESS", testbedParams.Controller[0].Ip)
+	os.Setenv("CTRL_USERNAME", testbedParams.Vm[0].UserName)
+	os.Setenv("CTRL_PASSWORD", testbedParams.Vm[0].Password)
+	os.Setenv("CTRL_IPADDRESS", testbedParams.Vm[0].Ip)
+
 	lib.KubeInit(testbedParams.AkoParam.Clusters[0].KubeConfigFilePath)
 	AviClients, err = lib.SharedAVIClients(2)
 	if err != nil {

@@ -32,6 +32,12 @@ type ApiServer struct {
 	Models []models.ApiModel
 }
 
+type ApiServerInterface interface {
+	SetRouter() *mux.Router
+	InitApi()
+	ShutDown()
+}
+
 func (a *ApiServer) SetRouter() *mux.Router {
 	router := mux.NewRouter()
 	routerMap := make(map[string]bool)
@@ -107,11 +113,4 @@ func (a *ApiServer) InitApi() {
 			utils.AviLog.Infof("API server shutdown: %v", err)
 		}
 	}()
-}
-
-// InitFakeApi only initializes the models, and does not run the server on a port
-func (a *ApiServer) InitFakeApi() {
-	a.initModels()
-	utils.AviLog.Infof("Fake API server now running on port %s", a.Port)
-	return
 }
