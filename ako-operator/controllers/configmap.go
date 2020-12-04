@@ -152,6 +152,12 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	if ako.Spec.L4Settings.AdvancedL4 {
 		advancedL4 = "true"
 	}
+
+	enableRHI := "false"
+	if ako.Spec.NetworkSettings.EnableRHI {
+		enableRHI = "true"
+	}
+	cm.Data[EnableRHI] = enableRHI
 	cm.Data[AdvancedL4] = advancedL4
 	cm.Data[ServiceType] = string(ako.Spec.L7Settings.ServiceType)
 	cm.Data[NodeKey] = ako.Spec.NodePortSelector.Key
@@ -168,8 +174,10 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		Cidrs       []string `json:"cidrs"`
 		NetworkName string   `json:"networkName"`
 	}
-	nwListRows := []NodeNetworkListRow{}
 
+	nwListRows := []NodeNetworkListRow{}
+	nwListBytes := []byte{}
+	var err error
 	for _, row := range ako.Spec.NetworkSettings.NodeNetworkList {
 		nwListRows = append(nwListRows, NodeNetworkListRow{
 			Cidrs:       row.Cidrs,
@@ -177,11 +185,23 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		})
 	}
 	if len(nwListRows) != 0 {
-		nwListBytes, err := json.Marshal(nwListRows)
+		nwListBytes, err = json.Marshal(nwListRows)
 		if err != nil {
 			return cm, err
 		}
-		cm.Data[NodeNetworkList] = string(nwListBytes)
 	}
+	cm.Data[NodeNetworkList] = string(nwListBytes)
+	cm.Data[SyncNamespace] = ako.Spec.L7Settings.SyncNamespace
+
+	cm.Data[NSSyncLabelKey] = ako.Spec.AKOSettings.NSSelector.LabelKey
+	cm.Data[NSSyncLabelValue] = ako.Spec.AKOSettings.NSSelector.LabelValue
+
+	tenantsPerCluster := "false"
+	if ako.Spec.ControllerSettings.TenantsPerCluster {
+		tenantsPerCluster = "true"
+	}
+	cm.Data[TenantsPerCluster] = tenantsPerCluster
+	cm.Data[TenantName] = ako.Spec.ControllerSettings.TenantName
+
 	return cm, nil
 }

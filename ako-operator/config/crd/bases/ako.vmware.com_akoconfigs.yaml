@@ -69,6 +69,15 @@ spec:
                   - WARN
                   - ERROR
                   type: string
+                namespaceSelector:
+                  description: Namespace selector specifies the namespace labels from
+                    which AKO should sync from
+                  properties:
+                    labelKey:
+                      type: string
+                    labelValue:
+                      type: string
+                  type: object
               type: object
             controllerSettings:
               description: ControllerSettings defines the Avi Controller parameters
@@ -86,6 +95,14 @@ spec:
                   description: ServiceEngineGroupName is the name of the Serviceengine
                     group in Avi
                   type: string
+                tenantName:
+                  description: TenantName is the name of the tenant where all AKO
+                    objects will be created in Avi.
+                  type: string
+                tenantsPerCluster:
+                  description: TenantsPerCluster if set to true, AKO will map each
+                    k8s cluster uniquely to a tenant in Avi
+                  type: boolean
               type: object
             imagePullPolicy:
               description: ImagePullPolicy defines when the AKO controller image gets
@@ -138,6 +155,10 @@ spec:
                 shardingScheme:
                   description: ShardingScheme specifies how the ingress objects are
                     sharded
+                  type: string
+                syncNamespace:
+                  description: SyncNamespace takes in a namespace from which AKO will
+                    sync the objects
                   type: string
               type: object
             logFile:

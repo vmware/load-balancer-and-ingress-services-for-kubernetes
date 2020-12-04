@@ -53,6 +53,10 @@ const (
 	ServiceEngineGroupName = "serviceEngineGroupName"
 	NodeNetworkList        = "nodeNetworkList"
 	APIServerPort          = "apiServerPort"
+	NSSyncLabelKey         = "nsSyncLabelKey"
+	NSSyncLabelValue       = "nsSyncLabelValue"
+	TenantsPerCluster      = "tenantsPerCluster"
+	TenantName             = "tenantName"
 )
 
 var SecretEnvVars = map[string]string{
@@ -62,30 +66,34 @@ var SecretEnvVars = map[string]string{
 }
 
 var ConfigMapEnvVars = map[string]string{
-	"CTRL_IPADDRESS":            ControllerIP,
-	"CTRL_VERSION":              ControllerVersion,
-	"CNI_PLUGIN":                CniPlugin,
-	"SHARD_VS_SIZE":             ShardVSSize,
-	"PASSTHROUGH_SHARD_SIZE":    PassthroughShardSize,
-	"FULL_SYNC_INTERVAL":        FullSyncFrequency,
-	"CLOUD_NAME":                CloudName,
-	"CLUSTER_NAME":              ClusterName,
-	"ENABLE_RHI":                EnableRHI,
-	"DEFAULT_DOMAIN":            DefaultDomain,
-	"DISABLE_STATIC_ROUTE_SYNC": DisableStaticRouteSync,
-	"DEFAULT_ING_CONTROLLER":    DefaultIngController,
-	"SUBNET_IP":                 SubnetIP,
-	"SUBNET_PREFIX":             SubnetPrefix,
-	"NETWORK_NAME":              NetworkName,
-	"L7_SHARD_SCHEME":           L7ShardingScheme,
-	"ADVANCED_L4":               AdvancedL4,
-	"SYNC_NAMESPACE":            SyncNamespace,
-	"SERVICE_TYPE":              ServiceType,
-	"NODE_KEY":                  NodeKey,
-	"NODE_VALUE":                NodeValue,
-	"SEG_NAME":                  ServiceEngineGroupName,
-	"NODE_NETWORK_LIST":         NodeNetworkList,
-	"AKO_API_PORT":              APIServerPort,
+	"CTRL_IPADDRESS":             ControllerIP,
+	"CTRL_VERSION":               ControllerVersion,
+	"CNI_PLUGIN":                 CniPlugin,
+	"SHARD_VS_SIZE":              ShardVSSize,
+	"PASSTHROUGH_SHARD_SIZE":     PassthroughShardSize,
+	"FULL_SYNC_INTERVAL":         FullSyncFrequency,
+	"CLOUD_NAME":                 CloudName,
+	"CLUSTER_NAME":               ClusterName,
+	"ENABLE_RHI":                 EnableRHI,
+	"DEFAULT_DOMAIN":             DefaultDomain,
+	"DISABLE_STATIC_ROUTE_SYNC":  DisableStaticRouteSync,
+	"DEFAULT_ING_CONTROLLER":     DefaultIngController,
+	"SUBNET_IP":                  SubnetIP,
+	"SUBNET_PREFIX":              SubnetPrefix,
+	"NETWORK_NAME":               NetworkName,
+	"L7_SHARD_SCHEME":            L7ShardingScheme,
+	"ADVANCED_L4":                AdvancedL4,
+	"SYNC_NAMESPACE":             SyncNamespace,
+	"SERVICE_TYPE":               ServiceType,
+	"NODE_KEY":                   NodeKey,
+	"NODE_VALUE":                 NodeValue,
+	"SEG_NAME":                   ServiceEngineGroupName,
+	"NODE_NETWORK_LIST":          NodeNetworkList,
+	"AKO_API_PORT":               APIServerPort,
+	"TENANT_NAME":                TenantName,
+	"TENANTS_PER_CLUSTER":        TenantsPerCluster,
+	"NAMESPACE_SYNC_LABEL_KEY":   NSSyncLabelKey,
+	"NAMESPACE_SYNC_LABEL_VALUE": NSSyncLabelValue,
 }
 
 func getSFNamespacedName() types.NamespacedName {

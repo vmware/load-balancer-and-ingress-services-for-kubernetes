@@ -78,6 +78,11 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
 			},
 			{
+				APIGroups: []string{"networking.k8s.io"},
+				Resources: []string{"ingressclasses"},
+				Verbs:     []string{"get", "watch", "list"},
+			},
+			{
 				APIGroups: []string{""},
 				Resources: []string{"services/status"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},

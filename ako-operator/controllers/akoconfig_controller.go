@@ -24,6 +24,9 @@ import (
 	logr "github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -160,14 +163,53 @@ func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako ako
 }
 
 func (r *AKOConfigReconciler) CleanupArtifacts(ctx context.Context, log logr.Logger) error {
+	log.V(0).Info("cleaning up all the artifacts")
 	objList := getObjectList()
+	if len(objList) == 0 {
+		// AKOConfig was deleted, but during the same time, the operator was restarted
+		var cm corev1.ConfigMap
+		if err := r.Get(ctx, getConfigMapName(), &cm); err != nil {
+			log.V(0).Info("error getting configmap", "error", err)
+		} else {
+			objList[getConfigMapName()] = &cm
+		}
+		var sf appsv1.StatefulSet
+		if err := r.Get(ctx, getSFNamespacedName(), &sf); err != nil {
+			log.V(0).Info("error getting statefulset", "error", err)
+		} else {
+			objList[getSFNamespacedName()] = &sf
+		}
+		var cr rbacv1.ClusterRole
+		if err := r.Get(ctx, getCRName(), &cr); err != nil {
+			log.V(0).Info("error getting clusterrole", "error", err)
+		} else {
+			objList[getCRName()] = &cr
+		}
+		var crb rbacv1.ClusterRoleBinding
+		if err := r.Get(ctx, getCRBName(), &crb); err != nil {
+			log.V(0).Info("error getting clusterrolebinding", "error", err)
+		} else {
+			objList[getCRBName()] = &crb
+		}
+		var sa v1.ServiceAccount
+		if err := r.Get(ctx, getSAName(), &sa); err != nil {
+			log.V(0).Info("error getting serviceaccount", "error", err)
+		} else {
+			objList[getSAName()] = &sa
+		}
+		var psp policyv1beta1.PodSecurityPolicy
+		if err := r.Get(ctx, getPSPName(), &psp); err != nil {
+			log.V(0).Info("error getting podsecuritypolicy", "error", err)
+		} else {
+			objList[getPSPName()] = &psp
+		}
+	}
 	for objName, obj := range objList {
 		if err := r.deleteIfExists(ctx, objName, obj); err != nil {
 			log.Error(err, "error while deleting object")
 			return err
 		}
 	}
-	objectList = nil
 	return nil
 }
 

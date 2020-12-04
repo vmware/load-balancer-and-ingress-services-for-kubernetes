@@ -32,6 +32,11 @@ type ServiceTypeStr string
 // +kubebuilder:validation:Enum=LARGE;MEDIUM;SMALL
 type VSSize string
 
+type NamespaceSelector struct {
+	LabelKey   string `json:"labelKey,omitempty"`
+	LabelValue string `json:"labelValue,omitempty"`
+}
+
 // AKOSettings defines the settings requried for the AKO controller
 type AKOSettings struct {
 	// LogLevel defines the log level to be used by the AKO controller
@@ -48,6 +53,8 @@ type AKOSettings struct {
 	ClusterName string `json:"clusterName,omitempty"`
 	// CNIPlugin specifies the CNI to be used
 	CNIPlugin string `json:"cniPlugin,omitempty"`
+	// Namespace selector specifies the namespace labels from which AKO should sync from
+	NSSelector NamespaceSelector `json:"namespaceSelector,omitempty"`
 }
 
 type NodeNetwork struct {
@@ -85,6 +92,8 @@ type L7Settings struct {
 	ShardVSSize VSSize `json:"shardVSSize,omitempty"`
 	// PassthroughShardSize specifies the number of shard VSs to be created for passthrough routes
 	PassthroughShardSize VSSize `json:"passthroughShardSize,omitempty"`
+	// SyncNamespace takes in a namespace from which AKO will sync the objects
+	SyncNamespace string `json:"syncNamespace,omitempty"`
 }
 
 // L4Settings defines the L4 configuration for the AKO controller
@@ -105,6 +114,11 @@ type ControllerSettings struct {
 	CloudName string `json:"cloudName,omitempty"`
 	// ControllerIP is the IP address of the Avi Controller
 	ControllerIP string `json:"controllerIP,omitempty"`
+	// TenantsPerCluster if set to true, AKO will map each k8s cluster uniquely to a tenant
+	// in Avi
+	TenantsPerCluster bool `json:"tenantsPerCluster,omitempty"`
+	// TenantName is the name of the tenant where all AKO objects will be created in Avi.
+	TenantName string `json:"tenantName,omitempty"`
 }
 
 // NodePortSelector defines the node port settings, to be used only if the serviceTYpe is selected
