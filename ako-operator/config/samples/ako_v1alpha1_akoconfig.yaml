@@ -1,0 +1,64 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: AKOConfig
+metadata:
+  finalizers:
+  - ako.vmware.com/cleanup
+  name: ako-sample
+  namespace: avi-system
+spec:
+  imageRepository: "10.79.172.11:5000/avi-buildops/ako"
+  imagePullPolicy: "IfNotPresent"
+  akoSettings:
+    logLevel: "WARN"   #enum
+    fullSyncFrequency: "1800"
+    apiServerPort: 8080
+    deleteConfig: false
+    disableStaticRouteSync: false
+    clusterName: "my-cluster"
+    cniPlugin: ""
+
+  networkSettings:
+    subnetIP: ""
+    subnetPrefix: ""
+    networkName: ""
+
+  l7Settings:
+    defaultIngController: true
+    shardingScheme: "hostname"
+    serviceType: "ClusterIP"
+    shardVSSize: "LARGE" #enum
+    passthroughShardSize: "SMALL"   #enum
+
+  l4Settings:
+    advancedL4: false
+    defaultDomain: ""
+
+  ControllerSettings:
+    serviceEngineGroupName: "Default-Group"
+    controllerVersion: "20.1.1"
+    cloudName: "Default-Cloud"
+    controllerIP: ""
+
+  nodePortSelector: # only applicable if servicetype is nodePort
+    key: ""
+    value: ""
+
+  resources:
+    limits:
+      cpu: "250m"
+      memory: "300Mi"
+    requests:
+      cpu: "100m"
+      memory: "200Mi"
+
+  podSecurityContext: {}
+
+  rbac:
+    pspEnable: false
+
+  service:
+    type: "ClusterIP"
+    port: 80
+
+  mountPath: "/log"
+  logFile: "avi.log"

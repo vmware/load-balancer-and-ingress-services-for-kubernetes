@@ -19,7 +19,7 @@ AKOSettings:
   cniPlugin: "" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift 
   #NamespaceSelector contains label key and value used for namespacemigration
   #Same label has to be present on namespace/s which needs migration/sync to AKO
-  nameSpaceSelector:
+  namespaceSelector:
     labelKey: ""
     labelValue: ""
 

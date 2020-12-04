@@ -1,0 +1,11 @@
+domain: vmware.com
+layout: go.kubebuilder.io/v2
+projectName: ako-operator
+repo: github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator
+resources:
+- group: ako
+  kind: AKOConfig
+  version: v1alpha1
+version: 3-alpha
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}

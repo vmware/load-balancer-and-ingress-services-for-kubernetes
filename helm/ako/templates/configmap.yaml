@@ -28,8 +28,8 @@ data:
   {{ if .Values.AKOSettings.syncNamespace  }}
   syncNamespace: {{ .Values.AKOSettings.syncNamespace | quote }}
   {{ end }}
-  nsSyncLabelKey: {{ .Values.AKOSettings.nameSpaceSelector.labelKey | quote }}
-  nsSyncLabelValue: {{ .Values.AKOSettings.nameSpaceSelector.labelValue | quote }}
+  nsSyncLabelKey: {{ .Values.AKOSettings.namespaceSelector.labelKey | quote }}
+  nsSyncLabelValue: {{ .Values.AKOSettings.namespaceSelector.labelValue | quote }}
   serviceType:  {{ .Values.L7Settings.serviceType | quote }}
   {{ if eq .Values.L7Settings.serviceType "NodePort" }}
   nodeKey: {{ .Values.nodePortSelector.key | quote }}

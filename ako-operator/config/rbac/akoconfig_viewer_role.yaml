@@ -1,0 +1,20 @@
+# permissions for end users to view akoconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: akoconfig-viewer-role
+rules:
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - akoconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - akoconfigs/status
+  verbs:
+  - get
