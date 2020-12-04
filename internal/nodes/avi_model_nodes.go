@@ -1001,7 +1001,7 @@ type AviPoolMetaServer struct {
 type IngressHostPathSvc struct {
 	ServiceName string
 	Path        string
-	PathType	networkingv1beta1.PathType
+	PathType    networkingv1beta1.PathType
 	Port        int32
 	weight      int32 //required for alternate backends in openshift route
 	PortName    string
@@ -1013,6 +1013,7 @@ type IngressHostMap map[string][]IngressHostPathSvc
 type TlsSettings struct {
 	Hosts      map[string][]IngressHostPathSvc
 	SecretName string
+	SecretNS   string
 	key        string
 	cert       string
 	cacert     string

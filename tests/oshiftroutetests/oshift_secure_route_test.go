@@ -56,6 +56,27 @@ func (rt FakeRoute) SecureABRoute(ratio ...int) *routev1.Route {
 	return routeExample
 }
 
+func (rt FakeRoute) SecureRouteNoCertKey() *routev1.Route {
+	routeExample := rt.Route()
+	routeExample.Spec.TLS = &routev1.TLSConfig{
+		Termination: routev1.TLSTerminationEdge,
+	}
+	return routeExample
+}
+
+func (rt FakeRoute) SecureABRouteNoCertKey(ratio ...int) *routev1.Route {
+	var routeExample *routev1.Route
+	if len(ratio) > 0 {
+		routeExample = rt.ABRoute(ratio[0])
+	} else {
+		routeExample = rt.ABRoute()
+	}
+	routeExample.Spec.TLS = &routev1.TLSConfig{
+		Termination: routev1.TLSTerminationEdge,
+	}
+	return routeExample
+}
+
 func VerifySecureRouteDeletion(t *testing.T, g *gomega.WithT, modelName string, poolCount, snicount int, nsname ...string) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	VerifyRouteDeletion(t, g, aviModel, poolCount, nsname...)
@@ -66,12 +87,16 @@ func VerifySecureRouteDeletion(t *testing.T, g *gomega.WithT, modelName string, 
 	}, 20*time.Second).Should(gomega.Equal(snicount))
 }
 
-func VerifySniNode(g *gomega.WithT, sniVS *avinodes.AviVsNode) {
-	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+func VerifySniNodeNoCA(g *gomega.WithT, sniVS *avinodes.AviVsNode) {
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+}
+
+func VerifySniNode(g *gomega.WithT, sniVS *avinodes.AviVsNode) {
+	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+	VerifySniNodeNoCA(g, sniVS)
 }
 
 func ValidateSniModel(t *testing.T, g *gomega.GomegaWithT, modelName string, redirect ...bool) interface{} {
@@ -1015,6 +1040,137 @@ func TestReencryptRouteRemoveDestinationCA(t *testing.T) {
 		return sniVS.PoolRefs[0].PkiProfile
 	}, 60*time.Second).Should(gomega.Equal(nilPki))
 
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
+func TestAddPathSecureRouteNoKeyCert(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, defaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRouteNoCertKey()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+	integrationtest.AddSecret("router-certs-default", "avi-system", "tlsCert", "tlsKey")
+
+	aviModel := ValidateSniModel(t, g, defaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
+	VerifySniNodeNoCA(g, sniVS)
+
+	KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
+func TestUpdatePathSecureRouteNoKeyCert(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, defaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRouteNoCertKey()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+	integrationtest.AddSecret("router-certs-default", "avi-system", "tlsCert", "tlsKey")
+
+	routeExample = FakeRoute{Path: "/bar"}.SecureRoute()
+	routeExample.ObjectMeta.ResourceVersion = "2"
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, defaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
+	VerifySniNodeNoCA(g, sniVS)
+
+	KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
+func TestUpdateSecureRouteToNoKeyCert(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, defaultModelName)
+	integrationtest.AddSecret("router-certs-default", "avi-system", "tlsCert", "tlsKey")
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+	routeExample = FakeRoute{Path: "/foo"}.SecureRouteNoCertKey()
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample = FakeRoute{Path: "/bar"}.SecureRoute()
+	routeExample.ObjectMeta.ResourceVersion = "2"
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, defaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
+	VerifySniNodeNoCA(g, sniVS)
+
+	KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
+func TestUpdateSecureRouteNoKeyCertToKeyCert(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, defaultModelName)
+	integrationtest.AddSecret("router-certs-default", "avi-system", "tlsCert", "tlsKey")
+	routeExample := FakeRoute{Path: "/foo"}.SecureRouteNoCertKey()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+	routeExample = FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample = FakeRoute{Path: "/bar"}.SecureRoute()
+	routeExample.ObjectMeta.ResourceVersion = "2"
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, defaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
+	VerifySniNodeNoCA(g, sniVS)
+
+	KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }

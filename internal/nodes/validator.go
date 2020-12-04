@@ -198,6 +198,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 		tlsHostSvcMap := make(IngressHostMap)
 		tls := TlsSettings{}
 		tls.SecretName = tlsSettings.SecretName
+		tls.SecretNS = ns
 		for _, host := range tlsSettings.Hosts {
 			if _, ok := additionalSecureHostMap[host]; ok {
 				continue
@@ -218,7 +219,8 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 		// If svc for an ingress gets processed before the ingress itself,
 		// then secret mapping may not be updated, update it here.
 		if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
-			objects.SharedSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(ingName, tlsSettings.SecretName)
+			objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(ns, ingName, tlsSettings.SecretName)
+			objects.SharedSvcLister().IngressMappings(ns).AddSecretsToIngressMappings(ns, ingName, tlsSettings.SecretName)
 		}
 	}
 
@@ -317,8 +319,14 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 			// build edge cert data for termination: edge and reencrypt
 			if routeSpec.TLS.Termination == routev1.TLSTerminationEdge ||
 				routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
-				tls.cert = routeSpec.TLS.Certificate
-				tls.key = routeSpec.TLS.Key
+				if routeSpec.TLS.Certificate == "" || routeSpec.TLS.Key == "" {
+					secretName = lib.GetDefaultSecretForRoutes()
+					tls.SecretName = secretName
+					tls.SecretNS = utils.GetAKONamespace()
+				} else {
+					tls.cert = routeSpec.TLS.Certificate
+					tls.key = routeSpec.TLS.Key
+				}
 				tls.cacert = routeSpec.TLS.CACertificate
 				if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
 					tls.redirect = true
@@ -339,7 +347,9 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 		// If svc for a route gets processed before the route itself,
 		// then secret mapping may not be updated, update it here.
 		if ok, _ := objects.OshiftRouteSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
-			objects.OshiftRouteSvcLister().IngressMappings(ns).UpdateIngressSecretsMappings(routeName, secretName)
+			akoNS := utils.GetAKONamespace()
+			objects.OshiftRouteSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(akoNS, routeName, secretName)
+			objects.OshiftRouteSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(ns, routeName, secretName)
 		}
 	}
 

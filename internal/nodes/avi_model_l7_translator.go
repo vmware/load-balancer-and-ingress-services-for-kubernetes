@@ -88,7 +88,8 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 			utils.AviLog.Infof("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 			if found {
-				for _, secret := range secrets {
+				for _, namespacedSecret := range secrets {
+					_, secret := utils.ExtractNamespaceObjectName(namespacedSecret)
 					sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
 					RemoveSniInModel(sniNodeName, vsNode, key)
 				}
@@ -210,7 +211,8 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	found, secrets := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSecret(ingName)
 	utils.AviLog.Infof("key: %s, msg: retrieved secrets for ingress: %s", key, secrets)
 	if found {
-		for _, secret := range secrets {
+		for _, namespacedSecret := range secrets {
+			_, secret := utils.ExtractNamespaceObjectName(namespacedSecret)
 			sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
 			utils.AviLog.Infof("key: %s, msg: sni node to delete :%s", key, sniNodeName)
 			RemoveSniInModel(sniNodeName, vsNode, key)
@@ -377,6 +379,10 @@ func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, keycertname
 func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key string, sniHost ...string) bool {
 	mClient := utils.GetInformers().ClientSet
 	secretName := tlsData.SecretName
+	secretNS := tlsData.SecretNS
+	if secretNS == "" {
+		secretNS = namespace
+	}
 
 	var certNode *AviTLSKeyCertNode
 	if len(sniHost) > 0 {
@@ -406,7 +412,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 			return false
 		}
 	} else {
-		secretObj, err := mClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		secretObj, err := mClient.CoreV1().Secrets(secretNS).Get(context.TODO(), secretName, metav1.GetOptions{})
 		if err != nil || secretObj == nil {
 			// This secret has been deleted.
 			ok, ingNames := svcLister.IngressMappings(namespace).GetSecretToIng(secretName)

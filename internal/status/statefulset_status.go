@@ -35,7 +35,7 @@ func msgFoundInStatus(conditions []appsv1.StatefulSetCondition, msg string) bool
 
 // ResetStatefulSetStatus removes the condition set by AKO from AKO statefulset
 func ResetStatefulSetStatus() {
-	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(lib.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
+	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
 		return
@@ -53,7 +53,7 @@ func ResetStatefulSetStatus() {
 		return
 	}
 
-	u, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(lib.GetAKONamespace()).UpdateStatus(context.TODO(), ss, metav1.UpdateOptions{})
+	u, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).UpdateStatus(context.TODO(), ss, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in updating ako statefulset: %v", err)
 		return
@@ -63,7 +63,7 @@ func ResetStatefulSetStatus() {
 
 // AddStatefulSetStatus sets a condition in status of AKO statefulset to the desired value
 func AddStatefulSetStatus(msg string) {
-	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(lib.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
+	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
 		return
@@ -91,7 +91,7 @@ func AddStatefulSetStatus(msg string) {
 		ss.Status.Conditions = append(ss.Status.Conditions, cond)
 	}
 
-	u, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(lib.GetAKONamespace()).UpdateStatus(context.TODO(), ss, metav1.UpdateOptions{})
+	u, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).UpdateStatus(context.TODO(), ss, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in patching ako statefulset: %v", err)
 		return

@@ -2498,7 +2498,7 @@ func checkRequiredValuesYaml() bool {
 
 	// check if config map exists
 	k8sClient := utils.GetInformers().ClientSet
-	aviCMNamespace := lib.GetAKONamespace()
+	aviCMNamespace := utils.GetAKONamespace()
 	if lib.GetNamespaceToSync() != "" {
 		aviCMNamespace = lib.GetNamespaceToSync()
 	}
