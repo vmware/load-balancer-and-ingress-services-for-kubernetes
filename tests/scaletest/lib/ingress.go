@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"context"
 	"flag"
 	"strconv"
 	"testing"
@@ -36,6 +37,7 @@ var ingressResource = schema.GroupVersionResource{Group: "extensions", Version: 
 var kubeClient dynamic.Interface
 var coreV1Client corev1.CoreV1Interface
 var appsV1Client appsv1.AppsV1Interface
+var ctx = context.TODO()
 
 const PORT = 8080
 const SUBDOMAIN = ".avi.internal"
@@ -87,7 +89,7 @@ func CreateApp(appName string, namespace string) error {
 		},
 	}
 
-	_, err := appsV1Client.Deployments(namespace).Create(deploymentSpec)
+	_, err := appsV1Client.Deployments(namespace).Create(ctx, deploymentSpec, metaV1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -95,7 +97,7 @@ func CreateApp(appName string, namespace string) error {
 }
 
 func DeleteApp(appName string, namespace string) error {
-	err := appsV1Client.Deployments(namespace).Delete(appName, &metaV1.DeleteOptions{})
+	err := appsV1Client.Deployments(namespace).Delete(ctx, appName, metaV1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -126,7 +128,7 @@ func CreateService(serviceNamePrefix string, appName string, namespace string, n
 				},
 			},
 		}
-		_, err := coreV1Client.Services(namespace).Create(serviceSpec)
+		_, err := coreV1Client.Services(namespace).Create(ctx, serviceSpec, metaV1.CreateOptions{})
 		if err != nil {
 			return listOfServicesCreated, err
 		}
@@ -137,7 +139,7 @@ func CreateService(serviceNamePrefix string, appName string, namespace string, n
 
 func DeleteService(serviceNameList []string, namespace string) error {
 	for i := 0; i < len(serviceNameList); i++ {
-		err := coreV1Client.Services(namespace).Delete(serviceNameList[i], &metaV1.DeleteOptions{})
+		err := coreV1Client.Services(namespace).Delete(ctx, serviceNameList[i], metaV1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
@@ -182,7 +184,7 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 				},
 			},
 		}
-		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ingress, metaV1.CreateOptions{})
+		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ctx, ingress, metaV1.CreateOptions{})
 		if err != nil {
 			return listOfIngressCreated, err
 		}
@@ -237,7 +239,7 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 				},
 			},
 		}
-		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ingress, metaV1.CreateOptions{})
+		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ctx, ingress, metaV1.CreateOptions{})
 		if err != nil {
 			return listOfIngressCreated, err
 		}
@@ -305,7 +307,7 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 				},
 			},
 		}
-		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ingress, metaV1.CreateOptions{})
+		_, err := kubeClient.Resource(ingressResource).Namespace(namespace).Create(ctx, ingress, metaV1.CreateOptions{})
 		if err != nil {
 			return listOfIngressCreated, err
 		}
@@ -320,10 +322,10 @@ func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, 
 	for i := 0; i < len(listOfIngressToDelete); i++ {
 		ingressName := listOfIngressToDelete[i]
 		deletePolicy := metaV1.DeletePropagationForeground
-		deleteOptions := &metaV1.DeleteOptions{
+		deleteOptions := metaV1.DeleteOptions{
 			PropagationPolicy: &deletePolicy,
 		}
-		if err := kubeClient.Resource(ingressResource).Namespace(namespace).Delete(ingressName, deleteOptions); err != nil {
+		if err := kubeClient.Resource(ingressResource).Namespace(namespace).Delete(ctx, ingressName, deleteOptions); err != nil {
 			return listOfDeletedIngresses, err
 		}
 		listOfDeletedIngresses = append(listOfDeletedIngresses, ingressName)
@@ -333,7 +335,7 @@ func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, 
 
 func ListIngress(t *testing.T, namespace string) error {
 	t.Logf("Listing ingress in namespace %q:\n", namespace)
-	list, err := kubeClient.Resource(ingressResource).Namespace(namespace).List(metaV1.ListOptions{})
+	list, err := kubeClient.Resource(ingressResource).Namespace(namespace).List(ctx, metaV1.ListOptions{})
 	if err != nil {
 		return err
 	}

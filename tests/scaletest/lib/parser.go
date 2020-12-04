@@ -14,11 +14,28 @@
 
 package lib
 
+type VCenterConfiguration struct {
+	UserName   string `json:"user"`
+	Password   string `json:"password"`
+	VCenterURL string `json:"vcenter_url`
+}
+
+type Platform struct {
+	Type                 string               `json:"type"`
+	VCenterConfiguration VCenterConfiguration `json:"vcenter_configuration"`
+}
+
 type Cluster struct {
-	ClusterId          string `json:"cluster_id"`
-	ClusterName        string `json:"cluster_name"`
-	KubeConfigFilePath string `json:"kubeconfig_file"`
-	CniPlugin          string `json:"cniPlugin"`
+	ClusterId              string   `json:"cluster_id"`
+	ClusterName            string   `json:"cluster_name"`
+	KubeConfigFilePath     string   `json:"kubeconfig_file"`
+	CniPlugin              string   `json:"cniPlugin"`
+	CloudName              string   `json:"cloudName"`
+	DisableStaticRouteSync string   `json:"disableStaticRouteSync"`
+	DefaultIngController   string   `json:"defaultIngController"`
+	NetworkName            string   `json:"NetworkName"`
+	VRFRefName             string   `json:"vrfRefName"`
+	Platform               Platform `json:"platform"`
 }
 
 type AkoParams struct {
@@ -33,16 +50,29 @@ type TestParams struct {
 	IngressNamePrefix string `json:"ingressNamePrefix"`
 }
 
-type Controller struct {
-	Name      string `json:"name"`
-	Ip        string `json:"ip"`
-	UserName  string `json:"username"`
-	Password  string `json:"password"`
-	CloudName string `json:"cloud_name"`
+type Networks struct {
+	Mgmt string `json:"mgmt"`
+}
+
+type Vm struct {
+	Datacenter string   `json:"datacenter"`
+	Name       string   `json:"name"`
+	Cluster    string   `json:"cluster"`
+	Ip         string   `json:"ip"`
+	Mask       string   `json:"mask"`
+	Networks   Networks `json:"networks"`
+	CloudName  string   `json:"cloud_name"`
+	Host       string   `json:"host"`
+	Static     string   `json:"static"`
+	Datastore  string   `json:"datastore"`
+	Type       string   `json:"type"`
+	UserName   string   `json:"username"`
+	Password   string   `json:"password"`
+	Gateway    string   `json:"gateway"`
 }
 
 type TestbedFields struct {
-	AkoParam   AkoParams    `json:"Ako_params"`
-	TestParams TestParams   `json:"TestParams"`
-	Controller []Controller `json:"Controller"`
+	AkoParam   AkoParams  `json:"Ako_params"`
+	TestParams TestParams `json:"TestParams"`
+	Vm         []Vm       `json:"Vm"`
 }
