@@ -315,7 +315,7 @@ func checkRefOnController(key, refKey, refValue string) error {
 
 	// assign the last avi client for ref checks
 	aviClientLen := lib.GetshardSize()
-	result, err := cache.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
+	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
 		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)

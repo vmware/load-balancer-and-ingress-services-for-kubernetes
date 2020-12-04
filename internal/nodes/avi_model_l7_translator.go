@@ -483,11 +483,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			}
 
 			if path.Path != "" {
-				httpPolicyPath := path.Path
-				if !strings.HasSuffix(httpPolicyPath, "/") {
-					httpPolicyPath = path.Path + "/"
-				}
-				httpPGPath.Path = append(httpPGPath.Path, httpPolicyPath)
+				httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			}
 
 			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
