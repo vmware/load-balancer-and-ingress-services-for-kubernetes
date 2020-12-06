@@ -23,9 +23,9 @@ import (
 	time "time"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
-	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned"
-	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/listers/ako/v1alpha1"
+	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned"
+	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/listers/ako/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

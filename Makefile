@@ -45,13 +45,17 @@ else
 endif
 
 
-.PHONY:all
+.PHONY: all
 all: build docker
 
 .PHONY: build
 build: glob-vars
 		sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) -o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor /go/src/$(REL_PATH_AKO)
+
+.PHONY: build-local
+build-local:
+		$(GOBUILD) -o bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor ./cmd/ako-main
 
 .PHONY: clean
 clean:

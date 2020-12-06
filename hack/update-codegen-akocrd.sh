@@ -19,7 +19,7 @@ set -o nounset
 set -o pipefail
 
 # configurable envs
-readonly AKOCRD_VERSION=v1alpha2
+readonly AKOCRD_VERSION=v1alpha1
 readonly AKO_PACKAGE=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
 ###

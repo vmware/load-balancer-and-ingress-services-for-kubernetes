@@ -215,6 +215,10 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		SeGroupRef:            &seGroupRef,
 		ServiceMetadata:       &svc_mdata,
 		WafPolicyRef:          &vs_meta.WafPolicyRef,
+		SslProfileRef:         &vs_meta.SSLProfileRef,
+		AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
+		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
+		Enabled:               &vs_meta.Enabled,
 	}
 
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
@@ -230,7 +234,16 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool
 		sniChild.PoolRef = &pool_ref
 	}
-	var rest_ops []*utils.RestOp
+
+	var datascriptCollection []*avimodels.VSDataScripts
+	for i, script := range vs_meta.VsDatascriptRefs {
+		j := int32(i)
+		datascript := script
+		datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
+		datascriptCollection = append(datascriptCollection, datascripts)
+	}
+	sniChild.VsDatascripts = datascriptCollection
+
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
 		// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
@@ -266,6 +279,8 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 		sniChild.HTTPPolicies = httpPolicyCollection
 	}
+
+	var rest_ops []*utils.RestOp
 	var rest_op utils.RestOp
 	var path string
 	if rest_method == utils.RestPut {

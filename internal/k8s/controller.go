@@ -21,7 +21,6 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -822,7 +821,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			},
 		}
-		
+
 		c.informers.IngressClassInformer.Informer().AddEventHandler(ingressClassEventHandler)
 	}
 

@@ -24,10 +24,21 @@ spec:
             properties:
               virtualhost:
                 properties:
+                  analyticsProfile:
+                    type: string
                   applicationProfile:
+                    type: string
+                  enableVirtualHost:
+                    type: boolean
+                    default: true
+                  errorPageProfile:
                     type: string
                   fqdn:
                     type: string
+                  datascripts:
+                    items:
+                      type: string
+                    type: array
                   httpPolicy:
                     properties:
                       overwrite:
@@ -37,10 +48,10 @@ spec:
                           type: string
                         type: array
                     type: object
-                  networkSecurityPolicy:
-                    type: string
                   tls:
                     properties:
+                      sslProfile:
+                        type: string
                       sslKeyCertificate:
                         properties:
                           name:
