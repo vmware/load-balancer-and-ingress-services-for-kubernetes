@@ -270,6 +270,27 @@ func TestAviSvcCreationMultiPort(t *testing.T) {
 	TearDownTestForSvcLBMultiport(t, g)
 }
 
+func TestL4NamingConvention(t *testing.T) {
+	// checks naming convention of all generated nodes
+	g := gomega.NewGomegaWithT(t)
+	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, MULTIPORTSVC)
+
+	SetUpTestForSvcLBMultiport(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 15*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Name).To(gomega.Equal("cluster--red-ns-testsvcmulti"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("cluster--red-ns-testsvcmulti--808"))
+	g.Expect(nodes[0].VSVIPRefs[0].Name).To(gomega.Equal("cluster--red-ns-testsvcmulti"))
+	g.Expect(nodes[0].L4PolicyRefs[0].Name).To(gomega.Equal("cluster--red-ns-testsvcmulti"))
+
+	TearDownTestForSvcLBMultiport(t, g)
+}
+
 func TestAviSvcMultiPortApplicationProf(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, MULTIPORTSVC)

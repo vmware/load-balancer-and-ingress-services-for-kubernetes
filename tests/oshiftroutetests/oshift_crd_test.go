@@ -201,7 +201,6 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 		t.Logf("model found: %v, %v", found, aviModel)
 		if found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			t.Logf("nodes: %v", nodes)
 			if len(nodes[0].SniNodes) > 0 &&
 				len(nodes[0].SniNodes[0].PoolRefs) == 2 &&
 				len(nodes[0].PoolRefs) == 0 {

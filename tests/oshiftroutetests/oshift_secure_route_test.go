@@ -947,6 +947,37 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 	integrationtest.DelEP(t, "default", "absvc2")
 }
 
+func TestSecureOshiftNamingConvention(t *testing.T) {
+	// checks naming convention of all generated nodes
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, defaultModelName)
+	routeExample := FakeRoute{Path: "/foo/bar"}.SecureRoute()
+	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
+	routeExample.Spec.TLS.DestinationCACertificate = "abc"
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, defaultModelName)
+	vsNode := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+
+	g.Expect(vsNode.Name).To(gomega.Equal("cluster--Shared-L7-0"))
+	g.Expect(vsNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
+	g.Expect(vsNode.HTTPDSrefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
+	g.Expect(vsNode.SniNodes[0].Name).To(gomega.Equal("cluster--foo.com"))
+	g.Expect(vsNode.SniNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo"))
+	g.Expect(vsNode.SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-avisvc"))
+	g.Expect(vsNode.SniNodes[0].PoolRefs[0].PkiProfile.Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-avisvc-pkiprofile"))
+	g.Expect(vsNode.SniNodes[0].CACertRefs[0].Name).To(gomega.Equal("cluster--foo.com-cacert"))
+	g.Expect(vsNode.SniNodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("cluster--foo.com"))
+	g.Expect(vsNode.SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo"))
+	g.Expect(vsNode.VSVIPRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
+
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
 func TestReencryptRouteWithDestinationCA(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)

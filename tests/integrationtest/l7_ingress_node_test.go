@@ -146,6 +146,66 @@ func TestL7Model(t *testing.T) {
 	TearDownTestForIngress(t, model_Name)
 }
 
+func TestNamespaceShardNamingConvention(t *testing.T) {
+	// checks naming convention of all generated nodes
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-6"
+	SetUpTestForIngress(t, modelName)
+	AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+
+	ingrFake := (FakeIngress{
+		Name:      "foo-with-targets",
+		Namespace: "default",
+		DnsNames:  []string{"foo.com", "noo.com"},
+		Ips:       []string{"8.8.8.8"},
+		Paths:     []string{"/foo/bar"},
+		HostNames: []string{"v1"},
+		TlsSecretDNS: map[string][]string{
+			"my-secret": []string{"foo.com"},
+		},
+		ServiceName: "avisvc",
+	}).IngressMultiPath()
+
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	PollForCompletion(t, modelName, 5)
+
+	verifyIng, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+	for i, host := range []string{"foo.com", "noo.com"} {
+		if verifyIng.Spec.Rules[i].Host == host {
+			g.Expect(verifyIng.Spec.Rules[i].Host).To(gomega.Equal(host))
+			g.Expect(verifyIng.Spec.Rules[i].HTTP.Paths[0].Path).To(gomega.Equal("/foo/bar"))
+		}
+	}
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 15*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Name).To(gomega.Equal("cluster--Shared-L7-6"))
+	g.Expect(nodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-6"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--noo.com_foo_bar-default-foo-with-targets"))
+	g.Expect(nodes[0].HTTPDSrefs[0].Name).To(gomega.Equal("cluster--Shared-L7-6"))
+	g.Expect(nodes[0].VSVIPRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-6"))
+	g.Expect(nodes[0].SniNodes[0].Name).To(gomega.Equal("cluster--foo-with-targets-default-my-secret"))
+	g.Expect(nodes[0].SniNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("cluster--default-my-secret"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
+
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+	TearDownTestForIngress(t, modelName)
+}
+
 func TestL7ModelWithMultiTenant(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetAkoTenant()
