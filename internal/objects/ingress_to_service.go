@@ -361,19 +361,20 @@ func (v *SvcNSCache) UpdateIngressMappings(ingName string, svcName string) {
 	}
 }
 
-func (v *SvcNSCache) AddIngressToSecretsMappings(ingressNS, ingName, secretName string) {
+func (v *SvcNSCache) AddSecretsToIngressMappings(ingressNS, ingName, secretName string) {
 	v.IngressLock.Lock()
+	defer v.IngressLock.Unlock()
 	nsIngress := ingressNS + "/" + ingName
 	_, ingresses := v.GetSecretToIng(secretName)
 	if !utils.HasElem(ingresses, nsIngress) {
 		ingresses = append(ingresses, nsIngress)
 		v.UpdateSecretToIngMapping(secretName, ingresses)
 	}
-	v.IngressLock.Unlock()
 }
 
-func (v *SvcNSCache) AddSecretsToIngressMappings(secretNS, ingName, secretName string) {
+func (v *SvcNSCache) AddIngressToSecretsMappings(secretNS, ingName, secretName string) {
 	v.IngressLock.Lock()
+	defer v.IngressLock.Unlock()
 	_, secrets := v.GetIngToSecret(ingName)
 	nsSecret := secretNS + "/" + secretName
 	if !utils.HasElem(secrets, nsSecret) {
@@ -381,7 +382,6 @@ func (v *SvcNSCache) AddSecretsToIngressMappings(secretNS, ingName, secretName s
 		utils.AviLog.Debugf("Updated the ingress: %s to secrets: %s", ingName, secrets)
 		v.UpdateIngToSecretMapping(ingName, secrets)
 	}
-	v.IngressLock.Unlock()
 }
 
 func (v *SvcNSCache) UpdateIngressClassMappings(ingName string, ingClass string) {

@@ -90,6 +90,10 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			if found {
 				for _, namespacedSecret := range secrets {
 					_, secret := utils.ExtractNamespaceObjectName(namespacedSecret)
+					if secret == "" {
+						utils.AviLog.Warnf("key: %s, msg: got empty secret for ingress %s/%s", key, namespace, ingName)
+						continue
+					}
 					sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
 					RemoveSniInModel(sniNodeName, vsNode, key)
 				}
@@ -213,6 +217,10 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	if found {
 		for _, namespacedSecret := range secrets {
 			_, secret := utils.ExtractNamespaceObjectName(namespacedSecret)
+			if secret == "" {
+				utils.AviLog.Warnf("key: %s, msg: got empty secret while deleting pool for Ingress %s/%s", key, namespace, ingName)
+				continue
+			}
 			sniNodeName := lib.GetSniNodeName(ingName, namespace, secret)
 			utils.AviLog.Infof("key: %s, msg: sni node to delete :%s", key, sniNodeName)
 			RemoveSniInModel(sniNodeName, vsNode, key)

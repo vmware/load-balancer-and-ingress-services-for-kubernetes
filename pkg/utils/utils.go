@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -389,9 +390,7 @@ func retrieveNSList(nsList map[string]bool) []string {
 // This utility returns a true/false depending on whether
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {
-	advanceL4 := os.Getenv(ADVANCED_L4)
-	if advanceL4 == "true" {
-
+	if ok, _ := strconv.ParseBool(os.Getenv(ADVANCED_L4)); ok {
 		return true
 	}
 	return false
