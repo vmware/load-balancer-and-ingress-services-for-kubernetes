@@ -28,8 +28,6 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-
-	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/clients"
@@ -341,7 +339,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 		uri = "/api/poolgroup/?" + "include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for pg %v", uri, err)
 		return nil, 0, err
@@ -443,7 +441,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 		uri = "/api/pkiprofile/?" + "&include_name=true&" + "&created_by=" + akoUser + "&page_size=100"
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for pool %v", uri, err)
 		return nil, 0, err
@@ -501,7 +499,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 		uri = "/api/pool/?" + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for pool %v", uri, err)
 		return nil, 0, err
@@ -634,7 +632,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		uri = "/api/vsvip/?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true" + "&cloud_ref.name=" + cloud + "&page_size=100"
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for vsvip %v", uri, err)
 		return nil, err
@@ -731,7 +729,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 		uri = "/api/vsdatascriptset/?" + "&include_name=true&created_by=" + akoUser
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for datascript %v", uri, err)
 		return nil, 0, err
@@ -827,7 +825,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 		uri = "/api/sslkeyandcertificate/?" + "&created_by=" + akoUser + "&page_size=100"
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for sslkeyandcertificate %v", uri, err)
 		return nil, 0, err
@@ -897,7 +895,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 
 	uri = "/api/sslkeyandcertificate?name=" + objName + "&created_by=" + akoUser
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for sslkeyandcertificate %v", uri, err)
 		return err
@@ -956,7 +954,7 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 
 	uri = "/api/pkiprofile?name=" + objName + "&created_by=" + akoUser
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for pkiprofile %v", uri, err)
 		return err
@@ -1002,7 +1000,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 
 	uri = "/api/pool?name=" + objName + "&created_by=" + akoUser
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for pool %v", uri, err)
 		return err
@@ -1067,7 +1065,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 
 	uri = "/api/vsdatascript?name=" + objName + "&created_by=" + akoUser
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for vsdatascript %v", uri, err)
 		return err
@@ -1124,7 +1122,7 @@ func (c *AviObjCache) AviPopulateOnePGCache(client *clients.AviClient,
 
 	uri = "/api/poolgroup?name=" + objName + "&created_by=" + akoUser
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for poolgroup %v", uri, err)
 		return err
@@ -1182,7 +1180,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 
 	uri = "/api/vsvip?name=" + objName + "&cloud_ref.name=" + cloud
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for vsvip %v", uri, err)
 		return err
@@ -1239,7 +1237,7 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 
 	uri = "/api/httppolicyset?name=" + objName + "&created_by=" + akoUser
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for httppol %v", uri, err)
 		return err
@@ -1299,7 +1297,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 
 	uri = "/api/l4policyset?name=" + objName + "&created_by=" + akoUser
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for l4pol %v", uri, err)
 		return err
@@ -1369,7 +1367,7 @@ func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient, cloud stri
 		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for virtualservice %v", uri, err)
 		return nil, err
@@ -1576,7 +1574,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 		uri = "/api/httppolicyset/?" + "&include_name=true" + "&created_by=" + akoUser + "&page_size=100"
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for httppolicyset %v", uri, err)
 		return nil, 0, err
@@ -1679,7 +1677,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		uri = "/api/l4policyset/?" + "&include_name=true" + "&created_by=" + akoUser + "&page_size=100"
 	}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err for httppolicyset %v", uri, err)
 		return nil, 0, err
@@ -1786,7 +1784,7 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
 	vrfList := []*models.VrfContext{}
 
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
 		return err
@@ -1832,7 +1830,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
 
-	err := AviGet(client, uri, &rest_response)
+	err := lib.AviGet(client, uri, &rest_response)
 	if err != nil {
 		utils.AviLog.Warnf("Vs Get uri %v returned err %v", uri, err)
 		return err
@@ -2082,7 +2080,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 	uri = "/api/virtualservice?name=" + vsName + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser
 
 	utils.AviLog.Debugf("Refreshing cache for vs uri: %s", uri)
-	err := AviGet(client, uri, &rest_response)
+	err := lib.AviGet(client, uri, &rest_response)
 	if err != nil {
 		utils.AviLog.Warnf("Vs Get uri %v returned err %v", uri, err)
 		return err
@@ -2337,7 +2335,7 @@ func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud st
 func (c *AviObjCache) AviClusterStatusPopulate(client *clients.AviClient) error {
 	uri := "/api/cluster/runtime"
 	var response map[string]interface{}
-	err := AviGet(client, uri, &response)
+	err := lib.AviGet(client, uri, &response)
 	if err != nil {
 		utils.AviLog.Warnf("Cluster status Get uri %v returned err %v", uri, err)
 		return err
@@ -2384,7 +2382,7 @@ func (c *AviObjCache) AviClusterStatusPopulate(client *clients.AviClient) error 
 
 func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, cloudName string) error {
 	uri := "/api/cloud/?name=" + cloudName
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("CloudProperties Get uri %v returned err %v", uri, err)
 		return err
@@ -2436,7 +2434,7 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, cloudUUI
 	domainList := IPAMDNSProviderProfileDomainList{}
 	uri := "/api/ipamdnsproviderprofiledomainlist?cloud_uuid=" + cloudUUID
 
-	err := AviGet(client, uri, &domainList)
+	err := lib.AviGet(client, uri, &domainList)
 	if err != nil {
 		utils.AviLog.Warnf("DNSProperty Get uri %v returned err %v", uri, err)
 		return nil
@@ -2525,7 +2523,7 @@ func checkSegroupLabels(client *clients.AviClient) bool {
 		return false
 	}
 	uri := "/api/serviceenginegroup/?include_name&name=" + segName + "&cloud_ref.name=" + utils.CloudName
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
 		return false
@@ -2568,7 +2566,7 @@ func checkSegroupLabels(client *clients.AviClient) bool {
 			defer SetTenant(client.AviSession)
 		}
 
-		err = AviPut(client, uri, seg, response)
+		err = lib.AviPut(client, uri, seg, response)
 		if err != nil {
 			utils.AviLog.Warnf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
 			return false
@@ -2596,7 +2594,7 @@ func checkTenant(client *clients.AviClient) bool {
 		SetAdminTenant(client.AviSession)
 		defer SetTenant(client.AviSession)
 	}
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 		return false
@@ -2612,7 +2610,7 @@ func checkTenant(client *clients.AviClient) bool {
 func checkAndSetCloudType(client *clients.AviClient) bool {
 
 	uri := "/api/cloud/?include_name&name=" + utils.CloudName
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 		return false
@@ -2683,7 +2681,7 @@ func checkNodeNetwork(client *clients.AviClient) bool {
 	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 
 		uri := "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
-		result, err := AviGetCollectionRaw(client, uri)
+		result, err := lib.AviGetCollectionRaw(client, uri)
 		if err != nil {
 			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 			return false
@@ -2732,7 +2730,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 	}
 
 	uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
-	result, err := AviGetCollectionRaw(client, uri)
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
 		return false
@@ -2796,38 +2794,4 @@ func ExtractUuidWithoutHash(word, pattern string) string {
 		return result[0][:len(result[0])]
 	}
 	return ""
-}
-
-func AviGetCollectionRaw(client *clients.AviClient, uri string) (session.AviCollectionResult, error) {
-	result, err := client.AviSession.GetCollectionRaw(uri)
-	if err != nil {
-		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
-		return session.AviCollectionResult{}, err
-	}
-
-	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
-	return result, nil
-}
-
-func AviGet(client *clients.AviClient, uri string, response interface{}) error {
-	err := client.AviSession.Get(uri, &response)
-	if err != nil {
-		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
-		return err
-	}
-
-	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
-	return nil
-}
-
-func AviPut(client *clients.AviClient, uri string, payload interface{}, response interface{}) error {
-	err := client.AviSession.Put(uri, payload, &response)
-
-	if err != nil {
-		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
-		return err
-	}
-
-	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
-	return nil
 }
