@@ -822,7 +822,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			},
 		}
-		
+
 		c.informers.IngressClassInformer.Informer().AddEventHandler(ingressClassEventHandler)
 	}
 
@@ -857,14 +857,14 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 		if configMap.Name == lib.AviConfigMap {
 			return configMap, true
 		}
-	} else if ok && configMap.Namespace == lib.GetAKONamespace() && configMap.Name == lib.AviConfigMap {
+	} else if ok && configMap.Namespace == utils.GetAKONamespace() && configMap.Name == lib.AviConfigMap {
 		return configMap, true
 	}
 	return nil, false
 }
 
 func validateAviSecret(secret *corev1.Secret) bool {
-	if secret.Namespace == lib.GetAKONamespace() && secret.Name == lib.AviSecret {
+	if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.AviSecret {
 		// if the secret is updated or deleted we shutdown API server
 		utils.AviLog.Warnf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
 		lib.ShutdownApi()

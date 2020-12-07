@@ -274,7 +274,7 @@ func handleIngress(key string, fullsync bool, ingressNames []string) {
 }
 
 func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, string) {
-	if objType == lib.HostRule || objType == lib.HTTPRule {
+	if objType == lib.HostRule || objType == lib.HTTPRule || objType == utils.Secret {
 		arr := strings.Split(nsname, "/")
 		return arr[0], arr[1]
 	}

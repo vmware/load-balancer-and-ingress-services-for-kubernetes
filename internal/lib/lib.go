@@ -628,12 +628,6 @@ func ContainsFinalizer(o metav1.Object, finalizer string) bool {
 	return false
 }
 
-// GetAKONamespace returns the namespace of AKO pod.
-// In Advance L4 Mode this is vmware-system-ako
-// In all other cases this is avi-system
-func GetAKONamespace() string {
-	if GetAdvancedL4() {
-		return VMwareNS
-	}
-	return AviNS
+func GetDefaultSecretForRoutes() string {
+	return DefaultRouteCert
 }

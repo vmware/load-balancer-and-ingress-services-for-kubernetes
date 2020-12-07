@@ -91,7 +91,7 @@ func delConfigFromData(data map[string]string) bool {
 }
 
 func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
-	cmNS := lib.GetAKONamespace()
+	cmNS := utils.GetAKONamespace()
 	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
 	if err == nil {
 		return delConfigFromData(cm.Data)

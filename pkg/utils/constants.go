@@ -69,6 +69,7 @@ const (
 	FULL_SYNC_INTERVAL            = "FULL_SYNC_INTERVAL"
 	DEFAULT_FILE_SUFFIX           = "avi.log"
 	K8S_ETIMEDOUT                 = "timed out"
+	ADVANCED_L4                   = "ADVANCED_L4"
 
 	// container-lib/api constants
 	AVIAPI_INITIATING   = "INITIATING"

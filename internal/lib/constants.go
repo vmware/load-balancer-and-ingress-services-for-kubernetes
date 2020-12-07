@@ -105,6 +105,7 @@ const (
 	ObjectDeletionDoneStatus                   = "objDeletionDone"
 	ObjectDeletionTimeoutStatus                = "objDeletionTimeout"
 	DefaultIngressClassAnnotation              = "ingressclass.kubernetes.io/is-default-class"
+	DefaultRouteCert                           = "router-certs-default"
 
 	//Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"

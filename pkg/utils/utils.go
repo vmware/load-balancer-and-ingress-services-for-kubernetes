@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -157,12 +158,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 	}
 
 	// We listen to configmaps only in`avi-system or vmware-system-ako`
-	var akoNS string
-	if akoNSBoundInformer {
-		akoNS = VMWARE_SYSTEM_AKO // Advanced L4 is for vmware-system-ako
-	} else {
-		akoNS = AKO_DEFAULT_NS // Regular AKO
-	}
+	akoNS := GetAKONamespace()
 
 	SetIngressClassEnabled(cs)
 
@@ -233,8 +229,6 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 					AviLog.Infof("Running AKO in avi-system namespace")
 				}
 			case INFORMERS_OPENSHIFT_CLIENT:
-				// this would initialize secret/configmap informer for AKO namespace in openshift
-				akoNSBoundInformer = true
 				oshiftclient, ok = v.(oshiftclientset.Interface)
 				if !ok {
 					AviLog.Warnf("arg oshiftclient is not of type oshiftclientset.Interface")
@@ -248,6 +242,10 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 				AviLog.Warnf("Unknown Key %s in args", k)
 			}
 		}
+	}
+
+	if oshiftclient != nil {
+		akoNSBoundInformer = true
 	}
 	if !instantiateOnce {
 		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace, akoNSBoundInformer)
@@ -387,4 +385,23 @@ func retrieveNSList(nsList map[string]bool) []string {
 		namespaces = append(namespaces, k)
 	}
 	return namespaces
+}
+
+// This utility returns a true/false depending on whether
+// the user requires advanced L4 functionality
+func GetAdvancedL4() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv(ADVANCED_L4)); ok {
+		return true
+	}
+	return false
+}
+
+// GetAKONamespace returns the namespace of AKO pod.
+// In Advance L4 Mode this is vmware-system-ako
+// In all other cases this is avi-system
+func GetAKONamespace() string {
+	if GetAdvancedL4() {
+		return VMWARE_SYSTEM_AKO
+	}
+	return AKO_DEFAULT_NS
 }

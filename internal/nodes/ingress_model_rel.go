@@ -62,7 +62,7 @@ var (
 	Secret = GraphSchema{
 		Type:               "Secret",
 		GetParentIngresses: SecretToIng,
-		GetParentRoutes:    SecretToIng,
+		GetParentRoutes:    SecretToRoute,
 		GetParentGateways:  SecretToGateway,
 	}
 	Route = GraphSchema{
@@ -135,7 +135,12 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 		}
 		if routeObj.Spec.TLS != nil {
 			secret := lib.RouteSecretsPrefix + routeName
-			objects.OshiftRouteSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(routeName, secret)
+			if routeObj.Spec.TLS.Certificate == "" || routeObj.Spec.TLS.Key == "" {
+				secret = lib.GetDefaultSecretForRoutes()
+			}
+			akoNS := utils.GetAKONamespace()
+			objects.OshiftRouteSvcLister().IngressMappings(namespace).AddIngressToSecretsMappings(akoNS, routeName, secret)
+			objects.OshiftRouteSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(namespace, routeName, secret)
 		}
 	}
 	return routes, true
@@ -281,7 +286,8 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 		secrets := parseSecretsForIngress(ingObj.Spec, key)
 		if len(secrets) > 0 {
 			for _, secret := range secrets {
-				objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressSecretsMappings(ingName, secret)
+				objects.SharedSvcLister().IngressMappings(namespace).AddIngressToSecretsMappings(namespace, ingName, secret)
+				objects.SharedSvcLister().IngressMappings(namespace).AddSecretsToIngressMappings(namespace, ingName, secret)
 			}
 		}
 	}
@@ -343,6 +349,15 @@ func EPToIng(epName string, namespace string, key string) ([]string, bool) {
 
 func SecretToIng(secretName string, namespace string, key string) ([]string, bool) {
 	ok, ingNames := objects.SharedSvcLister().IngressMappings(namespace).GetSecretToIng(secretName)
+	utils.AviLog.Debugf("key:%s, msg: Ingresses associated with the secret are: %s", key, ingNames)
+	if ok {
+		return ingNames, true
+	}
+	return nil, false
+}
+
+func SecretToRoute(secretName string, namespace string, key string) ([]string, bool) {
+	ok, ingNames := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSecretToIng(secretName)
 	utils.AviLog.Debugf("key:%s, msg: Ingresses associated with the secret are: %s", key, ingNames)
 	if ok {
 		return ingNames, true
