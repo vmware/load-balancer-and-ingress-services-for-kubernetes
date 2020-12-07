@@ -91,9 +91,9 @@ func FetchVirtualServices(t *testing.T, AviClient *clients.AviClient) []models.V
 	if err != nil {
 		t.Errorf("Failed to unmarshal VS data, err: %v", err)
 	}
-	for i := 0; i < len(elems); i++ {
+	for _, elem := range elems {
 		vs := models.VirtualService{}
-		err = json.Unmarshal(elems[i], &vs)
+		err = json.Unmarshal(elem, &vs)
 		if err != nil {
 			t.Errorf("Failed to unmarshal VS data, err: %v", err)
 		}
@@ -111,9 +111,9 @@ func FetchVirtualServices(t *testing.T, AviClient *clients.AviClient) []models.V
 		if err != nil {
 			t.Errorf("Failed to unmarshal VS data, err: %v", err)
 		}
-		for i := 0; i < len(elems); i++ {
+		for _, elem := range elems {
 			vs := models.VirtualService{}
-			err = json.Unmarshal(elems[i], &vs)
+			err = json.Unmarshal(elem, &vs)
 			if err != nil {
 				t.Errorf("Failed to unmarshal VS data, err: %v", err)
 			}
@@ -136,9 +136,9 @@ func FetchPoolGroup(t *testing.T, AviClient *clients.AviClient) []models.PoolGro
 	if err != nil {
 		t.Errorf("Failed to unmarshal pg data, err: %v", err)
 	}
-	for i := 0; i < len(elems); i++ {
+	for _, elem := range elems {
 		pg := models.PoolGroup{}
-		err = json.Unmarshal(elems[i], &pg)
+		err = json.Unmarshal(elem, &pg)
 		if err != nil {
 			t.Errorf("Failed to unmarshal pg data, err: %v", err)
 		}
@@ -156,9 +156,9 @@ func FetchPoolGroup(t *testing.T, AviClient *clients.AviClient) []models.PoolGro
 		if err != nil {
 			t.Errorf("Failed to unmarshal pg data, err: %v", err)
 		}
-		for i := 0; i < len(elems); i++ {
+		for _, elem := range elems {
 			pg := models.PoolGroup{}
-			err = json.Unmarshal(elems[i], &pg)
+			err = json.Unmarshal(elem, &pg)
 			if err != nil {
 				t.Errorf("Failed to unmarshal pg data, err: %v", err)
 			}
@@ -181,9 +181,9 @@ func FetchPools(t *testing.T, AviClient *clients.AviClient) []models.Pool {
 	if err != nil {
 		t.Errorf("Failed to unmarshal pool data, err: %v", err)
 	}
-	for i := 0; i < len(elems); i++ {
+	for _, elem := range elems {
 		pool := models.Pool{}
-		err = json.Unmarshal(elems[i], &pool)
+		err = json.Unmarshal(elem, &pool)
 		if err != nil {
 			t.Errorf("Failed to unmarshal pool data, err: %v", err)
 		}
@@ -202,9 +202,9 @@ func FetchPools(t *testing.T, AviClient *clients.AviClient) []models.Pool {
 			t.Errorf("Failed to unmarshal pool data, err: %v", err)
 		}
 
-		for i := 0; i < len(elems); i++ {
+		for _, elem := range elems {
 			pool := models.Pool{}
-			err = json.Unmarshal(elems[i], &pool)
+			err = json.Unmarshal(elem, &pool)
 			if err != nil {
 				t.Errorf("Failed to unmarshal pool data, err: %v", err)
 			}
@@ -218,26 +218,26 @@ func FetchDnsVsFqdn(t *testing.T, dnsVsUuid string, AviClient *clients.AviClient
 	uri := "api/virtualservice"
 	result, err := AviClient.AviSession.GetCollectionRaw(uri)
 	if err != nil {
-		t.Logf("Get uri %v returned err for pool %v", uri, err)
+		t.Fatalf("Get uri %v returned err for pool %v", uri, err)
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		t.Logf("Failed to unmarshal VS data, err: %v", err)
+		t.Fatalf("Failed to unmarshal VS data, err: %v", err)
 	}
 	virtualservice := models.VirtualServiceRuntime{}
-	for i := 0; i < len(elems); i++ {
+	for _, elem := range elems {
 		vs := models.VirtualServiceRuntime{}
-		err = json.Unmarshal(elems[i], &vs)
+		json.Unmarshal(elem, &vs)
 		if *vs.UUID == dnsVsUuid {
 			virtualservice = vs
 			break
 		}
 	}
 	ipamDNSRecords := []models.DNSRecord{}
-	for i := 0; i < len(virtualservice.IPAMDNSRecords); i++ {
+	for _, ipamRecord := range virtualservice.IPAMDNSRecords {
 		dnsRecord := models.DNSRecord{}
-		dnsRecord = *virtualservice.IPAMDNSRecords[i]
+		dnsRecord = *ipamRecord
 		ipamDNSRecords = append(ipamDNSRecords, dnsRecord)
 	}
 	return ipamDNSRecords
@@ -246,10 +246,10 @@ func FetchDnsVsFqdn(t *testing.T, dnsVsUuid string, AviClient *clients.AviClient
 func FetchDNSARecordsFQDN(t *testing.T, dnsVsUuid string, AviClient *clients.AviClient) []string {
 	ipamDNSRecords := FetchDnsVsFqdn(t, dnsVsUuid, AviClient)
 	var FQDNList []string
-	for i := 0; i < len(ipamDNSRecords); i++ {
-		if *ipamDNSRecords[i].Type == "DNS_RECORD_A" {
-			for j := 0; j < len(ipamDNSRecords[i].Fqdn); j++ {
-				FQDNList = append(FQDNList, ipamDNSRecords[i].Fqdn[j])
+	for _, ipamRecord := range ipamDNSRecords {
+		if *ipamRecord.Type == "DNS_RECORD_A" {
+			for j := 0; j < len(ipamRecord.Fqdn); j++ {
+				FQDNList = append(FQDNList, ipamRecord.Fqdn[j])
 			}
 		}
 	}

@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -31,11 +32,12 @@ import (
 )
 
 const (
-	SECURE     = "secure"
-	INSECURE   = "insecure"
-	MULTIHOST  = "multi-host"
-	CONTROLLER = "Controller"
-	KUBENODE   = "Node"
+	SECURE       = "secure"
+	INSECURE     = "insecure"
+	MULTIHOST    = "multi-host"
+	CONTROLLER   = "Controller"
+	KUBENODE     = "Node"
+	AKONAMESPACE = "avi-system"
 )
 
 var (
@@ -50,12 +52,15 @@ var (
 	listOfServicesCreated    []string
 	ingressesCreated         []string
 	ingressesDeleted         []string
+	ingressesUpdated         []string
 	ingressHostNames         []string
 	ingressSecureHostNames   []string
 	ingressInsecureHostNames []string
 	initialNumOfPools        = 0
 	initialNumOfVSes         = 0
 	initialNumOfFQDN         = 0
+	initialVSesList          []string
+	initialFQDNList          []string
 	ingressType              string
 	numOfIng                 int
 	clusterName              string
@@ -69,27 +74,44 @@ var (
 	REBOOTNODE               = false
 )
 
+/* Basic Setup including parsing of parameters from command line
+And assignment of global variables fetched from the testbed
+Aviclients, Deployment and Services used by the test are created */
 func Setup() {
 	var testbedParams lib.TestbedFields
-	timeout = os.Args[3]
+	var err error
+	timeout = os.Args[4]
 	testbedFileName = os.Args[5]
-	testbed, err := os.Open(testbedFileName)
+	numGoRoutines, err = strconv.Atoi(os.Args[6])
 	if err != nil {
-		fmt.Println("ERROR : Error opening testbed file ", testbedFileName, " with error : ", err)
-		os.Exit(0)
-	}
-	defer testbed.Close()
-	byteValue, _ := ioutil.ReadAll(testbed)
-	json.Unmarshal(byteValue, &testbedParams)
-	numGoRoutines, err = strconv.Atoi(os.Args[4])
-	if err != nil {
-		numGoRoutines = 5
+		fmt.Println("Setting default value for number of Go routines to 20")
+		numGoRoutines = 20
 	}
 	if numGoRoutines <= 0 {
 		fmt.Println("ERROR : Number of Go Routines cannot be zero or negative.")
 		os.Exit(0)
 	}
-	NumOfIng, err = strconv.Atoi(os.Args[5])
+	numOfIng, err = strconv.Atoi(os.Args[7])
+	if err != nil {
+		fmt.Println("ERROR : Number of ingresses not provided")
+		os.Exit(0)
+	}
+	testbed, er := os.Open(testbedFileName)
+	if er != nil {
+		fmt.Println("ERROR : Error opening testbed file ", testbedFileName, " with error : ", err)
+		os.Exit(0)
+	}
+	defer testbed.Close()
+	byteValue, err := ioutil.ReadAll(testbed)
+	if err != nil {
+		fmt.Println("ERROR : Failed to read the testbed file with error : ", err)
+		os.Exit(0)
+	}
+	err = json.Unmarshal(byteValue, &testbedParams)
+	if err != nil {
+		fmt.Println("ERROR : Failed to unmarshal testbed file as : ", err)
+		os.Exit(0)
+	}
 	namespace = testbedParams.TestParams.Namespace
 	appName = testbedParams.TestParams.AppName
 	serviceNamePrefix = testbedParams.TestParams.ServiceNamePrefix
@@ -99,8 +121,7 @@ func Setup() {
 	akoPodName = testbedParams.TestParams.AkoPodName
 	os.Setenv("CTRL_USERNAME", testbedParams.Vm[0].UserName)
 	os.Setenv("CTRL_PASSWORD", testbedParams.Vm[0].Password)
-	os.Setenv("CTRL_IPADDRESS", testbedParams.Vm[0].Ip)
-
+	os.Setenv("CTRL_IPADDRESS", testbedParams.Vm[0].IP)
 	lib.KubeInit(testbedParams.AkoParam.Clusters[0].KubeConfigFilePath)
 	AviClients, err = lib.SharedAVIClients(2)
 	if err != nil {
@@ -119,6 +140,7 @@ func Setup() {
 	}
 }
 
+/* Cleanup of Services and Deployment created for the test */
 func Cleanup() {
 	err := lib.DeleteService(listOfServicesCreated, namespace)
 	if err != nil {
@@ -130,44 +152,82 @@ func Cleanup() {
 	}
 }
 
+/* Need to be executed for each test case
+Fetches the Avi controller state before the testing starts */
 func SetupForTesting(t *testing.T) {
 	pools := lib.FetchPools(t, AviClients[0])
 	initialNumOfPools = len(pools)
 	VSes := lib.FetchVirtualServices(t, AviClients[0])
-	initialNumOfVSes = len(VSes)
-	FQDNList := lib.FetchDNSARecordsFQDN(t, dnsVSUUID, AviClients[0])
-	initialNumOfFQDN = len(FQDNList)
+	for _, vs := range VSes {
+		initialVSesList = append(initialVSesList, *vs.Name)
+	}
+	initialNumOfVSes = len(initialVSesList)
+	initialFQDNList = lib.FetchDNSARecordsFQDN(t, dnsVSUUID, AviClients[0])
+	initialNumOfFQDN = len(initialFQDNList)
+	ingressHostNames = []string{}
+	ingressSecureHostNames = []string{}
+	ingressInsecureHostNames = []string{}
+	ingressesCreated = []string{}
+	ingressesDeleted = []string{}
+	ingressesUpdated = []string{}
 }
 
-func Reboot(t *testing.T, nodeType string, controllerIP string, username string, password string) {
+/* Used for Controller and Node reboot */
+func Reboot(t *testing.T, wg *sync.WaitGroup, nodeType string, controllerIP string, username string, password string) {
 	t.Logf("Rebooting %s ... ", nodeType)
 	loginID := username + "@" + controllerIP
 	cmd := exec.Command("sshpass", "-p", password, "ssh", "-t", loginID, " `echo ", password, " |  sudo -S shutdown --reboot 0 && exit `")
 	_, err := cmd.Output()
 	if err != nil {
-		fmt.Println(err.Error())
+		t.Errorf("Cannot reboot %s beacuse : %v ", nodeType, err.Error())
+	} else {
+		t.Logf("%s Rebooted", nodeType)
 	}
-	t.Logf("%s Rebooted", nodeType)
+	defer wg.Done()
 }
 
-func ParallelReboot(t *testing.T, nodeType string, controllerIP string, username string, password string) {
-	go Reboot(t, nodeType, controllerIP, username, password)
-}
-
-func RebootAko(t *testing.T) {
-	akoNamespace := "avi-system"
-	t.Logf("Rebooting AKO pod %s of namespace %s ...", akoPodName, akoNamespace)
-	err := lib.DeletePod(akoPodName, akoNamespace)
+/* Reboots AKO pod */
+func RebootAko(t *testing.T, wg *sync.WaitGroup) {
+	t.Logf("Rebooting AKO pod %s of namespace %s ...", akoPodName, AKONAMESPACE)
+	err := lib.DeletePod(akoPodName, AKONAMESPACE)
 	if err != nil {
 		t.Fatalf("Cannot reboot Ako pod as : %v", err)
+		os.Exit(0)
 	}
 	t.Logf("Ako rebooted.")
+	defer wg.Done()
 }
 
-func ParallelAkoReboot(t *testing.T) {
-	go RebootAko(t)
+/* Reboots Controller/Node/Ako if Reboot is set to true */
+func CheckReboot(t *testing.T, wg *sync.WaitGroup) {
+	if REBOOTAKO == true {
+		wg.Add(1)
+		go RebootAko(t, wg)
+	}
+	if REBOOTCONTROLLER == true {
+		wg.Add(1)
+		go Reboot(t, wg, CONTROLLER, os.Getenv("CTRL_IPADDRESS"), os.Getenv("CTRL_USERNAME"), os.Getenv("CTRL_PASSWORD"))
+	}
+	if REBOOTNODE == true {
+		wg.Add(1)
+		var testbedParams lib.TestbedFields
+		testbed, err := os.Open(testbedFileName)
+		if err != nil {
+			t.Fatalf("ERROR : Error opening testbed file %s with error : %s", testbedFileName, err)
+			os.Exit(0)
+		}
+		defer testbed.Close()
+		byteValue, err := ioutil.ReadAll(testbed)
+		if err != nil {
+			t.Fatalf("ERROR : Failed to read the testbed file with error : %s", err)
+			os.Exit(0)
+		}
+		json.Unmarshal(byteValue, &testbedParams)
+		go Reboot(t, wg, KUBENODE, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password)
+	}
 }
 
+/* Gives all the elements presents in one list but not the other */
 func DiffOfLists(list1 []string, list2 []string) []string {
 	diffMap := map[string]int{}
 	var diffString []string
@@ -187,6 +247,22 @@ func DiffOfLists(list1 []string, list2 []string) []string {
 	return diffString
 }
 
+/* list1 - list2 */
+func DiffOfListsOrderBased(list1 []string, list2 []string) []string {
+	diffMap := map[string]bool{}
+	var diffString []string
+	for _, l1 := range list1 {
+		diffMap[l1] = true
+	}
+	for _, l2 := range list2 {
+		if _, ok := diffMap[l2]; !ok {
+			diffString = append(diffString, l2)
+		}
+	}
+	return diffString
+}
+
+/* Verifies if all requires pools are created or not */
 func PoolVerification(t *testing.T) bool {
 	t.Logf("Verifying pools...")
 	pools := lib.FetchPools(t, AviClients[0])
@@ -215,8 +291,8 @@ func PoolVerification(t *testing.T) bool {
 			ingressPoolList = append(ingressPoolList, ingressPoolName)
 		}
 	}
-	for i := 0; i < len(pools); i++ {
-		poolList = append(poolList, *pools[i].Name)
+	for _, pool := range pools {
+		poolList = append(poolList, *pool.Name)
 	}
 	diffNum := len(DiffOfLists(ingressPoolList, poolList))
 	if diffNum == initialNumOfPools {
@@ -225,6 +301,7 @@ func PoolVerification(t *testing.T) bool {
 	return false
 }
 
+/* Verifies if all requires DNS A records are created in the DNS VS or not */
 func DNSARecordsVerification(t *testing.T, hostNames []string) bool {
 	t.Logf("Verifying DNS A Records...")
 	FQDNList := lib.FetchDNSARecordsFQDN(t, dnsVSUUID, AviClients[0])
@@ -232,33 +309,55 @@ func DNSARecordsVerification(t *testing.T, hostNames []string) bool {
 	if len(diffString) == initialNumOfFQDN {
 		return true
 	}
-	return false
-}
-
-func VSVerification(t *testing.T) bool {
-	t.Logf("Verifying VSes...")
-	VSes := lib.FetchVirtualServices(t, AviClients[0])
-	var ingressVSList []string
-	var VSList []string
-	for i := 0; i < len(ingressesCreated); i++ {
-		if ingressType != MULTIHOST {
-			ingressVSName := clusterName + "--" + ingressesCreated[i] + ".avi.internal"
-			ingressVSList = append(ingressVSList, ingressVSName)
-		} else {
-			ingressVSName := clusterName + "--" + ingressesCreated[i] + "-secure.avi.internal"
-			ingressVSList = append(ingressVSList, ingressVSName)
+	newSharedVSFQDN := DiffOfLists(diffString, initialFQDNList)
+	var val int
+	for _, fqdn := range newSharedVSFQDN {
+		if strings.HasPrefix(fqdn, clusterName+"--shared") == true {
+			val++
 		}
 	}
-	for i := 0; i < len(VSes); i++ {
-		VSList = append(VSList, *VSes[i].Name)
-	}
-	diffNum := len(DiffOfLists(ingressVSList, VSList))
-	if diffNum == initialNumOfVSes {
+	if (len(newSharedVSFQDN) - val) == 0 {
 		return true
 	}
 	return false
 }
 
+/* Verifies if all requires VSes for secure ingresses are created or not */
+func VSVerification(t *testing.T) bool {
+	t.Logf("Verifying VSes...")
+	VSes := lib.FetchVirtualServices(t, AviClients[0])
+	var ingressVSList []string
+	var VSList []string
+	for _, ing := range ingressesCreated {
+		if ingressType != MULTIHOST {
+			ingressVSName := clusterName + "--" + ing + ".avi.internal"
+			ingressVSList = append(ingressVSList, ingressVSName)
+		} else {
+			ingressVSName := clusterName + "--" + ing + "-secure.avi.internal"
+			ingressVSList = append(ingressVSList, ingressVSName)
+		}
+	}
+	for _, vs := range VSes {
+		VSList = append(VSList, *vs.Name)
+	}
+	diffString := DiffOfLists(ingressVSList, VSList)
+	if len(diffString) == initialNumOfVSes {
+		return true
+	}
+	newSharedVSesCreated := DiffOfLists(diffString, initialVSesList)
+	var val int = 0
+	for _, vs := range newSharedVSesCreated {
+		if strings.HasPrefix(vs, clusterName+"--Shared") == true {
+			val++
+		}
+	}
+	if (len(newSharedVSesCreated) - val) == 0 {
+		return true
+	}
+	return false
+}
+
+/* Calls Pool, VS and DNS A records verification based on the ingress type */
 func Verify(t *testing.T) bool {
 	if ingressType == SECURE {
 		if PoolVerification(t) == true && VSVerification(t) == true && DNSARecordsVerification(t, ingressHostNames) == true {
@@ -320,6 +419,15 @@ func parallelIngressDeletion(t *testing.T, wg *sync.WaitGroup, namespace string,
 	ingressesDeleted = append(ingressesDeleted, ingresses...)
 }
 
+func parallelIngressUpdation(t *testing.T, wg *sync.WaitGroup, namespace string, listofIngressToUpdate []string) {
+	defer wg.Done()
+	ingresses, err := lib.UpdateIngress(namespace, listofIngressToUpdate)
+	if err != nil {
+		t.Fatalf("Faoled to update ingresses as : %v", err)
+	}
+	ingressesUpdated = append(ingressesUpdated, ingresses...)
+}
+
 func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) {
 	ingressesCreated = []string{}
 	var blockSize = numOfIng / numGoRoutines
@@ -330,18 +438,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	switch {
 	case ingressType == INSECURE:
 		t.Logf("Creating %d %s Ingresses Parallely...", numOfIng, ingressType)
-		if REBOOTAKO == true {
-			wg.Add(1)
-			go ParallelAkoReboot(t)
-		}
-		if REBOOTCONTROLLER == true {
-			wg.Add(1)
-			go ParallelReboot(t, CONTROLLER, os.Getenv("CTRL_IPADDRESS"), os.Getenv("CTRL_USERNAME"), os.Getenv("CTRL_PASSWORD"))
-		}
-		if REBOOTNODE == true {
-			wg.Add(1)
-			go ParallelReboot(t, KUBENODE, os.Getenv("CTRL_IPADDRESS"), os.Getenv("CTRL_USERNAME"), os.Getenv("CTRL_PASSWORD"))
-		}
+		CheckReboot(t, &wg)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
 			if i+1 <= remIng {
@@ -354,6 +451,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		}
 	case ingressType == SECURE:
 		t.Logf("Creating %d %s Ingresses Parallely...", numOfIng, ingressType)
+		CheckReboot(t, &wg)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
 			if i+1 <= remIng {
@@ -366,6 +464,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		}
 	case ingressType == MULTIHOST:
 		t.Logf("Creating %d %s Ingresses Parallely...", numOfIng, ingressType)
+		CheckReboot(t, &wg)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
 			if (i + 1) <= remIng {
@@ -383,8 +482,10 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	t.Logf("Verifiying Avi objects ...")
 	pollInterval, _ := time.ParseDuration(testPollInterval)
 	waitTimeIncr, _ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
+	// Verifies for Avi objects creation by checking every 'waitTime' seconds for 'testCaseTimeOut' seconds
 	for waitTime := 0; waitTime < testCaseTimeOut; {
 		if Verify(t) == true {
+			t.Logf("Created %d Ingresses and associated Avi objects\n", numOfIng)
 			return
 		}
 		time.Sleep(pollInterval)
@@ -393,7 +494,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	t.Fatalf("Error : Verification failed\n")
 }
 
-func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int, AviClient *clients.AviClient) {
+func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) {
 	var blockSize = numOfIng / numGoRoutines
 	var remIng = numOfIng % numGoRoutines
 	g := gomega.NewGomegaWithT(t)
@@ -401,6 +502,7 @@ func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int, 
 	ingressesDeleted = []string{}
 	t.Logf("Deleting %d %s Ingresses...", numOfIng, ingressType)
 	nextStartInd := 0
+	CheckReboot(t, &wg)
 	for i := 0; i < numGoRoutines; i++ {
 		wg.Add(1)
 		if (i + 1) <= remIng {
@@ -416,14 +518,39 @@ func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int, 
 	t.Logf("Deleted %d %s Ingresses", numOfIng, ingressType)
 	t.Logf("Verifiying Avi objects ...")
 	g.Eventually(func() int {
-		pools := lib.FetchPools(t, AviClient)
+		pools := lib.FetchPools(t, AviClients[0])
 		return len(pools)
 	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(initialNumOfPools))
-	t.Logf("Deleted %d Pools", numOfIng)
+	t.Logf("Deleted %d Ingresses and associated Avi objects\n", numOfIng)
+}
+
+func UpdateIngressesParallel(t *testing.T, numOfIng int) {
+	var blockSize = numOfIng / numGoRoutines
+	var remIng = numOfIng % numGoRoutines
+	g := gomega.NewGomegaWithT(t)
+	var wg sync.WaitGroup
+	ingressesUpdated = []string{}
+	t.Logf("Updating %d %s Ingresses...", numOfIng, ingressType)
+	nextStartInd := 0
+	CheckReboot(t, &wg)
+	for i := 0; i < numGoRoutines; i++ {
+		wg.Add(1)
+		if (i + 1) <= remIng {
+			go parallelIngressUpdation(t, &wg, namespace, ingressesCreated[nextStartInd:nextStartInd+blockSize+1])
+			nextStartInd = nextStartInd + blockSize + 1
+		} else {
+			go parallelIngressUpdation(t, &wg, namespace, ingressesCreated[nextStartInd:nextStartInd+blockSize])
+			nextStartInd = nextStartInd + blockSize
+		}
+	}
+	wg.Wait()
+	g.Expect(ingressesUpdated).To(gomega.HaveLen(numOfIng))
+	t.Logf("Updated %d Ingresses\n", numOfIng)
 }
 
 func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
 	g := gomega.NewGomegaWithT(t)
+	ingressesCreated = []string{}
 	var err error
 	switch {
 	case ingressType == INSECURE:
@@ -463,6 +590,7 @@ func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
 
 func DeleteIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int, AviClient *clients.AviClient) {
 	g := gomega.NewGomegaWithT(t)
+	ingressesDeleted = []string{}
 	t.Logf("Deleting %d %s Ingresses Serially...", numOfIng, ingressType)
 	ingressesDeleted, err := lib.DeleteIngress(namespace, ingressesCreated)
 	if err != nil {
@@ -478,67 +606,167 @@ func DeleteIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int, Av
 	t.Logf("Deleted %d Pools", numOfIng)
 }
 
-func HybridCreation(t *testing.T, wg *sync.WaitGroup, numOfIng int, startIndex int) {
-	mutex.Lock()
-	ingresses, _, _ := lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfIng, startIndex)
-	t.Logf("Created ingresses %s", ingresses)
-	ingressesCreated = append(ingressesCreated, ingresses...)
-	mutex.Unlock()
+func HybridCreation(t *testing.T, wg *sync.WaitGroup, numOfIng int, deletionStartPoint int) {
+	for i := deletionStartPoint; i < numOfIng; i++ {
+		mutex.Lock()
+		wg.Add(1)
+		var ingresses []string
+		var err error
+		switch {
+		case ingressType == INSECURE:
+			ingresses, _, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, 1, i)
+			if err != nil {
+				t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+			}
+		case ingressType == SECURE:
+			ingresses, _, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, 1, i)
+			if err != nil {
+				t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+			}
+		case ingressType == MULTIHOST:
+			ingresses, _, _, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, 1, i)
+			if err != nil {
+				t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+			}
+		}
+		t.Logf("Created ingresses %s", ingresses)
+		ingressesCreated = append(ingressesCreated, ingresses...)
+		mutex.Unlock()
+		defer wg.Done()
+
+	}
+	defer wg.Done()
+}
+
+func HybridUpdation(t *testing.T, wg *sync.WaitGroup, numOfIng int) {
+	for len(ingressesUpdated) < numOfIng {
+		mutex.Lock()
+		wg.Add(1)
+		tempStr := DiffOfLists(ingressesCreated, ingressesDeleted)
+		toUpdateIngresses := DiffOfListsOrderBased(ingressesUpdated, tempStr)
+		if len(toUpdateIngresses) > 0 {
+			updatedIngresses, err := lib.UpdateIngress(namespace, toUpdateIngresses)
+			if err != nil {
+				t.Fatalf("Error updating ingresses as : %v ", err)
+				return
+			}
+			t.Logf("Updated ingresses %s", updatedIngresses)
+			ingressesUpdated = append(ingressesUpdated, updatedIngresses...)
+		}
+		mutex.Unlock()
+		defer wg.Done()
+	}
 	defer wg.Done()
 }
 
 func HybridDeletion(t *testing.T, wg *sync.WaitGroup, numOfIng int) {
-	mutex.Lock()
-	wg.Add(1)
-	IngressList, _ := lib.ListIngress(t, namespace)
-	var ingresses []string
-	if len(IngressList) > 0 {
-		ingresses = append(ingresses, IngressList...)
-		deletedIngresses, err := lib.DeleteIngress(namespace, ingresses)
-		if err != nil {
-			fmt.Println("Error deleting ingresses -> ", err)
+	for len(ingressesDeleted) < numOfIng {
+		mutex.Lock()
+		wg.Add(1)
+		toDeleteIngresses := DiffOfLists(ingressesCreated, ingressesDeleted)
+		if len(toDeleteIngresses) > 0 {
+			deletedIngresses, err := lib.DeleteIngress(namespace, toDeleteIngresses)
+			if err != nil {
+				t.Fatalf("Error deleting ingresses as : %v ", err)
+			}
+			t.Logf("Deleted ingresses %s", deletedIngresses)
+			ingressesDeleted = append(ingressesDeleted, deletedIngresses...)
 		}
-		t.Logf("Deleted ingresses %s", deletedIngresses)
-		ingressesDeleted = append(ingressesDeleted, deletedIngresses...)
+		mutex.Unlock()
+		defer wg.Done()
 	}
-	mutex.Unlock()
 	defer wg.Done()
 }
 
+/* Creates some(deletionStartPoint) ingresses first, followed by creation, updation and deletion of ingresses parallely */
 func HybridExecution(t *testing.T, numOfIng int, deletionStartPoint int) {
 	g := gomega.NewGomegaWithT(t)
 	var wg sync.WaitGroup
 	var err error
-	ingressesCreated, _, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, deletionStartPoint)
-	if err != nil {
-		t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+	ingressesCreated = []string{}
+	ingressesUpdated = []string{}
+	ingressesDeleted = []string{}
+	switch {
+	case ingressType == INSECURE:
+		t.Logf("Creating %d %s Ingresses...", deletionStartPoint, ingressType)
+		ingressesCreated, _, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, deletionStartPoint)
+		if err != nil {
+			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+		}
+	case ingressType == SECURE:
+		t.Logf("Creating %d %s Ingresses...", deletionStartPoint, ingressType)
+		ingressesCreated, _, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, deletionStartPoint)
+		if err != nil {
+			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+		}
+	case ingressType == MULTIHOST:
+		t.Logf("Creating %d %s Ingresses...", deletionStartPoint, ingressType)
+		ingressesCreated, _, _, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, deletionStartPoint)
+		if err != nil {
+			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+		}
 	}
-	fmt.Println("Created ingresses in the start ", deletionStartPoint)
-	for i := deletionStartPoint; i < numOfIng; i++ {
-		wg.Add(1)
-		go HybridCreation(t, &wg, 1, i)
-	}
-	for len(ingressesDeleted) < numOfIng {
-		go HybridDeletion(t, &wg, numOfIng)
-		time.Sleep(1 * time.Second)
-	}
-	HybridDeletion(t, &wg, numOfIng)
+	wg.Add(3)
+	go HybridCreation(t, &wg, numOfIng, deletionStartPoint)
+	go HybridUpdation(t, &wg, numOfIng/2)
+	go HybridDeletion(t, &wg, numOfIng)
 	wg.Wait()
 	g.Expect(ingressesCreated).To(gomega.HaveLen(numOfIng))
 	g.Expect(ingressesDeleted).To(gomega.HaveLen(numOfIng))
 }
 
 func CreateIngressParallelWithAkoReboot(t *testing.T) {
-	SetupForTesting(t)
 	REBOOTAKO = true
 	CreateIngressesParallel(t, numOfIng, initialNumOfPools)
 	REBOOTAKO = false
 }
 
 func CreateIngressParallelWithControllerReboot(t *testing.T) {
-	SetupForTesting(t)
+	REBOOTCONTROLLER = true
 	CreateIngressesParallel(t, numOfIng, initialNumOfPools)
-	ParallelAkoReboot(t)
+	REBOOTCONTROLLER = false
+}
+
+func CreateIngressParallelWithNodeReboot(t *testing.T) {
+	REBOOTNODE = true
+	CreateIngressesParallel(t, numOfIng, initialNumOfPools)
+	REBOOTNODE = false
+}
+
+func DeleteIngressParallelWithAkoReboot(t *testing.T) {
+	REBOOTAKO = true
+	DeleteIngressesParallel(t, numOfIng, initialNumOfPools)
+	REBOOTAKO = false
+}
+
+func DeleteIngressParallelWithControllerReboot(t *testing.T) {
+	REBOOTCONTROLLER = true
+	DeleteIngressesParallel(t, numOfIng, initialNumOfPools)
+	REBOOTCONTROLLER = false
+}
+
+func DeleteIngressParallelWithNodeReboot(t *testing.T) {
+	REBOOTNODE = true
+	DeleteIngressesParallel(t, numOfIng, initialNumOfPools)
+	REBOOTNODE = false
+}
+
+func UpdateIngressParallelWithAkoReboot(t *testing.T) {
+	REBOOTAKO = true
+	UpdateIngressesParallel(t, numOfIng)
+	REBOOTAKO = false
+}
+
+func UpdateIngressParallelWithControllerReboot(t *testing.T) {
+	REBOOTCONTROLLER = true
+	UpdateIngressesParallel(t, numOfIng)
+	REBOOTCONTROLLER = false
+}
+
+func UpdateIngressParallelWithNodeReboot(t *testing.T) {
+	REBOOTNODE = true
+	UpdateIngressesParallel(t, numOfIng)
+	REBOOTNODE = false
 }
 
 func TestMain(t *testing.M) {
@@ -547,90 +775,116 @@ func TestMain(t *testing.M) {
 	Cleanup()
 }
 
-// func TestReboot(t *testing.T) {
-// 	RebootController(t, "10.79.169.144", "admin", "Aviuser123")
-// 	lib.DeletePod("static-web", "default")
-// }
+func TestInsecureParallelCreationUpdationDeletionWithoutReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = INSECURE
+	CreateIngressesParallel(t, numOfIng, initialNumOfPools)
+	UpdateIngressesParallel(t, numOfIng)
+	DeleteIngressesParallel(t, numOfIng, initialNumOfPools)
+}
 
-// func TestUpdateIngress(t *testing.T) {
-// 	ingressesCreated, _, err := lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, 5)
-// 	if err != nil {
-// 		t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
-// 	}
-// 	t.Logf("waiting")
-// 	time.Sleep(10 * time.Second)
-// 	_, _ = lib.UpdateIngress(namespace, ingressesCreated[0:1])
-// }
+func TestInsecureParallelCreationUpdationDeletionWithAkoReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = INSECURE
+	CreateIngressParallelWithAkoReboot(t)
+	UpdateIngressParallelWithAkoReboot(t)
+	DeleteIngressParallelWithAkoReboot(t)
+}
 
-// func TestMixedExecution(t *testing.T) {
-// 	SetupForTesting(t)
-// 	HybridExecution(t, 10, 3)
-// }
+func TestInsecureParallelCreationUpdationDeletionWithNodeReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = INSECURE
+	CreateIngressParallelWithNodeReboot(t)
+	UpdateIngressParallelWithNodeReboot(t)
+	DeleteIngressParallelWithNodeReboot(t)
+}
 
-// func TestParallel200InsecureIngresses(t *testing.T) {
-// 	ingressType = INSECURE
-// 	ParallelIngressHelper(t, 200)
-// }
+func TestInsecureParallelCreationUpdationDeletionWithControllerReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = INSECURE
+	CreateIngressParallelWithControllerReboot(t)
+	UpdateIngressParallelWithControllerReboot(t)
+	DeleteIngressParallelWithControllerReboot(t)
+}
 
-// func TestParallel200SecureIngresses(t *testing.T) {
-// 	ingressType = SECURE
-// 	ParallelIngressHelper(t, 200)
-// }
+func TestSecureParallelCreationUpdationDeletionWithoutReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = SECURE
+	CreateIngressesParallel(t, numOfIng, initialNumOfPools)
+	UpdateIngressesParallel(t, numOfIng)
+	DeleteIngressesParallel(t, numOfIng, initialNumOfPools)
+}
 
-// func TestParallel200MultiHostIngresses(t *testing.T) {
-// 	ingressType = MULTIHOST
-// 	SerialIngressHelper(t, 1)
-// var err error
-// ingressesCreated, ingressSecureHostNames, ingressInsecureHostNames, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, 5, 0)
-// if err != nil {
-// 	t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
-// }
-// for i := 0; i < len(ingressesCreated); i++ {
-// 	t.Logf("%s\t%s\t%s\t", ingressesCreated[i], ingressSecureHostNames[i], ingressInsecureHostNames[i])
-// }
-// }
+func TestSecureParallelCreationUpdationDeletionWithAkoReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = SECURE
+	CreateIngressParallelWithAkoReboot(t)
+	UpdateIngressParallelWithAkoReboot(t)
+	DeleteIngressParallelWithAkoReboot(t)
+}
 
-// func TestSerial200InsecureIngresses(t *testing.T) {
-// 	ingressType = INSECURE
-// 	SerialIngressHelper(t, 200)
-// }
+func TestSecureParallelCreationUpdationDeletionWithNodeReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = SECURE
+	CreateIngressParallelWithNodeReboot(t)
+	UpdateIngressParallelWithNodeReboot(t)
+	DeleteIngressParallelWithNodeReboot(t)
+}
 
-// func TestSerial200SecureIngresses(t *testing.T) {
-// 	ingressType = SECURE
-// 	SerialIngressHelper(t, 200)
-// }
+func TestSecureParallelCreationUpdationDeletionWithControllerReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = SECURE
+	CreateIngressParallelWithControllerReboot(t)
+	UpdateIngressParallelWithControllerReboot(t)
+	DeleteIngressParallelWithControllerReboot(t)
+}
 
-// func TestSerial200MultiHostIngresses(t *testing.T) {
-// 	ingressType = MULTIHOST
-// 	SerialIngressHelper(t, 200)
-// }
+func TestMultiHostParallelCreationUpdationDeletionWithoutReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = MULTIHOST
+	CreateIngressesParallel(t, numOfIng, initialNumOfPools)
+	UpdateIngressesParallel(t, numOfIng)
+	DeleteIngressesParallel(t, numOfIng, initialNumOfPools)
+}
 
-// func TestParallel500InsecureIngresses(t *testing.T) {
-// 	ingressType = INSECURE
-// 	ParallelIngressHelper(t, 500)
-// }
+func TestMultiHostParallelCreationUpdationDeletionWithAkoReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = MULTIHOST
+	CreateIngressParallelWithAkoReboot(t)
+	UpdateIngressParallelWithAkoReboot(t)
+	DeleteIngressParallelWithAkoReboot(t)
+}
 
-// func TestParallel500SecureIngresses(t *testing.T) {
-// 	ingressType = SECURE
-// 	ParallelIngressHelper(t, 500)
-// }
+func TestMultiHostParallelCreationUpdationDeletionWithNodeReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = MULTIHOST
+	CreateIngressParallelWithNodeReboot(t)
+	UpdateIngressParallelWithNodeReboot(t)
+	DeleteIngressParallelWithNodeReboot(t)
+}
 
-// func TestParallel500MultiHostIngresses(t *testing.T) {
-// 	ingressType = MULTIHOST
-// 	ParallelIngressHelper(t, 500)
-// }
+func TestMultiHostParallelCreationUpdationDeletionWithControllerReboot(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = MULTIHOST
+	CreateIngressParallelWithControllerReboot(t)
+	UpdateIngressParallelWithControllerReboot(t)
+	DeleteIngressParallelWithControllerReboot(t)
+}
 
-// func TestSerial500InsecureIngresses(t *testing.T) {
-// 	ingressType = INSECURE
-// 	SerialIngressHelper(t, 500)
-// }
+func TestInsecureHybridExecution(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = INSECURE
+	HybridExecution(t, numOfIng, numOfIng/2)
+}
 
-// func TestSerial500SecureIngresses(t *testing.T) {
-// 	ingressType = SECURE
-// 	SerialIngressHelper(t, 500)
-// }
+func TestSecureHybridExecution(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = SECURE
+	HybridExecution(t, numOfIng, numOfIng/2)
+}
 
-// func TestSerial500MultiHostIngresses(t *testing.T) {
-// 	ingressType = MULTIHOST
-// 	SerialIngressHelper(t, 500)
-// }
+func TestMultiHostHybridExecution(t *testing.T) {
+	SetupForTesting(t)
+	ingressType = MULTIHOST
+	HybridExecution(t, numOfIng, numOfIng/2)
+}

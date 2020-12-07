@@ -17,7 +17,6 @@ package lib
 import (
 	"context"
 	"flag"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -39,7 +38,7 @@ var ingressResource = schema.GroupVersionResource{Group: "extensions", Version: 
 var kubeClient dynamic.Interface
 var coreV1Client corev1.CoreV1Interface
 var appsV1Client appsv1.AppsV1Interface
-var ctx context.Context
+var ctx = context.TODO()
 
 const PORT = 8080
 const SUBDOMAIN = ".avi.internal"
@@ -334,11 +333,13 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 
 func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, error) {
 	var listOfDeletedIngresses []string
-	for i := 0; i < len(listOfIngressToDelete); i++ {
-		ingressName := listOfIngressToDelete[i]
+	for _, ing := range listOfIngressToDelete {
+		ingressName := ing
 		deletePolicy := metaV1.DeletePropagationForeground
+		var zero int64 = 0
 		deleteOptions := metaV1.DeleteOptions{
-			PropagationPolicy: &deletePolicy,
+			GracePeriodSeconds: &zero,
+			PropagationPolicy:  &deletePolicy,
 		}
 		if err := kubeClient.Resource(ingressResource).Namespace(namespace).Delete(ctx, ingressName, deleteOptions); err != nil {
 			return listOfDeletedIngresses, err
@@ -349,47 +350,46 @@ func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, 
 }
 
 func UpdateIngress(namespace string, listOfIngressToUpdate []string) ([]string, error) {
-	for i := 0; i < len(listOfIngressToUpdate); i++ {
+	for _, ing := range listOfIngressToUpdate {
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			result, getErr := kubeClient.Resource(ingressResource).Namespace(namespace).Get(listOfIngressToUpdate[i], metaV1.GetOptions{})
+			result, getErr := kubeClient.Resource(ingressResource).Namespace(namespace).Get(ctx, ing, metaV1.GetOptions{})
 			if getErr != nil {
-				panic(fmt.Errorf("Failed to get latest version of Ingress: %v", getErr))
+				return getErr
 			}
-
 			rules, found, err := unstructured.NestedSlice(result.Object, "spec", "rules")
 			if err != nil || !found || rules == nil {
-				panic(fmt.Errorf("Ingress rules not found or error in spec: %v", err))
+				return err
 			}
 			if err := unstructured.SetNestedField(rules[0].(map[string]interface{}), UPDATEPATH, "host"); err != nil {
-				panic(err)
+				return err
 			}
 			if err := unstructured.SetNestedField(result.Object, rules, "spec", "rules"); err != nil {
-				panic(err)
+				return err
 			}
-			_, updateErr := kubeClient.Resource(ingressResource).Namespace(namespace).Update(result, metaV1.UpdateOptions{})
+			_, updateErr := kubeClient.Resource(ingressResource).Namespace(namespace).Update(ctx, result, metaV1.UpdateOptions{})
 			return updateErr
 		})
 		if retryErr != nil {
-			panic(fmt.Errorf("Update failed: %v", retryErr))
+			return listOfIngressToUpdate, retryErr
 		}
 	}
 	return listOfIngressToUpdate, nil
 }
 
 func ListIngress(t *testing.T, namespace string) ([]string, error) {
-	var listOfIngress []string
-	list, err := kubeClient.Resource(ingressResource).Namespace(namespace).List(metaV1.ListOptions{})
+	var ingressList []string
+	list, err := kubeClient.Resource(ingressResource).Namespace(namespace).List(ctx, metaV1.ListOptions{})
 	if err != nil {
-		return listOfIngress, err
+		return ingressList, err
 	}
 	for _, d := range list.Items {
-		listOfIngress = append(listOfIngress, d.GetName())
+		ingressList = append(ingressList, d.GetName())
 	}
-	return listOfIngress, nil
+	return ingressList, nil
 }
 
 func DeletePod(podName string, namespace string) error {
-	err := coreV1Client.Pods(namespace).Delete(podName, &metaV1.DeleteOptions{})
+	err := coreV1Client.Pods(namespace).Delete(ctx, podName, metaV1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
