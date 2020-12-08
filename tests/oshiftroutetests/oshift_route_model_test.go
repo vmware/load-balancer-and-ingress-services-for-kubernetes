@@ -299,6 +299,29 @@ func TestRouteNoPath(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 }
 
+func TestOshiftNamingConvention(t *testing.T) {
+	// checks naming convention of all generated nodes
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, defaultModelName)
+	routeExample := FakeRoute{Path: "/foo/bar"}.Route()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateModelCommon(t, g)
+	vsNode := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+
+	g.Expect(vsNode.Name).To(gomega.Equal("cluster--Shared-L7-0"))
+	g.Expect(vsNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
+	g.Expect(vsNode.PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo_bar-default-foo-avisvc"))
+	g.Expect(vsNode.HTTPDSrefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
+	g.Expect(vsNode.VSVIPRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
+
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
 func TestRouteDefaultPath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)

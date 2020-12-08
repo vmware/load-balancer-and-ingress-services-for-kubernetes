@@ -294,6 +294,40 @@ func TestAdvL4BestCase(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
+func TestAdvL4NamingConvention(t *testing.T) {
+	// create gwclass, create gw, create 1svc
+	// check naming conventions for vs, pool, l4policy
+	// checks naming convention of all generated nodes
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() string {
+		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Name).To(gomega.Equal("abc--default-my-gateway"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("abc--default-svc-my-gateway--8081"))
+	g.Expect(nodes[0].L4PolicyRefs[0].Name).To(gomega.Equal("abc--default-my-gateway"))
+
+	TeardownGatewayClass(t, gwClassName)
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
 func TestAdvL4WithStaticIP(t *testing.T) {
 	// create gwclass, create gw, create 1svc
 	// check graph VsNode IPAddress val in vsvip ref
