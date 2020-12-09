@@ -75,7 +75,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - rbac
+  - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
   verbs:
@@ -87,7 +87,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - rbac
+  - rbac.authorization.k8s.io
   resources:
   - clusterroles
   verbs:

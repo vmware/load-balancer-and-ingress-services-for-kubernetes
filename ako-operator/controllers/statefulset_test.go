@@ -24,6 +24,8 @@ import (
 	"github.com/onsi/gomega"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var sfJson = `
@@ -374,7 +376,18 @@ func buildStatefulSetAndVerify(existingSf appsv1.StatefulSet, akoConfig akov1alp
 
 	g := gomega.NewGomegaWithT(t)
 
-	newSf, err := BuildStatefulSet(akoConfig)
+	secretData := map[string][]byte{
+		"username": []byte("abc"),
+		"password": []byte("abc"),
+	}
+	secretObj := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "avi-secret",
+			Namespace: AviSystemNS,
+		},
+		Data: secretData,
+	}
+	newSf, err := BuildStatefulSet(akoConfig, secretObj)
 	if errExpected {
 		g.Expect(err).To(gomega.Not(gomega.BeNil()))
 		return appsv1.StatefulSet{}

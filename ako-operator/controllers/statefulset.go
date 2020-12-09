@@ -25,7 +25,6 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,7 +32,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger, r *AKOConfigReconciler) error {
+func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger, r *AKOConfigReconciler,
+	aviSecret corev1.Secret) error {
+
 	var oldSf appsv1.StatefulSet
 
 	if err := r.Get(ctx, getSFNamespacedName(), &oldSf); err != nil {
@@ -58,7 +59,7 @@ func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, l
 		oldSf = appsv1.StatefulSet{}
 	}
 
-	sf, err := BuildStatefulSet(ako)
+	sf, err := BuildStatefulSet(ako, aviSecret)
 	if err != nil {
 		log.Error(err, "error in building statefulset", "name", StatefulSetName)
 		return nil
@@ -106,22 +107,22 @@ func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, l
 	return nil
 }
 
-func getPullPolicy(pullPolicy string) (v1.PullPolicy, error) {
-	typedPullPolicy := v1.PullPolicy(pullPolicy)
+func getPullPolicy(pullPolicy string) (corev1.PullPolicy, error) {
+	typedPullPolicy := corev1.PullPolicy(pullPolicy)
 	switch typedPullPolicy {
-	case v1.PullAlways:
-		return v1.PullAlways, nil
-	case v1.PullIfNotPresent:
-		return v1.PullIfNotPresent, nil
-	case v1.PullNever:
-		return v1.PullNever, nil
+	case corev1.PullAlways:
+		return corev1.PullAlways, nil
+	case corev1.PullIfNotPresent:
+		return corev1.PullIfNotPresent, nil
+	case corev1.PullNever:
+		return corev1.PullNever, nil
 	default:
-		return v1.PullPolicy(""), errors.New("invalid pull policy")
+		return corev1.PullPolicy(""), errors.New("invalid pull policy")
 	}
 }
 
-func buildResources(ako akov1alpha1.AKOConfig) (v1.ResourceRequirements, error) {
-	var rr v1.ResourceRequirements
+func buildResources(ako akov1alpha1.AKOConfig) (corev1.ResourceRequirements, error) {
+	var rr corev1.ResourceRequirements
 
 	limitCPU, err := resource.ParseQuantity(ako.Spec.Resources.Limits.CPU)
 	if err != nil {
@@ -142,19 +143,19 @@ func buildResources(ako akov1alpha1.AKOConfig) (v1.ResourceRequirements, error) 
 		return rr, err
 	}
 
-	return v1.ResourceRequirements{
-		Limits: v1.ResourceList{
+	return corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
 			"cpu":    limitCPU,
 			"memory": limitMemory,
 		},
-		Requests: v1.ResourceList{
+		Requests: corev1.ResourceList{
 			"cpu":    requestedCPU,
 			"memory": requestedMemory,
 		},
 	}, nil
 }
 
-func BuildStatefulSet(ako akov1alpha1.AKOConfig) (appsv1.StatefulSet, error) {
+func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv1.StatefulSet, error) {
 	sf := appsv1.StatefulSet{}
 
 	sf.ObjectMeta = metav1.ObjectMeta{
@@ -178,19 +179,19 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig) (appsv1.StatefulSet, error) {
 	}
 
 	// build the env vars
-	envVars := getEnvVars(ako)
+	envVars := getEnvVars(ako, aviSecret)
 
-	volumeMounts := []v1.VolumeMount{}
-	volumes := []v1.Volume{}
+	volumeMounts := []corev1.VolumeMount{}
+	volumes := []corev1.Volume{}
 	if ako.Spec.PersistentVolumeClaim != "" {
-		volumeMounts = append(volumeMounts, v1.VolumeMount{
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "ako-pv-storage",
 			MountPath: ako.Spec.MountPath,
 		})
-		volumes = append(volumes, v1.Volume{
+		volumes = append(volumes, corev1.Volume{
 			Name: "ako-pv-storage",
-			VolumeSource: v1.VolumeSource{
-				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: ako.Spec.PersistentVolumeClaim,
 				},
 			},
@@ -206,25 +207,25 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig) (appsv1.StatefulSet, error) {
 	if err != nil {
 		return sf, err
 	}
-	template := v1.PodTemplateSpec{}
+	template := corev1.PodTemplateSpec{}
 	template.SetLabels(akoLabels)
-	template.Spec = v1.PodSpec{
+	template.Spec = corev1.PodSpec{
 		ServiceAccountName: ServiceAccountName,
 		Volumes:            volumes,
-		Containers: []v1.Container{
+		Containers: []corev1.Container{
 			{
 				Name:            "ako",
 				VolumeMounts:    volumeMounts,
 				Image:           image,
 				ImagePullPolicy: imagePullPolicy,
-				Lifecycle: &v1.Lifecycle{
-					PreStop: &v1.Handler{
-						Exec: &v1.ExecAction{
+				Lifecycle: &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{
 							Command: []string{"/bin/sh", "/var/pre_stop_hook.sh"},
 						},
 					},
 				},
-				Ports: []v1.ContainerPort{
+				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",
 						ContainerPort: 80,
@@ -232,11 +233,11 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig) (appsv1.StatefulSet, error) {
 					},
 				},
 				Resources: resources,
-				LivenessProbe: &v1.Probe{
+				LivenessProbe: &corev1.Probe{
 					InitialDelaySeconds: 5,
 					PeriodSeconds:       10,
-					Handler: v1.Handler{
-						HTTPGet: &v1.HTTPGetAction{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
 							Path: "/api/status",
 							Port: intstr.FromInt(apiServerPort),
 						},

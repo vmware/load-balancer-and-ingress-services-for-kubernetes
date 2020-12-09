@@ -1,0 +1,99 @@
+# Default values for ako-operator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+# AKO Operator image settings
+operatorImage:
+  repository: 10.79.172.11:5000/ako-operator
+  pullPolicy: IfNotPresent
+
+# AKO Controller image settings
+akoImage:
+  repository: "10.79.172.11:5000/avi-buildops/ako:2.1.1-5097"
+  pullPolicy: IfNotPresent
+
+### This section outlines the generic AKO controller settings
+AKOSettings:
+  logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
+  fullSyncFrequency: "1800" # This frequency controls how often AKO polls the Avi controller to update itself with cloud configurations.
+  apiServerPort: 8080 # Specify the port for the API server, default is set as 8080 // EmptyAllowed: false
+  deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI 
+  disableStaticRouteSync: "false" # If the POD networks are reachable from the Avi SE, set this knob to true.
+  clusterName: "k8s-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
+  cniPlugin: "calico" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift 
+  # namespaceSelector contains label key and value used for namespacemigration
+  # same label has to be present on namespace/s which needs migration/sync to AKO
+  namespaceSelector:
+    labelKey: ""
+    labelValue: ""
+
+### This section outlines the network settings for virtualservices. 
+NetworkSettings:
+  ## This list of network and cidrs are used in pool placement network for vcenter cloud.
+  ## Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
+  nodeNetworkList: []
+  # nodeNetworkList:
+  #   - networkName: "network-name"
+  #     cidrs:
+  #       - 10.0.0.1/24
+  #       - 11.0.0.1/24
+  subnetIP: "10.10.0.0" # Subnet IP of the vip network
+  subnetPrefix: "16" # Subnet Prefix of the vip network
+  networkName: "vcd-ns" # Network Name of the vip network
+  enableRHI: false # This is a cluster wide setting for BGP peering.
+
+### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
+L7Settings:
+  defaultIngController: "true"
+  l7ShardingScheme: "hostname"
+  serviceType: ClusterIP #enum NodePort|ClusterIP
+  shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL
+  passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
+
+### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
+L4Settings:
+  advancedL4: "false" # Use this knob to control the settings for the services API usage. Default to not using services APIs: https://github.com/kubernetes-sigs/service-apis
+  defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
+
+### This section outlines settings on the Avi controller that affects AKO's functionality.
+ControllerSettings:
+  serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
+  controllerVersion: "20.1.1" # The controller API version
+  cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
+  controllerIP: "10.79.111.29"
+  tenantsPerCluster: "false" # If set to true, AKO will map each kubernetes cluster uniquely to a tenant in Avi
+  tenantName: "" # Name of the tenant where all the AKO objects will be created in AVI. // Required only if tenantsPerCluster is set to True
+
+nodePortSelector: # Only applicable if serviceType is NodePort
+  key: ""
+  value: ""
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 300Mi
+  requests:
+    cpu: 100m
+    memory: 200Mi
+
+rbac:
+  # Creates the pod security policy if set to true
+  pspEnable: false
+
+
+avicredentials:
+  username: "admin"
+  password: "avi123"
+  certificateAuthorityData:
+
+
+service:
+  type: ClusterIP
+  port: 80
+
+
+persistentVolumeClaim: ""
+mountPath: "/log"
+logFile: "avi.log"
