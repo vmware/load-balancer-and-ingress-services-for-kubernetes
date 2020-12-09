@@ -1490,23 +1490,25 @@ func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceN
 func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviPkiProfileNode, pool_cache_obj *avicache.AviPoolCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	// Default is POST
 	var cache_pki_nodes []avicache.NamespaceName
-	if pool_cache_obj != nil && pki_node != nil {
+	if pool_cache_obj != nil {
 		cache_pki_nodes = make([]avicache.NamespaceName, 1)
 		copy(cache_pki_nodes, []avicache.NamespaceName{pool_cache_obj.PkiProfileCollection})
 
-		pki_key := avicache.NamespaceName{Namespace: namespace, Name: pki_node.Name}
-		found := utils.HasElem(cache_pki_nodes, pki_key)
-		if found {
-			pki_cache, ok := rest.cache.PKIProfileCache.AviCacheGet(pki_key)
-			if ok {
-				cache_pki_nodes = Remove(cache_pki_nodes, pki_key)
-				pki_cache_obj, _ := pki_cache.(*avicache.AviPkiProfileCache)
-				if pki_cache_obj.CloudConfigCksum == pki_node.GetCheckSum() {
-					utils.AviLog.Debugf("The checksums are same for SSL cache obj %s, not doing anything", pki_cache_obj.Name)
-				} else {
-					// The checksums are different, so it should be a PUT call.
-					restOp := rest.AviPkiProfileBuild(pki_node, pki_cache_obj)
-					rest_ops = append(rest_ops, restOp)
+		if pki_node != nil {
+			pki_key := avicache.NamespaceName{Namespace: namespace, Name: pki_node.Name}
+			found := utils.HasElem(cache_pki_nodes, pki_key)
+			if found {
+				pki_cache, ok := rest.cache.PKIProfileCache.AviCacheGet(pki_key)
+				if ok {
+					cache_pki_nodes = Remove(cache_pki_nodes, pki_key)
+					pki_cache_obj, _ := pki_cache.(*avicache.AviPkiProfileCache)
+					if pki_cache_obj.CloudConfigCksum == pki_node.GetCheckSum() {
+						utils.AviLog.Debugf("The checksums are same for Pki cache obj %s, not doing anything", pki_cache_obj.Name)
+					} else {
+						// The checksums are different, so it should be a PUT call.
+						restOp := rest.AviPkiProfileBuild(pki_node, pki_cache_obj)
+						rest_ops = append(rest_ops, restOp)
+					}
 				}
 			}
 		} else {
