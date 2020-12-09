@@ -641,7 +641,27 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		vip := avimodels.Vip{AutoAllocateIP: &auto_alloc}
 		networkRef := lib.GetNetworkName()
 		if lib.IsPublicCloud() && lib.GetNetworkName() != "" {
-			vip.SubnetUUID = &networkRef
+
+			if lib.GetCloudType() == lib.CLOUD_GCP {
+				// add the IPAMNetworkSubnet
+				intCidr, err := strconv.ParseInt(lib.GetSubnetPrefix(), 10, 32)
+				if err != nil {
+					utils.AviLog.Warnf("The value of CIDR couldn't be converted to int32. Defaulting to /24")
+					intCidr = 24
+				}
+				subnetMask := int32(intCidr)
+				subnetAddr := lib.GetSubnetIP()
+				subnetAtype := "V4"
+				subnetIPObj := avimodels.IPAddr{Type: &subnetAtype, Addr: &subnetAddr}
+				subnetObj := avimodels.IPAddrPrefix{IPAddr: &subnetIPObj, Mask: &subnetMask}
+				networkRef = "/api/network/?name=" + lib.GetNetworkName()
+				vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
+					Subnet:     &subnetObj,
+					NetworkRef: &networkRef,
+				}
+			} else {
+				vip.SubnetUUID = &networkRef
+			}
 		} else if vsvip_meta.IPAddress != "" {
 			vip.VipID = &vipId
 			vip.IPAddress = &avimodels.IPAddr{
