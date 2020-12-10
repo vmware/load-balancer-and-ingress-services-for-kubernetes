@@ -1008,8 +1008,13 @@ type FakeHostRule struct {
 	Namespace          string
 	Fqdn               string
 	SslKeyCertificate  string
+	SslProfile         string
 	WafPolicy          string
 	ApplicationProfile string
+	EnableVirtualHost  bool
+	AnalyticsProfile   string
+	ErrorPageProfile   string
+	Datascripts        []string
 	HttpPolicySets     []string
 }
 
@@ -1027,6 +1032,7 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 						Name: hr.SslKeyCertificate,
 						Type: "ref",
 					},
+					SSLProfile:  hr.SslProfile,
 					Termination: "edge",
 				},
 				HTTPPolicy: akov1alpha1.HostRuleHTTPPolicy{
@@ -1035,6 +1041,10 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 				},
 				WAFPolicy:          hr.WafPolicy,
 				ApplicationProfile: hr.ApplicationProfile,
+				AnalyticsProfile:   hr.AnalyticsProfile,
+				ErrorPageProfile:   hr.ErrorPageProfile,
+				Datascripts:        hr.Datascripts,
+				EnableVirtualHost:  true,
 			},
 		},
 	}
@@ -1049,10 +1059,14 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
 		Fqdn:               fqdn,
 		WafPolicy:          "thisisahostruleref-waf",
 		ApplicationProfile: "thisisahostruleref-appprof",
-		HttpPolicySets:     []string{"thisisahostruleref-httpps-1"},
+		AnalyticsProfile:   "thisisahostruleref-analyticsprof",
+		ErrorPageProfile:   "thisisahostruleref-errorprof",
+		Datascripts:        []string{"thisisahostruleref-ds2", "thisisahostruleref-ds1"},
+		HttpPolicySets:     []string{"thisisahostruleref-httpps2", "thisisahostruleref-httpps1"},
 	}
 	if secure {
 		hostrule.SslKeyCertificate = "thisisahostruleref-sslkey"
+		hostrule.SslProfile = "thisisahostruleref-sslprof"
 	}
 
 	hrCreate := hostrule.HostRule()
@@ -1076,20 +1090,24 @@ type FakeHTTPRule struct {
 }
 
 type FakeHTTPRulePath struct {
-	Path        string
-	SslProfile  string
-	LbAlgorithm string
-	Hash        string
+	Path           string
+	SslProfile     string
+	DestinationCA  string
+	HealthMonitors []string
+	LbAlgorithm    string
+	Hash           string
 }
 
 func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
 	var rrPaths []akov1alpha1.HTTPRulePaths
 	for _, p := range rr.PathProperties {
 		rrPaths = append(rrPaths, akov1alpha1.HTTPRulePaths{
-			Target: p.Path,
+			Target:         p.Path,
+			HealthMonitors: p.HealthMonitors,
 			TLS: akov1alpha1.HTTPRuleTLS{
-				Type:       "reencrypt",
-				SSLProfile: p.SslProfile,
+				Type:          "reencrypt",
+				SSLProfile:    p.SslProfile,
+				DestinationCA: p.DestinationCA,
 			},
 			LoadBalancerPolicy: akov1alpha1.HTTPRuleLBPolicy{
 				Algorithm: p.LbAlgorithm,
@@ -1111,14 +1129,16 @@ func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
 
 func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 	httprule := FakeHTTPRule{
-		Name:      rrname,
-		Namespace: "default",
-		Fqdn:      fqdn,
+		Name:           rrname,
+		Namespace:      "default",
+		Fqdn:           fqdn,
 		PathProperties: []FakeHTTPRulePath{{
-			Path:        path,
-			SslProfile:  "thisisahttpruleref-sslprofile",
-			LbAlgorithm: "LB_ALGORITHM_CONSISTENT_HASH",
-			Hash:        "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
+			Path:          path,
+			SslProfile:    "thisisahttpruleref-sslprofile",
+			DestinationCA: "httprule-destinationCA",
+			LbAlgorithm:   "LB_ALGORITHM_CONSISTENT_HASH",
+			Hash:          "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
+			HealthMonitors: []string{"thisisahttpruleref-hm2", "thisisahttpruleref-hm1"},
 		}},
 	}
 

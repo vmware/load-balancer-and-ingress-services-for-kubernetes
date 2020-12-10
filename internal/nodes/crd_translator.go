@@ -32,9 +32,9 @@ import (
 )
 
 func removeVSNodeRefs(crd string, vsNode *AviVsNode) {
-	// Fields based off Hostrule CRD
 	if crd == lib.HostRule {
-		vsNode.Enabled = true
+		// Fields based off Hostrule CRD
+		vsNode.Enabled = nil
 		vsNode.SSLKeyCertAviRef = ""
 		vsNode.WafPolicyRef = ""
 		vsNode.HttpPolicySetRefs = []string{}
@@ -46,10 +46,8 @@ func removeVSNodeRefs(crd string, vsNode *AviVsNode) {
 		if vsNode.ServiceMetadata.CRDStatus.Value != "" {
 			vsNode.ServiceMetadata.CRDStatus.Status = "INACTIVE"
 		}
-	}
-
-	// fields based off HTTPRule CRD
-	if crd == lib.HTTPRule {
+	} else if crd == lib.HTTPRule {
+		// fields based off HTTPRule CRD
 		for _, pool := range vsNode.PoolRefs {
 			pool.LbAlgorithm = ""
 			pool.LbAlgorithmHash = ""
@@ -60,8 +58,6 @@ func removeVSNodeRefs(crd string, vsNode *AviVsNode) {
 			}
 		}
 	}
-
-	return
 }
 
 func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
@@ -146,7 +142,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	vsNode.ErrorPageProfileRef = vsErrorPageProfile
 	vsNode.SSLProfileRef = vsSslProfile
 	vsNode.VsDatascriptRefs = vsDatascripts
-	vsNode.Enabled = hostrule.Spec.VirtualHost.EnableVirtualHost
+	vsNode.Enabled = &hostrule.Spec.VirtualHost.EnableVirtualHost
 	vsNode.ServiceMetadata.CRDStatus = cache.CRDMetadata{
 		Type:   "HostRule",
 		Value:  hostrule.Namespace + "/" + hostrule.Name,
@@ -276,7 +272,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 					Value:  rule,
 					Status: "ACTIVE",
 				}
-				utils.AviLog.Infof("key: %s, Attached httprule %s on pool %s %v", key, rule, pool.Name, utils.Stringify(pool))
+				utils.AviLog.Infof("key: %s, Attached httprule %s on pool %s", key, rule, pool.Name)
 			}
 		}
 	}

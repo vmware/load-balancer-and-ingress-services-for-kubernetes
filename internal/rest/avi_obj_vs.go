@@ -218,7 +218,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		SslProfileRef:         &vs_meta.SSLProfileRef,
 		AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
 		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
-		Enabled:               &vs_meta.Enabled,
+		Enabled:               vs_meta.Enabled,
 	}
 
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'

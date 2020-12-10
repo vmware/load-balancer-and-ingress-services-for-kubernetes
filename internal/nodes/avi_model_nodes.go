@@ -271,7 +271,7 @@ type AviVsNode struct {
 	ServiceEngineGroup    string
 	ApplicationProfile    string
 	NetworkProfile        string
-	Enabled               bool
+	Enabled               *bool
 	PortProto             []AviPortHostProtocol // for listeners
 	DefaultPool           string
 	EastWest              bool
@@ -494,7 +494,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum, passthoughChecksum, vsvipChecksum uint32
+	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum, passthroughChecksum, vsvipChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		dsChecksum += ds.GetCheckSum()
@@ -524,8 +524,8 @@ func (v *AviVsNode) CalculateCheckSum() {
 		l4policyChecksum += l4policy.GetCheckSum()
 	}
 
-	for _, passthoughChild := range v.PassthroughChildNodes {
-		passthoughChecksum += passthoughChild.GetCheckSum()
+	for _, passthroughChild := range v.PassthroughChildNodes {
+		passthroughChecksum += passthroughChild.GetCheckSum()
 	}
 
 	// keep the order of these policies
@@ -537,8 +537,11 @@ func (v *AviVsNode) CalculateCheckSum() {
 		utils.Stringify(policies) +
 		v.AnalyticsProfileRef +
 		v.ErrorPageProfileRef +
-		v.SSLProfileRef +
-		utils.Stringify(scripts)
+		v.SSLProfileRef
+
+	if len(scripts) > 0 {
+		vsRefs += utils.Stringify(scripts)
+	}
 
 	checksum := dsChecksum +
 		httppolChecksum +
@@ -549,9 +552,12 @@ func (v *AviVsNode) CalculateCheckSum() {
 		sslkeyChecksum +
 		vsvipChecksum +
 		utils.Hash(vsRefs) +
-		utils.Hash(utils.Stringify(v.Enabled)) +
 		l4policyChecksum +
-		passthoughChecksum
+		passthroughChecksum
+
+	if v.Enabled != nil {
+		checksum += utils.Hash(utils.Stringify(v.Enabled))
+	}
 
 	v.CloudConfigCksum = checksum
 }
@@ -941,9 +947,13 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.SslProfileRef,
 		v.PriorityLabel,
 		utils.Stringify(nodeNetworkMap),
-		utils.Stringify(v.HealthMonitors),
 	}[:], delim))
+
 	checksum := utils.Hash(chksumStr)
+
+	if len(v.HealthMonitors) > 0 {
+		checksum += utils.Hash(utils.Stringify(v.HealthMonitors))
+	}
 
 	if v.PkiProfile != nil {
 		checksum += v.PkiProfile.GetCheckSum()
