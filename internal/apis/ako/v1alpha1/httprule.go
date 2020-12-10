@@ -42,6 +42,7 @@ type HTTPRulePaths struct {
 	Target             string           `json:"target,omitempty"`
 	LoadBalancerPolicy HTTPRuleLBPolicy `json:"loadBalancerPolicy,omitempty"`
 	TLS                HTTPRuleTLS      `json:"tls,omitempty"`
+	HealthMonitors     []string         `json:"healthMonitors,omitempty"`
 }
 
 // HTTPRuleLBPolicy holds a path/pool's load balancer policies
@@ -53,8 +54,9 @@ type HTTPRuleLBPolicy struct {
 
 // HTTPRuleTLS holds secure path/pool specific properties
 type HTTPRuleTLS struct {
-	Type       string `json:"type,omitempty"`
-	SSLProfile string `json:"sslProfile,omitempty"`
+	Type          string `json:"type,omitempty"`
+	SSLProfile    string `json:"sslProfile,omitempty"`
+	DestinationCA string `json:"destinationCA,omitempty"`
 }
 
 // HTTPRuleStatus holds the status of the HTTPRule

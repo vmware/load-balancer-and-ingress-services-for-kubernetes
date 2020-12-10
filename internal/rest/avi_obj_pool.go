@@ -50,7 +50,6 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 
 	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER
 	if len(nodeNetworkMap) != 0 && lib.GetCloudType() == lib.CLOUD_VCENTER {
-
 		for network, cidrs := range nodeNetworkMap {
 			for _, cidr := range cidrs {
 				placementNetwork := avimodels.PlacementNetwork{}
@@ -122,13 +121,18 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		pool.Servers = append(pool.Servers, &s)
 	}
 
-	var hm string
-	if pool_meta.Protocol == utils.UDP {
-		hm = fmt.Sprintf("/api/healthmonitor/?name=%s", utils.AVI_DEFAULT_UDP_HM)
+	// overwrite with healthmonitors provided by CRD
+	if len(pool_meta.HealthMonitors) > 0 {
+		pool.HealthMonitorRefs = pool_meta.HealthMonitors
 	} else {
-		hm = fmt.Sprintf("/api/healthmonitor/?name=%s", utils.AVI_DEFAULT_TCP_HM)
+		var hm string
+		if pool_meta.Protocol == utils.UDP {
+			hm = fmt.Sprintf("/api/healthmonitor/?name=%s", utils.AVI_DEFAULT_UDP_HM)
+		} else {
+			hm = fmt.Sprintf("/api/healthmonitor/?name=%s", utils.AVI_DEFAULT_TCP_HM)
+		}
+		pool.HealthMonitorRefs = append(pool.HealthMonitorRefs, hm)
 	}
-	pool.HealthMonitorRefs = append(pool.HealthMonitorRefs, hm)
 
 	macro := utils.AviRestObjMacro{ModelName: "Pool", Data: pool}
 

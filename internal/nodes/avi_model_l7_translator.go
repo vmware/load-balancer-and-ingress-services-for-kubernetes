@@ -583,7 +583,7 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 		return
 	}
 	pkiProfile := AviPkiProfileNode{
-		Name:   poolNode.Name + "-" + "pkiprofile",
+		Name:   lib.GetPoolPKIProfileName(poolNode.Name),
 		Tenant: lib.GetTenant(),
 		CACert: tlsData.destCA,
 	}

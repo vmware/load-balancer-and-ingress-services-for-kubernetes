@@ -38,7 +38,7 @@ func SetIngressClassEnabled(kc kubernetes.Interface) {
 		isPresent = true
 	}
 
-	AviLog.Infof("networking.k8s.io/v1/IngressClass enabled on cluster", isPresent)
+	AviLog.Infof("networking.k8s.io/v1/IngressClass enabled on cluster")
 	ingressClassEnabled = &isPresent
 }
 

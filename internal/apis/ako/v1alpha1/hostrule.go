@@ -38,16 +38,21 @@ type HostRuleSpec struct {
 
 // HostRuleVirtualHost defines properties for a host
 type HostRuleVirtualHost struct {
-	Fqdn               string             `json:"fqdn,omitempty"`
-	TLS                HostRuleTLS        `json:"tls,omitempty"`
-	HTTPPolicy         HostRuleHTTPPolicy `json:"httpPolicy,omitempty"`
-	WAFPolicy          string             `json:"wafPolicy,omitempty"`
+	AnalyticsProfile   string             `json:"analyticsProfile,omitempty"`
 	ApplicationProfile string             `json:"applicationProfile,omitempty"`
+	Datascripts        []string           `json:"datascripts,omitempty"`
+	EnableVirtualHost  bool               `json:"enableVirtualHost,omitempty"`
+	ErrorPageProfile   string             `json:"errorPageProfile,omitempty"`
+	Fqdn               string             `json:"fqdn,omitempty"`
+	HTTPPolicy         HostRuleHTTPPolicy `json:"httpPolicy,omitempty"`
+	TLS                HostRuleTLS        `json:"tls,omitempty"`
+	WAFPolicy          string             `json:"wafPolicy,omitempty"`
 }
 
 // HostRuleTLS holds secure host specific properties
 type HostRuleTLS struct {
 	SSLKeyCertificate HostRuleSecret `json:"sslKeyCertificate,omitempty"`
+	SSLProfile        string         `json:"sslProfile,omitempty"`
 	Termination       string         `json:"termination,omitempty"`
 }
 

@@ -19,8 +19,8 @@ import (
 	"time"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
-	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned"
-	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/informers/externalversions"
+	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned"
+	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/informers/externalversions"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -39,6 +39,21 @@ func NewCRDInformers(cs akocrd.Interface) {
 		HostRuleInformer: hostRuleInformer,
 		HTTPRuleInformer: httpRuleInformer,
 	})
+}
+
+func isHTTPRuleUpdated(oldHTTPRule, newHTTPRule *akov1alpha1.HTTPRule) bool {
+	if oldHTTPRule.ResourceVersion == newHTTPRule.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldHTTPRule.Spec))
+	newSpecHash := utils.Hash(utils.Stringify(newHTTPRule.Spec))
+
+	if oldSpecHash != newSpecHash {
+		return true
+	}
+
+	return false
 }
 
 // SetupAKOCRDEventHandlers handles setting up of AKO CRD event handlers
@@ -99,7 +114,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			httprule := new.(*akov1alpha1.HTTPRule)
 			// reflect.DeepEqual does not work on type []byte,
 			// unable to capture edits in destinationCA
-			if !reflect.DeepEqual(oldObj.Spec, httprule.Spec) {
+			if isHTTPRuleUpdated(oldObj, httprule) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)

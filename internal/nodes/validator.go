@@ -39,7 +39,7 @@ func NewNodesValidator() *Validator {
 	return validator
 }
 
-func (v *Validator) IsValiddHostName(hostname string) bool {
+func (v *Validator) IsValidHostName(hostname string) bool {
 	// Check if a hostname is valid or not by verifying if it has a prefix that
 	// matches any of the sub-domains.
 	if v.subDomains == nil {
@@ -99,7 +99,7 @@ func sslKeyCertHostRulePresent(key, host string) (bool, string) {
 	// from hostrule check if hostrule.TLS.SSLKeyCertificate is not null
 	hostRuleObj, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Couldn't find hostrule %s", key, hrNSNameStr)
+		utils.AviLog.Warnf("key: %s, msg: Couldn't find hostrule %s: %v", key, hrNSNameStr, err)
 		return false, ""
 	} else if hostRuleObj.Status.Status == lib.StatusRejected {
 		utils.AviLog.Warnf("key: %s, msg: rejected hostrule %s", key, hrNSNameStr)
@@ -110,6 +110,42 @@ func sslKeyCertHostRulePresent(key, host string) (bool, string) {
 		utils.AviLog.Infof("key: %s, msg: secret %s found for host %s in hostrule.ako.vmware.com %s",
 			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name, host, hostRuleObj.Name)
 		return true, lib.DummySecret + "/" + hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name
+	}
+
+	return false, ""
+}
+
+func destinationCAHTTPRulePresent(key, host, path string) (bool, string) {
+	// from host check if httprule is present
+	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
+	if !found {
+		utils.AviLog.Debugf("key: %s, msg: Couldn't find fqdn %s to httprule mapping in cache", key, host)
+		return false, ""
+	}
+
+	rule, isValid := pathRules[path]
+	if !isValid {
+		utils.AviLog.Debugf("key: %s, msg: Couldn't find path %s to httprule mapping in cache", key, path)
+		return false, ""
+	}
+
+	ruleNSName := strings.Split(rule, "/")
+	// from hostrule check if hostrule.TLS.SSLKeyCertificate is not null
+	httpRuleObj, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(ruleNSName[0]).Get(ruleNSName[1])
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Couldn't find httprule %s: %v", key, rule, err)
+		return false, ""
+	} else if httpRuleObj.Status.Status == lib.StatusRejected {
+		utils.AviLog.Warnf("key: %s, msg: rejected httprule %s", key, rule)
+		return false, ""
+	}
+
+	for _, rulePath := range httpRuleObj.Spec.Paths {
+		if rulePath.Target == path && rulePath.TLS.DestinationCA != "" {
+			utils.AviLog.Infof("key: %s, msg: destinationCA found for hostpath %s %s in httprule.ako.vmware.com %s",
+				key, host, rulePath.Target, httpRuleObj.Name)
+			return true, rulePath.TLS.DestinationCA
+		}
 	}
 
 	return false, ""
@@ -142,7 +178,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 				}
 			}
 		} else {
-			if !v.IsValiddHostName(rule.Host) {
+			if !v.IsValidHostName(rule.Host) {
 				continue
 			}
 			hostName = rule.Host
@@ -203,7 +239,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 			if _, ok := additionalSecureHostMap[host]; ok {
 				continue
 			}
-			if !v.IsValiddHostName(host) {
+			if !v.IsValidHostName(host) {
 				continue
 			}
 			hostSvcMap, ok := hostMap[host]
@@ -252,7 +288,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
 	hostName := routeSpec.Host
-	if !v.IsValiddHostName(hostName) {
+	if !v.IsValidHostName(hostName) {
 		return ingressConfig
 	}
 	defaultWeight := int32(100)
@@ -313,8 +349,6 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	} else if secretName != "" {
 		tls := TlsSettings{Hosts: hostMap, SecretName: secretName}
 
-		// TODO: add httprule destinationCA here, for reencrypt: true
-
 		if routeSpec.TLS != nil {
 			// build edge cert data for termination: edge and reencrypt
 			if routeSpec.TLS.Termination == routev1.TLSTerminationEdge ||
@@ -338,6 +372,11 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 				tls.reencrypt = true
 				if routeSpec.TLS.DestinationCACertificate != "" {
 					tls.destCA = routeSpec.TLS.DestinationCACertificate
+				}
+
+				// overwrite with httprule
+				if useHttpRuleCA, caCert := destinationCAHTTPRulePresent(key, hostName, routeSpec.Path); useHttpRuleCA {
+					tls.destCA = caCert
 				}
 			}
 		}

@@ -271,6 +271,7 @@ type AviVsNode struct {
 	ServiceEngineGroup    string
 	ApplicationProfile    string
 	NetworkProfile        string
+	Enabled               *bool
 	PortProto             []AviPortHostProtocol // for listeners
 	DefaultPool           string
 	EastWest              bool
@@ -298,7 +299,11 @@ type AviVsNode struct {
 	VrfContext            string
 	WafPolicyRef          string
 	AppProfileRef         string
+	AnalyticsProfileRef   string
+	ErrorPageProfileRef   string
 	HttpPolicySetRefs     []string
+	SSLProfileRef         string
+	VsDatascriptRefs      []string
 	SSLKeyCertAviRef      string
 }
 
@@ -489,7 +494,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum, passthoughChecksum, vsvipChecksum uint32
+	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum, passthroughChecksum, vsvipChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		dsChecksum += ds.GetCheckSum()
@@ -519,15 +524,24 @@ func (v *AviVsNode) CalculateCheckSum() {
 		l4policyChecksum += l4policy.GetCheckSum()
 	}
 
-	for _, passthoughChild := range v.PassthroughChildNodes {
-		passthoughChecksum += passthoughChild.GetCheckSum()
+	for _, passthroughChild := range v.PassthroughChildNodes {
+		passthroughChecksum += passthroughChild.GetCheckSum()
 	}
 
+	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
-	sort.Slice(policies, func(i, j int) bool {
-		return policies[i] < policies[j]
-	})
-	vsRefs := v.WafPolicyRef + v.AppProfileRef + utils.Stringify(policies)
+	scripts := v.VsDatascriptRefs
+
+	vsRefs := v.WafPolicyRef +
+		v.AppProfileRef +
+		utils.Stringify(policies) +
+		v.AnalyticsProfileRef +
+		v.ErrorPageProfileRef +
+		v.SSLProfileRef
+
+	if len(scripts) > 0 {
+		vsRefs += utils.Stringify(scripts)
+	}
 
 	checksum := dsChecksum +
 		httppolChecksum +
@@ -539,7 +553,11 @@ func (v *AviVsNode) CalculateCheckSum() {
 		vsvipChecksum +
 		utils.Hash(vsRefs) +
 		l4policyChecksum +
-		passthoughChecksum
+		passthroughChecksum
+
+	if v.Enabled != nil {
+		checksum += utils.Hash(utils.Stringify(v.Enabled))
+	}
 
 	v.CloudConfigCksum = checksum
 }
@@ -898,6 +916,7 @@ type AviPoolNode struct {
 	SniEnabled       bool
 	SslProfileRef    string
 	PkiProfile       *AviPkiProfileNode
+	HealthMonitors   []string
 	VrfContext       string
 }
 
@@ -914,6 +933,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	})
 	// nodeNetworkMap is the placement nw details for the pool which is constand for the AKO instance.
 	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
+
 	// A sum of fields for this Pool.
 	chksumStr := fmt.Sprintf(strings.Join([]string{
 		v.Protocol,
@@ -928,7 +948,12 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.PriorityLabel,
 		utils.Stringify(nodeNetworkMap),
 	}[:], delim))
+
 	checksum := utils.Hash(chksumStr)
+
+	if len(v.HealthMonitors) > 0 {
+		checksum += utils.Hash(utils.Stringify(v.HealthMonitors))
+	}
 
 	if v.PkiProfile != nil {
 		checksum += v.PkiProfile.GetCheckSum()

@@ -53,13 +53,41 @@ func TestHostnameCreateHostRule(t *testing.T) {
 	}, 50*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
 	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisahostruleref-appprof"))
-	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs[0]).To(gomega.ContainSubstring("thisisahostruleref-httpps"))
+	g.Expect(nodes[0].SniNodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisahostruleref-analyticsprof"))
+	g.Expect(nodes[0].SniNodes[0].ErrorPageProfileRef).To(gomega.ContainSubstring("thisisahostruleref-errorprof"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs[0]).To(gomega.ContainSubstring("thisisahostruleref-httpps2"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs[1]).To(gomega.ContainSubstring("thisisahostruleref-httpps1"))
+	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisahostruleref-ds2"))
+	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisahostruleref-ds1"))
+	g.Expect(nodes[0].SniNodes[0].SSLProfileRef).To(gomega.ContainSubstring("thisisahostruleref-sslprof"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
+
+	hrUpdate := integrationtest.FakeHostRule{
+		Name:              hrname,
+		Namespace:         "default",
+		Fqdn:              "foo.com",
+		SslKeyCertificate: "thisisahostruleref-sslkey",
+	}.HostRule()
+	hrUpdate.Spec.VirtualHost.EnableVirtualHost = false
+	hrUpdate.ResourceVersion = "2"
+	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return *nodes[0].SniNodes[0].Enabled
+		}
+		return true
+	}, 25*time.Second).Should(gomega.Equal(false))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	TearDownIngressForCacheSyncCheck(t, modelName)
@@ -447,6 +475,10 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisahttpruleref-sslprofile"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].PkiProfile.CACert).To(gomega.Equal("httprule-destinationCA"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].HealthMonitors).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].HealthMonitors[0]).To(gomega.ContainSubstring("thisisahttpruleref-hm2"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].HealthMonitors[1]).To(gomega.ContainSubstring("thisisahttpruleref-hm1"))
 
 	// delete httprule deletes refs as well
 	integrationtest.TeardownHTTPRule(t, rrname)

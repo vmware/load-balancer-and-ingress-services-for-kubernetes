@@ -19,6 +19,7 @@ set -o nounset
 set -o pipefail
 
 # configurable envs
+readonly AKOCRD_VERSION=v1alpha1
 readonly AKO_PACKAGE=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
 ###
@@ -37,8 +38,8 @@ export GO111MODULE GOFLAGS GOPATH
 mkdir -p "$GOPATH/src/github.com/vmware"
 ln -s "${SCRIPT_ROOT}" "$GOPATH/src/${AKO_PACKAGE}"
 
-readonly OUTPUT_PKG="github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client"
-readonly FQ_APIS="github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+readonly OUTPUT_PKG="${AKO_PACKAGE}/internal/client/${AKOCRD_VERSION}"
+readonly FQ_APIS="${AKO_PACKAGE}/internal/apis/ako/${AKOCRD_VERSION}"
 readonly APIS_PKG=AKO_PACKAGE
 readonly CLIENTSET_NAME=versioned
 readonly CLIENTSET_PKG_NAME=clientset
@@ -49,6 +50,13 @@ if [[ "${VERIFY_CODEGEN:-}" == "true" ]]; then
 fi
 
 readonly COMMON_FLAGS="${VERIFY_FLAG:-} --go-header-file ${SCRIPT_ROOT}/hack/boilerplate.go.txt"
+
+echo "Generating deepcopy funcs"
+go run k8s.io/code-generator/cmd/deepcopy-gen \
+        --input-dirs "${FQ_APIS}" \
+        -O zz_generated.deepcopy \
+        --bounding-dirs "${APIS_PKG}" \
+        ${COMMON_FLAGS}
 
 echo "Generating clientset at ${OUTPUT_PKG}/${CLIENTSET_PKG_NAME}"
 go run k8s.io/code-generator/cmd/client-gen \
@@ -71,3 +79,9 @@ go run k8s.io/code-generator/cmd/informer-gen \
          --listers-package "${OUTPUT_PKG}/listers" \
          --output-package "${OUTPUT_PKG}/informers" \
          ${COMMON_FLAGS}
+
+echo "Generating register at ${FQ_APIS}"
+go run k8s.io/code-generator/cmd/register-gen \
+        --input-dirs "${FQ_APIS}" \
+        --output-package "${FQ_APIS}" \
+        ${COMMON_FLAGS}

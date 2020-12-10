@@ -15,13 +15,12 @@
 package lib
 
 import (
-	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned"
-	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/informers/externalversions/ako/v1alpha1"
+	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned"
+	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/informers/externalversions/ako/v1alpha1"
 )
 
 var CRDClientset akocrd.Interface
 
-// crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned/typed/ako/v1alpha1"
 func SetCRDClientset(cs akocrd.Interface) {
 	CRDClientset = cs
 }

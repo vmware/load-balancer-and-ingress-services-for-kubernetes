@@ -20,7 +20,7 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/clientset/versioned/scheme"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
