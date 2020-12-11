@@ -86,8 +86,8 @@ func removeFinalizer(finalizers []string, key string) (result []string) {
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="rbac",resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="rbac",resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="policy",resources=podsecuritypolicies,verbs=get;list;watch;create;update;patch;delete
 
 func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -128,8 +128,15 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
+	secretNamespacedName := types.NamespacedName{Namespace: AviSystemNS, Name: AviSecretName}
+	var aviSecret v1.Secret
+	err := r.Get(ctx, secretNamespacedName, &aviSecret)
+	if err != nil {
+		log.Error(err, "secret named avi-secret is must for starting AKO controller")
+		return err
+	}
 	// reconcile all the required artifacts for AKO
-	err := createOrUpdateConfigMap(ctx, ako, log, r)
+	err = createOrUpdateConfigMap(ctx, ako, log, r)
 	if err != nil {
 		return err
 	}
@@ -154,7 +161,7 @@ func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako ako
 		return err
 	}
 
-	err = createOrUpdateStatefulSet(ctx, ako, log, r)
+	err = createOrUpdateStatefulSet(ctx, ako, log, r, aviSecret)
 	if err != nil {
 		return err
 	}

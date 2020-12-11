@@ -112,11 +112,6 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 				Resources: []string{"gateways", "gateways/status", "gatewayclasses", "gatewayclasses/status"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
 			},
-			{
-				APIGroups: []string{"crd.projectcalico.org"},
-				Resources: []string{"blockaffinities"},
-				Verbs:     []string{"get", "watch", "list", "patch", "update"},
-			},
 		},
 	}
 

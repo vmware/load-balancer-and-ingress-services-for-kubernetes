@@ -28,6 +28,7 @@ LABEL vendor="VMware"
 
 WORKDIR /
 COPY --from=builder /go/bin/ako-operator .
+RUN adduser nonroot
 USER nonroot:nonroot
 
 ENTRYPOINT ["/ako-operator"]

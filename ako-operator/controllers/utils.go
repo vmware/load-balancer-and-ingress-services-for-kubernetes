@@ -7,7 +7,6 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -23,6 +22,7 @@ const (
 	CRBName            = "ako-crb"
 	AKOServiceAccount  = "ako-sa"
 	PSPName            = "ako"
+	AviSecretName      = "avi-secret"
 )
 
 // below properties are applicable to a configmap object for AKO controller
@@ -134,7 +134,7 @@ func getConfigMapName() types.NamespacedName {
 	}
 }
 
-func getChecksum(cm corev1.ConfigMap, skipList []string) uint32 {
+func getChecksum(cm v1.ConfigMap, skipList []string) uint32 {
 	cmValues := []string{}
 
 	for k, v := range cm.Data {
@@ -207,7 +207,8 @@ func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet)
 	return false
 }
 
-func getEnvVars(ako akov1alpha1.AKOConfig) []v1.EnvVar {
+func getEnvVars(ako akov1alpha1.AKOConfig, aviSecret v1.Secret) []v1.EnvVar {
+
 	envVars := []v1.EnvVar{}
 	for k, v := range ConfigMapEnvVars {
 		if k == "NODE_KEY" || k == "NODE_VALUE" {
@@ -230,7 +231,11 @@ func getEnvVars(ako akov1alpha1.AKOConfig) []v1.EnvVar {
 		envVars = append(envVars, envVar)
 	}
 
+	cacertRef, ok := aviSecret.Data["certificateAuthorityData"]
 	for k, v := range SecretEnvVars {
+		if k == "CTRL_CA_DATA" && (!ok || string(cacertRef) == "") {
+			continue
+		}
 		envVar := v1.EnvVar{
 			Name: k,
 			ValueFrom: &v1.EnvVarSource{
