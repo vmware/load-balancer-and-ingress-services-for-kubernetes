@@ -70,7 +70,7 @@ spec:
                   - ERROR
                   type: string
                 namespaceSelector:
-                  description: Namespace selector specifies the namespace labels from
+                  description: Namespace selector specifies the namespace label from
                     which AKO should sync from
                   properties:
                     labelKey:

@@ -6,7 +6,7 @@ replicaCount: 1
 
 # AKO Operator image settings
 operatorImage:
-  repository: 10.79.172.11:5000/ako-operator
+  repository: 10.79.172.11:5000/avi-buildops/ako-operator
   pullPolicy: IfNotPresent
 
 # AKO Controller image settings
@@ -39,9 +39,9 @@ NetworkSettings:
   #     cidrs:
   #       - 10.0.0.1/24
   #       - 11.0.0.1/24
-  subnetIP: "10.10.0.0" # Subnet IP of the vip network
-  subnetPrefix: "16" # Subnet Prefix of the vip network
-  networkName: "vcd-ns" # Network Name of the vip network
+  subnetIP: "" # Subnet IP of the vip network
+  subnetPrefix: "" # Subnet Prefix of the vip network
+  networkName: "" # Network Name of the vip network
   enableRHI: false # This is a cluster wide setting for BGP peering.
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
@@ -60,11 +60,11 @@ L4Settings:
 ### This section outlines settings on the Avi controller that affects AKO's functionality.
 ControllerSettings:
   serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
-  controllerVersion: "20.1.1" # The controller API version
+  controllerVersion: "18.2.10" # The controller API version
   cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
-  controllerIP: "10.79.111.29"
+  controllerIP: ""
   tenantsPerCluster: "false" # If set to true, AKO will map each kubernetes cluster uniquely to a tenant in Avi
-  tenantName: "" # Name of the tenant where all the AKO objects will be created in AVI. // Required only if tenantsPerCluster is set to True
+  tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI. // Required only if tenantsPerCluster is set to True
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""
@@ -84,14 +84,9 @@ rbac:
 
 
 avicredentials:
-  username: "admin"
-  password: "avi123"
+  username: ""
+  password: ""
   certificateAuthorityData:
-
-
-service:
-  type: ClusterIP
-  port: 80
 
 
 persistentVolumeClaim: ""
