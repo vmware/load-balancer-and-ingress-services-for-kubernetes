@@ -1164,12 +1164,30 @@ func VerifyMetadataHostRule(g *gomega.WithT, vsKey cache.NamespaceName, hrnsname
 	g.Eventually(func() bool {
 		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
-		if (ok && found &&
-			sniCacheObj.ServiceMetadataObj.CRDStatus.Value == hrnsname &&
-			sniCacheObj.ServiceMetadataObj.CRDStatus.Status == status) ||
+		if (ok && found && sniCacheObj.ServiceMetadataObj.CRDStatus.Value == hrnsname && sniCacheObj.ServiceMetadataObj.CRDStatus.Status == status) ||
+			(ok && found && !active && sniCacheObj.ServiceMetadataObj.CRDStatus.Status == "") ||
 			(!active && !found) {
 			return true
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 50*time.Second).Should(gomega.Equal(true))
+}
+
+func VerifyMetadataHTTPRule(g *gomega.WithT, poolKey cache.NamespaceName, rrnsname string, active bool) {
+	mcache := cache.SharedAviObjCache()
+	status := "INACTIVE"
+	if active {
+		status = "ACTIVE"
+	}
+
+	g.Eventually(func() bool {
+		poolCache, found := mcache.PoolCache.AviCacheGet(poolKey)
+		poolCacheObj, ok := poolCache.(*cache.AviPoolCache)
+		if (ok && found && poolCacheObj.ServiceMetadataObj.CRDStatus.Value == rrnsname && poolCacheObj.ServiceMetadataObj.CRDStatus.Status == status) ||
+			(ok && found && !active && poolCacheObj.ServiceMetadataObj.CRDStatus.Status == "") ||
+			(!active && !found) {
+			return true
+		}
+		return false
+	}, 50*time.Second).Should(gomega.Equal(true))
 }

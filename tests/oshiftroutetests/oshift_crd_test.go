@@ -16,6 +16,7 @@ package oshiftroutetests
 
 import (
 	"context"
+	_ "fmt"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	_ "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
@@ -30,7 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestRouteCreateHostRule(t *testing.T) {
+func TestRouteCreateDeleteHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	hrname := "samplehr-foo"
 	modelName := "admin/cluster--Shared-L7-0"
@@ -50,18 +52,11 @@ func TestRouteCreateHostRule(t *testing.T) {
 		return hostrule.Status.Status
 	}, 50*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() string {
-		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			if len(nodes[0].SniNodes) == 1 {
-				return nodes[0].SniNodes[0].SSLKeyCertAviRef
-			}
-		}
-		return ""
-	}, 50*time.Second).Should(gomega.ContainSubstring("thisisahostruleref-sslkey"))
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisahostruleref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisahostruleref-waf"))
 	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisahostruleref-appprof"))
 	g.Expect(nodes[0].SniNodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisahostruleref-analyticsprof"))
@@ -73,9 +68,6 @@ func TestRouteCreateHostRule(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisahostruleref-ds2"))
 	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisahostruleref-ds1"))
 	g.Expect(nodes[0].SniNodes[0].SSLProfileRef).To(gomega.ContainSubstring("thisisahostruleref-sslprof"))
-
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
-	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:              hrname,
@@ -99,6 +91,18 @@ func TestRouteCreateHostRule(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(false))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", false)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].SniNodes[0].Enabled).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes[0].SSLProfileRef).To(gomega.Equal(""))
+
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }
@@ -508,17 +512,11 @@ func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
+	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-avisvc"}
+	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-foobar-avisvc"}
 	integrationtest.SetupHTTPRule(t, rrname, "foo.com", "/")
-	g.Eventually(func() bool {
-		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			if len(nodes[0].SniNodes) == 1 &&
-				nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
-				return true
-			}
-		}
-		return false
-	}, 50*time.Second).Should(gomega.Equal(true))
+	integrationtest.VerifyMetadataHTTPRule(g, poolFooKey, "default/"+rrname, true)
+	integrationtest.VerifyMetadataHTTPRule(g, poolBarKey, "default/"+rrname, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
@@ -531,20 +529,14 @@ func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 
 	// delete httprule deletes refs as well
 	integrationtest.TeardownHTTPRule(t, rrname)
-	g.Eventually(func() bool {
-		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			if len(nodes[0].SniNodes[0].PoolRefs) == 2 &&
-				nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "" {
-				return true
-			}
-		}
-		return false
-	}, 50*time.Second).Should(gomega.Equal(true))
+	integrationtest.VerifyMetadataHTTPRule(g, poolFooKey, "default/"+rrname, false)
+	integrationtest.VerifyMetadataHTTPRule(g, poolBarKey, "default/"+rrname, false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithm).To(gomega.Equal(""))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].HealthMonitors).To(gomega.HaveLen(0))
 
 	VerifySecureRouteDeletion(t, g, modelName, 0, 1)
 	VerifySecureRouteDeletion(t, g, modelName, 0, 0, "default/foobar")
