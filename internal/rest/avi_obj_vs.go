@@ -683,6 +683,12 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 				Type: &ipType,
 				Addr: &vsvip_meta.IPAddress,
 			}
+			if lib.GetNetworkName() != "" {
+				networkRef = "/api/network/?name=" + lib.GetNetworkName()
+				vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
+					NetworkRef: &networkRef,
+				}
+			}
 		} else if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || lib.GetNetworkName() == "" {
 			utils.AviLog.Warnf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
 		} else if !lib.GetAdvancedL4() {
