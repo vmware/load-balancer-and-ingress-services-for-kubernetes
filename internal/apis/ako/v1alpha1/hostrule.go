@@ -41,7 +41,7 @@ type HostRuleVirtualHost struct {
 	AnalyticsProfile   string             `json:"analyticsProfile,omitempty"`
 	ApplicationProfile string             `json:"applicationProfile,omitempty"`
 	Datascripts        []string           `json:"datascripts,omitempty"`
-	EnableVirtualHost  bool               `json:"enableVirtualHost,omitempty"`
+	EnableVirtualHost  *bool              `json:"enableVirtualHost,omitempty"`
 	ErrorPageProfile   string             `json:"errorPageProfile,omitempty"`
 	Fqdn               string             `json:"fqdn,omitempty"`
 	HTTPPolicy         HostRuleHTTPPolicy `json:"httpPolicy,omitempty"`

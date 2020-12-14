@@ -25,7 +25,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/models"
@@ -142,7 +141,9 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	vsNode.ErrorPageProfileRef = vsErrorPageProfile
 	vsNode.SSLProfileRef = vsSslProfile
 	vsNode.VsDatascriptRefs = vsDatascripts
-	vsNode.Enabled = &hostrule.Spec.VirtualHost.EnableVirtualHost
+	if hostrule.Spec.VirtualHost.EnableVirtualHost != nil {
+		vsNode.Enabled = hostrule.Spec.VirtualHost.EnableVirtualHost
+	}
 	vsNode.ServiceMetadata.CRDStatus = cache.CRDMetadata{
 		Type:   "HostRule",
 		Value:  hostrule.Namespace + "/" + hostrule.Name,

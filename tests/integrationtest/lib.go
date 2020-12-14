@@ -1019,6 +1019,7 @@ type FakeHostRule struct {
 }
 
 func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
+	enable := true
 	hostrule := &akov1alpha1.HostRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: hr.Namespace,
@@ -1044,7 +1045,7 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 				AnalyticsProfile:   hr.AnalyticsProfile,
 				ErrorPageProfile:   hr.ErrorPageProfile,
 				Datascripts:        hr.Datascripts,
-				EnableVirtualHost:  true,
+				EnableVirtualHost:  &enable,
 			},
 		},
 	}
@@ -1129,15 +1130,15 @@ func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
 
 func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 	httprule := FakeHTTPRule{
-		Name:           rrname,
-		Namespace:      "default",
-		Fqdn:           fqdn,
+		Name:      rrname,
+		Namespace: "default",
+		Fqdn:      fqdn,
 		PathProperties: []FakeHTTPRulePath{{
-			Path:          path,
-			SslProfile:    "thisisahttpruleref-sslprofile",
-			DestinationCA: "httprule-destinationCA",
-			LbAlgorithm:   "LB_ALGORITHM_CONSISTENT_HASH",
-			Hash:          "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
+			Path:           path,
+			SslProfile:     "thisisahttpruleref-sslprofile",
+			DestinationCA:  "httprule-destinationCA",
+			LbAlgorithm:    "LB_ALGORITHM_CONSISTENT_HASH",
+			Hash:           "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
 			HealthMonitors: []string{"thisisahttpruleref-hm2", "thisisahttpruleref-hm1"},
 		}},
 	}
