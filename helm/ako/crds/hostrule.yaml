@@ -30,7 +30,6 @@ spec:
                     type: string
                   enableVirtualHost:
                     type: boolean
-                    default: true
                   errorPageProfile:
                     type: string
                   fqdn:

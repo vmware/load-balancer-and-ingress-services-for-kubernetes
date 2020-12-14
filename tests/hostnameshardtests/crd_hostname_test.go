@@ -75,7 +75,8 @@ func TestHostnameCreateHostRule(t *testing.T) {
 		Fqdn:              "foo.com",
 		SslKeyCertificate: "thisisahostruleref-sslkey",
 	}.HostRule()
-	hrUpdate.Spec.VirtualHost.EnableVirtualHost = false
+	enableVirtualHost := false
+	hrUpdate.Spec.VirtualHost.EnableVirtualHost = &enableVirtualHost
 	hrUpdate.ResourceVersion = "2"
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {

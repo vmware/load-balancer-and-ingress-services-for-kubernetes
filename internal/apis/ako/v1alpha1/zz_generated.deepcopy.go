@@ -335,6 +335,11 @@ func (in *HostRuleVirtualHost) DeepCopyInto(out *HostRuleVirtualHost) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.EnableVirtualHost != nil {
+		in, out := &in.EnableVirtualHost, &out.EnableVirtualHost
+		*out = new(bool)
+		**out = **in
+	}
 	in.HTTPPolicy.DeepCopyInto(&out.HTTPPolicy)
 	out.TLS = in.TLS
 	return

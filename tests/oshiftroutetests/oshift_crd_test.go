@@ -26,15 +26,15 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestRouteCreateHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	hrname := "samplehr-foo"
 	modelName := "admin/cluster--Shared-L7-0"
-	
+
 	SetUpTestForRoute(t, modelName)
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
@@ -83,7 +83,8 @@ func TestRouteCreateHostRule(t *testing.T) {
 		Fqdn:              "foo.com",
 		SslKeyCertificate: "thisisahostruleref-sslkey",
 	}.HostRule()
-	hrUpdate.Spec.VirtualHost.EnableVirtualHost = false
+	enableVirtualHost := false
+	hrUpdate.Spec.VirtualHost.EnableVirtualHost = &enableVirtualHost
 	hrUpdate.ResourceVersion = "2"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
@@ -625,12 +626,12 @@ func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 }
 
 func TestOshiftHTTPRuleReencryptWithDestinationCA(t *testing.T) {
-	// create route foo.com/foo, with destinationCA in Route, 
+	// create route foo.com/foo, with destinationCA in Route,
 	// add destinationCA via httprule, overwrites Route, delete httprule, fallback to Route
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	rrname := "samplerr-foo"
-	
+
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
 	routeExample.Spec.TLS.DestinationCACertificate = "abc"
