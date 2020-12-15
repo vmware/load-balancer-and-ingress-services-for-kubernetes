@@ -99,11 +99,11 @@ const (
 	GatewayFinalizer                           = "gateway.ako.vmware.com"
 	ClusterStatusCacheKey                      = "cluster-runtime"
 	AviObjDeletionTime                         = 30 // Minutes
-	AKOConditionType                           = "akoStatus"
+	AKOConditionType                           = "ako.vmware.com/ObjectDeletionInProgress"
 	AKOStatefulSet                             = "ako"
-	ObjectDeletionStartStatus                  = "objDeletionStarted"
-	ObjectDeletionDoneStatus                   = "objDeletionDone"
-	ObjectDeletionTimeoutStatus                = "objDeletionTimeout"
+	ObjectDeletionStartStatus                  = "ObjectDeletionStarted"
+	ObjectDeletionDoneStatus                   = "ObjectDeletionDone"
+	ObjectDeletionTimeoutStatus                = "ObjectDeletionTimeout"
 	DefaultIngressClassAnnotation              = "ingressclass.kubernetes.io/is-default-class"
 	DefaultRouteCert                           = "router-certs-default"
 
