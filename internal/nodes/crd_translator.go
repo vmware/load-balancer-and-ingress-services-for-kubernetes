@@ -30,35 +30,6 @@ import (
 	"github.com/avinetworks/sdk/go/models"
 )
 
-func removeVSNodeRefs(crd string, vsNode *AviVsNode) {
-	if crd == lib.HostRule {
-		// Fields based off Hostrule CRD
-		vsNode.Enabled = nil
-		vsNode.SSLKeyCertAviRef = ""
-		vsNode.WafPolicyRef = ""
-		vsNode.HttpPolicySetRefs = []string{}
-		vsNode.AppProfileRef = ""
-		vsNode.AnalyticsProfileRef = ""
-		vsNode.ErrorPageProfileRef = ""
-		vsNode.SSLProfileRef = ""
-		vsNode.VsDatascriptRefs = []string{}
-		if vsNode.ServiceMetadata.CRDStatus.Value != "" {
-			vsNode.ServiceMetadata.CRDStatus.Status = "INACTIVE"
-		}
-	} else if crd == lib.HTTPRule {
-		// fields based off HTTPRule CRD
-		for _, pool := range vsNode.PoolRefs {
-			pool.LbAlgorithm = ""
-			pool.LbAlgorithmHash = ""
-			pool.LbAlgoHostHeader = ""
-
-			if pool.ServiceMetadata.CRDStatus.Value != "" {
-				pool.ServiceMetadata.CRDStatus.Status = "INACTIVE"
-			}
-		}
-	}
-}
-
 func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	// use host to find out HostRule CRD if it exists
 	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
@@ -83,53 +54,65 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 		}
 	}
 
-	if deleteCase {
-		removeVSNodeRefs(lib.HostRule, vsNode)
-		return
-	}
-
 	// host specific
 	var vsWafPolicy, vsAppProfile, vsSslKeyCertificate, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile string
 	var vsHTTPPolicySets, vsDatascripts []string
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
-		vsSslKeyCertificate = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
-		vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
-	}
+	var vsEnabled *bool
+	var crdStatus cache.CRDMetadata
 
-	if hostrule.Spec.VirtualHost.TLS.SSLProfile != "" {
-		vsSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", hostrule.Spec.VirtualHost.TLS.SSLProfile)
-	}
-
-	if hostrule.Spec.VirtualHost.WAFPolicy != "" {
-		vsWafPolicy = fmt.Sprintf("/api/wafpolicy?name=%s", hostrule.Spec.VirtualHost.WAFPolicy)
-	}
-
-	if hostrule.Spec.VirtualHost.ApplicationProfile != "" {
-		vsAppProfile = fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile)
-	}
-
-	if hostrule.Spec.VirtualHost.ErrorPageProfile != "" {
-		vsErrorPageProfile = fmt.Sprintf("/api/errorpageprofile?name=%s", hostrule.Spec.VirtualHost.ErrorPageProfile)
-	}
-
-	if hostrule.Spec.VirtualHost.AnalyticsProfile != "" {
-		vsAnalyticsProfile = fmt.Sprintf("/api/analyticsprofile?name=%s", hostrule.Spec.VirtualHost.AnalyticsProfile)
-	}
-
-	for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
-		if !utils.HasElem(vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy)) {
-			vsHTTPPolicySets = append(vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy))
+	if !deleteCase {
+		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
+			vsSslKeyCertificate = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
+			vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
 		}
-	}
 
-	// delete all auto-created HttpPolicySets by AKO if override is set
-	if hostrule.Spec.VirtualHost.HTTPPolicy.Overwrite {
-		vsNode.HttpPolicyRefs = []*AviHttpPolicySetNode{}
-	}
+		if hostrule.Spec.VirtualHost.TLS.SSLProfile != "" {
+			vsSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", hostrule.Spec.VirtualHost.TLS.SSLProfile)
+		}
 
-	for _, script := range hostrule.Spec.VirtualHost.Datascripts {
-		if !utils.HasElem(vsDatascripts, fmt.Sprintf("/api/vsdatascriptset?name=%s", script)) {
-			vsDatascripts = append(vsDatascripts, fmt.Sprintf("/api/vsdatascriptset?name=%s", script))
+		if hostrule.Spec.VirtualHost.WAFPolicy != "" {
+			vsWafPolicy = fmt.Sprintf("/api/wafpolicy?name=%s", hostrule.Spec.VirtualHost.WAFPolicy)
+		}
+
+		if hostrule.Spec.VirtualHost.ApplicationProfile != "" {
+			vsAppProfile = fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile)
+		}
+
+		if hostrule.Spec.VirtualHost.ErrorPageProfile != "" {
+			vsErrorPageProfile = fmt.Sprintf("/api/errorpageprofile?name=%s", hostrule.Spec.VirtualHost.ErrorPageProfile)
+		}
+
+		if hostrule.Spec.VirtualHost.AnalyticsProfile != "" {
+			vsAnalyticsProfile = fmt.Sprintf("/api/analyticsprofile?name=%s", hostrule.Spec.VirtualHost.AnalyticsProfile)
+		}
+
+		for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
+			if !utils.HasElem(vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy)) {
+				vsHTTPPolicySets = append(vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy))
+			}
+		}
+
+		// delete all auto-created HttpPolicySets by AKO if override is set
+		if hostrule.Spec.VirtualHost.HTTPPolicy.Overwrite {
+			vsNode.HttpPolicyRefs = []*AviHttpPolicySetNode{}
+		}
+
+		for _, script := range hostrule.Spec.VirtualHost.Datascripts {
+			if !utils.HasElem(vsDatascripts, fmt.Sprintf("/api/vsdatascriptset?name=%s", script)) {
+				vsDatascripts = append(vsDatascripts, fmt.Sprintf("/api/vsdatascriptset?name=%s", script))
+			}
+		}
+
+		vsEnabled = hostrule.Spec.VirtualHost.EnableVirtualHost
+		crdStatus = cache.CRDMetadata{
+			Type:   "HostRule",
+			Value:  hostrule.Namespace + "/" + hostrule.Name,
+			Status: "ACTIVE",
+		}
+	} else {
+		if vsNode.ServiceMetadata.CRDStatus.Value != "" {
+			crdStatus = vsNode.ServiceMetadata.CRDStatus
+			crdStatus.Status = "INACTIVE"
 		}
 	}
 
@@ -141,14 +124,8 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	vsNode.ErrorPageProfileRef = vsErrorPageProfile
 	vsNode.SSLProfileRef = vsSslProfile
 	vsNode.VsDatascriptRefs = vsDatascripts
-	if hostrule.Spec.VirtualHost.EnableVirtualHost != nil {
-		vsNode.Enabled = hostrule.Spec.VirtualHost.EnableVirtualHost
-	}
-	vsNode.ServiceMetadata.CRDStatus = cache.CRDMetadata{
-		Type:   "HostRule",
-		Value:  hostrule.Namespace + "/" + hostrule.Name,
-		Status: "ACTIVE",
-	}
+	vsNode.Enabled = vsEnabled
+	vsNode.ServiceMetadata.CRDStatus = crdStatus
 
 	utils.AviLog.Infof("key: %s, Attached hostrule %s on vsNode %s", key, host, vsNode.Name)
 }
@@ -157,15 +134,9 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 // when we get an ingress update and we are building the corresponding pools of that ingress
 // we need to get all httprules which match ingress's host/path
 func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVsNode, isSNI bool) {
-	deleteCase := false
 	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
 	if !found {
-		utils.AviLog.Debugf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
-		deleteCase = true
-	}
-
-	if deleteCase {
-		removeVSNodeRefs(lib.HTTPRule, vsNode)
+		utils.AviLog.Warnf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
 		return
 	}
 
