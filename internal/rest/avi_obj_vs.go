@@ -305,8 +305,8 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for VS, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
-		return errors.New("Errored rest_op")
+		utils.AviLog.Warnf("key: %s, rest_op has err or no response for VS, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		return errors.New("Error rest_op")
 	}
 
 	resp_elems, ok := RestRespArrToObjByType(rest_op, "virtualservice", key)
@@ -630,7 +630,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		vsvip.DNSInfo = dns_info_arr
 
 		// handling static IP updates, this would throw an error
-		// for advl4 the error is propogated to the gateway status
+		// for advl4 the error is propagated to the gateway status
 		if vsvip_meta.IPAddress != "" {
 			auto_alloc := true
 			var vips []*avimodels.Vip
