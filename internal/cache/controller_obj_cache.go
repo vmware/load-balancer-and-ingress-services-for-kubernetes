@@ -2654,7 +2654,8 @@ func checkPublicCloud(client *clients.AviClient) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
 		networkName := lib.GetNetworkName()
-		if networkName == "" {
+		if networkName == "" && lib.GetCloudType() != lib.CLOUD_GCP {
+			// networkName is required param for AWS and Azure Clouds
 			utils.AviLog.Errorf("Required param networkName not specified, syncing will be disabled.")
 			return false
 		}
@@ -2725,8 +2726,8 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 
 	networkName := lib.GetNetworkName()
 	if networkName == "" {
-		utils.AviLog.Error("Required param networkName not specified, syncing will be disabled.")
-		return false
+		utils.AviLog.Warnf("Param networkName not specified, skipping fetching of the VRF setting from network")
+		return true
 	}
 
 	uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
