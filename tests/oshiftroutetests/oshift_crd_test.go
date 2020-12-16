@@ -232,7 +232,6 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		t.Logf("model found: %v, %v", found, aviModel)
 		if found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			if len(nodes[0].SniNodes) > 0 &&

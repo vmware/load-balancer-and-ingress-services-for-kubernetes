@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -540,7 +541,7 @@ func (c *AviController) FullSyncK8s() error {
 // The rest layer would pick up the model key and delete the objects in Avi
 func (c *AviController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
-	status.AddStatefulSetStatus(lib.ObjectDeletionStartStatus)
+	status.AddStatefulSetStatus(lib.ObjectDeletionStartStatus, corev1.ConditionTrue)
 	allModels := objects.SharedAviGraphLister().GetAll()
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	for modelName, avimodelIntf := range allModels.(map[string]interface{}) {
@@ -573,10 +574,10 @@ func (c *AviController) DeleteModels() {
 	lib.SetConfigDeleteSyncChan()
 	select {
 	case <-lib.ConfigDeleteSyncChan:
-		status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus)
+		status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus, corev1.ConditionFalse)
 		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
 	case <-timeout:
-		status.AddStatefulSetStatus(lib.ObjectDeletionTimeoutStatus)
+		status.AddStatefulSetStatus(lib.ObjectDeletionTimeoutStatus, corev1.ConditionUnknown)
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 	}
 }

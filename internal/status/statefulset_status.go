@@ -24,6 +24,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var msgForReason = map[string]string{
+	lib.ObjectDeletionStartStatus:   "Started deleting objects",
+	lib.ObjectDeletionDoneStatus:    "Successfully deleted all objects",
+	lib.ObjectDeletionTimeoutStatus: "Error, timed out while deleting objects",
+}
+
 func msgFoundInStatus(conditions []appsv1.StatefulSetCondition, msg string) bool {
 	for _, c := range conditions {
 		if c.Type == lib.AKOConditionType && c.Message == msg {
@@ -62,10 +68,16 @@ func ResetStatefulSetStatus() {
 }
 
 // AddStatefulSetStatus sets a condition in status of AKO statefulset to the desired value
-func AddStatefulSetStatus(msg string) {
+func AddStatefulSetStatus(reason string, statusCondition v1.ConditionStatus) {
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
+		return
+	}
+
+	msg, ok := msgForReason[reason]
+	if !ok {
+		utils.AviLog.Warnf("Unknown reason %s for statefulset status", reason)
 		return
 	}
 
@@ -74,9 +86,13 @@ func AddStatefulSetStatus(msg string) {
 	}
 
 	var foundCondition bool
+	currentTime := metav1.Now()
 	for i, c := range ss.Status.Conditions {
 		if c.Type == lib.AKOConditionType {
+			ss.Status.Conditions[i].Reason = reason
 			ss.Status.Conditions[i].Message = msg
+			ss.Status.Conditions[i].Status = statusCondition
+			ss.Status.Conditions[i].LastTransitionTime = currentTime
 			foundCondition = true
 			break
 		}
@@ -84,9 +100,11 @@ func AddStatefulSetStatus(msg string) {
 
 	if !foundCondition {
 		cond := appsv1.StatefulSetCondition{
-			Type:    lib.AKOConditionType,
-			Status:  v1.ConditionTrue,
-			Message: msg,
+			Type:               lib.AKOConditionType,
+			Status:             statusCondition,
+			Reason:             reason,
+			Message:            msg,
+			LastTransitionTime: currentTime,
 		}
 		ss.Status.Conditions = append(ss.Status.Conditions, cond)
 	}
