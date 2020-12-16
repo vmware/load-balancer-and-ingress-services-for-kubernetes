@@ -56,7 +56,7 @@ ControllerSettings:
   serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
   controllerVersion: "18.2.10" # The controller API version
   cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
-  controllerIP: ""
+  controllerHost: "" # IP address or Hostname of Avi Controller
   tenantsPerCluster: "false" # If set to true, AKO will map each kubernetes cluster uniquely to a tenant in Avi
   tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI. // Required only if tenantsPerCluster is set to True
 
