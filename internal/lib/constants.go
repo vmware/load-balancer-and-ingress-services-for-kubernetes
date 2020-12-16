@@ -101,9 +101,9 @@ const (
 	AviObjDeletionTime                         = 30 // Minutes
 	AKOConditionType                           = "ako.vmware.com/ObjectDeletionInProgress"
 	AKOStatefulSet                             = "ako"
-	ObjectDeletionStartStatus                  = "ObjectDeletionStarted"
-	ObjectDeletionDoneStatus                   = "ObjectDeletionDone"
-	ObjectDeletionTimeoutStatus                = "ObjectDeletionTimeout"
+	ObjectDeletionStartStatus                  = "Started"
+	ObjectDeletionDoneStatus                   = "Done"
+	ObjectDeletionTimeoutStatus                = "Timeout"
 	DefaultIngressClassAnnotation              = "ingressclass.kubernetes.io/is-default-class"
 	DefaultRouteCert                           = "router-certs-default"
 
