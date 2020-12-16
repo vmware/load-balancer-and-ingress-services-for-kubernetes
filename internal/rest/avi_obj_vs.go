@@ -617,7 +617,8 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	subnetMask := lib.GetSubnetPrefixInt()
 	subnetAddress := lib.GetSubnetIP()
 
-	autoAllocate := true // all vsvip models would have auto_alloc set to true even in case of static IP programming
+	// all vsvip models would have auto_alloc set to true even in case of static IP programming
+	autoAllocate := true
 
 	if cache_obj != nil {
 		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name)
@@ -667,44 +668,46 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			Version: utils.CtrlVersion,
 		}
 	} else {
-		// all vsvip models would have AutoAllocateIP set to true even in case of static IP programming
 		vip := avimodels.Vip{
 			VipID:          &vipId,
 			AutoAllocateIP: &autoAllocate,
 		}
 
-		if lib.IsPublicCloud() && networkName != "" {
-			if lib.GetCloudType() == lib.CLOUD_GCP {
-				// add the IPAMNetworkSubnet
-				vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
-					NetworkRef: &networkRef,
-					Subnet: &avimodels.IPAddrPrefix{
-						IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &subnetAddress},
-						Mask:   &subnetMask,
-					},
-				}
-			} else {
-				vip.SubnetUUID = &networkName
-			}
-		} else if vsvip_meta.IPAddress != "" {
-			vip.IPAddress = &avimodels.IPAddr{
-				Type: &ipType,
-				Addr: &vsvip_meta.IPAddress,
-			}
-			if networkName != "" {
-				vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
-					NetworkRef: &networkRef,
-				}
-			}
-		} else if lib.GetSubnetPrefix() == "" || lib.GetSubnetIP() == "" || networkName == "" {
-			utils.AviLog.Warnf("Incomplete values provided for subnet/cidr/network, will not use network ref in vsvip")
-		} else if !lib.GetAdvancedL4() {
+		// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
+		if lib.GetSubnetPrefix() == "" || subnetAddress == "" {
+			utils.AviLog.Warnf("Incomplete values provided for subnetIP, will not use IPAMNetworkSubnet in vsvip")
+		} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP {
+			// add the IPAMNetworkSubnet
 			vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
-				NetworkRef: &networkRef,
 				Subnet: &avimodels.IPAddrPrefix{
 					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &subnetAddress},
 					Mask:   &subnetMask,
 				},
+			}
+		} else if !lib.GetAdvancedL4() {
+			vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
+				Subnet: &avimodels.IPAddrPrefix{
+					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &subnetAddress},
+					Mask:   &subnetMask,
+				},
+			}
+		}
+
+		// configuring static IP, from gateway.Addresses (advl4) and service.loadBalancerIP (l4)
+		if vsvip_meta.IPAddress != "" {
+			vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+		}
+
+		// selecting network with user input, in case user input is not provided AKO relies on
+		// usable network configuration in ipamdnsproviderprofile
+		if networkName != "" {
+			if vip.IPAMNetworkSubnet == nil {
+				// initialize if not initialized earlier
+				vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+			}
+			vip.IPAMNetworkSubnet.NetworkRef = &networkRef
+			if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
+				vip.SubnetUUID = &networkName
 			}
 		}
 

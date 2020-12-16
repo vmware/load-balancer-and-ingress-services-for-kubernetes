@@ -303,7 +303,7 @@ func GetSubnetPrefixInt() int32 {
 	defaultCidr := int32(24)
 	intCidr, err := strconv.ParseInt(GetSubnetPrefix(), 10, 32)
 	if err != nil {
-		utils.AviLog.Errorf("The value of subnetPrefix couldn't be converted to int32, %v", err)
+		utils.AviLog.Warnf("The value of subnetPrefix couldn't be converted to int32, defaulting to /24, %v", err)
 		return defaultCidr
 	}
 	return int32(intCidr)
