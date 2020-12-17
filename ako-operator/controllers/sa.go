@@ -24,6 +24,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -47,6 +48,19 @@ func createOrUpdateServiceAccount(ctx context.Context, ako akov1alpha1.AKOConfig
 			"name", sa.GetName())
 		return err
 	}
+
+	var newSA v1.ServiceAccount
+	err = r.Get(ctx, getSAName(), &newSA)
+	if err != nil {
+		log.V(0).Info("error getting a clusterrole with name", "name", getCRName().Name, "err", err)
+	}
+	// update this object in the global list
+	objList := getObjectList()
+	objList[types.NamespacedName{
+		Name:      newSA.GetName(),
+		Namespace: newSA.GetNamespace(),
+	}] = &newSA
+
 	return nil
 }
 

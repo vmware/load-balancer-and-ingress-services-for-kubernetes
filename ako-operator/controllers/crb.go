@@ -25,6 +25,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -60,6 +61,18 @@ func createOrUpdateClusterroleBinding(ctx context.Context, ako akov1alpha1.AKOCo
 			return err
 		}
 	}
+	var newCRB rbacv1.ClusterRoleBinding
+	err := r.Get(ctx, getCRBName(), &newCRB)
+	if err != nil {
+		log.V(0).Info("error getting a clusterrole with name", "name", getCRName().Name, "err", err)
+	}
+	// update this object in the global list
+	objList := getObjectList()
+	objList[types.NamespacedName{
+		Name:      newCRB.GetName(),
+		Namespace: newCRB.GetNamespace(),
+	}] = &newCRB
+
 	return nil
 }
 

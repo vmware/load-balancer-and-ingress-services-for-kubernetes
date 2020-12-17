@@ -10,7 +10,7 @@ rules:
   resources: ["serviceaccounts"]
   verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
 - apiGroups: ["ako.vmware.com"]
-  resources: ["akoconfigs", "akoconfigs/status"]
+  resources: ["akoconfigs", "akoconfigs/status", "akoconfigs/finalizers"]
   verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
 - apiGroups: ["apps"]
   resources: ["statefulsets", "statefulsets/status"]

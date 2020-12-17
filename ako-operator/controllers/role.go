@@ -24,6 +24,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func createOrUpdateClusterRole(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger, r *AKOConfigReconciler) error {
@@ -58,6 +59,19 @@ func createOrUpdateClusterRole(ctx context.Context, ako akov1alpha1.AKOConfig, l
 			return err
 		}
 	}
+
+	var newCR rbacv1.ClusterRole
+	err := r.Get(ctx, getCRName(), &newCR)
+	if err != nil {
+		log.V(0).Info("error getting a clusterrole with name", "name", getCRName().Name, "err", err)
+	}
+	// update this object in the global list
+	objList := getObjectList()
+	objList[types.NamespacedName{
+		Name:      newCR.GetName(),
+		Namespace: newCR.GetNamespace(),
+	}] = &newCR
+
 	return nil
 }
 
