@@ -4,7 +4,7 @@ metadata:
   name: avi-k8s-config
   namespace: {{ .Release.Namespace }}
 data:
-  controllerIP: {{ .Values.ControllerSettings.controllerIP | quote }}
+  controllerIP: {{ .Values.ControllerSettings.controllerHost | quote }}
   controllerVersion: {{ .Values.ControllerSettings.controllerVersion | quote }}
   cniPlugin: {{ .Values.AKOSettings.cniPlugin | quote }}
   shardVSSize: {{ .Values.L7Settings.shardVSSize | quote }}

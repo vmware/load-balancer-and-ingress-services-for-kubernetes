@@ -44,7 +44,7 @@ spec:
     serviceEngineGroupName: {{ .Values.ControllerSettings.serviceEngineGroupName | quote }}
     controllerVersion: {{ .Values.ControllerSettings.controllerVersion | quote }}
     cloudName: {{ .Values.ControllerSettings.cloudName | quote }}
-    controllerIP: {{ .Values.ControllerSettings.controllerIP | quote }}
+    controllerIP: {{ .Values.ControllerSettings.controllerHost | quote }}
     tenantsPerCluster: {{ .Values.ControllerSettings.tenantsPerCluster }}
     tenantName: {{ .Values.ControllerSettings.tenantName | quote }}
 
