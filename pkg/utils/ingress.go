@@ -30,15 +30,16 @@ func SetIngressClassEnabled(kc kubernetes.Interface) {
 
 	var isPresent bool
 	timeout := int64(120)
-	_, ingClassError := kc.NetworkingV1beta1().IngressClasses().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
+	// should only work for k8s 1.19+ clusters
+	_, ingClassError := kc.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
 	if ingClassError != nil {
 		AviLog.Infof("networking.k8s.io/v1/IngressClass not found/enabled on cluster: %v", ingClassError)
 		isPresent = false
 	} else {
+		AviLog.Infof("networking.k8s.io/v1/IngressClass enabled on cluster")
 		isPresent = true
 	}
 
-	AviLog.Infof("networking.k8s.io/v1/IngressClass enabled on cluster")
 	ingressClassEnabled = &isPresent
 }
 
