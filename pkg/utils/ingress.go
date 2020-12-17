@@ -36,10 +36,10 @@ func SetIngressClassEnabled(kc kubernetes.Interface) {
 		AviLog.Infof("networking.k8s.io/v1/IngressClass not found/enabled on cluster: %v", ingClassError)
 		isPresent = false
 	} else {
+		AviLog.Infof("networking.k8s.io/v1/IngressClass enabled on cluster")
 		isPresent = true
 	}
 
-	AviLog.Infof("networking.k8s.io/v1/IngressClass enabled on cluster")
 	ingressClassEnabled = &isPresent
 }
 
