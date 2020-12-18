@@ -24,6 +24,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger, r *AKOConfigReconciler) error {
@@ -68,6 +69,19 @@ func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOCon
 			return err
 		}
 	}
+
+	var newPSP policyv1beta1.PodSecurityPolicy
+	err := r.Get(ctx, getPSPName(), &newPSP)
+	if err != nil {
+		log.V(0).Info("error getting a clusterrole with name", "name", getCRName().Name, "err", err)
+	}
+	// update this object in the global list
+	objList := getObjectList()
+	objList[types.NamespacedName{
+		Name:      newPSP.GetName(),
+		Namespace: newPSP.GetNamespace(),
+	}] = &newPSP
+
 	return nil
 }
 
