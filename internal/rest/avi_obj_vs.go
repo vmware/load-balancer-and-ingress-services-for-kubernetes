@@ -701,14 +701,17 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		// selecting network with user input, in case user input is not provided AKO relies on
 		// usable network configuration in ipamdnsproviderprofile
 		if networkName != "" {
-			if vip.IPAMNetworkSubnet == nil {
-				// initialize if not initialized earlier
-				vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
-			}
-			vip.IPAMNetworkSubnet.NetworkRef = &networkRef
 			if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
 				vip.SubnetUUID = &networkName
+			} else {
+				// Set the IPAM network subnet for all clouds except AWS and Azure
+				if vip.IPAMNetworkSubnet == nil {
+					// initialize if not initialized earlier
+					vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+				}
+				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
 			}
+
 		}
 
 		addr := "172.18.0.0"
