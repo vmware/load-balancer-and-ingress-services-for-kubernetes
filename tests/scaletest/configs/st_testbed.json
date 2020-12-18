@@ -2,36 +2,47 @@
     "Ako_params": {
         "num_clusters": 1,
         "clusters": [{
-                "cluster_id": "1",
-                "cluster_name" : "kubernetes",
-                "kubeconfig_file": "/root/.kube/config",
-                "cniPlugin": "canal",
-                "disableStaticRouteSync": "false",
+                "cluster_id": "",
+                "cluster_name" : "",
+                "kubeconfig_file": "",
+                "cniPlugin": "",
+                "disableStaticRouteSync": "",
                 "defaultIngController": "",
-                "NetworkName": "net1",
-                "vrfRefName": "global",
+                "NetworkName": "",
+                "vrfRefName": "",
                 "platform": {
-                    "type": "vcenter",
+                    "type": "",
                     "vcenter_configuration": {
                         "user": "",
                         "password": "",
                         "vcenter_url": ""
                     }
-                }
+                },
+                "kubeNodes": [
+                    {
+                        "name" : "",
+                        "ip" : "",
+                        "username" : "",
+                        "password" : ""
+                    }
+                ]
             }
         ]
     },
     "TestParams": {
-        "namespace" : "scale-test",
-        "appName" : "scale-test-app",
-        "serviceNamePrefix" : "scale-test-service",
-        "ingressNamePrefix" : "scale-test-ingress"
+        "akoPodName" : "",
+        "namespace" : "",
+        "appName" : "",
+        "serviceNamePrefix" : "",
+        "ingressNamePrefix" : "",
+        "dnsVSUUID" : ""
     },
     "Vm": [
         {
             "datacenter": "",
             "name": "",
             "cluster": "",
+            "cluster_ip":"",
             "ip": "",
             "mask": "",
             "networks": {

@@ -121,4 +121,4 @@ int_test:
 .PHONY: scale_test
 scale_test:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v -mod=vendor ./tests/scaletest -failfast -timeout $(Timeout) $(NumGoRoutines) $(TestbedFilePath)
+	$(GOTEST) -v -mod=vendor ./tests/scaletest -failfast $(Timeout) $(TestbedFilePath) $(NumGoRoutines) $(NumOfIng) 

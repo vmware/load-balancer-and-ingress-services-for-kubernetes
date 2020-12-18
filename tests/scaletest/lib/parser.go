@@ -25,8 +25,15 @@ type Platform struct {
 	VCenterConfiguration VCenterConfiguration `json:"vcenter_configuration"`
 }
 
+type Nodes struct {
+	Name     string `json:"name"`
+	IP       string `json:"ip"`
+	UserName string `json:"username"`
+	Password string `json:"password"`
+}
+
 type Cluster struct {
-	ClusterId              string   `json:"cluster_id"`
+	ClusterID              string   `json:"cluster_id"`
 	ClusterName            string   `json:"cluster_name"`
 	KubeConfigFilePath     string   `json:"kubeconfig_file"`
 	CniPlugin              string   `json:"cniPlugin"`
@@ -36,6 +43,7 @@ type Cluster struct {
 	NetworkName            string   `json:"NetworkName"`
 	VRFRefName             string   `json:"vrfRefName"`
 	Platform               Platform `json:"platform"`
+	KubeNodes              []Nodes  `json:"kubeNodes"`
 }
 
 type AkoParams struct {
@@ -44,10 +52,12 @@ type AkoParams struct {
 }
 
 type TestParams struct {
+	AkoPodName        string `json:"akoPodName"`
 	Namespace         string `json:"namespace"`
 	AppName           string `json:"appName"`
 	ServiceNamePrefix string `json:"serviceNamePrefix"`
 	IngressNamePrefix string `json:"ingressNamePrefix"`
+	DnsVSUUID         string `json:"dnsVSUUID"`
 }
 
 type Networks struct {
@@ -58,7 +68,8 @@ type Vm struct {
 	Datacenter string   `json:"datacenter"`
 	Name       string   `json:"name"`
 	Cluster    string   `json:"cluster"`
-	Ip         string   `json:"ip"`
+	ClusterIP  string   `json:"cluster_ip"`
+	IP         string   `json:"ip"`
 	Mask       string   `json:"mask"`
 	Networks   Networks `json:"networks"`
 	CloudName  string   `json:"cloud_name"`
