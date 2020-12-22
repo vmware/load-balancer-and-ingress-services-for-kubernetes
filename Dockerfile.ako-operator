@@ -1,6 +1,5 @@
 ARG golang_src_repo=golang:latest
 ARG ubi_src_repo=registry.access.redhat.com/ubi8/ubi:latest
-ARG ako_version=v1.3.1
 
 # Build the ako-operator binary
 FROM ${golang_src_repo} as builder
@@ -21,12 +20,13 @@ FROM ${ubi_src_repo}
 
 LABEL name="ako-operator"
 LABEL summary="An AKO operator to deploy AKO controller"
-LABEL version=${ako_version}
+LABEL version="v1.3.1"
 LABEL release="1"
 LABEL description="Manage configmap, statefulset and other artifacts for deploying AKO controller"
 LABEL vendor="VMware"
 
 WORKDIR /
+COPY LICENSE /licenses/
 COPY --from=builder /go/bin/ako-operator .
 RUN adduser nonroot
 USER nonroot:nonroot
