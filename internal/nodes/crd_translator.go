@@ -56,9 +56,12 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 
 	// host specific
 	var vsWafPolicy, vsAppProfile, vsSslKeyCertificate, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile string
-	var vsHTTPPolicySets, vsDatascripts []string
 	var vsEnabled *bool
 	var crdStatus cache.CRDMetadata
+
+	// Initializing the values of vsHTTPPolicySets and vsDatascripts, using a nil value would impact the value of VS checksum
+	vsHTTPPolicySets := []string{}
+	vsDatascripts := []string{}
 
 	if !deleteCase {
 		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
