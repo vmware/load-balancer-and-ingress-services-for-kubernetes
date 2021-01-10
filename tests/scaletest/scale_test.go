@@ -63,6 +63,8 @@ var (
 	initialFQDNList          []string
 	ingressType              string
 	numOfIng                 int
+	numOfLBSvc               int
+	numOfPodsForLBSvc        = 100
 	clusterName              string
 	timeout                  string
 	dnsVSUUID                string
@@ -91,14 +93,19 @@ func Setup() {
 		fmt.Println("ERROR : Number of Go Routines cannot be zero or negative.")
 		os.Exit(0)
 	}
-	numOfIng, err = strconv.Atoi(os.Args[7])
+	numOfLBSvc, err = strconv.Atoi(os.Args[7])
+	if err != nil {
+		fmt.Println("ERROR : Number of LB services not provided")
+		os.Exit(0)
+	}
+	numOfIng, err = strconv.Atoi(os.Args[8])
 	if err != nil {
 		fmt.Println("ERROR : Number of ingresses not provided")
 		os.Exit(0)
 	}
 	testbed, er := os.Open(testbedFileName)
 	if er != nil {
-		fmt.Println("ERROR : Error opening testbed file ", testbedFileName, " with error : ", err)
+		fmt.Println("ERROR : Error opening testbed file ", testbedFileName, " with error : ", er)
 		os.Exit(0)
 	}
 	defer testbed.Close()
@@ -128,7 +135,7 @@ func Setup() {
 		fmt.Println("ERROR : Creating Avi Client : ", err)
 		os.Exit(0)
 	}
-	err = lib.CreateApp(appName, namespace)
+	err = lib.CreateApp(appName, namespace, 1)
 	if err != nil {
 		fmt.Println("ERROR : Creation of Deployment "+appName+" failed due to the error : ", err)
 		os.Exit(0)
@@ -158,6 +165,7 @@ func SetupForTesting(t *testing.T) {
 	pools := lib.FetchPools(t, AviClients[0])
 	initialNumOfPools = len(pools)
 	VSes := lib.FetchVirtualServices(t, AviClients[0])
+	initialVSesList = []string{}
 	for _, vs := range VSes {
 		initialVSesList = append(initialVSesList, *vs.Name)
 	}
@@ -275,19 +283,19 @@ func PoolVerification(t *testing.T) bool {
 	var poolList []string
 	if ingressType == INSECURE {
 		for i := 0; i < len(ingressHostNames); i++ {
-			ingressPoolName := clusterName + "--" + ingressHostNames[i] + "-" + namespace + "-" + ingressesCreated[i]
+			ingressPoolName := clusterName + "--" + ingressHostNames[i] + "_-" + namespace + "-" + ingressesCreated[i]
 			ingressPoolList = append(ingressPoolList, ingressPoolName)
 		}
 	} else if ingressType == SECURE {
 		for i := 0; i < len(ingressHostNames); i++ {
-			ingressPoolName := clusterName + "--" + namespace + "-" + ingressHostNames[i] + "-" + ingressesCreated[i]
+			ingressPoolName := clusterName + "--" + namespace + "-" + ingressHostNames[i] + "_-" + ingressesCreated[i]
 			ingressPoolList = append(ingressPoolList, ingressPoolName)
 		}
 	} else if ingressType == MULTIHOST {
 		for i := 0; i < len(ingressSecureHostNames); i++ {
-			ingressPoolName := clusterName + "--" + namespace + "-" + ingressSecureHostNames[i] + "-" + ingressesCreated[i]
+			ingressPoolName := clusterName + "--" + namespace + "-" + ingressSecureHostNames[i] + "_-" + ingressesCreated[i]
 			ingressPoolList = append(ingressPoolList, ingressPoolName)
-			ingressPoolName = clusterName + "--" + ingressInsecureHostNames[i] + "-" + namespace + "-" + ingressesCreated[i]
+			ingressPoolName = clusterName + "--" + ingressInsecureHostNames[i] + "_-" + namespace + "-" + ingressesCreated[i]
 			ingressPoolList = append(ingressPoolList, ingressPoolName)
 		}
 	}
@@ -769,6 +777,113 @@ func UpdateIngressParallelWithNodeReboot(t *testing.T) {
 	REBOOTNODE = false
 }
 
+func CreateServiceTypeLBWithApp(t *testing.T, numPods int, numOfServices int, appNameLB string, serviceNamePrefixLB string, aviObjPrefix string) []string {
+	g := gomega.NewGomegaWithT(t)
+	t.Logf("Creating a %v deployment with %v replicas", appNameLB, numPods)
+	err := lib.CreateApp(appNameLB, namespace, numPods)
+	if err != nil {
+		t.Fatalf("ERROR : Could not create deployment for service type LB support as %v", err)
+	}
+
+	t.Logf("Creating %v services of type LB", numOfServices)
+	servicesCreated, port, err := lib.CreateLBService(serviceNamePrefixLB, appNameLB, namespace, numOfServices)
+	if err != nil {
+		t.Fatalf("ERROR : Could not create %d Services of type LB as %v", numOfServices, err)
+	}
+	t.Logf("Verifying AVI object creation...")
+	g.Eventually(func() bool {
+		var VSList []string
+		var poolList []string
+		/* Verifying pool creation*/
+		for _, svc := range servicesCreated {
+			VSList = append(VSList, aviObjPrefix+svc)
+			poolList = append(poolList, aviObjPrefix+svc+"--"+port)
+		}
+		pools := lib.FetchPools(t, AviClients[0])
+		var aviPoolList []string
+		for _, pool := range pools {
+			aviPoolList = append(aviPoolList, *pool.Name)
+		}
+		diffNum := len(DiffOfLists(poolList, aviPoolList))
+		if diffNum != initialNumOfPools {
+			return false
+		}
+		/* Verification of servers on pools */
+		for _, pool := range pools {
+			if strings.HasPrefix(*pool.Name, aviObjPrefix+serviceNamePrefixLB) == true {
+				if len(pool.Servers) != numPods {
+					return false
+				}
+			}
+		}
+		/* Verifying VS creation */
+		VSes := lib.FetchVirtualServices(t, AviClients[0])
+		var svcLBVSList []string
+		for _, vs := range VSes {
+			svcLBVSList = append(svcLBVSList, *vs.Name)
+		}
+		diffNum = len(DiffOfLists(VSList, svcLBVSList))
+		if diffNum != initialNumOfVSes {
+			return false
+		}
+		t.Logf("Verified pools, servers on pools and VSes")
+		return true
+	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(true))
+	return servicesCreated
+}
+
+func DeleteLBDeployment(t *testing.T, deploymentName string, serviceNamePrefixLB string, aviObjPrefix string) {
+	g := gomega.NewGomegaWithT(t)
+	t.Logf("Deleting deployment %v...", deploymentName)
+	err := lib.DeleteApp(deploymentName, namespace)
+	if err != nil {
+		t.Fatalf("Error deleting the deployment of LB service as : %v", err)
+	}
+	t.Logf("Deleted deployment %v", deploymentName)
+	t.Logf("Verifying AVI object deletion")
+	g.Eventually(func() bool {
+		pools := lib.FetchPools(t, AviClients[0])
+		for _, pool := range pools {
+			if strings.HasPrefix(*pool.Name, aviObjPrefix+serviceNamePrefixLB) == true {
+				if len(pool.Servers) != 0 {
+					return false
+				}
+			}
+		}
+		return true
+	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(true))
+}
+
+func DeleteServiceTypeLB(t *testing.T, serviceList []string) {
+	t.Logf("Deleting LB services...")
+	g := gomega.NewGomegaWithT(t)
+	err := lib.DeleteService(serviceList, namespace)
+	if err != nil {
+		t.Fatalf("ERROR : Deleting services of type LB %v", err)
+	}
+	t.Logf("Deleted LB services...")
+	t.Logf("Verifying AVI object deletion")
+	g.Eventually(func() int {
+		pools := lib.FetchPools(t, AviClients[0])
+		return len(pools)
+	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(initialNumOfPools))
+	t.Logf("Pools verified")
+	g.Eventually(func() int {
+		VSes := lib.FetchVirtualServices(t, AviClients[0])
+		return len(VSes)
+	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(initialNumOfVSes))
+	t.Logf("VSes verified")
+}
+
+func LBService(t *testing.T) {
+	appNameLB := "lb-" + appName
+	serviceNamePrefixLB := "lb-" + serviceNamePrefix
+	aviObjPrefix := clusterName + "--" + namespace + "-"
+	serviceList := CreateServiceTypeLBWithApp(t, numOfPodsForLBSvc, numOfLBSvc, appNameLB, serviceNamePrefixLB, aviObjPrefix)
+	DeleteLBDeployment(t, appNameLB, serviceNamePrefixLB, aviObjPrefix)
+	DeleteServiceTypeLB(t, serviceList)
+
+}
 func TestMain(t *testing.M) {
 	Setup()
 	t.Run()
@@ -887,4 +1002,9 @@ func TestMultiHostHybridExecution(t *testing.T) {
 	SetupForTesting(t)
 	ingressType = MULTIHOST
 	HybridExecution(t, numOfIng, numOfIng/2)
+}
+
+func TestServiceTypeLB(t *testing.T) {
+	SetupForTesting(t)
+	LBService(t)
 }
