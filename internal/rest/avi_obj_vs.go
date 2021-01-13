@@ -71,7 +71,10 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			ServiceMetadata:       &svc_mdata,
 			SeGroupRef:            &seGroupRef,
 			VrfContextRef:         &vrfContextRef,
-			EnableRhi:             &enableRHI,
+		}
+		if enableRHI {
+			// If the value is set to false, we would simply remove it from the payload, which should default it to false.
+			vs.EnableRhi = &enableRHI
 		}
 		if lib.GetAdvancedL4() {
 			ignPool := true
