@@ -34,8 +34,7 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 
 	for _, option := range options {
 		if len(option.ServiceMetadata.HostNames) != 1 && !lib.GetAdvancedL4() {
-			utils.AviLog.Error("Service hostname not found for service %v status update", option.ServiceMetadata.NamespaceServiceName)
-			continue
+			utils.AviLog.Warnf("Service hostname not found for service %v status update", option.ServiceMetadata.NamespaceServiceName)
 		}
 
 		for _, svc := range option.ServiceMetadata.NamespaceServiceName {
