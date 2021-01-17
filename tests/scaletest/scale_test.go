@@ -212,7 +212,7 @@ func RebootAko(t *testing.T, wg *sync.WaitGroup) {
 }
 
 /* Reboots Controller/Node/Ako if Reboot is set to true */
-func (t *testing.T, wg *sync.WaitGroup) {
+func CheckReboot(t *testing.T, wg *sync.WaitGroup) {
 	if REBOOTAKO == true {
 		wg.Add(1)
 		go RebootAko(t, wg)
