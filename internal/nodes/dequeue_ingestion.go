@@ -122,7 +122,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// handle the services APIs
 	if lib.GetAdvancedL4() {
 		if !valid && objType == utils.L4LBService {
-			schema, valid = ConfigDescriptor().GetByType(utils.Service)
+			schema, _ = ConfigDescriptor().GetByType(utils.Service)
 		}
 		gateways, gatewayFound := schema.GetParentGateways(name, namespace, key)
 		// For each gateway first verify if it has a valid subscription to the GatewayClass or not.

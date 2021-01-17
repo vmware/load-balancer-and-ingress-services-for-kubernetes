@@ -43,6 +43,9 @@ func TestApiServerStatusModel(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fail()
+	}
 
 	var status models.StatusModel
 	if err = json.Unmarshal(body, &status); err != nil {

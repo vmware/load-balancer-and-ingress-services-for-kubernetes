@@ -367,9 +367,10 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 
 func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string, skipVS, skipVSVip bool) bool {
 	var rest_ops []*utils.RestOp
-	sni_vs_keys := make([]string, len(vs_cache_obj.SNIChildCollection))
-	copy(sni_vs_keys, vs_cache_obj.SNIChildCollection)
 	if vs_cache_obj != nil {
+		sni_vs_keys := make([]string, len(vs_cache_obj.SNIChildCollection))
+		copy(sni_vs_keys, vs_cache_obj.SNIChildCollection)
+
 		// VS delete should delete everything together.
 		passthroughChild := vs_cache_obj.ServiceMetadataObj.PassthroughChildRef
 		if passthroughChild != "" {
@@ -1543,15 +1544,6 @@ func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.Namespa
 }
 
 func Remove(s []avicache.NamespaceName, r avicache.NamespaceName) []avicache.NamespaceName {
-	for i, v := range s {
-		if v == r {
-			return append(s[:i], s[i+1:]...)
-		}
-	}
-	return s
-}
-
-func filterKeyFromStringSlice(s []string, r string) []string {
 	for i, v := range s {
 		if v == r {
 			return append(s[:i], s[i+1:]...)

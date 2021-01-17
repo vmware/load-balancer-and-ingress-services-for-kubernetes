@@ -64,7 +64,7 @@ func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, w
 	}
 	if tlsIngress {
 		ingressObject.TlsSecretDNS = map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		}
 	}
 	ingrFake := ingressObject.Ingress()
@@ -354,7 +354,7 @@ func TestUpdateSNICacheSync(t *testing.T) {
 		Paths:       []string{"/bar-updated"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"
@@ -408,8 +408,8 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret":    []string{"foo.com"},
-			"my-secret-v2": []string{"bar.com"},
+			"my-secret":    {"foo.com"},
+			"my-secret-v2": {"bar.com"},
 		},
 	}
 	AddSecret("my-secret-v2", "default", "tlsCert", "tlsKey")
@@ -462,8 +462,8 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		Paths:       []string{"/foo", "/bar", "/xyz"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret":    []string{"foo.com"},
-			"my-secret-v2": []string{"bar.com"},
+			"my-secret":    {"foo.com"},
+			"my-secret-v2": {"bar.com"},
 		},
 	}
 	AddSecret("my-secret-v2", "default", "tlsCert", "tlsKey")
@@ -529,7 +529,7 @@ func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 		Paths:       []string{"/foo", "/bar", "/xyz"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 	}
 
@@ -708,8 +708,8 @@ func TestMultiHostIngressStatusCheck(t *testing.T) {
 		Paths:       []string{"/foo", "/bar", "/xyz"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret":    []string{"foo2.com"},
-			"my-secret-v2": []string{"xyz2.com"},
+			"my-secret":    {"foo2.com"},
+			"my-secret-v2": {"xyz2.com"},
 		},
 	}
 	AddSecret("my-secret-v2", "default", "tlsCert", "tlsKey")
@@ -755,7 +755,7 @@ func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 		Paths:       []string{"/foo", "/bar", "/xyz"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo3.com", "bar3.com"},
+			"my-secret": {"foo3.com", "bar3.com"},
 		},
 	}
 	AddSecret("my-secret", "default", "tlsCert", "tlsKey")
@@ -786,7 +786,7 @@ func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 		Paths:       []string{"/foo", "/xyz"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo3.com"},
+			"my-secret": {"foo3.com"},
 		},
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"

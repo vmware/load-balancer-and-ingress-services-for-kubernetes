@@ -28,6 +28,7 @@ import (
 
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/onsi/gomega"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/scaletest/lib"
 )
 
@@ -159,6 +160,11 @@ func Cleanup() {
 	}
 }
 
+func ExitWithErrorf(t *testing.T, template string, args ...interface{}) {
+	t.Errorf(template, args...)
+	os.Exit(1)
+}
+
 /* Need to be executed for each test case
 Fetches the Avi controller state before the testing starts */
 func SetupForTesting(t *testing.T) {
@@ -187,7 +193,7 @@ func Reboot(t *testing.T, wg *sync.WaitGroup, nodeType string, controllerIP stri
 	cmd := exec.Command("sshpass", "-p", password, "ssh", "-t", loginID, " `echo ", password, " |  sudo -S shutdown --reboot 0 && exit `")
 	_, err := cmd.Output()
 	if err != nil {
-		t.Errorf("Cannot reboot %s beacuse : %v ", nodeType, err.Error())
+		t.Errorf("Cannot reboot %s because : %v ", nodeType, err.Error())
 	} else {
 		t.Logf("%s Rebooted", nodeType)
 	}
@@ -199,15 +205,14 @@ func RebootAko(t *testing.T, wg *sync.WaitGroup) {
 	t.Logf("Rebooting AKO pod %s of namespace %s ...", akoPodName, AKONAMESPACE)
 	err := lib.DeletePod(akoPodName, AKONAMESPACE)
 	if err != nil {
-		t.Fatalf("Cannot reboot Ako pod as : %v", err)
-		os.Exit(0)
+		ExitWithErrorf(t, "Cannot reboot Ako pod as : %v", err)
 	}
 	t.Logf("Ako rebooted.")
 	defer wg.Done()
 }
 
 /* Reboots Controller/Node/Ako if Reboot is set to true */
-func CheckReboot(t *testing.T, wg *sync.WaitGroup) {
+func (t *testing.T, wg *sync.WaitGroup) {
 	if REBOOTAKO == true {
 		wg.Add(1)
 		go RebootAko(t, wg)
@@ -391,7 +396,7 @@ func parallelInsecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceNa
 	defer wg.Done()
 	ingresses, hostNames, err := lib.CreateInsecureIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
 	if err != nil {
-		t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+		ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 	}
 	ingressesCreated = append(ingressesCreated, ingresses...)
 	ingressHostNames = append(ingressHostNames, hostNames...)
@@ -401,7 +406,7 @@ func parallelSecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName
 	defer wg.Done()
 	ingresses, hostNames, err := lib.CreateSecureIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
 	if err != nil {
-		t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+		ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 	}
 	ingressesCreated = append(ingressesCreated, ingresses...)
 	ingressHostNames = append(ingressHostNames, hostNames...)
@@ -411,7 +416,7 @@ func parallelMultiHostIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceN
 	defer wg.Done()
 	ingresses, secureHostNames, insecureHostNames, err := lib.CreateMultiHostIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
 	if err != nil {
-		t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+		ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 	}
 	ingressesCreated = append(ingressesCreated, ingresses...)
 	ingressSecureHostNames = append(ingressSecureHostNames, secureHostNames...)
@@ -422,7 +427,7 @@ func parallelIngressDeletion(t *testing.T, wg *sync.WaitGroup, namespace string,
 	defer wg.Done()
 	ingresses, err := lib.DeleteIngress(namespace, listOfIngressToDelete)
 	if err != nil {
-		t.Fatalf("Failed to delete ingresses as : %v", err)
+		ExitWithErrorf(t, "Failed to delete ingresses as : %v", err)
 	}
 	ingressesDeleted = append(ingressesDeleted, ingresses...)
 }
@@ -431,7 +436,7 @@ func parallelIngressUpdation(t *testing.T, wg *sync.WaitGroup, namespace string,
 	defer wg.Done()
 	ingresses, err := lib.UpdateIngress(namespace, listofIngressToUpdate)
 	if err != nil {
-		t.Fatalf("Faoled to update ingresses as : %v", err)
+		ExitWithErrorf(t, "Failed to update ingresses as : %v", err)
 	}
 	ingressesUpdated = append(ingressesUpdated, ingresses...)
 }
@@ -445,7 +450,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	nextStartInd := 0
 	switch {
 	case ingressType == INSECURE:
-		t.Logf("Creating %d %s Ingresses Parallely...", numOfIng, ingressType)
+		t.Logf("Creating %d %s Ingresses Parallelly...", numOfIng, ingressType)
 		CheckReboot(t, &wg)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
@@ -458,7 +463,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 			}
 		}
 	case ingressType == SECURE:
-		t.Logf("Creating %d %s Ingresses Parallely...", numOfIng, ingressType)
+		t.Logf("Creating %d %s Ingresses Parallelly...", numOfIng, ingressType)
 		CheckReboot(t, &wg)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
@@ -471,7 +476,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 			}
 		}
 	case ingressType == MULTIHOST:
-		t.Logf("Creating %d %s Ingresses Parallely...", numOfIng, ingressType)
+		t.Logf("Creating %d %s Ingresses Parallelly...", numOfIng, ingressType)
 		CheckReboot(t, &wg)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
@@ -486,7 +491,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	}
 	wg.Wait()
 	g.Expect(ingressesCreated).To(gomega.HaveLen(numOfIng))
-	t.Logf("Created %d %s Ingresses Parallely", numOfIng, ingressType)
+	t.Logf("Created %d %s Ingresses Parallelly", numOfIng, ingressType)
 	t.Logf("Verifiying Avi objects ...")
 	pollInterval, _ := time.ParseDuration(testPollInterval)
 	waitTimeIncr, _ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
@@ -624,17 +629,17 @@ func HybridCreation(t *testing.T, wg *sync.WaitGroup, numOfIng int, deletionStar
 		case ingressType == INSECURE:
 			ingresses, _, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, 1, i)
 			if err != nil {
-				t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+				ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 			}
 		case ingressType == SECURE:
 			ingresses, _, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, 1, i)
 			if err != nil {
-				t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+				ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 			}
 		case ingressType == MULTIHOST:
 			ingresses, _, _, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, 1, i)
 			if err != nil {
-				t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
+				ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 			}
 		}
 		t.Logf("Created ingresses %s", ingresses)
@@ -655,7 +660,7 @@ func HybridUpdation(t *testing.T, wg *sync.WaitGroup, numOfIng int) {
 		if len(toUpdateIngresses) > 0 {
 			updatedIngresses, err := lib.UpdateIngress(namespace, toUpdateIngresses)
 			if err != nil {
-				t.Fatalf("Error updating ingresses as : %v ", err)
+				ExitWithErrorf(t, "Error updating ingresses as : %v ", err)
 				return
 			}
 			t.Logf("Updated ingresses %s", updatedIngresses)
@@ -675,7 +680,7 @@ func HybridDeletion(t *testing.T, wg *sync.WaitGroup, numOfIng int) {
 		if len(toDeleteIngresses) > 0 {
 			deletedIngresses, err := lib.DeleteIngress(namespace, toDeleteIngresses)
 			if err != nil {
-				t.Fatalf("Error deleting ingresses as : %v ", err)
+				ExitWithErrorf(t, "Error deleting ingresses as : %v ", err)
 			}
 			t.Logf("Deleted ingresses %s", deletedIngresses)
 			ingressesDeleted = append(ingressesDeleted, deletedIngresses...)
@@ -686,7 +691,7 @@ func HybridDeletion(t *testing.T, wg *sync.WaitGroup, numOfIng int) {
 	defer wg.Done()
 }
 
-/* Creates some(deletionStartPoint) ingresses first, followed by creation, updation and deletion of ingresses parallely */
+/* Creates some(deletionStartPoint) ingresses first, followed by creation, updation and deletion of ingresses parallelly */
 func HybridExecution(t *testing.T, numOfIng int, deletionStartPoint int) {
 	g := gomega.NewGomegaWithT(t)
 	var wg sync.WaitGroup
@@ -886,8 +891,8 @@ func LBService(t *testing.T) {
 }
 func TestMain(t *testing.M) {
 	Setup()
-	t.Run()
-	Cleanup()
+	defer Cleanup()
+	os.Exit(t.Run())
 }
 
 func TestInsecureParallelCreationUpdationDeletionWithoutReboot(t *testing.T) {

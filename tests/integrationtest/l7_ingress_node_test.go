@@ -94,12 +94,16 @@ func TestNoModel(t *testing.T) {
 		// We shouldn't get an update for this update since it neither belongs to an ingress nor a L4 LB service
 		t.Fatalf("Model found for an unrelated update %v", model_Name)
 	}
-	err = KubeClient.CoreV1().Endpoints("red-ns").Delete(context.TODO(), "testl7", metav1.DeleteOptions{})
 
+	err = KubeClient.CoreV1().Endpoints("red-ns").Delete(context.TODO(), "testl7", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
 	}
+
 	err = KubeClient.CoreV1().Services("red-ns").Delete(context.TODO(), "testl7", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Service %v", err)
+	}
 }
 
 func TestL7Model(t *testing.T) {
@@ -162,7 +166,7 @@ func TestNamespaceShardNamingConvention(t *testing.T) {
 		Paths:     []string{"/foo/bar"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
@@ -1118,6 +1122,9 @@ func TestEditMultiHostIngress(t *testing.T) {
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
 
 	PollForCompletion(t, model_Name, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)

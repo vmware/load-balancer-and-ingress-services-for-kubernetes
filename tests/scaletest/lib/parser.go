@@ -17,7 +17,7 @@ package lib
 type VCenterConfiguration struct {
 	UserName   string `json:"user"`
 	Password   string `json:"password"`
-	VCenterURL string `json:"vcenter_url`
+	VCenterURL string `json:"vcenter_url"`
 }
 
 type Platform struct {

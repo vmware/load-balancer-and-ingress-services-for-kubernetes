@@ -497,7 +497,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 	if !ok {
 		utils.AviLog.Debugf("key %s, msg: Couldn't find hostpath info for host: %s in cache", key, fqdn)
 	} else {
-		for pathPrefix, _ := range pathRules {
+		for pathPrefix := range pathRules {
 			re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, strings.ReplaceAll(pathPrefix, `/`, `\/`)))
 			for path, ingresses := range pathIngs {
 				if !re.MatchString(path) {
@@ -517,7 +517,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 	if !ok {
 		utils.AviLog.Debugf("key %s, msg: Couldn't find hostpath info for host: %s in cache", key, oldFqdn)
 	} else {
-		for oldPathPrefix, _ := range oldPathRules {
+		for oldPathPrefix := range oldPathRules {
 			re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, strings.ReplaceAll(oldPathPrefix, `/`, `\/`)))
 			for oldPath, oldIngresses := range oldPathIngs {
 				if !re.MatchString(oldPath) {

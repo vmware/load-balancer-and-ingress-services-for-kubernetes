@@ -69,7 +69,7 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers(CRDClient)
 
@@ -220,10 +220,10 @@ func TestHostnameShardNamingConvention(t *testing.T) {
 		Namespace: "default",
 		DnsNames:  []string{"foo.com", "noo.com"},
 		Ips:       []string{"8.8.8.8"},
-		Paths: []string{"/foo/bar"},
+		Paths:     []string{"/foo/bar"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
@@ -913,7 +913,7 @@ func TestUpdateBackendService(t *testing.T) {
 	integrationtest.CreateSVC(t, "default", "avisvc2", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc2", false, false, "2.2.2")
 
-	ingrFake1, err = (integrationtest.FakeIngress{
+	_, err = (integrationtest.FakeIngress{
 		Name:        "ingress-backend-svc",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -961,7 +961,7 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 		Paths:     []string{"/foo"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -996,7 +996,7 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 	integrationtest.CreateEP(t, "default", "avisvc2", false, false, "2.2.2")
 	integrationtest.AddSecret("my-secret-new", "default", "tlsCert-new", "tlsKey")
 
-	ingrFake1, err = (integrationtest.FakeIngress{
+	_, err = (integrationtest.FakeIngress{
 		Name:      "ingress-chksum",
 		Namespace: "default",
 		DnsNames:  []string{"foo.com"},
@@ -1006,7 +1006,7 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
 			//to update tls secret checksum
-			"my-secret-new": []string{"foo.com"},
+			"my-secret-new": {"foo.com"},
 		},
 		//to update poolref checksum
 		ServiceName: "avisvc2",
@@ -1079,7 +1079,7 @@ func TestSniHttpPolicy(t *testing.T) {
 		Paths:     []string{"/foo", "/bar"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
@@ -1117,7 +1117,7 @@ func TestSniHttpPolicy(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	ingrFake1, err = (integrationtest.FakeIngress{
+	_, err = (integrationtest.FakeIngress{
 		Name:      "ingress-shp",
 		Namespace: "default",
 		DnsNames:  []string{"foo.com"},
@@ -1125,7 +1125,7 @@ func TestSniHttpPolicy(t *testing.T) {
 		Paths:     []string{"/foo"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).UpdateIngress()
@@ -1150,7 +1150,7 @@ func TestSniHttpPolicy(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name, gomega.Equal("cluster--default-foo.com_foo-ingress-shp"))
 	g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs), gomega.Equal(1))
 
-	ingrFake1, err = (integrationtest.FakeIngress{
+	_, err = (integrationtest.FakeIngress{
 		Name:      "ingress-shp",
 		Namespace: "default",
 		DnsNames:  []string{"foo.com"},
@@ -1158,7 +1158,7 @@ func TestSniHttpPolicy(t *testing.T) {
 		Paths:     []string{"/foo", "/bar", "/baz"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).UpdateIngress()
@@ -1223,7 +1223,7 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 		Paths:     []string{"/foo", "/bar"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
@@ -1755,6 +1755,9 @@ func TestEditMultiHostIngress(t *testing.T) {
 	}).Ingress()
 
 	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
 
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -2224,7 +2227,7 @@ func TestL7ModelSNI(t *testing.T) {
 		Ips:       []string{"8.8.8.8"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -2285,7 +2288,7 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 	}).Ingress()
 	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
@@ -2348,7 +2351,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 	}).Ingress()
 	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
@@ -2363,7 +2366,7 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 		Ips:       []string{"8.8.8.8"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).Ingress()
@@ -2436,7 +2439,7 @@ func TestL7ModelMultiSNI(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com", "bar.com"},
+			"my-secret": {"foo.com", "bar.com"},
 		},
 	}).Ingress()
 	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
@@ -2492,16 +2495,16 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret":  []string{"foo.com"},
-			"my-secret2": []string{"FOO.com"},
+			"my-secret":  {"foo.com"},
+			"my-secret2": {"FOO.com"},
 		},
 	}).Ingress()
 
 	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
-
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
+
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
@@ -2530,12 +2533,15 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret":  []string{"foo.com"},
-			"my-secret2": []string{"bar.com"},
+			"my-secret":  {"foo.com"},
+			"my-secret2": {"bar.com"},
 		},
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
 
 	// Because of change of the hostnames, the SNI nodes should now get distributed to two shared VSes.
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -2589,7 +2595,7 @@ func TestL7WrongSubDomainMultiSNI(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.org"},
+			"my-secret": {"foo.org"},
 		},
 	}).Ingress()
 	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
@@ -2597,7 +2603,7 @@ func TestL7WrongSubDomainMultiSNI(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	found, _ := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		// This will not generate a model.
 		t.Fatalf("Could not find Model: %v", err)
@@ -2610,14 +2616,14 @@ func TestL7WrongSubDomainMultiSNI(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret":  []string{"foo.org"},
-			"my-secret2": []string{"bar.com"},
+			"my-secret":  {"foo.org"},
+			"my-secret2": {"bar.com"},
 		},
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))

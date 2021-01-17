@@ -17,9 +17,9 @@ package cache
 import (
 	"errors"
 	"os"
-	"sync"
 
 	"github.com/avinetworks/sdk/go/session"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
@@ -27,7 +27,6 @@ import (
 )
 
 var AviClientInstance *utils.AviRestClientPool
-var clientonce sync.Once
 
 // This class is in control of AKC. It uses utils from the common project.
 func SharedAVIClients() *utils.AviRestClientPool {

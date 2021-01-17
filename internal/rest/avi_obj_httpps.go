@@ -95,10 +95,10 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		var j int32
 		j = idx
 		rule := avimodels.HTTPRequestRule{
-			Index: &j,
-			Enable: &enable, 
-			Name: &name, 
-			Match: &match_target, 
+			Index:           &j,
+			Enable:          &enable,
+			Name:            &name,
+			Match:           &match_target,
 			SwitchingAction: &sw_action,
 		}
 		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
@@ -170,7 +170,7 @@ func (rest *RestOperations) AviHttpPolicyDel(uuid string, tenant string, key str
 
 func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for httppolicyset, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no response for httppolicyset, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 

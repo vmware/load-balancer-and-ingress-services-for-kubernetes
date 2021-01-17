@@ -935,7 +935,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 
 	// A sum of fields for this Pool.
-	chksumStr := fmt.Sprintf(strings.Join([]string{
+	chksumStr := fmt.Sprint(strings.Join([]string{
 		v.Protocol,
 		strconv.Itoa(int(v.Port)),
 		v.PortName,
@@ -1085,7 +1085,7 @@ func (h *SecureHostNameMapProp) GetPathsForHostName(hostname string) []string {
 
 func (h *SecureHostNameMapProp) GetIngressesForHostName(hostname string) []string {
 	var ingresses []string
-	for k, _ := range h.HostNameMap {
+	for k := range h.HostNameMap {
 		ingresses = append(ingresses, k)
 	}
 	return ingresses

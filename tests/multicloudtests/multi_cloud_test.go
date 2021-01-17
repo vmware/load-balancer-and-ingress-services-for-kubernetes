@@ -242,7 +242,7 @@ func TestMain(m *testing.M) {
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	crdClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(crdClient)
-	utils.NewInformers(utils.KubeClientIntf{kubeClient}, RegisteredInformers)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
 	k8s.NewCRDInformers(crdClient)
 
 	integrationtest.InitializeFakeAKOAPIServer()

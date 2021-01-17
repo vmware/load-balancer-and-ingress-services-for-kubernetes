@@ -455,7 +455,7 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 		Paths:       []string{"/foo", "/bar"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 	}
 

@@ -68,7 +68,7 @@ func (store *ObjectStore) GetAllNamespaces() []string {
 	store.NSLock.RLock()
 	defer store.NSLock.RUnlock()
 	var allNamespaces []string
-	for ns, _ := range store.NSObjectMap {
+	for ns := range store.NSObjectMap {
 		allNamespaces = append(allNamespaces, ns)
 	}
 	return allNamespaces

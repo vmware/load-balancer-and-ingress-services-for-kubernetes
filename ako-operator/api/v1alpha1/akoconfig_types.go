@@ -37,7 +37,7 @@ type NamespaceSelector struct {
 	LabelValue string `json:"labelValue,omitempty"`
 }
 
-// AKOSettings defines the settings requried for the AKO controller
+// AKOSettings defines the settings required for the AKO controller
 type AKOSettings struct {
 	// LogLevel defines the log level to be used by the AKO controller
 	LogLevel LogLevelType `json:"logLevel,omitempty"`
@@ -59,7 +59,7 @@ type AKOSettings struct {
 
 type NodeNetwork struct {
 	NetworkName string   `json:"networkName,omitempty"`
-	Cidrs       []string `json:"cidrs,omiempty"`
+	Cidrs       []string `json:"cidrs,omitempty"`
 }
 
 // NetworkSettings defines the network details required for the AKO controller
@@ -71,7 +71,7 @@ type NetworkSettings struct {
 	// 3. non vcenter clouds
 	NodeNetworkList []NodeNetwork `json:"nodeNetworkList,omitempty"`
 	// SubnetIP is the Network IP for the subnet to be used
-	SubnetIP string `json:"subnetIP,omitemmpty"`
+	SubnetIP string `json:"subnetIP,omitempty"`
 	// SubnetPrefix is the netmask for the subnet
 	SubnetPrefix string `json:"subnetPrefix,omitempty"`
 	// NetworkName is the name of the network as specified in Avi
