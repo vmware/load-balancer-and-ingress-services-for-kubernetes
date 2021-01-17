@@ -34,7 +34,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-var ingressResource = schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}
+var ingressResource = schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"}
 var kubeClient dynamic.Interface
 var coreV1Client corev1.CoreV1Interface
 var appsV1Client appsv1.AppsV1Interface
@@ -43,10 +43,11 @@ var ctx = context.TODO()
 const PORT = 8080
 const SUBDOMAIN = ".avi.internal"
 const SECRETNAME = "ingress-host-tls"
-const INGRESSAPIVERSION = "extensions/v1beta1"
+const INGRESSAPIVERSION = "networking.k8s.io/v1"
 const UPDATEPATH = "new.host.internal"
+const PATHTYPE = "Prefix"
 
-func CreateApp(appName string, namespace string) error {
+func CreateApp(appName string, namespace string, replica int) error {
 	deploymentSpec := &appsV1.Deployment{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name:      appName,
@@ -55,7 +56,7 @@ func CreateApp(appName string, namespace string) error {
 		Spec: appsV1.DeploymentSpec{
 			ProgressDeadlineSeconds: func() *int32 { i := int32(600); return &i }(),
 			RevisionHistoryLimit:    func() *int32 { i := int32(10); return &i }(),
-			Replicas:                func() *int32 { i := int32(2); return &i }(),
+			Replicas:                func() *int32 { i := int32(replica); return &i }(),
 			Selector: &metaV1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app": appName,
@@ -139,6 +140,41 @@ func CreateService(serviceNamePrefix string, appName string, namespace string, n
 	return listOfServicesCreated, nil
 }
 
+func CreateLBService(serviceNamePrefix string, appName string, namespace string, num int) ([]string, string, error) {
+	var listOfServicesCreated []string
+	var serviceType coreV1.ServiceType = "LoadBalancer"
+	for i := 1; i <= num; i++ {
+		serviceName := serviceNamePrefix + strconv.Itoa(i)
+		serviceSpec := &coreV1.Service{
+			ObjectMeta: metaV1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+			},
+			Spec: coreV1.ServiceSpec{
+				Type: serviceType,
+				Selector: map[string]string{
+					"app": appName,
+				},
+				Ports: []coreV1.ServicePort{
+					{
+						Port: PORT,
+						TargetPort: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: PORT,
+						},
+					},
+				},
+			},
+		}
+		_, err := coreV1Client.Services(namespace).Create(ctx, serviceSpec, metaV1.CreateOptions{})
+		if err != nil {
+			return nil, strconv.Itoa(PORT), err
+		}
+		listOfServicesCreated = append(listOfServicesCreated, serviceName)
+	}
+	return listOfServicesCreated, strconv.Itoa(PORT), nil
+}
+
 func DeleteService(serviceNameList []string, namespace string) error {
 	for i := 0; i < len(serviceNameList); i++ {
 		err := coreV1Client.Services(namespace).Delete(ctx, serviceNameList[i], metaV1.DeleteOptions{})
@@ -176,9 +212,15 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 							"http": map[string]interface{}{
 								"paths": []map[string]interface{}{
 									{
+										"path":     "/",
+										"pathType": PATHTYPE,
 										"backend": map[string]interface{}{
-											"serviceName": serviceName,
-											"servicePort": PORT,
+											"service": map[string]interface{}{
+												"name": serviceName,
+												"port": map[string]interface{}{
+													"number": PORT,
+												},
+											},
 										},
 									},
 								},
@@ -234,9 +276,15 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 							"http": map[string]interface{}{
 								"paths": []map[string]interface{}{
 									{
+										"path":     "/",
+										"pathType": PATHTYPE,
 										"backend": map[string]interface{}{
-											"serviceName": serviceName,
-											"servicePort": PORT,
+											"service": map[string]interface{}{
+												"name": serviceName,
+												"port": map[string]interface{}{
+													"number": PORT,
+												},
+											},
 										},
 									},
 								},
@@ -294,9 +342,15 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 							"http": map[string]interface{}{
 								"paths": []map[string]interface{}{
 									{
+										"path":     "/",
+										"pathType": PATHTYPE,
 										"backend": map[string]interface{}{
-											"serviceName": listOfServices[0],
-											"servicePort": PORT,
+											"service": map[string]interface{}{
+												"name": listOfServices[0],
+												"port": map[string]interface{}{
+													"number": PORT,
+												},
+											},
 										},
 									},
 								},
@@ -307,9 +361,15 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 							"http": map[string]interface{}{
 								"paths": []map[string]interface{}{
 									{
+										"path":     "/",
+										"pathType": PATHTYPE,
 										"backend": map[string]interface{}{
-											"serviceName": listOfServices[1],
-											"servicePort": PORT,
+											"service": map[string]interface{}{
+												"name": listOfServices[1],
+												"port": map[string]interface{}{
+													"number": PORT,
+												},
+											},
 										},
 									},
 								},
