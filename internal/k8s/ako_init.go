@@ -232,7 +232,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 		numGraphWorkers := lib.GetshardSize()
 		graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
-		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams, slowRetryQParams, fastRetryQParams).GetQueueByName(utils.GraphLayer)
+		graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams).GetQueueByName(utils.GraphLayer)
 
 	} else {
 		// Namespace sharding.
@@ -245,7 +245,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		}
 		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 		graphQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersGraph, WorkqueueName: utils.GraphLayer}
-		graphQueue = utils.SharedWorkQueue(ingestionQueueParams, graphQueueParams, slowRetryQParams, fastRetryQParams).GetQueueByName(utils.GraphLayer)
+		graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams).GetQueueByName(utils.GraphLayer)
 	}
 
 	graphQueue.SyncFunc = SyncFromNodesLayer
@@ -325,7 +325,7 @@ func (c *AviController) FullSync() {
 		}
 		allModelsMap := objects.SharedAviGraphLister().GetAll()
 		var allModels []string
-		for modelName, _ := range allModelsMap.(map[string]interface{}) {
+		for modelName := range allModelsMap.(map[string]interface{}) {
 			allModels = append(allModels, modelName)
 		}
 		for _, modelName := range allModels {
@@ -510,7 +510,7 @@ func (c *AviController) FullSyncK8s() error {
 	utils.AviLog.Debugf("Got the VS keys: %s", vsKeys)
 	allModelsMap := objects.SharedAviGraphLister().GetAll()
 	var allModels []string
-	for modelName, _ := range allModelsMap.(map[string]interface{}) {
+	for modelName := range allModelsMap.(map[string]interface{}) {
 		// ignore vrf model, as it has been published already
 		if modelName != vrfModelName {
 			allModels = append(allModels, modelName)

@@ -946,7 +946,7 @@ func TestUpdateNodeInNodePort(t *testing.T) {
 		t.Fatalf("error in adding Node: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	found, _ = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		// model should not be sent for this update as only the resource ver is changed.
 		t.Fatalf("Model found for node add %v", modelName)
@@ -1129,7 +1129,7 @@ func TestFullSyncCacheNoOpInNodePort(t *testing.T) {
 		Paths:     []string{"/foo", "/bar"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
@@ -1195,7 +1195,7 @@ func TestL7ModelMultiSNIInNodePort(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 		TlsSecretDNS: map[string][]string{
-			"my-secret": []string{"foo.com", "bar.com"},
+			"my-secret": {"foo.com", "bar.com"},
 		},
 	}).Ingress()
 	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})

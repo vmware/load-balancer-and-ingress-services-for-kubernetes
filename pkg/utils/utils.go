@@ -379,13 +379,6 @@ func CheckIfNamespaceAccepted(namespace string, obj *K8ValidNamespaces, nsLabels
 	}
 	return false
 }
-func retrieveNSList(nsList map[string]bool) []string {
-	var namespaces []string
-	for k := range nsList {
-		namespaces = append(namespaces, k)
-	}
-	return namespaces
-}
 
 // This utility returns a true/false depending on whether
 // the user requires advanced L4 functionality

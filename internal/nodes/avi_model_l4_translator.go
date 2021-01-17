@@ -29,15 +29,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func contains(s []int32, e int32) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
 func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
 	var avi_vs_meta *AviVsNode
 	var fqdns []string

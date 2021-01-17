@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 		utils.NSInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	// k8s.NewCRDInformers(CRDClient)
 	k8s.NewAdvL4Informers(AdvL4Client)

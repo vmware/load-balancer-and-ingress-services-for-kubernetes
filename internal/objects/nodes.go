@@ -25,7 +25,7 @@ import (
 )
 
 type K8sNodeStore struct {
-	ObjectMapStore
+	*ObjectMapStore
 }
 
 var nodeonce sync.Once
@@ -35,7 +35,7 @@ func SharedNodeLister() *K8sNodeStore {
 	nodeonce.Do(func() {
 		nodesStoreInstance = NewObjectMapStore()
 	})
-	return &K8sNodeStore{*nodesStoreInstance}
+	return &K8sNodeStore{nodesStoreInstance}
 }
 
 func (o *K8sNodeStore) PopulateAllNodes(cs *kubernetes.Clientset) {

@@ -22,13 +22,14 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func SetupRouteNamespaceSync(key, value, shardScheme string) {
@@ -197,7 +198,7 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 	err = integrationtest.UpdateNamespace(namespace, newLabels)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	if err != nil {
-		t.Fatal("Error occured while updating namespace")
+		t.Fatal("Error occurred while updating namespace")
 	}
 
 	g.Eventually(func() bool {

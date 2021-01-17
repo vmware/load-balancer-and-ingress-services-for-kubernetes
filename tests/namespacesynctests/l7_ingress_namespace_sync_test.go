@@ -26,15 +26,16 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -160,7 +161,7 @@ func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngr
 	}
 	if tlsIngress {
 		ingressObject.TlsSecretDNS = map[string][]string{
-			"my-secret": []string{"foo.com"},
+			"my-secret": {"foo.com"},
 		}
 	}
 
@@ -302,7 +303,7 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 	err = integrationtest.UpdateNamespace(namespace, newLabels)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	if err != nil {
-		t.Fatal("Error occured while updating namespace")
+		t.Fatal("Error occurred while updating namespace")
 	}
 
 	g.Eventually(func() bool {

@@ -115,7 +115,7 @@ func AddNamespace(nsName string, labels map[string]string) error {
 	if err != nil {
 		_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
 		if err != nil {
-			utils.AviLog.Errorf("Error occured while Adding namespace : %v", err)
+			utils.AviLog.Errorf("Error occurred while Adding namespace : %v", err)
 		}
 	}
 	return err
@@ -206,7 +206,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 				Host: dnsName,
 				IngressRuleValue: networking.IngressRuleValue{
 					HTTP: &networking.HTTPIngressRuleValue{
-						Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
+						Paths: []networking.HTTPIngressPath{{
 							Path: "/foo",
 							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 								Type:   intstr.String,
@@ -220,7 +220,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 				Host: dnsName,
 				IngressRuleValue: networking.IngressRuleValue{
 					HTTP: &networking.HTTPIngressRuleValue{
-						Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
+						Paths: []networking.HTTPIngressPath{{
 							Path: "/bar",
 							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 								Type:   intstr.String,
@@ -235,7 +235,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 				Host: dnsName,
 				IngressRuleValue: networking.IngressRuleValue{
 					HTTP: &networking.HTTPIngressRuleValue{
-						Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
+						Paths: []networking.HTTPIngressPath{{
 							Path: path,
 							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 								Type:   intstr.Int,
@@ -253,7 +253,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 			SecretName: secret,
 		})
 	}
-	for i, _ := range ing.Ips {
+	for i := range ing.Ips {
 		hostname := ""
 		if len(ing.HostNames) >= i+1 {
 			hostname = ing.HostNames[i]
@@ -291,7 +291,7 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 			Host: dnsName,
 			IngressRuleValue: networking.IngressRuleValue{
 				HTTP: &networking.HTTPIngressRuleValue{
-					Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
+					Paths: []networking.HTTPIngressPath{{
 						Path: path,
 						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 							Type:   intstr.Int,
@@ -336,7 +336,7 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 		ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 			IngressRuleValue: networking.IngressRuleValue{
 				HTTP: &networking.HTTPIngressRuleValue{
-					Paths: []networking.HTTPIngressPath{networking.HTTPIngressPath{
+					Paths: []networking.HTTPIngressPath{{
 						Path: path,
 						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
 							Type:   intstr.Int,

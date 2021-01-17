@@ -25,7 +25,7 @@ import (
 
 var queuewrapper sync.Once
 var queueInstance *WorkQueueWrapper
-var fixedQueues = [...]WorkerQueue{WorkerQueue{NumWorkers: NumWorkersIngestion, WorkqueueName: ObjectIngestionLayer}, WorkerQueue{NumWorkers: NumWorkersGraph, WorkqueueName: GraphLayer}}
+var fixedQueues = [...]*WorkerQueue{{NumWorkers: NumWorkersIngestion, WorkqueueName: ObjectIngestionLayer}, {NumWorkers: NumWorkersGraph, WorkqueueName: GraphLayer}}
 
 type WorkQueueWrapper struct {
 	// This struct should manage a set of WorkerQueues for the various layers
@@ -37,7 +37,7 @@ func (w *WorkQueueWrapper) GetQueueByName(queueName string) *WorkerQueue {
 	return workqueue
 }
 
-func SharedWorkQueue(queueParams ...WorkerQueue) *WorkQueueWrapper {
+func SharedWorkQueue(queueParams ...*WorkerQueue) *WorkQueueWrapper {
 	queuewrapper.Do(func() {
 		queueInstance = &WorkQueueWrapper{}
 		queueInstance.queueCollection = make(map[string]*WorkerQueue)
