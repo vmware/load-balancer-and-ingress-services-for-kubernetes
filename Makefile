@@ -123,7 +123,7 @@ int_test:
 .PHONY: scale_test
 scale_test:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v -mod=vendor ./tests/scaletest -failfast $(Timeout) $(TestbedFilePath) $(NumGoRoutines) $(NumOfIng) 
+	$(GOTEST) -v -mod=vendor ./tests/scaletest -failfast $(Timeout) $(TestbedFilePath) $(NumGoRoutines) $(NumOfLBSvc) $(NumOfIng)
 
 # linting and formatting
 GO_FILES := $(shell find . -type d -path ./vendor -prune -o -type f -name '*.go' -print)

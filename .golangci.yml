@@ -2,8 +2,6 @@
 run:
   tests: true
   timeout: 10m
-  skip-dirs:
-    - webhook
   skip-dirs-use-default: true
 
 linters-settings:
