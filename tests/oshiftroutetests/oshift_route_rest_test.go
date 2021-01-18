@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -15,14 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func SetupDomain() {
-	mcache := cache.SharedAviObjCache()
-	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
-	subdomains := []string{"avi.internal", ".com"}
-	cloudObj.NSIpamDNS = subdomains
-	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
-}
 
 func TearDownRouteForRestCheck(t *testing.T, modelName string) {
 	err := OshiftClient.RouteV1().Routes(defaultNamespace).Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})

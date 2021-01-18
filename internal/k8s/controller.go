@@ -52,8 +52,7 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 
 type AviController struct {
-	worker_id       uint32
-	worker_id_mutex sync.Mutex
+	worker_id uint32
 	//recorder        record.EventRecorder
 	informers        *utils.Informers
 	dynamicInformers *lib.DynamicInformers

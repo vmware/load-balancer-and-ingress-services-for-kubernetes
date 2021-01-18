@@ -492,7 +492,6 @@ type FakeService struct {
 	Labels         map[string]string
 	Type           corev1.ServiceType
 	LoadBalancerIP string
-	annotations    map[string]string
 	ServicePorts   []Serviceport
 }
 

@@ -12,6 +12,7 @@
 * limitations under the License.
 */
 
+// nolint:unused
 package scaletest
 
 import (

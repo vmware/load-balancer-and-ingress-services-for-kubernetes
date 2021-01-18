@@ -35,11 +35,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	INGRESS    = "my-ingress"
-	TLSINGRESS = "tls-ingress"
-)
-
 func SetupDomain() {
 	mcache := cache.SharedAviObjCache()
 	cloud, _ := mcache.CloudKeyCache.AviCacheGet("Default-Cloud")
