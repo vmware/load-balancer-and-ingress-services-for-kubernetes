@@ -153,7 +153,17 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	vrfKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vrfName}
 	utils.AviLog.Debugf("key: %s, msg: Executing rest for vrf %s\n", key, vrfName)
 	utils.AviLog.Debugf("key: %s, msg: restops %v\n", key, *restOp)
-	rest.ExecuteRestAndPopulateCache(restOps, vrfKey, avimodel, key)
+	success := rest.ExecuteRestAndPopulateCache(restOps, vrfKey, avimodel, key)
+
+	if success && lib.ConfigDeleteSyncChan != nil {
+		vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
+		utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
+		if len(vsKeysPending) == 0 {
+			utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
+			close(lib.ConfigDeleteSyncChan)
+			lib.ConfigDeleteSyncChan = nil
+		}
+	}
 }
 
 // CheckAndPublishForRetry : Check if the error is of type 401, has string "Rest request error" or was timed out,
