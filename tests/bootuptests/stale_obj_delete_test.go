@@ -28,19 +28,6 @@ var uuidMap map[string]bool
 const mockFilePath = "bootupmock"
 const invalidFilePath = "invalidmock1"
 
-var FakeAviObjects = []string{
-	"cloud",
-	"ipamdnsproviderprofile",
-	"network",
-	"pool",
-	"poolgroup",
-	"virtualservice",
-	"vrfcontext",
-	"vsdatascriptset",
-	"serviceenginegroup",
-	"vsvip",
-}
-
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("NETWORK_NAME", "net123")
