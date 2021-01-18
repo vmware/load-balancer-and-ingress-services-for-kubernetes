@@ -567,8 +567,14 @@ func (c *AviController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
 	status.AddStatefulSetStatus(lib.ObjectDeletionStartStatus, corev1.ConditionTrue)
 	allModels := objects.SharedAviGraphLister().GetAll()
+	allModelsMap := allModels.(map[string]interface{})
+	if len(allModelsMap) == 0 {
+		utils.AviLog.Infof("No Avi Object to delete, status would be updated in Statefulset")
+		status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus, corev1.ConditionFalse)
+		return
+	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	for modelName, avimodelIntf := range allModels.(map[string]interface{}) {
+	for modelName, avimodelIntf := range allModelsMap {
 		objects.SharedAviGraphLister().Save(modelName, nil)
 		if avimodelIntf != nil {
 			avimodel := avimodelIntf.(*nodes.AviObjectGraph)

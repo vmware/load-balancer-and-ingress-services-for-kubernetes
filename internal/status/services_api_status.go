@@ -22,10 +22,11 @@ import (
 	"reflect"
 	"strings"
 
+	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -160,7 +161,7 @@ func UpdateSvcApiGatewayStatusGWCondition(gwStatus *svcapiv1alpha1.GatewayStatus
 	utils.AviLog.Debugf("Updating Gateway status gateway condition %v", utils.Stringify(updateStatus))
 	InitializeSvcApiGatewayConditions(gwStatus, nil, false)
 
-	for i, _ := range gwStatus.Conditions {
+	for i := range gwStatus.Conditions {
 		if string(gwStatus.Conditions[i].Type) == updateStatus.Type {
 			gwStatus.Conditions[i].Status = updateStatus.Status
 			gwStatus.Conditions[i].Message = updateStatus.Message
@@ -343,19 +344,19 @@ func InitializeSvcApiGatewayConditions(gwStatus *svcapiv1alpha1.GatewayStatus, g
 func compareSvcApiGatewayStatuses(old, new *svcapiv1alpha1.GatewayStatus) bool {
 	oldStatus, newStatus := old.DeepCopy(), new.DeepCopy()
 	currentTime := metav1.Now()
-	for i, _ := range oldStatus.Conditions {
+	for i := range oldStatus.Conditions {
 		oldStatus.Conditions[i].LastTransitionTime = currentTime
 	}
 	for _, listener := range oldStatus.Listeners {
-		for i, _ := range listener.Conditions {
+		for i := range listener.Conditions {
 			listener.Conditions[i].LastTransitionTime = currentTime
 		}
 	}
-	for i, _ := range newStatus.Conditions {
+	for i := range newStatus.Conditions {
 		newStatus.Conditions[i].LastTransitionTime = currentTime
 	}
 	for _, listener := range newStatus.Listeners {
-		for i, _ := range listener.Conditions {
+		for i := range listener.Conditions {
 			listener.Conditions[i].LastTransitionTime = currentTime
 		}
 	}

@@ -17,11 +17,12 @@ package k8s
 import (
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
 
 // Services API related functions. Parking the functions on this file instead of creating a new one since most of the functionality is same with v1alpha1pre1
