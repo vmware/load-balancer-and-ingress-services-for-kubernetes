@@ -175,7 +175,7 @@ func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, curr
 	for _, val := range currentPathSvc {
 		currPathSvcMap[val.Path] = append(currPathSvcMap[val.Path], val.ServiceName)
 	}
-	for path, _ := range currPathSvcMap {
+	for path := range currPathSvcMap {
 		_, ok := pathSvcCopy[path]
 		if ok {
 			delete(pathSvcCopy, path)
@@ -263,14 +263,6 @@ func getPathSvc(currentPathSvc []IngressHostPathSvc) map[string][]string {
 	return pathSvcMap
 }
 
-func pathsToEmptySvcMap(paths []string) map[string][]string {
-	pathSvcMap := make(map[string][]string)
-	for _, path := range paths {
-		pathSvcMap[path] = []string{}
-	}
-	return pathSvcMap
-}
-
 func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng IngressConfig, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	for host, pathsvcmap := range parsedIng.IngressHostMap {
 		// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
@@ -327,10 +319,6 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 			if found && hostData.SecurePolicy == lib.PolicyEdgeTerm {
 				// TODO: StoredPaths might be empty if the host was not specified with any paths.
 				// Verify the paths and take out the paths that are not need.
-				pathkeys := []string{}
-				for k := range hostData.PathSvc {
-					pathkeys = append(pathkeys, k)
-				}
 				pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, newPathSvc)
 
 				// For transtion from insecureEdgeTermination policy Allow -> None in a route
@@ -498,7 +486,7 @@ func updateHostPathCacheV2(ns, ingress string, oldHostMap, newHostMap map[string
 
 	// remove from oldHostMap
 	for host, oldMap := range oldHostMap {
-		for path, _ := range oldMap.PathSvc {
+		for path := range oldMap.PathSvc {
 			SharedHostNameLister().RemoveHostPathStore(host, path, mmapval)
 		}
 	}
@@ -506,7 +494,7 @@ func updateHostPathCacheV2(ns, ingress string, oldHostMap, newHostMap map[string
 	// add from newHostMap
 	if newHostMap != nil {
 		for host, newMap := range newHostMap {
-			for path, _ := range newMap.PathSvc {
+			for path := range newMap.PathSvc {
 				SharedHostNameLister().SaveHostPathStore(host, path, mmapval)
 			}
 		}

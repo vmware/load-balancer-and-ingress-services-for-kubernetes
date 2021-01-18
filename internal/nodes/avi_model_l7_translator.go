@@ -71,7 +71,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			var storedHosts []string
 			// Mash the list of secure and insecure hosts.
 			for mtype, hostsbytype := range hostMap {
-				for host, _ := range hostsbytype {
+				for host := range hostsbytype {
 					if mtype == "secure" {
 						RemoveRedirectHTTPPolicyInModel(vsNode[0], host, key)
 					}
@@ -230,7 +230,7 @@ func (o *AviObjectGraph) DeletePoolForIngress(namespace, ingName, key string, vs
 	var hosts []string
 	// Mash the list of secure and insecure hosts.
 	for mtype, hostsbytype := range hostMap {
-		for host, _ := range hostsbytype {
+		for host := range hostsbytype {
 			if mtype == "secure" {
 				RemoveRedirectHTTPPolicyInModel(vsNode[0], host, key)
 			}

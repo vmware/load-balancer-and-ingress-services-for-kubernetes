@@ -109,8 +109,9 @@ and *merged* sorts of commits.
 
 To make it easier for reviewers to review your PR, consider the following:
 1. Follow the golang [coding conventions](https://github.com/golang/go/wiki/CodeReviewComments)
-2. Follow [git commit](https://chris.beams.io/posts/git-commit/) guidelines.
-3. Follow [logging](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md) guidelines.
+2. Format your code with `make golangci-fix`. The [configured linters](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/.golangci.yml) will throw an error in case the issue cannot be fixed automatically.
+3. Follow [git commit](https://chris.beams.io/posts/git-commit/) guidelines.
+4. Follow [logging](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md) guidelines.
 
 ### Building and testing your change
 

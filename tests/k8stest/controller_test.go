@@ -110,7 +110,7 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{kubeClient}, registeredInformers)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
 	k8s.NewCRDInformers(crdClient)
 	integrationtest.InitializeFakeAKOAPIServer()
 

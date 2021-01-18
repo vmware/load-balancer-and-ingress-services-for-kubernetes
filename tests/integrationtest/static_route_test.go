@@ -17,7 +17,6 @@ package integrationtest
 import (
 	"context"
 	"testing"
-	"time"
 
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -170,7 +169,6 @@ func TestMultiNodeAdd(t *testing.T) {
 		t.Fatalf("error in adding Node: %v", err)
 	}
 
-	time.Sleep(5)
 	PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if !found {

@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -128,7 +129,7 @@ func UpdateGatewayStatusGWCondition(gwStatus *advl4v1alpha1pre1.GatewayStatus, u
 	utils.AviLog.Debugf("Updating Gateway status gateway condition %v", utils.Stringify(updateStatus))
 	InitializeGatewayConditions(gwStatus, nil, false)
 
-	for i, _ := range gwStatus.Conditions {
+	for i := range gwStatus.Conditions {
 		if string(gwStatus.Conditions[i].Type) == updateStatus.Type {
 			gwStatus.Conditions[i].Status = updateStatus.Status
 			gwStatus.Conditions[i].Message = updateStatus.Message
@@ -360,19 +361,19 @@ func getGateways(gwNSNames []string, bulk bool, retryNum ...int) map[string]*adv
 func compareGatewayStatuses(old, new *advl4v1alpha1pre1.GatewayStatus) bool {
 	oldStatus, newStatus := old.DeepCopy(), new.DeepCopy()
 	currentTime := metav1.Now()
-	for i, _ := range oldStatus.Conditions {
+	for i := range oldStatus.Conditions {
 		oldStatus.Conditions[i].LastTransitionTime = currentTime
 	}
 	for _, listener := range oldStatus.Listeners {
-		for i, _ := range listener.Conditions {
+		for i := range listener.Conditions {
 			listener.Conditions[i].LastTransitionTime = currentTime
 		}
 	}
-	for i, _ := range newStatus.Conditions {
+	for i := range newStatus.Conditions {
 		newStatus.Conditions[i].LastTransitionTime = currentTime
 	}
 	for _, listener := range newStatus.Listeners {
-		for i, _ := range listener.Conditions {
+		for i := range listener.Conditions {
 			listener.Conditions[i].LastTransitionTime = currentTime
 		}
 	}

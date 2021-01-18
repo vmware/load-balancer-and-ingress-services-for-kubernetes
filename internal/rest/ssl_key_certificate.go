@@ -43,12 +43,10 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 	if ssl_node.CACert != "" {
 		cacertRef := "/api/sslkeyandcertificate/?name=" + ssl_node.CACert
 		caName := ssl_node.CACert
-		sslkeycert.CaCerts = []*avimodels.CertificateAuthority{
-			&avimodels.CertificateAuthority{
-				CaRef: &cacertRef,
-				Name:  &caName,
-			},
-		}
+		sslkeycert.CaCerts = []*avimodels.CertificateAuthority{{
+			CaRef: &cacertRef,
+			Name:  &caName,
+		}}
 	}
 
 	// TODO other fields like cloud_ref and lb algo
@@ -80,7 +78,7 @@ func (rest *RestOperations) AviSSLKeyCertDel(uuid string, tenant string) *utils.
 
 func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for sslkeycert, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no response for sslkeycert, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
@@ -215,7 +213,7 @@ func (rest *RestOperations) AviPkiProfileDel(uuid string, tenant string) *utils.
 
 func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("rest_op has err or no reponse for PkiProfileObj")
+		utils.AviLog.Warnf("rest_op has err or no response for PkiProfileObj")
 		return errors.New("Errored rest_op")
 	}
 

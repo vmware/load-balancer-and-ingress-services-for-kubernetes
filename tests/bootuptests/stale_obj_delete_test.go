@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
@@ -14,33 +13,20 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
-	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned/fake"
 )
 
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
-var ctrl *k8s.AviController
 var restChan chan bool
 var uuidMap map[string]bool
 
 const mockFilePath = "bootupmock"
 const invalidFilePath = "invalidmock1"
-
-var FakeAviObjects = []string{
-	"cloud",
-	"ipamdnsproviderprofile",
-	"network",
-	"pool",
-	"poolgroup",
-	"virtualservice",
-	"vrfcontext",
-	"vsdatascriptset",
-	"serviceenginegroup",
-	"vsvip",
-}
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -67,7 +53,7 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	k8s.NewCRDInformers(CRDClient)
 
 	mcache := cache.SharedAviObjCache()
@@ -145,26 +131,6 @@ func injectMWForCloud() {
 			w.Write([]byte(`{"success": "true"}`))
 		}
 	})
-}
-
-// Wait for true or false on rest channel to confirm object deletion
-func waitAndverify(t *testing.T) {
-	waitChan := make(chan int)
-	go func() {
-		time.Sleep(50 * time.Second)
-		waitChan <- 1
-	}()
-
-	select {
-	case data := <-restChan:
-		if data == false {
-			t.Fatalf("error in stale object deletion")
-		}
-		t.Logf("xxx here")
-	case _ = <-waitChan:
-		t.Fatalf("timed out waiting for object deletion")
-
-	}
 }
 
 // PopulateCache populates cache and triggers deletion of unused objects.

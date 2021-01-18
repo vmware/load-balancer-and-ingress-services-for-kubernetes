@@ -44,10 +44,10 @@ else
 	$(eval BUILD_ARG_UBI=)
 endif
 
-
 .PHONY: all
 all: build docker
 
+# builds
 .PHONY: build
 build: glob-vars
 		sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
@@ -66,6 +66,7 @@ clean:
 deps:
 	dep ensure -v
 
+# docker images
 .PHONY: docker
 docker: glob-vars
 	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) -f Dockerfile.ako .
@@ -74,6 +75,7 @@ docker: glob-vars
 ako-operator-docker: glob-vars
 	sudo docker build -t $(AKO_OPERATOR_IMAGE):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI)  -f Dockerfile.ako-operator .
 
+# tests
 .PHONY: k8stest
 k8stest:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
@@ -122,3 +124,26 @@ int_test:
 scale_test:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor ./tests/scaletest -failfast $(Timeout) $(TestbedFilePath) $(NumGoRoutines) $(NumOfLBSvc) $(NumOfIng)
+
+# linting and formatting
+GO_FILES := $(shell find . -type d -path ./vendor -prune -o -type f -name '*.go' -print)
+.PHONY: fmt
+fmt:
+	@echo
+	@echo "Formatting Go files"
+	@gofmt -s -l -w $(GO_FILES)
+
+.golangci-bin:
+	@echo "Installing Golangci-lint"
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.32.1
+
+.PHONY: golangci
+golangci: .golangci-bin
+	@echo "Running golangci"
+	@GOOS=linux .golangci-bin/golangci-lint run -c .golangci.yml
+
+.PHONY: golangci-fix
+golangci-fix: .golangci-bin
+	@echo "Running golangci-fix"
+	@GOOS=linux .golangci-bin/golangci-lint run -c .golangci.yml --fix
+

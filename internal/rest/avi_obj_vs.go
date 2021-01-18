@@ -493,8 +493,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}}, false)
 			}
 			rest.cache.VsCacheMeta.AviCacheAdd(k, &vs_cache_obj)
-			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key %v val %v\n", key, k,
-				vs_cache_obj))
+			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(&vs_cache_obj))
 		}
 
 	}
@@ -854,7 +853,7 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		if rest_op.Message == "" {
-			utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for vsvip err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+			utils.AviLog.Warnf("key: %s, rest_op has err or no response for vsvip err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 			return errors.New("Errored vsvip rest_op")
 		}
 

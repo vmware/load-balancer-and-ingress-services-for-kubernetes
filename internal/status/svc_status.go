@@ -60,7 +60,7 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 			}
 			service.Status = corev1.ServiceStatus{
 				LoadBalancer: corev1.LoadBalancerStatus{
-					Ingress: []corev1.LoadBalancerIngress{corev1.LoadBalancerIngress{
+					Ingress: []corev1.LoadBalancerIngress{{
 						IP:       option.Vip,
 						Hostname: svcHostname,
 					}}}}

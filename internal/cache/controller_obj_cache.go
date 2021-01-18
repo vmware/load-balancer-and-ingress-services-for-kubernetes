@@ -89,8 +89,6 @@ func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient, cloud str
 	c.PopulateHttpPolicySetToCache(client, cloud)
 	c.PopulateL4PolicySetToCache(client, cloud)
 	c.PopulateVsVipDataToCache(client, cloud)
-	// Switch to the below method once the go sdk is fixed for the DBExtensions fields.
-	//c.PopulateVsKeyToCache(client, cloud)
 }
 
 func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient, cloud string) {
@@ -324,7 +322,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 		Namespace: lib.GetTenant(),
 		Name:      lib.DummyVSForStaleData,
 	}
-	utils.AviLog.Infof("Dummy VS for stale objects Deletion %s", utils.Stringify(vsMetaObj))
+	utils.AviLog.Infof("Dummy VS for stale objects Deletion %s", utils.Stringify(&vsMetaObj))
 	c.VsCacheMeta.AviCacheAdd(vsKey, &vsMetaObj)
 
 }
@@ -1356,174 +1354,6 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 	return nil
 }
 
-// This method is just added for future here. We can't use it until they expose the DB extensions on the virtualservice object
-func (c *AviObjCache) AviPopulateAllVSMeta(client *clients.AviClient, cloud string, vsData *[]AviVsCache, nextPage ...NextPage) (*[]AviVsCache, error) {
-	var uri string
-	akoUser := lib.AKOUser
-
-	if len(nextPage) == 1 {
-		uri = nextPage[0].Next_uri
-	} else {
-		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
-	}
-
-	result, err := lib.AviGetCollectionRaw(client, uri)
-	if err != nil {
-		utils.AviLog.Warnf("Get uri %v returned err for virtualservice %v", uri, err)
-		return nil, err
-	}
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal virtualservice data, err: %v", err)
-		return nil, err
-	}
-	for i := 0; i < len(elems); i++ {
-		vsModel := models.VirtualService{}
-		err = json.Unmarshal(elems[i], &vsModel)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal virtualservice data, err: %v", err)
-			continue
-		}
-		if vsModel.Name == nil || vsModel.UUID == nil {
-			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(vsModel))
-			continue
-		}
-		var vsVipKey []NamespaceName
-		var sslKeys []NamespaceName
-		var dsKeys []NamespaceName
-		var httpKeys []NamespaceName
-		var poolgroupKeys []NamespaceName
-		var poolKeys []NamespaceName
-		var virtualIp string
-		if vsModel.Vip != nil {
-			for _, vip := range vsModel.Vip {
-				virtualIp = *vip.IPAddress.Addr
-			}
-		}
-		if vsModel.VsvipRef != nil {
-			// find the vsvip name from the vsvip cache
-			vsVipUuid := ExtractUuid(*vsModel.VsvipRef, "vsvip-.*.#")
-			vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
-			if foundVip {
-				vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
-				vsVipKey = append(vsVipKey, vipKey)
-			}
-		}
-		if vsModel.SslKeyAndCertificateRefs != nil {
-			for _, ssl := range vsModel.SslKeyAndCertificateRefs {
-				// find the sslkey name from the ssl key cache
-				sslUuid := ExtractUuid(ssl, "sslkeyandcertificate-.*.#")
-				sslName, foundssl := c.SSLKeyCache.AviCacheGetNameByUuid(sslUuid)
-				if foundssl {
-					sslKey := NamespaceName{Namespace: lib.GetTenant(), Name: sslName.(string)}
-					sslKeys = append(sslKeys, sslKey)
-
-					sslIntf, _ := c.SSLKeyCache.AviCacheGet(sslKey)
-					sslData := sslIntf.(*AviSSLCache)
-					// Populate CAcert if available
-					if sslData.CACertUUID != "" {
-						caName, found := c.SSLKeyCache.AviCacheGetNameByUuid(sslData.CACertUUID)
-						if found {
-							caCertKey := NamespaceName{Namespace: lib.GetTenant(), Name: caName.(string)}
-							sslKeys = append(sslKeys, caCertKey)
-						}
-					}
-				}
-			}
-		}
-		if vsModel.VsDatascripts != nil {
-			for _, dataScript := range vsModel.VsDatascripts {
-				dsUuid := ExtractUuid(*dataScript.VsDatascriptSetRef, "vsdatascriptset-.*.#")
-
-				dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
-				if foundDs {
-					dsKey := NamespaceName{Namespace: lib.GetTenant(), Name: dsName.(string)}
-					// Fetch the associated PGs with the DS.
-					dsObj, _ := c.DSCache.AviCacheGet(dsKey)
-					for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
-						// For each PG, formulate the key and then populate the pg collection cache
-						pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
-						poolgroupKeys = append(poolgroupKeys, pgKey)
-						poolKeys = c.AviPGPoolCachePopulate(client, cloud, pgName)
-					}
-					dsKeys = append(dsKeys, dsKey)
-				}
-
-			}
-		}
-		// Handle L4 vs - pg references
-		if vsModel.ServicePoolSelect != nil {
-			for _, pg_intf := range vsModel.ServicePoolSelect {
-				pgUuid := ExtractUuid(*pg_intf.ServicePoolGroupRef, "poolgroup-.*.#")
-
-				pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
-				if foundpg {
-					pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName.(string)}
-					poolgroupKeys = append(poolgroupKeys, pgKey)
-					poolKeys = c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
-				}
-
-			}
-		}
-		if vsModel.HTTPPolicies != nil {
-			for _, http_intf := range vsModel.HTTPPolicies {
-
-				httpUuid := ExtractUuid(*http_intf.HTTPPolicySetRef, "httppolicyset-.*.#")
-
-				httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
-				if foundhttp {
-					httpKey := NamespaceName{Namespace: lib.GetTenant(), Name: httpName.(string)}
-					httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
-					for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
-						// For each PG, formulate the key and then populate the pg collection cache
-						pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
-						poolgroupKeys = append(poolgroupKeys, pgKey)
-						poolKeys = c.AviPGPoolCachePopulate(client, cloud, pgName)
-					}
-					httpKeys = append(httpKeys, httpKey)
-				}
-
-			}
-		}
-		vsMetaObj := AviVsCache{
-			Name:                 *vsModel.Name,
-			Uuid:                 *vsModel.UUID,
-			VSVipKeyCollection:   vsVipKey,
-			HTTPKeyCollection:    httpKeys,
-			DSKeyCollection:      dsKeys,
-			SSLKeyCertCollection: sslKeys,
-			PGKeyCollection:      poolgroupKeys,
-			PoolKeyCollection:    poolKeys,
-			Vip:                  virtualIp,
-			CloudConfigCksum:     *vsModel.CloudConfigCksum,
-		}
-		*vsData = append(*vsData, vsMetaObj)
-	}
-	if result.Next != "" {
-		// It has a next page, let's recursively call the same method.
-		next_uri := strings.Split(result.Next, "/api/virtualservice")
-		if len(next_uri) > 1 {
-			override_uri := "/api/virtualservice" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
-			_, err := c.AviPopulateAllVSMeta(client, cloud, vsData, nextPage)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	return vsData, nil
-}
-
-// This method is just added for future here. We can't use it until they expose the DB extensions on the virtualservice object
-func (c *AviObjCache) PopulateVsKeyToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
-	var vsCacheMeta []AviVsCache
-	_, err := c.AviPopulateAllVSMeta(client, cloud, &vsCacheMeta)
-	if err != nil {
-		return
-	}
-}
-
 func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
 	var SslKeyData []AviSSLCache
 	c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
@@ -1782,7 +1612,6 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		return nil
 	}
 	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
-	vrfList := []*models.VrfContext{}
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1802,7 +1631,6 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
 			continue
 		}
-		vrfList = append(vrfList, &vrf)
 
 		vrfName := *vrf.Name
 		checksum := lib.VrfChecksum(vrfName, vrf.StaticRoutes)
@@ -2052,7 +1880,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					LastModified:         vs["_last_modified"].(string),
 				}
 				c.VsCacheLocal.AviCacheAdd(k, &vsMetaObj)
-				utils.AviLog.Debugf("Added VS cache key :%s", utils.Stringify(vsMetaObj))
+				utils.AviLog.Debugf("Added VS cache key :%s", utils.Stringify(&vsMetaObj))
 
 			}
 		}
@@ -2107,7 +1935,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 			return errors.New("Results are not of right type for VS")
 		}
 		for _, vs_intf := range results {
-			vs, ok := vs_intf.(map[string]interface{})
+			vs := vs_intf.(map[string]interface{})
 			svc_mdata_intf, ok := vs["service_metadata"]
 			var svc_mdata_obj ServiceMetadataObj
 			if ok {
@@ -2296,7 +2124,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						utils.AviLog.Infof("Updated Parents VS :%s", utils.Stringify(parentVsObj))
 					}
 				}
-				utils.AviLog.Debugf("Added VS during refresh with cache key :%v", utils.Stringify(vsMetaObj))
+				utils.AviLog.Debugf("Added VS during refresh with cache key :%v", utils.Stringify(&vsMetaObj))
 			}
 		}
 	}

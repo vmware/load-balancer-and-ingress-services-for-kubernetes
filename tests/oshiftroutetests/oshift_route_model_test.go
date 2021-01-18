@@ -50,7 +50,7 @@ var defaultRouteName, defaultNamespace, defaultHostname, defaultService string
 var defaultModelName string
 var defaultKey, defaultValue string
 
-// Candiate to move to lib
+// Candidate to move to lib
 type FakeRoute struct {
 	Name        string
 	Namespace   string
@@ -136,7 +136,7 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{KubeClient}, registeredInformers, informersArg)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers, informersArg)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers(CRDClient)
 

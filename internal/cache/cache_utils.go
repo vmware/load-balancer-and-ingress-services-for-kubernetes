@@ -440,7 +440,7 @@ func (c *AviCache) AviGetAllKeys() []NamespaceName {
 	c.cache_lock.RLock()
 	defer c.cache_lock.RUnlock()
 	var keys []NamespaceName
-	for key, _ := range c.cache {
+	for key := range c.cache {
 		keys = append(keys, key.(NamespaceName))
 	}
 	return keys

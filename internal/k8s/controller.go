@@ -52,8 +52,7 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 
 type AviController struct {
-	worker_id       uint32
-	worker_id_mutex sync.Mutex
+	worker_id uint32
 	//recorder        record.EventRecorder
 	informers        *utils.Informers
 	dynamicInformers *lib.DynamicInformers
@@ -167,7 +166,7 @@ func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
 	ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Errorf("NS to ingress queue add: Error occured while retrieving ingresss for namespace: %s", namespace)
+		utils.AviLog.Errorf("NS to ingress queue add: Error occurred while retrieving ingresss for namespace: %s", namespace)
 		return
 	}
 	for _, ingObj := range ingObjs {
@@ -181,7 +180,7 @@ func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, names
 func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
 	routeObjs, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Errorf("NS to route queue add: Error occured while retrieving routes for namespace: %s", namespace)
+		utils.AviLog.Errorf("NS to route queue add: Error occurred while retrieving routes for namespace: %s", namespace)
 		return
 	}
 	for _, routeObj := range routeObjs {
@@ -219,7 +218,7 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 				utils.AddNamespaceToFilter(ns.GetName(), nsFilterObj)
 				utils.AviLog.Debugf("NS Add event: Namespace passed filter: %s", ns.GetName())
 			} else {
-				//Case: previoulsy deleted valid NS, added back with no labels or invalid labels but nsList contain that ns
+				//Case: previously deleted valid NS, added back with no labels or invalid labels but nsList contain that ns
 				utils.AviLog.Debugf("NS Add event: Namespace did not pass filter: %s", ns.GetName())
 				if utils.CheckIfNamespaceAccepted(ns.GetName(), nsFilterObj, nil, true) {
 					utils.AviLog.Debugf("Ns Add event: Deleting previous valid namespace: %s from valid NS List", ns.GetName())

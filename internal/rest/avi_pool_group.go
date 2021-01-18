@@ -33,8 +33,7 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	cksum := pg_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pg_meta.Tenant)
-	members := pg_meta.Members
-	members = rest.SanitizePGMembers(pg_meta.Members, key)
+	members := rest.SanitizePGMembers(pg_meta.Members, key)
 	cr := lib.AKOUser
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 
@@ -97,7 +96,7 @@ func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *ut
 
 func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no reponse for PG err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no response for PG err: %s, response: %s", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 
