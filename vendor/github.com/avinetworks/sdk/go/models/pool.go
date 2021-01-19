@@ -114,7 +114,7 @@ type Pool struct {
 	// Use list of servers from Ip Address Group. It is a reference to an object of type IpAddrGroup.
 	IpaddrgroupRef *string `json:"ipaddrgroup_ref,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// The load balancing algorithm will pick a server within the pool's list of available servers. Enum options - LB_ALGORITHM_LEAST_CONNECTIONS, LB_ALGORITHM_ROUND_ROBIN, LB_ALGORITHM_FASTEST_RESPONSE, LB_ALGORITHM_CONSISTENT_HASH, LB_ALGORITHM_LEAST_LOAD, LB_ALGORITHM_FEWEST_SERVERS, LB_ALGORITHM_RANDOM, LB_ALGORITHM_FEWEST_TASKS, LB_ALGORITHM_NEAREST_SERVER, LB_ALGORITHM_CORE_AFFINITY, LB_ALGORITHM_TOPOLOGY.
@@ -168,6 +168,9 @@ type Pool struct {
 
 	// Enable request queue when pool is full.
 	RequestQueueEnabled *bool `json:"request_queue_enabled,omitempty"`
+
+	// This field is used as a flag to create a job for JobManager. Field introduced in 18.2.10,20.1.2.
+	ResolvePoolByDNS *bool `json:"resolve_pool_by_dns,omitempty"`
 
 	// Rewrite incoming Host Header to server name of the server to which the request is proxied.  Enabling this feature rewrites Host Header for requests to all servers in the pool.
 	RewriteHostHeaderToServerName *bool `json:"rewrite_host_header_to_server_name,omitempty"`

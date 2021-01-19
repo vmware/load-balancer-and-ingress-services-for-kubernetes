@@ -377,6 +377,14 @@ func GetAdvancedL4() bool {
 	return false
 }
 
+// If this flag is set to true, then AKO uses services API. Currently the support is limited for layer 4 Virtualservices
+func UseServicesAPI() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv(USE_SERVICES_API)); ok {
+		return true
+	}
+	return false
+}
+
 func CheckControllerVersionCompatibility(version, maxVersion string) bool {
 	if c, err := semver.NewConstraint(fmt.Sprintf("> %s", maxVersion)); err == nil {
 		if currentVersion, err := semver.NewVersion(version); err == nil && c.Check(currentVersion) {

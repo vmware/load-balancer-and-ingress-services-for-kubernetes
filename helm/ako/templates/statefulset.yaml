@@ -117,6 +117,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: enableRHI
+          - name: USE_SERVICES_API
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: useServicesAPI
           - name: DEFAULT_DOMAIN
             valueFrom:
               configMapKeyRef:

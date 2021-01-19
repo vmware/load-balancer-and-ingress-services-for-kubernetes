@@ -22,6 +22,7 @@ AKOSettings:
   namespaceSelector:
     labelKey: ""
     labelValue: ""
+  useServicesAPI: false # Flag that enables AKO in services API mode:https://kubernetes-sigs.github.io/service-apis/ . Currently implemented only for L4.
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:

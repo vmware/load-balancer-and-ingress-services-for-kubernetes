@@ -29,6 +29,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	advl4 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
+	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
+	svcapiinformers "sigs.k8s.io/service-apis/pkg/client/informers/externalversions"
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
@@ -78,13 +80,21 @@ func InitializeAKC() {
 
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
+	var svcAPIClient *svcapi.Clientset
 	if lib.GetAdvancedL4() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
-			utils.AviLog.Fatalf("Error building service-api clientset: %s", err.Error())
+			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
 		}
 		lib.SetAdvL4Clientset(advl4Client)
 	} else {
+		if lib.UseServicesAPI() {
+			svcAPIClient, err = svcapi.NewForConfig(cfg)
+		}
+		if err != nil {
+			utils.AviLog.Fatalf("Error building service-api clientset: %s", err.Error())
+		}
+		lib.SetServicesAPIClientset(svcAPIClient)
 		crdClient, err = crd.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
@@ -122,6 +132,15 @@ func InitializeAKC() {
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers(crdClient)
+		if lib.UseServicesAPI() {
+			svcApiInfomerFactory := svcapiinformers.NewSharedInformerFactory(svcAPIClient, time.Second*30)
+			gwClassInformer := svcApiInfomerFactory.Networking().V1alpha1().GatewayClasses()
+			gwInformer := svcApiInfomerFactory.Networking().V1alpha1().Gateways()
+			lib.SetSvcAPIsInformers(&lib.ServicesAPIInformers{
+				GatewayInformer:      gwInformer,
+				GatewayClassInformer: gwClassInformer,
+			})
+		}
 	}
 
 	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
