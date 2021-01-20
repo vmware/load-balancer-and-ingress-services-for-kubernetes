@@ -120,7 +120,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if lib.GetAdvancedL4() {
+	if lib.GetAdvancedL4() || lib.UseServicesAPI() && (objType == utils.L4LBService || objType == lib.Gateway || objType == lib.GatewayClass) {
 		if !valid && objType == utils.L4LBService {
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
 		}
@@ -156,23 +156,41 @@ func DequeueIngestion(key string, fullsync bool) {
 func isGatewayDelete(gatewayKey string, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := extractTypeNameNamespace(gatewayKey)
-	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-	if err != nil && errors.IsNotFound(err) {
-		return true
-	}
+	if lib.GetAdvancedL4() {
+		gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil && errors.IsNotFound(err) {
+			return true
+		}
 
-	// check if deletiontimesttamp is present to see intended delete
-	if gateway.GetDeletionTimestamp() != nil {
-		utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
-		return true
-	}
+		// check if deletiontimesttamp is present to see intended delete
+		if gateway.GetDeletionTimestamp() != nil {
+			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
+			return true
+		}
 
-	// Check if the gateway has a valid gateway class
-	err = validateGatewayForClass(key, gateway)
-	if err != nil {
-		return true
-	}
+		// Check if the gateway has a valid gateway class
+		err = validateGatewayForClass(key, gateway)
+		if err != nil {
+			return true
+		}
+	} else if lib.UseServicesAPI() {
+		gateway, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil && errors.IsNotFound(err) {
+			return true
+		}
 
+		// check if deletiontimesttamp is present to see intended delete
+		if gateway.GetDeletionTimestamp() != nil {
+			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
+			return true
+		}
+
+		// Check if the gateway has a valid gateway class
+		err = validateSvcApiGatewayForClass(key, gateway)
+		if err != nil {
+			return true
+		}
+	}
 	found, _ := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
 	if !found {
 		return true

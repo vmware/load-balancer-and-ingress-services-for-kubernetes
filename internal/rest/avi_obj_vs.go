@@ -416,11 +416,19 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				utils.AviLog.Debug(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.Gateway != "" {
-					status.UpdateGatewayStatusAddress([]status.UpdateStatusOptions{{
-						Vip:             vs_cache_obj.Vip,
-						ServiceMetadata: svc_mdata_obj,
-						Key:             key,
-					}}, false)
+					if lib.UseServicesAPI() {
+						status.UpdateSvcApiGatewayStatusAddress([]status.UpdateStatusOptions{{
+							Vip:             vs_cache_obj.Vip,
+							ServiceMetadata: svc_mdata_obj,
+							Key:             key,
+						}}, false)
+					} else {
+						status.UpdateGatewayStatusAddress([]status.UpdateStatusOptions{{
+							Vip:             vs_cache_obj.Vip,
+							ServiceMetadata: svc_mdata_obj,
+							Key:             key,
+						}}, false)
+					}
 				} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 					// This service needs an update of the status
 					status.UpdateL4LBStatus([]status.UpdateStatusOptions{{

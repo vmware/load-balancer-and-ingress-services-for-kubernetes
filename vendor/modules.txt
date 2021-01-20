@@ -566,6 +566,7 @@ k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/homedir
 k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
+k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
 # k8s.io/klog/v2 v2.3.0
 k8s.io/klog/v2
@@ -616,6 +617,17 @@ sigs.k8s.io/controller-runtime/pkg/webhook/admission
 sigs.k8s.io/controller-runtime/pkg/webhook/conversion
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/certwatcher
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
+# sigs.k8s.io/service-apis v0.1.0
+## explicit
+sigs.k8s.io/service-apis/apis/v1alpha1
+sigs.k8s.io/service-apis/pkg/client/clientset/versioned
+sigs.k8s.io/service-apis/pkg/client/clientset/versioned/scheme
+sigs.k8s.io/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1
+sigs.k8s.io/service-apis/pkg/client/informers/externalversions/
+sigs.k8s.io/service-apis/pkg/client/informers/externalversions/apis
+sigs.k8s.io/service-apis/pkg/client/informers/externalversions/apis/v1alpha1
+sigs.k8s.io/service-apis/pkg/client/informers/externalversions/internalinterfaces
+sigs.k8s.io/service-apis/pkg/client/listers/apis/v1alpha1
 # sigs.k8s.io/structured-merge-diff/v4 v4.0.2
 sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0

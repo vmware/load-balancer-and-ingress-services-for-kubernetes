@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 
+	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -30,7 +32,13 @@ import (
 func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
-	if VsNode := o.ConstructAdvL4VsNode(gatewayName, namespace, key); VsNode != nil {
+	var VsNode *AviVsNode
+	if lib.UseServicesAPI() {
+		VsNode = o.ConstructSvcApiL4VsNode(gatewayName, namespace, key)
+	} else {
+		VsNode = o.ConstructAdvL4VsNode(gatewayName, namespace, key)
+	}
+	if VsNode != nil {
 		o.ConstructAdvL4PolPoolNodes(VsNode, gatewayName, namespace, key)
 		o.AddModelNode(VsNode)
 		VsNode.CalculateCheckSum()
@@ -102,6 +110,78 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		}
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == advl4v1alpha1pre1.IPAddressType {
+			vsVipNode.IPAddress = gw.Spec.Addresses[0].Value
+		}
+
+		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
+		utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
+		return avi_vs_meta
+	}
+	return nil
+}
+
+func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key string) *AviVsNode {
+	// The logic: Each listener in the gateway is a listener port on the Avi VS.
+	// A L4 policyset object is create where listener port --> pool. Pool gets it's server from the endpoints that has the same name as the 'service' pointed
+	// by the listener port.
+	found, listeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gatewayName)
+	if found {
+		vsName := lib.GetL4VSName(gatewayName, namespace)
+		gw, _ := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+
+		var serviceNSNames []string
+		if found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName); found {
+			for svcListener, service := range services {
+				// assume it to have only a single backend service, the check is in isGatewayDelete
+				if utils.HasElem(listeners, svcListener) && len(service) == 1 && !utils.HasElem(serviceNSNames, service[0]) {
+					serviceNSNames = append(serviceNSNames, service[0])
+				}
+			}
+		}
+
+		avi_vs_meta := &AviVsNode{
+			Name:       vsName,
+			Tenant:     lib.GetTenant(),
+			EastWest:   false,
+			VrfContext: lib.GetVrf(),
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				NamespaceServiceName: serviceNSNames,
+				Gateway:              namespace + "/" + gatewayName,
+			},
+		}
+
+		if lib.GetSEGName() != lib.DEFAULT_GROUP {
+			avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
+		}
+
+		isTCP := false
+		var portProtocols []AviPortHostProtocol
+		for _, listener := range listeners {
+			portProto := strings.Split(listener, "/") // format: protocol/port
+			port, _ := strconv.Atoi(portProto[1])
+			pp := AviPortHostProtocol{Port: int32(port), Protocol: fmt.Sprint(portProto[0])}
+			portProtocols = append(portProtocols, pp)
+			if portProto[0] == "" || portProto[0] == utils.TCP {
+				isTCP = true
+			}
+		}
+		avi_vs_meta.PortProto = portProtocols
+		// Default case.
+		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+		if !isTCP {
+			avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
+		} else {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		}
+
+		vsVipNode := &AviVSVIPNode{
+			Name:       lib.GetL4VSVipName(gatewayName, namespace),
+			Tenant:     lib.GetTenant(),
+			EastWest:   false,
+			VrfContext: lib.GetVrf(),
+		}
+
+		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == svcapiv1alpha1.IPAddressType {
 			vsVipNode.IPAddress = gw.Spec.Addresses[0].Value
 		}
 
