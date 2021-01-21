@@ -32,18 +32,18 @@ import (
 func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
-	var VsNode *AviVsNode
+	var vsNode *AviVsNode
 	if lib.UseServicesAPI() {
-		VsNode = o.ConstructSvcApiL4VsNode(gatewayName, namespace, key)
+		vsNode = o.ConstructSvcApiL4VsNode(gatewayName, namespace, key)
 	} else {
-		VsNode = o.ConstructAdvL4VsNode(gatewayName, namespace, key)
+		vsNode = o.ConstructAdvL4VsNode(gatewayName, namespace, key)
 	}
-	if VsNode != nil {
-		o.ConstructAdvL4PolPoolNodes(VsNode, gatewayName, namespace, key)
-		o.AddModelNode(VsNode)
-		VsNode.CalculateCheckSum()
-		o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
-		utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
+	if vsNode != nil {
+		o.ConstructAdvL4PolPoolNodes(vsNode, gatewayName, namespace, key)
+		o.AddModelNode(vsNode)
+		vsNode.CalculateCheckSum()
+		o.GraphChecksum = o.GraphChecksum + vsNode.GetCheckSum()
+		utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, vsNode.GetCheckSum())
 		utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 	}
 }
@@ -86,8 +86,8 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
 			portProto := strings.Split(listener, "/") // format: protocol/port
-			port, _ := strconv.Atoi(portProto[1])
-			pp := AviPortHostProtocol{Port: int32(port), Protocol: fmt.Sprint(portProto[0])}
+			port, _ := strconv.ParseInt(portProto[1], 10, 64)
+			pp := AviPortHostProtocol{Port: int32(port), Protocol: portProto[0]}
 			portProtocols = append(portProtocols, pp)
 			if portProto[0] == "" || portProto[0] == utils.TCP {
 				isTCP = true
@@ -159,7 +159,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		for _, listener := range listeners {
 			portProto := strings.Split(listener, "/") // format: protocol/port
 			port, _ := strconv.Atoi(portProto[1])
-			pp := AviPortHostProtocol{Port: int32(port), Protocol: fmt.Sprint(portProto[0])}
+			pp := AviPortHostProtocol{Port: int32(port), Protocol: portProto[0]}
 			portProtocols = append(portProtocols, pp)
 			if portProto[0] == "" || portProto[0] == utils.TCP {
 				isTCP = true
@@ -207,7 +207,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		portProto := strings.Split(listener, "/") // format: protocol/port
 		// assume it to have only a single backed service, the check is in isGatewayDelete
 		svcNSName := strings.Split(svc[0], "/")
-		port, _ := strconv.Atoi(portProto[1])
+		port, _ := strconv.ParseInt(portProto[1], 10, 64)
 
 		poolNode := &AviPoolNode{
 			Name:       lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, int32(port)),

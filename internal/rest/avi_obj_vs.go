@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -870,20 +872,38 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found && vs_cache_obj.ServiceMetadataObj.Gateway != "" {
 				gwNSName := strings.Split(vs_cache_obj.ServiceMetadataObj.Gateway, "/")
-				gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
-				if err != nil {
-					utils.AviLog.Warnf("key: %s, msg: Gateway object not found, skippig status update %v", key, err)
-					return err
-				}
+				if lib.GetAdvancedL4() {
+					gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
+					if err != nil {
+						utils.AviLog.Warnf("key: %s, msg: Gateway object not found, skippig status update %v", key, err)
+						return err
+					}
 
-				gwStatus := gw.Status.DeepCopy()
-				status.UpdateGatewayStatusGWCondition(gwStatus, &status.UpdateGWStatusConditionOptions{
-					Type:    "Pending",
-					Status:  corev1.ConditionTrue,
-					Reason:  "InvalidAddress",
-					Message: rest_op.Message,
-				})
-				status.UpdateGatewayStatusObject(gw, gwStatus)
+					gwStatus := gw.Status.DeepCopy()
+					status.UpdateGatewayStatusGWCondition(gwStatus, &status.UpdateGWStatusConditionOptions{
+						Type:    "Pending",
+						Status:  corev1.ConditionTrue,
+						Reason:  "InvalidAddress",
+						Message: rest_op.Message,
+					})
+					status.UpdateGatewayStatusObject(gw, gwStatus)
+
+				} else if lib.UseServicesAPI() {
+					gw, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
+					if err != nil {
+						utils.AviLog.Warnf("key: %s, msg: Gateway object not found, skippig status update %v", key, err)
+						return err
+					}
+
+					gwStatus := gw.Status.DeepCopy()
+					status.UpdateSvcApiGatewayStatusGWCondition(gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
+						Type:    "Pending",
+						Status:  metav1.ConditionTrue,
+						Reason:  "InvalidAddress",
+						Message: rest_op.Message,
+					})
+					status.UpdateSvcApiGatewayStatusObject(gw, gwStatus)
+				}
 				utils.AviLog.Warnf("key: %s, msg: IPAddress Updates on gateway not supported, Please recreate gateway object with the new preferred IPAddress", key)
 				return errors.New(rest_op.Message)
 			}

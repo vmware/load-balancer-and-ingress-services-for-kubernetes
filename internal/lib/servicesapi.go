@@ -27,15 +27,15 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-var SvcAPICS svcapi.Interface
-var SvcAPIInformers *ServicesAPIInformers
+var svcAPICS svcapi.Interface
+var svcAPIInformers *ServicesAPIInformers
 
 func SetServicesAPIClientset(cs svcapi.Interface) {
-	SvcAPICS = cs
+	svcAPICS = cs
 }
 
 func GetServicesAPIClientset() svcapi.Interface {
-	return SvcAPICS
+	return svcAPICS
 }
 
 type ServicesAPIInformers struct {
@@ -44,11 +44,11 @@ type ServicesAPIInformers struct {
 }
 
 func SetSvcAPIsInformers(c *ServicesAPIInformers) {
-	SvcAPIInformers = c
+	svcAPIInformers = c
 }
 
 func GetSvcAPIInformers() *ServicesAPIInformers {
-	return SvcAPIInformers
+	return svcAPIInformers
 }
 
 func RemoveSvcApiGatewayFinalizer(gw *svcapiv1alpha1.Gateway) {

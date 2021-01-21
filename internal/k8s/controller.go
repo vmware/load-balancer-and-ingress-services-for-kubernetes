@@ -434,7 +434,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					checkSvcForSvcApiGatewayPortConflict(svc, key)
 				}
 			} else {
-				if lib.GetAdvancedL4() && lib.UseServicesAPI() {
+				if lib.GetAdvancedL4() || lib.UseServicesAPI() {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -467,7 +467,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isSvcLb {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
-				if lib.GetAdvancedL4() && lib.UseServicesAPI() {
+				if lib.GetAdvancedL4() || lib.UseServicesAPI() {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -496,7 +496,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						checkSvcForSvcApiGatewayPortConflict(svc, key)
 					}
 				} else {
-					if lib.GetAdvancedL4() && lib.UseServicesAPI() {
+					if lib.GetAdvancedL4() || lib.UseServicesAPI() {
 						return
 					}
 					key = utils.Service + "/" + utils.ObjKey(svc)
