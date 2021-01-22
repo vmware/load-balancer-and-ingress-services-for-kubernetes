@@ -65,7 +65,7 @@ func updateObject(mIngress *networkingv1beta1.Ingress, updateOption UpdateStatus
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			return errors.New("key: %s, msg: UpdateIngressStatus retried 3 times, aborting")
 		}
 	}
@@ -157,7 +157,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("key: %s, msg: Retrying to update the ingress status", key)
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			return errors.New("key: %s, msg: DeleteIngressStatus retried 3 times, aborting")
 		}
 	}
@@ -243,7 +243,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("msg: Retrying to get the ingress for status update")
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			utils.AviLog.Errorf("msg: getIngresses for status update retried 3 times, aborting")
 			return ingressMap
 		}
