@@ -275,7 +275,7 @@ func UpdateSvcApiGatewayStatusObject(gw *svcapiv1alpha1.Gateway, updateStatus *s
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 4 {
+		if retry >= 5 {
 			return errors.New("msg: UpdateGatewayStatus retried 5 times, aborting")
 		}
 	}

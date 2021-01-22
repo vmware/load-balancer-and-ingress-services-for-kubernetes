@@ -48,14 +48,15 @@ import (
 
 // constants to be used for creating K8s objs and verifying Avi objs
 const (
-	SINGLEPORTSVC   = "testsvc"                            // single port service name
-	MULTIPORTSVC    = "testsvcmulti"                       // multi port service name
-	NAMESPACE       = "red-ns"                             // namespace
-	AVINAMESPACE    = "admin"                              // avi namespace
-	AKOTENANT       = "akotenant"                          // ako tenant where TENANTS_PER_CLUSTER is enabled
-	SINGLEPORTMODEL = "admin/cluster--red-ns-testsvc"      // single port model name
-	MULTIPORTMODEL  = "admin/cluster--red-ns-testsvcmulti" // multi port model name
-	RANDOMUUID      = "random-uuid"                        // random avi object uuid
+	SINGLEPORTSVC       = "testsvc"                            // single port service name
+	MULTIPORTSVC        = "testsvcmulti"                       // multi port service name
+	NAMESPACE           = "red-ns"                             // namespace
+	AVINAMESPACE        = "admin"                              // avi namespace
+	AKOTENANT           = "akotenant"                          // ako tenant where TENANTS_PER_CLUSTER is enabled
+	SINGLEPORTMODEL     = "admin/cluster--red-ns-testsvc"      // single port model name
+	MULTIPORTMODEL      = "admin/cluster--red-ns-testsvcmulti" // multi port model name
+	RANDOMUUID          = "random-uuid"                        // random avi object uuid
+	defaultIngressClass = "avi-lb"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -77,7 +78,7 @@ func AddConfigMap() {
 func AddDefaultIngressClass() {
 	aviIngressClass := &networking.IngressClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "avi-lb",
+			Name: defaultIngressClass,
 			Annotations: map[string]string{
 				lib.DefaultIngressClassAnnotation: "true",
 			},
@@ -88,6 +89,10 @@ func AddDefaultIngressClass() {
 	}
 
 	KubeClient.NetworkingV1beta1().IngressClasses().Create(context.TODO(), aviIngressClass, metav1.CreateOptions{})
+}
+
+func RemoveDefaultIngressClass() {
+	KubeClient.NetworkingV1beta1().IngressClasses().Delete(context.TODO(), defaultIngressClass, metav1.DeleteOptions{})
 }
 
 //Fake Namespace
@@ -175,6 +180,7 @@ type FakeIngress struct {
 	HostNames    []string
 	Namespace    string
 	Name         string
+	ClassName    string
 	annotations  map[string]string
 	ServiceName  string
 	TlsSecretDNS map[string][]string
@@ -263,6 +269,9 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 			Hostname: hostname,
 		})
 	}
+	if ing.ClassName != "" {
+		ingress.Spec.IngressClassName = &ing.ClassName
+	}
 	return ingress
 }
 
@@ -313,6 +322,9 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 			Hostname: hostName,
 		})
 	}
+	if ing.ClassName != "" {
+		ingress.Spec.IngressClassName = &ing.ClassName
+	}
 	return ingress
 }
 
@@ -357,6 +369,9 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 			Hostname: hostName,
 		})
 	}
+	if ing.ClassName != "" {
+		ingress.Spec.IngressClassName = &ing.ClassName
+	}
 	return ingress
 }
 
@@ -376,6 +391,9 @@ func (ing FakeIngress) IngressOnlyHostNoBackend() *networking.Ingress {
 			HTTP: nil,
 		},
 	})
+	if ing.ClassName != "" {
+		ingress.Spec.IngressClassName = &ing.ClassName
+	}
 
 	return ingress
 }
@@ -395,6 +413,9 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
+	}
+	if ing.ClassName != "" {
+		ingress.Spec.IngressClassName = &ing.ClassName
 	}
 	for _, dnsName := range ing.DnsNames {
 		var ingrPaths []networking.HTTPIngressPath
