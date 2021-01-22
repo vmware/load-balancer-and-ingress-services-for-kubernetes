@@ -98,27 +98,29 @@ func parseOptionsFromMetadata(options []UpdateStatusOptions, bulk bool) ([]strin
 
 func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key string) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
-	gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
-		return err
+	if lib.GetAdvancedL4() {
+		gw, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
+			return err
+		}
+
+		if len(gw.Status.Addresses) == 0 || gw.Status.Addresses[0].Value == "" {
+			return nil
+		}
+
+		// assuming 1 IP per gateway
+		gwStatus := gw.Status.DeepCopy()
+		gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{}
+		UpdateGatewayStatusGWCondition(gwStatus, &UpdateGWStatusConditionOptions{
+			Type:   "Pending",
+			Status: corev1.ConditionTrue,
+			Reason: "virtualservice deleted/notfound",
+		})
+		UpdateGatewayStatusObject(gw, gwStatus)
+	} else if lib.UseServicesAPI() {
+		return DeleteSvcApiStatus(svcMetadataObj, key)
 	}
-
-	if len(gw.Status.Addresses) == 0 ||
-		(len(gw.Status.Addresses) > 0 && gw.Status.Addresses[0].Value == "") {
-		return nil
-	}
-
-	// assuming 1 IP per gateway
-	gwStatus := gw.Status.DeepCopy()
-	gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{}
-	UpdateGatewayStatusGWCondition(gwStatus, &UpdateGWStatusConditionOptions{
-		Type:   "Pending",
-		Status: corev1.ConditionTrue,
-		Reason: "virtualservice deleted/notfound",
-	})
-	UpdateGatewayStatusObject(gw, gwStatus)
-
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, svcMetadataObj.Gateway)
 	return nil
 }

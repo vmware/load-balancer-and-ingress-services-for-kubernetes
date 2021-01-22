@@ -454,6 +454,30 @@ func (c *AviController) FullSyncK8s() error {
 				}
 			}
 		}
+		if lib.UseServicesAPI() {
+			gatewayObjs, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways("").List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
+				return err
+			} else {
+				for _, gatewayObj := range gatewayObjs {
+					key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+					InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+
+			gwClassObjs, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
+				return err
+			} else {
+				for _, gwClassObj := range gwClassObjs {
+					key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+		}
 	} else {
 		//Gateway Section
 

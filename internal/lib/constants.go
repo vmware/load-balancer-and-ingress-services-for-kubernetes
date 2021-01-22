@@ -38,6 +38,7 @@ const (
 	L7_SHARD_SCHEME                            = "L7_SHARD_SCHEME"
 	DEFAULT_DOMAIN                             = "DEFAULT_DOMAIN"
 	ADVANCED_L4                                = "ADVANCED_L4"
+	SERVICES_API                               = "SERVICES_API"
 	CLUSTER_NAME                               = "CLUSTER_NAME"
 	CLUSTER_ID                                 = "CLUSTER_ID"
 	CLOUD_VCENTER                              = "CLOUD_VCENTER"

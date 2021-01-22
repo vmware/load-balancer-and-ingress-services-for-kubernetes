@@ -30,7 +30,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
 	var ingressFound, routeFound bool
 	var ingressNames, routeNames []string
-	utils.AviLog.Debugf("key: %s, msg: starting graph Sync", key)
+	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
@@ -92,7 +92,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		handleRoute(key, fullsync, routeNames)
 	}
 
-	if !ingressFound && !lib.GetAdvancedL4() {
+	if !ingressFound && (!lib.GetAdvancedL4() && !lib.UseServicesAPI()) {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
@@ -120,7 +120,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if lib.GetAdvancedL4() {
+	if lib.GetAdvancedL4() || lib.UseServicesAPI() && (objType == utils.L4LBService || objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints) {
 		if !valid && objType == utils.L4LBService {
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
 		}
@@ -156,23 +156,41 @@ func DequeueIngestion(key string, fullsync bool) {
 func isGatewayDelete(gatewayKey string, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := extractTypeNameNamespace(gatewayKey)
-	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-	if err != nil && errors.IsNotFound(err) {
-		return true
-	}
+	if lib.GetAdvancedL4() {
+		gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil && errors.IsNotFound(err) {
+			return true
+		}
 
-	// check if deletiontimesttamp is present to see intended delete
-	if gateway.GetDeletionTimestamp() != nil {
-		utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
-		return true
-	}
+		// check if deletiontimesttamp is present to see intended delete
+		if gateway.GetDeletionTimestamp() != nil {
+			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
+			return true
+		}
 
-	// Check if the gateway has a valid gateway class
-	err = validateGatewayForClass(key, gateway)
-	if err != nil {
-		return true
-	}
+		// Check if the gateway has a valid gateway class
+		err = validateGatewayForClass(key, gateway)
+		if err != nil {
+			return true
+		}
+	} else if lib.UseServicesAPI() {
+		gateway, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil && errors.IsNotFound(err) {
+			return true
+		}
 
+		// check if deletiontimesttamp is present to see intended delete
+		if gateway.GetDeletionTimestamp() != nil {
+			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
+			return true
+		}
+
+		// Check if the gateway has a valid gateway class
+		err = validateSvcApiGatewayForClass(key, gateway)
+		if err != nil {
+			return true
+		}
+	}
 	found, _ := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
 	if !found {
 		return true

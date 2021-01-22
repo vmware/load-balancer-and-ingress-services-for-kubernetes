@@ -430,8 +430,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				if lib.GetAdvancedL4() {
 					checkSvcForGatewayPortConflict(svc, key)
 				}
+				if lib.UseServicesAPI() {
+					checkSvcForSvcApiGatewayPortConflict(svc, key)
+				}
 			} else {
-				if lib.GetAdvancedL4() {
+				if lib.GetAdvancedL4() || lib.UseServicesAPI() {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -464,7 +467,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isSvcLb {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
-				if lib.GetAdvancedL4() {
+				if lib.GetAdvancedL4() || lib.UseServicesAPI() {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -489,8 +492,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					if lib.GetAdvancedL4() {
 						checkSvcForGatewayPortConflict(svc, key)
 					}
+					if lib.UseServicesAPI() {
+						checkSvcForSvcApiGatewayPortConflict(svc, key)
+					}
 				} else {
-					if lib.GetAdvancedL4() {
+					if lib.GetAdvancedL4() || lib.UseServicesAPI() {
 						return
 					}
 					key = utils.Service + "/" + utils.ObjKey(svc)
@@ -645,6 +651,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		// servicesAPI handlers GW/GWClass
 		c.SetupAdvL4EventHandlers(numWorkers)
 		return
+	}
+
+	if lib.UseServicesAPI() {
+		c.SetupSvcApiEventHandlers(numWorkers)
 	}
 
 	ingressEventHandler := cache.ResourceEventHandlerFuncs{
@@ -902,8 +912,20 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		if !cache.WaitForCacheSync(stopCh, lib.GetAdvL4Informers().GatewayInformer.Informer().HasSynced) {
 			runtime.HandleError(fmt.Errorf("Timed out waiting for Gateway caches to sync"))
 		}
-		utils.AviLog.Info("Service APIs caches synced")
+		utils.AviLog.Info("Service APIs v1alphapre1 caches synced")
 	} else {
+		if lib.UseServicesAPI() {
+			go lib.GetSvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)
+			go lib.GetSvcAPIInformers().GatewayInformer.Informer().Run(stopCh)
+
+			if !cache.WaitForCacheSync(stopCh, lib.GetSvcAPIInformers().GatewayClassInformer.Informer().HasSynced) {
+				runtime.HandleError(fmt.Errorf("Timed out waiting for GatewayClass caches to sync"))
+			}
+			if !cache.WaitForCacheSync(stopCh, lib.GetSvcAPIInformers().GatewayInformer.Informer().HasSynced) {
+				runtime.HandleError(fmt.Errorf("Timed out waiting for Gateway caches to sync"))
+			}
+			utils.AviLog.Info("Service APIs caches synced")
+		}
 		if c.informers.IngressInformer != nil {
 			go c.informers.IngressInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)

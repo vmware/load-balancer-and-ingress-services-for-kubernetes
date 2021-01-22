@@ -31,6 +31,7 @@ import (
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
 
 var (
@@ -228,18 +229,35 @@ func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
 	var allGateways []string
 	allGateways = append(allGateways, namespace+"/"+gwName)
-	gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-	if err != nil && k8serrors.IsNotFound(err) {
-		// Remove all the Gateway to Services mapping.
-		objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
-		objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
-	} else {
-		if gwListeners := parseGatewayForListeners(gateway, key); len(gwListeners) > 0 {
-			objects.ServiceGWLister().UpdateGWListeners(namespace+"/"+gwName, gwListeners)
-			objects.ServiceGWLister().UpdateGatewayGWclassMappings(namespace+"/"+gwName, gateway.Spec.Class)
-		} else {
-			objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
+	if lib.GetAdvancedL4() {
+		gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil && k8serrors.IsNotFound(err) {
+			// Remove all the Gateway to Services mapping.
 			objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
+			objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
+		} else {
+			if gwListeners := parseGatewayForListeners(gateway, key); len(gwListeners) > 0 {
+				objects.ServiceGWLister().UpdateGWListeners(namespace+"/"+gwName, gwListeners)
+				objects.ServiceGWLister().UpdateGatewayGWclassMappings(namespace+"/"+gwName, gateway.Spec.Class)
+			} else {
+				objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
+				objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
+			}
+		}
+	} else if lib.UseServicesAPI() {
+		gateway, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil && k8serrors.IsNotFound(err) {
+			// Remove all the Gateway to Services mapping.
+			objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
+			objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
+		} else {
+			if gwListeners := parseSvcApiGatewayForListeners(gateway, key); len(gwListeners) > 0 {
+				objects.ServiceGWLister().UpdateGWListeners(namespace+"/"+gwName, gwListeners)
+				objects.ServiceGWLister().UpdateGatewayGWclassMappings(namespace+"/"+gwName, gateway.Spec.GatewayClassName)
+			} else {
+				objects.ServiceGWLister().RemoveGatewayGWclassMappings(namespace + "/" + gwName)
+				objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
+			}
 		}
 	}
 
@@ -595,6 +613,18 @@ func parseGatewayForListeners(gateway *advl4v1alpha1pre1.Gateway, key string) []
 	return listeners
 }
 
+func parseSvcApiGatewayForListeners(gateway *svcapiv1alpha1.Gateway, key string) []string {
+	var listeners []string
+	for _, listener := range gateway.Spec.Listeners {
+		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.GatewayNameLabelKey]
+		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.GatewayNamespaceLabelKey]
+		if nameOk && nsOk && gwName == gateway.Name && gwNamespace == gateway.Namespace {
+			listeners = append(listeners, fmt.Sprintf("%s/%d", listener.Protocol, listener.Port))
+		}
+	}
+	return listeners
+}
+
 func validateGatewayForClass(key string, gateway *advl4v1alpha1pre1.Gateway) error {
 	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
 	if err != nil {
@@ -606,6 +636,33 @@ func validateGatewayForClass(key string, gateway *advl4v1alpha1pre1.Gateway) err
 	for _, listener := range gateway.Spec.Listeners {
 		gwName, nameOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNameLabelKey]
 		gwNamespace, nsOk := listener.Routes.RouteSelector.MatchLabels[lib.GatewayNamespaceLabelKey]
+		if !nameOk || !nsOk ||
+			(nameOk && gwName != gateway.Name) ||
+			(nsOk && gwNamespace != gateway.Namespace) {
+			return errors.New("Incorrect gateway matchLabels configuration")
+		}
+	}
+
+	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
+	if gwClassObj.Spec.Controller != lib.AviGatewayController {
+		// Return an error since this is not our object.
+		return errors.New("Unexpected controller")
+	}
+
+	return nil
+}
+
+func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) error {
+	gwClassObj, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gateway.Spec.GatewayClassName)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Unable to fetch corresponding networking.x-k8s.io/gatewayclass %s %v",
+			key, gateway.Spec.GatewayClassName, err)
+		return err
+	}
+
+	for _, listener := range gateway.Spec.Listeners {
+		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.GatewayNameLabelKey]
+		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.GatewayNamespaceLabelKey]
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
