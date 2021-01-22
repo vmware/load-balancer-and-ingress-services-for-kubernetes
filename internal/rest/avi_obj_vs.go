@@ -414,7 +414,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				} else {
 					vs_cache_obj.InvalidData = false
 				}
-
 				utils.AviLog.Debug(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.Gateway != "" {

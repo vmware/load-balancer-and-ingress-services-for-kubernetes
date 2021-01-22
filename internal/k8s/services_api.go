@@ -19,11 +19,15 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
+	svccrd "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
+
+	svcapiinformers "sigs.k8s.io/service-apis/pkg/client/informers/externalversions"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -34,6 +38,16 @@ import (
 
 // Services API related functions. Parking the functions on this file instead of creating a new one since most of the functionality is same with v1alpha1pre1
 
+func NewSvcApiInformers(cs svccrd.Interface) {
+	svcApiInfomerFactory := svcapiinformers.NewSharedInformerFactory(cs, time.Second*30)
+	gwClassInformer := svcApiInfomerFactory.Networking().V1alpha1().GatewayClasses()
+	gwInformer := svcApiInfomerFactory.Networking().V1alpha1().Gateways()
+	lib.SetSvcAPIsInformers(&lib.ServicesAPIInformers{
+		GatewayInformer:      gwInformer,
+		GatewayClassInformer: gwClassInformer,
+	})
+}
+
 func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gateway) {
 	gwStatus := gateway.Status.DeepCopy()
 	defer status.UpdateSvcApiGatewayStatusObject(gateway, gwStatus)
@@ -41,7 +55,7 @@ func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gate
 	gwClassObj, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gateway.Spec.GatewayClassName)
 	if err != nil {
 		status.UpdateSvcApiGatewayStatusGWCondition(gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
-			Type:    "Pending",
+			Type:    string(servicesapi.GatewayConditionScheduled),
 			Status:  metav1.ConditionTrue,
 			Message: fmt.Sprintf("Corresponding networking.x-k8s.io/gatewayclass not found %s", gateway.Spec.GatewayClassName),
 			Reason:  "InvalidGatewayClass",
@@ -55,10 +69,10 @@ func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gate
 		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.GatewayNameLabelKey]
 		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.GatewayNamespaceLabelKey]
 		if !nameOk || !nsOk ||
-			(nameOk && gwName != gateway.Name) ||
-			(nsOk && gwNamespace != gateway.Namespace) {
+			(gwName != gateway.Name) ||
+			(gwNamespace != gateway.Namespace) {
 			status.UpdateSvcApiGatewayStatusGWCondition(gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
-				Type:    "Pending",
+				Type:    string(servicesapi.GatewayConditionScheduled),
 				Status:  metav1.ConditionTrue,
 				Message: "Incorrect gateway matchLabels configuration",
 				Reason:  "InvalidMatchLabels",
@@ -71,7 +85,7 @@ func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gate
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
 		status.UpdateSvcApiGatewayStatusGWCondition(gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
-			Type:    "Pending",
+			Type:    string(servicesapi.GatewayConditionScheduled),
 			Status:  metav1.ConditionTrue,
 			Message: fmt.Sprintf("Unable to identify controller %s", gwClassObj.Spec.Controller),
 			Reason:  "UnidentifiedController",

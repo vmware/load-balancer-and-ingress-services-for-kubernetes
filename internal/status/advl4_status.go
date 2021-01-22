@@ -105,8 +105,7 @@ func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key 
 			return err
 		}
 
-		if len(gw.Status.Addresses) == 0 ||
-			(len(gw.Status.Addresses) > 0 && gw.Status.Addresses[0].Value == "") {
+		if len(gw.Status.Addresses) == 0 || gw.Status.Addresses[0].Value == "" {
 			return nil
 		}
 

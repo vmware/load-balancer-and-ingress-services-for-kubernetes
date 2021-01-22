@@ -21,6 +21,8 @@ import (
 
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 
+	utilsnet "k8s.io/utils/net"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -86,7 +88,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
 			portProto := strings.Split(listener, "/") // format: protocol/port
-			port, _ := strconv.ParseInt(portProto[1], 10, 64)
+			port, _ := utilsnet.ParsePort(portProto[1], true)
 			pp := AviPortHostProtocol{Port: int32(port), Protocol: portProto[0]}
 			portProtocols = append(portProtocols, pp)
 			if portProto[0] == "" || portProto[0] == utils.TCP {
@@ -149,7 +151,6 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 				Gateway:              namespace + "/" + gatewayName,
 			},
 		}
-
 		if lib.GetSEGName() != lib.DEFAULT_GROUP {
 			avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
 		}
@@ -207,7 +208,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		portProto := strings.Split(listener, "/") // format: protocol/port
 		// assume it to have only a single backed service, the check is in isGatewayDelete
 		svcNSName := strings.Split(svc[0], "/")
-		port, _ := strconv.ParseInt(portProto[1], 10, 64)
+		port, _ := utilsnet.ParsePort(portProto[1], true)
 
 		poolNode := &AviPoolNode{
 			Name:       lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, int32(port)),

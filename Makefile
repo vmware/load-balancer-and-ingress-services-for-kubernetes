@@ -106,6 +106,11 @@ multicloudtests:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast
 
+.PHONY: servicesapitests
+servicesapitests:
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/servicesapitests -failfast
+
 .PHONY: advl4tests
 advl4tests:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
@@ -118,7 +123,7 @@ namespacesynctests:
 
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests
+	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests
 
 .PHONY: scale_test
 scale_test:

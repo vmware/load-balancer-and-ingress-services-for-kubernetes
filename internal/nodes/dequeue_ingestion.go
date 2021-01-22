@@ -30,7 +30,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
 	var ingressFound, routeFound bool
 	var ingressNames, routeNames []string
-	utils.AviLog.Debugf("key: %s, msg: starting graph Sync", key)
+	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
@@ -92,7 +92,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		handleRoute(key, fullsync, routeNames)
 	}
 
-	if !ingressFound && !lib.GetAdvancedL4() {
+	if !ingressFound && (!lib.GetAdvancedL4() && !lib.UseServicesAPI()) {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
@@ -120,7 +120,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if lib.GetAdvancedL4() || lib.UseServicesAPI() && (objType == utils.L4LBService || objType == lib.Gateway || objType == lib.GatewayClass) {
+	if lib.GetAdvancedL4() || lib.UseServicesAPI() && (objType == utils.L4LBService || objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints) {
 		if !valid && objType == utils.L4LBService {
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
 		}

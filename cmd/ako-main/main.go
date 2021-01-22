@@ -26,7 +26,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
 	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
-	svcapiinformers "sigs.k8s.io/service-apis/pkg/client/informers/externalversions"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
@@ -134,13 +133,7 @@ func InitializeAKC() {
 	} else {
 		k8s.NewCRDInformers(crdClient)
 		if lib.UseServicesAPI() {
-			svcApiInfomerFactory := svcapiinformers.NewSharedInformerFactory(svcAPIClient, time.Second*30)
-			gwClassInformer := svcApiInfomerFactory.Networking().V1alpha1().GatewayClasses()
-			gwInformer := svcApiInfomerFactory.Networking().V1alpha1().Gateways()
-			lib.SetSvcAPIsInformers(&lib.ServicesAPIInformers{
-				GatewayInformer:      gwInformer,
-				GatewayClassInformer: gwClassInformer,
-			})
+			k8s.NewSvcApiInformers(svcAPIClient)
 		}
 	}
 
