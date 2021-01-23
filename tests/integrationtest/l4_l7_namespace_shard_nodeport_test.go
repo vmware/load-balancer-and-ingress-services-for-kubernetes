@@ -283,10 +283,6 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 
 	model_Name = "admin/cluster--Shared-L7-5"
 	PollForCompletion(t, model_Name, 5)
-	// time.Sleep(15 * time.Second)
-	// _, aviModel = objects.SharedAviGraphLister().Get(model_Name)
-	// nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	// fmt.Printf("HEY MAN %v\n", utils.Stringify(nodes))
 	g.Eventually(func() int {
 		if found, aviModel := objects.SharedAviGraphLister().Get(model_Name); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
