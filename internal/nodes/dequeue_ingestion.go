@@ -258,14 +258,14 @@ func handleIngress(key string, fullsync bool, ingressNames []string) {
 	objType, namespace, _ := extractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	if lib.GetShardScheme() == lib.NAMESPACE_SHARD_SCHEME {
-		shardVsName := DeriveNamespacedShardVS(namespace, key)
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			return
-		}
-		model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 		for _, ingress := range ingressNames {
 			nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
+			shardVsName := DeriveNamespacedShardVS(nsing, key)
+			if shardVsName == "" {
+				// If we aren't able to derive the ShardVS name, we should return
+				return
+			}
+			model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 			// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
 			// does not allow cross tenant ingress references.
 			utils.AviLog.Debugf("key: %s, msg: evaluating ingress: %s", key, ingress)

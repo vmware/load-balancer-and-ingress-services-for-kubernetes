@@ -30,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
@@ -281,7 +282,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			// Remove all the Ingress to Services mapping.
 			// Remove the references of this ingress from the Services
 			objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
-			objects.SharedSvcLister().IngressMappings("").RemoveIngressClassMappings(ingName)
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 	} else {
 		// simple validator check for duplicate hostpaths, logs Warning if duplicates found
@@ -291,9 +292,9 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 		}
 
 		if ingObj.Spec.IngressClassName != nil {
-			objects.SharedSvcLister().IngressMappings("").UpdateIngressClassMappings(namespace+"/"+ingName, *ingObj.Spec.IngressClassName)
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, *ingObj.Spec.IngressClassName)
 		} else {
-			objects.SharedSvcLister().IngressMappings("").RemoveIngressClassMappings(ingName)
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 
 		services := parseServicesForIngress(ingObj.Spec, key)
@@ -313,7 +314,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 }
 
 func IngClassToIng(ingClassName string, namespace string, key string) ([]string, bool) {
-	found, ingresses := objects.SharedSvcLister().IngressMappings("").GetClassToIng(ingClassName)
+	found, ingresses := objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).GetClassToIng(ingClassName)
 	return ingresses, found
 }
 

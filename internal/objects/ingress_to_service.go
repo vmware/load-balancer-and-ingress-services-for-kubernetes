@@ -184,11 +184,11 @@ func (v *SvcNSCache) UpdateSecretToIngMapping(secretName string, ingressList []s
 //=====All ingress class to ingress mapping methods are here.
 
 func (v *SvcNSCache) GetClassToIng(className string) (bool, []string) {
-	found, ingNames := v.classIngObject.Get(className)
+	found, ingNSNames := v.classIngObject.Get(className)
 	if !found {
 		return false, make([]string, 0)
 	}
-	return true, ingNames.([]string)
+	return true, ingNSNames.([]string)
 }
 
 func (v *SvcNSCache) DeleteClassToIngMapping(className string) bool {
@@ -415,36 +415,36 @@ func (v *SvcNSCache) RemoveIngressMappings(ingName string) {
 	v.DeleteIngToSvcMapping(ingName)
 }
 
-func (v *SvcNSCache) RemoveIngressSecretMappings(ingName string) {
+func (v *SvcNSCache) RemoveIngressSecretMappings(ingNSName string) {
 	v.IngressLock.Lock()
 	defer v.IngressLock.Unlock()
 	// Get all the secrets for the ingress
-	ok, secrets := v.GetIngToSecret(ingName)
+	ok, secrets := v.GetIngToSecret(ingNSName)
 	// Iterate and remove this ingress from the secret mappings
 	if ok {
 		for _, secret := range secrets {
 			found, ingresses := v.GetSecretToIng(secret)
 			if found {
-				ingresses = utils.Remove(ingresses, ingName)
+				ingresses = utils.Remove(ingresses, ingNSName)
 				// Update the secret mapping
 				v.UpdateSecretToIngMapping(secret, ingresses)
 			}
 		}
 	}
 	// Remove the ingress from the ingress --> secret map
-	v.DeleteIngToSecretMapping(ingName)
+	v.DeleteIngToSecretMapping(ingNSName)
 }
 
-func (v *SvcNSCache) RemoveIngressClassMappings(ingName string) {
+func (v *SvcNSCache) RemoveIngressClassMappings(ingNSName string) {
 	v.IngressLock.Lock()
 	defer v.IngressLock.Unlock()
-	ok, class := v.GetIngToClass(ingName)
+	ok, class := v.GetIngToClass(ingNSName)
 	if ok {
 		found, ingresses := v.GetClassToIng(class)
 		if found {
-			ingresses = utils.Remove(ingresses, ingName)
+			ingresses = utils.Remove(ingresses, ingNSName)
 			v.UpdateClassToIngMapping(class, ingresses)
 		}
 	}
-	v.DeleteIngToClassMapping(ingName)
+	v.DeleteIngToClassMapping(ingNSName)
 }
