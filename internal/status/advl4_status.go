@@ -219,7 +219,7 @@ func UpdateGatewayStatusObject(gw *advl4v1alpha1pre1.Gateway, updateStatus *advl
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 4 {
+		if retry >= 5 {
 			return errors.New("msg: UpdateGatewayStatus retried 5 times, aborting")
 		}
 	}
@@ -318,7 +318,7 @@ func getGateways(gwNSNames []string, bulk bool, retryNum ...int) map[string]*adv
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("msg: Retrying to get the gateway for status update")
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			utils.AviLog.Errorf("msg: getGateways for status update retried 3 times, aborting")
 			return gwMap
 		}
