@@ -115,7 +115,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("msg: Retrying to get the services for status update")
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			utils.AviLog.Errorf("msg: getServices for status update retried 3 times, aborting")
 			return serviceMap
 		}

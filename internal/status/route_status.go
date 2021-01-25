@@ -111,7 +111,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("msg: Retrying to get the routes for status update")
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			utils.AviLog.Errorf("msg: getRoutes for status update retried 3 times, aborting")
 			return routeMap
 		}
@@ -159,7 +159,7 @@ func UpdateRouteStatusWithErrMsg(routeName, namespace, msg string, retryNum ...i
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			return errors.New("msg: UpdateRouteStatus retried 3 times, aborting")
 		}
 	}
@@ -236,7 +236,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			return errors.New("key: %s, msg: UpdateRouteStatus retried 3 times, aborting")
 		}
 	}
@@ -372,7 +372,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("key: %s, msg: Retrying to update the route status", key)
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			return errors.New("key: %s, msg: DeleteRouteStatus retried 3 times, aborting")
 		}
 	}

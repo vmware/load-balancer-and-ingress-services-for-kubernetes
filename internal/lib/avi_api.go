@@ -29,7 +29,7 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			err := errors.New("msg: AviGetCollectionRaw retried 3 times, aborting")
 			return session.AviCollectionResult{}, err
 		}
@@ -51,7 +51,7 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			err := errors.New("msg: AviGet retried 3 times, aborting")
 			return err
 		}
@@ -72,7 +72,7 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			err := errors.New("msg: AviPut retried 3 times, aborting")
 			return err
 		}

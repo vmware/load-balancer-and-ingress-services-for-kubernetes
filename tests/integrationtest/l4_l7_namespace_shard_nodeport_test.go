@@ -240,28 +240,34 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	PollForCompletion(t, model_Name, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_Name)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
-		g.Expect(len(dsNodes)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
-		for _, pool := range nodes[0].PoolRefs {
-			// We should get two pools.
-			if strings.Contains(pool.Name, "foo.com.avi.internal_foo") {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
-				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-				// check if the port is set to nodeport and backed serverIP is pointing to nodeIP
-				g.Expect(pool.Port).To(gomega.Equal(nodePort))
-				g.Expect(pool.Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
+
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(model_Name); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 {
+				return len(nodes[0].PoolRefs)
 			}
 		}
-	} else {
-		t.Fatalf("Could not find model: %v", err)
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(1))
+	_, aviModel := objects.SharedAviGraphLister().Get(model_Name)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
+	g.Expect(len(dsNodes)).To(gomega.Equal(1))
+	for _, pool := range nodes[0].PoolRefs {
+		// We should get two pools.
+		if strings.Contains(pool.Name, "foo.com.avi.internal_foo") {
+			g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com.avi.internal/foo"))
+			g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+			// check if the port is set to nodeport and backed serverIP is pointing to nodeIP
+			g.Expect(pool.Port).To(gomega.Equal(nodePort))
+			g.Expect(pool.Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
+		}
 	}
+
 	randoming := (FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "randomNamespacethatyeildsdiff",
@@ -271,24 +277,30 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	_, err = KubeClient.NetworkingV1beta1().Ingresses("randomNamespacethatyeildsdiff").Create(context.TODO(), randoming, metav1.CreateOptions{})
-	model_Name = "admin/cluster--Shared-L7-5"
-	PollForCompletion(t, model_Name, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(model_Name)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
-		g.Expect(len(dsNodes)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(0))
-	} else {
-		t.Fatalf("Could not find model: %v", err)
-	}
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
+
+	model_Name = "admin/cluster--Shared-L7-5"
+	PollForCompletion(t, model_Name, 5)
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(model_Name); found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if len(nodes) > 0 && len(nodes[0].PoolRefs) > 0 {
+				return len(nodes[0].PoolRefs[0].Servers)
+			}
+		}
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(0))
+	_, aviModel = objects.SharedAviGraphLister().Get(model_Name)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	dsNodes = aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
+	g.Expect(len(dsNodes)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)

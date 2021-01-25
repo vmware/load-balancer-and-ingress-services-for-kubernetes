@@ -37,7 +37,7 @@ func UpdateHostRuleStatus(hr *akov1alpha1.HostRule, updateStatus UpdateCRDStatus
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			return errors.New("msg: UpdateHostRuleStatus retried 3 times, aborting")
 		}
 	}
@@ -68,7 +68,7 @@ func UpdateHTTPRuleStatus(rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatus
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
-		if retry >= 2 {
+		if retry >= 3 {
 			return errors.New("msg: UpdateHTTPRuleStatus retried 3 times, aborting")
 		}
 	}
