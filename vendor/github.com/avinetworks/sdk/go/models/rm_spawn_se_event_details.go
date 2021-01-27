@@ -16,6 +16,9 @@ type RmSpawnSeEventDetails struct {
 	// Unique object identifier of cloud.
 	CloudUUID *string `json:"cloud_uuid,omitempty"`
 
+	//  Field introduced in 20.1.2.
+	FlavorName *string `json:"flavor_name,omitempty"`
+
 	// host_name of RmSpawnSeEventDetails.
 	HostName *string `json:"host_name,omitempty"`
 

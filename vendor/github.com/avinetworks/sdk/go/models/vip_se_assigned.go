@@ -13,6 +13,12 @@ type VipSeAssigned struct {
 	// Placeholder for description of property connected of obj type VipSeAssigned field type str  type boolean
 	Connected *bool `json:"connected,omitempty"`
 
+	// Management IPv4 address of SE. Field introduced in 20.1.3.
+	MgmtIP *IPAddr `json:"mgmt_ip,omitempty"`
+
+	// Management IPv6 address of SE. Field introduced in 20.1.3.
+	MgmtIp6 *IPAddr `json:"mgmt_ip6,omitempty"`
+
 	// Name of the object.
 	Name *string `json:"name,omitempty"`
 

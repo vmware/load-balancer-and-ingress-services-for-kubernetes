@@ -11,9 +11,12 @@ type Subnet struct {
 	// Required: true
 	Prefix *IPAddrPrefix `json:"prefix"`
 
-	// Specify a pool of IP addresses for use in Service Engines.
+	// Static IP ranges for this subnet. Field introduced in 20.1.3.
+	StaticIPRanges []*StaticIPRange `json:"static_ip_ranges,omitempty"`
+
+	// Use static_ip_ranges. Field deprecated in 20.1.3.
 	StaticIps []*IPAddr `json:"static_ips,omitempty"`
 
-	// Placeholder for description of property static_ranges of obj type Subnet field type str  type object
+	// Use static_ip_ranges. Field deprecated in 20.1.3.
 	StaticRanges []*IPAddrRange `json:"static_ranges,omitempty"`
 }

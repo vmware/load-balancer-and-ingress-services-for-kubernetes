@@ -29,7 +29,7 @@ type GslbSite struct {
 	// This field enables the health monitor shard functionality on a site-basis. Field introduced in 18.2.2.
 	HmShardEnabled *bool `json:"hm_shard_enabled,omitempty"`
 
-	// IP Address(es) of the Site's Cluster. For a 3-node cluster, either the cluster vIP is provided, or the list of controller IPs in the cluster are provided.
+	// IP Address(es) of the Site's Cluster. For a 3-node cluster, either the cluster vIP is provided, or the list of controller IPs in the cluster are provided. Maximum of 3 items allowed.
 	IPAddresses []*IPAddr `json:"ip_addresses,omitempty"`
 
 	// Geographic location of the site. Field introduced in 17.1.1.

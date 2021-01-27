@@ -10,7 +10,7 @@ type IPAMDNSAwsProfile struct {
 	// AWS access key ID.
 	AccessKeyID *string `json:"access_key_id,omitempty"`
 
-	// A list of subnets used for source IP allocation for egress services in Openshift/k8s on Aws. Field introduced in 18.2.3.
+	// A list of subnets used for source IP allocation for egress services in Openshift/k8s on Aws. Field introduced in 18.2.3. Maximum of 1 items allowed.
 	EgressServiceSubnets []string `json:"egress_service_subnets,omitempty"`
 
 	// IAM assume role for cross-account access. Field introduced in 17.1.1.

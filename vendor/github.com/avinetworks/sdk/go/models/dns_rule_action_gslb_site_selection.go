@@ -7,7 +7,7 @@ package models
 // swagger:model DnsRuleActionGslbSiteSelection
 type DNSRuleActionGslbSiteSelection struct {
 
-	// GSLB fallback sites to use in case the desired site is down. Field introduced in 17.2.5.
+	// GSLB fallback sites to use in case the desired site is down. Field introduced in 17.2.5. Maximum of 64 items allowed.
 	FallbackSiteNames []string `json:"fallback_site_names,omitempty"`
 
 	// When set to true, GSLB site is a preferred site. This setting comes into play when the site is down, as well as no configured fallback site is available (all fallback sites are also down), then any one available site is selected based on the default algorithm for GSLB pool member selection. Field introduced in 17.2.5.

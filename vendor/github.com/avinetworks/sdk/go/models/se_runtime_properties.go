@@ -16,13 +16,13 @@ type SeRuntimeProperties struct {
 	// Control if dispatcher core also handles TCP flows in baremetal SE.
 	BaremetalDispatcherHandlesFlows *bool `json:"baremetal_dispatcher_handles_flows,omitempty"`
 
-	// Rate limit on maximum adf lossy log to pushper second.
+	// Rate limit on maximum adf lossy log to pushper second. Allowed in Basic(Allowed values- 1000) edition, Essentials(Allowed values- 1000) edition, Enterprise edition.
 	ConnectionsLossyLogRateLimiterThreshold *int32 `json:"connections_lossy_log_rate_limiter_threshold,omitempty"`
 
-	// Rate limit on maximum adf udf or nf log to pushper second.
+	// Rate limit on maximum adf udf or nf log to pushper second. Allowed in Basic(Allowed values- 1000) edition, Essentials(Allowed values- 1000) edition, Enterprise edition.
 	ConnectionsUdfnfLogRateLimiterThreshold *int32 `json:"connections_udfnf_log_rate_limiter_threshold,omitempty"`
 
-	// Disable Flow Probes for Scaled out VS'es. Field introduced in 17.1.1.
+	// Disable Flow Probes for Scaled out VS'es. (This field has been moved to se_group properties 20.1.3 onwards.). Field introduced in 17.1.1.
 	DisableFlowProbes *bool `json:"disable_flow_probes,omitempty"`
 
 	// Deprecated. Field deprecated in 17.2.5. Field introduced in 17.2.1.
@@ -37,16 +37,16 @@ type SeRuntimeProperties struct {
 	// Timeout for downstream to become writable. Unit is MILLISECONDS.
 	DownstreamSendTimeout *int32 `json:"downstream_send_timeout,omitempty"`
 
-	// Frequency of SE - SE HB messages when aggressive failure mode detection is enabled. Unit is MILLISECONDS.
+	// Frequency of SE - SE HB messages when aggressive failure mode detection is enabled. (This field has been moved to se_group properties 20.1.3 onwards). Unit is MILLISECONDS. Allowed in Basic(Allowed values- 100) edition, Essentials(Allowed values- 100) edition, Enterprise edition.
 	DpAggressiveHbFrequency *int32 `json:"dp_aggressive_hb_frequency,omitempty"`
 
-	// Consecutive HB failures after which failure is reported to controller,when aggressive failure mode detection is enabled.
+	// Consecutive HB failures after which failure is reported to controller,when aggressive failure mode detection is enabled. (This field has been moved to se_group properties 20.1.3 onwards). Allowed in Basic(Allowed values- 10) edition, Essentials(Allowed values- 10) edition, Enterprise edition.
 	DpAggressiveHbTimeoutCount *int32 `json:"dp_aggressive_hb_timeout_count,omitempty"`
 
-	// Frequency of SE - SE HB messages when aggressive failure mode detection is not enabled. Unit is MILLISECONDS.
+	// Frequency of SE - SE HB messages when aggressive failure mode detection is not enabled. (This field has been moved to se_group properties 20.1.3 onwards). Unit is MILLISECONDS.
 	DpHbFrequency *int32 `json:"dp_hb_frequency,omitempty"`
 
-	// Consecutive HB failures after which failure is reported to controller, when aggressive failure mode detection is not enabled.
+	// Consecutive HB failures after which failure is reported to controller, when aggressive failure mode detection is not enabled. (This field has been moved to se_group properties 20.1.3 onwards).
 	DpHbTimeoutCount *int32 `json:"dp_hb_timeout_count,omitempty"`
 
 	// Frequency of ARP requests sent by SE for each VIP to detect duplicate IP when it loses conectivity to controller. Unit is MILLISECONDS.
@@ -73,10 +73,10 @@ type SeRuntimeProperties struct {
 	// Overrides the MTU value received via DHCP or some other means. Use this when the infrastructure advertises an MTU that is not supported by all devices in the network. For example, in AWS or when an overlay is used.
 	GlobalMtu *int32 `json:"global_mtu,omitempty"`
 
-	// Enable Javascript console logs on the client browser when collecting client insights.
+	// Enable Javascript console logs on the client browser when collecting client insights. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	HTTPRumConsoleLog *bool `json:"http_rum_console_log,omitempty"`
 
-	// Minimum response size content length to sample for client insights.
+	// Minimum response size content length to sample for client insights. Allowed in Basic(Allowed values- 64) edition, Essentials(Allowed values- 64) edition, Enterprise edition.
 	HTTPRumMinContentLength *int32 `json:"http_rum_min_content_length,omitempty"`
 
 	// How often to push the LB IPC messages in the main loop. The value is the number of times the loop has to run before pushing the batch. i.e, a value of 1 means the batch is pushed every time the loop runs. Field deprecated in 18.1.3. Field introduced in 17.2.8.
@@ -211,7 +211,7 @@ type SeRuntimeProperties struct {
 	// Placeholder for description of property se_dp_compression of obj type SeRuntimeProperties field type str  type object
 	SeDpCompression *SeRuntimeCompressionProperties `json:"se_dp_compression,omitempty"`
 
-	// Internal only. Used to simulate SE - SE HB failure.
+	// Deprecated - This field has been moved to se_group properties 20.1.3 onwards. Internal only. Used to simulate SE - SE HB failure.
 	SeDpHmDrops *int32 `json:"se_dp_hm_drops,omitempty"`
 
 	// Number of jiffies between polling interface state.
@@ -256,10 +256,10 @@ type SeRuntimeProperties struct {
 	// Internal use only. Enables poisoning of freed memory blocks.
 	SeMemoryPoison *bool `json:"se_memory_poison,omitempty"`
 
-	// Internal use only. Frequency (ms) of metrics updates from SE to controller. Unit is MILLISECONDS.
+	// Internal use only. Frequency (ms) of metrics updates from SE to controller. Unit is MILLISECONDS. Allowed in Basic(Allowed values- 60000) edition, Essentials(Allowed values- 60000) edition, Enterprise edition.
 	SeMetricsInterval *int32 `json:"se_metrics_interval,omitempty"`
 
-	// Internal use only. Enable or disable real time metrics irrespective of virtualservice or SE group configuration.
+	// Internal use only. Enable or disable real time metrics irrespective of virtualservice or SE group configuration. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition. Special default for Basic edition is false, Essentials edition is false, Enterprise is True.
 	SeMetricsRtEnabled *bool `json:"se_metrics_rt_enabled,omitempty"`
 
 	// Internal use only. Frequency (ms) of realtime metrics updates from SE to controller. Unit is MILLISECONDS.
@@ -274,7 +274,7 @@ type SeRuntimeProperties struct {
 	// SE rate limiters.
 	SeRateLimiters *SeRateLimiters `json:"se_rate_limiters,omitempty"`
 
-	// IP ranges on which there may be virtual services (for configuring iptables/routes).
+	// IP ranges on which there may be virtual services (for configuring iptables/routes). Maximum of 128 items allowed.
 	ServiceIPSubnets []*IPAddrPrefix `json:"service_ip_subnets,omitempty"`
 
 	// Port ranges on which there may be virtual services (for configuring iptables). Applicable in container ecosystems like Mesos.
@@ -328,7 +328,7 @@ type SeRuntimeProperties struct {
 	// Timeout for data to be received from backend. Unit is MILLISECONDS.
 	UpstreamReadTimeout *int32 `json:"upstream_read_timeout,omitempty"`
 
-	// Timeout for upstream to become writable. Unit is MILLISECONDS.
+	// Timeout for upstream to become writable. Unit is MILLISECONDS. Allowed in Basic(Allowed values- 3600000) edition, Essentials(Allowed values- 3600000) edition, Enterprise edition.
 	UpstreamSendTimeout *int32 `json:"upstream_send_timeout,omitempty"`
 
 	// Defines in seconds how long before an unused user-defined-metric is garbage collected. Field introduced in 17.1.5. Unit is SEC.

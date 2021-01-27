@@ -23,6 +23,9 @@ type SecureChannelMapping struct {
 	// Placeholder for description of property marked_for_delete of obj type SecureChannelMapping field type str  type boolean
 	MarkedForDelete *bool `json:"marked_for_delete,omitempty"`
 
+	// Metadata associated with the SecureChannelToken of the service engine. Field introduced in 20.1.3.
+	Metadata []*SecureChannelMetadata `json:"metadata,omitempty"`
+
 	// Name of the object.
 	// Required: true
 	Name *string `json:"name"`

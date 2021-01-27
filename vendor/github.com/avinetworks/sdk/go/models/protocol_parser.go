@@ -14,7 +14,7 @@ type ProtocolParser struct {
 	// Description of the protocol parser. Field introduced in 18.2.3.
 	Description *string `json:"description,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name of the protocol parser. Field introduced in 18.2.3.

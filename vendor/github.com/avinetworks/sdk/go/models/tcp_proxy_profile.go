@@ -13,7 +13,7 @@ type TCPProxyProfile struct {
 	// Controls whether the windows are static or supports autogrowth. Maximum that it can grow to is limited to 4MB. Field introduced in 20.1.1.
 	AutoWindowGrowth *bool `json:"auto_window_growth,omitempty"`
 
-	// Dynamically pick the relevant parameters for connections.
+	// Dynamically pick the relevant parameters for connections. Allowed in Basic(Allowed values- true) edition, Enterprise edition.
 	Automatic *bool `json:"automatic,omitempty"`
 
 	// Controls the congestion control algorithm we use. Enum options - CC_ALGO_NEW_RENO, CC_ALGO_CUBIC, CC_ALGO_HTCP.

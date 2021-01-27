@@ -7,10 +7,10 @@ package models
 // swagger:model ProactiveSupportDefaults
 type ProactiveSupportDefaults struct {
 
-	// Opt-in to attach core dump with support case. Field introduced in 20.1.1.
+	// Opt-in to attach core dump with support case. Field introduced in 20.1.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	AttachCoreDump *bool `json:"attach_core_dump,omitempty"`
 
-	// Opt-in to attach tech support with support case. Field introduced in 20.1.1.
+	// Opt-in to attach tech support with support case. Field introduced in 20.1.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	AttachTechSupport *bool `json:"attach_tech_support,omitempty"`
 
 	// Case severity to be used for proactive support case creation. Field introduced in 20.1.1.

@@ -20,20 +20,19 @@ type WafPSMRule struct {
 	// The field match_value_pattern regular expression is case sensitive. Enum options - SENSITIVE, INSENSITIVE. Field introduced in 18.2.3.
 	MatchCase *string `json:"match_case,omitempty"`
 
-	// The match elements, for example ARGS id or ARGS|!ARGS password. Field introduced in 18.2.3.
+	// The match elements, for example ARGS id or ARGS|!ARGS password. Field introduced in 18.2.3. Maximum of 64 items allowed.
 	MatchElements []*WafPSMMatchElement `json:"match_elements,omitempty"`
 
 	// The maximum allowed length of the match_value. If this is not set, the length will not be checked. Field introduced in 18.2.3.
 	MatchValueMaxLength *int32 `json:"match_value_max_length,omitempty"`
 
 	// A regular expression which describes the expected value. Field introduced in 18.2.3.
-	// Required: true
-	MatchValuePattern *string `json:"match_value_pattern"`
+	MatchValuePattern *string `json:"match_value_pattern,omitempty"`
 
-	// If match_value_string_group_uuid and match_value_string_group_key are set, the referenced regular expression is used as match_value_pattern. Field introduced in 20.2.1.
+	// If match_value_string_group_uuid and match_value_string_group_key are set, the referenced regular expression is used as match_value_pattern. Field introduced in 20.1.3.
 	MatchValueStringGroupKey *string `json:"match_value_string_group_key,omitempty"`
 
-	// The UUID of a *string group containing key used in match_value_string_group_key. It is a reference to an object of type StringGroup. Field introduced in 20.2.1.
+	// The UUID of a *string group containing key used in match_value_string_group_key. It is a reference to an object of type StringGroup. Field introduced in 20.1.3.
 	MatchValueStringGroupRef *string `json:"match_value_string_group_ref,omitempty"`
 
 	// WAF Rule mode. This can be detection or enforcement. If this is not set, the Policy mode is used. This only takes effect if the policy allows delegation. Enum options - WAF_MODE_DETECTION_ONLY, WAF_MODE_ENFORCEMENT. Field introduced in 18.2.3.

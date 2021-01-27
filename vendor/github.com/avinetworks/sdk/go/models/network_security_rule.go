@@ -7,11 +7,11 @@ package models
 // swagger:model NetworkSecurityRule
 type NetworkSecurityRule struct {
 
-	//  Enum options - NETWORK_SECURITY_POLICY_ACTION_TYPE_ALLOW, NETWORK_SECURITY_POLICY_ACTION_TYPE_DENY, NETWORK_SECURITY_POLICY_ACTION_TYPE_RATE_LIMIT.
+	//  Enum options - NETWORK_SECURITY_POLICY_ACTION_TYPE_ALLOW, NETWORK_SECURITY_POLICY_ACTION_TYPE_DENY, NETWORK_SECURITY_POLICY_ACTION_TYPE_RATE_LIMIT. Allowed in Basic(Allowed values- NETWORK_SECURITY_POLICY_ACTION_TYPE_DENY) edition, Essentials(Allowed values- NETWORK_SECURITY_POLICY_ACTION_TYPE_DENY) edition, Enterprise edition.
 	// Required: true
 	Action *string `json:"action"`
 
-	// Time in minutes after which rule will be deleted. Allowed values are 1-4294967295. Special values are 0- 'blocked for ever'. Unit is MIN.
+	// Time in minutes after which rule will be deleted. Allowed values are 1-4294967295. Special values are 0- 'blocked for ever'. Unit is MIN. Allowed in Basic(Allowed values- 0) edition, Essentials(Allowed values- 0) edition, Enterprise edition.
 	Age *int32 `json:"age,omitempty"`
 
 	// Creator name.
@@ -25,7 +25,7 @@ type NetworkSecurityRule struct {
 	// Required: true
 	Index *int32 `json:"index"`
 
-	// Placeholder for description of property log of obj type NetworkSecurityRule field type str  type boolean
+	//  Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	Log *bool `json:"log,omitempty"`
 
 	// Placeholder for description of property match of obj type NetworkSecurityRule field type str  type object

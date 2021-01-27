@@ -139,6 +139,9 @@ type VserverL4MetricsObj struct {
 	// Rate of total errored connections per second.
 	AvgErroredConnections *float64 `json:"avg_errored_connections,omitempty"`
 
+	// Average rate of SYN DDoS attacks on Virtual Service.
+	AvgHalfOpenConns *float64 `json:"avg_half_open_conns,omitempty"`
+
 	// Average L4 connection duration which does not include client RTT.
 	AvgL4ClientLatency *float64 `json:"avg_l4_client_latency,omitempty"`
 
@@ -171,6 +174,9 @@ type VserverL4MetricsObj struct {
 
 	// Average rate of received packets dropped per second.
 	AvgRxPktsDropped *float64 `json:"avg_rx_pkts_dropped,omitempty"`
+
+	// Average rate of SYN DDoS attacks on Virtual Service.
+	AvgSynAttacks *float64 `json:"avg_syn_attacks,omitempty"`
 
 	// Total syncs sent across all connections.
 	AvgSyns *float64 `json:"avg_syns,omitempty"`

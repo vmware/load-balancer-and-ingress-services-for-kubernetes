@@ -3,7 +3,7 @@ cloud.google.com/go/compute/metadata
 # github.com/Masterminds/semver v1.5.0
 ## explicit
 github.com/Masterminds/semver
-# github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd
+# github.com/avinetworks/sdk v0.0.0-20210127001121-7d79efee089b
 ## explicit
 github.com/avinetworks/sdk/go/clients
 github.com/avinetworks/sdk/go/models
@@ -577,6 +577,7 @@ k8s.io/kube-openapi/pkg/util/proto
 ## explicit
 k8s.io/utils/buffer
 k8s.io/utils/integer
+k8s.io/utils/net
 k8s.io/utils/pointer
 k8s.io/utils/trace
 # sigs.k8s.io/controller-runtime v0.6.3
@@ -621,9 +622,11 @@ sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
 ## explicit
 sigs.k8s.io/service-apis/apis/v1alpha1
 sigs.k8s.io/service-apis/pkg/client/clientset/versioned
+sigs.k8s.io/service-apis/pkg/client/clientset/versioned/fake
 sigs.k8s.io/service-apis/pkg/client/clientset/versioned/scheme
 sigs.k8s.io/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1
-sigs.k8s.io/service-apis/pkg/client/informers/externalversions/
+sigs.k8s.io/service-apis/pkg/client/clientset/versioned/typed/apis/v1alpha1/fake
+sigs.k8s.io/service-apis/pkg/client/informers/externalversions
 sigs.k8s.io/service-apis/pkg/client/informers/externalversions/apis
 sigs.k8s.io/service-apis/pkg/client/informers/externalversions/apis/v1alpha1
 sigs.k8s.io/service-apis/pkg/client/informers/externalversions/internalinterfaces

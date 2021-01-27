@@ -34,13 +34,16 @@ type PortalConfiguration struct {
 	// HTTPS port.
 	HTTPSPort *int32 `json:"https_port,omitempty"`
 
+	// Minimum password length for user accounts. Allowed values are 6-32. Field introduced in 20.1.3.
+	MinimumPasswordLength *int32 `json:"minimum_password_length,omitempty"`
+
 	// Strict checking of password strength for user accounts.
 	PasswordStrengthCheck *bool `json:"password_strength_check,omitempty"`
 
 	// Placeholder for description of property redirect_to_https of obj type PortalConfiguration field type str  type boolean
 	RedirectToHTTPS *bool `json:"redirect_to_https,omitempty"`
 
-	// Certificates for system portal. Maximum 2 allowed. Leave list empty to use system default certs. It is a reference to an object of type SSLKeyAndCertificate.
+	// Certificates for system portal. Maximum 2 allowed. Leave list empty to use system default certs. It is a reference to an object of type SSLKeyAndCertificate. Maximum of 2 items allowed.
 	SslkeyandcertificateRefs []string `json:"sslkeyandcertificate_refs,omitempty"`
 
 	//  It is a reference to an object of type SSLProfile.

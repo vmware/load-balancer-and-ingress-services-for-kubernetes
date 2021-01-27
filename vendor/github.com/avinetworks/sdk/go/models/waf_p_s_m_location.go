@@ -21,6 +21,6 @@ type WafPSMLocation struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// A list of rules which should be applied on this location. Field introduced in 18.2.3.
+	// A list of rules which should be applied on this location. Field introduced in 18.2.3. Maximum of 1024 items allowed.
 	Rules []*WafPSMRule `json:"rules,omitempty"`
 }

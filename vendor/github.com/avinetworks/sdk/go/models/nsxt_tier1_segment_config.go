@@ -7,13 +7,13 @@ package models
 // swagger:model NsxtTier1SegmentConfig
 type NsxtTier1SegmentConfig struct {
 
-	// Avi controller creates and manages logical segments for a Tier-1 LR. Field introduced in 20.1.1.
+	// Avi controller creates and manages logical segments for a Tier-1 LR. Field introduced in 20.1.1. Allowed in Basic edition, Enterprise edition.
 	Automatic *NsxtTier1SegmentAutomaticMode `json:"automatic,omitempty"`
 
 	// Avi Admin selects an available logical segment (created by NSX-T admin) associated with a Tier-1 LR. Field introduced in 20.1.1.
 	Manual *NsxtTier1SegmentManualMode `json:"manual,omitempty"`
 
-	// Config Mode for selecting the placement logical segments for Avi ServiceEngine data path. Enum options - TIER1_SEGMENT_MANUAL, TIER1_SEGMENT_AUTOMATIC. Field introduced in 20.1.1.
+	// Config Mode for selecting the placement logical segments for Avi ServiceEngine data path. Enum options - TIER1_SEGMENT_MANUAL, TIER1_SEGMENT_AUTOMATIC. Field introduced in 20.1.1. Allowed in Basic(Allowed values- TIER1_SEGMENT_MANUAL) edition, Enterprise edition.
 	// Required: true
 	SegmentConfigMode *string `json:"segment_config_mode"`
 }

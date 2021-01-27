@@ -15,7 +15,10 @@ type NetworkRuntime struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// Unique object identifier of se.
+	// Objects using static IPs in this network. Field introduced in 20.1.3.
+	ObjUuids []string `json:"obj_uuids,omitempty"`
+
+	// Use obj_uuids. Field deprecated in 20.1.3.
 	SeUUID []string `json:"se_uuid,omitempty"`
 
 	// Placeholder for description of property subnet_runtime of obj type NetworkRuntime field type str  type object

@@ -23,10 +23,10 @@ type WafPolicyPSMGroup struct {
 	// This field indicates that this group is used for learning. Field introduced in 18.2.3.
 	IsLearningGroup *bool `json:"is_learning_group,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
-	// Positive Security Model locations. These are used to partition the application name space. Field introduced in 18.2.3.
+	// Positive Security Model locations. These are used to partition the application name space. Field introduced in 18.2.3. Maximum of 16384 items allowed.
 	Locations []*WafPSMLocation `json:"locations,omitempty"`
 
 	// If a rule in this group does not match the match_value pattern, this action will be executed. Allowed actions are WAF_ACTION_NO_OP and WAF_ACTION_BLOCK. Enum options - WAF_ACTION_NO_OP, WAF_ACTION_BLOCK, WAF_ACTION_ALLOW_PARAMETER. Field introduced in 18.2.3.

@@ -52,7 +52,7 @@ type Gslb struct {
 	// The user can specify a send-interval while entering maintenance mode. The validity of this 'maintenance send-interval' is only during maintenance mode. When the user leaves maintenance mode, the original send-interval is reinstated. This internal variable is used to store the original send-interval. . Field introduced in 18.2.3. Unit is SEC.
 	SendIntervalPriorToMaintenanceMode *int32 `json:"send_interval_prior_to_maintenance_mode,omitempty"`
 
-	// Select Avi site member belonging to this Gslb.
+	// Select Avi site member belonging to this Gslb. Minimum of 1 items required.
 	Sites []*GslbSite `json:"sites,omitempty"`
 
 	//  It is a reference to an object of type Tenant.

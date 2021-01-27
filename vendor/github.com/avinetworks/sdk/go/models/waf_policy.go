@@ -14,6 +14,9 @@ type WafPolicy struct {
 	// Allow Rules to overwrite the policy mode. This must be set if the policy mode is set to enforcement. Field introduced in 18.1.5, 18.2.1.
 	AllowModeDelegation *bool `json:"allow_mode_delegation,omitempty"`
 
+	// A set of rules which describe conditions under which the request will bypass the WAF. This will be processed in the request header phase before any other WAF related code. Field introduced in 20.1.3.
+	Allowlist *WafPolicyAllowlist `json:"allowlist,omitempty"`
+
 	// Application Specific Signatures. Field introduced in 20.1.1.
 	ApplicationSignatures *WafApplicationSignatures `json:"application_signatures,omitempty"`
 
@@ -41,7 +44,7 @@ type WafPolicy struct {
 	// WAF Policy failure mode. This can be 'Open' or 'Closed'. Enum options - WAF_FAILURE_MODE_OPEN, WAF_FAILURE_MODE_CLOSED. Field introduced in 18.1.2.
 	FailureMode *string `json:"failure_mode,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Configure parameters for WAF learning. Field deprecated in 18.2.3. Field introduced in 18.1.2.
@@ -90,6 +93,6 @@ type WafPolicy struct {
 	// Required: true
 	WafProfileRef *string `json:"waf_profile_ref"`
 
-	// A set of rules which describe conditions under which the request will bypass the WAF. This will be executed in the request header phase before any other WAF related code. Field introduced in 18.2.3.
+	// A set of rules which describe conditions under which the request will bypass the WAF. This will be executed in the request header phase before any other WAF related code. Field deprecated in 20.1.3. Field introduced in 18.2.3.
 	Whitelist *WafPolicyWhitelist `json:"whitelist,omitempty"`
 }

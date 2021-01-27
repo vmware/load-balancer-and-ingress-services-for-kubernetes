@@ -2,7 +2,7 @@ module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd
+	github.com/avinetworks/sdk v0.0.0-20210127001121-7d79efee089b
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-logr/logr v0.3.0
 	github.com/go-logr/zapr v0.3.0 // indirect

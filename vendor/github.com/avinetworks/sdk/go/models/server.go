@@ -7,7 +7,7 @@ package models
 // swagger:model Server
 type Server struct {
 
-	// Name of autoscaling group this server belongs to. Field introduced in 17.1.2.
+	// Name of autoscaling group this server belongs to. Field introduced in 17.1.2. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	AutoscalingGroupName *string `json:"autoscaling_group_name,omitempty"`
 
 	// Availability-zone of the server VM.
@@ -41,7 +41,7 @@ type Server struct {
 	// Required: true
 	IP *IPAddr `json:"ip"`
 
-	// (internal-use) Geographic location of the server.Currently only for internal usage. Field introduced in 17.1.1.
+	// (internal-use) Geographic location of the server.Currently only for internal usage. Field introduced in 17.1.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	Location *GeoLocation `json:"location,omitempty"`
 
 	// MAC address of server.
@@ -59,7 +59,7 @@ type Server struct {
 	// Ratio of selecting eligible servers in the pool. Allowed values are 1-20.
 	Ratio *int32 `json:"ratio,omitempty"`
 
-	// Auto resolve server's IP using DNS name.
+	// Auto resolve server's IP using DNS name. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	ResolveServerByDNS *bool `json:"resolve_server_by_dns,omitempty"`
 
 	// Rewrite incoming Host Header to server name.

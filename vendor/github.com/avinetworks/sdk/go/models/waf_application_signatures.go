@@ -18,6 +18,6 @@ type WafApplicationSignatures struct {
 	// Read Only: true
 	RulesetVersion *string `json:"ruleset_version,omitempty"`
 
-	// List of applications for which we use the rules from the WafApplicationSignatureProvider. Field introduced in 20.1.1.
+	// List of applications for which we use the rules from the WafApplicationSignatureProvider. Field introduced in 20.1.1. Maximum of 8 items allowed.
 	SelectedApplications []string `json:"selected_applications,omitempty"`
 }

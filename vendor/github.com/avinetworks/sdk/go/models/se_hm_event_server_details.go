@@ -10,6 +10,9 @@ type SeHmEventServerDetails struct {
 	// Placeholder for description of property app_info of obj type SeHmEventServerDetails field type str  type object
 	AppInfo []*AppInfo `json:"app_info,omitempty"`
 
+	// Server description.
+	Description *string `json:"description,omitempty"`
+
 	// Healthmonitor Failure code. Enum options - ARP_UNRESOLVED, CONNECTION_REFUSED, CONNECTION_TIMEOUT, RESPONSE_CODE_MISMATCH, PAYLOAD_CONTENT_MISMATCH, SERVER_UNREACHABLE, CONNECTION_RESET, CONNECTION_ERROR, HOST_ERROR, ADDRESS_ERROR, NO_PORT, PAYLOAD_TIMEOUT, NO_RESPONSE, NO_RESOURCES, SSL_ERROR, SSL_CERT_ERROR, PORT_UNREACHABLE, SCRIPT_ERROR, OTHER_ERROR, SERVER_DISABLED...
 	FailureCode *string `json:"failure_code,omitempty"`
 

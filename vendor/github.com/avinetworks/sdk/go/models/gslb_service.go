@@ -23,7 +23,7 @@ type GslbService struct {
 	// User defined description for the object.
 	Description *string `json:"description,omitempty"`
 
-	// Fully qualified domain name of the GSLB service.
+	// Fully qualified domain name of the GSLB service. Minimum of 1 items required.
 	DomainNames []string `json:"domain_names,omitempty"`
 
 	// Response to the client query when the GSLB service is DOWN.
@@ -32,10 +32,10 @@ type GslbService struct {
 	// Enable or disable the GSLB service. If the GSLB service is enabled, then the VIPs are sent in the DNS responses based on reachability and configured algorithm. If the GSLB service is disabled, then the VIPs are no longer available in the DNS response.
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// Select list of pools belonging to this GSLB service.
+	// Select list of pools belonging to this GSLB service. Minimum of 1 items required.
 	Groups []*GslbPool `json:"groups,omitempty"`
 
-	// Verify VS health by applying one or more health monitors.  Active monitors generate synthetic traffic from DNS Service Engine and to mark a VS up or down based on the response. . It is a reference to an object of type HealthMonitor.
+	// Verify VS health by applying one or more health monitors.  Active monitors generate synthetic traffic from DNS Service Engine and to mark a VS up or down based on the response. . It is a reference to an object of type HealthMonitor. Maximum of 6 items allowed.
 	HealthMonitorRefs []string `json:"health_monitor_refs,omitempty"`
 
 	// Health monitor probe can be executed for all the members or it can be executed only for third-party members. This operational mode is useful to reduce the number of health monitor probes in case of a hybrid scenario. In such a case, Avi members can have controller derived status while Non-Avi members can be probed by via health monitor probes in dataplane. Enum options - GSLB_SERVICE_HEALTH_MONITOR_ALL_MEMBERS, GSLB_SERVICE_HEALTH_MONITOR_ONLY_NON_AVI_MEMBERS.
@@ -47,7 +47,7 @@ type GslbService struct {
 	// This field indicates that this object is replicated across GSLB federation. Field introduced in 17.1.3.
 	IsFederated *bool `json:"is_federated,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// The minimum number of members to distribute traffic to. Allowed values are 1-65535. Special values are 0 - 'Disable'. Field introduced in 17.2.4.

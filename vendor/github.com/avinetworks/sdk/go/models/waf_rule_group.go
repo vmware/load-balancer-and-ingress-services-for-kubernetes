@@ -11,7 +11,7 @@ type WafRuleGroup struct {
 	// Required: true
 	Enable *bool `json:"enable"`
 
-	// Exclude list for the WAF rule group. The fields in the exclude list entry are logically and'ed to deduce the exclusion criteria. If there are multiple excludelist entries, it will be 'logical or' of them. Field introduced in 17.2.1.
+	// Exclude list for the WAF rule group. The fields in the exclude list entry are logically and'ed to deduce the exclusion criteria. If there are multiple excludelist entries, it will be 'logical or' of them. Field introduced in 17.2.1. Maximum of 64 items allowed.
 	ExcludeList []*WafExcludeListEntry `json:"exclude_list,omitempty"`
 
 	// When set to 'true', any rule in this group will not cause 'deny' or 'redirect' actions to run, even if WAF Policy is set to enforcement mode. The behavior would be as if this rule operated in detection mode regardless of WAF Policy setting. Field deprecated in 18.1.5. Field introduced in 18.1.4.
@@ -25,6 +25,6 @@ type WafRuleGroup struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// Rules as per Modsec language. Field introduced in 17.2.1.
+	// Rules as per Modsec language. Field introduced in 17.2.1. Maximum of 1024 items allowed.
 	Rules []*WafRule `json:"rules,omitempty"`
 }

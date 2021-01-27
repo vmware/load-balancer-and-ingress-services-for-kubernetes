@@ -22,10 +22,10 @@ type RoutingService struct {
 	// Use Virtual MAC address for interfaces on which floating interface IPs are placed. Field introduced in 18.2.5.
 	EnableVMAC *bool `json:"enable_vmac,omitempty"`
 
-	// Floating Interface IPs for the RoutingService. Field introduced in 18.2.5.
+	// Floating Interface IPs for the RoutingService. Field introduced in 18.2.5. Maximum of 32 items allowed.
 	FloatingIntfIP []*IPAddr `json:"floating_intf_ip,omitempty"`
 
-	// If ServiceEngineGroup is configured for Legacy 1+1 Active Standby HA Mode, Floating IP's will be advertised only by the Active SE in the Pair. Virtual Services in this group must be disabled/enabled for any changes to the Floating IP's to take effect. Only active SE hosting VS tagged with Active Standby SE 2 Tag will advertise this floating IP when manual load distribution is enabled. Field introduced in 18.2.5.
+	// If ServiceEngineGroup is configured for Legacy 1+1 Active Standby HA Mode, Floating IP's will be advertised only by the Active SE in the Pair. Virtual Services in this group must be disabled/enabled for any changes to the Floating IP's to take effect. Only active SE hosting VS tagged with Active Standby SE 2 Tag will advertise this floating IP when manual load distribution is enabled. Field introduced in 18.2.5. Maximum of 32 items allowed.
 	FloatingIntfIPSe2 []*IPAddr `json:"floating_intf_ip_se_2,omitempty"`
 
 	// Routing Service related Flow profile information. Field introduced in 18.2.5.

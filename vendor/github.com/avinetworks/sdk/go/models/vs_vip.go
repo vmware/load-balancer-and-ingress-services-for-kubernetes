@@ -14,13 +14,16 @@ type VsVip struct {
 	//  It is a reference to an object of type Cloud. Field introduced in 17.1.1.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
-	// Service discovery specific data including fully qualified domain name, type and Time-To-Live of the DNS record. Field introduced in 17.1.1.
+	// Service discovery specific data including fully qualified domain name, type and Time-To-Live of the DNS record. Field introduced in 17.1.1. Maximum of 1000 items allowed. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	DNSInfo []*DNSInfo `json:"dns_info,omitempty"`
 
-	// Force placement on all Service Engines in the Service Engine Group (Container clouds only). Field introduced in 17.1.1.
+	// Force placement on all Service Engines in the Service Engine Group (Container clouds only). Field introduced in 17.1.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	EastWestPlacement *bool `json:"east_west_placement,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Determines the set of IPAM networks to use for this VsVip. Selector type must be SELECTOR_IPAM and only one label is supported. Field introduced in 20.1.3.
+	IPAMSelector *Selector `json:"ipam_selector,omitempty"`
+
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name for the VsVip object. Field introduced in 17.1.1.
@@ -37,7 +40,7 @@ type VsVip struct {
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// This overrides the cloud level default and needs to match the SE Group value in which it will be used if the SE Group use_standard_alb value is set. This is only used when FIP is used for VS on Azure Cloud. Field introduced in 18.2.3.
+	// This overrides the cloud level default and needs to match the SE Group value in which it will be used if the SE Group use_standard_alb value is set. This is only used when FIP is used for VS on Azure Cloud. Field introduced in 18.2.3. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	UseStandardAlb *bool `json:"use_standard_alb,omitempty"`
 
 	// UUID of the VsVip object. Field introduced in 17.1.1.

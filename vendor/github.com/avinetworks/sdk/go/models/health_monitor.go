@@ -11,16 +11,16 @@ type HealthMonitor struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// By default, multiple instances of the same healthmonitor to the same server are suppressed intelligently. In rare cases, the monitor may have specific constructs that go beyond the server keys (ip, port, etc.) during which such suppression is not desired. Use this knob to allow duplicates. Field introduced in 18.2.8.
+	// By default, multiple instances of the same healthmonitor to the same server are suppressed intelligently. In rare cases, the monitor may have specific constructs that go beyond the server keys (ip, port, etc.) during which such suppression is not desired. Use this knob to allow duplicates. Field introduced in 18.2.8. Allowed in Basic(Allowed values- true) edition, Essentials(Allowed values- true) edition, Enterprise edition.
 	AllowDuplicateMonitors *bool `json:"allow_duplicate_monitors,omitempty"`
 
-	// Authentication information for username/password. Field introduced in 20.1.1.
+	// Authentication information for username/password. Field introduced in 20.1.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	Authentication *HealthMonitorAuthInfo `json:"authentication,omitempty"`
 
 	// User defined description for the object.
 	Description *string `json:"description,omitempty"`
 
-	// During addition of a server or healthmonitors or during bootup, Avi performs sequential health checks rather than waiting for send-interval to kick in, to mark the server up as soon as possible. This knob may be used to turn this feature off. Field introduced in 18.2.7.
+	// During addition of a server or healthmonitors or during bootup, Avi performs sequential health checks rather than waiting for send-interval to kick in, to mark the server up as soon as possible. This knob may be used to turn this feature off. Field introduced in 18.2.7. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	DisableQuickstart *bool `json:"disable_quickstart,omitempty"`
 
 	// Placeholder for description of property dns_monitor of obj type HealthMonitor field type str  type object
@@ -38,7 +38,7 @@ type HealthMonitor struct {
 	// Placeholder for description of property https_monitor of obj type HealthMonitor field type str  type object
 	HTTPSMonitor *HealthMonitorHTTP `json:"https_monitor,omitempty"`
 
-	// This field describes the object's replication scope. If the field is set to false, then the object is visible within the controller-cluster and its associated service-engines.  If the field is set to true, then the object is replicated across the federation.  . Field introduced in 17.1.3.
+	// This field describes the object's replication scope. If the field is set to false, then the object is visible within the controller-cluster and its associated service-engines.  If the field is set to true, then the object is replicated across the federation.  . Field introduced in 17.1.3. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	IsFederated *bool `json:"is_federated,omitempty"`
 
 	// Use this port instead of the port defined for the server in the Pool. If the monitor succeeds to this port, the load balanced traffic will still be sent to the port of the server defined within the Pool. Allowed values are 1-65535. Special values are 0 - 'Use server port'.
@@ -48,7 +48,7 @@ type HealthMonitor struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// Health monitor for Radius. Field introduced in 18.2.3.
+	// Health monitor for Radius. Field introduced in 18.2.3. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	RadiusMonitor *HealthMonitorRadius `json:"radius_monitor,omitempty"`
 
 	// A valid response from the server is expected within the receive timeout window.  This timeout must be less than the send interval.  If server status is regularly flapping up and down, consider increasing this value. Allowed values are 1-2400. Unit is SEC.
@@ -57,7 +57,7 @@ type HealthMonitor struct {
 	// Frequency, in seconds, that monitors are sent to a server. Allowed values are 1-3600. Unit is SEC.
 	SendInterval *int32 `json:"send_interval,omitempty"`
 
-	// Health monitor for SIP. Field introduced in 17.2.8, 18.1.3, 18.2.1.
+	// Health monitor for SIP. Field introduced in 17.2.8, 18.1.3, 18.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	SipMonitor *HealthMonitorSIP `json:"sip_monitor,omitempty"`
 
 	// Number of continuous successful health checks before server is marked up. Allowed values are 1-50.
@@ -69,7 +69,7 @@ type HealthMonitor struct {
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// Type of the health monitor. Enum options - HEALTH_MONITOR_PING, HEALTH_MONITOR_TCP, HEALTH_MONITOR_HTTP, HEALTH_MONITOR_HTTPS, HEALTH_MONITOR_EXTERNAL, HEALTH_MONITOR_UDP, HEALTH_MONITOR_DNS, HEALTH_MONITOR_GSLB, HEALTH_MONITOR_SIP, HEALTH_MONITOR_RADIUS.
+	// Type of the health monitor. Enum options - HEALTH_MONITOR_PING, HEALTH_MONITOR_TCP, HEALTH_MONITOR_HTTP, HEALTH_MONITOR_HTTPS, HEALTH_MONITOR_EXTERNAL, HEALTH_MONITOR_UDP, HEALTH_MONITOR_DNS, HEALTH_MONITOR_GSLB, HEALTH_MONITOR_SIP, HEALTH_MONITOR_RADIUS. Allowed in Basic(Allowed values- HEALTH_MONITOR_PING,HEALTH_MONITOR_TCP,HEALTH_MONITOR_UDP,HEALTH_MONITOR_HTTP,HEALTH_MONITOR_HTTPS) edition, Essentials(Allowed values- HEALTH_MONITOR_PING,HEALTH_MONITOR_TCP,HEALTH_MONITOR_UDP) edition, Enterprise edition.
 	// Required: true
 	Type *string `json:"type"`
 

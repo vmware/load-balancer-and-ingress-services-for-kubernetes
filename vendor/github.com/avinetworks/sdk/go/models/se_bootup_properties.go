@@ -22,7 +22,7 @@ type SeBootupProperties struct {
 	// Enable or disable fair queueing for packet transmission among virtualservices on an SE.
 	FairQueueingEnabled *bool `json:"fair_queueing_enabled,omitempty"`
 
-	// Granularity or Resolution of co-ordinates used. When the value is 1 the co-ordinates provided in the geo-db are used as is (highest resolution.This value provides a 'zoom-out' value so that coarser co-ordinates are used. With higher resolution, logs can contain finer location information. But, lower resolution provides significant memory and cpu benefits on the service engine. Besides, given a smaller number of members that are separated geographically, a lower resolution is sufficient for correct load-balancing. Allowed values are 1-20. Field introduced in 17.1.1.
+	// Granularity or Resolution of co-ordinates used. When the value is 1 the co-ordinates provided in the geo-db are used as is (highest resolution.This value provides a 'zoom-out' value so that coarser co-ordinates are used. With higher resolution, logs can contain finer location information. But, lower resolution provides significant memory and cpu benefits on the service engine. Besides, given a smaller number of members that are separated geographically, a lower resolution is sufficient for correct load-balancing. Allowed values are 1-20. Field introduced in 17.1.1. Allowed in Basic(Allowed values- 1) edition, Essentials(Allowed values- 1) edition, Enterprise edition.
 	GeoDbGranularity *int32 `json:"geo_db_granularity,omitempty"`
 
 	// Number of L7 connections that can be cached per core.
@@ -43,13 +43,13 @@ type SeBootupProperties struct {
 	// This field has been moved to se_group properties 18.1.2 onwards. Field deprecated in 18.1.3.
 	SeDpdkPmd *int32 `json:"se_dpdk_pmd,omitempty"`
 
-	// Use this to emulate more/less cpus than is actually available. One datapath process is started for each core.
+	// Use this to emulate more/less cpus than is actually available. One datapath process is started for each core. Allowed in Basic(Allowed values- 0) edition, Essentials(Allowed values- 0) edition, Enterprise edition.
 	SeEmulatedCores *int32 `json:"se_emulated_cores,omitempty"`
 
-	// Determines if SE-SE IPC messages are encapsulated in an IP header       0        Automatically determine based on hypervisor type    1        Use IP encap unconditionally    ~[0,1]   Don't use IP encap.
+	// Determines if SE-SE IPC messages are encapsulated in an IP header   Note  This field has been moved to se_group properties 20.1.3 onwards.    0        Automatically determine based on hypervisor type    1        Use IP encap unconditionally    ~[0,1]   Don't use IP encap.
 	SeIPEncapIpc *int32 `json:"se_ip_encap_ipc,omitempty"`
 
-	// Determines if SE-SE IPC messages use SE interface IP instead of VIP        0        Automatically determine based on hypervisor type    1        Use SE interface IP unconditionally    ~[0,1]   Don't use SE interface IP.
+	// Determines if SE-SE IPC messages use SE interface IP instead of VIP    Note  This field has been moved to se_group properties 20.1.3 onwards.    0        Automatically determine based on hypervisor type    1        Use SE interface IP unconditionally    ~[0,1]   Don't use SE interface IP.
 	SeL3EncapIpc *int32 `json:"se_l3_encap_ipc,omitempty"`
 
 	// Internal flag that blocks dataplane until all application logs are flushed to log-agent process.

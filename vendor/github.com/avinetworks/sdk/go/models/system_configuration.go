@@ -14,7 +14,10 @@ type SystemConfiguration struct {
 	// Placeholder for description of property admin_auth_configuration of obj type SystemConfiguration field type str  type object
 	AdminAuthConfiguration *AdminAuthConfiguration `json:"admin_auth_configuration,omitempty"`
 
-	// Specifies the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC. Field introduced in 17.2.5.
+	// Enable Common Criteria Compliance mode (Disabled by default). WARN  Toggling this field is disruptive and will result in reduced behavior with SSH and TLS protocols. Expect possible warm start of control and data planes. Field introduced in 20.1.3.
+	CommonCriteriaMode *bool `json:"common_criteria_mode,omitempty"`
+
+	// Specifies the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS. Field introduced in 17.2.5. Allowed in Basic edition, Essentials edition, Enterprise edition. Special default for Basic edition is BASIC, Essentials edition is ESSENTIALS, Enterprise is ENTERPRISE.
 	DefaultLicenseTier *string `json:"default_license_tier,omitempty"`
 
 	// Placeholder for description of property dns_configuration of obj type SystemConfiguration field type str  type object
@@ -28,6 +31,9 @@ type SystemConfiguration struct {
 
 	// Placeholder for description of property email_configuration of obj type SystemConfiguration field type str  type object
 	EmailConfiguration *EmailConfiguration `json:"email_configuration,omitempty"`
+
+	// Enable CORS Header. Field introduced in 20.1.3.
+	EnableCors *bool `json:"enable_cors,omitempty"`
 
 	// Enable FIPS mode. Field introduced in 20.1.1.
 	FipsMode *bool `json:"fips_mode,omitempty"`

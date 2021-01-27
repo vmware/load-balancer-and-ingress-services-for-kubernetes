@@ -32,7 +32,7 @@ type Pool struct {
 	// Persistence will ensure the same user sticks to the same server for a desired duration of time. It is a reference to an object of type ApplicationPersistenceProfile.
 	ApplicationPersistenceProfileRef *string `json:"application_persistence_profile_ref,omitempty"`
 
-	// If configured then Avi will trigger orchestration of pool server creation and deletion. It is only supported for container clouds like Mesos, Opensift, Kubernates, Docker etc. It is a reference to an object of type AutoScaleLaunchConfig.
+	// If configured then Avi will trigger orchestration of pool server creation and deletion. It is a reference to an object of type AutoScaleLaunchConfig.
 	AutoscaleLaunchConfigRef *string `json:"autoscale_launch_config_ref,omitempty"`
 
 	// Network Ids for the launch configuration.
@@ -41,10 +41,10 @@ type Pool struct {
 	// Reference to Server Autoscale Policy. It is a reference to an object of type ServerAutoScalePolicy.
 	AutoscalePolicyRef *string `json:"autoscale_policy_ref,omitempty"`
 
-	// Inline estimation of capacity of servers.
+	// Inline estimation of capacity of servers. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	CapacityEstimation *bool `json:"capacity_estimation,omitempty"`
 
-	// The maximum time-to-first-byte of a server. Allowed values are 1-5000. Special values are 0 - 'Automatic'. Unit is MILLISECONDS.
+	// The maximum time-to-first-byte of a server. Allowed values are 1-5000. Special values are 0 - 'Automatic'. Unit is MILLISECONDS. Allowed in Basic(Allowed values- 0) edition, Essentials(Allowed values- 0) edition, Enterprise edition.
 	CapacityEstimationTtfbThresh *int32 `json:"capacity_estimation_ttfb_thresh,omitempty"`
 
 	// Checksum of cloud configuration for Pool. Internally set by cloud connector.
@@ -56,7 +56,7 @@ type Pool struct {
 	// Connnection pool properties. Field introduced in 18.2.1.
 	ConnPoolProperties *ConnPoolProperties `json:"conn_pool_properties,omitempty"`
 
-	// Duration for which new connections will be gradually ramped up to a server recently brought online.  Useful for LB algorithms that are least connection based. Allowed values are 1-300. Special values are 0 - 'Immediate'. Unit is MIN.
+	// Duration for which new connections will be gradually ramped up to a server recently brought online.  Useful for LB algorithms that are least connection based. Allowed values are 1-300. Special values are 0 - 'Immediate'. Unit is MIN. Allowed in Basic(Allowed values- 0) edition, Essentials(Allowed values- 0) edition, Enterprise edition. Special default for Basic edition is 0, Essentials edition is 0, Enterprise is 10.
 	ConnectionRampDuration *int32 `json:"connection_ramp_duration,omitempty"`
 
 	// Creator name.
@@ -65,7 +65,7 @@ type Pool struct {
 	// Traffic sent to servers will use this destination server port unless overridden by the server's specific port attribute. The SSL checkbox enables Avi to server encryption. Allowed values are 1-65535.
 	DefaultServerPort *int32 `json:"default_server_port,omitempty"`
 
-	// Indicates whether existing IPs are disabled(false) or deleted(true) on dns hostname refreshDetail -- On a dns refresh, some IPs set on pool may no longer be returned by the resolver. These IPs are deleted from the pool when this knob is set to true. They are disabled, if the knob is set to false. Field introduced in 18.2.3.
+	// Indicates whether existing IPs are disabled(false) or deleted(true) on dns hostname refreshDetail -- On a dns refresh, some IPs set on pool may no longer be returned by the resolver. These IPs are deleted from the pool when this knob is set to true. They are disabled, if the knob is set to false. Field introduced in 18.2.3. Allowed in Basic(Allowed values- true) edition, Essentials(Allowed values- true) edition, Enterprise edition.
 	DeleteServerOnDNSRefresh *bool `json:"delete_server_on_dns_refresh,omitempty"`
 
 	// A description of the pool.
@@ -77,7 +77,7 @@ type Pool struct {
 	// Inherited config from VirtualService.
 	EastWest *bool `json:"east_west,omitempty"`
 
-	// Enable HTTP/2 for traffic from VirtualService to all backend servers in this pool. Field introduced in 20.1.1.
+	// Enable HTTP/2 for traffic from VirtualService to all backend servers in this pool. Field introduced in 20.1.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	EnableHttp2 *bool `json:"enable_http2,omitempty"`
 
 	// Enable or disable the pool.  Disabling will terminate all open connections and pause health monitors.
@@ -95,11 +95,11 @@ type Pool struct {
 	// Used to gracefully disable a server. Virtual service waits for the specified time before terminating the existing connections  to the servers that are disabled. Allowed values are 1-7200. Special values are 0 - 'Immediate', -1 - 'Infinite'. Unit is MIN.
 	GracefulDisableTimeout *int32 `json:"graceful_disable_timeout,omitempty"`
 
-	// Indicates if the pool is a site-persistence pool. . Field introduced in 17.2.1.
+	// Indicates if the pool is a site-persistence pool. . Field introduced in 17.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	// Read Only: true
 	GslbSpEnabled *bool `json:"gslb_sp_enabled,omitempty"`
 
-	// Verify server health by applying one or more health monitors.  Active monitors generate synthetic traffic from each Service Engine and mark a server up or down based on the response. The Passive monitor listens only to client to server communication. It raises or lowers the ratio of traffic destined to a server based on successful responses. It is a reference to an object of type HealthMonitor.
+	// Verify server health by applying one or more health monitors.  Active monitors generate synthetic traffic from each Service Engine and mark a server up or down based on the response. The Passive monitor listens only to client to server communication. It raises or lowers the ratio of traffic destined to a server based on successful responses. It is a reference to an object of type HealthMonitor. Maximum of 50 items allowed.
 	HealthMonitorRefs []string `json:"health_monitor_refs,omitempty"`
 
 	// Enable common name check for server certificate. If enabled and no explicit domain name is specified, Avi will use the incoming host header to do the match.
@@ -114,22 +114,22 @@ type Pool struct {
 	// Use list of servers from Ip Address Group. It is a reference to an object of type IpAddrGroup.
 	IpaddrgroupRef *string `json:"ipaddrgroup_ref,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
-	// The load balancing algorithm will pick a server within the pool's list of available servers. Enum options - LB_ALGORITHM_LEAST_CONNECTIONS, LB_ALGORITHM_ROUND_ROBIN, LB_ALGORITHM_FASTEST_RESPONSE, LB_ALGORITHM_CONSISTENT_HASH, LB_ALGORITHM_LEAST_LOAD, LB_ALGORITHM_FEWEST_SERVERS, LB_ALGORITHM_RANDOM, LB_ALGORITHM_FEWEST_TASKS, LB_ALGORITHM_NEAREST_SERVER, LB_ALGORITHM_CORE_AFFINITY, LB_ALGORITHM_TOPOLOGY.
+	// The load balancing algorithm will pick a server within the pool's list of available servers. Values LB_ALGORITHM_NEAREST_SERVER and LB_ALGORITHM_TOPOLOGY are only allowed for GSLB pool. Enum options - LB_ALGORITHM_LEAST_CONNECTIONS, LB_ALGORITHM_ROUND_ROBIN, LB_ALGORITHM_FASTEST_RESPONSE, LB_ALGORITHM_CONSISTENT_HASH, LB_ALGORITHM_LEAST_LOAD, LB_ALGORITHM_FEWEST_SERVERS, LB_ALGORITHM_RANDOM, LB_ALGORITHM_FEWEST_TASKS, LB_ALGORITHM_NEAREST_SERVER, LB_ALGORITHM_CORE_AFFINITY, LB_ALGORITHM_TOPOLOGY. Allowed in Basic(Allowed values- LB_ALGORITHM_LEAST_CONNECTIONS,LB_ALGORITHM_ROUND_ROBIN,LB_ALGORITHM_CONSISTENT_HASH) edition, Essentials(Allowed values- LB_ALGORITHM_LEAST_CONNECTIONS,LB_ALGORITHM_ROUND_ROBIN,LB_ALGORITHM_CONSISTENT_HASH) edition, Enterprise edition.
 	LbAlgorithm *string `json:"lb_algorithm,omitempty"`
 
 	// HTTP header name to be used for the hash key.
 	LbAlgorithmConsistentHashHdr *string `json:"lb_algorithm_consistent_hash_hdr,omitempty"`
 
-	// Degree of non-affinity for core affinity based server selection. Allowed values are 1-65535. Field introduced in 17.1.3.
+	// Degree of non-affinity for core affinity based server selection. Allowed values are 1-65535. Field introduced in 17.1.3. Allowed in Basic(Allowed values- 2) edition, Essentials(Allowed values- 2) edition, Enterprise edition.
 	LbAlgorithmCoreNonaffinity *int32 `json:"lb_algorithm_core_nonaffinity,omitempty"`
 
-	// Criteria used as a key for determining the hash between the client and  server. Enum options - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS, LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT, LB_ALGORITHM_CONSISTENT_HASH_URI, LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER, LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING, LB_ALGORITHM_CONSISTENT_HASH_CALLID.
+	// Criteria used as a key for determining the hash between the client and  server. Enum options - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS, LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT, LB_ALGORITHM_CONSISTENT_HASH_URI, LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER, LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING, LB_ALGORITHM_CONSISTENT_HASH_CALLID. Allowed in Basic(Allowed values- LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS) edition, Essentials(Allowed values- LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS) edition, Enterprise edition.
 	LbAlgorithmHash *string `json:"lb_algorithm_hash,omitempty"`
 
-	// Allow server lookup by name. Field introduced in 17.1.11,17.2.4.
+	// Allow server lookup by name. Field introduced in 17.1.11,17.2.4. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	LookupServerByName *bool `json:"lookup_server_by_name,omitempty"`
 
 	// The maximum number of concurrent connections allowed to each server within the pool. NOTE  applied value will be no less than the number of service engines that the pool is placed on. If set to 0, no limit is applied.
@@ -138,7 +138,7 @@ type Pool struct {
 	// Rate Limit connections to each server.
 	MaxConnRatePerServer *RateProfile `json:"max_conn_rate_per_server,omitempty"`
 
-	// Minimum number of health monitors in UP state to mark server UP. Field introduced in 18.2.1, 17.2.12.
+	// Minimum number of health monitors in UP state to mark server UP. Field introduced in 18.2.1, 17.2.12. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	MinHealthMonitorsUp *int32 `json:"min_health_monitors_up,omitempty"`
 
 	// Minimum number of servers in UP state for marking the pool UP. Field introduced in 18.2.1, 17.2.12.
@@ -163,11 +163,14 @@ type Pool struct {
 	// Header name for custom header persistence. Field deprecated in 18.1.2.
 	PrstHdrName *string `json:"prst_hdr_name,omitempty"`
 
-	// Minimum number of requests to be queued when pool is full.
+	// Minimum number of requests to be queued when pool is full. Allowed in Basic(Allowed values- 128) edition, Essentials(Allowed values- 128) edition, Enterprise edition.
 	RequestQueueDepth *int32 `json:"request_queue_depth,omitempty"`
 
-	// Enable request queue when pool is full.
+	// Enable request queue when pool is full. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	RequestQueueEnabled *bool `json:"request_queue_enabled,omitempty"`
+
+	// This field is used as a flag to create a job for JobManager. Field introduced in 18.2.10,20.1.2.
+	ResolvePoolByDNS *bool `json:"resolve_pool_by_dns,omitempty"`
 
 	// Rewrite incoming Host Header to server name of the server to which the request is proxied.  Enabling this feature rewrites Host Header for requests to all servers in the pool.
 	RewriteHostHeaderToServerName *bool `json:"rewrite_host_header_to_server_name,omitempty"`
@@ -193,7 +196,7 @@ type Pool struct {
 	// Server timeout value specifies the time within which a server connection needs to be established and a request-response exchange completes between AVI and the server. Value of 0 results in using default timeout of 60 minutes. Allowed values are 0-3600000. Field introduced in 18.1.5,18.2.1. Unit is MILLISECONDS.
 	ServerTimeout *int32 `json:"server_timeout,omitempty"`
 
-	// The pool directs load balanced traffic to this list of destination servers. The servers can be configured by IP address, name, network or via IP Address Group.
+	// The pool directs load balanced traffic to this list of destination servers. The servers can be configured by IP address, name, network or via IP Address Group. Maximum of 5000 items allowed.
 	Servers []*Server `json:"servers,omitempty"`
 
 	// Metadata pertaining to the service provided by this Pool. In Openshift/Kubernetes environments, app metadata info is stored. Any user input to this field will be overwritten by Avi Vantage. Field introduced in 17.2.14,18.1.5,18.2.1.
@@ -218,7 +221,7 @@ type Pool struct {
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// Do not translate the client's destination port when sending the connection to the server.  The pool or servers specified service port will still be used for health monitoring.
+	// Do not translate the client's destination port when sending the connection to the server.  The pool or servers specified service port will still be used for health monitoring. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	UseServicePort *bool `json:"use_service_port,omitempty"`
 
 	// UUID of the pool.

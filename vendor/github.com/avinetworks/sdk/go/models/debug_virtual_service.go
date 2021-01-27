@@ -39,6 +39,9 @@ type DebugVirtualService struct {
 	// Required: true
 	Name *string `json:"name"`
 
+	// Object sync debug options. Field introduced in 20.1.3.
+	Objsync *DebugVirtualServiceObjSync `json:"objsync,omitempty"`
+
 	// This option re-synchronizes flows between Active-Standby service engines for all the virtual services placed on them. It should be used with caution because as it can cause a flood between Active-Standby. Field introduced in 18.1.3,18.2.1.
 	ResyncFlows *bool `json:"resync_flows,omitempty"`
 

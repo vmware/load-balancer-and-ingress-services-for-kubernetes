@@ -7,19 +7,22 @@ package models
 // swagger:model SubnetRuntime
 type SubnetRuntime struct {
 
-	// Number of free_ip_count.
+	// Moved to StaticIpRangeRuntime. Field deprecated in 20.1.3.
 	FreeIPCount *int32 `json:"free_ip_count,omitempty"`
 
-	// Placeholder for description of property ip_alloced of obj type SubnetRuntime field type str  type object
+	// Use allocated_ips in StaticIpRangeRuntime. Field deprecated in 20.1.3.
 	IPAlloced []*IPAllocInfo `json:"ip_alloced,omitempty"`
+
+	// Static IP range runtime. Field introduced in 20.1.3.
+	IPRangeRuntimes []*StaticIPRangeRuntime `json:"ip_range_runtimes,omitempty"`
 
 	// Placeholder for description of property prefix of obj type SubnetRuntime field type str  type object
 	// Required: true
 	Prefix *IPAddrPrefix `json:"prefix"`
 
-	// Number of total_ip_count.
+	// Moved to StaticIpRangeRuntime. Field deprecated in 20.1.3.
 	TotalIPCount *int32 `json:"total_ip_count,omitempty"`
 
-	// Number of used_ip_count.
+	// Can be derived from total - free in StaticIpRangeRuntime. Field deprecated in 20.1.3.
 	UsedIPCount *int32 `json:"used_ip_count,omitempty"`
 }

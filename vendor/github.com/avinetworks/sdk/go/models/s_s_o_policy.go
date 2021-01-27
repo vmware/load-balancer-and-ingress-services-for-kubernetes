@@ -18,7 +18,7 @@ type SSOPolicy struct {
 	// Authorization Policy Settings. Field introduced in 18.2.5.
 	AuthorizationPolicy *AuthorizationPolicy `json:"authorization_policy,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name of the SSO Policy. Field introduced in 18.2.3.
@@ -28,7 +28,7 @@ type SSOPolicy struct {
 	// UUID of the Tenant. It is a reference to an object of type Tenant. Field introduced in 18.2.3.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// SSO Policy Type. Enum options - SSO_TYPE_SAML, SSO_TYPE_PINGACCESS. Field introduced in 18.2.5.
+	// SSO Policy Type. Enum options - SSO_TYPE_SAML, SSO_TYPE_PINGACCESS, SSO_TYPE_JWT. Field introduced in 18.2.5.
 	// Required: true
 	Type *string `json:"type"`
 
