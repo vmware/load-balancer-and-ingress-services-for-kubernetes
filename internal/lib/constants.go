@@ -75,6 +75,7 @@ const (
 	Advl4ControllerVersion                     = "20.1.2"
 	HostRule                                   = "HostRule"
 	HTTPRule                                   = "HTTPRule"
+	AlbInfraSettings                           = "AlbInfraSettings"
 	DummySecret                                = "@avisslkeycertrefdummy"
 	StatusRejected                             = "Rejected"
 	StatusAccepted                             = "Accepted"

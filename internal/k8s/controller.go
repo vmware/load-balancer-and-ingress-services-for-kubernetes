@@ -917,12 +917,16 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		if lib.UseServicesAPI() {
 			go lib.GetSvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)
 			go lib.GetSvcAPIInformers().GatewayInformer.Informer().Run(stopCh)
+			go lib.GetCRDInformers().AlbInfraSettingsInformer.Informer().Run(stopCh)
 
 			if !cache.WaitForCacheSync(stopCh, lib.GetSvcAPIInformers().GatewayClassInformer.Informer().HasSynced) {
 				runtime.HandleError(fmt.Errorf("Timed out waiting for GatewayClass caches to sync"))
 			}
 			if !cache.WaitForCacheSync(stopCh, lib.GetSvcAPIInformers().GatewayInformer.Informer().HasSynced) {
 				runtime.HandleError(fmt.Errorf("Timed out waiting for Gateway caches to sync"))
+			}
+			if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().AlbInfraSettingsInformer.Informer().HasSynced) {
+				runtime.HandleError(fmt.Errorf("Timed out waiting for AlbInfraSettingsInformer caches to sync"))
 			}
 			utils.AviLog.Info("Service APIs caches synced")
 		}

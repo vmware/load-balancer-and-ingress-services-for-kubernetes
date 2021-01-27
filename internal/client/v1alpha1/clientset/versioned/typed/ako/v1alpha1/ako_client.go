@@ -26,6 +26,7 @@ import (
 
 type AkoV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	AlbInfraSettingsesGetter
 	HTTPRulesGetter
 	HostRulesGetter
 }
@@ -33,6 +34,10 @@ type AkoV1alpha1Interface interface {
 // AkoV1alpha1Client is used to interact with features provided by the ako.vmware.com group.
 type AkoV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *AkoV1alpha1Client) AlbInfraSettingses(namespace string) AlbInfraSettingsInterface {
+	return newAlbInfraSettingses(c, namespace)
 }
 
 func (c *AkoV1alpha1Client) HTTPRules(namespace string) HTTPRuleInterface {

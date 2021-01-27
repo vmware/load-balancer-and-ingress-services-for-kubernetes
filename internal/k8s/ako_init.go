@@ -417,7 +417,17 @@ func (c *AviController) FullSyncK8s() error {
 				nodes.DequeueIngestion(key, true)
 			}
 		}
-
+		if lib.UseServicesAPI() {
+			albInfraObjs, err := lib.GetCRDInformers().AlbInfraSettingsInformer.Lister().AlbInfraSettingses("").List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the alinfraobjs during full sync: %s", err)
+			} else {
+				for _, albInfraObj := range albInfraObjs {
+					key := lib.AlbInfraSettings + "/" + utils.ObjKey(albInfraObj)
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+		}
 		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
 			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses("").List(labels.Set(nil).AsSelector())

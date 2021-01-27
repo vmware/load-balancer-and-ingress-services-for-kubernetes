@@ -28,6 +28,10 @@ type FakeAkoV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeAkoV1alpha1) AlbInfraSettingses(namespace string) v1alpha1.AlbInfraSettingsInterface {
+	return &FakeAlbInfraSettingses{c, namespace}
+}
+
 func (c *FakeAkoV1alpha1) HTTPRules(namespace string) v1alpha1.HTTPRuleInterface {
 	return &FakeHTTPRules{c, namespace}
 }

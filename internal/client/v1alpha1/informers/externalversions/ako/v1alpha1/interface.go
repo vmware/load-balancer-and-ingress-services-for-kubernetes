@@ -24,6 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// AlbInfraSettingses returns a AlbInfraSettingsInformer.
+	AlbInfraSettingses() AlbInfraSettingsInformer
 	// HTTPRules returns a HTTPRuleInformer.
 	HTTPRules() HTTPRuleInformer
 	// HostRules returns a HostRuleInformer.
@@ -39,6 +41,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// AlbInfraSettingses returns a AlbInfraSettingsInformer.
+func (v *version) AlbInfraSettingses() AlbInfraSettingsInformer {
+	return &albInfraSettingsInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // HTTPRules returns a HTTPRuleInformer.

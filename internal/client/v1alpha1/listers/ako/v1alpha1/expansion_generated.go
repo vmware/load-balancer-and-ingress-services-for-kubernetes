@@ -18,6 +18,14 @@ limitations under the License.
 
 package v1alpha1
 
+// AlbInfraSettingsListerExpansion allows custom methods to be added to
+// AlbInfraSettingsLister.
+type AlbInfraSettingsListerExpansion interface{}
+
+// AlbInfraSettingsNamespaceListerExpansion allows custom methods to be added to
+// AlbInfraSettingsNamespaceLister.
+type AlbInfraSettingsNamespaceListerExpansion interface{}
+
 // HTTPRuleListerExpansion allows custom methods to be added to
 // HTTPRuleLister.
 type HTTPRuleListerExpansion interface{}

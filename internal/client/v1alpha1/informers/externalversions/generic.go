@@ -53,6 +53,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=ako.vmware.com, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("albinfrasettingses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().AlbInfraSettingses().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("httprules"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().HTTPRules().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("hostrules"):

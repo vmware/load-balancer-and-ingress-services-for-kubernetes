@@ -32,8 +32,9 @@ func GetCRDClientset() akocrd.Interface {
 var CRDInformers *AKOCrdInformers
 
 type AKOCrdInformers struct {
-	HostRuleInformer akoinformer.HostRuleInformer
-	HTTPRuleInformer akoinformer.HTTPRuleInformer
+	HostRuleInformer         akoinformer.HostRuleInformer
+	HTTPRuleInformer         akoinformer.HTTPRuleInformer
+	AlbInfraSettingsInformer akoinformer.AlbInfraSettingsInformer
 }
 
 func SetCRDInformers(c *AKOCrdInformers) {
