@@ -19,48 +19,46 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// AlbInfraSettings is a top-level type
-type AlbInfraSettings struct {
+// NsxAlbInfraSetting is a top-level type
+type NsxAlbInfraSetting struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +optional
-	Status AlbInfraSettingsStatus `json:"status,omitempty"`
+	Status NsxAlbInfraSettingStatus `json:"status,omitempty"`
 
-	Spec AlbInfraSettingsSpec `json:"spec,omitempty"`
+	Spec NsxAlbInfraSettingSpec `json:"spec,omitempty"`
 }
 
-// AlbInfraSettingsSpec consists of the main AlbInfraSettings settings
-type AlbInfraSettingsSpec struct {
-	Network  AlbInfraSettingsNetwork  `json:"network,omitempty"`
-	SegGroup AlbInfraSettingsSegGroup `json:"segroup,omitempty"`
+// NsxAlbInfraSettingSpec consists of the main NsxAlbInfraSetting settings
+type NsxAlbInfraSettingSpec struct {
+	Network  NsxAlbInfraSettingNetwork  `json:"network,omitempty"`
+	SegGroup NsxAlbInfraSettingSegGroup `json:"seGroup,omitempty"`
 }
 
-// AlbInfraSettingsVirtualHost defines properties for a host
-type AlbInfraSettingsNetwork struct {
+type NsxAlbInfraSettingNetwork struct {
 	Name string `json:"name,omitempty"`
-	Rhi  string `json:"rhi,omitempty"`
+	Rhi  bool   `json:"rhi,omitempty"`
 }
 
-// AlbInfraSettingsTLS holds secure host specific properties
-type AlbInfraSettingsSegGroup struct {
+type NsxAlbInfraSettingSegGroup struct {
 	Name string `json:"name,omitempty"`
 }
 
-// AlbInfraSettingsStatus holds the status of the AlbInfraSettings
-type AlbInfraSettingsStatus struct {
+// NsxAlbInfraSettingStatus holds the status of the NsxAlbInfraSetting
+type NsxAlbInfraSettingStatus struct {
 	Status string `json:"status,omitempty"`
 	Error  string `json:"error,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// AlbInfraSettingsList has the list of AlbInfraSettings objects
-type AlbInfraSettingsList struct {
+// NsxAlbInfraSettingList has the list of NsxAlbInfraSetting objects
+type NsxAlbInfraSettingList struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []AlbInfraSettings `json:"items"`
+	Items []NsxAlbInfraSetting `json:"items"`
 }

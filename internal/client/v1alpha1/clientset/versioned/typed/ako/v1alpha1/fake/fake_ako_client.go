@@ -28,16 +28,16 @@ type FakeAkoV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeAkoV1alpha1) AlbInfraSettingses(namespace string) v1alpha1.AlbInfraSettingsInterface {
-	return &FakeAlbInfraSettingses{c, namespace}
-}
-
 func (c *FakeAkoV1alpha1) HTTPRules(namespace string) v1alpha1.HTTPRuleInterface {
 	return &FakeHTTPRules{c, namespace}
 }
 
 func (c *FakeAkoV1alpha1) HostRules(namespace string) v1alpha1.HostRuleInterface {
 	return &FakeHostRules{c, namespace}
+}
+
+func (c *FakeAkoV1alpha1) NsxAlbInfraSettings(namespace string) v1alpha1.NsxAlbInfraSettingInterface {
+	return &FakeNsxAlbInfraSettings{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

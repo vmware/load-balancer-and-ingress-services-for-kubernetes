@@ -32,59 +32,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// AlbInfraSettingsInformer provides access to a shared informer and lister for
-// AlbInfraSettingses.
-type AlbInfraSettingsInformer interface {
+// NsxAlbInfraSettingInformer provides access to a shared informer and lister for
+// NsxAlbInfraSettings.
+type NsxAlbInfraSettingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.AlbInfraSettingsLister
+	Lister() v1alpha1.NsxAlbInfraSettingLister
 }
 
-type albInfraSettingsInformer struct {
+type nsxAlbInfraSettingInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewAlbInfraSettingsInformer constructs a new informer for AlbInfraSettings type.
+// NewNsxAlbInfraSettingInformer constructs a new informer for NsxAlbInfraSetting type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewAlbInfraSettingsInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredAlbInfraSettingsInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewNsxAlbInfraSettingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredNsxAlbInfraSettingInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredAlbInfraSettingsInformer constructs a new informer for AlbInfraSettings type.
+// NewFilteredNsxAlbInfraSettingInformer constructs a new informer for NsxAlbInfraSetting type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredAlbInfraSettingsInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredNsxAlbInfraSettingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AkoV1alpha1().AlbInfraSettingses(namespace).List(context.TODO(), options)
+				return client.AkoV1alpha1().NsxAlbInfraSettings(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AkoV1alpha1().AlbInfraSettingses(namespace).Watch(context.TODO(), options)
+				return client.AkoV1alpha1().NsxAlbInfraSettings(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&akov1alpha1.AlbInfraSettings{},
+		&akov1alpha1.NsxAlbInfraSetting{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *albInfraSettingsInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredAlbInfraSettingsInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *nsxAlbInfraSettingInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredNsxAlbInfraSettingInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *albInfraSettingsInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&akov1alpha1.AlbInfraSettings{}, f.defaultInformer)
+func (f *nsxAlbInfraSettingInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&akov1alpha1.NsxAlbInfraSetting{}, f.defaultInformer)
 }
 
-func (f *albInfraSettingsInformer) Lister() v1alpha1.AlbInfraSettingsLister {
-	return v1alpha1.NewAlbInfraSettingsLister(f.Informer().GetIndexer())
+func (f *nsxAlbInfraSettingInformer) Lister() v1alpha1.NsxAlbInfraSettingLister {
+	return v1alpha1.NewNsxAlbInfraSettingLister(f.Informer().GetIndexer())
 }

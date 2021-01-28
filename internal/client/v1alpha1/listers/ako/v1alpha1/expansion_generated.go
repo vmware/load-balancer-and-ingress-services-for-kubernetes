@@ -18,14 +18,6 @@ limitations under the License.
 
 package v1alpha1
 
-// AlbInfraSettingsListerExpansion allows custom methods to be added to
-// AlbInfraSettingsLister.
-type AlbInfraSettingsListerExpansion interface{}
-
-// AlbInfraSettingsNamespaceListerExpansion allows custom methods to be added to
-// AlbInfraSettingsNamespaceLister.
-type AlbInfraSettingsNamespaceListerExpansion interface{}
-
 // HTTPRuleListerExpansion allows custom methods to be added to
 // HTTPRuleLister.
 type HTTPRuleListerExpansion interface{}
@@ -41,3 +33,11 @@ type HostRuleListerExpansion interface{}
 // HostRuleNamespaceListerExpansion allows custom methods to be added to
 // HostRuleNamespaceLister.
 type HostRuleNamespaceListerExpansion interface{}
+
+// NsxAlbInfraSettingListerExpansion allows custom methods to be added to
+// NsxAlbInfraSettingLister.
+type NsxAlbInfraSettingListerExpansion interface{}
+
+// NsxAlbInfraSettingNamespaceListerExpansion allows custom methods to be added to
+// NsxAlbInfraSettingNamespaceLister.
+type NsxAlbInfraSettingNamespaceListerExpansion interface{}
