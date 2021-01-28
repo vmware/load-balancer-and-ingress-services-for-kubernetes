@@ -33,8 +33,9 @@ type NsxAlbInfraSetting struct {
 
 // NsxAlbInfraSettingSpec consists of the main NsxAlbInfraSetting settings
 type NsxAlbInfraSettingSpec struct {
-	Network  NsxAlbInfraSettingNetwork  `json:"network,omitempty"`
-	SegGroup NsxAlbInfraSettingSegGroup `json:"seGroup,omitempty"`
+	Network    NsxAlbInfraSettingNetwork  `json:"network,omitempty"`
+	SegGroup   NsxAlbInfraSettingSegGroup `json:"seGroup,omitempty"`
+	L7Settings NsxAlbInfraL7Settings      `json:"l7Settings,omitempty"`
 }
 
 type NsxAlbInfraSettingNetwork struct {
@@ -44,6 +45,10 @@ type NsxAlbInfraSettingNetwork struct {
 
 type NsxAlbInfraSettingSegGroup struct {
 	Name string `json:"name,omitempty"`
+}
+
+type NsxAlbInfraL7Settings struct {
+	ShardSize string `json:"shardSize,omitempty"`
 }
 
 // NsxAlbInfraSettingStatus holds the status of the NsxAlbInfraSetting

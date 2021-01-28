@@ -40,6 +40,18 @@ spec:
                 type: object
                 required:
                 - name
+              l7Settings:
+                properties:
+                  shardSize:
+                    enum:
+                    - LARGE
+                    - SMALL
+                    - MEDIUM
+                    - DEDICATED
+                    type: string
+                type: object
+                required:
+                - shardSize
             type: object
           status:
             properties:
