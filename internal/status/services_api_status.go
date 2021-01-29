@@ -17,7 +17,6 @@ package status
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -67,11 +66,11 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) 
 
 			// when statuses are synced during bootup
 			InitializeSvcApiGatewayConditions(gwStatus, &gw.Spec, true)
-			UpdateSvcApiGatewayStatusGWCondition(gwStatus, &UpdateSvcApiGWStatusConditionOptions{
+			UpdateSvcApiGatewayStatusGWCondition(option.Key, gwStatus, &UpdateSvcApiGWStatusConditionOptions{
 				Type:   "Ready",
 				Status: metav1.ConditionTrue,
 			})
-			UpdateSvcApiGatewayStatusObject(gw, gwStatus)
+			UpdateSvcApiGatewayStatusObject(option.Key, gw, gwStatus)
 		}
 	}
 
@@ -85,10 +84,10 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 	retry := 0
 	gwMap := make(map[string]*svcapiv1alpha1.Gateway)
 	if len(retryNum) > 0 {
-		utils.AviLog.Infof("msg: Retrying to get the gateway for status update")
+		utils.AviLog.Infof("Retrying to get the gateway for status update")
 		retry = retryNum[0]
 		if retry >= 2 {
-			utils.AviLog.Errorf("msg: getGateways for status update retried 3 times, aborting")
+			utils.AviLog.Errorf("getGateways for status update retried 3 times, aborting")
 			return gwMap
 		}
 	}
@@ -114,7 +113,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 		nsNameSplit := strings.Split(namespaceName, "/")
 		gw, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("msg: Could not get the gateway object for UpdateStatus: %s", err)
+			utils.AviLog.Warnf("Could not get the gateway object for UpdateStatus: %s", err)
 			// retry get if request timeout
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getSvcApiGateways(gwNSNames, bulk, retry+1)
@@ -128,7 +127,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 	return gwMap
 }
 
-func DeleteSvcApiGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key string) error {
+func DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj avicache.ServiceMetadataObj) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
 	gw, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
 	if err != nil {
@@ -144,18 +143,18 @@ func DeleteSvcApiGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj
 	// assuming 1 IP per gateway
 	gwStatus := gw.Status.DeepCopy()
 	gwStatus.Addresses = []svcapiv1alpha1.GatewayAddress{}
-	UpdateSvcApiGatewayStatusGWCondition(gwStatus, &UpdateSvcApiGWStatusConditionOptions{
+	UpdateSvcApiGatewayStatusGWCondition(key, gwStatus, &UpdateSvcApiGWStatusConditionOptions{
 		Type:   "Pending",
 		Status: metav1.ConditionTrue,
 		Reason: "virtualservice deleted/notfound",
 	})
-	UpdateSvcApiGatewayStatusObject(gw, gwStatus)
+	UpdateSvcApiGatewayStatusObject(key, gw, gwStatus)
 
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, svcMetadataObj.Gateway)
 	return nil
 }
 
-func DeleteSvcApiStatus(svcMetadataObj avicache.ServiceMetadataObj, key string) error {
+func DeleteSvcApiStatus(key string, svcMetadataObj avicache.ServiceMetadataObj) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
 	gw, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
 	if err != nil {
@@ -171,19 +170,19 @@ func DeleteSvcApiStatus(svcMetadataObj avicache.ServiceMetadataObj, key string) 
 	// assuming 1 IP per gateway
 	gwStatus := gw.Status.DeepCopy()
 	gwStatus.Addresses = []svcapiv1alpha1.GatewayAddress{}
-	UpdateSvcApiGatewayStatusGWCondition(gwStatus, &UpdateSvcApiGWStatusConditionOptions{
+	UpdateSvcApiGatewayStatusGWCondition(key, gwStatus, &UpdateSvcApiGWStatusConditionOptions{
 		Type:   "Pending",
 		Status: metav1.ConditionTrue,
 		Reason: "virtualservice deleted/notfound",
 	})
-	UpdateSvcApiGatewayStatusObject(gw, gwStatus)
+	UpdateSvcApiGatewayStatusObject(key, gw, gwStatus)
 	return nil
 }
 
 // supported GatewayConditionTypes
 // InvalidListeners, InvalidAddress, *Serviceable
-func UpdateSvcApiGatewayStatusGWCondition(gwStatus *svcapiv1alpha1.GatewayStatus, updateStatus *UpdateSvcApiGWStatusConditionOptions) {
-	utils.AviLog.Debugf("Updating Gateway status gateway condition %v", utils.Stringify(updateStatus))
+func UpdateSvcApiGatewayStatusGWCondition(key string, gwStatus *svcapiv1alpha1.GatewayStatus, updateStatus *UpdateSvcApiGWStatusConditionOptions) {
+	utils.AviLog.Debugf("key: %s, msg: Updating Gateway status gateway condition %v", key, utils.Stringify(updateStatus))
 	InitializeSvcApiGatewayConditions(gwStatus, nil, false)
 
 	for i := range gwStatus.Conditions {
@@ -217,7 +216,7 @@ func UpdateSvcApiGatewayStatusGWCondition(gwStatus *svcapiv1alpha1.GatewayStatus
 	} else {
 		listenerConditionStatus = metav1.ConditionFalse
 	}
-	UpdateSvcApiGatewayStatusListenerConditions(gwStatus, "", &UpdateSvcApiGWStatusConditionOptions{
+	UpdateSvcApiGatewayStatusListenerConditions(key, gwStatus, "", &UpdateSvcApiGWStatusConditionOptions{
 		Type:   "Ready",
 		Status: listenerConditionStatus,
 		Reason: "Ready",
@@ -227,8 +226,8 @@ func UpdateSvcApiGatewayStatusGWCondition(gwStatus *svcapiv1alpha1.GatewayStatus
 // supported ListenerConditionType
 // PortConflict, InvalidRoutes, UnsupportedProtocol, *Serviceable
 // pass portString as empty string for updating status in all ports
-func UpdateSvcApiGatewayStatusListenerConditions(gwStatus *svcapiv1alpha1.GatewayStatus, portString string, updateStatus *UpdateSvcApiGWStatusConditionOptions) {
-	utils.AviLog.Debugf("Updating Gateway status listener condition port: %s %v", portString, utils.Stringify(updateStatus))
+func UpdateSvcApiGatewayStatusListenerConditions(key string, gwStatus *svcapiv1alpha1.GatewayStatus, portString string, updateStatus *UpdateSvcApiGWStatusConditionOptions) {
+	utils.AviLog.Debugf("key: %s, msg: Updating Gateway status listener condition port: %s %v", key, portString, utils.Stringify(updateStatus))
 	for port, condition := range gwStatus.Listeners {
 		notFound := true
 		if portString == "" {
@@ -263,7 +262,7 @@ func UpdateSvcApiGatewayStatusListenerConditions(gwStatus *svcapiv1alpha1.Gatewa
 	// gateway Condition back from Ready to Pending
 	badTypes := []string{"PortConflict", "InvalidRoutes", "UnsupportedProtocol"}
 	if utils.HasElem(badTypes, updateStatus.Type) {
-		UpdateSvcApiGatewayStatusGWCondition(gwStatus, &UpdateSvcApiGWStatusConditionOptions{
+		UpdateSvcApiGatewayStatusGWCondition(key, gwStatus, &UpdateSvcApiGWStatusConditionOptions{
 			Type:   "Pending",
 			Status: metav1.ConditionTrue,
 			Reason: fmt.Sprintf("port %s error %s", portString, updateStatus.Type),
@@ -271,12 +270,13 @@ func UpdateSvcApiGatewayStatusListenerConditions(gwStatus *svcapiv1alpha1.Gatewa
 	}
 }
 
-func UpdateSvcApiGatewayStatusObject(gw *svcapiv1alpha1.Gateway, updateStatus *svcapiv1alpha1.GatewayStatus, retryNum ...int) error {
+func UpdateSvcApiGatewayStatusObject(key string, gw *svcapiv1alpha1.Gateway, updateStatus *svcapiv1alpha1.GatewayStatus, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 5 {
-			return errors.New("msg: UpdateGatewayStatus retried 5 times, aborting")
+			utils.AviLog.Errorf("key: %s, msg: UpdateSvcApiGatewayStatusObject retried 5 times, aborting", key)
+			return
 		}
 	}
 
@@ -290,7 +290,7 @@ func UpdateSvcApiGatewayStatusObject(gw *svcapiv1alpha1.Gateway, updateStatus *s
 	}
 
 	if compareSvcApiGatewayStatuses(&gw.Status, updateStatus) {
-		return nil
+		return
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
@@ -302,13 +302,13 @@ func UpdateSvcApiGatewayStatusObject(gw *svcapiv1alpha1.Gateway, updateStatus *s
 		updatedGW, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(gw.Namespace).Get(context.TODO(), gw.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("gateway not found %v", err)
-			return err
+			return
 		}
-		return UpdateSvcApiGatewayStatusObject(updatedGW, updateStatus, retry+1)
+		UpdateSvcApiGatewayStatusObject(key, updatedGW, updateStatus, retry+1)
 	}
 
 	utils.AviLog.Infof("msg: Successfully updated the gateway %s/%s status %+v", gw.Namespace, gw.Name, utils.Stringify(updateStatus))
-	return nil
+	return
 }
 
 func InitializeSvcApiGatewayConditions(gwStatus *svcapiv1alpha1.GatewayStatus, gwSpec *svcapiv1alpha1.GatewaySpec, gwReady bool) {

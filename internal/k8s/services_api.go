@@ -50,11 +50,11 @@ func NewSvcApiInformers(cs svccrd.Interface) {
 
 func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gateway) {
 	gwStatus := gateway.Status.DeepCopy()
-	defer status.UpdateSvcApiGatewayStatusObject(gateway, gwStatus)
+	defer status.UpdateSvcApiGatewayStatusObject(key, gateway, gwStatus)
 	status.InitializeSvcApiGatewayConditions(gwStatus, &gateway.Spec, false)
 	gwClassObj, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gateway.Spec.GatewayClassName)
 	if err != nil {
-		status.UpdateSvcApiGatewayStatusGWCondition(gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
+		status.UpdateSvcApiGatewayStatusGWCondition(key, gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
 			Type:    string(servicesapi.GatewayConditionScheduled),
 			Status:  metav1.ConditionTrue,
 			Message: fmt.Sprintf("Corresponding networking.x-k8s.io/gatewayclass not found %s", gateway.Spec.GatewayClassName),
@@ -71,7 +71,7 @@ func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gate
 		if !nameOk || !nsOk ||
 			(gwName != gateway.Name) ||
 			(gwNamespace != gateway.Namespace) {
-			status.UpdateSvcApiGatewayStatusGWCondition(gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
+			status.UpdateSvcApiGatewayStatusGWCondition(key, gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
 				Type:    string(servicesapi.GatewayConditionScheduled),
 				Status:  metav1.ConditionTrue,
 				Message: "Incorrect gateway matchLabels configuration",
@@ -84,7 +84,7 @@ func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gate
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
-		status.UpdateSvcApiGatewayStatusGWCondition(gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
+		status.UpdateSvcApiGatewayStatusGWCondition(key, gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
 			Type:    string(servicesapi.GatewayConditionScheduled),
 			Status:  metav1.ConditionTrue,
 			Message: fmt.Sprintf("Unable to identify controller %s", gwClassObj.Spec.Controller),
@@ -109,12 +109,12 @@ func checkSvcApiGWForGatewayPortConflict(key string, gw *servicesapi.Gateway) {
 
 		if val, ok := gwSvcListeners[portProtoGW]; ok && len(val) > 1 {
 			gwStatus := gw.Status.DeepCopy()
-			status.UpdateSvcApiGatewayStatusListenerConditions(gwStatus, strconv.Itoa(int(listener.Port)), &status.UpdateSvcApiGWStatusConditionOptions{
+			status.UpdateSvcApiGatewayStatusListenerConditions(key, gwStatus, strconv.Itoa(int(listener.Port)), &status.UpdateSvcApiGWStatusConditionOptions{
 				Type:   "PortConflict",
 				Status: metav1.ConditionTrue,
 				Reason: fmt.Sprintf("conflicting port configuration provided in service %s and %v", val, gwSvcListeners[portProtoGW]),
 			})
-			status.UpdateSvcApiGatewayStatusObject(gw, gwStatus)
+			status.UpdateSvcApiGatewayStatusObject(key, gw, gwStatus)
 			return
 		}
 	}
@@ -124,12 +124,12 @@ func checkSvcApiGWForGatewayPortConflict(key string, gw *servicesapi.Gateway) {
 		svcProtocol := strings.Split(portProto, "/")[0]
 		if !utils.HasElem(gwProtocols, svcProtocol) {
 			gwStatus := gw.Status.DeepCopy()
-			status.UpdateSvcApiGatewayStatusListenerConditions(gwStatus, strings.Split(portProto, "/")[1], &status.UpdateSvcApiGWStatusConditionOptions{
+			status.UpdateSvcApiGatewayStatusListenerConditions(key, gwStatus, strings.Split(portProto, "/")[1], &status.UpdateSvcApiGWStatusConditionOptions{
 				Type:   "UnsupportedProtocol",
 				Status: metav1.ConditionTrue,
 				Reason: fmt.Sprintf("Unsupported protocol found in services %v", svcs),
 			})
-			status.UpdateSvcApiGatewayStatusObject(gw, gwStatus)
+			status.UpdateSvcApiGatewayStatusObject(key, gw, gwStatus)
 			return
 		}
 	}
@@ -163,12 +163,12 @@ func checkSvcForSvcApiGatewayPortConflict(svc *corev1.Service, key string) {
 			if len(val) > 1 {
 				portProtocolArr := strings.Split(portProtocol, "/")
 				gwStatus := gw.Status.DeepCopy()
-				status.UpdateSvcApiGatewayStatusListenerConditions(gwStatus, portProtocolArr[1], &status.UpdateSvcApiGWStatusConditionOptions{
+				status.UpdateSvcApiGatewayStatusListenerConditions(key, gwStatus, portProtocolArr[1], &status.UpdateSvcApiGWStatusConditionOptions{
 					Type:   "PortConflict",
 					Status: metav1.ConditionTrue,
 					Reason: fmt.Sprintf("conflicting port configuration provided in service %s and %s/%s", val, svc.Namespace, svc.Name),
 				})
-				status.UpdateSvcApiGatewayStatusObject(gw, gwStatus)
+				status.UpdateSvcApiGatewayStatusObject(key, gw, gwStatus)
 				return
 			}
 		}

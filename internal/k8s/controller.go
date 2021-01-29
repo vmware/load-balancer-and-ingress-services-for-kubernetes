@@ -283,7 +283,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
 			bkt := utils.Bkt(namespace, numWorkers)
 			if !lib.HasValidBackends(route.Spec, route.Name, namespace, key) {
-				status.UpdateRouteStatusWithErrMsg(route.Name, namespace, lib.DuplicateBackends)
+				status.UpdateRouteStatusWithErrMsg(key, route.Name, namespace, lib.DuplicateBackends)
 			}
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -332,7 +332,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
 				bkt := utils.Bkt(namespace, numWorkers)
 				if !lib.HasValidBackends(newRoute.Spec, newRoute.Name, namespace, key) {
-					status.UpdateRouteStatusWithErrMsg(newRoute.Name, namespace, lib.DuplicateBackends)
+					status.UpdateRouteStatusWithErrMsg(key, newRoute.Name, namespace, lib.DuplicateBackends)
 				}
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
