@@ -15,6 +15,8 @@
 package nodes
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -23,6 +25,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func DequeueIngestion(key string, fullsync bool) {
@@ -34,6 +38,10 @@ func DequeueIngestion(key string, fullsync bool) {
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := extractTypeNameNamespace(key)
+	if objType == utils.Pod {
+		handlePod(key, namespace, name)
+	}
+
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if valid {
 		// If it's an ingress related change, let's process that.
@@ -150,6 +158,34 @@ func DequeueIngestion(key string, fullsync bool) {
 				}
 			}
 		}
+	}
+}
+
+// handlePod populates NPL annotations for a pod in store.
+// It also stores a mapping of Pod to Services for future use
+func handlePod(key, namespace, podName string) {
+	podKey := namespace + "/" + podName
+	pod, err := utils.GetInformers().ClientSet.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			objects.SharedNPLLister().Delete(podKey)
+		}
+		utils.AviLog.Infof("key: %s, got error while getting pod: %v", err)
+		return
+	}
+	ann := pod.GetAnnotations()
+	var annotations []lib.NPLAnnotation
+	if val, ok := ann[lib.NPLPodAnnotation]; ok {
+		if err := json.Unmarshal([]byte(val), &annotations); err != nil {
+			utils.AviLog.Infof("key: %s, got error while unmarshaling NPL annotations: %v", err)
+		}
+		objects.SharedNPLLister().Save(podKey, annotations)
+		services := lib.GetServicesForPod(pod)
+		objects.SharedPodToSvcLister().Save(podKey, services)
+		utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
+	} else {
+		utils.AviLog.Info("key: %s, NPL annotation not found for Pod")
+		objects.SharedNPLLister().Delete(podKey)
 	}
 }
 

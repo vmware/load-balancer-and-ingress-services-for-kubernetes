@@ -96,12 +96,17 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 				},
 			}
 			poolNode.VrfContext = lib.GetVrf()
-			if !lib.IsNodePortMode() {
-				if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+			serviceType := lib.GetServiceType()
+			if serviceType == lib.NodePortLocal {
+				if servers := PopulateServersForNPL(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+					poolNode.Servers = servers
+				}
+			} else if serviceType == lib.NodePort {
+				if servers := PopulateServersForNodePort(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 					poolNode.Servers = servers
 				}
 			} else {
-				if servers := PopulateServersForNodePort(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+				if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 					poolNode.Servers = servers
 				}
 			}

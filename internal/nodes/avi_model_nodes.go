@@ -1021,6 +1021,7 @@ func (o *AviObjectGraph) GetAviPoolNodeByName(poolname string) *AviPoolNode {
 type AviPoolMetaServer struct {
 	Ip         avimodels.IPAddr
 	ServerNode string
+	Port       int32
 }
 
 type IngressHostPathSvc struct {

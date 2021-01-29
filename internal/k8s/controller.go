@@ -342,6 +342,72 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 	return routeEventHandler
 }
 
+func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
+	podEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			if lib.IsNodePortMode() {
+				utils.AviLog.Debugf("skipping Pod for nodeport mode")
+				return
+			}
+			pod := obj.(*corev1.Pod)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
+			key := utils.Pod + "/" + utils.ObjKey(pod)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD\n", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			if lib.IsNodePortMode() {
+				utils.AviLog.Debugf("skipping Pod for nodeport mode")
+				return
+			}
+			pod, ok := obj.(*corev1.Pod)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				pod, ok = tombstone.Obj.(*corev1.Pod)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an Pod: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
+			key := utils.Pod + "/" + utils.ObjKey(pod)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldPod := old.(*corev1.Pod)
+			newPod := cur.(*corev1.Pod)
+			if !reflect.DeepEqual(newPod, oldPod) {
+				if lib.IsNodePortMode() {
+					utils.AviLog.Debugf("skipping Pod for nodeport mode")
+					return
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newPod))
+				key := utils.Pod + "/" + utils.ObjKey(oldPod)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
+		},
+	}
+	return podEventHandler
+}
+
 func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	cs := k8sinfo.Cs
 	utils.AviLog.Debugf("Creating event broadcaster")
@@ -856,6 +922,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.NSInformer.Informer().AddEventHandler(namespaceEventHandler)
 	}
 
+	if lib.GetServiceType() == lib.NodePortLocal {
+		podEventHandler := AddPodEventHandler(numWorkers, c)
+		c.informers.PodInformer.Informer().AddEventHandler(podEventHandler)
+	}
 }
 
 func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
@@ -892,6 +962,10 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		c.informers.SecretInformer.Informer().HasSynced,
 	}
 
+	if lib.GetServiceType() == lib.NodePortLocal {
+		go c.informers.PodInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
+	}
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {
 		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.CalicoBlockAffinityInformer.Informer().HasSynced)
