@@ -36,6 +36,10 @@ func (c *FakeAkoV1alpha1) HostRules(namespace string) v1alpha1.HostRuleInterface
 	return &FakeHostRules{c, namespace}
 }
 
+func (c *FakeAkoV1alpha1) NsxAlbInfraSettings(namespace string) v1alpha1.NsxAlbInfraSettingInterface {
+	return &FakeNsxAlbInfraSettings{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeAkoV1alpha1) RESTClient() rest.Interface {

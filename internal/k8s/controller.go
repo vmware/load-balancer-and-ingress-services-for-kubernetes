@@ -949,6 +949,10 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 
 		go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
 		go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
+		go lib.GetCRDInformers().NsxAlbInfraSettingInformer.Informer().Run(stopCh)
+		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().NsxAlbInfraSettingInformer.Informer().HasSynced) {
+			runtime.HandleError(fmt.Errorf("Timed out waiting for NsxAlbInfraSettingInformer caches to sync"))
+		}
 		// separate wait steps to try getting hostrules synced first,
 		// since httprule has a key relation to hostrules.
 		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {

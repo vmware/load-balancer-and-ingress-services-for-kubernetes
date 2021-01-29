@@ -21,3 +21,5 @@ package v1alpha1
 type HTTPRuleExpansion interface{}
 
 type HostRuleExpansion interface{}
+
+type NsxAlbInfraSettingExpansion interface{}

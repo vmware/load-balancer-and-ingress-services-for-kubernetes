@@ -49,9 +49,11 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(
 		SchemeGroupVersion,
 		&HostRule{},
+		&NsxAlbInfraSetting{},
 		&HostRuleList{},
 		&HTTPRule{},
 		&HTTPRuleList{},
+		&NsxAlbInfraSettingList{},
 	)
 
 	scheme.AddKnownTypes(

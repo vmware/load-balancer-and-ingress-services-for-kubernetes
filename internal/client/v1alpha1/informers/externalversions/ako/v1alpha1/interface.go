@@ -28,6 +28,8 @@ type Interface interface {
 	HTTPRules() HTTPRuleInformer
 	// HostRules returns a HostRuleInformer.
 	HostRules() HostRuleInformer
+	// NsxAlbInfraSettings returns a NsxAlbInfraSettingInformer.
+	NsxAlbInfraSettings() NsxAlbInfraSettingInformer
 }
 
 type version struct {
@@ -49,4 +51,9 @@ func (v *version) HTTPRules() HTTPRuleInformer {
 // HostRules returns a HostRuleInformer.
 func (v *version) HostRules() HostRuleInformer {
 	return &hostRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// NsxAlbInfraSettings returns a NsxAlbInfraSettingInformer.
+func (v *version) NsxAlbInfraSettings() NsxAlbInfraSettingInformer {
+	return &nsxAlbInfraSettingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

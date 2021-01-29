@@ -57,6 +57,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().HTTPRules().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("hostrules"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().HostRules().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("nsxalbinfrasettings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().NsxAlbInfraSettings().Informer()}, nil
 
 	}
 
