@@ -33,7 +33,7 @@ spec:
     advancedL4: false
     defaultDomain: ""
 
-  ControllerSettings:
+  controllerSettings:
     serviceEngineGroupName: "Default-Group"
     controllerVersion: "20.1.1"
     cloudName: "Default-Cloud"
