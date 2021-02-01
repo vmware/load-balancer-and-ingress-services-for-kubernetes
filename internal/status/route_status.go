@@ -97,7 +97,7 @@ func UpdateRouteStatus(options []UpdateStatusOptions, bulk bool) {
 	for _, option := range updateRouteOptions {
 		if route := routeMap[option.IngSvc]; route != nil {
 			if err = updateRouteObject(route, option); err != nil {
-				utils.AviLog.Error(err)
+				utils.AviLog.Errorf("key: %s, msg: updating rorute object failed: %v", option.Key, err)
 			}
 		}
 	}
@@ -109,10 +109,10 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 	retry := 0
 	routeMap := make(map[string]*routev1.Route)
 	if len(retryNum) > 0 {
-		utils.AviLog.Infof("msg: Retrying to get the routes for status update")
+		utils.AviLog.Infof("Retrying to get the routes for status update")
 		retry = retryNum[0]
 		if retry >= 3 {
-			utils.AviLog.Errorf("msg: getRoutes for status update retried 3 times, aborting")
+			utils.AviLog.Errorf("getRoutes for status update retried 3 times, aborting")
 			return routeMap
 		}
 	}
@@ -133,7 +133,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 
 		return routeMap
 	}
-	utils.AviLog.Infof("routeNSNames: %v", routeNSNames)
+
 	for _, namespaceName := range routeNSNames {
 		nsNameSplit := strings.Split(namespaceName, "/")
 		if len(nsNameSplit) != 2 {
@@ -155,18 +155,19 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 	return routeMap
 }
 
-func UpdateRouteStatusWithErrMsg(routeName, namespace, msg string, retryNum ...int) error {
+func UpdateRouteStatusWithErrMsg(key, routeName, namespace, msg string, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 3 {
-			return errors.New("msg: UpdateRouteStatus retried 3 times, aborting")
+			utils.AviLog.Errorf("key: %s, msg: UpdateRouteStatus retried 3 times, aborting", key)
+			return
 		}
 	}
 
 	mRoutes := getRoutes([]string{namespace + "/" + routeName}, false)
 	if len(mRoutes) == 0 {
-		return nil
+		return
 	}
 	mRoute := mRoutes[namespace+"/"+routeName]
 	oldRouteStatus := mRoute.Status.DeepCopy()
@@ -190,9 +191,9 @@ func UpdateRouteStatusWithErrMsg(routeName, namespace, msg string, retryNum ...i
 	mRoute.Status.Ingress = append(mRoute.Status.Ingress, rtIngress)
 
 	if sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress); sameStatus {
-		utils.AviLog.Debugf("msg: No changes detected in route status. old: %+v new: %+v",
-			oldRouteStatus.Ingress, mRoute.Status.Ingress)
-		return nil
+		utils.AviLog.Debugf("key: %s, msg: No changes detected in route status. old: %+v new: %+v",
+			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
+		return
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
@@ -200,31 +201,31 @@ func UpdateRouteStatusWithErrMsg(routeName, namespace, msg string, retryNum ...i
 	})
 	_, err := utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
-		utils.AviLog.Errorf("msg: there was an error in updating the route status: %v", err)
+		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the route status: %v", key, err)
 		// fetch updated route and feed for update status
 		mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
 		if len(mRoutes) > 0 {
-			return UpdateRouteStatusWithErrMsg(routeName, namespace, msg, retry+1)
+			UpdateRouteStatusWithErrMsg(key, routeName, namespace, msg, retry+1)
 		}
 	}
-	return err
+	return
 }
 
-func routeStatusCheck(oldStatus []routev1.RouteIngress, hostname string) bool {
+func routeStatusCheck(key string, oldStatus []routev1.RouteIngress, hostname string) bool {
 	for _, status := range oldStatus {
 		if len(status.Conditions) < 1 {
 			continue
 		}
 		if status.Host == hostname && status.RouterName == lib.AKOUser {
 			if status.Conditions[0].Status == corev1.ConditionFalse {
-				utils.AviLog.Infof("current status of host %s is False", hostname)
+				utils.AviLog.Infof("key: %s, msg: current status of host %s is False", key, hostname)
 				return false
 			} else if status.Conditions[0].Status == corev1.ConditionTrue {
 				return true
 			}
 		}
 	}
-	utils.AviLog.Infof("status not found for host %s", hostname)
+	utils.AviLog.Infof("key: %s, msg: status not found for host %s", key, hostname)
 
 	return false
 }
@@ -233,16 +234,16 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 	if updateOption.Vip == "" {
 		return nil
 	}
+
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 3 {
-			return errors.New("key: %s, msg: UpdateRouteStatus retried 3 times, aborting")
+			return errors.New("UpdateRouteStatus retried 3 times, aborting")
 		}
 	}
 
 	var err error
-	utils.AviLog.Infof("updateOption: %v", updateOption)
 	hostnames, key := updateOption.ServiceMetadata.HostNames, updateOption.Key
 	oldRouteStatus := mRoute.Status.DeepCopy()
 
@@ -350,7 +351,8 @@ func DeleteRouteStatus(svc_mdata_obj avicache.ServiceMetadataObj, isVSDelete boo
 		for _, ingressns := range svc_mdata_obj.NamespaceIngressName {
 			ingressArr := strings.Split(ingressns, "/")
 			if len(ingressArr) != 2 {
-				return errors.New("key: %s, msg: DeleteRouteStatus IngressNamespace format not correct")
+				utils.AviLog.Errorf("key: %s, msg: DeleteRouteStatus IngressNamespace format not correct", key)
+				return errors.New("DeleteRouteStatus IngressNamespace format not correct")
 			}
 			svc_mdata_obj.Namespace = ingressArr[0]
 			svc_mdata_obj.IngressName = ingressArr[1]
@@ -361,7 +363,7 @@ func DeleteRouteStatus(svc_mdata_obj avicache.ServiceMetadataObj, isVSDelete boo
 	}
 
 	if err != nil {
-		utils.AviLog.Warn(err)
+		return err
 	}
 
 	return nil
@@ -373,7 +375,8 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 		utils.AviLog.Infof("key: %s, msg: Retrying to update the route status", key)
 		retry = retryNum[0]
 		if retry >= 3 {
-			return errors.New("key: %s, msg: DeleteRouteStatus retried 3 times, aborting")
+			utils.AviLog.Errorf("key: %s, msg: DeleteRouteStatus retried 3 times, aborting", key)
+			return errors.New("DeleteRouteStatus retried 3 times, aborting")
 		}
 	}
 
@@ -387,7 +390,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 	oldRouteStatus := mRoute.Status.DeepCopy()
 	if len(svc_mdata_obj.HostNames) > 0 {
 		// If the route status for the host is alresay fasle, then don't delete the status
-		if !routeStatusCheck(oldRouteStatus.Ingress, svc_mdata_obj.HostNames[0]) {
+		if !routeStatusCheck(key, oldRouteStatus.Ingress, svc_mdata_obj.HostNames[0]) {
 			return nil
 		}
 	}

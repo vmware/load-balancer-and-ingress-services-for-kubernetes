@@ -16,7 +16,6 @@ package status
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
@@ -33,12 +32,13 @@ type UpdateCRDStatusOptions struct {
 }
 
 // UpdateHostRuleStatus HostRule status updates
-func UpdateHostRuleStatus(hr *akov1alpha1.HostRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) error {
+func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 3 {
-			return errors.New("msg: UpdateHostRuleStatus retried 3 times, aborting")
+			utils.AviLog.Errorf("key: %s, msg: UpdateHostRuleStatus retried 3 times, aborting", key)
+			return
 		}
 	}
 
@@ -47,29 +47,30 @@ func UpdateHostRuleStatus(hr *akov1alpha1.HostRule, updateStatus UpdateCRDStatus
 
 	_, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).UpdateStatus(context.TODO(), hr, metav1.UpdateOptions{})
 	if err != nil {
-		utils.AviLog.Errorf("msg: there was an error in updating the hostrule status: %+v", err)
+		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the hostrule status: %+v", key, err)
 		updatedHr, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Get(context.TODO(), hr.Name, metav1.GetOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("hostrule not found %v", err)
+			utils.AviLog.Warnf("key: %s, msg: hostrule not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
-				return UpdateHostRuleStatus(updatedHr, updateStatus, retry+1)
+				UpdateHostRuleStatus(key, updatedHr, updateStatus, retry+1)
 			}
-			return err
+			return
 		}
-		return UpdateHostRuleStatus(updatedHr, updateStatus, retry+1)
+		UpdateHostRuleStatus(key, updatedHr, updateStatus, retry+1)
 	}
 
-	utils.AviLog.Infof("msg: Successfully updated the hostrule %s/%s status %+v", hr.Namespace, hr.Name, utils.Stringify(updateStatus))
-	return nil
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the hostrule %s/%s status %+v", key, hr.Namespace, hr.Name, utils.Stringify(updateStatus))
+	return
 }
 
 // UpdateHTTPRuleStatus HostRule status updates
-func UpdateHTTPRuleStatus(rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) error {
+func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 3 {
-			return errors.New("msg: UpdateHTTPRuleStatus retried 3 times, aborting")
+			utils.AviLog.Errorf("key: %s, msg: UpdateHTTPRuleStatus retried 3 times, aborting", key)
+			return
 		}
 	}
 
@@ -78,18 +79,18 @@ func UpdateHTTPRuleStatus(rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatus
 
 	_, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).UpdateStatus(context.TODO(), rr, metav1.UpdateOptions{})
 	if err != nil {
-		utils.AviLog.Errorf("msg: %d there was an error in updating the httprule status: %+v", retry, err)
+		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the httprule status: %+v", key, retry, err)
 		updatedRr, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Get(context.TODO(), rr.Name, metav1.GetOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("httprule not found %v", err)
+			utils.AviLog.Warnf("key: %s, msg: httprule not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
-				return UpdateHTTPRuleStatus(updatedRr, updateStatus, retry+1)
+				UpdateHTTPRuleStatus(key, updatedRr, updateStatus, retry+1)
 			}
-			return err
+			return
 		}
-		return UpdateHTTPRuleStatus(updatedRr, updateStatus, retry+1)
+		UpdateHTTPRuleStatus(key, updatedRr, updateStatus, retry+1)
 	}
 
-	utils.AviLog.Infof("msg: Successfully updated the httprule %s/%s status %+v", rr.Namespace, rr.Name, utils.Stringify(updateStatus))
-	return nil
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the httprule %s/%s status %+v", key, rr.Namespace, rr.Name, utils.Stringify(updateStatus))
+	return
 }

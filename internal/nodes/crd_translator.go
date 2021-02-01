@@ -130,7 +130,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	vsNode.Enabled = vsEnabled
 	vsNode.ServiceMetadata.CRDStatus = crdStatus
 
-	utils.AviLog.Infof("key: %s, Attached hostrule %s on vsNode %s", key, host, vsNode.Name)
+	utils.AviLog.Infof("key: %s, Attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.Name)
 }
 
 // BuildPoolHTTPRule notes
@@ -263,7 +263,7 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 	foundHost, foundHR := objects.SharedCRDLister().GetFQDNToHostruleMapping(fqdn)
 	if foundHost && foundHR != hostrule.Namespace+"/"+hostrule.Name {
 		err = fmt.Errorf("duplicate fqdn %s found in %s", fqdn, foundHR)
-		status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
 		})
@@ -294,14 +294,14 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		}
 
 		if errStatus := checkRefOnController(key, value, k); errStatus != nil {
-			status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
 				Status: lib.StatusRejected,
 				Error:  errStatus.Error(),
 			})
 			return errStatus
 		}
 	}
-	status.UpdateHostRuleStatus(hostrule, status.UpdateCRDStatusOptions{
+	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
 		Status: lib.StatusAccepted,
 		Error:  "",
 	})
@@ -326,7 +326,7 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 		}
 
 		if errStatus := checkRefOnController(key, value, k); errStatus != nil {
-			status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
+			status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
 				Status: lib.StatusRejected,
 				Error:  errStatus.Error(),
 			})
@@ -334,7 +334,7 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 		}
 	}
 
-	status.UpdateHTTPRuleStatus(httprule, status.UpdateCRDStatusOptions{
+	status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
 		Status: lib.StatusAccepted,
 		Error:  "",
 	})

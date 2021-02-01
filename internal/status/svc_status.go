@@ -34,7 +34,7 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 
 	for _, option := range options {
 		if len(option.ServiceMetadata.HostNames) != 1 && !lib.GetAdvancedL4() {
-			utils.AviLog.Warnf("Service hostname not found for service %v status update", option.ServiceMetadata.NamespaceServiceName)
+			utils.AviLog.Warnf("key: %s, msg: Service hostname not found for service %v status update", option.Key, option.ServiceMetadata.NamespaceServiceName)
 		}
 
 		for _, svc := range option.ServiceMetadata.NamespaceServiceName {
@@ -113,10 +113,10 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 	mClient := utils.GetInformers().ClientSet
 	serviceMap := make(map[string]*corev1.Service)
 	if len(retryNum) > 0 {
-		utils.AviLog.Infof("msg: Retrying to get the services for status update")
+		utils.AviLog.Infof("Retrying to get the services for status update")
 		retry = retryNum[0]
 		if retry >= 3 {
-			utils.AviLog.Errorf("msg: getServices for status update retried 3 times, aborting")
+			utils.AviLog.Errorf("getServices for status update retried 3 times, aborting")
 			return serviceMap
 		}
 	}
@@ -142,7 +142,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		nsNameSplit := strings.Split(namespaceName, "/")
 		serviceLB, err := mClient.CoreV1().Services(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("msg: Could not get the service object for UpdateStatus: %s", err)
+			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
 			// retry get if request timeout
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getServices(serviceNSNames, bulk, retry+1)
