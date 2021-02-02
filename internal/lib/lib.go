@@ -490,6 +490,11 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 		utils.ConfigMapInformer,
 		utils.PodInformer,
 	}
+
+	if GetServiceType() == NodePortLocal {
+		allInformers = append(allInformers, utils.PodInformer)
+	}
+
 	if !GetAdvancedL4() {
 		allInformers = append(allInformers, utils.NSInformer)
 		allInformers = append(allInformers, utils.NodeInformer)

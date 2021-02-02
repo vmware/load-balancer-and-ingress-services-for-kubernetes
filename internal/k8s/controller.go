@@ -348,10 +348,6 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			if c.DisableSync {
 				return
 			}
-			if lib.IsNodePortMode() {
-				utils.AviLog.Debugf("skipping Pod for nodeport mode")
-				return
-			}
 			pod := obj.(*corev1.Pod)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
 			key := utils.Pod + "/" + utils.ObjKey(pod)
@@ -361,10 +357,6 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
-				return
-			}
-			if lib.IsNodePortMode() {
-				utils.AviLog.Debugf("skipping Pod for nodeport mode")
 				return
 			}
 			pod, ok := obj.(*corev1.Pod)
@@ -393,10 +385,6 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			oldPod := old.(*corev1.Pod)
 			newPod := cur.(*corev1.Pod)
 			if !reflect.DeepEqual(newPod, oldPod) {
-				if lib.IsNodePortMode() {
-					utils.AviLog.Debugf("skipping Pod for nodeport mode")
-					return
-				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newPod))
 				key := utils.Pod + "/" + utils.ObjKey(oldPod)
 				bkt := utils.Bkt(namespace, numWorkers)

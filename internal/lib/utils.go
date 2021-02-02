@@ -15,7 +15,6 @@
 package lib
 
 import (
-	"context"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +23,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -93,7 +91,7 @@ func GetSvcKeysForNodeCRUD() (svcl4Keys []string, svcl7Keys []string) {
 func GetPodsFromService(namespace, serviceName string) []utils.NamespaceName {
 	var pods []utils.NamespaceName
 	svcKey := namespace + "/" + serviceName
-	svc, err := utils.GetInformers().ClientSet.CoreV1().Services(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
+	svc, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(serviceName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return pods

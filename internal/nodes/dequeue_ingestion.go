@@ -15,7 +15,6 @@
 package nodes
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -26,7 +25,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func DequeueIngestion(key string, fullsync bool) {
@@ -165,7 +163,7 @@ func DequeueIngestion(key string, fullsync bool) {
 // It also stores a mapping of Pod to Services for future use
 func handlePod(key, namespace, podName string) {
 	podKey := namespace + "/" + podName
-	pod, err := utils.GetInformers().ClientSet.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			objects.SharedNPLLister().Delete(podKey)
