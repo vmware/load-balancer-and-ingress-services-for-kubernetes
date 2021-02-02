@@ -27,7 +27,6 @@ spec:
                 properties:
                   name:
                     type: string
-                properties:
                   rhi:
                     type: boolean
                 type: object
@@ -60,8 +59,6 @@ spec:
               status:
                 type: string
             type: object
-        required:
-        - network
         type: object
     additionalPrinterColumns:
     - description: status of the nas object
