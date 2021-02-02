@@ -35,6 +35,7 @@ const (
 	NSInformer                    = "NamespaceInformer"
 	L4LBService                   = "L4LBService"
 	LoadBalancer                  = "LoadBalancer"
+	Pod                           = "Pod"
 	Endpoints                     = "Endpoints"
 	Ingress                       = "Ingress"
 	IngressClass                  = "IngressClass"

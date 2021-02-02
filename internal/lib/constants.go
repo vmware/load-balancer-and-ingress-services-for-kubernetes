@@ -68,6 +68,7 @@ const (
 	PolicyPass                                 = "PASSTHROUGH"
 	DeleteConfig                               = "deleteConfig"
 	NodePort                                   = "NodePort"
+	NodePortLocal                              = "NodePortLocal"
 	RouteSecretsPrefix                         = "-route-secret"
 	CertTypeVS                                 = "SSL_CERTIFICATE_TYPE_VIRTUALSERVICE"
 	CertTypeCA                                 = "SSL_CERTIFICATE_TYPE_CA"
@@ -108,6 +109,7 @@ const (
 	ObjectDeletionTimeoutStatus                = "Timeout"
 	DefaultIngressClassAnnotation              = "ingressclass.kubernetes.io/is-default-class"
 	DefaultRouteCert                           = "router-certs-default"
+	NPLPodAnnotation                           = "nodeportlocal.antrea.io"
 
 	//Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"

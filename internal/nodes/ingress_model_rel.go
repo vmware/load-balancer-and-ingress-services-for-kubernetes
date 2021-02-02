@@ -56,6 +56,10 @@ var (
 		GetParentRoutes:    EPToRoute,
 		GetParentGateways:  EPToGateway,
 	}
+	Pod = GraphSchema{
+		Type:               "Pod",
+		GetParentIngresses: PodToIng,
+	}
 	Node = GraphSchema{
 		Type:               "Node",
 		GetParentIngresses: NodeToIng,
@@ -93,6 +97,7 @@ var (
 		Ingress,
 		IngressClass,
 		Service,
+		Pod,
 		Endpoint,
 		Secret,
 		Route,
@@ -358,6 +363,27 @@ func NodeToRoute(nodeName string, namespace string, key string) ([]string, bool)
 	routes := []string{}
 	return routes, true
 
+}
+
+// PodToIng fetches the list of impacted Ingresses from Pod update.
+// First fetch list of Services for the Pod.
+// Then get list of Ingresses for the Services.
+func PodToIng(podName string, namespace string, key string) ([]string, bool) {
+	var allIngresses []string
+	podKey := namespace + "/" + podName
+	ok, servicesIntf := objects.SharedPodToSvcLister().Get(podKey)
+	if !ok {
+		return allIngresses, false
+	}
+	services := servicesIntf.([]string)
+	utils.AviLog.Debugf("key: %s, msg: Services retrieved:  %s", key, services)
+	for _, svc := range services {
+		_, svcName := utils.ExtractNamespaceObjectName(svc)
+		ingresses, _ := SvcToIng(svcName, namespace, key)
+		allIngresses = append(allIngresses, ingresses...)
+	}
+	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved:  %s", key, allIngresses)
+	return allIngresses, true
 }
 
 func EPToIng(epName string, namespace string, key string) ([]string, bool) {

@@ -488,7 +488,13 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 		utils.EndpointInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
+		utils.PodInformer,
 	}
+
+	if GetServiceType() == NodePortLocal {
+		allInformers = append(allInformers, utils.PodInformer)
+	}
+
 	if !GetAdvancedL4() {
 		allInformers = append(allInformers, utils.NSInformer)
 		allInformers = append(allInformers, utils.NodeInformer)
@@ -526,6 +532,10 @@ func IsNodePortMode() bool {
 		return true
 	}
 	return false
+}
+
+func GetServiceType() string {
+	return os.Getenv(SERVICE_TYPE)
 }
 
 func GetNodePortsSelector() map[string]string {

@@ -138,12 +138,17 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 						hostSlice = append(hostSlice, host)
 						poolNode := &AviPoolNode{Name: lib.GetL7PoolName(priorityLabel, namespace, ingName), PortName: obj.PortName, IngressName: ingName, Tenant: lib.GetTenant(), PriorityLabel: priorityLabel, Port: obj.Port, ServiceMetadata: avicache.ServiceMetadataObj{IngressName: ingName, Namespace: namespace, HostNames: hostSlice}}
 						poolNode.VrfContext = lib.GetVrf()
-						if !lib.IsNodePortMode() {
-							if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+						serviceType := lib.GetServiceType()
+						if serviceType == lib.NodePortLocal {
+							if servers := PopulateServersForNPL(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+								poolNode.Servers = servers
+							}
+						} else if serviceType == lib.NodePort {
+							if servers := PopulateServersForNodePort(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 								poolNode.Servers = servers
 							}
 						} else {
-							if servers := PopulateServersForNodePort(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+							if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 								poolNode.Servers = servers
 							}
 						}
@@ -536,16 +541,21 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			if hostpath.reencrypt == true {
 				o.BuildPoolSecurity(poolNode, hostpath, key)
 			}
-
-			if !lib.IsNodePortMode() {
-				if servers := PopulateServers(poolNode, namespace, path.ServiceName, true, key); servers != nil {
+			serviceType := lib.GetServiceType()
+			if serviceType == lib.NodePortLocal {
+				if servers := PopulateServersForNPL(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 					poolNode.Servers = servers
 				}
-			} else {
+			} else if serviceType == lib.NodePort {
 				if servers := PopulateServersForNodePort(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 					poolNode.Servers = servers
 				}
+			} else {
+				if servers := PopulateServers(poolNode, namespace, path.ServiceName, true, key); servers != nil {
+					poolNode.Servers = servers
+				}
 			}
+
 			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 			ratio := path.weight
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
