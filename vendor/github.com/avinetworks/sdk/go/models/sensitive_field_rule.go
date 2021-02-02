@@ -16,7 +16,7 @@ type SensitiveFieldRule struct {
 	// Index of the rule. Field introduced in 17.2.10, 18.1.2.
 	Index *int32 `json:"index,omitempty"`
 
-	// Criterion to use for matching in the Log. Field introduced in 17.2.10, 18.1.2.
+	// Criterion to use for matching in the Log. Field introduced in 17.2.10, 18.1.2. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	Match *StringMatch `json:"match,omitempty"`
 
 	// Name of the rule. Field introduced in 17.2.10, 18.1.2.

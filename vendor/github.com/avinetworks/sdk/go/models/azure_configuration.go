@@ -19,7 +19,7 @@ type AzureConfiguration struct {
 	// Azure location where this cloud will be located. Field introduced in 17.2.1.
 	Location *string `json:"location,omitempty"`
 
-	// Azure virtual network and subnet information. Field introduced in 17.2.1.
+	// Azure virtual network and subnet information. Field introduced in 17.2.1. Minimum of 1 items required. Maximum of 1 items allowed.
 	NetworkInfo []*AzureNetworkInfo `json:"network_info,omitempty"`
 
 	// Azure resource group dedicated for Avi Controller. Avi Controller will create all its resources in this resource group. Field introduced in 17.2.1.

@@ -10,7 +10,7 @@ type HealthMonitorTCP struct {
 	// Match or look for this keyword in the first 2KB of server's response indicating server maintenance.  A successful match results in the server being marked down.
 	MaintenanceResponse *string `json:"maintenance_response,omitempty"`
 
-	// Configure TCP health monitor to use half-open TCP connections to monitor the health of backend servers thereby avoiding consumption of a full fledged server side connection and the overhead and logs associated with it.  This method is light-weight as it makes use of listener in server's kernel layer to measure the health and a child socket or user thread is not created on the server side.
+	// Configure TCP health monitor to use half-open TCP connections to monitor the health of backend servers thereby avoiding consumption of a full fledged server side connection and the overhead and logs associated with it.  This method is light-weight as it makes use of listener in server's kernel layer to measure the health and a child socket or user thread is not created on the server side. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	TCPHalfOpen *bool `json:"tcp_half_open,omitempty"`
 
 	// Request data to send after completing the TCP handshake.

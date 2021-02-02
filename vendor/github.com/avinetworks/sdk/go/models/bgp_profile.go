@@ -7,7 +7,7 @@ package models
 // swagger:model BgpProfile
 type BgpProfile struct {
 
-	// Community *string either in aa nn format where aa, nn is within [1,65535] or local-AS|no-advertise|no-export|internet. Field introduced in 17.1.2.
+	// Community *string either in aa nn format where aa, nn is within [1,65535] or local-AS|no-advertise|no-export|internet. Field introduced in 17.1.2. Maximum of 16 items allowed.
 	Community []string `json:"community,omitempty"`
 
 	// Hold time for Peers. Allowed values are 3-7200.
@@ -17,7 +17,7 @@ type BgpProfile struct {
 	// Required: true
 	Ibgp *bool `json:"ibgp"`
 
-	// Communities per IP address range. Field introduced in 17.1.3.
+	// Communities per IP address range. Field introduced in 17.1.3. Maximum of 1024 items allowed.
 	IPCommunities []*IPCommunity `json:"ip_communities,omitempty"`
 
 	// Keepalive interval for Peers. Allowed values are 0-3600.
@@ -33,10 +33,10 @@ type BgpProfile struct {
 	// Number of times the local AS should be prepended additionally. Allowed values are 1-10. Field introduced in 20.1.1.
 	NumAsPathPrepend *int32 `json:"num_as_path_prepend,omitempty"`
 
-	// BGP Peers.
+	// BGP Peers. Maximum of 128 items allowed.
 	Peers []*BgpPeer `json:"peers,omitempty"`
 
-	// Learning and advertising options for BGP peers. Field introduced in 20.1.1.
+	// Learning and advertising options for BGP peers. Field introduced in 20.1.1. Maximum of 128 items allowed.
 	RoutingOptions []*BgpRoutingOptions `json:"routing_options,omitempty"`
 
 	// Send community attribute to all peers. Field introduced in 17.1.2.

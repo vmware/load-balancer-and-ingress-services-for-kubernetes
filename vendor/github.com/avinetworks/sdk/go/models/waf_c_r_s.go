@@ -15,7 +15,7 @@ type WafCRS struct {
 	// Required: true
 	Description *string `json:"description"`
 
-	// WAF Rules are sorted in groups based on their characterization. Field introduced in 18.1.1.
+	// WAF Rules are sorted in groups based on their characterization. Field introduced in 18.1.1. Maximum of 64 items allowed.
 	Groups []*WafRuleGroup `json:"groups,omitempty"`
 
 	// Integrity protection value. Field introduced in 18.2.1.

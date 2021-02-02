@@ -13,7 +13,7 @@ type StaticRoute struct {
 	// if_name of StaticRoute.
 	IfName *string `json:"if_name,omitempty"`
 
-	// Labels associated with this route. Field introduced in 20.1.1.
+	// Labels associated with this route. Field introduced in 20.1.1. Maximum of 1 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Placeholder for description of property next_hop of obj type StaticRoute field type str  type object

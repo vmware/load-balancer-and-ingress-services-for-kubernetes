@@ -11,6 +11,18 @@ type DebugServiceEngine struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Action to be invoked at configured layer. Enum options - SE_BENCHMARK_MODE_DROP, SE_BENCHMARK_MODE_REFLECT. Field introduced in 20.1.3.
+	BenchmarkAction *string `json:"benchmark_action,omitempty"`
+
+	// Toggle and configure the layer to benchmark performance. This can be done at a specific point in the SE packet processing pipeline. Enum options - SE_BENCHMARK_LAYER_NONE, SE_BENCHMARK_LAYER_POST_VNIC_RX, SE_BENCHMARK_LAYER_POST_FT_LOOKUP, SE_BENCHMARK_LAYER_NSP_LOOKUP, SE_BENCHMARK_LAYER_PRE_PROXY_PUNT, SE_BENCHMARK_LAYER_POST_PROXY_PUNT, SE_BENCHMARK_LAYER_ETHER_INPUT, SE_BENCHMARK_LAYER_IP_INPUT, SE_BENCHMARK_LAYER_UDP_INPUT. Field introduced in 20.1.3.
+	BenchmarkLayer *string `json:"benchmark_layer,omitempty"`
+
+	// Configure different reflect modes. Enum options - SE_BENCHMARK_REFLECT_SWAP_L4, SE_BENCHMARK_REFLECT_SWAP_L2, SE_BENCHMARK_REFLECT_SWAP_L3. Field introduced in 20.1.3.
+	BenchmarkOption *string `json:"benchmark_option,omitempty"`
+
+	// RSS Hash function to be used for packet reflect in TX path. Enum options - SE_BENCHMARK_DISABLE_HASH, SE_BENCHMARK_RTE_SOFT_HASH. Field introduced in 20.1.3.
+	BenchmarkRssHash *string `json:"benchmark_rss_hash,omitempty"`
+
 	// Enable/disable packet capture. Field introduced in 18.2.2.
 	Capture *bool `json:"capture,omitempty"`
 

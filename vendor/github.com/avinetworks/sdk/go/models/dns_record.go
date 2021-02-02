@@ -19,34 +19,34 @@ type DNSRecord struct {
 	// Details of DNS record.
 	Description *string `json:"description,omitempty"`
 
-	// Fully Qualified Domain Name.
+	// Fully Qualified Domain Name. Minimum of 1 items required.
 	Fqdn []string `json:"fqdn,omitempty"`
 
-	// IPv6 address in AAAA record. Field introduced in 18.1.1.
+	// IPv6 address in AAAA record. Field introduced in 18.1.1. Maximum of 4 items allowed.
 	Ip6Address []*DNSAAAARdata `json:"ip6_address,omitempty"`
 
-	// IP address in A record.
+	// IP address in A record. Maximum of 4 items allowed.
 	IPAddress []*DNSARdata `json:"ip_address,omitempty"`
 
 	// Internal metadata for the DNS record. Field introduced in 18.2.5.
 	Metadata *string `json:"metadata,omitempty"`
 
-	// MX record. Field introduced in 18.2.9, 20.1.1.
+	// MX record. Field introduced in 18.2.9, 20.1.1. Maximum of 4 items allowed.
 	MxRecords []*DNSMxRdata `json:"mx_records,omitempty"`
 
-	// Name Server information in NS record. Field introduced in 17.1.1.
+	// Name Server information in NS record. Field introduced in 17.1.1. Maximum of 13 items allowed.
 	Ns []*DNSNsRdata `json:"ns,omitempty"`
 
 	// Specifies the number of records returned by the DNS service. Enter 0 to return all records. Default is 0. Allowed values are 0-20. Special values are 0- 'Return all records'. Field introduced in 17.1.1.
 	NumRecordsInResponse *int32 `json:"num_records_in_response,omitempty"`
 
-	// Service locator info in SRV record.
+	// Service locator info in SRV record. Maximum of 4 items allowed.
 	ServiceLocator []*DNSSrvRdata `json:"service_locator,omitempty"`
 
 	// Time To Live for this DNS record.
 	TTL *int32 `json:"ttl,omitempty"`
 
-	// Text record. Field introduced in 18.2.9, 20.1.1.
+	// Text record. Field introduced in 18.2.9, 20.1.1. Maximum of 4 items allowed.
 	TxtRecords []*DNSTxtRdata `json:"txt_records,omitempty"`
 
 	// DNS record type. Enum options - DNS_RECORD_OTHER, DNS_RECORD_A, DNS_RECORD_NS, DNS_RECORD_CNAME, DNS_RECORD_SOA, DNS_RECORD_PTR, DNS_RECORD_HINFO, DNS_RECORD_MX, DNS_RECORD_TXT, DNS_RECORD_RP, DNS_RECORD_DNSKEY, DNS_RECORD_AAAA, DNS_RECORD_SRV, DNS_RECORD_OPT, DNS_RECORD_RRSIG, DNS_RECORD_AXFR, DNS_RECORD_ANY.

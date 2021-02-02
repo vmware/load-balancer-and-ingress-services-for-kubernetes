@@ -11,23 +11,23 @@ type CloudConnectorUser struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	//  Field introduced in 17.2.1.
+	//  Field introduced in 17.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	AzureServiceprincipal *AzureServicePrincipalCredentials `json:"azure_serviceprincipal,omitempty"`
 
-	//  Field introduced in 17.2.1.
+	//  Field introduced in 17.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	AzureUserpass *AzureUserPassCredentials `json:"azure_userpass,omitempty"`
 
-	// Credentials for Google Cloud Platform. Field introduced in 18.2.1.
+	// Credentials for Google Cloud Platform. Field introduced in 18.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	GcpCredentials *GCPCredentials `json:"gcp_credentials,omitempty"`
 
 	// Name of the object.
 	// Required: true
 	Name *string `json:"name"`
 
-	// Credentials to talk to NSX-T manager. Field introduced in 20.1.1.
+	// Credentials to talk to NSX-T manager. Field introduced in 20.1.1. Allowed in Essentials edition, Enterprise edition.
 	NsxtCredentials *NsxtCredentials `json:"nsxt_credentials,omitempty"`
 
-	// Credentials for Oracle Cloud Infrastructure. Field introduced in 18.2.1,18.1.3.
+	// Credentials for Oracle Cloud Infrastructure. Field introduced in 18.2.1,18.1.3. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	OciCredentials *OCICredentials `json:"oci_credentials,omitempty"`
 
 	// password of CloudConnectorUser.
@@ -42,7 +42,7 @@ type CloudConnectorUser struct {
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// Credentials for Tencent Cloud. Field introduced in 18.2.3.
+	// Credentials for Tencent Cloud. Field introduced in 18.2.3. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	TencentCredentials *TencentCredentials `json:"tencent_credentials,omitempty"`
 
 	// url

@@ -34,6 +34,12 @@ type IcapRequestLog struct {
 	// The response code received from the ICAP server. Field introduced in 20.1.1.
 	IcapResponseCode *int32 `json:"icap_response_code,omitempty"`
 
+	// ICAP server IP for this connection. Field introduced in 20.1.3.
+	IcapServerIP *int32 `json:"icap_server_ip,omitempty"`
+
+	// ICAP server port for this connection. Field introduced in 20.1.3.
+	IcapServerPort *int32 `json:"icap_server_port,omitempty"`
+
 	// Latency added due to ICAP processing. This is the time taken from 1st byte of ICAP request sent to last byte of ICAP response received. Field introduced in 20.1.1. Unit is MILLISECONDS.
 	Latency *int64 `json:"latency,omitempty"`
 
@@ -49,15 +55,18 @@ type IcapRequestLog struct {
 	// Blocking reason for the content. It is available only if content was scanned by ICAP server and some violations were found. Field introduced in 20.1.1.
 	Reason *string `json:"reason,omitempty"`
 
-	// ICAP server IP for this connection. Field introduced in 20.1.1.
+	// ICAP server IP for this connection. Field deprecated in 20.1.3. Field introduced in 20.1.1.
 	ServerIP *IPAddr `json:"server_ip,omitempty"`
 
 	// Source port for this connection. Field introduced in 20.1.1.
 	SourcePort *int32 `json:"source_port,omitempty"`
 
-	// Detailed description of the threat found in the content. Available only if request was scanned by ICAP server and some violations were found. Field introduced in 20.1.1.
+	// Detailed description of the threat found in the content. Available only if request was scanned by ICAP server and some violations were found. Field deprecated in 20.1.3. Field introduced in 20.1.1.
 	ThreatDescription *string `json:"threat_description,omitempty"`
 
 	// Short description of the threat found in the content. Available only if content was scanned by ICAP server and some violations were found. Field introduced in 20.1.1.
 	ThreatID *string `json:"threat_id,omitempty"`
+
+	// Threat found in the content.  Available only if content was scanned by ICAP server and some violations were found. Field introduced in 20.1.3.
+	Violations []*IcapViolation `json:"violations,omitempty"`
 }

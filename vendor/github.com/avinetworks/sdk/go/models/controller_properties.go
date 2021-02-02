@@ -29,8 +29,14 @@ type ControllerProperties struct {
 	// Threshold to log request timing in portal_performance.log and Server-Timing response header. Any stage taking longer than 1% of the threshold will be included in the Server-Timing header. Field introduced in 18.1.4, 18.2.1. Unit is MILLISECONDS.
 	APIPerfLoggingThreshold *int32 `json:"api_perf_logging_threshold,omitempty"`
 
-	// Export configuration in appviewx compatibility mode. Field introduced in 17.1.1.
+	// Export configuration in appviewx compatibility mode. Field introduced in 17.1.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	AppviewxCompatMode *bool `json:"appviewx_compat_mode,omitempty"`
+
+	// Period for which asynchronous patch requests are queued. Allowed values are 30-120. Special values are 0 - 'Deactivated'. Field introduced in 18.2.11, 20.1.3. Unit is SEC.
+	AsyncPatchMergePeriod *int32 `json:"async_patch_merge_period,omitempty"`
+
+	// Duration for which asynchronous patch requests should be kept, after being marked as SUCCESS or FAIL. Allowed values are 5-120. Field introduced in 18.2.11, 20.1.3. Unit is MIN.
+	AsyncPatchRequestCleanupDuration *int32 `json:"async_patch_request_cleanup_duration,omitempty"`
 
 	//  Unit is SEC.
 	AttachIPRetryInterval *int32 `json:"attach_ip_retry_interval,omitempty"`
@@ -56,6 +62,9 @@ type ControllerProperties struct {
 	// Period for consistency check job. Field introduced in 18.1.1. Unit is MIN.
 	ConsistencyCheckTimeoutPeriod *int32 `json:"consistency_check_timeout_period,omitempty"`
 
+	// Periodically collect stats. Field introduced in 20.1.3. Unit is MIN.
+	ControllerResourceInfoCollectionPeriod *int32 `json:"controller_resource_info_collection_period,omitempty"`
+
 	//  Unit is SEC.
 	CrashedSeReboot *int32 `json:"crashed_se_reboot,omitempty"`
 
@@ -65,7 +74,7 @@ type ControllerProperties struct {
 	// Minimum api timeout value.If this value is not 60, it will be the default timeout for all APIs that do not have a specific timeout.If an API has a specific timeout but is less than this value, this value will become the new timeout. Allowed values are 60-3600. Field introduced in 18.2.6. Unit is SEC.
 	DefaultMinimumAPITimeout *int32 `json:"default_minimum_api_timeout,omitempty"`
 
-	// Period for refresh pool and gslb DNS job. Unit is MIN.
+	// Period for refresh pool and gslb DNS job. Unit is MIN. Allowed in Basic(Allowed values- 60) edition, Essentials(Allowed values- 60) edition, Enterprise edition.
 	DNSRefreshPeriod *int32 `json:"dns_refresh_period,omitempty"`
 
 	// Number of dummy.
@@ -104,10 +113,13 @@ type ControllerProperties struct {
 	// Number of max_seq_vnic_failures.
 	MaxSeqVnicFailures *int32 `json:"max_seq_vnic_failures,omitempty"`
 
+	// Maximum number of threads in threadpool used by cloud connector CCVIPBGWorker. Allowed values are 1-100. Field introduced in 20.1.3.
+	MaxThreadsCcVipBgWorker *int32 `json:"max_threads_cc_vip_bg_worker,omitempty"`
+
 	// Network and VrfContext objects from the admin tenant will not be shared to non-admin tenants unless admin permissions are granted. Field introduced in 18.2.7, 20.1.1.
 	PermissionScopedSharedAdminNetworks *bool `json:"permission_scoped_shared_admin_networks,omitempty"`
 
-	// Period for rotate app persistence keys job. Allowed values are 1-1051200. Special values are 0 - 'Disabled'. Unit is MIN.
+	// Period for rotate app persistence keys job. Allowed values are 1-1051200. Special values are 0 - 'Disabled'. Unit is MIN. Allowed in Basic(Allowed values- 0) edition, Essentials(Allowed values- 0) edition, Enterprise edition.
 	PersistenceKeyRotatePeriod *int32 `json:"persistence_key_rotate_period,omitempty"`
 
 	// Burst limit on number of incoming requests0 to disable. Field introduced in 20.1.1.
@@ -176,7 +188,7 @@ type ControllerProperties struct {
 	//  Unit is SEC.
 	UnresponsiveSeReboot *int32 `json:"unresponsive_se_reboot,omitempty"`
 
-	// Time to account for DNS TTL during upgrade. This is in addition to vs_scalein_timeout_for_upgrade in se_group. Field introduced in 17.1.1. Unit is SEC.
+	// Time to account for DNS TTL during upgrade. This is in addition to vs_scalein_timeout_for_upgrade in se_group. Field introduced in 17.1.1. Unit is SEC. Allowed in Basic(Allowed values- 5) edition, Essentials(Allowed values- 5) edition, Enterprise edition.
 	UpgradeDNSTTL *int32 `json:"upgrade_dns_ttl,omitempty"`
 
 	// Amount of time Controller waits for a large-sized SE (>=128GB memory) to reconnect after it is rebooted during upgrade. Field introduced in 18.2.10, 20.1.1. Unit is SEC.

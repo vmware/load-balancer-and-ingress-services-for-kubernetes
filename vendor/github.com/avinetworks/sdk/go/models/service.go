@@ -7,13 +7,13 @@ package models
 // swagger:model Service
 type Service struct {
 
-	// Enable HTTP2 on this port. Field introduced in 20.1.1.
+	// Enable HTTP2 on this port. Field introduced in 20.1.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	EnableHttp2 *bool `json:"enable_http2,omitempty"`
 
 	// Enable SSL termination and offload for traffic from clients.
 	EnableSsl *bool `json:"enable_ssl,omitempty"`
 
-	// Enable application layer specific features for the this specific service. It is a reference to an object of type ApplicationProfile. Field introduced in 17.2.4.
+	// Enable application layer specific features for the this specific service. It is a reference to an object of type ApplicationProfile. Field introduced in 17.2.4. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	OverrideApplicationProfileRef *string `json:"override_application_profile_ref,omitempty"`
 
 	// Override the network profile for this specific service port. It is a reference to an object of type NetworkProfile.

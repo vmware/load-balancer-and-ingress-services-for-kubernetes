@@ -18,10 +18,10 @@ type WafProfile struct {
 	//  Field introduced in 17.2.1.
 	Description *string `json:"description,omitempty"`
 
-	// List of Data Files Used for WAF Rules. Field introduced in 17.2.1.
+	// List of Data Files Used for WAF Rules. Field introduced in 17.2.1. Maximum of 64 items allowed.
 	Files []*WafDataFile `json:"files,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	//  Field introduced in 17.2.1.

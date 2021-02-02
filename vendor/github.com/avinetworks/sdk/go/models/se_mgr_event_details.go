@@ -35,6 +35,18 @@ type SeMgrEventDetails struct {
 	// Required: true
 	Name *string `json:"name"`
 
+	//  Field introduced in 20.1.3.
+	NewMgmtIP *string `json:"new_mgmt_ip,omitempty"`
+
+	//  Field introduced in 20.1.3.
+	NewMgmtIp6 *string `json:"new_mgmt_ip6,omitempty"`
+
+	//  Field introduced in 20.1.3.
+	OldMgmtIP *string `json:"old_mgmt_ip,omitempty"`
+
+	//  Field introduced in 20.1.3.
+	OldMgmtIp6 *string `json:"old_mgmt_ip6,omitempty"`
+
 	// reason of SeMgrEventDetails.
 	Reason *string `json:"reason,omitempty"`
 

@@ -55,6 +55,12 @@ type SeList struct {
 	// Number of memory.
 	Memory *int32 `json:"memory,omitempty"`
 
+	// Management IPv4 address of SE. Field introduced in 20.1.3.
+	MgmtIP *IPAddr `json:"mgmt_ip,omitempty"`
+
+	// Management IPv6 address of SE. Field introduced in 20.1.3.
+	MgmtIp6 *IPAddr `json:"mgmt_ip6,omitempty"`
+
 	// This field is not needed with the current implementation of Update RPCs to SEs. Field deprecated in 18.1.5, 18.2.1.
 	PendingDownload *bool `json:"pending_download,omitempty"`
 

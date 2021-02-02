@@ -3,7 +3,7 @@ cloud.google.com/go/compute/metadata
 # github.com/Masterminds/semver v1.5.0
 ## explicit
 github.com/Masterminds/semver
-# github.com/avinetworks/sdk v0.0.0-20200910070359-d9ffda19a7dd
+# github.com/avinetworks/sdk v0.0.0-20210127001121-7d79efee089b
 ## explicit
 github.com/avinetworks/sdk/go/clients
 github.com/avinetworks/sdk/go/models

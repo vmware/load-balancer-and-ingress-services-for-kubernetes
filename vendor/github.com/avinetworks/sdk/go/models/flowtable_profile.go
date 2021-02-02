@@ -7,6 +7,9 @@ package models
 // swagger:model FlowtableProfile
 type FlowtableProfile struct {
 
+	// Idle timeout in seconds for ICMP flows. Allowed values are 1-36000. Field introduced in 20.1.3. Unit is SECONDS.
+	IcmpIDLETimeout *int32 `json:"icmp_idle_timeout,omitempty"`
+
 	// Idle timeout in seconds for TCP flows in closed state. Allowed values are 1-36000. Field introduced in 18.2.5. Unit is SECONDS.
 	TCPClosedTimeout *int32 `json:"tcp_closed_timeout,omitempty"`
 

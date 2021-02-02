@@ -14,13 +14,13 @@ type SSLProfile struct {
 	// Ciphers suites represented as defined by U(http //www.openssl.org/docs/apps/ciphers.html).
 	AcceptedCiphers *string `json:"accepted_ciphers,omitempty"`
 
-	// Set of versions accepted by the server.
+	// Set of versions accepted by the server. Minimum of 1 items required.
 	AcceptedVersions []*SSLVersion `json:"accepted_versions,omitempty"`
 
-	//  Enum options - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256. TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384. TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256. TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384. TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256. TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384. TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256. TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384. TLS_RSA_WITH_AES_128_GCM_SHA256. TLS_RSA_WITH_AES_256_GCM_SHA384. TLS_RSA_WITH_AES_128_CBC_SHA256. TLS_RSA_WITH_AES_256_CBC_SHA256. TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA. TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA. TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA. TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA. TLS_RSA_WITH_AES_128_CBC_SHA. TLS_RSA_WITH_AES_256_CBC_SHA. TLS_RSA_WITH_3DES_EDE_CBC_SHA. TLS_AES_256_GCM_SHA384...
+	//  Enum options - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_GCM_SHA384, TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_RSA_WITH_AES_256_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_256_CBC_SHA, TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256. Allowed in Basic(Allowed values- TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_RSA_WITH_AES_256_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_3DES_EDE_CBC_SHA) edition, Essentials(Allowed values- TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_RSA_WITH_AES_256_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_3DES_EDE_CBC_SHA) edition, Enterprise edition.
 	CipherEnums []string `json:"cipher_enums,omitempty"`
 
-	// TLS 1.3 Ciphers suites represented as defined by U(https //www.openssl.org/docs/manmaster/man1/ciphers.html). Field introduced in 18.2.6.
+	// TLS 1.3 Ciphers suites represented as defined by U(https //www.openssl.org/docs/manmaster/man1/ciphers.html). Field introduced in 18.2.6. Allowed in Basic edition, Essentials edition, Enterprise edition. Special default for Basic edition is TLS_AES_256_GCM_SHA384-TLS_AES_128_GCM_SHA256, Essentials edition is TLS_AES_256_GCM_SHA384-TLS_AES_128_GCM_SHA256, Enterprise is TLS_AES_256_GCM_SHA384-TLS_CHACHA20_POLY1305_SHA256-TLS_AES_128_GCM_SHA256.
 	Ciphersuites *string `json:"ciphersuites,omitempty"`
 
 	// User defined description for the object.
@@ -29,13 +29,13 @@ type SSLProfile struct {
 	// DH Parameters used in SSL. At this time, it is not configurable and is set to 2048 bits.
 	Dhparam *string `json:"dhparam,omitempty"`
 
-	// Enable early data processing for TLS1.3 connections. Field introduced in 18.2.6.
+	// Enable early data processing for TLS1.3 connections. Field introduced in 18.2.6. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	EnableEarlyData *bool `json:"enable_early_data,omitempty"`
 
 	// Enable SSL session re-use.
 	EnableSslSessionReuse *bool `json:"enable_ssl_session_reuse,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Name of the object.

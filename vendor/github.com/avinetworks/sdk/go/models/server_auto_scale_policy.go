@@ -11,6 +11,9 @@ type ServerAutoScalePolicy struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Delay in minutes after which a down server will be removed from Pool. Value 0 disables this functionality. Field introduced in 20.1.3.
+	DelayForServerGarbageCollection *int32 `json:"delay_for_server_garbage_collection,omitempty"`
+
 	// User defined description for the object.
 	Description *string `json:"description,omitempty"`
 
@@ -23,7 +26,7 @@ type ServerAutoScalePolicy struct {
 	// Minimum extra capacity as percentage of load used by the intelligent scheme. Scaleout is triggered when available capacity is less than this margin. Allowed values are 1-99.
 	IntelligentScaleoutMargin *int32 `json:"intelligent_scaleout_margin,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// Maximum number of servers to scalein simultaneously. The actual number of servers to scalein is chosen such that target number of servers is always more than or equal to the min_size.

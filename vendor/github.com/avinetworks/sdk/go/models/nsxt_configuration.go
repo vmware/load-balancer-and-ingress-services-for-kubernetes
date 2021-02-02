@@ -7,7 +7,7 @@ package models
 // swagger:model NsxtConfiguration
 type NsxtConfiguration struct {
 
-	// Automatically create DFW rules for VirtualService in NSX-T Manager. Field introduced in 20.1.1.
+	// Automatically create DFW rules for VirtualService in NSX-T Manager. Field introduced in 20.1.1. Allowed in Basic(Allowed values- false) edition, Enterprise edition.
 	AutomateDfwRules *bool `json:"automate_dfw_rules,omitempty"`
 
 	// Domain where NSGroup objects belongs to. Field introduced in 20.1.1.

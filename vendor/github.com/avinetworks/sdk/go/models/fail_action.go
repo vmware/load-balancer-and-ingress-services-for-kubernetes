@@ -16,7 +16,7 @@ type FailAction struct {
 	// URL to redirect HTTP requests to when pool experiences a failure.
 	Redirect *FailActionHTTPRedirect `json:"redirect,omitempty"`
 
-	// Enables a response to client when pool experiences a failure. By default TCP connection is closed. Enum options - FAIL_ACTION_HTTP_REDIRECT, FAIL_ACTION_HTTP_LOCAL_RSP, FAIL_ACTION_CLOSE_CONN, FAIL_ACTION_BACKUP_POOL.
+	// Enables a response to client when pool experiences a failure. By default TCP connection is closed. Enum options - FAIL_ACTION_HTTP_REDIRECT, FAIL_ACTION_HTTP_LOCAL_RSP, FAIL_ACTION_CLOSE_CONN, FAIL_ACTION_BACKUP_POOL. Allowed in Basic(Allowed values- FAIL_ACTION_CLOSE_CONN) edition, Essentials(Allowed values- FAIL_ACTION_CLOSE_CONN) edition, Enterprise edition.
 	// Required: true
 	Type *string `json:"type"`
 }

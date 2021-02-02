@@ -14,7 +14,7 @@ type ActionGroupConfig struct {
 	// reference of the action script configuration to be used. It is a reference to an object of type AlertScriptConfig.
 	ActionScriptConfigRef *string `json:"action_script_config_ref,omitempty"`
 
-	// Trigger Notification to AutoScale Manager.
+	// Trigger Notification to AutoScale Manager. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	AutoscaleTriggerNotification *bool `json:"autoscale_trigger_notification,omitempty"`
 
 	// User defined description for the object.
@@ -23,7 +23,7 @@ type ActionGroupConfig struct {
 	// Select the Email Notification configuration to use when sending alerts via email. It is a reference to an object of type AlertEmailConfig.
 	EmailConfigRef *string `json:"email_config_ref,omitempty"`
 
-	// Generate Alert only to external destinations.
+	// Generate Alert only to external destinations. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	// Required: true
 	ExternalOnly *bool `json:"external_only"`
 

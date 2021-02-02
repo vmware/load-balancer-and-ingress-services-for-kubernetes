@@ -37,9 +37,7 @@ type AviClient struct {
 	CloudConnectorUser              *CloudConnectorUserClient
 	CloudProperties                 *CloudPropertiesClient
 	CloudRuntime                    *CloudRuntimeClient
-	Cluster                         *ClusterClient
 	ClusterCloudDetails             *ClusterCloudDetailsClient
-	ControllerLicense               *ControllerLicenseClient
 	ControllerPortalRegistration    *ControllerPortalRegistrationClient
 	ControllerProperties            *ControllerPropertiesClient
 	ControllerSite                  *ControllerSiteClient
@@ -48,6 +46,7 @@ type AviClient struct {
 	DebugController                 *DebugControllerClient
 	DebugServiceEngine              *DebugServiceEngineClient
 	DebugVirtualService             *DebugVirtualServiceClient
+	DynamicDNSRecord                *DynamicDNSRecordClient
 	ErrorPageBody                   *ErrorPageBodyClient
 	ErrorPageProfile                *ErrorPageProfileClient
 	FederationCheckpoint            *FederationCheckpointClient
@@ -63,6 +62,7 @@ type AviClient struct {
 	IPReputationDB                  *IPReputationDBClient
 	IcapProfile                     *IcapProfileClient
 	Image                           *ImageClient
+	JWTServerProfile                *JWTServerProfileClient
 	JobEntry                        *JobEntryClient
 	L4PolicySet                     *L4PolicySetClient
 	LicenseLedgerDetails            *LicenseLedgerDetailsClient
@@ -76,7 +76,6 @@ type AviClient struct {
 	NetworkSecurityPolicy           *NetworkSecurityPolicyClient
 	NetworkService                  *NetworkServiceClient
 	NsxtSegmentRuntime              *NsxtSegmentRuntimeClient
-	ObjectAccessPolicy              *ObjectAccessPolicyClient
 	PKIprofile                      *PKIprofileClient
 	PingAccessAgent                 *PingAccessAgentClient
 	Pool                            *PoolClient
@@ -112,6 +111,7 @@ type AviClient struct {
 	TrafficCloneProfile             *TrafficCloneProfileClient
 	UpgradeStatusInfo               *UpgradeStatusInfoClient
 	UpgradeStatusSummary            *UpgradeStatusSummaryClient
+	User                            *UserClient
 	UserAccountProfile              *UserAccountProfileClient
 	UserActivity                    *UserActivityClient
 	VCenterServer                   *VCenterServerClient
@@ -169,9 +169,7 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.CloudConnectorUser = NewCloudConnectorUserClient(aviSession)
 	aviClient.CloudProperties = NewCloudPropertiesClient(aviSession)
 	aviClient.CloudRuntime = NewCloudRuntimeClient(aviSession)
-	aviClient.Cluster = NewClusterClient(aviSession)
 	aviClient.ClusterCloudDetails = NewClusterCloudDetailsClient(aviSession)
-	aviClient.ControllerLicense = NewControllerLicenseClient(aviSession)
 	aviClient.ControllerPortalRegistration = NewControllerPortalRegistrationClient(aviSession)
 	aviClient.ControllerProperties = NewControllerPropertiesClient(aviSession)
 	aviClient.ControllerSite = NewControllerSiteClient(aviSession)
@@ -180,6 +178,7 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.DebugController = NewDebugControllerClient(aviSession)
 	aviClient.DebugServiceEngine = NewDebugServiceEngineClient(aviSession)
 	aviClient.DebugVirtualService = NewDebugVirtualServiceClient(aviSession)
+	aviClient.DynamicDNSRecord = NewDynamicDNSRecordClient(aviSession)
 	aviClient.ErrorPageBody = NewErrorPageBodyClient(aviSession)
 	aviClient.ErrorPageProfile = NewErrorPageProfileClient(aviSession)
 	aviClient.FederationCheckpoint = NewFederationCheckpointClient(aviSession)
@@ -195,6 +194,7 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.IPReputationDB = NewIPReputationDBClient(aviSession)
 	aviClient.IcapProfile = NewIcapProfileClient(aviSession)
 	aviClient.Image = NewImageClient(aviSession)
+	aviClient.JWTServerProfile = NewJWTServerProfileClient(aviSession)
 	aviClient.JobEntry = NewJobEntryClient(aviSession)
 	aviClient.L4PolicySet = NewL4PolicySetClient(aviSession)
 	aviClient.LicenseLedgerDetails = NewLicenseLedgerDetailsClient(aviSession)
@@ -208,7 +208,6 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.NetworkSecurityPolicy = NewNetworkSecurityPolicyClient(aviSession)
 	aviClient.NetworkService = NewNetworkServiceClient(aviSession)
 	aviClient.NsxtSegmentRuntime = NewNsxtSegmentRuntimeClient(aviSession)
-	aviClient.ObjectAccessPolicy = NewObjectAccessPolicyClient(aviSession)
 	aviClient.PKIprofile = NewPKIprofileClient(aviSession)
 	aviClient.PingAccessAgent = NewPingAccessAgentClient(aviSession)
 	aviClient.Pool = NewPoolClient(aviSession)
@@ -244,6 +243,7 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.TrafficCloneProfile = NewTrafficCloneProfileClient(aviSession)
 	aviClient.UpgradeStatusInfo = NewUpgradeStatusInfoClient(aviSession)
 	aviClient.UpgradeStatusSummary = NewUpgradeStatusSummaryClient(aviSession)
+	aviClient.User = NewUserClient(aviSession)
 	aviClient.UserAccountProfile = NewUserAccountProfileClient(aviSession)
 	aviClient.UserActivity = NewUserActivityClient(aviSession)
 	aviClient.VCenterServer = NewVCenterServerClient(aviSession)

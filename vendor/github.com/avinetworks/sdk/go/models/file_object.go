@@ -48,7 +48,7 @@ type FileObject struct {
 	// Tenant that this object belongs to. It is a reference to an object of type Tenant. Field introduced in 20.1.1.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// Type of the file. Enum options - OTHER_FILE_TYPES, IP_REPUTATION, GEO_DB, TECH_SUPPORT, HSMPACKAGES, IPAMDNSSCRIPTS, CONTROLLER_IMAGE. Field introduced in 20.1.1.
+	// Type of the file. Enum options - OTHER_FILE_TYPES, IP_REPUTATION, GEO_DB, TECH_SUPPORT, HSMPACKAGES, IPAMDNSSCRIPTS, CONTROLLER_IMAGE. Field introduced in 20.1.1. Allowed in Basic(Allowed values- OTHER_FILE_TYPES) edition, Essentials(Allowed values- OTHER_FILE_TYPES) edition, Enterprise edition.
 	// Required: true
 	Type *string `json:"type"`
 

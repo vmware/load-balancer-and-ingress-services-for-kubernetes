@@ -10,6 +10,9 @@ type ConfigUserLogin struct {
 	// client ip.
 	ClientIP *string `json:"client_ip,omitempty"`
 
+	// Type of client used to login UI, CLI, others(API). Field introduced in 20.1.3.
+	ClientType *string `json:"client_type,omitempty"`
+
 	// error message if authentication failed.
 	ErrorMessage *string `json:"error_message,omitempty"`
 

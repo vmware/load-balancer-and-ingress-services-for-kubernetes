@@ -14,16 +14,16 @@ type Cloud struct {
 	// Placeholder for description of property apic_configuration of obj type Cloud field type str  type object
 	ApicConfiguration *APICConfiguration `json:"apic_configuration,omitempty"`
 
-	// Placeholder for description of property apic_mode of obj type Cloud field type str  type boolean
+	//  Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	ApicMode *bool `json:"apic_mode,omitempty"`
 
-	// CloudConnector polling interval in seconds for external autoscale groups, minimum 60 seconds. Allowed values are 60-3600. Field introduced in 18.2.2. Unit is SECONDS.
+	// CloudConnector polling interval in seconds for external autoscale groups, minimum 60 seconds. Allowed values are 60-3600. Field introduced in 18.2.2. Unit is SECONDS. Allowed in Basic(Allowed values- 60) edition, Essentials(Allowed values- 60) edition, Enterprise edition.
 	AutoscalePollingInterval *int32 `json:"autoscale_polling_interval,omitempty"`
 
 	// Placeholder for description of property aws_configuration of obj type Cloud field type str  type object
 	AwsConfiguration *AwsConfiguration `json:"aws_configuration,omitempty"`
 
-	//  Field introduced in 17.2.1.
+	//  Field introduced in 17.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	AzureConfiguration *AzureConfiguration `json:"azure_configuration,omitempty"`
 
 	// Placeholder for description of property cloudstack_configuration of obj type Cloud field type str  type object
@@ -38,7 +38,7 @@ type Cloud struct {
 	// DNS Profile for the cloud. It is a reference to an object of type IpamDnsProviderProfile.
 	DNSProviderRef *string `json:"dns_provider_ref,omitempty"`
 
-	// By default, pool member FQDNs are resolved on the Controller. When this is set, pool member FQDNs are instead resolved on Service Engines in this cloud. This is useful in scenarios where pool member FQDNs can only be resolved from Service Engines and not from the Controller. Field introduced in 18.2.6.
+	// By default, pool member FQDNs are resolved on the Controller. When this is set, pool member FQDNs are instead resolved on Service Engines in this cloud. This is useful in scenarios where pool member FQDNs can only be resolved from Service Engines and not from the Controller. Field introduced in 18.2.6. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	DNSResolutionOnSe *bool `json:"dns_resolution_on_se,omitempty"`
 
 	// Placeholder for description of property docker_configuration of obj type Cloud field type str  type object
@@ -56,7 +56,7 @@ type Cloud struct {
 	// Use static routes for VIP side network resolution during VirtualService placement.
 	EnableVipStaticRoutes *bool `json:"enable_vip_static_routes,omitempty"`
 
-	// Google Cloud Platform Configuration. Field introduced in 18.2.1.
+	// Google Cloud Platform Configuration. Field introduced in 18.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	GcpConfiguration *GCPConfiguration `json:"gcp_configuration,omitempty"`
 
 	// Enable IPv6 auto configuration. Field introduced in 18.1.1.
@@ -65,7 +65,7 @@ type Cloud struct {
 	// Ipam Profile for the cloud. It is a reference to an object of type IpamDnsProviderProfile.
 	IPAMProviderRef *string `json:"ipam_provider_ref,omitempty"`
 
-	// Specifies the default license tier which would be used by new SE Groups. This field by default inherits the value from system configuration. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC. Field introduced in 17.2.5.
+	// Specifies the default license tier which would be used by new SE Groups. This field by default inherits the value from system configuration. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS. Field introduced in 17.2.5.
 	LicenseTier *string `json:"license_tier,omitempty"`
 
 	// If no license type is specified then default license enforcement for the cloud type is chosen. The default mappings are Container Cloud is Max Ses, OpenStack and VMware is cores and linux it is Sockets. Enum options - LIC_BACKEND_SERVERS, LIC_SOCKETS, LIC_CORES, LIC_HOSTS, LIC_SE_BANDWIDTH, LIC_METERED_SE_BANDWIDTH.
@@ -87,7 +87,7 @@ type Cloud struct {
 	// Configuration parameters for NSX Manager. Field introduced in 17.1.1.
 	NsxConfiguration *NsxConfiguration `json:"nsx_configuration,omitempty"`
 
-	// NSX-T Cloud Platform Configuration. Field introduced in 20.1.1.
+	// NSX-T Cloud Platform Configuration. Field introduced in 20.1.1. Allowed in Essentials edition, Enterprise edition.
 	NsxtConfiguration *NsxtConfiguration `json:"nsxt_configuration,omitempty"`
 
 	// Default prefix for all automatically created objects in this cloud. This prefix can be overridden by the SE-Group template.
@@ -111,7 +111,7 @@ type Cloud struct {
 	// The Service Engine Group to use as template. It is a reference to an object of type ServiceEngineGroup. Field introduced in 18.2.5.
 	SeGroupTemplateRef *string `json:"se_group_template_ref,omitempty"`
 
-	// DNS records for VIPs are added/deleted based on the operational state of the VIPs. Field introduced in 17.1.12.
+	// DNS records for VIPs are added/deleted based on the operational state of the VIPs. Field introduced in 17.1.12. Allowed in Basic(Allowed values- true) edition, Essentials(Allowed values- true) edition, Enterprise edition.
 	StateBasedDNSRegistration *bool `json:"state_based_dns_registration,omitempty"`
 
 	//  It is a reference to an object of type Tenant.
@@ -130,7 +130,7 @@ type Cloud struct {
 	// Placeholder for description of property vcenter_configuration of obj type Cloud field type str  type object
 	VcenterConfiguration *VCenterConfiguration `json:"vcenter_configuration,omitempty"`
 
-	// Cloud type. Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT.
+	// Cloud type. Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT. Allowed in Basic(Allowed values- CLOUD_NONE,CLOUD_NSXT) edition, Essentials(Allowed values- CLOUD_NONE,CLOUD_VCENTER) edition, Enterprise edition.
 	// Required: true
 	Vtype *string `json:"vtype"`
 }

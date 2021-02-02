@@ -21,4 +21,7 @@ type ConfigUserAuthrzByRule struct {
 
 	// Request user.
 	User *string `json:"user,omitempty"`
+
+	// assigned user account profile name. Field introduced in 20.1.3.
+	Userprofile *string `json:"userprofile,omitempty"`
 }

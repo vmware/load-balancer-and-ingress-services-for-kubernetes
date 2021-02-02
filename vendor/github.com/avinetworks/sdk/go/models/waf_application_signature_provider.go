@@ -15,15 +15,15 @@ type WafApplicationSignatureProvider struct {
 	// Read Only: true
 	AvailableApplications []*WafApplicationSignatureAppVersion `json:"available_applications,omitempty"`
 
-	// The error message indicating why the last update check failed. Field introduced in 20.1.1.
+	// The error message indicating why the last update check failed. Field deprecated in 20.1.3. Field introduced in 20.1.1.
 	// Read Only: true
 	LastCheckForUpdatesError *string `json:"last_check_for_updates_error,omitempty"`
 
-	// The last time that we checked for updates but did not get a result because of an error. Field introduced in 20.1.1.
+	// The last time that we checked for updates but did not get a result because of an error. Field deprecated in 20.1.3. Field introduced in 20.1.1.
 	// Read Only: true
 	LastFailedCheckForUpdates *TimeStamp `json:"last_failed_check_for_updates,omitempty"`
 
-	// The last time that we checked for updates sucessfully. Field introduced in 20.1.1.
+	// The last time that we checked for updates sucessfully. Field deprecated in 20.1.3. Field introduced in 20.1.1.
 	// Read Only: true
 	LastSuccessfulCheckForUpdates *TimeStamp `json:"last_successful_check_for_updates,omitempty"`
 
@@ -33,6 +33,9 @@ type WafApplicationSignatureProvider struct {
 	// Version of signatures. Field introduced in 20.1.1.
 	// Read Only: true
 	RulesetVersion *string `json:"ruleset_version,omitempty"`
+
+	// If this object is managed by the Application Signatures update  service, this field contain the status of this syncronization. Field introduced in 20.1.3.
+	ServiceStatus *WebApplicationSignatureServiceStatus `json:"service_status,omitempty"`
 
 	// The WAF rules. Not visible in the API. Field introduced in 20.1.1.
 	// Read Only: true

@@ -84,6 +84,9 @@ type ApplicationLog struct {
 	// Placeholder for description of property connection_error_info of obj type ApplicationLog field type str  type object
 	ConnectionErrorInfo *ConnErrorInfo `json:"connection_error_info,omitempty"`
 
+	// Critical error encountered during request processing. Field introduced in 20.1.3.
+	CriticalErrorEncountered *bool `json:"critical_error_encountered,omitempty"`
+
 	//  Unit is MILLISECONDS.
 	DataTransferTime *int64 `json:"data_transfer_time,omitempty"`
 
@@ -105,7 +108,7 @@ type ApplicationLog struct {
 	// GRPC response status sent in the GRPC trailer. Special values are -1- 'No GRPC status recevied even though client sent content-type as application/grpc.'. Field introduced in 20.1.1.
 	GrpcStatus *int32 `json:"grpc_status,omitempty"`
 
-	// The reason phrase corresponding to the gRPC status code. Enum options - GRPC_STATUS_CODE_OK, GRPC_STATUS_CODE_CANCELLED, GRPC_STATUS_CODE_UNKNOWN, GRPC_STATUS_CODE_INVALID_ARGUMENT, GRPC_STATUS_CODE_DEADLINE_EXCEEDED, GRPC_STATUS_CODE_NOT_FOUND, GRPC_STATUS_CODE_ALREADY_EXISTS, GRPC_STATUS_CODE_PERMISSION_DENIED, GRPC_STATUS_CODE_UNAUTHENTICATED, GRPC_STATUS_CODE_RESOURCE_EXHAUSTED, GRPC_STATUS_CODE_FAILED_PRECONDITION, GRPC_STATUS_CODE_ABORTED, GRPC_STATUS_CODE_OUT_OF_RANGE, GRPC_STATUS_CODE_UNIMPLEMENTED, GRPC_STATUS_CODE_INTERNAL, GRPC_STATUS_CODE_UNAVAILABLE, GRPC_STATUS_CODE_DATA_LOSS. Field introduced in 20.1.1.
+	// The reason phrase corresponding to the gRPC status code. Enum options - GRPC_STATUS_CODE_OK, GRPC_STATUS_CODE_CANCELLED, GRPC_STATUS_CODE_UNKNOWN, GRPC_STATUS_CODE_INVALID_ARGUMENT, GRPC_STATUS_CODE_DEADLINE_EXCEEDED, GRPC_STATUS_CODE_NOT_FOUND, GRPC_STATUS_CODE_ALREADY_EXISTS, GRPC_STATUS_CODE_PERMISSION_DENIED, GRPC_STATUS_CODE_RESOURCE_EXHAUSTED, GRPC_STATUS_CODE_FAILED_PRECONDITION, GRPC_STATUS_CODE_STOPPED, GRPC_STATUS_CODE_OUT_OF_RANGE, GRPC_STATUS_CODE_UNIMPLEMENTED, GRPC_STATUS_CODE_INTERNAL, GRPC_STATUS_CODE_UNAVAILABLE, GRPC_STATUS_CODE_DATA_LOSS, GRPC_STATUS_CODE_UNAUTHENTICATED. Field introduced in 20.1.1.
 	GrpcStatusReasonPhrase *string `json:"grpc_status_reason_phrase,omitempty"`
 
 	// Response headers received from backend server.
@@ -135,6 +138,9 @@ type ApplicationLog struct {
 	// Log for the ICAP processing. Field introduced in 20.1.1.
 	IcapLog *IcapLog `json:"icap_log,omitempty"`
 
+	// Logs for the JWT Validation process. Field introduced in 20.1.3.
+	JwtLog *JwtLog `json:"jwt_log,omitempty"`
+
 	// Number of log_id.
 	// Required: true
 	LogID *int32 `json:"log_id"`
@@ -151,8 +157,14 @@ type ApplicationLog struct {
 	// network_security_policy_rule_name of ApplicationLog.
 	NetworkSecurityPolicyRuleName *string `json:"network_security_policy_rule_name,omitempty"`
 
+	// NTLM auto-detection logs. Field introduced in 20.1.3.
+	NtlmLog *NtlmLog `json:"ntlm_log,omitempty"`
+
 	// OCSP Certificate Status response sent in the SSL/TLS connection handshake. Field introduced in 20.1.1.
 	OcspStatusRespSent *bool `json:"ocsp_status_resp_sent,omitempty"`
+
+	// Logs for HTTP Out-Of-Band Requests. Field introduced in 20.1.3.
+	OobLog *OutOfBandRequestLog `json:"oob_log,omitempty"`
 
 	// Logs for the PingAccess authentication process. Field introduced in 18.2.3.
 	PaaLog *PaaLog `json:"paa_log,omitempty"`

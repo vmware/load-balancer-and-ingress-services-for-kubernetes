@@ -14,6 +14,6 @@ type NsxtTier1SegmentAutomaticMode struct {
 	// The number of SE data vNic's that can be connected to the Avi logical segment. Field introduced in 20.1.1.
 	NumSePerSegment *int32 `json:"num_se_per_segment,omitempty"`
 
-	// Tier1 logical router IDs. Field introduced in 20.1.1.
+	// Tier1 logical router IDs. Field introduced in 20.1.1. Minimum of 1 items required.
 	Tier1LrIds []string `json:"tier1_lr_ids,omitempty"`
 }

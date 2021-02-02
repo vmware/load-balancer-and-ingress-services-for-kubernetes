@@ -18,7 +18,7 @@ type LicenseInfo struct {
 	// Specifies the license tier. Field introduced in 20.1.1.
 	TenantUUID *string `json:"tenant_uuid,omitempty"`
 
-	// Specifies the license tier. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC. Field introduced in 20.1.1.
+	// Specifies the license tier. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS. Field introduced in 20.1.1.
 	// Required: true
 	Tier *string `json:"tier"`
 

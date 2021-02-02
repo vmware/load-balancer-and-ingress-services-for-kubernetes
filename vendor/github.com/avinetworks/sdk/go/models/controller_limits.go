@@ -13,7 +13,7 @@ type ControllerLimits struct {
 	// Controller system limits specific to cloud type for all controller sizes. Field introduced in 20.1.1.
 	ControllerCloudLimits []*ControllerCloudLimits `json:"controller_cloud_limits,omitempty"`
 
-	// Controller system limits specific to controller sizing. Field introduced in 20.1.1.
+	// Controller system limits specific to controller sizing. Field introduced in 20.1.1. Maximum of 3 items allowed.
 	ControllerSizingLimits []*ControllerSizingLimits `json:"controller_sizing_limits,omitempty"`
 
 	// Maximum number of default routes per vrfcontext. Field introduced in 20.1.1.

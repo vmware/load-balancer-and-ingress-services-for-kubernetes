@@ -39,10 +39,10 @@ type ApplicationProfile struct {
 	// Specifies if we need to preserve client port while preserving client IP for backend connections. Field introduced in 17.2.7.
 	PreserveClientPort *bool `json:"preserve_client_port,omitempty"`
 
-	// Specifies if destination IP and port needs to be preserved for backend connection. Field introduced in 20.1.1.
+	// Specifies if destination IP and port needs to be preserved for backend connection. Field introduced in 20.1.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	PreserveDestIPPort *bool `json:"preserve_dest_ip_port,omitempty"`
 
-	// Specifies various SIP service related controls for virtual service. Field introduced in 17.2.8, 18.1.3, 18.2.1.
+	// Specifies various SIP service related controls for virtual service. Field introduced in 17.2.8, 18.1.3, 18.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	SipServiceProfile *SipServiceApplicationProfile `json:"sip_service_profile,omitempty"`
 
 	// Specifies the TCP application proxy profile parameters.
@@ -51,7 +51,7 @@ type ApplicationProfile struct {
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// Specifies which application layer proxy is enabled for the virtual service. Enum options - APPLICATION_PROFILE_TYPE_L4, APPLICATION_PROFILE_TYPE_HTTP, APPLICATION_PROFILE_TYPE_SYSLOG, APPLICATION_PROFILE_TYPE_DNS, APPLICATION_PROFILE_TYPE_SSL, APPLICATION_PROFILE_TYPE_SIP.
+	// Specifies which application layer proxy is enabled for the virtual service. Enum options - APPLICATION_PROFILE_TYPE_L4, APPLICATION_PROFILE_TYPE_HTTP, APPLICATION_PROFILE_TYPE_SYSLOG, APPLICATION_PROFILE_TYPE_DNS, APPLICATION_PROFILE_TYPE_SSL, APPLICATION_PROFILE_TYPE_SIP. Allowed in Basic(Allowed values- APPLICATION_PROFILE_TYPE_L4,APPLICATION_PROFILE_TYPE_HTTP) edition, Essentials(Allowed values- APPLICATION_PROFILE_TYPE_L4) edition, Enterprise edition.
 	// Required: true
 	Type *string `json:"type"`
 

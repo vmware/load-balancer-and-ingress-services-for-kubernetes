@@ -7,7 +7,10 @@ package models
 // swagger:model AuthorizationMatch
 type AuthorizationMatch struct {
 
-	// Attributes whose values need to be matched . Field introduced in 18.2.5.
+	// Access Token claims to be matched. Field introduced in 20.1.3.
+	AccessToken *JWTMatch `json:"access_token,omitempty"`
+
+	// Attributes whose values need to be matched . Field introduced in 18.2.5. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	AttrMatches []*AuthAttributeMatch `json:"attr_matches,omitempty"`
 
 	// Host header value to be matched. Field introduced in 18.2.5.

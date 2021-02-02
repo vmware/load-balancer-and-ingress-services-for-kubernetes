@@ -22,6 +22,9 @@ type NetworkSubnetInfo struct {
 	// Number of total.
 	Total *int32 `json:"total,omitempty"`
 
+	//  Enum options - STATIC_IPS_FOR_SE, STATIC_IPS_FOR_VIP, STATIC_IPS_FOR_VIP_AND_SE.
+	Type *string `json:"type,omitempty"`
+
 	// Number of used.
 	Used *int32 `json:"used,omitempty"`
 }

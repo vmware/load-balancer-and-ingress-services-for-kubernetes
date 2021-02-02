@@ -7,7 +7,7 @@ package models
 // swagger:model URIParam
 type URIParam struct {
 
-	// Token config either for the URI components or a constant string.
+	// Token config either for the URI components or a constant string. Minimum of 1 items required.
 	Tokens []*URIParamToken `json:"tokens,omitempty"`
 
 	// URI param type. Enum options - URI_PARAM_TYPE_TOKENIZED.

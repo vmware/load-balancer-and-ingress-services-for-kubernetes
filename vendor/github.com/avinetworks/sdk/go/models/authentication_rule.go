@@ -18,7 +18,7 @@ type AuthenticationRule struct {
 	// Required: true
 	Index *int32 `json:"index"`
 
-	// Add match criteria to the rule. Field introduced in 18.2.5.
+	// Add match criteria to the rule. Field introduced in 18.2.5. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	Match *AuthenticationMatch `json:"match,omitempty"`
 
 	// Name of the rule. Field introduced in 18.2.5.

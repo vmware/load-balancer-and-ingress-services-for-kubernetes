@@ -22,4 +22,7 @@ type DNSEdnsOption struct {
 
 	// IPv4 address of the client subnet. Field introduced in 17.1.1.
 	SubnetIP *int32 `json:"subnet_ip,omitempty"`
+
+	// IPv6 address of the client subnet. Field introduced in 18.2.12, 20.1.3.
+	SubnetIp6 *string `json:"subnet_ip6,omitempty"`
 }

@@ -11,6 +11,9 @@ type IcapProfile struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Allow ICAP server to send 204 response as described in RFC 3507 section 4.5.Service Engine will buffer the complete request if alllow_204 is enabled. If disabled, preview_size request body will be buffered if enable_preview is set to true, and rest of the request body will be streamed to the ICAP server. Field introduced in 20.1.3.
+	Allow204 *bool `json:"allow_204,omitempty"`
+
 	// The maximum buffer size for the HTTP request body. If the request body exceeds this size, the request will not be checked by the ICAP server. In this case, the configured action will be executed and a significant log entry will be generated. Allowed values are 1-51200. Field introduced in 20.1.1. Unit is KB.
 	BufferSize *int32 `json:"buffer_size,omitempty"`
 
@@ -26,7 +29,7 @@ type IcapProfile struct {
 	// Use the ICAP preview feature as described in RFC 3507 section 4.5. Field introduced in 20.1.1.
 	EnablePreview *bool `json:"enable_preview,omitempty"`
 
-	// Decide what should happen if there is a problem with the ICAP server like communication timeout, protocol error, pool error, etc. If this is set to Fail Open, the request will continue, but will create a significant log entry. If this is set to Fail Closed, the request will be rejected with a 503 status code. Enum options - ICAP_FAIL_OPEN, ICAP_FAIL_CLOSED. Field introduced in 20.1.1.
+	// Decide what should happen if there is a problem with the ICAP server like communication timeout, protocol error, pool error, etc. If this is set to Fail Open, the request will continue, but will create a significant log entry. If this is set to Fail Closed, the request will be rejected with a 500 status code. Enum options - ICAP_FAIL_OPEN, ICAP_FAIL_CLOSED. Field introduced in 20.1.1.
 	FailAction *string `json:"fail_action,omitempty"`
 
 	// Name of the ICAP profile. Field introduced in 20.1.1.
@@ -40,7 +43,7 @@ type IcapProfile struct {
 	// The ICAP preview size as described in RFC 3507 section 4.5. This should not exceed the size supported by the ICAP server. If this is set to 0, only the HTTP header will be sent to the ICAP server as a preview. To disable preview completely, set the enable-preview option to false. Allowed values are 0-5000. Field introduced in 20.1.1. Unit is BYTES.
 	PreviewSize *int32 `json:"preview_size,omitempty"`
 
-	// How long do we wait for a request to the ICAP server to finish. If this timeout is exceeded, the request to the ICAP server will be aborted and the configured fail action is executed. Allowed values are 50-3600000. Field introduced in 20.1.1. Unit is MILLISECONDS.
+	// Maximum time, client's request will be paused for ICAP processing. If this timeout is exceeded, the request to the ICAP server will be aborted and the configured fail action is executed. Allowed values are 50-3600000. Field introduced in 20.1.1. Unit is MILLISECONDS.
 	ResponseTimeout *int32 `json:"response_timeout,omitempty"`
 
 	// The path and query component of the ICAP URL. Host name and port will be taken from the pool. Field introduced in 20.1.1.

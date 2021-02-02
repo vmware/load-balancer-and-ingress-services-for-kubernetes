@@ -26,7 +26,7 @@ type PoolGroup struct {
 	// Description of Pool Group.
 	Description *string `json:"description,omitempty"`
 
-	// Enable HTTP/2 for traffic from VirtualService to all the backend servers in all the pools configured under this PoolGroup. Field introduced in 20.1.1.
+	// Enable HTTP/2 for traffic from VirtualService to all the backend servers in all the pools configured under this PoolGroup. Field introduced in 20.1.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	EnableHttp2 *bool `json:"enable_http2,omitempty"`
 
 	// Enable an action - Close Connection, HTTP Redirect, or Local HTTP Response - when a pool group failure happens. By default, a connection will be closed, in case the pool group experiences a failure.
@@ -35,13 +35,13 @@ type PoolGroup struct {
 	// Whether an implicit set of priority labels is generated. Field introduced in 17.1.9,17.2.3.
 	ImplicitPriorityLabels *bool `json:"implicit_priority_labels,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// List of pool group members object of type PoolGroupMember.
 	Members []*PoolGroupMember `json:"members,omitempty"`
 
-	// The minimum number of servers to distribute traffic to. Allowed values are 1-65535. Special values are 0 - 'Disable'.
+	// The minimum number of servers to distribute traffic to. Allowed values are 1-65535. Special values are 0 - 'Disable'. Allowed in Basic(Allowed values- 0) edition, Essentials(Allowed values- 0) edition, Enterprise edition.
 	MinServers *int32 `json:"min_servers,omitempty"`
 
 	// The name of the pool group.

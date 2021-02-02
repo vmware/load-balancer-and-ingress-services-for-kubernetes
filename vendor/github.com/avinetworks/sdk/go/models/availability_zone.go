@@ -28,6 +28,6 @@ type AvailabilityZone struct {
 	// Availability zone config UUID. Field introduced in 20.1.1.
 	UUID *string `json:"uuid,omitempty"`
 
-	// Group of VCenter list belong to availabilty zone. It is a reference to an object of type VCenterServer. Field introduced in 20.1.1.
+	// Group of VCenter list belong to availabilty zone. It is a reference to an object of type VCenterServer. Field introduced in 20.1.1. Minimum of 1 items required.
 	VcenterRefs []string `json:"vcenter_refs,omitempty"`
 }

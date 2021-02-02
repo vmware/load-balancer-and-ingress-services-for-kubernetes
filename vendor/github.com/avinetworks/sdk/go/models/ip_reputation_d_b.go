@@ -11,7 +11,7 @@ type IPReputationDB struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// IP reputation DB base file. It is a reference to an object of type FileObject. Field introduced in 20.1.1.
+	// IP reputation DB base file. It is a reference to an object of type FileObject. Field introduced in 20.1.1. Maximum of 1 items allowed.
 	BaseFileRefs []string `json:"base_file_refs,omitempty"`
 
 	// Description. Field introduced in 20.1.1.
@@ -20,7 +20,7 @@ type IPReputationDB struct {
 	// IP reputation DB incremental update files. It is a reference to an object of type FileObject. Field introduced in 20.1.1.
 	IncrementalFileRefs []string `json:"incremental_file_refs,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.2.1.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.2. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
 
 	// IP reputation DB name. Field introduced in 20.1.1.

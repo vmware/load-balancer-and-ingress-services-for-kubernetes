@@ -22,6 +22,9 @@ type ALBServicesConfig struct {
 	// Required: true
 	IPReputationConfig *IPReputationConfig `json:"ip_reputation_config"`
 
+	// Mode helps log collection and upload. Enum options - SALESFORCE, SYSTEST, MYVMWARE. Field introduced in 20.1.2. Allowed in Basic(Allowed values- SALESFORCE) edition, Essentials(Allowed values- SALESFORCE) edition, Enterprise edition.
+	Mode *string `json:"mode,omitempty"`
+
 	// Time interval in minutes. Allowed values are 5-60. Field introduced in 18.2.6.
 	PollingInterval *int32 `json:"polling_interval,omitempty"`
 
@@ -43,6 +46,9 @@ type ALBServicesConfig struct {
 
 	// By default, use system proxy configuration.If true, use split proxy configuration. Field introduced in 20.1.1.
 	UseSplitProxy *bool `json:"use_split_proxy,omitempty"`
+
+	// Secure the controller to PULSE communication over TLS. Field introduced in 20.1.3.
+	UseTLS *bool `json:"use_tls,omitempty"`
 
 	//  Field introduced in 18.2.6.
 	UUID *string `json:"uuid,omitempty"`
