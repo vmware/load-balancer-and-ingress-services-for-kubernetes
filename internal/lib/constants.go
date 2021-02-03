@@ -108,6 +108,7 @@ const (
 	ObjectDeletionDoneStatus                   = "Done"
 	ObjectDeletionTimeoutStatus                = "Timeout"
 	DefaultIngressClassAnnotation              = "ingressclass.kubernetes.io/is-default-class"
+	ExternalDNSAnnotation                      = "external-dns.alpha.kubernetes.io/hostname"
 	DefaultRouteCert                           = "router-certs-default"
 	NPLPodAnnotation                           = "nodeportlocal.antrea.io"
 

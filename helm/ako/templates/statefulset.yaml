@@ -206,6 +206,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: advancedL4
+          - name: AUTO_L4_FQDN
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: autoFQDN
           {{ if .Values.persistentVolumeClaim }}
           - name: USE_PVC
             value: "true"
