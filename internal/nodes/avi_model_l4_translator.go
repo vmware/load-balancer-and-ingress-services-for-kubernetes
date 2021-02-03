@@ -63,23 +63,18 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 		// subDomains[0] would either have the defaultSubDomain value
 		// or would default to the first dns subdomain it gets from the dns profile
+		subdomain := subDomains[0]
 		if strings.HasPrefix(subDomains[0], ".") {
-			if lib.GetL4FqdnFormat() == 1 {
-				// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-				fqdn = svcObj.ObjectMeta.Name + "." + svcObj.ObjectMeta.Namespace + subDomains[0]
-			} else if lib.GetL4FqdnFormat() == 2 {
-				// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
-				fqdn = svcObj.ObjectMeta.Name + "-" + svcObj.ObjectMeta.Namespace + subDomains[0]
-			}
-		} else {
-			if lib.GetL4FqdnFormat() == 1 {
-				// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-				fqdn = svcObj.ObjectMeta.Name + "." + svcObj.ObjectMeta.Namespace + "." + subDomains[0]
-			} else if lib.GetL4FqdnFormat() == 2 {
-				// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
-				fqdn = svcObj.ObjectMeta.Name + "-" + svcObj.ObjectMeta.Namespace + "." + subDomains[0]
-			}
+			subdomain = strings.Replace(subDomains[0], ".", "", -1)
 		}
+		if lib.GetL4FqdnFormat() == 1 {
+			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
+			fqdn = svcObj.Name + "." + svcObj.ObjectMeta.Namespace + "." + subdomain
+		} else if lib.GetL4FqdnFormat() == 2 {
+			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
+			fqdn = svcObj.Name + "-" + svcObj.ObjectMeta.Namespace + "." + subdomain
+		}
+
 		fqdns = append(fqdns, fqdn)
 	}
 	avi_vs_meta = &AviVsNode{
