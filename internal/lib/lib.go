@@ -48,9 +48,8 @@ var shardSizeMap = map[string]uint32{
 }
 
 var fqdnEnum = map[string]int32{
-	"<svc>.<ns>.<subdomain>": 1,
-	"<svc>-<ns>.<subdomain>": 2,
-	"false":                  3,
+	"default": 1,
+	"flat":    2,
 }
 
 var NamePrefix string
