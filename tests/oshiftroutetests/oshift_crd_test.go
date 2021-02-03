@@ -241,7 +241,7 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 			}
 		}
 		return false
-	}, 30*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisahostruleref-sslkey"))
