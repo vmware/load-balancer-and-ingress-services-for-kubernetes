@@ -324,18 +324,6 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	o.ConstructHTTPDataScript(vsName, key, avi_vs_meta)
 	var fqdns []string
 
-	subDomains := GetDefaultSubDomain()
-	if subDomains != nil {
-		var fqdn string
-		if strings.HasPrefix(subDomains[0], ".") {
-			fqdn = vsName + "." + lib.GetTenant() + subDomains[0]
-		} else {
-			fqdn = vsName + "." + lib.GetTenant() + "." + subDomains[0]
-		}
-		fqdns = append(fqdns, fqdn)
-	} else {
-		utils.AviLog.Warnf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn", key)
-	}
 	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: lib.GetTenant(), FQDNs: fqdns,
 		EastWest: false, VrfContext: vrfcontext}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
