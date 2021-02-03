@@ -72,12 +72,27 @@ func SetDisableSync(state bool) {
 var AKOUser string
 
 func SetAKOUser() {
-	AKOUser = "ako-" + GetClusterName()
+	//Set AKO user same as login user if GRBAC enabled
+	if GetEnableGRBAC() {
+		AKOUser = os.Getenv("CTRL_USERNAME")
+	} else {
+		AKOUser = "ako-" + GetClusterName()
+	}
 	utils.AviLog.Infof("Setting AKOUser: %s for Avi Objects", AKOUser)
 }
 
 func GetAKOUser() string {
 	return AKOUser
+}
+
+var enableGRBAC bool
+
+func SetEnableGRBAC(controllerVersion string) {
+	enableGRBAC = CheckControllerVersionCompatibility(controllerVersion, GRBACControllerVersion, ">=")
+}
+
+func GetEnableGRBAC() bool {
+	return enableGRBAC
 }
 
 func GetshardSize() uint32 {
@@ -437,8 +452,8 @@ func UseServicesAPI() bool {
 	return false
 }
 
-func CheckControllerVersionCompatibility(version, maxVersion string) bool {
-	if c, err := semver.NewConstraint(fmt.Sprintf("> %s", maxVersion)); err == nil {
+func CheckControllerVersionCompatibility(version, maxVersion, cmpSign string) bool {
+	if c, err := semver.NewConstraint(cmpSign + maxVersion); err == nil {
 		if currentVersion, err := semver.NewVersion(version); err == nil && c.Check(currentVersion) {
 			return true
 		}

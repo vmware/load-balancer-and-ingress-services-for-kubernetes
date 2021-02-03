@@ -40,6 +40,9 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	pg := avimodels.PoolGroup{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &pg_meta.ImplicitPriorityLabel}
 
+	if lib.GetEnableGRBAC() {
+		pg.Labels = lib.GetLabels()
+	}
 	macro := utils.AviRestObjMacro{ModelName: "PoolGroup", Data: pg}
 
 	var path string

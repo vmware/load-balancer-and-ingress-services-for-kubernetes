@@ -97,7 +97,9 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
 		vs.TenantRef = &tenant
-
+		if lib.GetEnableGRBAC() {
+			vs.Labels = lib.GetLabels()
+		}
 		if vs_meta.SNIParent {
 			// This is a SNI parent
 			utils.AviLog.Debugf("key: %s, msg: vs %s is a SNI Parent", key, vs_meta.Name)
@@ -237,7 +239,9 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	sniChild.VhDomainName = vs_meta.VHDomainNames
 	ignPool := false
 	sniChild.IgnPoolNetReach = &ignPool
-
+	if lib.GetEnableGRBAC() {
+		sniChild.Labels = lib.GetLabels()
+	}
 	if vs_meta.DefaultPool != "" {
 		pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool
 		sniChild.PoolRef = &pool_ref
@@ -684,6 +688,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		// Override the Vip in VsVip tto bring in updates, keeping everything else as is.
 		vsvip.Vip = []*avimodels.Vip{vip}
 
+		if lib.GetEnableGRBAC() {
+			vsvip.Labels = lib.GetLabels()
+		}
 		rest_op = utils.RestOp{
 			Path:    "/api/vsvip/" + cache_obj.Uuid,
 			Method:  utils.RestPut,
@@ -777,7 +784,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			DNSInfo:           dns_info_arr,
 			Vip:               []*avimodels.Vip{&vip},
 		}
-
+		if lib.GetEnableGRBAC() {
+			vsvip.Labels = lib.GetLabels()
+		}
 		macro := utils.AviRestObjMacro{ModelName: "VsVip", Data: vsvip}
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
@@ -815,7 +824,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			}
 			vsvip_avi.DNSInfo = dns_info_arr
 			vsvip_avi.VrfContextRef = &vrfContextRef
-
+			if lib.GetEnableGRBAC() {
+				vsvip_avi.Labels = lib.GetLabels()
+			}
 			path = "/api/vsvip/" + vsvip_cache_obj.Uuid
 			rest_op = utils.RestOp{Path: path,
 				Method:  utils.RestPut,

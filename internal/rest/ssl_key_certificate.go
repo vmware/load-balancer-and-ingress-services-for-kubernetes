@@ -40,6 +40,9 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 		CreatedBy: &cr, TenantRef: &tenant, Certificate: &avimodels.SSLCertificate{Certificate: &certificate},
 		Key: &key, Type: &certType}
 
+	if lib.GetEnableGRBAC() {
+		sslkeycert.Labels = lib.GetLabels()
+	}
 	if ssl_node.CACert != "" {
 		cacertRef := "/api/sslkeyandcertificate/?name=" + ssl_node.CACert
 		caName := ssl_node.CACert
@@ -185,7 +188,9 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 			Certificate: &caCert,
 		}),
 	}
-
+	if lib.GetEnableGRBAC() {
+		pkiobject.Labels = lib.GetLabels()
+	}
 	macro := utils.AviRestObjMacro{ModelName: "PKIprofile", Data: pkiobject}
 
 	var path string

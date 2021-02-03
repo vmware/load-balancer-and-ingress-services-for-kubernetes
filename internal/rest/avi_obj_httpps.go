@@ -41,6 +41,9 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	hps := avimodels.HTTPPolicySet{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, HTTPRequestPolicy: &http_req_pol}
 
+	if lib.GetEnableGRBAC() {
+		hps.Labels = lib.GetLabels()
+	}
 	var idx int32
 	idx = 0
 	for _, hppmap := range hps_meta.HppMap {

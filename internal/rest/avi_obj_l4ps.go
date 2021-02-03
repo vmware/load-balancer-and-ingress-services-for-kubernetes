@@ -38,6 +38,9 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 
 	hps := avimodels.L4PolicySet{Name: &name,
 		CreatedBy: &cr, TenantRef: &tenant}
+	if lib.GetEnableGRBAC() {
+		hps.Labels = lib.GetLabels()
+	}
 	var idx int32
 	idx = 0
 	var l4Policy avimodels.L4ConnectionPolicy
