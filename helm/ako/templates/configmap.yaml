@@ -26,6 +26,7 @@ data:
   logLevel: {{ .Values.AKOSettings.logLevel | quote }}
   deleteConfig: {{ .Values.AKOSettings.deleteConfig | quote }}
   advancedL4: {{ .Values.L4Settings.advancedL4 | quote }}
+  autoFQDN: {{ .Values.L4Settings.autoFQDN | quote }}
   {{ if .Values.AKOSettings.syncNamespace  }}
   syncNamespace: {{ .Values.AKOSettings.syncNamespace | quote }}
   {{ end }}

@@ -33,12 +33,19 @@ import (
 func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
 	var avi_vs_meta *AviVsNode
 	var fqdns []string
-	// FQDN should come from the cloud. Modify
+	autoFQDN := true
+	if lib.GetL4FqdnFormat() == 3 {
+		autoFQDN = false
+	}
+	annotations := svcObj.GetAnnotations()
+	extDNS, ok := annotations[lib.ExternalDNSAnnotation]
+	if ok {
+		autoFQDN = false
+		fqdns = append(fqdns, extDNS)
+	}
 	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
-	// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
 	subDomains := GetDefaultSubDomain()
-
-	if subDomains != nil {
+	if subDomains != nil && autoFQDN {
 		var fqdn string
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := lib.GetDomain()
@@ -48,11 +55,18 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 		// subDomains[0] would either have the defaultSubDomain value
 		// or would default to the first dns subdomain it gets from the dns profile
+		subdomain := subDomains[0]
 		if strings.HasPrefix(subDomains[0], ".") {
-			fqdn = svcObj.ObjectMeta.Name + "." + svcObj.ObjectMeta.Namespace + subDomains[0]
-		} else {
-			fqdn = svcObj.ObjectMeta.Name + "." + svcObj.ObjectMeta.Namespace + "." + subDomains[0]
+			subdomain = strings.Replace(subDomains[0], ".", "", -1)
 		}
+		if lib.GetL4FqdnFormat() == 1 {
+			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
+			fqdn = svcObj.Name + "." + svcObj.ObjectMeta.Namespace + "." + subdomain
+		} else if lib.GetL4FqdnFormat() == 2 {
+			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
+			fqdn = svcObj.Name + "-" + svcObj.ObjectMeta.Namespace + "." + subdomain
+		}
+
 		fqdns = append(fqdns, fqdn)
 	}
 	avi_vs_meta = &AviVsNode{
