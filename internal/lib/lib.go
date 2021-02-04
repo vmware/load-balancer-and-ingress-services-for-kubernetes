@@ -46,6 +46,11 @@ var shardSizeMap = map[string]uint32{
 	"SMALL":  1,
 }
 
+var fqdnEnum = map[string]int32{
+	"default": 1,
+	"flat":    2,
+}
+
 var NamePrefix string
 
 func SetNamePrefix() {
@@ -85,6 +90,17 @@ func GetshardSize() uint32 {
 		return shardSize
 	} else {
 		return 1
+	}
+}
+
+func GetL4FqdnFormat() int32 {
+	fqdnFormat := os.Getenv("AUTO_L4_FQDN")
+	enumVal, ok := fqdnEnum[fqdnFormat]
+	if ok {
+		return enumVal
+	} else {
+		// If no match then disable FQDNs for L4.
+		return 3
 	}
 }
 
