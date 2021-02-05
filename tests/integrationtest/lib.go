@@ -514,6 +514,7 @@ type FakeService struct {
 	Type           corev1.ServiceType
 	LoadBalancerIP string
 	ServicePorts   []Serviceport
+	Selectors      map[string]string
 }
 
 type Serviceport struct {
@@ -540,6 +541,7 @@ func (svc FakeService) Service() *corev1.Service {
 			Type:           svc.Type,
 			Ports:          ports,
 			LoadBalancerIP: svc.LoadBalancerIP,
+			Selector:       svc.Selectors,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: svc.Namespace,
@@ -657,6 +659,32 @@ ServicePorts: [
 ]
 */
 func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+	selectors := make(map[string]string)
+	CreateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+}
+
+func CreateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+}
+
+func UpdateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+	selectors := make(map[string]string)
+	UpdateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+}
+
+func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+	_, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+}
+
+func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
 	var servicePorts []Serviceport
 	numPorts := 1
 	if multiPort {
@@ -679,11 +707,8 @@ func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, mu
 		servicePorts = append(servicePorts, sp)
 	}
 
-	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts}).Service()
-	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts, Selectors: selectors}).Service()
+	return svcExample
 }
 
 func DelSVC(t *testing.T, ns string, Name string) {

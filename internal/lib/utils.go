@@ -122,22 +122,27 @@ func GetPodsFromService(namespace, serviceName string) []utils.NamespaceName {
 	return pods
 }
 
-func GetServicesForPod(pod *corev1.Pod) []string {
-	var svcList []string
+func GetServicesForPod(pod *corev1.Pod) ([]string, []string) {
+	var svcList, lbList []string
 	services, err := utils.GetInformers().ServiceInformer.Lister().List(labels.Everything())
 	if err != nil {
 		utils.AviLog.Warnf("Got error while listing Services with NPL annotation: %v", err)
-		return svcList
+		return svcList, lbList
 	}
 
 	for _, svc := range services {
+		if !matchSvcSelectorPodLabels(svc.Spec.Selector, pod.GetLabels()) {
+			continue
+		}
+		svcKey := svc.Namespace + "/" + svc.Name
+		if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+			lbList = append(lbList, svcKey)
+		}
 		if svc.Spec.Type != corev1.ServiceTypeNodePort {
-			if matchSvcSelectorPodLabels(svc.Spec.Selector, pod.GetLabels()) {
-				svcList = append(svcList, svc.Namespace+"/"+svc.Name)
-			}
+			svcList = append(svcList, svcKey)
 		}
 	}
-	return svcList
+	return svcList, lbList
 }
 
 func matchSvcSelectorPodLabels(svcSelector, podLabel map[string]string) bool {
