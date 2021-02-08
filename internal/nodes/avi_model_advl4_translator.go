@@ -158,7 +158,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		if err != nil {
 			utils.AviLog.Warnf("Unable to get corresponding GatewayClass %s", err.Error())
 		} else {
-			if gwClass.Spec.ParametersRef.Group == "ako.vmware.com" && gwClass.Spec.ParametersRef.Kind == "NsxAlbInfraSetting" {
+			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == "ako.vmware.com" && gwClass.Spec.ParametersRef.Kind == "NsxAlbInfraSetting" {
 				infraSetting, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
 				if err != nil {
 					utils.AviLog.Warnf("Unable to get corresponding NsxAlbInfraSetting: %s", err.Error())

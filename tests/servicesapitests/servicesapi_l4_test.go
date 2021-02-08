@@ -40,7 +40,7 @@ import (
 )
 
 var KubeClient *k8sfake.Clientset
-var AdvL4Client *svcapifake.Clientset
+var SvcAPIClient *svcapifake.Clientset
 var ctrl *k8s.AviController
 var CRDClient *crdfake.Clientset
 
@@ -56,9 +56,9 @@ func TestMain(m *testing.M) {
 	lib.SetCRDClientset(CRDClient)
 	KubeClient = k8sfake.NewSimpleClientset()
 	// CRDClient = crdfake.NewSimpleClientset()
-	AdvL4Client = svcapifake.NewSimpleClientset()
+	SvcAPIClient = svcapifake.NewSimpleClientset()
 	// lib.SetCRDClientset(CRDClient)
-	lib.SetServicesAPIClientset(AdvL4Client)
+	lib.SetServicesAPIClientset(SvcAPIClient)
 	k8s.NewCRDInformers(CRDClient)
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	// k8s.NewCRDInformers(CRDClient)
-	k8s.NewSvcApiInformers(AdvL4Client)
+	k8s.NewSvcApiInformers(SvcAPIClient)
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -232,7 +232,7 @@ func TeardownGatewayClass(t *testing.T, gwClassName string) {
 	}
 }
 
-func SetupAdvLBService(t *testing.T, svcname, namespace, gwname, gwnamespace string) {
+func SetupSvcApiLBService(t *testing.T, svcname, namespace, gwname, gwnamespace string) {
 	svc := integrationtest.FakeService{
 		Name:      svcname,
 		Namespace: namespace,
@@ -266,7 +266,7 @@ func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
 	}, 30*time.Second).Should(gomega.BeNil())
 }
 
-func TestAdvL4BestCase(t *testing.T) {
+func TestServicesAPIBestCase(t *testing.T) {
 	// create gwclass, create gw, create 1svc
 	// check graph VsNode vals, check IP status
 	// remove gwclasss, IP removed
@@ -278,10 +278,10 @@ func TestAdvL4BestCase(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
-		gw, _ := AdvL4Client.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -309,7 +309,7 @@ func TestAdvL4BestCase(t *testing.T) {
 
 	TeardownGatewayClass(t, gwClassName)
 	g.Eventually(func() int {
-		gw, _ := AdvL4Client.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 20*time.Second).Should(gomega.Equal(0))
 
@@ -318,7 +318,7 @@ func TestAdvL4BestCase(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4NamingConvention(t *testing.T) {
+func TestServicesAPINamingConvention(t *testing.T) {
 	// create gwclass, create gw, create 1svc
 	// check naming conventions for vs, pool, l4policy
 	// checks naming convention of all generated nodes
@@ -330,10 +330,10 @@ func TestAdvL4NamingConvention(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
-		gw, _ := AdvL4Client.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -352,7 +352,7 @@ func TestAdvL4NamingConvention(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4WithStaticIP(t *testing.T) {
+func TestServicesAPIWithStaticIP(t *testing.T) {
 	// create gwclass, create gw, create 1svc
 	// check graph VsNode IPAddress val in vsvip ref
 	g := gomega.NewGomegaWithT(t)
@@ -382,7 +382,7 @@ func TestAdvL4WithStaticIP(t *testing.T) {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -402,7 +402,7 @@ func TestAdvL4WithStaticIP(t *testing.T) {
 
 // Gateway - GWClass mapping tests
 
-func TestAdvL4WrongControllerGWClass(t *testing.T) {
+func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 	// create gateway, nothing happens
 	// create gatewayclass, VS created
 	// update to bad gatewayclass (wrong controller), VS deleted
@@ -412,12 +412,12 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 
 	g.Eventually(func() string {
-		gw, _ := AdvL4Client.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -434,7 +434,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 	}
 
 	g.Eventually(func() int {
-		gw, _ := AdvL4Client.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 10*time.Second).Should(gomega.Equal(0))
 	svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
@@ -446,7 +446,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
+func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 	// create gwclass, gw
 	// update wrong mapping of class in gw, VS deleted
 	// fix class in gw, VS created
@@ -456,12 +456,12 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 
 	g.Eventually(func() string {
-		gw, _ := AdvL4Client.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -487,7 +487,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	// vsNode must get deleted
 	VerifyGatewayVSNodeDeletion(g, modelName)
 	g.Eventually(func() int {
-		gw, _ := AdvL4Client.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 10*time.Second).Should(gomega.Equal(0))
 
@@ -509,7 +509,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 
 	// vsNode must come back up
 	g.Eventually(func() int {
-		gw, _ := AdvL4Client.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 10*time.Second).Should(gomega.Equal(1))
 
@@ -519,7 +519,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4ProtocolChangeInService(t *testing.T) {
+func TestServicesAPIProtocolChangeInService(t *testing.T) {
 	// gw/tcp/8081 svc/tcp/8081  -> svc/udp/8081
 	// service protocol changes Pool deleted
 	g := gomega.NewGomegaWithT(t)
@@ -529,7 +529,7 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -574,7 +574,7 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4PortChangeInService(t *testing.T) {
+func TestServicesAPIPortChangeInService(t *testing.T) {
 	// gw/tcp/8081 svc/tcp/8081 -> svc/tcp/8080
 	// service port changes Pools deleted
 	g := gomega.NewGomegaWithT(t)
@@ -584,7 +584,7 @@ func TestAdvL4PortChangeInService(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -629,7 +629,7 @@ func TestAdvL4PortChangeInService(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4LabelUpdatesInService(t *testing.T) {
+func TestServicesAPILabelUpdatesInService(t *testing.T) {
 	// correct labels, label mismatch, correct labels, delete labels
 	g := gomega.NewGomegaWithT(t)
 
@@ -638,7 +638,7 @@ func TestAdvL4LabelUpdatesInService(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -683,7 +683,7 @@ func TestAdvL4LabelUpdatesInService(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4LabelUpdatesInGateway(t *testing.T) {
+func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 	// correct labels, label mismatch, correct labels, delete labels
 	g := gomega.NewGomegaWithT(t)
 
@@ -692,7 +692,7 @@ func TestAdvL4LabelUpdatesInGateway(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -737,7 +737,7 @@ func TestAdvL4LabelUpdatesInGateway(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
+func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 	// svc/tcp/8081
 	// change gateway listener port to 8080, VS deletes
 	// change svc port to 8080, VS creates, with 8080 exposed port
@@ -748,7 +748,7 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -827,7 +827,7 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
+func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 	// svc/tcp/8080
 	// change gateway listener protocol to UDP, VS deletes
 	// change svc protocol to UDP, VS creates, with UDP protocol
@@ -838,7 +838,7 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -917,7 +917,7 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
-func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
+func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 	// svc/tcp/8081, gw1/tcp/8081, gw2/tcp/8081
 	// change gateway from gw1 to gw2, gw1 VS deletes, gw2 VS is created
 	g := gomega.NewGomegaWithT(t)
@@ -929,7 +929,7 @@ func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gateway1Name, ns, gwClassName)
 	SetupGateway(t, gateway2Name, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gateway1Name, ns)
+	SetupSvcApiLBService(t, "svc", ns, gateway1Name, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName1); found && aviModel != nil {
@@ -990,7 +990,7 @@ func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName2)
 }
 
-func TestAdvL4EndpointDeleteCreate(t *testing.T) {
+func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	// svc/tcp/8081, gw1/tcp/8081
 	// scale deployment to
 	g := gomega.NewGomegaWithT(t)
@@ -1000,7 +1000,7 @@ func TestAdvL4EndpointDeleteCreate(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	// delete endpoints
 	integrationtest.DelEP(t, ns, "svc")
