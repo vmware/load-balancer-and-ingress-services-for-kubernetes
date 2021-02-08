@@ -44,8 +44,8 @@ func (c *AkoV1alpha1Client) HostRules(namespace string) HostRuleInterface {
 	return newHostRules(c, namespace)
 }
 
-func (c *AkoV1alpha1Client) NsxAlbInfraSettings(namespace string) NsxAlbInfraSettingInterface {
-	return newNsxAlbInfraSettings(c, namespace)
+func (c *AkoV1alpha1Client) NsxAlbInfraSettings() NsxAlbInfraSettingInterface {
+	return newNsxAlbInfraSettings(c)
 }
 
 // NewForConfig creates a new AkoV1alpha1Client for the given config.

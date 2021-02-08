@@ -33,7 +33,6 @@ import (
 // FakeNsxAlbInfraSettings implements NsxAlbInfraSettingInterface
 type FakeNsxAlbInfraSettings struct {
 	Fake *FakeAkoV1alpha1
-	ns   string
 }
 
 var nsxalbinfrasettingsResource = schema.GroupVersionResource{Group: "ako.vmware.com", Version: "v1alpha1", Resource: "nsxalbinfrasettings"}
@@ -43,8 +42,7 @@ var nsxalbinfrasettingsKind = schema.GroupVersionKind{Group: "ako.vmware.com", V
 // Get takes name of the nsxAlbInfraSetting, and returns the corresponding nsxAlbInfraSetting object, and an error if there is any.
 func (c *FakeNsxAlbInfraSettings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(nsxalbinfrasettingsResource, c.ns, name), &v1alpha1.NsxAlbInfraSetting{})
-
+		Invokes(testing.NewRootGetAction(nsxalbinfrasettingsResource, name), &v1alpha1.NsxAlbInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
@@ -54,8 +52,7 @@ func (c *FakeNsxAlbInfraSettings) Get(ctx context.Context, name string, options 
 // List takes label and field selectors, and returns the list of NsxAlbInfraSettings that match those selectors.
 func (c *FakeNsxAlbInfraSettings) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.NsxAlbInfraSettingList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(nsxalbinfrasettingsResource, nsxalbinfrasettingsKind, c.ns, opts), &v1alpha1.NsxAlbInfraSettingList{})
-
+		Invokes(testing.NewRootListAction(nsxalbinfrasettingsResource, nsxalbinfrasettingsKind, opts), &v1alpha1.NsxAlbInfraSettingList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -76,15 +73,13 @@ func (c *FakeNsxAlbInfraSettings) List(ctx context.Context, opts v1.ListOptions)
 // Watch returns a watch.Interface that watches the requested nsxAlbInfraSettings.
 func (c *FakeNsxAlbInfraSettings) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(nsxalbinfrasettingsResource, c.ns, opts))
-
+		InvokesWatch(testing.NewRootWatchAction(nsxalbinfrasettingsResource, opts))
 }
 
 // Create takes the representation of a nsxAlbInfraSetting and creates it.  Returns the server's representation of the nsxAlbInfraSetting, and an error, if there is any.
 func (c *FakeNsxAlbInfraSettings) Create(ctx context.Context, nsxAlbInfraSetting *v1alpha1.NsxAlbInfraSetting, opts v1.CreateOptions) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(nsxalbinfrasettingsResource, c.ns, nsxAlbInfraSetting), &v1alpha1.NsxAlbInfraSetting{})
-
+		Invokes(testing.NewRootCreateAction(nsxalbinfrasettingsResource, nsxAlbInfraSetting), &v1alpha1.NsxAlbInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
@@ -94,8 +89,7 @@ func (c *FakeNsxAlbInfraSettings) Create(ctx context.Context, nsxAlbInfraSetting
 // Update takes the representation of a nsxAlbInfraSetting and updates it. Returns the server's representation of the nsxAlbInfraSetting, and an error, if there is any.
 func (c *FakeNsxAlbInfraSettings) Update(ctx context.Context, nsxAlbInfraSetting *v1alpha1.NsxAlbInfraSetting, opts v1.UpdateOptions) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(nsxalbinfrasettingsResource, c.ns, nsxAlbInfraSetting), &v1alpha1.NsxAlbInfraSetting{})
-
+		Invokes(testing.NewRootUpdateAction(nsxalbinfrasettingsResource, nsxAlbInfraSetting), &v1alpha1.NsxAlbInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
@@ -106,8 +100,7 @@ func (c *FakeNsxAlbInfraSettings) Update(ctx context.Context, nsxAlbInfraSetting
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *FakeNsxAlbInfraSettings) UpdateStatus(ctx context.Context, nsxAlbInfraSetting *v1alpha1.NsxAlbInfraSetting, opts v1.UpdateOptions) (*v1alpha1.NsxAlbInfraSetting, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(nsxalbinfrasettingsResource, "status", c.ns, nsxAlbInfraSetting), &v1alpha1.NsxAlbInfraSetting{})
-
+		Invokes(testing.NewRootUpdateSubresourceAction(nsxalbinfrasettingsResource, "status", nsxAlbInfraSetting), &v1alpha1.NsxAlbInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
@@ -117,14 +110,13 @@ func (c *FakeNsxAlbInfraSettings) UpdateStatus(ctx context.Context, nsxAlbInfraS
 // Delete takes name of the nsxAlbInfraSetting and deletes it. Returns an error if one occurs.
 func (c *FakeNsxAlbInfraSettings) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(nsxalbinfrasettingsResource, c.ns, name), &v1alpha1.NsxAlbInfraSetting{})
-
+		Invokes(testing.NewRootDeleteAction(nsxalbinfrasettingsResource, name), &v1alpha1.NsxAlbInfraSetting{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeNsxAlbInfraSettings) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(nsxalbinfrasettingsResource, c.ns, listOpts)
+	action := testing.NewRootDeleteCollectionAction(nsxalbinfrasettingsResource, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.NsxAlbInfraSettingList{})
 	return err
@@ -133,8 +125,7 @@ func (c *FakeNsxAlbInfraSettings) DeleteCollection(ctx context.Context, opts v1.
 // Patch applies the patch and returns the patched nsxAlbInfraSetting.
 func (c *FakeNsxAlbInfraSettings) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(nsxalbinfrasettingsResource, c.ns, name, pt, data, subresources...), &v1alpha1.NsxAlbInfraSetting{})
-
+		Invokes(testing.NewRootPatchSubresourceAction(nsxalbinfrasettingsResource, name, pt, data, subresources...), &v1alpha1.NsxAlbInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}

@@ -547,6 +547,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		httppolChecksum +
 		sniChecksum +
 		utils.Hash(v.ApplicationProfile) +
+		utils.Hash(v.ServiceEngineGroup) +
 		utils.Hash(v.NetworkProfile) +
 		utils.Hash(utils.Stringify(portproto)) +
 		sslkeyChecksum +

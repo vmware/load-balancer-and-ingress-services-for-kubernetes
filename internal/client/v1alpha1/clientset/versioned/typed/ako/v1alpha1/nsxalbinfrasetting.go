@@ -33,7 +33,7 @@ import (
 // NsxAlbInfraSettingsGetter has a method to return a NsxAlbInfraSettingInterface.
 // A group's client should implement this interface.
 type NsxAlbInfraSettingsGetter interface {
-	NsxAlbInfraSettings(namespace string) NsxAlbInfraSettingInterface
+	NsxAlbInfraSettings() NsxAlbInfraSettingInterface
 }
 
 // NsxAlbInfraSettingInterface has methods to work with NsxAlbInfraSetting resources.
@@ -53,14 +53,12 @@ type NsxAlbInfraSettingInterface interface {
 // nsxAlbInfraSettings implements NsxAlbInfraSettingInterface
 type nsxAlbInfraSettings struct {
 	client rest.Interface
-	ns     string
 }
 
 // newNsxAlbInfraSettings returns a NsxAlbInfraSettings
-func newNsxAlbInfraSettings(c *AkoV1alpha1Client, namespace string) *nsxAlbInfraSettings {
+func newNsxAlbInfraSettings(c *AkoV1alpha1Client) *nsxAlbInfraSettings {
 	return &nsxAlbInfraSettings{
 		client: c.RESTClient(),
-		ns:     namespace,
 	}
 }
 
@@ -68,7 +66,6 @@ func newNsxAlbInfraSettings(c *AkoV1alpha1Client, namespace string) *nsxAlbInfra
 func (c *nsxAlbInfraSettings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	result = &v1alpha1.NsxAlbInfraSetting{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -85,7 +82,6 @@ func (c *nsxAlbInfraSettings) List(ctx context.Context, opts v1.ListOptions) (re
 	}
 	result = &v1alpha1.NsxAlbInfraSettingList{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -102,7 +98,6 @@ func (c *nsxAlbInfraSettings) Watch(ctx context.Context, opts v1.ListOptions) (w
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -113,7 +108,6 @@ func (c *nsxAlbInfraSettings) Watch(ctx context.Context, opts v1.ListOptions) (w
 func (c *nsxAlbInfraSettings) Create(ctx context.Context, nsxAlbInfraSetting *v1alpha1.NsxAlbInfraSetting, opts v1.CreateOptions) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	result = &v1alpha1.NsxAlbInfraSetting{}
 	err = c.client.Post().
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(nsxAlbInfraSetting).
@@ -126,7 +120,6 @@ func (c *nsxAlbInfraSettings) Create(ctx context.Context, nsxAlbInfraSetting *v1
 func (c *nsxAlbInfraSettings) Update(ctx context.Context, nsxAlbInfraSetting *v1alpha1.NsxAlbInfraSetting, opts v1.UpdateOptions) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	result = &v1alpha1.NsxAlbInfraSetting{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		Name(nsxAlbInfraSetting.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -141,7 +134,6 @@ func (c *nsxAlbInfraSettings) Update(ctx context.Context, nsxAlbInfraSetting *v1
 func (c *nsxAlbInfraSettings) UpdateStatus(ctx context.Context, nsxAlbInfraSetting *v1alpha1.NsxAlbInfraSetting, opts v1.UpdateOptions) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	result = &v1alpha1.NsxAlbInfraSetting{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		Name(nsxAlbInfraSetting.Name).
 		SubResource("status").
@@ -155,7 +147,6 @@ func (c *nsxAlbInfraSettings) UpdateStatus(ctx context.Context, nsxAlbInfraSetti
 // Delete takes name of the nsxAlbInfraSetting and deletes it. Returns an error if one occurs.
 func (c *nsxAlbInfraSettings) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		Name(name).
 		Body(&opts).
@@ -170,7 +161,6 @@ func (c *nsxAlbInfraSettings) DeleteCollection(ctx context.Context, opts v1.Dele
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -183,7 +173,6 @@ func (c *nsxAlbInfraSettings) DeleteCollection(ctx context.Context, opts v1.Dele
 func (c *nsxAlbInfraSettings) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.NsxAlbInfraSetting, err error) {
 	result = &v1alpha1.NsxAlbInfraSetting{}
 	err = c.client.Patch(pt).
-		Namespace(c.ns).
 		Resource("nsxalbinfrasettings").
 		Name(name).
 		SubResource(subresources...).

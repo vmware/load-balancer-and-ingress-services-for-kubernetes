@@ -10,16 +10,13 @@ spec:
     kind: NsxAlbInfraSetting
     listKind: NsxAlbInfraSettingList
     plural: nsxalbinfrasettings
-    shortNames:
-    - nsxalbinfrasettings
-    - nas
     singular: nsxalbinfrasetting
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: NSX ALB Settings is used to select specific Avi controller infra attributes.
+        description: NSX ALB Setting is used to select specific Avi controller infra attributes.
         properties:
           spec:
             properties:
@@ -43,9 +40,9 @@ spec:
                 properties:
                   shardSize:
                     enum:
-                    - LARGE
                     - SMALL
                     - MEDIUM
+                    - LARGE
                     - DEDICATED
                     type: string
                 type: object

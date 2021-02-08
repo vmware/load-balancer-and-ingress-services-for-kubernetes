@@ -180,9 +180,9 @@ func checkSvcForSvcApiGatewayPortConflict(svc *corev1.Service, key string) {
 	return
 }
 
-// SetupServicesApi handles setting up of AdvL4 event handlers
+// SetupServicesApi handles setting up of ServicesAPI event handlers
 func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
-	utils.AviLog.Infof("Setting up AdvL4 Event handlers")
+	utils.AviLog.Infof("Setting up ServicesAPI Event handlers")
 	informer := lib.GetSvcAPIInformers()
 
 	gatewayEventHandler := cache.ResourceEventHandlerFuncs{
@@ -273,7 +273,35 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 	}
 
 	informer.GatewayInformer.Informer().AddEventHandler(gatewayEventHandler)
+	informer.GatewayInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.GatewayClassGatewayIndex: func(obj interface{}) ([]string, error) {
+				gw, ok := obj.(*servicesapi.Gateway)
+				if !ok {
+					return []string{}, nil
+				}
+				return []string{gw.Spec.GatewayClassName}, nil
+			},
+		},
+	)
+
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
+	informer.GatewayClassInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.NsxAlbSettingGWClassIndex: func(obj interface{}) ([]string, error) {
+				gwclass, ok := obj.(*servicesapi.GatewayClass)
+				if !ok {
+					return []string{}, nil
+				}
+				if gwclass.Spec.ParametersRef != nil {
+					// sample settingKey: ako.vmware.com/NsxAlbInfraSetting/nsxalb-1
+					settingKey := gwclass.Spec.ParametersRef.Group + "/" + gwclass.Spec.ParametersRef.Kind + "/" + gwclass.Spec.ParametersRef.Name
+					return []string{settingKey}, nil
+				}
+				return []string{}, nil
+			},
+		},
+	)
 
 	return
 }

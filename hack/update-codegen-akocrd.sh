@@ -27,7 +27,7 @@ readonly AKO_PACKAGE=github.com/vmware/load-balancer-and-ingress-services-for-ku
 readonly SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE}")"/.. && pwd)"
 
 readonly GO111MODULE="on"
-readonly GOFLAGS="-mod=readonly"
+readonly GOFLAGS="-mod=mod"
 readonly GOPATH="$(mktemp -d)"
 
 export GO111MODULE GOFLAGS GOPATH

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-202 VMware, Inc.
+ * Copyright 2020-2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package v1alpha1
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // +genclient
+// +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // NsxAlbInfraSetting is a top-level type

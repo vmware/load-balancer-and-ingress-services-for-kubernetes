@@ -80,7 +80,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			},
 		}
 
-		if lib.GetSEGName() != lib.DEFAULT_GROUP {
+		if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
 			avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
 		}
 
@@ -151,7 +151,25 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 				Gateway:              namespace + "/" + gatewayName,
 			},
 		}
-		if lib.GetSEGName() != lib.DEFAULT_GROUP {
+
+		// Set SeGroup configuration either from NsxAlbInfraSetting Spec or
+		// env variable (provided during installation)
+		gwClass, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gw.Spec.GatewayClassName)
+		if err != nil {
+			utils.AviLog.Warnf("Unable to get corresponding GatewayClass %s", err.Error())
+		} else {
+			if gwClass.Spec.ParametersRef.Group == "ako.vmware.com" && gwClass.Spec.ParametersRef.Kind == "NsxAlbInfraSetting" {
+				infraSetting, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+				if err != nil {
+					utils.AviLog.Warnf("Unable to get corresponding NsxAlbInfraSetting: %s", err.Error())
+				} else if infraSetting.Spec.SegGroup.Name != "" {
+					// This assumes that the SeGroup has the appropriate labels configured
+					avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SegGroup.Name
+				}
+			}
+		}
+
+		if avi_vs_meta.ServiceEngineGroup == "" {
 			avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
 		}
 

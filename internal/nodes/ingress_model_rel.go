@@ -32,6 +32,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
 
@@ -93,6 +94,10 @@ var (
 		Type:              "GatewayClass",
 		GetParentGateways: GWClassToGateway,
 	}
+	NsxAlbInfraSetting = GraphSchema{
+		Type:              "NsxAlbInfraSetting",
+		GetParentGateways: NsxAlbSettingToGateway,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		IngressClass,
@@ -106,6 +111,7 @@ var (
 		HTTPRule,
 		Gateway,
 		GatewayClass,
+		NsxAlbInfraSetting,
 	}
 )
 
@@ -137,7 +143,7 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 		validateRouteSpecFromHostnameCache(key, namespace, routeName, routeObj.Spec)
 		services := parseServicesForRoute(routeObj.Spec, key)
 		for _, svc := range services {
-			utils.AviLog.Debugf("key: %s, msg: updating route relationship for service:  %s", key, svc)
+			utils.AviLog.Debugf("key: %s, msg: updating route relationship for service: %s", key, svc)
 			objects.OshiftRouteSvcLister().IngressMappings(namespace).UpdateIngressMappings(routeName, svc)
 		}
 		if routeObj.Spec.TLS != nil {
@@ -163,7 +169,7 @@ func SvcToRoute(svcName string, namespace string, key string) ([]string, bool) {
 		}
 	}
 	_, routes := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
-	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved: %v", key, routes)
+	utils.AviLog.Debugf("key: %s, msg: Routes retrieved %s", key, routes)
 	if len(routes) == 0 {
 		return nil, false
 	}
@@ -216,19 +222,19 @@ func SvcToGateway(svcName string, namespace string, key string) ([]string, bool)
 		}
 	}
 
-	utils.AviLog.Infof("key: %s, msg: Gateways retrieved %v", key, allGateways)
+	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, allGateways)
 	return allGateways, true
 }
 
 func EPToRoute(epName string, namespace string, key string) ([]string, bool) {
 	routes, found := SvcToRoute(epName, namespace, key)
-	utils.AviLog.Debugf("key: %s, msg: total Routes retrieved: %v", key, routes)
+	utils.AviLog.Debugf("key: %s, msg: Routes retrieved %s", key, routes)
 	return routes, found
 }
 
 func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 	gateways, found := SvcToGateway(epName, namespace, key)
-	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved: %v", key, gateways)
+	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gateways)
 	return gateways, found
 }
 
@@ -266,13 +272,12 @@ func GatewayChanges(gwName string, namespace string, key string) ([]string, bool
 			}
 		}
 	}
-
-	utils.AviLog.Debugf("key: %s, msg: total Gateways retrieved: %v", key, allGateways)
 	return allGateways, true
 }
 
 func GWClassToGateway(gwClassName string, namespace string, key string) ([]string, bool) {
 	found, gateways := objects.ServiceGWLister().GetGWclassToGateways(gwClassName)
+	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gateways)
 	return gateways, found
 }
 
@@ -304,7 +309,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 
 		services := parseServicesForIngress(ingObj.Spec, key)
 		for _, svc := range services {
-			utils.AviLog.Debugf("key: %s, msg: updating ingress relationship for service:  %s", key, svc)
+			utils.AviLog.Debugf("key: %s, msg: updating ingress relationship for service: %s", key, svc)
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
 		}
 		secrets := parseSecretsForIngress(ingObj.Spec, key)
@@ -320,6 +325,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 
 func IngClassToIng(ingClassName string, namespace string, key string) ([]string, bool) {
 	found, ingresses := objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).GetClassToIng(ingClassName)
+	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingresses)
 	return ingresses, found
 }
 
@@ -336,7 +342,7 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 		}
 	}
 	_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
-	utils.AviLog.Debugf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
+	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingresses)
 	if len(ingresses) == 0 {
 		return nil, false
 	}
@@ -388,13 +394,13 @@ func PodToIng(podName string, namespace string, key string) ([]string, bool) {
 
 func EPToIng(epName string, namespace string, key string) ([]string, bool) {
 	ingresses, found := SvcToIng(epName, namespace, key)
-	utils.AviLog.Debugf("key: %s, msg: total ingresses retrieved:  %s", key, ingresses)
+	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingresses)
 	return ingresses, found
 }
 
 func SecretToIng(secretName string, namespace string, key string) ([]string, bool) {
 	ok, ingNames := objects.SharedSvcLister().IngressMappings(namespace).GetSecretToIng(secretName)
-	utils.AviLog.Debugf("key:%s, msg: Ingresses associated with the secret are: %s", key, ingNames)
+	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingNames)
 	if ok {
 		return ingNames, true
 	}
@@ -403,7 +409,7 @@ func SecretToIng(secretName string, namespace string, key string) ([]string, boo
 
 func SecretToRoute(secretName string, namespace string, key string) ([]string, bool) {
 	ok, ingNames := objects.OshiftRouteSvcLister().IngressMappings(namespace).GetSecretToIng(secretName)
-	utils.AviLog.Debugf("key:%s, msg: Ingresses associated with the secret are: %s", key, ingNames)
+	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingNames)
 	if ok {
 		return ingNames, true
 	}
@@ -484,8 +490,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		}
 	}
 
-	utils.AviLog.Infof("key: %s, msg: ingresses to compute: %v via hostrule %s",
-		key, allIngresses, namespace+"/"+hrname)
+	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
 	return allIngresses, true
 }
 
@@ -578,9 +583,43 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		}
 	}
 
-	utils.AviLog.Infof("key: %s, msg: ingresses to compute: %v via httprule %s",
-		key, allIngresses, namespace+"/"+rrname)
+	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
 	return allIngresses, true
+}
+
+func NsxAlbSettingToGateway(albSettingName string, namespace string, key string) ([]string, bool) {
+	allGateways := make([]string, 0)
+
+	_, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(albSettingName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Error getting NsxALbInfraSetting: %v\n", key, err)
+		return nil, false
+	}
+
+	// Get all GatewayClasses from NsxAlbInfraSetting.
+	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.NsxAlbSettingGWClassIndex, "ako.vmware.com/NsxAlbInfraSetting/"+albSettingName)
+	if err != nil {
+		return allGateways, false
+	}
+
+	for _, gwClass := range gwClasses {
+		// Get all Gateways from GatewayClass.
+		gwClassObj, isGwClass := gwClass.(*servicesapi.GatewayClass)
+		if isGwClass {
+			gateways, err := lib.GetSvcAPIInformers().GatewayInformer.Informer().GetIndexer().ByIndex(lib.GatewayClassGatewayIndex, gwClassObj.Name)
+			if err != nil {
+				continue
+			}
+			for _, gateway := range gateways {
+				if gatewayObj, isGw := gateway.(*servicesapi.Gateway); isGw {
+					allGateways = append(allGateways, gatewayObj.Namespace+"/"+gatewayObj.Name)
+				}
+			}
+		}
+	}
+
+	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, allGateways)
+	return allGateways, true
 }
 
 func parseServicesForIngress(ingSpec networkingv1beta1.IngressSpec, key string) []string {
@@ -593,7 +632,7 @@ func parseServicesForIngress(ingSpec networkingv1beta1.IngressSpec, key string) 
 			}
 		}
 	}
-	utils.AviLog.Debugf("key: %s, msg: total services retrieved  from corev1:  %s", key, services)
+	utils.AviLog.Debugf("key: %s, msg: total services retrieved from corev1: %s", key, services)
 	return services
 }
 
@@ -603,7 +642,7 @@ func parseSecretsForIngress(ingSpec networkingv1beta1.IngressSpec, key string) [
 	for _, tlsSettings := range ingSpec.TLS {
 		secrets = append(secrets, tlsSettings.SecretName)
 	}
-	utils.AviLog.Debugf("key: %s, msg: total secrets retrieved from corev1:  %s", key, secrets)
+	utils.AviLog.Debugf("key: %s, msg: total secrets retrieved from corev1: %s", key, secrets)
 	return secrets
 }
 

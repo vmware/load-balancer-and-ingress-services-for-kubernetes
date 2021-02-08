@@ -55,5 +55,5 @@ func (v *version) HostRules() HostRuleInformer {
 
 // NsxAlbInfraSettings returns a NsxAlbInfraSettingInformer.
 func (v *version) NsxAlbInfraSettings() NsxAlbInfraSettingInformer {
-	return &nsxAlbInfraSettingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+	return &nsxAlbInfraSettingInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

@@ -32,7 +32,7 @@ const (
 	SUBNET_PREFIX                              = "SUBNET_PREFIX"
 	NETWORK_NAME                               = "NETWORK_NAME"
 	SEG_NAME                                   = "SEG_NAME"
-	DEFAULT_GROUP                              = "Default-Group"
+	DEFAULT_SE_GROUP                           = "Default-Group"
 	NODE_NETWORK_LIST                          = "NODE_NETWORK_LIST"
 	NODE_NETWORK_MAX_ENTRIES                   = 5
 	L7_SHARD_SCHEME                            = "L7_SHARD_SCHEME"
@@ -98,7 +98,6 @@ const (
 	PassthroughInsecure                        = "-insecure"
 	AviControllerVSVipIDChangeError            = "Changing an existing VIP's vip_id is not supported"
 	AviControllerRecreateVIPError              = "If a new preferred IP is needed, please recreate the VIP"
-	DefaultSEGroup                             = "Default-Group"
 	GatewayFinalizer                           = "gateway.ako.vmware.com"
 	ClusterStatusCacheKey                      = "cluster-runtime"
 	AviObjDeletionTime                         = 30 // Minutes
@@ -112,9 +111,22 @@ const (
 	DefaultRouteCert                           = "router-certs-default"
 	NPLPodAnnotation                           = "nodeportlocal.antrea.io"
 
-	//Specifies command used in namespace event handler
+	// Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"
 	NsFilterDelete = "DELETE"
+)
+
+// Cache Indexer constants.
+const (
+	// NsxAlbSettingGWClassIndex maintains a map of NsxAlbInfraSetting Name to
+	// GatewayClass Objects. This helps in fetching all GatewayClasses with a
+	// given NsxAlbinfraSetting Name.
+	NsxAlbSettingGWClassIndex = "nsxAlbSettingGWClass"
+
+	// GatewayClassGatewayIndex maintains a map of GatewayClass Name to
+	// Gateway Objects. This helps in fetching all Gateways with a
+	// given GatewayClass Name.
+	GatewayClassGatewayIndex = "gatewayClassGateway"
 )
 
 const (

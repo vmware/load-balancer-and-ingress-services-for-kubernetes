@@ -340,9 +340,9 @@ func GetSEGName() string {
 		return segName
 	}
 	if GetAdvancedL4() {
-		return DefaultSEGroup
+		return DEFAULT_SE_GROUP
 	}
-	return ""
+	return DEFAULT_SE_GROUP
 }
 
 func GetNodeNetworkMap() (map[string][]string, error) {
