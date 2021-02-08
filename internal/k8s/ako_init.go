@@ -212,7 +212,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		fastretrywg, _ = waitGroupMap[0]["fastretry"]
 		slowretrywg, _ = waitGroupMap[0]["slowretry"]
 	}
-	c.Start(stopCh)
+
 	/** Sequence:
 	  1. Initialize the graph layer queue.
 	  2. Do a full sync from main thread and publish all the models.
@@ -248,6 +248,10 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams).GetQueueByName(utils.GraphLayer)
 	}
 
+	// Setup and start event handlers for objects.
+	c.SetupEventHandlers(informers)
+	c.Start(stopCh)
+
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
@@ -258,7 +262,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		interval = 300 // seconds, hardcoded for now.
 	}
 	// Set up the workers but don't start draining them.
-	c.SetupEventHandlers(informers)
 	if err != nil {
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
 	} else {
