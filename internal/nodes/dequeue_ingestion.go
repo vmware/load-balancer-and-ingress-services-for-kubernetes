@@ -162,7 +162,7 @@ func DequeueIngestion(key string, fullsync bool) {
 // handlePod populates NPL annotations for a pod in store.
 // It also stores a mapping of Pod to Services for future use
 func handlePod(key, namespace, podName string, fullsync bool) {
-	utils.AviLog.Infof("xxx handing Pod")
+	utils.AviLog.Debugf("key: %s, msg: handing Pod", key)
 	podKey := namespace + "/" + podName
 	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
@@ -187,7 +187,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 		}
 		for _, lbSvc := range lbSvcs {
 			lbSvcKey := utils.L4LBService + "/" + lbSvc
-			utils.AviLog.Infof("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
+			utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
 			handleL4Service(lbSvcKey, fullsync)
 		}
 		utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)

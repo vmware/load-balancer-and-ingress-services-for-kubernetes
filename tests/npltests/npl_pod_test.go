@@ -79,8 +79,7 @@ func createPodWithNPLAnnotation(labels map[string]string) {
 	ann := make(map[string]string)
 	ann[lib.NPLPodAnnotation] = "[{\"podPort\":80,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
 	testPod.Annotations = ann
-	_, err := KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
-	fmt.Printf("xxx created Pod: %v", err)
+	KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
 }
 
 func updatePodWithNPLAnnotation(labels map[string]string) {
@@ -89,8 +88,7 @@ func updatePodWithNPLAnnotation(labels map[string]string) {
 	ann[lib.NPLPodAnnotation] = "[{\"podPort\":80,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
 	testPod.Annotations = ann
 	testPod.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Pods(defaultNS).Update(context.TODO(), &testPod, metav1.UpdateOptions{})
-	fmt.Printf("xxx updated Pod: %v", err)
+	KubeClient.CoreV1().Pods(defaultNS).Update(context.TODO(), &testPod, metav1.UpdateOptions{})
 }
 
 func setUpTestForSvcLB(t *testing.T) {
@@ -470,22 +468,21 @@ func TestNPLLBSvc(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(false))
 	if !found {
 		t.Fatalf("Couldn't find model %v", integrationtest.SINGLEPORTMODEL)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
-
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-		g.Eventually(func() int {
-			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs[0].Servers)
-		}, 40*time.Second).Should(gomega.Equal(1))
-		address := defaultHostIP
-		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 	}
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 40*time.Second).Should(gomega.Equal(1))
+	address := defaultHostIP
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
 	svcExample := (integrationtest.FakeService{
@@ -542,22 +539,21 @@ func TestNPLLBSvcNoLabel(t *testing.T) {
 	found, aviModel := objects.SharedAviGraphLister().Get(defaultLBModel)
 	if !found {
 		t.Fatalf("Couldn't find model %v", integrationtest.SINGLEPORTMODEL)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
-
-		g.Eventually(func() int {
-			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs)
-		}, 40*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
-
 	}
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs)
+	}, 40*time.Second).Should(gomega.Equal(1))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
+
 	tearDownTestForSvcLB(t, g)
 }
 
@@ -585,22 +581,22 @@ func TestNPLUpdateLBSvcCorrectSelector(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(false))
 	if !found {
 		t.Fatalf("Couldn't find model %v", integrationtest.SINGLEPORTMODEL)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
-
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-		g.Eventually(func() int {
-			_, aviModel = objects.SharedAviGraphLister().Get(defaultLBModel)
-			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs[0].Servers)
-		}, 40*time.Second).Should(gomega.Equal(1))
-		address := defaultHostIP
-		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 	}
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(defaultLBModel)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 40*time.Second).Should(gomega.Equal(1))
+	address := defaultHostIP
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+
 	tearDownTestForSvcLB(t, g)
 }

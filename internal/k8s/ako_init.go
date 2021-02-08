@@ -403,7 +403,6 @@ func (c *AviController) FullSyncK8s() error {
 			utils.AviLog.Errorf("Unable to retrieve the Pods during full sync: %s", err)
 			return err
 		}
-		utils.AviLog.Infof("xxx Pods: %v", len(podObjs))
 		for _, podObj := range podObjs {
 			key := utils.Pod + "/" + utils.ObjKey(podObj)
 			nodes.DequeueIngestion(key, true)
