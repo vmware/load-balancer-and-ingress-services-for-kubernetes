@@ -611,14 +611,17 @@ func GetPassthroughShardVSName(s string, key string) string {
 	return vsName
 }
 
-func VSVipChecksum(FQDNs []string, IPAddress string) uint32 {
+func VSVipChecksum(FQDNs []string, IPAddress string, networkName string) uint32 {
 	sort.Strings(FQDNs)
 	var checksum uint32
 	if len(FQDNs) != 0 {
 		checksum = utils.Hash(utils.Stringify(FQDNs))
 	}
 	if IPAddress != "" {
-		checksum = checksum + utils.Hash(IPAddress)
+		checksum += utils.Hash(IPAddress)
+	}
+	if networkName != "" {
+		checksum += utils.Hash(networkName)
 	}
 	return checksum
 }

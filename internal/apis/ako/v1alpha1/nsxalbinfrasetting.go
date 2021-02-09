@@ -40,8 +40,8 @@ type NsxAlbInfraSettingSpec struct {
 }
 
 type NsxAlbInfraSettingNetwork struct {
-	Name string `json:"name,omitempty"`
-	Rhi  bool   `json:"rhi,omitempty"`
+	Name      string `json:"name,omitempty"`
+	EnableRhi *bool  `json:"enableRhi,omitempty"`
 }
 
 type NsxAlbInfraSettingSegGroup struct {

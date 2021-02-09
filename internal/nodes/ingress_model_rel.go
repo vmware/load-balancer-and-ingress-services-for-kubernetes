@@ -517,7 +517,6 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		utils.AviLog.Errorf("key: %s, msg: Error getting httprule: %v\n", key, err)
 		return nil, false
 	} else {
-		utils.AviLog.Debugf("key: %s, HTTPRule %v\n", key, httprule)
 		if err = validateHTTPRuleObj(key, httprule); err != nil {
 			return allIngresses, false
 		}

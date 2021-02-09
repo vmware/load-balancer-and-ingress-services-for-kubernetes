@@ -19,16 +19,15 @@ import (
 	"strconv"
 	"strings"
 
-	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
-
-	utilsnet "k8s.io/utils/net"
-
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+	utilsnet "k8s.io/utils/net"
+	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
 
 func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {
@@ -152,6 +151,8 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			},
 		}
 
+		var err error
+		var infraSetting *akov1alpha1.NsxAlbInfraSetting
 		// Set SeGroup configuration either from NsxAlbInfraSetting Spec or
 		// env variable (provided during installation)
 		gwClass, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gw.Spec.GatewayClassName)
@@ -159,13 +160,21 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			utils.AviLog.Warnf("Unable to get corresponding GatewayClass %s", err.Error())
 		} else {
 			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.NsxAlbInfraSetting {
-				infraSetting, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+				infraSetting, err = lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
 				if err != nil {
 					utils.AviLog.Warnf("Unable to get corresponding NsxAlbInfraSetting: %s", err.Error())
-				} else if infraSetting.Spec.SegGroup.Name != "" {
-					// This assumes that the SeGroup has the appropriate labels configured
-					avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SegGroup.Name
 				}
+			}
+		}
+
+		if infraSetting != nil && err == nil {
+			if infraSetting.Spec.SegGroup.Name != "" {
+				// This assumes that the SeGroup has the appropriate labels configured
+				avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SegGroup.Name
+			}
+
+			if infraSetting.Spec.Network.EnableRhi != nil {
+				avi_vs_meta.EnableRhi = infraSetting.Spec.Network.EnableRhi
 			}
 		}
 
@@ -198,6 +207,10 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			Tenant:     lib.GetTenant(),
 			EastWest:   false,
 			VrfContext: lib.GetVrf(),
+		}
+
+		if infraSetting != nil {
+			vsVipNode.NetworkName = &infraSetting.Spec.Network.Name
 		}
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == svcapiv1alpha1.IPAddressType {
