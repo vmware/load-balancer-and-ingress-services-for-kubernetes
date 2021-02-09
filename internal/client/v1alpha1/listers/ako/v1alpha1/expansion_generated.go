@@ -37,7 +37,3 @@ type HostRuleNamespaceListerExpansion interface{}
 // NsxAlbInfraSettingListerExpansion allows custom methods to be added to
 // NsxAlbInfraSettingLister.
 type NsxAlbInfraSettingListerExpansion interface{}
-
-// NsxAlbInfraSettingNamespaceListerExpansion allows custom methods to be added to
-// NsxAlbInfraSettingNamespaceLister.
-type NsxAlbInfraSettingNamespaceListerExpansion interface{}

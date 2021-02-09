@@ -79,7 +79,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		},
 	}
 
-	if lib.GetSEGName() != lib.DEFAULT_GROUP {
+	if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
 		avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
 	}
 	vrfcontext := lib.GetVrf()

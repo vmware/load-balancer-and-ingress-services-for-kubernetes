@@ -84,7 +84,7 @@ func AddDefaultIngressClass() {
 			},
 		},
 		Spec: networking.IngressClassSpec{
-			Controller: "ako.vmware.com/avi-lb",
+			Controller: lib.AviIngressController,
 		},
 	}
 

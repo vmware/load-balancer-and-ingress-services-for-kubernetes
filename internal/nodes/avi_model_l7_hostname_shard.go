@@ -358,7 +358,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				certsBuilt = true
 			}
 		}
-		if lib.GetSEGName() != lib.DEFAULT_GROUP {
+		if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
 			sniNode.ServiceEngineGroup = lib.GetSEGName()
 		}
 		sniNode.VrfContext = lib.GetVrf()

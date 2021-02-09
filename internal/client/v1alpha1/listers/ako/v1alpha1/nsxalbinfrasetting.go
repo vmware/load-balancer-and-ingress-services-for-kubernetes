@@ -31,8 +31,9 @@ type NsxAlbInfraSettingLister interface {
 	// List lists all NsxAlbInfraSettings in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.NsxAlbInfraSetting, err error)
-	// NsxAlbInfraSettings returns an object that can list and get NsxAlbInfraSettings.
-	NsxAlbInfraSettings(namespace string) NsxAlbInfraSettingNamespaceLister
+	// Get retrieves the NsxAlbInfraSetting from the index for a given name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*v1alpha1.NsxAlbInfraSetting, error)
 	NsxAlbInfraSettingListerExpansion
 }
 
@@ -54,41 +55,9 @@ func (s *nsxAlbInfraSettingLister) List(selector labels.Selector) (ret []*v1alph
 	return ret, err
 }
 
-// NsxAlbInfraSettings returns an object that can list and get NsxAlbInfraSettings.
-func (s *nsxAlbInfraSettingLister) NsxAlbInfraSettings(namespace string) NsxAlbInfraSettingNamespaceLister {
-	return nsxAlbInfraSettingNamespaceLister{indexer: s.indexer, namespace: namespace}
-}
-
-// NsxAlbInfraSettingNamespaceLister helps list and get NsxAlbInfraSettings.
-// All objects returned here must be treated as read-only.
-type NsxAlbInfraSettingNamespaceLister interface {
-	// List lists all NsxAlbInfraSettings in the indexer for a given namespace.
-	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.NsxAlbInfraSetting, err error)
-	// Get retrieves the NsxAlbInfraSetting from the indexer for a given namespace and name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.NsxAlbInfraSetting, error)
-	NsxAlbInfraSettingNamespaceListerExpansion
-}
-
-// nsxAlbInfraSettingNamespaceLister implements the NsxAlbInfraSettingNamespaceLister
-// interface.
-type nsxAlbInfraSettingNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all NsxAlbInfraSettings in the indexer for a given namespace.
-func (s nsxAlbInfraSettingNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.NsxAlbInfraSetting, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.NsxAlbInfraSetting))
-	})
-	return ret, err
-}
-
-// Get retrieves the NsxAlbInfraSetting from the indexer for a given namespace and name.
-func (s nsxAlbInfraSettingNamespaceLister) Get(name string) (*v1alpha1.NsxAlbInfraSetting, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+// Get retrieves the NsxAlbInfraSetting from the index for a given name.
+func (s *nsxAlbInfraSettingLister) Get(name string) (*v1alpha1.NsxAlbInfraSetting, error) {
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}
