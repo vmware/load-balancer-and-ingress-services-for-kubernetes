@@ -591,13 +591,13 @@ func NsxAlbSettingToGateway(albSettingName string, namespace string, key string)
 	allGateways := make([]string, 0)
 
 	_, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(albSettingName)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Error getting NsxALbInfraSetting: %v\n", key, err)
-		return nil, false
+	// Check for deleted NsxAlbInfraSetting.
+	if err != nil && k8serrors.IsNotFound(err) {
+		return allGateways, false
 	}
 
 	// Get all GatewayClasses from NsxAlbInfraSetting.
-	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.NsxAlbSettingGWClassIndex, "ako.vmware.com/NsxAlbInfraSetting/"+albSettingName)
+	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.NsxAlbSettingGWClassIndex, lib.AkoGroup+"/"+lib.NsxAlbInfraSetting+"/"+albSettingName)
 	if err != nil {
 		return allGateways, false
 	}
@@ -608,6 +608,7 @@ func NsxAlbSettingToGateway(albSettingName string, namespace string, key string)
 		if isGwClass {
 			gateways, err := lib.GetSvcAPIInformers().GatewayInformer.Informer().GetIndexer().ByIndex(lib.GatewayClassGatewayIndex, gwClassObj.Name)
 			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Unable to fetch Gateways %v", key, err)
 				continue
 			}
 			for _, gateway := range gateways {

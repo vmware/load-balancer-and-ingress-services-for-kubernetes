@@ -110,6 +110,7 @@ const (
 	ExternalDNSAnnotation                      = "external-dns.alpha.kubernetes.io/hostname"
 	DefaultRouteCert                           = "router-certs-default"
 	NPLPodAnnotation                           = "nodeportlocal.antrea.io"
+	AkoGroup                                   = "ako.vmware.com"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"
