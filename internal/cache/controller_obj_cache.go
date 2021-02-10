@@ -662,8 +662,11 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		var networkName string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
-			networkRef := *vip.IPAMNetworkSubnet.NetworkRef
-			networkName = strings.Split(networkRef, "#")[1]
+			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
+				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
+					networkName = strings.Split(networkRef, "#")[1]
+				}
+			}
 		}
 
 		vsVipCacheObj := AviVSVIPCache{
@@ -1217,8 +1220,11 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 		var networkName string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
-			networkRef := *vip.IPAMNetworkSubnet.NetworkRef
-			networkName = strings.Split(networkRef, "#")[1]
+			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
+				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
+					networkName = strings.Split(networkRef, "#")[1]
+				}
+			}
 		}
 
 		vsVipCacheObj := AviVSVIPCache{
