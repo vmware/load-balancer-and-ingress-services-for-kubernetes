@@ -38,14 +38,19 @@ function get_git_ws {
 
 BUILD_VERSION_SCRIPT=$SCRIPTPATH/get_build_version.sh
 CHARTS_PATH="$(get_git_ws)/helm/ako"
+AKO_OPERATOR_CHARTS_PATH="$(get_git_ws)/ako-operator/helm/ako-operator"
 
 build_version=$(bash $BUILD_VERSION_SCRIPT "dummy" $BUILD_NUMBER)
 
 target_path=/mnt/builds/ako_OS/$BRANCH/ci-build-$build_version
+ako_operator_target_path=$target_path/ako-operator
 
 sudo mkdir -p $target_path
+sudo mkdir -p $ako_operator_target_path
 
 sudo cp -r $CHARTS_PATH/* $target_path/
+sudo cp -r $AKO_OPERATOR_CHARTS_PATH/* $ako_operator_target_path/
+
 
 set +e
 sudo cp "$(get_git_ws)/HEAD_COMMIT" $target_path/
