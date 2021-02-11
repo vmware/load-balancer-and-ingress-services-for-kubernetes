@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"encoding/json"
 	"context"
 	"errors"
 	"os"
@@ -167,8 +168,18 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 				}
 			}
 		}
-
-	} else {
+	} else if GetCNIPlugin() == OVN_CNI {
+                subnetString := "k8s.ovn.org/node-subnets"
+                nodeSubnets := node.Annotations[subnetString]
+                var nodeSubnetJson map[string]interface{}
+                json.Unmarshal([]byte(nodeSubnets), &nodeSubnetJson)
+                podCIDR := nodeSubnetJson["default"].(string)
+                if podCIDR == "" {
+                       utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
+                       return nil, errors.New("podcidr not found")
+                }
+                podCIDRs = append(podCIDRs, podCIDR)
+        } else  {
 		podCIDR = node.Spec.PodCIDR
 		if podCIDR == "" {
 			utils.AviLog.Errorf("Error in fetching Pod CIDR from NodeSpec %v", node.ObjectMeta.Name)

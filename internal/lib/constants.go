@@ -19,6 +19,7 @@ const (
 	ENABLE_RHI                = "ENABLE_RHI"
 	CNI_PLUGIN                = "CNI_PLUGIN"
 	CALICO_CNI                = "calico"
+	OVN_CNI                   = "ovn"
 	OPENSHIFT_CNI             = "openshift"
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
