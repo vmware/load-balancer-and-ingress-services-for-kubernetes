@@ -659,14 +659,23 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			fqdns = append(fqdns, *dnsinfo.Fqdn)
 		}
 		var vips []string
+		var networkName string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
+			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
+				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
+					if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
+						networkName = networRefName[1]
+					}
+				}
+			}
 		}
 
 		vsVipCacheObj := AviVSVIPCache{
 			Name:         *vsvip.Name,
 			Uuid:         *vsvip.UUID,
 			FQDNs:        fqdns,
+			NetworkName:  networkName,
 			LastModified: *vsvip.LastModified,
 			Vips:         vips,
 		}
@@ -1210,16 +1219,25 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 		}
 
 		var vips []string
+		var networkName string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
+			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
+				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
+					if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
+						networkName = networRefName[1]
+					}
+				}
+			}
 		}
 
 		vsVipCacheObj := AviVSVIPCache{
 			Name:         *vsvip.Name,
 			Uuid:         *vsvip.UUID,
 			FQDNs:        fqdns,
-			LastModified: *vsvip.LastModified,
 			Vips:         vips,
+			NetworkName:  networkName,
+			LastModified: *vsvip.LastModified,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *vsvip.Name}
 		c.VSVIPCache.AviCacheAdd(k, &vsVipCacheObj)

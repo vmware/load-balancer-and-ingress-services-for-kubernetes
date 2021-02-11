@@ -1266,9 +1266,9 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 						utils.AviLog.Debugf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
 						var cacheVSVipChecksum uint32
 						if vsvip.IPAddress != "" && len(vsvip_cache_obj.Vips) > 0 {
-							cacheVSVipChecksum = lib.VSVipChecksum(vsvip_cache_obj.FQDNs, vsvip_cache_obj.Vips[0])
+							cacheVSVipChecksum = lib.VSVipChecksum(vsvip_cache_obj.FQDNs, vsvip_cache_obj.Vips[0], vsvip_cache_obj.NetworkName)
 						} else {
-							cacheVSVipChecksum = lib.VSVipChecksum(vsvip_cache_obj.FQDNs, "")
+							cacheVSVipChecksum = lib.VSVipChecksum(vsvip_cache_obj.FQDNs, "", vsvip_cache_obj.NetworkName)
 						}
 						if cacheVSVipChecksum == vsvip.GetCheckSum() {
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)

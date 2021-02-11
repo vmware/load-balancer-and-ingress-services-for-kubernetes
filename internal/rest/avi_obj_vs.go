@@ -61,7 +61,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		svc_mdata := string(svc_mdata_json)
 		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 		seGroupRef := "/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup
-		enableRHI := lib.GetEnableRHI() // We don't impact the checksum of the VS since it's a global setting in AKO.
 		vs := avimodels.VirtualService{
 			Name:                  &name,
 			NetworkProfileRef:     &network_prof,
@@ -73,10 +72,15 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			SeGroupRef:            &seGroupRef,
 			VrfContextRef:         &vrfContextRef,
 		}
-		if enableRHI {
-			// If the value is set to false, we would simply remove it from the payload, which should default it to false.
-			vs.EnableRhi = &enableRHI
+
+		var enableRhi bool
+		if vs_meta.EnableRhi != nil {
+			enableRhi = *vs_meta.EnableRhi
+		} else {
+			enableRhi = lib.GetEnableRHI()
 		}
+		vs.EnableRhi = &enableRhi
+
 		if lib.GetAdvancedL4() {
 			ignPool := true
 			vs.IgnPoolNetReach = &ignPool
@@ -621,6 +625,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	vipId, ipType := "0", "V4"
 
 	networkName := lib.GetNetworkName()
+	if lib.UseServicesAPI() && vsvip_meta.NetworkName != nil {
+		networkName = *vsvip_meta.NetworkName
+	}
 	if networkName != "" {
 		networkRef = "/api/network/?name=" + networkName
 	}
@@ -650,24 +657,32 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		}
 		vsvip.DNSInfo = dns_info_arr
 
-		// handling static IP updates, this would throw an error
-		// for advl4 the error is propagated to the gateway status
-		if vsvip_meta.IPAddress != "" {
-			vip := &avimodels.Vip{
-				VipID:          &vipId,
-				AutoAllocateIP: &autoAllocate,
-				IPAddress: &avimodels.IPAddr{
-					Type: &ipType,
-					Addr: &vsvip_meta.IPAddress,
-				},
-			}
-			if networkName != "" {
-				vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
-					NetworkRef: &networkRef,
-				}
-			}
-			vsvip.Vip = []*avimodels.Vip{vip}
+		// handling static IP and networkName (infraSetting) updates.
+		vip := &avimodels.Vip{
+			VipID:          &vipId,
+			AutoAllocateIP: &autoAllocate,
 		}
+
+		// This would throw an error for advl4 the error is propagated to the gateway status.
+		if vsvip_meta.IPAddress != "" {
+			vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+		}
+
+		if networkName != "" {
+			if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
+				vip.SubnetUUID = &networkName
+			} else {
+				// Set the IPAM network subnet for all clouds except AWS and Azure
+				if vip.IPAMNetworkSubnet == nil {
+					// initialize if not initialized earlier
+					vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+				}
+				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
+			}
+		}
+
+		// Override the Vip in VsVip tto bring in updates, keeping everything else as is.
+		vsvip.Vip = []*avimodels.Vip{vip}
 
 		rest_op = utils.RestOp{
 			Path:    "/api/vsvip/" + cache_obj.Uuid,
@@ -833,7 +848,7 @@ func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVi
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
 	client := rest.aviRestPoolClient.AviClient[0]
-	uri := "/api/vsvip/" + uuid
+	uri := "/api/vsvip/" + uuid + "/?include_name"
 
 	rawData, err := client.AviSession.GetRaw(uri)
 	if err != nil {
@@ -962,6 +977,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		}
 
 		var vsvipVips []string
+		var networkName string
 		if _, found := resp["vip"]; found {
 			if vips, ok := resp["vip"].([]interface{}); ok {
 				for _, vipsIntf := range vips {
@@ -981,12 +997,27 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 						continue
 					}
 					vsvipVips = append(vsvipVips, addr)
+					if ipamNetworkSubnet, ipamOk := vip["ipam_network_subnet"].(map[string]interface{}); ipamOk {
+						if networkRef, netRefOk := ipamNetworkSubnet["network_ref"].(string); netRefOk {
+							if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
+								networkName = strings.Split(networkRef, "#")[1]
+							}
+						}
+					}
 				}
 			}
 		}
 
-		vsvip_cache_obj := avicache.AviVSVIPCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid: uuid, LastModified: lastModifiedStr, FQDNs: vsvipFQDNs, Vips: vsvipVips}
+		vsvip_cache_obj := avicache.AviVSVIPCache{
+			Name:         name,
+			Tenant:       rest_op.Tenant,
+			Uuid:         uuid,
+			LastModified: lastModifiedStr,
+			FQDNs:        vsvipFQDNs,
+			Vips:         vsvipVips,
+			NetworkName:  networkName,
+		}
+
 		if lastModifiedStr == "" {
 			vsvip_cache_obj.InvalidData = true
 		}

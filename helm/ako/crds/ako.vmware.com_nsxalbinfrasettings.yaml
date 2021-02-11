@@ -24,7 +24,7 @@ spec:
                 properties:
                   name:
                     type: string
-                  rhi:
+                  enableRhi:
                     type: boolean
                 type: object
                 required:

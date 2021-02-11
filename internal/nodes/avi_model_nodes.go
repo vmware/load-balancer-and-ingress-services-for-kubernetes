@@ -272,6 +272,7 @@ type AviVsNode struct {
 	ApplicationProfile    string
 	NetworkProfile        string
 	Enabled               *bool
+	EnableRhi             *bool
 	PortProto             []AviPortHostProtocol // for listeners
 	DefaultPool           string
 	EastWest              bool
@@ -560,6 +561,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
 
+	if v.EnableRhi != nil {
+		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
+	}
+
 	v.CloudConfigCksum = checksum
 }
 
@@ -743,6 +748,7 @@ type AviVSVIPNode struct {
 	EastWest                bool
 	VrfContext              string
 	IPAddress               string
+	NetworkName             *string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 }
@@ -754,7 +760,13 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 }
 
 func (v *AviVSVIPNode) CalculateCheckSum() {
-	v.CloudConfigCksum = lib.VSVipChecksum(v.FQDNs, v.IPAddress)
+	var checksum uint32
+	if v.NetworkName != nil {
+		checksum = lib.VSVipChecksum(v.FQDNs, v.IPAddress, *v.NetworkName)
+	} else {
+		checksum = lib.VSVipChecksum(v.FQDNs, v.IPAddress, "")
+	}
+	v.CloudConfigCksum = checksum
 }
 
 func (v *AviVSVIPNode) GetNodeType() string {

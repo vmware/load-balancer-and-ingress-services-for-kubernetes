@@ -43,7 +43,7 @@
               },
               "mask": 24
             },
-            "network_ref": "https://10.79.170.84/api/network/dvportgroup-1413-cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b"
+            "network_ref": "https://10.79.170.84/api/network/dvportgroup-1413-cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b#networkName"
           },
           "auto_allocate_ip_type": "V4_ONLY",
           "prefix_length": 32
@@ -93,7 +93,7 @@
               },
               "mask": 24
             },
-            "network_ref": "https://10.79.170.84/api/network/dvportgroup-1413-cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b"
+            "network_ref": "https://10.79.170.84/api/network/dvportgroup-1413-cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b#networkName"
           },
           "auto_allocate_ip_type": "V4_ONLY",
           "prefix_length": 32
