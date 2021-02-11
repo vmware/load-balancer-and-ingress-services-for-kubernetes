@@ -400,6 +400,18 @@ func (c *AviController) FullSyncK8s() error {
 		}
 	}
 
+	if lib.GetServiceType() == lib.NodePortLocal {
+		podObjs, err := utils.GetInformers().PodInformer.Lister().Pods(metav1.NamespaceAll).List(labels.Everything())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the Pods during full sync: %s", err)
+			return err
+		}
+		for _, podObj := range podObjs {
+			key := utils.Pod + "/" + utils.ObjKey(podObj)
+			nodes.DequeueIngestion(key, true)
+		}
+	}
+
 	if !lib.GetAdvancedL4() {
 		hostRuleObjs, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules("").List(labels.Set(nil).AsSelector())
 		if err != nil {

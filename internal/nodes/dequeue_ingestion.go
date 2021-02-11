@@ -37,7 +37,7 @@ func DequeueIngestion(key string, fullsync bool) {
 
 	objType, namespace, name := extractTypeNameNamespace(key)
 	if objType == utils.Pod {
-		handlePod(key, namespace, name)
+		handlePod(key, namespace, name, fullsync)
 	}
 
 	schema, valid := ConfigDescriptor().GetByType(objType)
@@ -162,14 +162,17 @@ func DequeueIngestion(key string, fullsync bool) {
 
 // handlePod populates NPL annotations for a pod in store.
 // It also stores a mapping of Pod to Services for future use
-func handlePod(key, namespace, podName string) {
+func handlePod(key, namespace, podName string, fullsync bool) {
+	utils.AviLog.Debugf("key: %s, msg: handing Pod", key)
 	podKey := namespace + "/" + podName
 	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
+			utils.AviLog.Debugf("key: %s, Pod not found, deleting from SharedNPLLister")
 			objects.SharedNPLLister().Delete(podKey)
+		} else {
+			utils.AviLog.Infof("key: %s, got error while getting pod: %v", key, err)
 		}
-		utils.AviLog.Infof("key: %s, got error while getting pod: %v", err)
 		return
 	}
 	ann := pod.GetAnnotations()
@@ -179,8 +182,15 @@ func handlePod(key, namespace, podName string) {
 			utils.AviLog.Infof("key: %s, got error while unmarshaling NPL annotations: %v", err)
 		}
 		objects.SharedNPLLister().Save(podKey, annotations)
-		services := lib.GetServicesForPod(pod)
-		objects.SharedPodToSvcLister().Save(podKey, services)
+		services, lbSvcs := lib.GetServicesForPod(pod)
+		if len(services) != 0 {
+			objects.SharedPodToSvcLister().Save(podKey, services)
+		}
+		for _, lbSvc := range lbSvcs {
+			lbSvcKey := utils.L4LBService + "/" + lbSvc
+			utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
+			handleL4Service(lbSvcKey, fullsync)
+		}
 		utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
 	} else {
 		utils.AviLog.Info("key: %s, NPL annotation not found for Pod")
