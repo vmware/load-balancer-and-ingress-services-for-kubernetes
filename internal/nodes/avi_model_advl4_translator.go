@@ -168,9 +168,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		if infraSetting != nil && err == nil {
-			if infraSetting.Spec.SegGroup.Name != "" {
+			if infraSetting.Spec.SeGroup.Name != "" {
 				// This assumes that the SeGroup has the appropriate labels configured
-				avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SegGroup.Name
+				avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
 			}
 
 			if infraSetting.Spec.Network.EnableRhi != nil {

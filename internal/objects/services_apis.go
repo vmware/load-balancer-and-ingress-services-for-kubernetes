@@ -129,7 +129,6 @@ func (v *SvcGWLister) DeleteGWListeners(gateway string) bool {
 }
 
 //=====All service <-> gateway mappings go here. The mappings are updated only if the Gateway validation is successful in layer 1.
-// TODO : Do we have to map the services to listeners of the gateway instead of the gateway as as a whole?
 
 func (v *SvcGWLister) GetSvcToGw(service string) (bool, string) {
 	found, gateway := v.SvcGWStore.Get(service)
@@ -176,4 +175,43 @@ func (v *SvcGWLister) RemoveGatewayMappings(gateway, service string) bool {
 		}
 	}
 	return v.SvcGWStore.Delete(service)
+}
+
+var infraSettingLister *InfraSettingLister
+var infraSettingOnce sync.Once
+
+func NsxAlbInfraSettingLister() *InfraSettingLister {
+	infraSettingOnce.Do(func() {
+		infraSettingLister = &InfraSettingLister{
+			InfraSettingSeGroupStore: NewObjectMapStore(),
+		}
+	})
+	return infraSettingLister
+}
+
+type InfraSettingLister struct {
+	InfraSettingLock sync.RWMutex
+
+	// infraSetting -> seGroupName
+	InfraSettingSeGroupStore *ObjectMapStore
+}
+
+func (i *InfraSettingLister) GetInfraSettingSeGroupName(settingName string) (bool, string) {
+	found, seGroup := i.InfraSettingSeGroupStore.Get(settingName)
+	if !found {
+		return false, ""
+	}
+	return true, seGroup.(string)
+}
+
+func (i *InfraSettingLister) UpdateInfraSettingSeGroupName(settingName, segName string) {
+	i.InfraSettingLock.Lock()
+	defer i.InfraSettingLock.Unlock()
+	i.InfraSettingSeGroupStore.AddOrUpdate(settingName, segName)
+}
+
+func (i *InfraSettingLister) RemoveInfraSettingSeGroupName(settingName, segName string) bool {
+	i.InfraSettingLock.Lock()
+	defer i.InfraSettingLock.Unlock()
+	return i.InfraSettingSeGroupStore.Delete(settingName)
 }

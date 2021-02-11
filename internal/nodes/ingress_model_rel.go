@@ -616,17 +616,33 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 	return allIngresses, true
 }
 
-func NsxAlbSettingToGateway(albSettingName string, namespace string, key string) ([]string, bool) {
+func NsxAlbSettingToGateway(infraSettingName string, namespace string, key string) ([]string, bool) {
 	allGateways := make([]string, 0)
 
-	_, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(albSettingName)
+	infraSetting, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(infraSettingName)
 	// Check for deleted NsxAlbInfraSetting.
 	if err != nil && k8serrors.IsNotFound(err) {
+		if found, oldSegName := objects.NsxAlbInfraSettingLister().GetInfraSettingSeGroupName(infraSettingName); found {
+			removeSeGroupLabel(key, oldSegName)
+			objects.NsxAlbInfraSettingLister().RemoveInfraSettingSeGroupName(infraSettingName, oldSegName)
+		}
+		return allGateways, false
+	}
+
+	segName := infraSetting.Spec.SeGroup.Name
+	if found, oldSegName := objects.NsxAlbInfraSettingLister().GetInfraSettingSeGroupName(infraSettingName); found && oldSegName != segName {
+		removeSeGroupLabel(key, oldSegName)
+		objects.NsxAlbInfraSettingLister().RemoveInfraSettingSeGroupName(infraSettingName, oldSegName)
+	}
+	objects.NsxAlbInfraSettingLister().UpdateInfraSettingSeGroupName(infraSettingName, segName)
+
+	// Validate Avi references and configurations in NsxAlbInfraSetting.
+	if err = validateNsxAlbInfraSetting(key, infraSetting); err != nil {
 		return allGateways, false
 	}
 
 	// Get all GatewayClasses from NsxAlbInfraSetting.
-	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.NsxAlbSettingGWClassIndex, lib.AkoGroup+"/"+lib.NsxAlbInfraSetting+"/"+albSettingName)
+	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.NsxAlbSettingGWClassIndex, lib.AkoGroup+"/"+lib.NsxAlbInfraSetting+"/"+infraSettingName)
 	if err != nil {
 		return allGateways, false
 	}

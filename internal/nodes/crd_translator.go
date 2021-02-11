@@ -20,14 +20,14 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/avinetworks/sdk/go/models"
+
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
-	"github.com/avinetworks/sdk/go/models"
 )
 
 func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
@@ -288,19 +288,14 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		refData[script] = "VsDatascript"
 	}
 
-	for k, value := range refData {
-		if k == "" {
-			continue
-		}
-
-		if errStatus := checkRefOnController(key, value, k); errStatus != nil {
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  errStatus.Error(),
-			})
-			return errStatus
-		}
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
 	}
+
 	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
 		Status: lib.StatusAccepted,
 		Error:  "",
@@ -320,18 +315,12 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 		}
 	}
 
-	for k, value := range refData {
-		if k == "" {
-			continue
-		}
-
-		if errStatus := checkRefOnController(key, value, k); errStatus != nil {
-			status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  errStatus.Error(),
-			})
-			return errStatus
-		}
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
 	}
 
 	status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
@@ -341,16 +330,102 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	return nil
 }
 
+// validateNsxAlbInfraSetting would do validaion checks on the
+// ingested NsxAlbInfraSetting objects
+func validateNsxAlbInfraSetting(key string, infraSetting *akov1alpha1.NsxAlbInfraSetting) error {
+	refData := map[string]string{
+		infraSetting.Spec.Network.Name: "Network",
+	}
+
+	if infraSetting.Spec.SeGroup.Name != "" {
+		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
+		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+	}
+
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateNsxAlbInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
+	}
+
+	status.UpdateNsxAlbInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+		Status: lib.StatusAccepted,
+		Error:  "",
+	})
+	return nil
+}
+
+// addSeGroupLabel configures SEGroup with appropriate labels, during NsxAlbInfraSetting
+// creation/updates after ingestion
+func addSeGroupLabel(key, segName string) {
+	// assign the last avi client for ref checks
+	clients := cache.SharedAVIClients()
+	aviClientLen := lib.GetshardSize()
+
+	// configure labels on SeGroup if not present already.
+	seGroup, err := cache.GetAviSeGroup(clients.AviClient[aviClientLen], segName)
+	if err != nil {
+		utils.AviLog.Error(err)
+	}
+	cache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
+}
+
+// removeSeGroupLabel checks for reemoving labels in SEGroup,
+// during NsxAlbInfraSetting deletes after ingestion
+func removeSeGroupLabel(key, segName string) {
+	// Do not delete labels from global SEGroup
+	if segName == lib.GetSEGName() {
+		return
+	}
+
+	// assign the last avi client for ref checks
+	clients := cache.SharedAVIClients()
+	aviClientLen := lib.GetshardSize()
+
+	// check in all NsxAlbInfraSetting Objects whether the same SeGroup is configured.
+	// If not found, then remove the label from the seGroup.
+	infraSettings, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Informer().GetIndexer().ByIndex(lib.SeGroupNsxAlbSettingIndex, segName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to list NsxAlbInfraSettings %s", key, err.Error())
+		return
+	}
+
+	if len(infraSettings) == 0 {
+		seGroup, err := cache.GetAviSeGroup(clients.AviClient[aviClientLen], segName)
+		if err != nil {
+			utils.AviLog.Error(err)
+		}
+		cache.RemoveSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
+	}
+}
+
 var refModelMap = map[string]string{
-	"SslKeyCert":       "sslkeyandcertificate",
-	"WafPolicy":        "wafpolicy",
-	"HttpPolicySet":    "httppolicyset",
-	"SslProfile":       "sslprofile",
-	"AppProfile":       "applicationprofile",
-	"AnalyticsProfile": "analyticsprofile",
-	"ErrorPageProfile": "errorpageprofile",
-	"VsDatascript":     "vsdatascriptset",
-	"HealthMonitor":    "healthmonitor",
+	"SslKeyCert":         "sslkeyandcertificate",
+	"WafPolicy":          "wafpolicy",
+	"HttpPolicySet":      "httppolicyset",
+	"SslProfile":         "sslprofile",
+	"AppProfile":         "applicationprofile",
+	"AnalyticsProfile":   "analyticsprofile",
+	"ErrorPageProfile":   "errorpageprofile",
+	"VsDatascript":       "vsdatascriptset",
+	"HealthMonitor":      "healthmonitor",
+	"ServiceEngineGroup": "serviceenginegroup",
+	"Network":            "network",
+}
+
+func checkRefsOnController(key string, refMap map[string]string) error {
+	for k, value := range refMap {
+		if k == "" {
+			continue
+		}
+
+		if err := checkRefOnController(key, value, k); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // checkRefOnController checks whether a provided ref on the controller
