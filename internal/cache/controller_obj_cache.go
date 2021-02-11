@@ -664,7 +664,9 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			vips = append(vips, *vip.IPAddress.Addr)
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
-					networkName = strings.Split(networkRef, "#")[1]
+					if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
+						networkName = networRefName[1]
+					}
 				}
 			}
 		}
@@ -1222,7 +1224,9 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			vips = append(vips, *vip.IPAddress.Addr)
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
-					networkName = strings.Split(networkRef, "#")[1]
+					if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
+						networkName = networRefName[1]
+					}
 				}
 			}
 		}

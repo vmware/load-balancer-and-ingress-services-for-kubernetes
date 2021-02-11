@@ -782,7 +782,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
-		utils.AviLog.Infof("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
+		utils.AviLog.Debugf("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
@@ -999,7 +999,9 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 					vsvipVips = append(vsvipVips, addr)
 					if ipamNetworkSubnet, ipamOk := vip["ipam_network_subnet"].(map[string]interface{}); ipamOk {
 						if networkRef, netRefOk := ipamNetworkSubnet["network_ref"].(string); netRefOk {
-							networkName = strings.Split(networkRef, "#")[1]
+							if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
+								networkName = strings.Split(networkRef, "#")[1]
+							}
 						}
 					}
 				}
