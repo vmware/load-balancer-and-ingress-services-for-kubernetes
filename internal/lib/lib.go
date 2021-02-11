@@ -72,12 +72,7 @@ func SetDisableSync(state bool) {
 var AKOUser string
 
 func SetAKOUser() {
-	//Set AKO user same as login user if GRBAC enabled
-	if GetEnableGRBAC() {
-		AKOUser = os.Getenv("CTRL_USERNAME")
-	} else {
-		AKOUser = "ako-" + GetClusterName()
-	}
+	AKOUser = "ako-" + GetClusterName()
 	utils.AviLog.Infof("Setting AKOUser: %s for Avi Objects", AKOUser)
 }
 
@@ -88,7 +83,7 @@ func GetAKOUser() string {
 var enableGRBAC bool
 
 func SetEnableGRBAC(controllerVersion string) {
-	enableGRBAC = CheckControllerVersionCompatibility(controllerVersion, GRBACControllerVersion, ">=")
+	enableGRBAC = CheckControllerVersionCompatibility(controllerVersion, ">=", GRBACControllerVersion)
 }
 
 func GetEnableGRBAC() bool {
@@ -452,9 +447,10 @@ func UseServicesAPI() bool {
 	return false
 }
 
-func CheckControllerVersionCompatibility(version, maxVersion, cmpSign string) bool {
-	if c, err := semver.NewConstraint(cmpSign + maxVersion); err == nil {
-		if currentVersion, err := semver.NewVersion(version); err == nil && c.Check(currentVersion) {
+//Here v1 is compared against v2
+func CheckControllerVersionCompatibility(v1, cmpSign, v2 string) bool {
+	if c, err := semver.NewConstraint(cmpSign + v2); err == nil {
+		if currentVersion, err := semver.NewVersion(v1); err == nil && c.Check(currentVersion) {
 			return true
 		}
 	}
@@ -529,6 +525,32 @@ func SetApiServerInstance(akoApiInstance api.ApiServerInterface) {
 
 func ShutdownApi() {
 	akoApi.ShutDown()
+}
+
+var clusterLabelChecksum uint32
+var clusterKey string
+var clusterValue string
+
+func SetClusterLabelChecksum() {
+	if GetEnableGRBAC() {
+		clusterKey = *GetLabels()[0].Key
+		clusterValue = *GetLabels()[0].Value
+		clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
+	}
+}
+func GetClusterLabelChecksum() uint32 {
+	return clusterLabelChecksum
+}
+func ObjectLabelChecksum(objectLabels []*models.KeyValue) uint32 {
+	var objChecksum uint32
+
+	for _, label := range objectLabels {
+		if *label.Key == clusterKey && *label.Value == clusterValue {
+			objChecksum = clusterLabelChecksum
+			break
+		}
+	}
+	return objChecksum
 }
 
 func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
@@ -684,6 +706,7 @@ func VSVipChecksum(FQDNs []string, IPAddress string, networkName string) uint32 
 	if networkName != "" {
 		checksum += utils.Hash(networkName)
 	}
+	checksum += GetClusterLabelChecksum()
 	return checksum
 }
 

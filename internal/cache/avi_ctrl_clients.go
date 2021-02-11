@@ -63,7 +63,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 					SetTenant(client.AviSession)
 
 					controllerVersion := utils.CtrlVersion
-					if lib.GetAdvancedL4() && lib.CheckControllerVersionCompatibility(controllerVersion, lib.Advl4ControllerVersion, ">") {
+					if lib.GetAdvancedL4() && lib.CheckControllerVersionCompatibility(controllerVersion, ">", lib.Advl4ControllerVersion) {
 						// for advancedL4 make sure the controller api version is set to a max version value of 20.1.2
 						controllerVersion = lib.Advl4ControllerVersion
 					}

@@ -124,6 +124,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			}
 		}
 		checksum := lib.SSLKeyCertChecksum(name, cert, cacert)
+		checksum += lib.GetClusterLabelChecksum()
 		ssl_cache_obj := avicache.AviSSLCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid, CloudConfigCksum: checksum, HasCARef: hasCA}
 
@@ -250,6 +251,7 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 		}
 
 		checksum := lib.SSLKeyCertChecksum(name, pkiCertificate, "")
+		checksum += lib.GetClusterLabelChecksum()
 		pki_cache_obj := avicache.AviPkiProfileCache{
 			Name:             name,
 			Tenant:           rest_op.Tenant,

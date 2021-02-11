@@ -628,6 +628,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	var networkRef string
 	vipId, ipType := "0", "V4"
 
+	cksum := vsvip_meta.CloudConfigCksum
+	cksumstr := strconv.Itoa(int(cksum))
+
 	networkName := lib.GetNetworkName()
 	if lib.UseServicesAPI() && vsvip_meta.NetworkName != nil {
 		networkName = *vsvip_meta.NetworkName
@@ -660,6 +663,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			}
 		}
 		vsvip.DNSInfo = dns_info_arr
+		vsvip.VsvipCloudConfigCksum = &cksumstr
 
 		// handling static IP and networkName (infraSetting) updates.
 		vip := &avimodels.Vip{
@@ -787,6 +791,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		if lib.GetEnableGRBAC() {
 			vsvip.Labels = lib.GetLabels()
 		}
+		vsvip.VsvipCloudConfigCksum = &cksumstr
 		macro := utils.AviRestObjMacro{ModelName: "VsVip", Data: vsvip}
 		path = "/api/macro"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
@@ -827,6 +832,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			if lib.GetEnableGRBAC() {
 				vsvip_avi.Labels = lib.GetLabels()
 			}
+			vsvip_avi.VsvipCloudConfigCksum = &cksumstr
 			path = "/api/vsvip/" + vsvip_cache_obj.Uuid
 			rest_op = utils.RestOp{Path: path,
 				Method:  utils.RestPut,
@@ -1031,6 +1037,10 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 
 		if lastModifiedStr == "" {
 			vsvip_cache_obj.InvalidData = true
+		}
+
+		if resp["VsvipCloudConfigCksum"] != nil {
+			vsvip_cache_obj.CloudConfigCksum = resp["VsvipCloudConfigCksum"].(string)
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
