@@ -17,6 +17,7 @@ AKOSettings:
   disableStaticRouteSync: "false" # If the POD networks are reachable from the Avi SE, set this knob to true.
   clusterName: "my-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
   cniPlugin: "" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift 
+  enableEVH: false # This enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services 
   #NamespaceSelector contains label key and value used for namespacemigration
   #Same label has to be present on namespace/s which needs migration/sync to AKO
   namespaceSelector:

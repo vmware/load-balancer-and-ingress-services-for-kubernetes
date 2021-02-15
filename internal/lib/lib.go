@@ -184,6 +184,31 @@ func GetSniPGName(ingName, namespace, host, path string) string {
 	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
+// evh child
+func GetEvhVsPoolNPgName(ingName, namespace, host, path string, args ...string) string {
+	path = strings.ReplaceAll(path, "/", "_")
+	poolName := NamePrefix + namespace + "-" + host + path + "-" + ingName
+	if len(args) > 0 {
+		svcName := args[0]
+		poolName = poolName + "-" + svcName
+	}
+	return poolName
+}
+
+func GetEvhTlsNodeName(ingName, namespace, secret string, host string, path string) string {
+	path = strings.ReplaceAll(path, "/", "_")
+	if len(host) > 0 {
+		return NamePrefix + namespace + "-" + host + path + "-" + ingName
+	}
+
+	return NamePrefix + namespace + "-" + host + path + "-" + ingName + "-" + secret
+}
+
+func GetEvhPGName(ingName, namespace, host, path string) string {
+	path = strings.ReplaceAll(path, "/", "_")
+	return NamePrefix + namespace + "-" + host + path + "-" + ingName
+}
+
 func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) string {
 	if len(sniHostName) > 0 {
 		return NamePrefix + sniHostName[0]
@@ -389,6 +414,16 @@ func GetAdvancedL4() bool {
 	advanceL4 := os.Getenv(ADVANCED_L4)
 	if advanceL4 == "true" {
 
+		return true
+	}
+	return false
+}
+
+// This utility returns true if AKO is configured to create
+// VS with Enhanced Virtual Hosting
+func IsEvhEnabled() bool {
+	evh := os.Getenv(ENABLE_EVH)
+	if evh == "true" {
 		return true
 	}
 	return false

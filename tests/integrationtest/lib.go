@@ -621,6 +621,14 @@ func SetClusterIPMode() {
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
 }
 
+func EnableEVH() {
+	os.Setenv("ENABLE_EVH", "true")
+}
+
+func DisableEVH() {
+	os.Setenv("ENABLE_EVH", "false")
+}
+
 func CreateNode(t *testing.T, nodeName string, nodeIP string) {
 	modelName := "admin/global"
 	objects.SharedAviGraphLister().Delete(modelName)

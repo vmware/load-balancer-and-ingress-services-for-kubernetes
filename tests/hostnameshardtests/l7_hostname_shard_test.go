@@ -114,6 +114,8 @@ func AddConfigMap() {
 			Name:      "avi-k8s-config",
 		},
 	}
+	aviCM.Data = make(map[string]string)
+	aviCM.Data["logLevel"] = "DEBUG"
 	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
 
 	integrationtest.PollForSyncStart(ctrl, 10)
