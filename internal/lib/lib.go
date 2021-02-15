@@ -585,8 +585,18 @@ func IsNodePortMode() bool {
 	return false
 }
 
+// ToDo: Set the Service Type only once. But this creates a problem in UTs,
+// because different types of Services needs to be tested in the UTs.
 func GetServiceType() string {
 	return os.Getenv(SERVICE_TYPE)
+}
+
+func AutoAnnotateNPLSvc() bool {
+	autoAnnotateSvc := os.Getenv(autoAnnotateService)
+	if GetServiceType() == NodePortLocal && autoAnnotateSvc != "false" {
+		return true
+	}
+	return false
 }
 
 func GetNodePortsSelector() map[string]string {

@@ -22,6 +22,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -291,7 +292,12 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 		if k8serrors.IsNotFound(err) {
 			// Remove all the Ingress to Services mapping.
 			// Remove the references of this ingress from the Services
-			objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
+			svcToDel := objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
+			if lib.AutoAnnotateNPLSvc() {
+				for _, svc := range svcToDel {
+					status.DeleteSvcAnnotation(key, namespace, svc)
+				}
+			}
 			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 	} else {
@@ -307,10 +313,28 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 
-		services := parseServicesForIngress(ingObj.Spec, key)
-		for _, svc := range services {
-			utils.AviLog.Debugf("key: %s, msg: updating ingress relationship for service: %s", key, svc)
+		_, oldSvcs := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSvc(ingName)
+		currSvcs := parseServicesForIngress(ingObj.Spec, key)
+
+		svcToDel := lib.Difference(oldSvcs, currSvcs)
+		for _, svc := range svcToDel {
+			_, ingrforSvc := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svc)
+			ingrforSvc = utils.Remove(ingrforSvc, ingName)
+			//objects.SharedSvcLister().IngressMappings(namespace).UpdateSvcToIngMapping(svc, ingrforSvc)
+			if len(ingrforSvc) == 0 {
+				status.DeleteSvcAnnotation(key, namespace, svc)
+			}
+			objects.SharedSvcLister().IngressMappings(namespace).RemoveSvcFromIngressMappings(ingName, svc)
+		}
+
+		svcToAdd := lib.Difference(currSvcs, oldSvcs)
+		for _, svc := range svcToAdd {
+			utils.AviLog.Debugf("key: %s, msg: updating ingress relationship for service:  %s", key, svc)
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
+			// Check and update NPl annotation for svc
+			if lib.AutoAnnotateNPLSvc() {
+				status.CheckUpdateSvcAnnotation(key, namespace, svc)
+			}
 		}
 		secrets := parseSecretsForIngress(ingObj.Spec, key)
 		if len(secrets) > 0 {
@@ -345,6 +369,13 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingresses)
 	if len(ingresses) == 0 {
 		return nil, false
+	}
+
+	// Check if the svc has the NPL Annotation. If not, annotate and exit without returning any ingress
+	if lib.AutoAnnotateNPLSvc() {
+		if !status.CheckUpdateSvcAnnotation(key, namespace, svcName) {
+			return nil, false
+		}
 	}
 	return ingresses, true
 }

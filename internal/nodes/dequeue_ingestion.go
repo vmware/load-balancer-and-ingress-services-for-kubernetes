@@ -21,6 +21,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -263,6 +264,12 @@ func handleL4Service(key string, fullsync bool) {
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
 	if !isServiceDelete(name, namespace, key) {
+		// If Service is Not Annotated with NPL annotation, annotate the service and return.
+		if lib.AutoAnnotateNPLSvc() {
+			if !status.CheckUpdateSvcAnnotation(key, namespace, name) {
+				return
+			}
+		}
 		utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 		aviModelGraph := NewAviObjectGraph()
 		aviModelGraph.BuildL4LBGraph(namespace, name, key)
@@ -287,15 +294,15 @@ func handleL4Service(key string, fullsync bool) {
 				utils.AviLog.Warnf("key: %s, msg: transition from ClusterIP to service of type LB is not supported in namespace based shard for ingress pool changes", key)
 			}
 		}
-	} else {
-		// This is a DELETE event. The avi graph is set to nil.
-		utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
-		model_name := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+name)
-		objects.SharedAviGraphLister().Save(model_name, nil)
-		if !fullsync {
-			bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
-			sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
-		}
+		return
+	}
+	// This is a DELETE event. The avi graph is set to nil.
+	utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
+	model_name := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+name)
+	objects.SharedAviGraphLister().Save(model_name, nil)
+	if !fullsync {
+		bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
+		sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
 	}
 }
 

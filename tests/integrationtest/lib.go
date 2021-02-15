@@ -686,6 +686,7 @@ func UpdateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, mu
 
 func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
 	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+	svcExample.ResourceVersion = "2"
 	_, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
