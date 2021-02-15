@@ -32,11 +32,14 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	var avi_vs_meta *AviVsNode
 
 	// create the secured shared VS to listen on port 443
-	avi_vs_meta = &AviVsNode{Name: vsName, Tenant: lib.GetTenant(),
-		EastWest: false, SharedVS: true}
-	if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-		avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
+	avi_vs_meta = &AviVsNode{
+		Name:               vsName,
+		Tenant:             lib.GetTenant(),
+		EastWest:           false,
+		SharedVS:           true,
+		ServiceEngineGroup: lib.GetSEGName(),
 	}
+
 	var portProtocols []AviPortHostProtocol
 	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP}
 	portProtocols = append(portProtocols, httpsPort)
@@ -166,11 +169,12 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 
 	if passChildVS == nil {
 		passChildVS = &AviVsNode{
-			Name: secureSharedVS.Name + lib.PassthroughInsecure, Tenant: lib.GetTenant(), EastWest: false, VrfContext: lib.GetVrf(),
+			Name:       secureSharedVS.Name + lib.PassthroughInsecure,
+			Tenant:     lib.GetTenant(),
+			EastWest:   false,
+			VrfContext: lib.GetVrf(),
 		}
-		if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-			passChildVS.ServiceEngineGroup = lib.GetSEGName()
-		}
+		passChildVS.ServiceEngineGroup = lib.GetSEGName()
 		passChildVS.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 		passChildVS.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 		httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}

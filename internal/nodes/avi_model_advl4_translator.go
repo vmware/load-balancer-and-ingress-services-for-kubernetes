@@ -77,10 +77,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 				NamespaceServiceName: serviceNSNames,
 				Gateway:              namespace + "/" + gatewayName,
 			},
-		}
-
-		if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-			avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
+			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
 		isTCP := false
@@ -149,6 +146,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 				NamespaceServiceName: serviceNSNames,
 				Gateway:              namespace + "/" + gatewayName,
 			},
+			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
 		var err error
