@@ -179,6 +179,7 @@ func TestMain(m *testing.M) {
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
+	lib.SetCRDClientset(CRDClient)
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
