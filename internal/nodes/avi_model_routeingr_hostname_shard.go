@@ -208,13 +208,18 @@ func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync
 		utils.AviLog.Infof("key: %s, starting unsupported object type: %s", key, objType)
 		return
 	}
-
+	isIngr := routeIgrObj.GetType() == utils.Ingress
 	if err != nil || !processObj {
 		utils.AviLog.Infof("key: %s, msg: Error :%v", key, err)
 		// Detect a delete condition here.
 		if k8serrors.IsNotFound(err) || !processObj {
 			utils.AviLog.Infof("key: %s, Deleting Pool for ingress delete", key)
-			RouteIngrDeletePoolsByHostname(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
+			if isIngr && lib.IsEvhEnabled() {
+				RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
+
+			} else {
+				RouteIngrDeletePoolsByHostname(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
+			}
 		}
 		return
 	}
@@ -231,6 +236,28 @@ func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync
 
 	// Process insecure routes first.
 	hostsMap := make(map[string]*objects.RouteIngrhost)
+
+	if isIngr && lib.IsEvhEnabled() {
+		// Process insecure hosts
+		ProcessInsecureHostsForEVH(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
+		// process secure hosts
+		ProcessSecureHostsForEVH(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap, fullsync, sharedQueue)
+		// delete stale data
+		DeleteStaleDataForEvh(routeIgrObj, key, &modelList, Storedhosts, hostsMap)
+		// hostNamePathStore cache operation
+		_, oldHostMap := routeIgrObj.GetSvcLister().IngressMappings(namespace).GetRouteIngToHost(objname)
+		updateHostPathCacheV2(namespace, objname, oldHostMap, hostsMap)
+
+		routeIgrObj.GetSvcLister().IngressMappings(namespace).UpdateRouteIngToHostMapping(objname, hostsMap)
+		// publish to rest layer
+		if !fullsync {
+			utils.AviLog.Infof("key: %s, msg: List of models to publish: %s", key, modelList)
+			for _, modelName := range modelList {
+				PublishKeyToRestLayer(modelName, key, sharedQueue)
+			}
+		}
+		return
+	}
 	ProcessInsecureHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
 
 	// Process secure routes next.
