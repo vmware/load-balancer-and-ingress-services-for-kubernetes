@@ -1,3 +1,17 @@
+/*
+ * Copyright 2019-2020 VMware, Inc.
+ * All Rights Reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*   http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
 package nodes
 
 import (
@@ -27,40 +41,35 @@ type AviEvhVsNode struct {
 	EvhPath          string
 	EvhMatchCriteria string
 	// props from avi vs node
-	Name                  string
-	Tenant                string
-	ServiceEngineGroup    string
-	ApplicationProfile    string
-	NetworkProfile        string
-	Enabled               *bool
-	PortProto             []AviPortHostProtocol // for listeners
-	DefaultPool           string
-	EastWest              bool
-	CloudConfigCksum      uint32
-	DefaultPoolGroup      string
-	HTTPChecksum          uint32
-	PoolGroupRefs         []*AviPoolGroupNode
-	PoolRefs              []*AviPoolNode
-	TCPPoolGroupRefs      []*AviPoolGroupNode
-	HTTPDSrefs            []*AviHTTPDataScriptNode
-	PassthroughChildNodes []*AviEvhVsNode
-	SharedVS              bool
-	CACertRefs            []*AviTLSKeyCertNode
-	SSLKeyCertRefs        []*AviTLSKeyCertNode
-	HttpPolicyRefs        []*AviHttpPolicySetNode
-	VSVIPRefs             []*AviVSVIPNode
-	L4PolicyRefs          []*AviL4PolicyNode
-	TLSType               string
-	ServiceMetadata       avicache.ServiceMetadataObj
-	VrfContext            string
-	WafPolicyRef          string
-	AppProfileRef         string
-	AnalyticsProfileRef   string
-	ErrorPageProfileRef   string
-	HttpPolicySetRefs     []string
-	SSLProfileRef         string
-	VsDatascriptRefs      []string
-	SSLKeyCertAviRef      string
+	Name                string
+	Tenant              string
+	ServiceEngineGroup  string
+	ApplicationProfile  string
+	NetworkProfile      string
+	Enabled             *bool
+	PortProto           []AviPortHostProtocol // for listeners
+	DefaultPool         string
+	CloudConfigCksum    uint32
+	DefaultPoolGroup    string
+	HTTPChecksum        uint32
+	PoolGroupRefs       []*AviPoolGroupNode
+	PoolRefs            []*AviPoolNode
+	HTTPDSrefs          []*AviHTTPDataScriptNode
+	SharedVS            bool
+	CACertRefs          []*AviTLSKeyCertNode
+	SSLKeyCertRefs      []*AviTLSKeyCertNode
+	HttpPolicyRefs      []*AviHttpPolicySetNode
+	VSVIPRefs           []*AviVSVIPNode
+	TLSType             string
+	ServiceMetadata     avicache.ServiceMetadataObj
+	VrfContext          string
+	WafPolicyRef        string
+	AppProfileRef       string
+	AnalyticsProfileRef string
+	ErrorPageProfileRef string
+	HttpPolicySetRefs   []string
+	SSLProfileRef       string
+	SSLKeyCertAviRef    string
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -223,7 +232,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, evhChecksum, sslkeyChecksum, l4policyChecksum, passthroughChecksum, vsvipChecksum uint32
+	var dsChecksum, httppolChecksum, evhChecksum, sslkeyChecksum, vsvipChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		dsChecksum += ds.GetCheckSum()
@@ -249,17 +258,8 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		vsvipChecksum += vsvipref.GetCheckSum()
 	}
 
-	for _, l4policy := range v.L4PolicyRefs {
-		l4policyChecksum += l4policy.GetCheckSum()
-	}
-
-	for _, passthroughChild := range v.PassthroughChildNodes {
-		passthroughChecksum += passthroughChild.GetCheckSum()
-	}
-
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
-	scripts := v.VsDatascriptRefs
 
 	vsRefs := v.WafPolicyRef +
 		v.AppProfileRef +
@@ -267,10 +267,6 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		v.AnalyticsProfileRef +
 		v.ErrorPageProfileRef +
 		v.SSLProfileRef
-
-	if len(scripts) > 0 {
-		vsRefs += utils.Stringify(scripts)
-	}
 
 	checksum := dsChecksum +
 		httppolChecksum +
@@ -281,8 +277,6 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		sslkeyChecksum +
 		vsvipChecksum +
 		utils.Hash(vsRefs) +
-		l4policyChecksum +
-		passthroughChecksum +
 		utils.Hash(v.EvhHostName) +
 		utils.Hash(v.EvhPath)
 
@@ -314,7 +308,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName string, key str
 
 	// This is a shared VS - always created in the admin namespace for now.
 	avi_vs_meta := &AviEvhVsNode{Name: vsName, Tenant: lib.GetTenant(),
-		EastWest: false, SharedVS: true}
+		SharedVS: true}
 	if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
 		avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
 	}
@@ -958,7 +952,7 @@ func (o *AviObjectGraph) DeleteVsForHostnameForEvh(vsName, hostname string, rout
 		// Fetch the ingress evh vs that are present in the model and delete them.
 		for path := range pathSvc {
 			evhVsName := lib.GetEvhVsPoolNPgName(ingName, namespace, hostname, path)
-			_ = o.RemoveEvhVsNode(evhVsName, vsNode, key, hostname)
+			o.RemoveEvhVsNode(evhVsName, vsNode, key, hostname)
 
 		}
 
