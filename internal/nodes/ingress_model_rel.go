@@ -320,8 +320,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 		for _, svc := range svcToDel {
 			_, ingrforSvc := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svc)
 			ingrforSvc = utils.Remove(ingrforSvc, ingName)
-			//objects.SharedSvcLister().IngressMappings(namespace).UpdateSvcToIngMapping(svc, ingrforSvc)
-			if len(ingrforSvc) == 0 {
+			if lib.AutoAnnotateNPLSvc() && len(ingrforSvc) == 0 {
 				status.DeleteSvcAnnotation(key, namespace, svc)
 			}
 			objects.SharedSvcLister().IngressMappings(namespace).RemoveSvcFromIngressMappings(ingName, svc)

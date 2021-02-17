@@ -591,9 +591,10 @@ func GetServiceType() string {
 	return os.Getenv(SERVICE_TYPE)
 }
 
+// AutoAnnotateNPLSvc returns true if AKO is automatically annotating required Services instead of user for NPL
 func AutoAnnotateNPLSvc() bool {
 	autoAnnotateSvc := os.Getenv(autoAnnotateService)
-	if GetServiceType() == NodePortLocal && autoAnnotateSvc != "false" {
+	if GetServiceType() == NodePortLocal && !strings.EqualFold(autoAnnotateSvc, "false") {
 		return true
 	}
 	return false

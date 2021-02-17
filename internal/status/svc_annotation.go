@@ -54,7 +54,7 @@ func CheckUpdateSvcAnnotation(key, namespace, name string) bool {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the Service annotation for NPL: %v", key, err)
 		return false
 	}
-	utils.AviLog.Debugf("key: %s, msg: updated NPL annotation from Service: %s/%s", namespace, name)
+	utils.AviLog.Debugf("key: %s, msg: updated NPL annotation from Service: %s/%s", key, namespace, name)
 	return false
 }
 
@@ -64,11 +64,11 @@ func DeleteSvcAnnotation(key, namespace, name string) {
 		return
 	}
 	ann := service.GetAnnotations()
-	if _, found := ann[lib.NPLSvcAnnotation]; !found {
+	if ann == nil {
 		return
 	}
-	if ann == nil {
-		ann = make(map[string]string)
+	if _, found := ann[lib.NPLSvcAnnotation]; !found {
+		return
 	}
 	delete(ann, lib.NPLSvcAnnotation)
 	patchPayload := map[string]interface{}{
@@ -83,5 +83,5 @@ func DeleteSvcAnnotation(key, namespace, name string) {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the Service annotation for NPL: %v", key, err)
 		return
 	}
-	utils.AviLog.Debugf("key: %s, msg: Deleted NPL annotation from Service: %s/%s", namespace, name)
+	utils.AviLog.Debugf("key: %s, msg: Deleted NPL annotation from Service: %s/%s", key, namespace, name)
 }
