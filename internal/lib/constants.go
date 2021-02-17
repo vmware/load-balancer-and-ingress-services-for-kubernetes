@@ -112,6 +112,8 @@ const (
 	DefaultRouteCert                           = "router-certs-default"
 	NPLPodAnnotation                           = "nodeportlocal.antrea.io"
 	AkoGroup                                   = "ako.vmware.com"
+	NPLSvcAnnotation                           = "nodeportlocal.antrea.io/enabled"
+	autoAnnotateService                        = "AUTO_ANNOTATE_SERVICE"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"

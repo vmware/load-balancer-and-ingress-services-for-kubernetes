@@ -116,7 +116,7 @@ func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, cur
 	for path, services := range currPathSvcMap {
 		storedServices, ok := pathSvcCopy[path]
 		if ok {
-			pathSvcCopy[path] = Difference(storedServices, services)
+			pathSvcCopy[path] = lib.Difference(storedServices, services)
 			if len(pathSvcCopy[path]) == 0 {
 				delete(pathSvcCopy, path)
 			}

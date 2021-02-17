@@ -361,6 +361,21 @@ func (v *SvcNSCache) UpdateIngressMappings(ingName string, svcName string) {
 	}
 }
 
+func (v *SvcNSCache) RemoveSvcFromIngressMappings(ingName string, svcName string) {
+	v.IngressLock.Lock()
+	defer v.IngressLock.Unlock()
+	_, ingresses := v.GetSvcToIng(svcName)
+	if !utils.HasElem(ingresses, ingName) {
+		ingresses = utils.Remove(ingresses, ingName)
+		v.UpdateSvcToIngMapping(svcName, ingresses)
+	}
+	_, svcs := v.GetIngToSvc(ingName)
+	if !utils.HasElem(svcs, svcName) {
+		svcs = utils.Remove(svcs, svcName)
+		v.UpdateIngToSvcMapping(ingName, svcs)
+	}
+}
+
 func (v *SvcNSCache) AddSecretsToIngressMappings(ingressNS, ingName, secretName string) {
 	v.IngressLock.Lock()
 	defer v.IngressLock.Unlock()
@@ -395,12 +410,13 @@ func (v *SvcNSCache) UpdateIngressClassMappings(ingName string, ingClass string)
 	v.UpdateIngToClassMapping(ingName, ingClass)
 }
 
-func (v *SvcNSCache) RemoveIngressMappings(ingName string) {
+func (v *SvcNSCache) RemoveIngressMappings(ingName string) []string {
 	v.IngressLock.Lock()
 	defer v.IngressLock.Unlock()
 	// Get all the services for the ingress
 	ok, svcs := v.GetIngToSvc(ingName)
 	// Iterate and remove this ingress from the service mappings
+	var svcToDel []string
 	if ok {
 		for _, svc := range svcs {
 			found, ingresses := v.GetSvcToIng(svc)
@@ -408,11 +424,15 @@ func (v *SvcNSCache) RemoveIngressMappings(ingName string) {
 				ingresses = utils.Remove(ingresses, ingName)
 				// Update the service mapping
 				v.UpdateSvcToIngMapping(svc, ingresses)
+				if len(ingresses) == 0 {
+					svcToDel = append(svcToDel, svc)
+				}
 			}
 		}
 	}
 	// Remove the ingress from the ingress --> service map
 	v.DeleteIngToSvcMapping(ingName)
+	return svcToDel
 }
 
 func (v *SvcNSCache) RemoveIngressSecretMappings(ingNSName string) {
