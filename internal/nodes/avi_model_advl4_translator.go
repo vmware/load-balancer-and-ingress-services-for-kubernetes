@@ -165,7 +165,12 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			}
 		}
 
-		if infraSetting != nil && err == nil {
+		applyInfraSetting := false
+		if infraSetting != nil && err == nil && infraSetting.Status.Status == lib.StatusAccepted {
+			applyInfraSetting = true
+		}
+
+		if applyInfraSetting {
 			if infraSetting.Spec.SeGroup.Name != "" {
 				// This assumes that the SeGroup has the appropriate labels configured
 				avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
@@ -207,7 +212,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			VrfContext: lib.GetVrf(),
 		}
 
-		if infraSetting != nil {
+		if applyInfraSetting {
 			vsVipNode.NetworkName = &infraSetting.Spec.Network.Name
 		}
 

@@ -368,6 +368,7 @@ func addSeGroupLabel(key, segName string) {
 	seGroup, err := cache.GetAviSeGroup(clients.AviClient[aviClientLen], segName)
 	if err != nil {
 		utils.AviLog.Error(err)
+		return
 	}
 	cache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
 }
@@ -396,6 +397,7 @@ func removeSeGroupLabel(key, segName string) {
 		seGroup, err := cache.GetAviSeGroup(clients.AviClient[aviClientLen], segName)
 		if err != nil {
 			utils.AviLog.Error(err)
+			return
 		}
 		cache.RemoveSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
 	}

@@ -2375,7 +2375,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	// if NsxAlbInfraSetting NOT found, remove label if exists,
 	// if NsxAlbInfraSetting found, configure label if doesn't exist.
 	// This takes care of syncing SeGroup label settings during reboots.
-	uri := "/api/serviceenginegroup/?include_name&cloud_ref.name=" + utils.CloudName
+	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)

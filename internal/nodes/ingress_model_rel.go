@@ -626,19 +626,18 @@ func NsxAlbSettingToGateway(infraSettingName string, namespace string, key strin
 			removeSeGroupLabel(key, oldSegName)
 			objects.NsxAlbInfraSettingLister().RemoveInfraSettingSeGroupName(infraSettingName, oldSegName)
 		}
-		return allGateways, false
-	}
+	} else {
+		segName := infraSetting.Spec.SeGroup.Name
+		if found, oldSegName := objects.NsxAlbInfraSettingLister().GetInfraSettingSeGroupName(infraSettingName); found && oldSegName != segName {
+			removeSeGroupLabel(key, oldSegName)
+			objects.NsxAlbInfraSettingLister().RemoveInfraSettingSeGroupName(infraSettingName, oldSegName)
+		}
+		objects.NsxAlbInfraSettingLister().UpdateInfraSettingSeGroupName(infraSettingName, segName)
 
-	segName := infraSetting.Spec.SeGroup.Name
-	if found, oldSegName := objects.NsxAlbInfraSettingLister().GetInfraSettingSeGroupName(infraSettingName); found && oldSegName != segName {
-		removeSeGroupLabel(key, oldSegName)
-		objects.NsxAlbInfraSettingLister().RemoveInfraSettingSeGroupName(infraSettingName, oldSegName)
-	}
-	objects.NsxAlbInfraSettingLister().UpdateInfraSettingSeGroupName(infraSettingName, segName)
-
-	// Validate Avi references and configurations in NsxAlbInfraSetting.
-	if err = validateNsxAlbInfraSetting(key, infraSetting); err != nil {
-		return allGateways, false
+		// Validate Avi references and configurations in NsxAlbInfraSetting.
+		if err = validateNsxAlbInfraSetting(key, infraSetting); err != nil {
+			return allGateways, false
+		}
 	}
 
 	// Get all GatewayClasses from NsxAlbInfraSetting.

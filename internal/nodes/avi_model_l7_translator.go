@@ -306,7 +306,6 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	avi_vs_meta = &AviVsNode{
 		Name:               vsName,
 		Tenant:             lib.GetTenant(),
-		EastWest:           false,
 		SharedVS:           true,
 		ServiceEngineGroup: lib.GetSEGName(),
 	}

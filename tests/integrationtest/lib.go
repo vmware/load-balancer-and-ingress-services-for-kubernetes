@@ -966,14 +966,18 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		w.WriteHeader(http.StatusNoContent)
 		w.Write(finalResponse)
 
-	} else if r.Method == "GET" &&
-		(strings.Contains(r.URL.RawQuery, "thisisahostruleref") || strings.Contains(r.URL.RawQuery, "thisisahttpruleref")) {
-		w.WriteHeader(http.StatusOK)
-		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
-		w.Write(data)
+	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "aviref") {
+		// block to handle
+		if strings.Contains(r.URL.RawQuery, "thisisaviref") {
+			w.WriteHeader(http.StatusOK)
+			data, _ := ioutil.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
+			w.Write(data)
+		} else if strings.Contains(r.URL.RawQuery, "thisisBADaviref") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"results": [], "count": 0}`))
+		}
 
-	} else if r.Method == "GET" &&
-		(strings.Contains(url, "/api/cloud/")) {
+	} else if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
 		var data []byte
 		if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NONE") {
 			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NONE"))
@@ -1015,6 +1019,7 @@ func inArray(a []string, b string) bool {
 // FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data
 // for GET objects list API. GET /api/virtualservice returns from virtualservice_mock.json and so on
 func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath string) {
+	utils.AviLog.Infof("HEY")
 	url := r.URL.EscapedPath() // url = //api/<object>/:objectId
 	splitURL := strings.Split(strings.Trim(url, "/"), "/")
 
@@ -1112,16 +1117,16 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
 		Name:               hrname,
 		Namespace:          "default",
 		Fqdn:               fqdn,
-		WafPolicy:          "thisisahostruleref-waf",
-		ApplicationProfile: "thisisahostruleref-appprof",
-		AnalyticsProfile:   "thisisahostruleref-analyticsprof",
-		ErrorPageProfile:   "thisisahostruleref-errorprof",
-		Datascripts:        []string{"thisisahostruleref-ds2", "thisisahostruleref-ds1"},
-		HttpPolicySets:     []string{"thisisahostruleref-httpps2", "thisisahostruleref-httpps1"},
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
 	}
 	if secure {
-		hostrule.SslKeyCertificate = "thisisahostruleref-sslkey"
-		hostrule.SslProfile = "thisisahostruleref-sslprof"
+		hostrule.SslKeyCertificate = "thisisaviref-sslkey"
+		hostrule.SslProfile = "thisisaviref-sslprof"
 	}
 
 	hrCreate := hostrule.HostRule()
@@ -1189,11 +1194,11 @@ func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 		Fqdn:      fqdn,
 		PathProperties: []FakeHTTPRulePath{{
 			Path:           path,
-			SslProfile:     "thisisahttpruleref-sslprofile",
+			SslProfile:     "thisisaviref-sslprofile",
 			DestinationCA:  "httprule-destinationCA",
 			LbAlgorithm:    "LB_ALGORITHM_CONSISTENT_HASH",
 			Hash:           "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
-			HealthMonitors: []string{"thisisahttpruleref-hm2", "thisisahttpruleref-hm1"},
+			HealthMonitors: []string{"thisisaviref-hm2", "thisisaviref-hm1"},
 		}},
 	}
 
