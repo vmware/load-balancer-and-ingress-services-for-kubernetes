@@ -115,10 +115,12 @@ func DequeueIngestion(key string, fullsync bool) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
-				model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
-				ok := saveAviModel(model_name, aviModelGraph, key)
-				if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(model_name, key, sharedQueue)
+				if len(aviModelGraph.GetOrderedNodes()) > 0 {
+					model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+					ok := saveAviModel(model_name, aviModelGraph, key)
+					if ok && !fullsync {
+						PublishKeyToRestLayer(model_name, key, sharedQueue)
+					}
 				}
 			}
 		}
@@ -273,13 +275,17 @@ func handleL4Service(key string, fullsync bool) {
 		utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 		aviModelGraph := NewAviObjectGraph()
 		aviModelGraph.BuildL4LBGraph(namespace, name, key)
-		model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+
 		// Save the LB service in memory
 		objects.SharedlbLister().Save(namespace+"/"+name, name)
-		ok := saveAviModel(model_name, aviModelGraph, key)
-		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-			PublishKeyToRestLayer(model_name, key, sharedQueue)
+		if len(aviModelGraph.GetOrderedNodes()) > 0 {
+			model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+			ok := saveAviModel(model_name, aviModelGraph, key)
+			if ok && !fullsync {
+				PublishKeyToRestLayer(model_name, key, sharedQueue)
+			}
 		}
+
 		found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
 		if found {
 			// This is transition from clusterIP to service of type LB
