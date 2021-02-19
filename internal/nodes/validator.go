@@ -153,7 +153,7 @@ func destinationCAHTTPRulePresent(key, host, path string) (bool, string) {
 
 // ParseHostPathForIngress handling for hostrule: if the host has a hostrule, and that hostrule has a tls.sslkeycertref then
 // move that host in the tls.hosts, this should be only in case of hostname sharding
-func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec networkingv1beta1.IngressSpec, key string) IngressConfig {
+func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec networkingv1beta1.IngressSpec, annotations map[string]string, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
@@ -162,6 +162,12 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 	secretHostsMap := make(map[string][]string)
 	subDomains := GetDefaultSubDomain()
 
+	var useDefaultSecret bool
+	if val, found := annotations[lib.DefaultSecretEnabled]; found {
+		useDefaultSecret = strings.EqualFold(val, "true")
+	}
+
+	var tlsConfigs []TlsSettings
 	for _, rule := range ingSpec.Rules {
 		var hostPathMapSvcList []IngressHostPathSvc
 		var hostName string
@@ -224,12 +230,24 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 
 		if useHostRuleSSL {
 			additionalSecureHostMap[hostName] = hostPathMapSvcList
+		} else if useDefaultSecret {
+			defaultTLS := TlsSettings{}
+			defaultTLS.SecretName = lib.GetDefaultSecretForRoutes()
+			defaultTLS.SecretNS = utils.GetAKONamespace()
+			defaultTLSHostSvcMap := make(IngressHostMap)
+			defaultTLSHostSvcMap[hostName] = hostPathMapSvcList
+			defaultTLS.Hosts = defaultTLSHostSvcMap
+			defaultTLS.redirect = true
+			tlsConfigs = append(tlsConfigs, defaultTLS)
+			if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
+				objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(ns, ingName, defaultTLS.SecretName)
+				objects.SharedSvcLister().IngressMappings(ns).AddSecretsToIngressMappings(ns, ingName, defaultTLS.SecretName)
+			}
 		} else {
 			hostMap[hostName] = hostPathMapSvcList
 		}
 	}
 
-	var tlsConfigs []TlsSettings
 	for _, tlsSettings := range ingSpec.TLS {
 		tlsHostSvcMap := make(IngressHostMap)
 		tls := TlsSettings{}

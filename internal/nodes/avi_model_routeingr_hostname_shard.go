@@ -51,10 +51,11 @@ type OshiftRouteModel struct {
 
 // K8sIngressModel : Model for openshift routes with default service lister
 type K8sIngressModel struct {
-	key       string
-	name      string
-	namespace string
-	spec      networkingv1beta1.IngressSpec
+	key         string
+	name        string
+	namespace   string
+	spec        networkingv1beta1.IngressSpec
+	annotations map[string]string
 }
 
 func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error, bool) {
@@ -138,6 +139,7 @@ func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, b
 	}
 	processObj = validateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace, utils.GetGlobalNSFilter(), nil, true)
 	ingrModel.spec = ingObj.Spec
+	ingrModel.annotations = ingObj.GetAnnotations()
 	return &ingrModel, nil, processObj
 }
 
@@ -163,7 +165,7 @@ func (m *K8sIngressModel) GetSpec() interface{} {
 
 func (m *K8sIngressModel) ParseHostPath() IngressConfig {
 	o := NewNodesValidator()
-	return o.ParseHostPathForIngress(m.namespace, m.name, m.spec, m.key)
+	return o.ParseHostPathForIngress(m.namespace, m.name, m.spec, m.annotations, m.key)
 }
 
 func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, currentPathSvc []IngressHostPathSvc) map[string][]string {

@@ -57,7 +57,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			// If the ingress class is not right, let's delete it.
 			o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 		}
-		parsedIng = o.Validator.ParseHostPathForIngress(namespace, ingName, ingObj.Spec, key)
+		parsedIng = o.Validator.ParseHostPathForIngress(namespace, ingName, ingObj.Spec, ingObj.Annotations, key)
 		if processIng {
 			// First check if there are pools related to this ingress present in the model already
 			poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
