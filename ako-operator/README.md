@@ -5,7 +5,7 @@ This operator takes care of deploying, managing and removing AKO from openshift/
 ### Pre-reqs before deploying the operator
 - CRD for `AKOConfig` must be installed.
 - A secret called `avi-secret` must be installed. This contains the username
-  and password for the Avi controller (Currently, not enforced).
+  and password for the Avi controller in base64 encoding (edit [secret.yaml](config/secrets/secret.yaml)).
 - And, CRD definitions for `HostRule` and `HttpRule` must be installed
   (Currently, not enforced).
 

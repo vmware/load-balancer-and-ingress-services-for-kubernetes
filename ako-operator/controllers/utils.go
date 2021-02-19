@@ -47,6 +47,7 @@ const (
 	LogLevel               = "logLevel"
 	DeleteConfig           = "deleteConfig"
 	AdvancedL4             = "advancedL4"
+	AutoFQDN               = "autoFQDN"
 	SyncNamespace          = "syncNamespace"
 	ServiceType            = "serviceType"
 	NodeKey                = "nodeKey"
@@ -84,6 +85,7 @@ var ConfigMapEnvVars = map[string]string{
 	"NETWORK_NAME":               NetworkName,
 	"L7_SHARD_SCHEME":            L7ShardingScheme,
 	"ADVANCED_L4":                AdvancedL4,
+	"AUTO_FQDN":                  AutoFQDN,
 	"SYNC_NAMESPACE":             SyncNamespace,
 	"SERVICE_TYPE":               ServiceType,
 	"NODE_KEY":                   NodeKey,

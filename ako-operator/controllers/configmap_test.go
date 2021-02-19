@@ -39,6 +39,7 @@ var cmJson = `
 	"data": {
 		"advancedL4": "false",
 		"apiServerPort": "8080",
+		"autoFQDN": "default",
 		"cloudName": "test-cloud",
 		"clusterName": "test-cluster",
 		"cniPlugin": "test-cni",

@@ -203,6 +203,7 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	}
 	cm.Data[TenantsPerCluster] = tenantsPerCluster
 	cm.Data[TenantName] = ako.Spec.ControllerSettings.TenantName
+	cm.Data[AutoFQDN] = ako.Spec.L4Settings.AutoFQDN
 
 	return cm, nil
 }

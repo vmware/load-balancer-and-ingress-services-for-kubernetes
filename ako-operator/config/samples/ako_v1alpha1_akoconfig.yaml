@@ -32,6 +32,7 @@ spec:
   l4Settings:
     advancedL4: false
     defaultDomain: ""
+    autoFQDN: "default"
 
   controllerSettings:
     serviceEngineGroupName: "Default-Group"

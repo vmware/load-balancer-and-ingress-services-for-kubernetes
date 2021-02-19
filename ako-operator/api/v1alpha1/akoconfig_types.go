@@ -102,6 +102,8 @@ type L4Settings struct {
 	AdvancedL4 bool `json:"advancedL4,omitempty"`
 	// DefaultDomain is the default domain
 	DefaultDomain string `json:"defaultDomain,omitempty"`
+	//Specifies the FQDN pattern - default, flat or disabled
+	AutoFQDN string `json:"autoFQDN,omitempty"`
 }
 
 // ControllerSettings defines the Avi Controller parameters
