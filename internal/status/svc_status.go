@@ -17,6 +17,7 @@ package status
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -28,9 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
+func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 	var servicesToUpdate []string
-	var updateServiceOptions []UpdateStatusOptions
+	var updateServiceOptions []UpdateOptions
 
 	for _, option := range options {
 		if len(option.ServiceMetadata.HostNames) != 1 && !lib.GetAdvancedL4() {
@@ -65,27 +66,71 @@ func UpdateL4LBStatus(options []UpdateStatusOptions, bulk bool) {
 						Hostname: svcHostname,
 					}}}}
 
-			if sameStatus := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer); sameStatus {
-				utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
-					key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
-				continue
+			sameStatus := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer)
+			var updatedSvc *corev1.Service
+			var err error
+			if !sameStatus {
+				patchPayload, _ := json.Marshal(map[string]interface{}{
+					"status": service.Status,
+				})
+
+				updatedSvc, err = utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(context.TODO(), service.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+				if err != nil {
+					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
+					continue
+				}
+				utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
+					key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
+
 			}
 
-			patchPayload, _ := json.Marshal(map[string]interface{}{
-				"status": service.Status,
-			})
+			utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
+				key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 
-			_, err := utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(context.TODO(), service.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
-			if err != nil {
-				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
+			if err = updateSvcAnnotations(updatedSvc, option, service); err != nil {
+				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
 				continue
 			}
-			utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
-				key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 		}
 	}
 
 	return
+}
+
+func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service) error {
+	if svc == nil {
+		svc = oldSvc
+	}
+	vsAnnotations := map[string]string{
+		updateOption.ServiceMetadata.HostNames[0]: updateOption.VirtualServiceUUID,
+	}
+
+	if !isAnnotationsUpdateRequired(svc.Annotations, vsAnnotations) {
+		utils.AviLog.Debugf("No annotations update required for service %s/%s", svc.Namespace, svc.Name)
+		return nil
+	}
+
+	annotations := svc.Annotations
+	vsAnnotationsStr, err := json.Marshal(vsAnnotations)
+	if err != nil {
+		return fmt.Errorf("error in marshalling the VS annotations for svc %s/%s: %v", svc.Namespace, svc.Name,
+			err)
+	}
+	if len(annotations) == 0 {
+		annotations = map[string]string{}
+	}
+	annotations[VSAnnotation] = string(vsAnnotationsStr)
+	patchPayload := map[string]interface{}{
+		"metadata": map[string]map[string]string{
+			"annotations": annotations,
+		},
+	}
+	patchPayloadBytes, _ := json.Marshal(patchPayload)
+	if _, err = utils.GetInformers().ClientSet.CoreV1().Services(svc.Namespace).Patch(context.TODO(), svc.Name,
+		types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{}); err != nil {
+		return fmt.Errorf("error in patching service %s/%s: %v", svc.Namespace, svc.Name, err)
+	}
+	return nil
 }
 
 func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
@@ -95,14 +140,37 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 			"status": nil,
 		})
 
-		_, err := utils.GetInformers().ClientSet.CoreV1().Services(serviceNSName[0]).Patch(context.TODO(), serviceNSName[1], types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+		updatedSvc, err := utils.GetInformers().ClientSet.CoreV1().Services(serviceNSName[0]).Patch(context.TODO(), serviceNSName[1], types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 			return err
 		}
-
 		utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s", key, svc_mdata_obj.NamespaceServiceName[0])
+
+		err = deleteSvcAnnotation(updatedSvc)
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, msg: error in deleting service annotation: %v", key, err)
+		}
 	}
+	return nil
+}
+
+func deleteSvcAnnotation(svc *corev1.Service) error {
+	payloadValue := make(map[string]*string)
+	payloadValue[VSAnnotation] = nil
+
+	payloadData := map[string]interface{}{
+		"metadata": map[string]map[string]*string{
+			"annotations": payloadValue,
+		},
+	}
+
+	payloadBytes, _ := json.Marshal(payloadData)
+	if _, err := utils.GetInformers().ClientSet.CoreV1().Services(svc.Namespace).Patch(context.TODO(), svc.Name,
+		types.MergePatchType, payloadBytes, metav1.PatchOptions{}); err != nil {
+		return fmt.Errorf("error in updating service: %v", err)
+	}
+
 	return nil
 }
 

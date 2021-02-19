@@ -41,9 +41,9 @@ type UpdateGWStatusConditionOptions struct {
 	Reason  string               // reason for transition
 }
 
-func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
+func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	gatewaysToUpdate, updateGWOptions := parseOptionsFromMetadata(options, bulk)
-	var updateServiceOptions []UpdateStatusOptions
+	var updateServiceOptions []UpdateOptions
 
 	// gatewayMap: {ns/gateway: gatewayObj}
 	// this pre-fetches all gateways to be candidates for status update
@@ -51,7 +51,7 @@ func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
 	// in which case gateway will be fetched again in updateObject, as part of a retry
 	gatewayMap := getGateways(gatewaysToUpdate, bulk)
 	for _, option := range updateGWOptions {
-		updateServiceOptions = append(updateServiceOptions, UpdateStatusOptions{
+		updateServiceOptions = append(updateServiceOptions, UpdateOptions{
 			Vip: option.Vip,
 			Key: option.Key,
 			ServiceMetadata: avicache.ServiceMetadataObj{
@@ -81,9 +81,9 @@ func UpdateGatewayStatusAddress(options []UpdateStatusOptions, bulk bool) {
 	return
 }
 
-func parseOptionsFromMetadata(options []UpdateStatusOptions, bulk bool) ([]string, []UpdateStatusOptions) {
+func parseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []UpdateOptions) {
 	var objectsToUpdate []string
-	var updateGWOptions []UpdateStatusOptions
+	var updateGWOptions []UpdateOptions
 
 	for _, option := range options {
 		if option.ServiceMetadata.Gateway != "" {
