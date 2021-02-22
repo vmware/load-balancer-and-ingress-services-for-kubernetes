@@ -533,8 +533,9 @@ var clusterValue string
 
 func SetClusterLabelChecksum() {
 	if GetEnableGRBAC() {
-		clusterKey = *GetLabels()[0].Key
-		clusterValue = *GetLabels()[0].Value
+		labels := GetLabels()
+		clusterKey = *labels[0].Key
+		clusterValue = *labels[0].Value
 		clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
 	}
 }

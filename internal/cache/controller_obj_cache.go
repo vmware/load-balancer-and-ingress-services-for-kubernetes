@@ -1425,19 +1425,6 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud str
 				utils.AviLog.Warnf("Wrong data type for ssl key: %s in cache", k)
 			}
 		}
-		var cacert string
-		// Find CA Cert name from the cache for checksum calculation.
-		if SslKeyData[i].HasCARef {
-			ca, found := c.SSLKeyCache.AviCacheGetNameByUuid(SslKeyCacheObj.CACertUUID)
-			if !found {
-				utils.AviLog.Warnf("cacertUUID %s for keycert %s not found in cache", SslKeyCacheObj.CACertUUID, SslKeyCacheObj.Name)
-			} else {
-				cacert = ca.(string)
-			}
-		}
-		//TODO: Check with team : What is reason of recomputing checksum here again.
-		SslKeyData[i].CloudConfigCksum = lib.SSLKeyCertChecksum(SslKeyCacheObj.Name, SslKeyCacheObj.Cert, cacert)
-		SslKeyData[i].CloudConfigCksum += lib.GetClusterLabelChecksum()
 		utils.AviLog.Debugf("Adding key to sslkey cache :%s", k)
 		c.SSLKeyCache.AviCacheAdd(k, &SslKeyData[i])
 		delete(sslCacheData, k)
