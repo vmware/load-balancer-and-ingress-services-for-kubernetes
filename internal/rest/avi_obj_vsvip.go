@@ -47,8 +47,8 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	cksumstr := strconv.Itoa(int(cksum))
 
 	var networkName string
-	if vsvip_meta.NetworkName != nil {
-		networkName = *vsvip_meta.NetworkName
+	if len(vsvip_meta.NetworkNames) != 0 {
+		networkName = vsvip_meta.NetworkNames[0]
 	}
 	if networkName != "" {
 		networkRef = "/api/network/?name=" + networkName
@@ -106,6 +106,13 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 
 		// Override the Vip in VsVip tto bring in updates, keeping everything else as is.
 		vsvip.Vip = []*avimodels.Vip{vip}
+		if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS {
+			vipNetworkList, err := ProcessMultiVip(autoAllocate, ipType)
+			if err != nil {
+				return nil, err
+			}
+			vsvip.Vip = append(vsvip.Vip, vipNetworkList...)
+		}
 
 		if lib.GetEnableGRBAC() {
 			vsvip.Labels = lib.GetLabels()
@@ -202,6 +209,13 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			VrfContextRef:     &vrfContextRef,
 			DNSInfo:           dns_info_arr,
 			Vip:               []*avimodels.Vip{&vip},
+		}
+		if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS {
+			vipNetworkList, err := ProcessMultiVip(autoAllocate, ipType)
+			if err != nil {
+				return nil, err
+			}
+			vsvip.Vip = append(vsvip.Vip, vipNetworkList...)
 		}
 		if lib.GetEnableGRBAC() {
 			vsvip.Labels = lib.GetLabels()
@@ -409,7 +423,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		}
 
 		var vsvipVips []string
-		var networkName string
+		var networkNames []string
 		if _, found := resp["vip"]; found {
 			if vips, ok := resp["vip"].([]interface{}); ok {
 				for _, vipsIntf := range vips {
@@ -432,7 +446,11 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 					if ipamNetworkSubnet, ipamOk := vip["ipam_network_subnet"].(map[string]interface{}); ipamOk {
 						if networkRef, netRefOk := ipamNetworkSubnet["network_ref"].(string); netRefOk {
 							if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
-								networkName = strings.Split(networkRef, "#")[1]
+								networkNames = append(networkNames, strings.Split(networkRef, "#")[1])
+							}
+							if lib.GetCloudType() == lib.CLOUD_AWS {
+								networkRefNameSplit := strings.Split(networkRef, "/")
+								networkNames = append(networkNames, networkRefNameSplit[len(networkRefNameSplit)-1])
 							}
 						}
 					}
@@ -447,7 +465,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			LastModified: lastModifiedStr,
 			FQDNs:        vsvipFQDNs,
 			Vips:         vsvipVips,
-			NetworkName:  networkName,
+			NetworkNames: networkNames,
 		}
 
 		if lastModifiedStr == "" {
@@ -496,4 +514,40 @@ func (rest *RestOperations) AviVsVipCacheDel(rest_op *utils.RestOp, vsKey avicac
 	}
 
 	return nil
+}
+
+func ProcessMultiVip(autoAllocate bool, ipType string) ([]*avimodels.Vip, error) {
+	var multiVipList []*avimodels.Vip
+	vipNetworkList, err := lib.GetVipNetworkList()
+	if err != nil {
+		return nil, err
+	}
+	for vipIDInt, vipNetwork := range vipNetworkList {
+		vipID := strconv.Itoa(vipIDInt + 2)
+		newVip := &avimodels.Vip{
+			VipID:          &vipID,
+			AutoAllocateIP: &autoAllocate,
+		}
+		if vipNetwork["networkName"] != "" {
+			vipNetworkName := vipNetwork["networkName"]
+			newVip.SubnetUUID = &vipNetworkName
+		} else if vipNetwork["subnetIP"] != "" && vipNetwork["subnetPrefix"] != "" {
+			mask, err := strconv.ParseInt(vipNetwork["subnetPrefix"], 10, 32)
+			if err != nil {
+				mask = 24
+			}
+			vipNetworkMask := int32(mask)
+			vipNetworkIP := vipNetwork["subnetIP"]
+			vipNetworkSubnet := avimodels.IPAddrPrefix{
+				IPAddr: &avimodels.IPAddr{
+					Addr: &vipNetworkIP,
+					Type: &ipType,
+				},
+				Mask: &vipNetworkMask,
+			}
+			newVip.Subnet = &vipNetworkSubnet
+		}
+		multiVipList = append(multiVipList, newVip)
+	}
+	return multiVipList, nil
 }

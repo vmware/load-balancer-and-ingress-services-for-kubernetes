@@ -430,6 +430,6 @@ func buildL4InfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, svc *co
 			vs.EnableRhi = infraSetting.Spec.Network.EnableRhi
 		}
 
-		vsvip.NetworkName = &infraSetting.Spec.Network.Name
+		vsvip.NetworkNames = append(vsvip.NetworkNames, infraSetting.Spec.Network.Name)
 	}
 }

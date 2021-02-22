@@ -184,6 +184,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: nodeNetworkList
+          - name: VIP_NETWORK_LIST
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: vipNetworkList
           - name: AKO_API_PORT
             valueFrom:
               configMapKeyRef:
