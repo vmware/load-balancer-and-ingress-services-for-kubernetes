@@ -2677,3 +2677,204 @@ func TestClusterRuntimeUpSinceChange(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(true))
 	integrationtest.ResetMiddleware()
 }
+
+func TestAddIngressDefaultCert(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	SetUpTestForIngress(t, modelName)
+	integrationtest.AddSecret(lib.DefaultRouteCert, "avi-system", "tlsCert", "tlsKey")
+
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	ann := make(map[string]string)
+	ann[lib.DefaultSecretEnabled] = "true"
+	ingrFake.SetAnnotations(ann)
+
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	var aviModel interface{}
+	var nodes []*avinodes.AviVsNode
+	var found bool
+	g.Eventually(func() bool {
+		found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes) != 1 {
+			return false
+		}
+		if len(nodes[0].SniNodes) != 1 {
+			t.Logf("xxx sni nodes fail")
+			return false
+		}
+		return true
+
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	g.Expect(nodes[0].SniNodes[0].Name).To(gomega.Equal("cluster--foo.com"))
+	g.Expect(nodes[0].SniNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("cluster--foo.com"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't Delete the Ingress %v", err)
+	}
+	err = KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't Delete the secret %v", err)
+	}
+	TearDownTestForIngress(t, modelName)
+}
+
+func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	SetUpTestForIngress(t, modelName)
+	integrationtest.AddSecret(lib.DefaultRouteCert, "avi-system", "tlsCert", "tlsKey")
+
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	ann := make(map[string]string)
+	ann[lib.DefaultSecretEnabled] = "true"
+	ingrFake.SetAnnotations(ann)
+
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	var aviModel interface{}
+	var nodes []*avinodes.AviVsNode
+	var found bool
+	g.Eventually(func() bool {
+		found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes) != 1 {
+			return false
+		}
+		if len(nodes[0].SniNodes) != 1 {
+			return false
+		}
+		return true
+
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	ann = make(map[string]string)
+	ingrFake.SetAnnotations(ann)
+	ingrFake.ResourceVersion = "2"
+
+	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].SniNodes)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	g.Expect(nodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-with-targets"))
+
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't Delete the Ingress %v", err)
+	}
+	err = KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't Delete the secret %v", err)
+	}
+	TearDownTestForIngress(t, modelName)
+}
+
+func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	SetUpTestForIngress(t, modelName)
+	integrationtest.AddSecret(lib.DefaultRouteCert, "avi-system", "tlsCert", "tlsKey")
+
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	ann := make(map[string]string)
+	ann[lib.DefaultSecretEnabled] = "true"
+	ingrFake.SetAnnotations(ann)
+	ingrFake.ResourceVersion = "2"
+
+	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	var aviModel interface{}
+	var nodes []*avinodes.AviVsNode
+	var found bool
+	g.Eventually(func() bool {
+		found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes) != 1 {
+			return false
+		}
+		if len(nodes[0].SniNodes) != 1 {
+			return false
+		}
+		return true
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	g.Expect(nodes[0].SniNodes[0].Name).To(gomega.Equal("cluster--foo.com"))
+	g.Expect(nodes[0].SniNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("cluster--foo.com"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't Delete the Ingress %v", err)
+	}
+	err = KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't Delete the secret %v", err)
+	}
+	TearDownTestForIngress(t, modelName)
+}
