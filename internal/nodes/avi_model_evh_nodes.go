@@ -471,9 +471,8 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 					evhNode.EvhMatchCriteria = "BEGINS_WITH"
 				}
 			}
-			if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-				evhNode.ServiceEngineGroup = lib.GetSEGName()
-			}
+
+			evhNode.ServiceEngineGroup = lib.GetSEGName()
 			evhNode.VrfContext = lib.GetVrf()
 			isIngr := routeIgrObj.GetType() == utils.Ingress
 			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, isIngr, host, path)

@@ -192,7 +192,19 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 
 	informer.HostRuleInformer.Informer().AddEventHandler(hostRuleEventHandler)
 	informer.HTTPRuleInformer.Informer().AddEventHandler(httpRuleEventHandler)
+
 	informer.NsxAlbInfraSettingInformer.Informer().AddEventHandler(albInfraEventHandler)
+	informer.NsxAlbInfraSettingInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.SeGroupNsxAlbSettingIndex: func(obj interface{}) ([]string, error) {
+				infraSetting, ok := obj.(*akov1alpha1.NsxAlbInfraSetting)
+				if !ok {
+					return []string{}, nil
+				}
+				return []string{infraSetting.Spec.SeGroup.Name}, nil
+			},
+		},
+	)
 
 	return
 }

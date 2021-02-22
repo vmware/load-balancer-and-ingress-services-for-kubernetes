@@ -101,6 +101,7 @@ const (
 	ObjectDeletionTimeoutStatus                = "Timeout"
 	DefaultRouteCert                           = "router-certs-default"
 	autoAnnotateService                        = "AUTO_ANNOTATE_SERVICE"
+	SeGroupLabelKey                            = "clustername"
 
 	INGRESS_CLASS_ANNOT           = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation = "ingressclass.kubernetes.io/is-default-class"
@@ -133,6 +134,11 @@ const (
 	// Gateway Objects. This helps in fetching all Gateways with a
 	// given GatewayClass Name.
 	GatewayClassGatewayIndex = "gatewayClassGateway"
+
+	// SeGroupNsxAlbSettingIndex maintains a map of SeGroup Name to
+	// NsxAlbInfraSetting Objects. This helps in fetching all NsxAlbInfraSettings
+	// with a given SeGroup Name.
+	SeGroupNsxAlbSettingIndex = "seGroupNsxAlbSetting"
 )
 
 const (

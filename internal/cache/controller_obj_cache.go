@@ -2305,7 +2305,7 @@ func ValidateUserInput(client *clients.AviClient) bool {
 		return true
 	}
 
-	isSegroupValid := isCloudValid && checkSegroupLabels(client)
+	isSegroupValid := isCloudValid && validateAndConfigureSeGroup(client)
 	isNodeNetworkValid := isCloudValid && checkNodeNetwork(client)
 	isValid := isTenantValid &&
 		isCloudValid &&
@@ -2355,54 +2355,74 @@ func checkRequiredValuesYaml() bool {
 	return true
 }
 
-func checkSegroupLabels(client *clients.AviClient) bool {
-
+// validateAndConfigureSeGroup validates SeGroup configuration provided during installation
+// and configures labels on the SeGroup if not present already
+func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	// Not applicable for NodePort mode / disable route is set as True
 	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Infof("Skipping the check for SE group labels ")
 		return true
 	}
+
 	// validate SE Group labels
 	segName := lib.GetSEGName()
 	if segName == "" {
 		utils.AviLog.Warnf("Service Engine Group: serviceEngineGroupName not set in values.yaml, skipping sync.")
 		return false
 	}
-	uri := "/api/serviceenginegroup/?include_name&name=" + segName + "&cloud_ref.name=" + utils.CloudName
+
+	// List all service engine groups, for every SEG check for NsxAlbInfraSettings,
+	// if NsxAlbInfraSetting NOT found, remove label if exists,
+	// if NsxAlbInfraSetting found, configure label if doesn't exist.
+	// This takes care of syncing SeGroup label settings during reboots.
+	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
-		return false
-	}
-
-	if result.Count != 1 {
-		utils.AviLog.Warnf("Service Engine Group details not found with serviceEngineGroupName: %s", segName)
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 		return false
 	}
 
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
 		return false
 	}
 
-	seg := models.ServiceEngineGroup{}
-	err = json.Unmarshal(elems[0], &seg)
+	infraSettings, err := lib.GetCRDClientset().AkoV1alpha1().NsxAlbInfraSettings().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-		return false
+		utils.AviLog.Warnf("Unable to list NsxAlbInfraSettings %s", err.Error())
+	}
+	seGroupSet := make(map[string]bool)
+	for _, setting := range infraSettings.Items {
+		seGroupSet[setting.Spec.SeGroup.Name] = true
+	}
+	seGroupSet[lib.GetSEGName()] = true
+
+	for _, elem := range elems {
+		seg := models.ServiceEngineGroup{}
+		err = json.Unmarshal(elem, &seg)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
+
+		if _, found := seGroupSet[*seg.Name]; found && !ConfigureSeGroupLabels(client, &seg) {
+			return false
+		}
 	}
 
-	if seg.UUID == nil {
-		utils.AviLog.Warnf("Failed to get UUID for Service Engine Group: %s", segName)
-		return false
-	}
+	return true
+}
 
-	labels := seg.Labels
+// ConfigureSeGroupLabels configures labels on the SeGroup if not present already
+func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEngineGroup) bool {
+	labels := seGroup.Labels
+	segName := *seGroup.Name
+
 	if len(labels) == 0 {
-		uri = "/api/serviceenginegroup/" + *seg.UUID
-		seg.Labels = lib.GetLabels()
+		uri := "/api/serviceenginegroup/" + *seGroup.UUID
+		seGroup.Labels = lib.GetLabels()
 		response := models.ServiceEngineGroupAPIResponse{}
 		// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
 		if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
@@ -2412,7 +2432,7 @@ func checkSegroupLabels(client *clients.AviClient) bool {
 			defer SetTenant(client.AviSession)
 		}
 
-		err = lib.AviPut(client, uri, seg, response)
+		err := lib.AviPut(client, uri, seGroup, response)
 		if err != nil {
 			utils.AviLog.Warnf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
 			return false
@@ -2431,8 +2451,37 @@ func checkSegroupLabels(client *clients.AviClient) bool {
 	return true
 }
 
-func checkTenant(client *clients.AviClient) bool {
+func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEngineGroup, error) {
+	uri := "/api/serviceenginegroup/?include_name&name=" + segName + "&cloud_ref.name=" + utils.CloudName
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		return nil, fmt.Errorf("Get uri %v returned err %v", uri, err)
+	}
 
+	if result.Count != 1 {
+		return nil, fmt.Errorf("Service Engine Group details not found with serviceEngineGroupName: %s", segName)
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal data, err: %v", err)
+	}
+
+	seg := models.ServiceEngineGroup{}
+	err = json.Unmarshal(elems[0], &seg)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal data, err: %v", err)
+	}
+
+	if seg.UUID == nil {
+		return nil, fmt.Errorf("Failed to get UUID for Service Engine Group: %s", segName)
+	}
+
+	return &seg, nil
+}
+
+func checkTenant(client *clients.AviClient) bool {
 	uri := "/api/tenant/?name=" + lib.GetTenant()
 	if lib.GetTenantsPerCluster() {
 		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())

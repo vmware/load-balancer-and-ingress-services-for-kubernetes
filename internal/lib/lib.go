@@ -675,7 +675,7 @@ func VSVipChecksum(FQDNs []string, IPAddress string, networkName string) uint32 
 // GetLabels returns the key value pair used for tagging the segroups and routes in vrfcontext
 func GetLabels() []*models.KeyValue {
 	clusterName := GetClusterName()
-	labelKey := "clustername"
+	labelKey := SeGroupLabelKey
 	kv := &models.KeyValue{
 		Key:   &labelKey,
 		Value: &clusterName,

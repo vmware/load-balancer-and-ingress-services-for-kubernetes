@@ -77,10 +77,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 				NamespaceServiceName: serviceNSNames,
 				Gateway:              namespace + "/" + gatewayName,
 			},
-		}
-
-		if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-			avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
+			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
 		isTCP := false
@@ -149,6 +146,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 				NamespaceServiceName: serviceNSNames,
 				Gateway:              namespace + "/" + gatewayName,
 			},
+			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
 		var err error
@@ -167,10 +165,15 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			}
 		}
 
-		if infraSetting != nil && err == nil {
-			if infraSetting.Spec.SegGroup.Name != "" {
+		applyInfraSetting := false
+		if infraSetting != nil && err == nil && infraSetting.Status.Status == lib.StatusAccepted {
+			applyInfraSetting = true
+		}
+
+		if applyInfraSetting {
+			if infraSetting.Spec.SeGroup.Name != "" {
 				// This assumes that the SeGroup has the appropriate labels configured
-				avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SegGroup.Name
+				avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
 			}
 
 			if infraSetting.Spec.Network.EnableRhi != nil {
@@ -209,7 +212,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			VrfContext: lib.GetVrf(),
 		}
 
-		if infraSetting != nil {
+		if applyInfraSetting {
 			vsVipNode.NetworkName = &infraSetting.Spec.Network.Name
 		}
 
@@ -259,6 +262,21 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		for _, svcPort := range svcObj.Spec.Ports {
 			if svcPort.Port == int32(port) {
 				poolNode.PortName = svcPort.Name
+			}
+		}
+
+		serviceType := lib.GetServiceType()
+		if serviceType == lib.NodePortLocal {
+			if servers := PopulateServersForNPL(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+				poolNode.Servers = servers
+			}
+		} else if serviceType == lib.NodePort {
+			if servers := PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+				poolNode.Servers = servers
+			}
+		} else {
+			if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+				poolNode.Servers = servers
 			}
 		}
 

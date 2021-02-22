@@ -63,7 +63,7 @@ func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus Upd
 	return
 }
 
-// UpdateHTTPRuleStatus HostRule status updates
+// UpdateHTTPRuleStatus HttpRule status updates
 func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
@@ -92,5 +92,37 @@ func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus Upd
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the httprule %s/%s status %+v", key, rr.Namespace, rr.Name, utils.Stringify(updateStatus))
+	return
+}
+
+// UpdateNsxAlbInfraSettingStatus NsxAlbInfraSetting status updates
+func UpdateNsxAlbInfraSettingStatus(key string, infraSetting *akov1alpha1.NsxAlbInfraSetting, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			utils.AviLog.Errorf("key: %s, msg: UpdateNsxAlbInfraSettingStatus retried 3 times, aborting", key)
+			return
+		}
+	}
+
+	infraSetting.Status.Status = updateStatus.Status
+	infraSetting.Status.Error = updateStatus.Error
+
+	_, err := lib.GetCRDClientset().AkoV1alpha1().NsxAlbInfraSettings().UpdateStatus(context.TODO(), infraSetting, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the nsxalbinfrasetting status: %+v", key, retry, err)
+		updatedInfraSetting, err := lib.GetCRDClientset().AkoV1alpha1().NsxAlbInfraSettings().Get(context.TODO(), infraSetting.Name, metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: nsxalbinfrasetting not found %v", key, err)
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				UpdateNsxAlbInfraSettingStatus(key, updatedInfraSetting, updateStatus, retry+1)
+			}
+			return
+		}
+		UpdateNsxAlbInfraSettingStatus(key, updatedInfraSetting, updateStatus, retry+1)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the nsxalbinfrasetting %s status %+v", key, infraSetting.Name, utils.Stringify(updateStatus))
 	return
 }

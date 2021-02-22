@@ -129,7 +129,6 @@ func (v *SvcGWLister) DeleteGWListeners(gateway string) bool {
 }
 
 //=====All service <-> gateway mappings go here. The mappings are updated only if the Gateway validation is successful in layer 1.
-// TODO : Do we have to map the services to listeners of the gateway instead of the gateway as as a whole?
 
 func (v *SvcGWLister) GetSvcToGw(service string) (bool, string) {
 	found, gateway := v.SvcGWStore.Get(service)

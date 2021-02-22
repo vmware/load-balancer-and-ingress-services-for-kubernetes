@@ -77,11 +77,9 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 			NamespaceServiceName: []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name},
 			HostNames:            fqdns,
 		},
+		ServiceEngineGroup: lib.GetSEGName(),
 	}
 
-	if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-		avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
-	}
 	vrfcontext := lib.GetVrf()
 	avi_vs_meta.VrfContext = vrfcontext
 

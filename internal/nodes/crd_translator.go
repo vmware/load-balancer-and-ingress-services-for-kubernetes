@@ -17,8 +17,11 @@ package nodes
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/avinetworks/sdk/go/models"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -26,8 +29,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
-	"github.com/avinetworks/sdk/go/models"
 )
 
 func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
@@ -288,19 +289,14 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		refData[script] = "VsDatascript"
 	}
 
-	for k, value := range refData {
-		if k == "" {
-			continue
-		}
-
-		if errStatus := checkRefOnController(key, value, k); errStatus != nil {
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  errStatus.Error(),
-			})
-			return errStatus
-		}
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
 	}
+
 	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
 		Status: lib.StatusAccepted,
 		Error:  "",
@@ -320,18 +316,12 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 		}
 	}
 
-	for k, value := range refData {
-		if k == "" {
-			continue
-		}
-
-		if errStatus := checkRefOnController(key, value, k); errStatus != nil {
-			status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  errStatus.Error(),
-			})
-			return errStatus
-		}
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
 	}
 
 	status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
@@ -341,21 +331,79 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	return nil
 }
 
+// validateNsxAlbInfraSetting would do validaion checks on the
+// ingested NsxAlbInfraSetting objects
+func validateNsxAlbInfraSetting(key string, infraSetting *akov1alpha1.NsxAlbInfraSetting) error {
+	refData := map[string]string{
+		infraSetting.Spec.Network.Name: "Network",
+	}
+
+	if infraSetting.Spec.SeGroup.Name != "" {
+		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
+		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+	}
+
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateNsxAlbInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
+	}
+
+	status.UpdateNsxAlbInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+		Status: lib.StatusAccepted,
+		Error:  "",
+	})
+	return nil
+}
+
+// addSeGroupLabel configures SEGroup with appropriate labels, during NsxAlbInfraSetting
+// creation/updates after ingestion
+func addSeGroupLabel(key, segName string) {
+	// assign the last avi client for ref checks
+	clients := cache.SharedAVIClients()
+	aviClientLen := lib.GetshardSize()
+
+	// configure labels on SeGroup if not present already.
+	seGroup, err := cache.GetAviSeGroup(clients.AviClient[aviClientLen], segName)
+	if err != nil {
+		utils.AviLog.Error(err)
+		return
+	}
+	cache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
+}
+
 var refModelMap = map[string]string{
-	"SslKeyCert":       "sslkeyandcertificate",
-	"WafPolicy":        "wafpolicy",
-	"HttpPolicySet":    "httppolicyset",
-	"SslProfile":       "sslprofile",
-	"AppProfile":       "applicationprofile",
-	"AnalyticsProfile": "analyticsprofile",
-	"ErrorPageProfile": "errorpageprofile",
-	"VsDatascript":     "vsdatascriptset",
-	"HealthMonitor":    "healthmonitor",
+	"SslKeyCert":         "sslkeyandcertificate",
+	"WafPolicy":          "wafpolicy",
+	"HttpPolicySet":      "httppolicyset",
+	"SslProfile":         "sslprofile",
+	"AppProfile":         "applicationprofile",
+	"AnalyticsProfile":   "analyticsprofile",
+	"ErrorPageProfile":   "errorpageprofile",
+	"VsDatascript":       "vsdatascriptset",
+	"HealthMonitor":      "healthmonitor",
+	"ServiceEngineGroup": "serviceenginegroup",
+	"Network":            "network",
+}
+
+func checkRefsOnController(key string, refMap map[string]string) error {
+	for k, value := range refMap {
+		if k == "" {
+			continue
+		}
+
+		if err := checkRefOnController(key, value, k); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // checkRefOnController checks whether a provided ref on the controller
 func checkRefOnController(key, refKey, refValue string) error {
-	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type", refModelMap[refKey], refValue)
+	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels", refModelMap[refKey], refValue)
 	clients := cache.SharedAVIClients()
 
 	// assign the last avi client for ref checks
@@ -371,14 +419,18 @@ func checkRefOnController(key, refKey, refValue string) error {
 		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 	}
 
-	if refKey == "AppProfile" {
-		items := make([]json.RawMessage, result.Count)
+	var items []json.RawMessage
+	if refKey == "AppProfile" || refKey == "ServiceEngineGroup" {
+		items = make([]json.RawMessage, result.Count)
 		err = json.Unmarshal(result.Results, &items)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
 			return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 		}
+	}
 
+	switch refKey {
+	case "AppProfile":
 		appProf := models.ApplicationProfile{}
 		err := json.Unmarshal(items[0], &appProf)
 		if err != nil {
@@ -390,6 +442,24 @@ func checkRefOnController(key, refKey, refValue string) error {
 			utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, lib.AllowedApplicationProfile)
 			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
 				refModelMap[refKey], refValue, lib.AllowedApplicationProfile)
+		}
+	case "ServiceEngineGroup":
+		seGroup := models.ServiceEngineGroup{}
+		err := json.Unmarshal(items[0], &seGroup)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
+			return fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
+		}
+
+		labels := seGroup.Labels
+		if len(labels) == 0 {
+			utils.AviLog.Infof("key: %s, msg: ServiceEngineGroup %s not connfigured with labels", key, seGroup.Name)
+		} else {
+			if !reflect.DeepEqual(labels, lib.GetLabels()) {
+				utils.AviLog.Warnf("key: %s, msg: serviceEngineGroup: %s mismatched labels %s", key, refValue, utils.Stringify(seGroup.Labels))
+				return fmt.Errorf("%s \"%s\" found on controller is invalid, mismatched labels: %s",
+					refModelMap[refKey], refValue, utils.Stringify(seGroup.Labels))
+			}
 		}
 	}
 
