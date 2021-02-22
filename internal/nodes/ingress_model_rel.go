@@ -620,20 +620,7 @@ func NsxAlbSettingToGateway(infraSettingName string, namespace string, key strin
 	allGateways := make([]string, 0)
 
 	infraSetting, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(infraSettingName)
-	// Check for deleted NsxAlbInfraSetting.
-	if err != nil && k8serrors.IsNotFound(err) {
-		if found, oldSegName := objects.NsxAlbInfraSettingLister().GetInfraSettingSeGroupName(infraSettingName); found {
-			removeSeGroupLabel(key, oldSegName)
-			objects.NsxAlbInfraSettingLister().RemoveInfraSettingSeGroupName(infraSettingName, oldSegName)
-		}
-	} else {
-		segName := infraSetting.Spec.SeGroup.Name
-		if found, oldSegName := objects.NsxAlbInfraSettingLister().GetInfraSettingSeGroupName(infraSettingName); found && oldSegName != segName {
-			removeSeGroupLabel(key, oldSegName)
-			objects.NsxAlbInfraSettingLister().RemoveInfraSettingSeGroupName(infraSettingName, oldSegName)
-		}
-		objects.NsxAlbInfraSettingLister().UpdateInfraSettingSeGroupName(infraSettingName, segName)
-
+	if err == nil {
 		// Validate Avi references and configurations in NsxAlbInfraSetting.
 		if err = validateNsxAlbInfraSetting(key, infraSetting); err != nil {
 			return allGateways, false

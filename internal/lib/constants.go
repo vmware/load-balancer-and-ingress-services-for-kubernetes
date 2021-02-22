@@ -114,6 +114,7 @@ const (
 	AkoGroup                                   = "ako.vmware.com"
 	NPLSvcAnnotation                           = "nodeportlocal.antrea.io/enabled"
 	autoAnnotateService                        = "AUTO_ANNOTATE_SERVICE"
+	SeGroupLabelKey                            = "clustername"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"

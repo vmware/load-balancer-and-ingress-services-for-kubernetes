@@ -2407,14 +2407,8 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 			continue
 		}
 
-		if _, found := seGroupSet[*seg.Name]; !found {
-			if !RemoveSeGroupLabels(client, &seg) {
-				return false
-			}
-		} else {
-			if !ConfigureSeGroupLabels(client, &seg) {
-				return false
-			}
+		if _, found := seGroupSet[*seg.Name]; found && !ConfigureSeGroupLabels(client, &seg) {
+			return false
 		}
 	}
 
@@ -2454,39 +2448,6 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 		return false
 	}
 
-	return true
-}
-
-// RemoveSeGroupLabels removes labels on the SeGroup
-func RemoveSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEngineGroup) bool {
-	// Do not delete labels from global SEGroup
-	segName := *seGroup.Name
-	if segName == lib.GetSEGName() {
-		return true
-	}
-
-	labels := seGroup.Labels
-	if len(labels) == 0 {
-		return true
-	}
-
-	uri := "/api/serviceenginegroup/" + *seGroup.UUID
-	seGroup.Labels = []*models.KeyValue{}
-	response := models.ServiceEngineGroupAPIResponse{}
-	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
-	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-		SetTenant := session.SetTenant(lib.GetTenant())
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-	}
-
-	err := lib.AviPut(client, uri, seGroup, response)
-	if err != nil {
-		utils.AviLog.Warnf("Removing labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
-		return false
-	}
-	utils.AviLog.Infof("labels: %v removed from Service Engine Group :%v", utils.Stringify(lib.GetLabels()), segName)
 	return true
 }
 
