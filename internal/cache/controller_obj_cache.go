@@ -461,12 +461,15 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 			utils.AviLog.Warnf("Incomplete pki data unmarshalled, %s", utils.Stringify(pki))
 			continue
 		}
-
+		checksum := lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), "")
+		if lib.GetEnableGRBAC() && pki.Labels != nil {
+			checksum += lib.ObjectLabelChecksum(pki.Labels)
+		}
 		pkiCacheObj := AviPkiProfileCache{
 			Name:             *pki.Name,
 			Uuid:             *pki.UUID,
 			Tenant:           lib.GetTenant(),
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), ""),
+			CloudConfigCksum: checksum,
 		}
 		*pkiData = append(*pkiData, pkiCacheObj)
 
@@ -655,6 +658,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		}
 
 		var fqdns []string
+		var checksum string
 		for _, dnsinfo := range vsvip.DNSInfo {
 			fqdns = append(fqdns, *dnsinfo.Fqdn)
 		}
@@ -671,13 +675,18 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			}
 		}
 
+		if vsvip.VsvipCloudConfigCksum != nil {
+			checksum = *vsvip.VsvipCloudConfigCksum
+		}
+
 		vsVipCacheObj := AviVSVIPCache{
-			Name:         *vsvip.Name,
-			Uuid:         *vsvip.UUID,
-			FQDNs:        fqdns,
-			NetworkName:  networkName,
-			LastModified: *vsvip.LastModified,
-			Vips:         vips,
+			Name:             *vsvip.Name,
+			Uuid:             *vsvip.UUID,
+			FQDNs:            fqdns,
+			NetworkName:      networkName,
+			LastModified:     *vsvip.LastModified,
+			Vips:             vips,
+			CloudConfigCksum: checksum,
 		}
 		*vsVipData = append(*vsVipData, vsVipCacheObj)
 	}
@@ -775,7 +784,11 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
-		dsCacheObj.CloudConfigCksum = lib.DSChecksum(dsCacheObj.PoolGroups)
+		checksum := lib.DSChecksum(dsCacheObj.PoolGroups)
+		if lib.GetEnableGRBAC() && ds.Labels != nil {
+			checksum += lib.ObjectLabelChecksum(ds.Labels)
+		}
+		dsCacheObj.CloudConfigCksum = checksum
 		*DsData = append(*DsData, dsCacheObj)
 	}
 	if result.Next != "" {
@@ -870,6 +883,9 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 			}
 		}
 		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
+		if lib.GetEnableGRBAC() && sslkey.Labels != nil {
+			checksum += lib.ObjectLabelChecksum(sslkey.Labels)
+		}
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
@@ -941,6 +957,9 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 			}
 		}
 		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
+		if lib.GetEnableGRBAC() && sslkey.Labels != nil {
+			checksum += lib.ObjectLabelChecksum(sslkey.Labels)
+		}
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
@@ -988,6 +1007,9 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 			continue
 		}
 		checksum := lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "")
+		if lib.GetEnableGRBAC() && pkikey.Labels != nil {
+			checksum += lib.ObjectLabelChecksum(pkikey.Labels)
+		}
 		sslCacheObj := AviSSLCache{
 			Name:             *pkikey.Name,
 			Uuid:             *pkikey.UUID,
@@ -1114,7 +1136,11 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
-		dsCacheObj.CloudConfigCksum = lib.DSChecksum(dsCacheObj.PoolGroups)
+		checksum := lib.DSChecksum(dsCacheObj.PoolGroups)
+		if lib.GetEnableGRBAC() && ds.Labels != nil {
+			checksum += lib.ObjectLabelChecksum(ds.Labels)
+		}
+		dsCacheObj.CloudConfigCksum = checksum
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *ds.Name}
 		c.DSCache.AviCacheAdd(k, &dsCacheObj)
 		utils.AviLog.Debugf("Adding ds to Cache during refresh %s\n", k)
@@ -1214,6 +1240,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			continue
 		}
 		var fqdns []string
+		var checksum string
 		for _, dnsinfo := range vsvip.DNSInfo {
 			fqdns = append(fqdns, *dnsinfo.Fqdn)
 		}
@@ -1231,13 +1258,17 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			}
 		}
 
+		if vsvip.VsvipCloudConfigCksum != nil {
+			checksum = *vsvip.VsvipCloudConfigCksum
+		}
 		vsVipCacheObj := AviVSVIPCache{
-			Name:         *vsvip.Name,
-			Uuid:         *vsvip.UUID,
-			FQDNs:        fqdns,
-			Vips:         vips,
-			NetworkName:  networkName,
-			LastModified: *vsvip.LastModified,
+			Name:             *vsvip.Name,
+			Uuid:             *vsvip.UUID,
+			FQDNs:            fqdns,
+			LastModified:     *vsvip.LastModified,
+			Vips:             vips,
+			NetworkName:      networkName,
+			CloudConfigCksum: checksum,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *vsvip.Name}
 		c.VSVIPCache.AviCacheAdd(k, &vsVipCacheObj)
@@ -1358,16 +1389,20 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 				}
 			}
 		}
+		checksum := lib.L4PolicyChecksum(ports, protocol)
+		if lib.GetEnableGRBAC() && l4pol.Labels != nil {
+			checksum += lib.ObjectLabelChecksum(l4pol.Labels)
+		}
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol),
+			CloudConfigCksum: checksum,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *l4pol.Name}
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
-		utils.AviLog.Infof("Adding l4pol to Cache during refresh %s\n", lib.L4PolicyChecksum(ports, protocol))
+		utils.AviLog.Infof("Adding l4pol to Cache during refresh %s\n", utils.Stringify(l4PolCacheObj))
 	}
 	return nil
 }
@@ -1390,17 +1425,6 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud str
 				utils.AviLog.Warnf("Wrong data type for ssl key: %s in cache", k)
 			}
 		}
-		var cacert string
-		// Find CA Cert name from the cache for checksum calculation.
-		if SslKeyData[i].HasCARef {
-			ca, found := c.SSLKeyCache.AviCacheGetNameByUuid(SslKeyCacheObj.CACertUUID)
-			if !found {
-				utils.AviLog.Warnf("cacertUUID %s for keycert %s not found in cache", SslKeyCacheObj.CACertUUID, SslKeyCacheObj.Name)
-			} else {
-				cacert = ca.(string)
-			}
-		}
-		SslKeyData[i].CloudConfigCksum = lib.SSLKeyCertChecksum(SslKeyCacheObj.Name, SslKeyCacheObj.Cert, cacert)
 		utils.AviLog.Debugf("Adding key to sslkey cache :%s", k)
 		c.SSLKeyCache.AviCacheAdd(k, &SslKeyData[i])
 		delete(sslCacheData, k)
@@ -1573,12 +1597,16 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		} else {
 			protocol = utils.UDP
 		}
+		checksum := lib.L4PolicyChecksum(ports, protocol)
+		if lib.GetEnableGRBAC() && l4pol.Labels != nil {
+			checksum += lib.ObjectLabelChecksum(l4pol.Labels)
+		}
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol),
+			CloudConfigCksum: checksum,
 		}
 
 		*l4PolicyData = append(*l4PolicyData, l4PolCacheObj)
@@ -2333,6 +2361,8 @@ func checkRequiredValuesYaml() bool {
 
 	// after clusterName validation, set AKO User to be used in created_by fields for Avi Objects
 	lib.SetAKOUser()
+	//Set clusterlabel checksum
+	lib.SetClusterLabelChecksum()
 
 	cloudName := os.Getenv("CLOUD_NAME")
 	if cloudName == "" {

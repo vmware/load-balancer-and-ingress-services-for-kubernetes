@@ -93,7 +93,9 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		SslProfileRef:     &pool_meta.SslProfileRef,
 		PlacementNetworks: placementNetworks,
 	}
-
+	if lib.GetEnableGRBAC() {
+		pool.Labels = lib.GetLabels()
+	}
 	if pool_meta.PkiProfile != nil {
 		pkiProfileName := "/api/pkiprofile?name=" + pool_meta.PkiProfile.Name
 		pool.PkiProfileRef = &pkiProfileName

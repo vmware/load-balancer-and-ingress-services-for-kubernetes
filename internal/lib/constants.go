@@ -74,6 +74,7 @@ const (
 	CertTypeCA                                 = "SSL_CERTIFICATE_TYPE_CA"
 	VSVIPDELCTRLVER                            = "20.1.1"
 	Advl4ControllerVersion                     = "20.1.2"
+	GRBACControllerVersion                     = "20.1.4"
 	HostRule                                   = "HostRule"
 	HTTPRule                                   = "HTTPRule"
 	NsxAlbInfraSetting                         = "NsxAlbInfraSetting"

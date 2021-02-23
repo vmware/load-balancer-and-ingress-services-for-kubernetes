@@ -93,7 +93,7 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 			utils.AviLog.Warnf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviVS())
 			return
 		}
-		rest.RestOperation(name, namespace, avimodel, false, vs_cache_obj, key)
+		rest.RestOperation(name, namespace, avimodel, vs_cache_obj, key)
 	}
 
 }
@@ -196,7 +196,7 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key s
 	return false
 }
 
-func (rest *RestOperations) RestOperation(vsName string, namespace string, avimodel *nodes.AviObjectGraph, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
+func (rest *RestOperations) RestOperation(vsName string, namespace string, avimodel *nodes.AviObjectGraph, vs_cache_obj *avicache.AviVsCache, key string) {
 	var pools_to_delete []avicache.NamespaceName
 	var pgs_to_delete []avicache.NamespaceName
 	var ds_to_delete []avicache.NamespaceName
@@ -1224,7 +1224,7 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 						rest_ops = append(rest_ops, restOp)
 					} else {
 						dsCacheObj := ds_cache.(*avicache.AviDSCache)
-						if dsCacheObj.CloudConfigCksum != ds.CloudConfigCksum {
+						if dsCacheObj.CloudConfigCksum != ds.GetCheckSum() {
 							utils.AviLog.Debugf("key: %s, msg: datascript checksum changed, updating - %s", key, ds.Name)
 							restOp := rest.AviDSBuild(ds, dsCacheObj, key)
 							rest_ops = append(rest_ops, restOp)
@@ -1264,13 +1264,9 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 						sort.Strings(vsvip_cache_obj.FQDNs)
 						// Cache found. Let's compare the checksums
 						utils.AviLog.Debugf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
-						var cacheVSVipChecksum uint32
-						if vsvip.IPAddress != "" && len(vsvip_cache_obj.Vips) > 0 {
-							cacheVSVipChecksum = lib.VSVipChecksum(vsvip_cache_obj.FQDNs, vsvip_cache_obj.Vips[0], vsvip_cache_obj.NetworkName)
-						} else {
-							cacheVSVipChecksum = lib.VSVipChecksum(vsvip_cache_obj.FQDNs, "", vsvip_cache_obj.NetworkName)
-						}
-						if cacheVSVipChecksum == vsvip.GetCheckSum() {
+
+						if vsvip_cache_obj.CloudConfigCksum == strconv.Itoa(int(vsvip.GetCheckSum())) {
+
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.

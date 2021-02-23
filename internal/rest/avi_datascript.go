@@ -40,6 +40,9 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	tenant_ref := "/api/tenant/?name=" + ds_meta.Tenant
 	cr := lib.AKOUser
 	vsdatascriptset := avimodels.VSDataScriptSet{CreatedBy: &cr, Datascript: datascriptlist, Name: &ds_meta.Name, TenantRef: &tenant_ref, PoolGroupRefs: poolgroupref}
+	if lib.GetEnableGRBAC() {
+		vsdatascriptset.Labels = lib.GetLabels()
+	}
 	if len(ds_meta.ProtocolParsers) > 0 {
 		vsdatascriptset.ProtocolParserRefs = ds_meta.ProtocolParsers
 	}
@@ -122,7 +125,9 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		ds_cache_obj := avicache.AviDSCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid, PoolGroups: poolgroups}
 
-		ds_cache_obj.CloudConfigCksum = lib.DSChecksum(ds_cache_obj.PoolGroups)
+		checksum := lib.DSChecksum(ds_cache_obj.PoolGroups)
+		checksum += lib.GetClusterLabelChecksum()
+		ds_cache_obj.CloudConfigCksum = checksum
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.DSCache.AviCacheAdd(k, &ds_cache_obj)
