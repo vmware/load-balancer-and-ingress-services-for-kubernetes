@@ -95,9 +95,9 @@ var (
 		Type:              "GatewayClass",
 		GetParentGateways: GWClassToGateway,
 	}
-	NsxAlbInfraSetting = GraphSchema{
-		Type:              "NsxAlbInfraSetting",
-		GetParentGateways: NsxAlbSettingToGateway,
+	AviInfraSetting = GraphSchema{
+		Type:              "AviInfraSetting",
+		GetParentGateways: AviSettingToGateway,
 	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
@@ -112,7 +112,7 @@ var (
 		HTTPRule,
 		Gateway,
 		GatewayClass,
-		NsxAlbInfraSetting,
+		AviInfraSetting,
 	}
 )
 
@@ -616,19 +616,19 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 	return allIngresses, true
 }
 
-func NsxAlbSettingToGateway(infraSettingName string, namespace string, key string) ([]string, bool) {
+func AviSettingToGateway(infraSettingName string, namespace string, key string) ([]string, bool) {
 	allGateways := make([]string, 0)
 
-	infraSetting, err := lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(infraSettingName)
+	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
 	if err == nil {
-		// Validate Avi references and configurations in NsxAlbInfraSetting.
-		if err = validateNsxAlbInfraSetting(key, infraSetting); err != nil {
+		// Validate Avi references and configurations in AviInfraSetting.
+		if err = validateAviInfraSetting(key, infraSetting); err != nil {
 			return allGateways, false
 		}
 	}
 
-	// Get all GatewayClasses from NsxAlbInfraSetting.
-	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.NsxAlbSettingGWClassIndex, lib.AkoGroup+"/"+lib.NsxAlbInfraSetting+"/"+infraSettingName)
+	// Get all GatewayClasses from AviInfraSetting.
+	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
 	if err != nil {
 		return allGateways, false
 	}

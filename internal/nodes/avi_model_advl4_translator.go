@@ -150,17 +150,17 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		var err error
-		var infraSetting *akov1alpha1.NsxAlbInfraSetting
-		// Set SeGroup configuration either from NsxAlbInfraSetting Spec or
+		var infraSetting *akov1alpha1.AviInfraSetting
+		// Set SeGroup configuration either from AviInfraSetting Spec or
 		// env variable (provided during installation)
 		gwClass, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gw.Spec.GatewayClassName)
 		if err != nil {
 			utils.AviLog.Warnf("Unable to get corresponding GatewayClass %s", err.Error())
 		} else {
-			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.NsxAlbInfraSetting {
-				infraSetting, err = lib.GetCRDInformers().NsxAlbInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
+				infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
 				if err != nil {
-					utils.AviLog.Warnf("Unable to get corresponding NsxAlbInfraSetting: %s", err.Error())
+					utils.AviLog.Warnf("Unable to get corresponding AviInfraSetting: %s", err.Error())
 				}
 			}
 		}

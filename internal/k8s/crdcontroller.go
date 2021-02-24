@@ -34,12 +34,12 @@ func NewCRDInformers(cs akocrd.Interface) {
 	akoInformerFactory = akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
 	hostRuleInformer := akoInformerFactory.Ako().V1alpha1().HostRules()
 	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
-	albSettingsInformer := akoInformerFactory.Ako().V1alpha1().NsxAlbInfraSettings()
+	albSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
 
 	lib.SetCRDInformers(&lib.AKOCrdInformers{
-		HostRuleInformer:           hostRuleInformer,
-		HTTPRuleInformer:           httpRuleInformer,
-		NsxAlbInfraSettingInformer: albSettingsInformer,
+		HostRuleInformer:        hostRuleInformer,
+		HTTPRuleInformer:        httpRuleInformer,
+		AviInfraSettingInformer: albSettingsInformer,
 	})
 }
 
@@ -58,7 +58,7 @@ func isHTTPRuleUpdated(oldHTTPRule, newHTTPRule *akov1alpha1.HTTPRule) bool {
 	return false
 }
 
-func isAlbInfraUpdated(oldAlbInfra, newAlbInfra *akov1alpha1.NsxAlbInfraSetting) bool {
+func isAlbInfraUpdated(oldAlbInfra, newAlbInfra *akov1alpha1.AviInfraSetting) bool {
 	if oldAlbInfra.ResourceVersion == newAlbInfra.ResourceVersion {
 		return false
 	}
@@ -158,19 +158,19 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			albinfra := obj.(*akov1alpha1.NsxAlbInfraSetting)
+			albinfra := obj.(*akov1alpha1.AviInfraSetting)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(albinfra))
-			key := lib.NsxAlbInfraSetting + "/" + utils.ObjKey(albinfra)
+			key := lib.AviInfraSetting + "/" + utils.ObjKey(albinfra)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			oldObj := old.(*akov1alpha1.NsxAlbInfraSetting)
-			albInfra := new.(*akov1alpha1.NsxAlbInfraSetting)
+			oldObj := old.(*akov1alpha1.AviInfraSetting)
+			albInfra := new.(*akov1alpha1.AviInfraSetting)
 			if isAlbInfraUpdated(oldObj, albInfra) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(albInfra))
-				key := lib.NsxAlbInfraSetting + "/" + utils.ObjKey(albInfra)
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(albInfra)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -180,8 +180,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			albinfra := obj.(*akov1alpha1.NsxAlbInfraSetting)
-			key := lib.NsxAlbInfraSetting + "/" + utils.ObjKey(albinfra)
+			albinfra := obj.(*akov1alpha1.AviInfraSetting)
+			key := lib.AviInfraSetting + "/" + utils.ObjKey(albinfra)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(albinfra))
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			// no need to validate for delete handler
@@ -193,11 +193,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	informer.HostRuleInformer.Informer().AddEventHandler(hostRuleEventHandler)
 	informer.HTTPRuleInformer.Informer().AddEventHandler(httpRuleEventHandler)
 
-	informer.NsxAlbInfraSettingInformer.Informer().AddEventHandler(albInfraEventHandler)
-	informer.NsxAlbInfraSettingInformer.Informer().AddIndexers(
+	informer.AviInfraSettingInformer.Informer().AddEventHandler(albInfraEventHandler)
+	informer.AviInfraSettingInformer.Informer().AddIndexers(
 		cache.Indexers{
-			lib.SeGroupNsxAlbSettingIndex: func(obj interface{}) ([]string, error) {
-				infraSetting, ok := obj.(*akov1alpha1.NsxAlbInfraSetting)
+			lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
+				infraSetting, ok := obj.(*akov1alpha1.AviInfraSetting)
 				if !ok {
 					return []string{}, nil
 				}

@@ -2401,9 +2401,9 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 		return false
 	}
 
-	// List all service engine groups, for every SEG check for NsxAlbInfraSettings,
-	// if NsxAlbInfraSetting NOT found, remove label if exists,
-	// if NsxAlbInfraSetting found, configure label if doesn't exist.
+	// List all service engine groups, for every SEG check for AviInfraSettings,
+	// if AviInfraSetting NOT found, remove label if exists,
+	// if AviInfraSetting found, configure label if doesn't exist.
 	// This takes care of syncing SeGroup label settings during reboots.
 	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
@@ -2419,9 +2419,9 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 		return false
 	}
 
-	infraSettings, err := lib.GetCRDClientset().AkoV1alpha1().NsxAlbInfraSettings().List(context.TODO(), metav1.ListOptions{})
+	infraSettings, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Unable to list NsxAlbInfraSettings %s", err.Error())
+		utils.AviLog.Warnf("Unable to list AviInfraSettings %s", err.Error())
 	}
 	seGroupSet := make(map[string]bool)
 	for _, setting := range infraSettings.Items {

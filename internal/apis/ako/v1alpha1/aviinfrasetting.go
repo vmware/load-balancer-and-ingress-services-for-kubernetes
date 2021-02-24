@@ -20,51 +20,51 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// NsxAlbInfraSetting is a top-level type
-type NsxAlbInfraSetting struct {
+// AviInfraSetting is a top-level type
+type AviInfraSetting struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +optional
-	Status NsxAlbInfraSettingStatus `json:"status,omitempty"`
+	Status AviInfraSettingStatus `json:"status,omitempty"`
 
-	Spec NsxAlbInfraSettingSpec `json:"spec,omitempty"`
+	Spec AviInfraSettingSpec `json:"spec,omitempty"`
 }
 
-// NsxAlbInfraSettingSpec consists of the main NsxAlbInfraSetting settings
-type NsxAlbInfraSettingSpec struct {
-	Network    NsxAlbInfraSettingNetwork `json:"network,omitempty"`
-	SeGroup    NsxAlbInfraSettingSeGroup `json:"seGroup,omitempty"`
-	L7Settings NsxAlbInfraL7Settings     `json:"l7Settings,omitempty"`
+// AviInfraSettingSpec consists of the main AviInfraSetting settings
+type AviInfraSettingSpec struct {
+	Network    AviInfraSettingNetwork `json:"network,omitempty"`
+	SeGroup    AviInfraSettingSeGroup `json:"seGroup,omitempty"`
+	L7Settings AviInfraL7Settings     `json:"l7Settings,omitempty"`
 }
 
-type NsxAlbInfraSettingNetwork struct {
+type AviInfraSettingNetwork struct {
 	Name      string `json:"name,omitempty"`
 	EnableRhi *bool  `json:"enableRhi,omitempty"`
 }
 
-type NsxAlbInfraSettingSeGroup struct {
+type AviInfraSettingSeGroup struct {
 	Name string `json:"name,omitempty"`
 }
 
-type NsxAlbInfraL7Settings struct {
+type AviInfraL7Settings struct {
 	ShardSize string `json:"shardSize,omitempty"`
 }
 
-// NsxAlbInfraSettingStatus holds the status of the NsxAlbInfraSetting
-type NsxAlbInfraSettingStatus struct {
+// AviInfraSettingStatus holds the status of the AviInfraSetting
+type AviInfraSettingStatus struct {
 	Status string `json:"status,omitempty"`
 	Error  string `json:"error,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// NsxAlbInfraSettingList has the list of NsxAlbInfraSetting objects
-type NsxAlbInfraSettingList struct {
+// AviInfraSettingList has the list of AviInfraSetting objects
+type AviInfraSettingList struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []NsxAlbInfraSetting `json:"items"`
+	Items []AviInfraSetting `json:"items"`
 }

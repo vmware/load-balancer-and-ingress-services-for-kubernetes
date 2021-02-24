@@ -1,16 +1,16 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: nsxalbinfrasettings.ako.vmware.com
+  name: aviinfrasettings.ako.vmware.com
 spec:
   conversion:
     strategy: None
   group: ako.vmware.com
   names:
-    kind: NsxAlbInfraSetting
-    listKind: NsxAlbInfraSettingList
-    plural: nsxalbinfrasettings
-    singular: nsxalbinfrasetting
+    kind: AviInfraSetting
+    listKind: AviInfraSettingList
+    plural: aviinfrasettings
+    singular: aviinfrasetting
   scope: Cluster
   versions:
   - name: v1alpha1

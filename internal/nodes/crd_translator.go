@@ -329,9 +329,9 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	return nil
 }
 
-// validateNsxAlbInfraSetting would do validaion checks on the
-// ingested NsxAlbInfraSetting objects
-func validateNsxAlbInfraSetting(key string, infraSetting *akov1alpha1.NsxAlbInfraSetting) error {
+// validateAviInfraSetting would do validaion checks on the
+// ingested AviInfraSetting objects
+func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
 	refData := map[string]string{
 		infraSetting.Spec.Network.Name: "Network",
 	}
@@ -342,21 +342,21 @@ func validateNsxAlbInfraSetting(key string, infraSetting *akov1alpha1.NsxAlbInfr
 	}
 
 	if err := checkRefsOnController(key, refData); err != nil {
-		status.UpdateNsxAlbInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
 		})
 		return err
 	}
 
-	status.UpdateNsxAlbInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+	status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 		Status: lib.StatusAccepted,
 		Error:  "",
 	})
 	return nil
 }
 
-// addSeGroupLabel configures SEGroup with appropriate labels, during NsxAlbInfraSetting
+// addSeGroupLabel configures SEGroup with appropriate labels, during AviInfraSetting
 // creation/updates after ingestion
 func addSeGroupLabel(key, segName string) {
 	// assign the last avi client for ref checks
