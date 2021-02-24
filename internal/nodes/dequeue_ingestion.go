@@ -170,12 +170,26 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 	podKey := namespace + "/" + podName
 	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			utils.AviLog.Debugf("key: %s, Pod not found, deleting from SharedNPLLister")
-			objects.SharedNPLLister().Delete(podKey)
-		} else {
+		if !k8serrors.IsNotFound(err) {
 			utils.AviLog.Infof("key: %s, got error while getting pod: %v", key, err)
+			return
 		}
+
+		utils.AviLog.Infof("key: %s, msg: Pod not found, deleting from SharedNPLLister", key)
+		objects.SharedNPLLister().Delete(podKey)
+		if found, lbSvcIntf := objects.SharedPodToLBSvcLister().Get(podKey); found {
+			lbSvcs, ok := lbSvcIntf.([]string)
+			if ok {
+				utils.AviLog.Debugf("key: %s, msg: handling l4 Services %v", key, lbSvcs)
+				for _, lbSvc := range lbSvcs {
+					lbSvcKey := utils.L4LBService + "/" + lbSvc
+					handleL4Service(lbSvcKey, fullsync)
+				}
+			} else {
+				utils.AviLog.Warnf("key: %s, msg: list services for pod is not of type []string", key)
+			}
+		}
+		objects.SharedPodToLBSvcLister().Delete(podKey)
 		return
 	}
 	ann := pod.GetAnnotations()
@@ -188,6 +202,9 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 		services, lbSvcs := lib.GetServicesForPod(pod)
 		if len(services) != 0 {
 			objects.SharedPodToSvcLister().Save(podKey, services)
+		}
+		if len(lbSvcs) != 0 {
+			objects.SharedPodToLBSvcLister().Save(podKey, lbSvcs)
 		}
 		for _, lbSvc := range lbSvcs {
 			lbSvcKey := utils.L4LBService + "/" + lbSvc
