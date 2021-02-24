@@ -21,8 +21,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/avinetworks/sdk/go/models"
-
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -403,7 +401,7 @@ func checkRefsOnController(key string, refMap map[string]string) error {
 
 // checkRefOnController checks whether a provided ref on the controller
 func checkRefOnController(key, refKey, refValue string) error {
-	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels", refModelMap[refKey], refValue)
+	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 	clients := cache.SharedAVIClients()
 
 	// assign the last avi client for ref checks
@@ -420,47 +418,45 @@ func checkRefOnController(key, refKey, refValue string) error {
 	}
 
 	var items []json.RawMessage
-	if refKey == "AppProfile" || refKey == "ServiceEngineGroup" {
-		items = make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &items)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
-			return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-		}
+	items = make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &items)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
+		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+
+	item := make(map[string]string)
+	err = json.Unmarshal(items[0], &item)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
+		return fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
 	}
 
 	switch refKey {
 	case "AppProfile":
-		appProf := models.ApplicationProfile{}
-		err := json.Unmarshal(items[0], &appProf)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
-			return fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
-		}
-
-		if *appProf.Type != lib.AllowedApplicationProfile {
+		if appProfType, ok := item["type"]; ok && appProfType != lib.AllowedApplicationProfile {
 			utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, lib.AllowedApplicationProfile)
 			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
 				refModelMap[refKey], refValue, lib.AllowedApplicationProfile)
 		}
 	case "ServiceEngineGroup":
-		seGroup := models.ServiceEngineGroup{}
-		err := json.Unmarshal(items[0], &seGroup)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
-			return fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
-		}
-
-		labels := seGroup.Labels
-		if len(labels) == 0 {
-			utils.AviLog.Infof("key: %s, msg: ServiceEngineGroup %s not connfigured with labels", key, seGroup.Name)
-		} else {
-			if !reflect.DeepEqual(labels, lib.GetLabels()) {
-				utils.AviLog.Warnf("key: %s, msg: serviceEngineGroup: %s mismatched labels %s", key, refValue, utils.Stringify(seGroup.Labels))
-				return fmt.Errorf("%s \"%s\" found on controller is invalid, mismatched labels: %s",
-					refModelMap[refKey], refValue, utils.Stringify(seGroup.Labels))
+		if seGroupLabels, ok := item["labels"]; ok {
+			if len(seGroupLabels) == 0 {
+				utils.AviLog.Infof("key: %s, msg: ServiceEngineGroup %s not connfigured with labels", key, item["name"])
+			} else {
+				if !reflect.DeepEqual(seGroupLabels, lib.GetLabels()) {
+					utils.AviLog.Warnf("key: %s, msg: serviceEngineGroup: %s mismatched labels %s", key, refValue, utils.Stringify(seGroupLabels))
+					return fmt.Errorf("%s \"%s\" found on controller is invalid, mismatched labels: %s",
+						refModelMap[refKey], refValue, utils.Stringify(seGroupLabels))
+				}
 			}
 		}
+	}
+
+	if itemCreatedBy, ok := item["created_by"]; ok && itemCreatedBy == lib.GetAKOUser() {
+		utils.AviLog.Warnf("key: %s, msg: Cannot use object referred in CRD created by current AKO instance", key)
+		return fmt.Errorf("%s \"%s\" Invalid operation, object referred is created by current AKO instance",
+			refModelMap[refKey], refValue)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Ref found for %s/%s", key, refModelMap[refKey], refValue)
