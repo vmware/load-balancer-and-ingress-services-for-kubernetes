@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -109,6 +110,9 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		EastWest:   false,
 		VrfContext: vrfcontext,
 	}
+
+	// configures VS and VsVip nodes using infraSetting object (via CRD).
+	buildL4InfraSetting(avi_vs_meta, vsVipNode, svcObj, nil)
 
 	if svcObj.Spec.LoadBalancerIP != "" {
 		vsVipNode.IPAddress = svcObj.Spec.LoadBalancerIP
@@ -384,4 +388,44 @@ func GetDefaultSubDomain() []string {
 		return nil
 	}
 	return cloudProperty.NSIpamDNS
+}
+
+func buildL4InfraSetting(vs *AviVsNode, vsvip *AviVSVIPNode, svc *corev1.Service, advl4GWClassName *string) {
+	var err error
+	var infraSetting *akov1alpha1.AviInfraSetting
+
+	if lib.UseServicesAPI() && advl4GWClassName != nil {
+		gwClass, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(*advl4GWClassName)
+		if err != nil {
+			utils.AviLog.Warnf("Unable to get corresponding GatewayClass %s", err.Error())
+			return
+		} else {
+			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
+				infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+				if err != nil {
+					utils.AviLog.Warnf("Unable to get corresponding AviInfraSetting: %s", err.Error())
+					return
+				}
+			}
+		}
+	} else if infraSettingAnnotation, ok := svc.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
+		infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
+		if err != nil {
+			utils.AviLog.Warnf("Unable to get corresponding AviInfraSetting: %s", err.Error())
+			return
+		}
+	}
+
+	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
+		if infraSetting.Spec.SeGroup.Name != "" {
+			// This assumes that the SeGroup has the appropriate labels configured
+			vs.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
+		}
+
+		if infraSetting.Spec.Network.EnableRhi != nil {
+			vs.EnableRhi = infraSetting.Spec.Network.EnableRhi
+		}
+
+		vsvip.NetworkName = &infraSetting.Spec.Network.Name
+	}
 }

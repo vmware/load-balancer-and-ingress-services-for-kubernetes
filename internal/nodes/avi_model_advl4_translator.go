@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -149,42 +148,6 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
-		var err error
-		var infraSetting *akov1alpha1.AviInfraSetting
-		// Set SeGroup configuration either from AviInfraSetting Spec or
-		// env variable (provided during installation)
-		gwClass, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gw.Spec.GatewayClassName)
-		if err != nil {
-			utils.AviLog.Warnf("Unable to get corresponding GatewayClass %s", err.Error())
-		} else {
-			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
-				infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
-				if err != nil {
-					utils.AviLog.Warnf("Unable to get corresponding AviInfraSetting: %s", err.Error())
-				}
-			}
-		}
-
-		applyInfraSetting := false
-		if infraSetting != nil && err == nil && infraSetting.Status.Status == lib.StatusAccepted {
-			applyInfraSetting = true
-		}
-
-		if applyInfraSetting {
-			if infraSetting.Spec.SeGroup.Name != "" {
-				// This assumes that the SeGroup has the appropriate labels configured
-				avi_vs_meta.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
-			}
-
-			if infraSetting.Spec.Network.EnableRhi != nil {
-				avi_vs_meta.EnableRhi = infraSetting.Spec.Network.EnableRhi
-			}
-		}
-
-		if avi_vs_meta.ServiceEngineGroup == "" {
-			avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
-		}
-
 		isTCP := false
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
@@ -212,9 +175,8 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			VrfContext: lib.GetVrf(),
 		}
 
-		if applyInfraSetting {
-			vsVipNode.NetworkName = &infraSetting.Spec.Network.Name
-		}
+		// configures VS and VsVip nodes using infraSetting object (via CRD).
+		buildL4InfraSetting(avi_vs_meta, vsVipNode, nil, &gw.Spec.GatewayClassName)
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == svcapiv1alpha1.IPAddressType {
 			vsVipNode.IPAddress = gw.Spec.Addresses[0].Value
@@ -278,10 +240,6 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
 				poolNode.Servers = servers
 			}
-		}
-
-		if servers := PopulateServers(poolNode, svcNSName[0], svcNSName[1], false, key); servers != nil {
-			poolNode.Servers = servers
 		}
 
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)

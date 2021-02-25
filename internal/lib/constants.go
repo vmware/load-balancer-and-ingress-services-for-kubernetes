@@ -118,6 +118,7 @@ const (
 	AviGatewayController          = "lbapi.run.tanzu.vmware.com/avi-lb"
 	NPLPodAnnotation              = "nodeportlocal.antrea.io"
 	NPLSvcAnnotation              = "nodeportlocal.antrea.io/enabled"
+	InfraSettingNameAnnotation    = "aviinfrasetting.ako.vmware.com/name"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"
