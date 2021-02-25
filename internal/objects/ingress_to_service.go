@@ -365,12 +365,12 @@ func (v *SvcNSCache) RemoveSvcFromIngressMappings(ingName string, svcName string
 	v.IngressLock.Lock()
 	defer v.IngressLock.Unlock()
 	_, ingresses := v.GetSvcToIng(svcName)
-	if !utils.HasElem(ingresses, ingName) {
+	if utils.HasElem(ingresses, ingName) {
 		ingresses = utils.Remove(ingresses, ingName)
 		v.UpdateSvcToIngMapping(svcName, ingresses)
 	}
 	_, svcs := v.GetIngToSvc(ingName)
-	if !utils.HasElem(svcs, svcName) {
+	if utils.HasElem(svcs, svcName) {
 		svcs = utils.Remove(svcs, svcName)
 		v.UpdateIngToSvcMapping(ingName, svcs)
 	}
