@@ -124,3 +124,38 @@ func (a *SvcPodLister) GetAll() interface{} {
 func (a *SvcPodLister) Delete(key string) {
 	a.store.Delete(key)
 }
+
+var podLBSvcInstance *PodLBSvcLister
+var podLBSvcOnce sync.Once
+
+func SharedPodToLBSvcLister() *PodSvcLister {
+	podLBSvcOnce.Do(func() {
+		store := NewObjectMapStore()
+		podLBSvcInstance = &PodLBSvcLister{}
+		podLBSvcInstance.store = store
+	})
+	return podSvcInstance
+}
+
+// PodLBSvcLister stores list of services of type LB for a pod.
+type PodLBSvcLister struct {
+	store *ObjectMapStore
+}
+
+func (a *PodLBSvcLister) Save(key string, val interface{}) {
+	a.store.AddOrUpdate(key, val)
+}
+
+func (a *PodLBSvcLister) Get(key string) (bool, interface{}) {
+	ok, obj := a.store.Get(key)
+	return ok, obj
+}
+
+func (a *PodLBSvcLister) GetAll() interface{} {
+	obj := a.store.GetAllObjectNames()
+	return obj
+}
+
+func (a *PodLBSvcLister) Delete(key string) {
+	a.store.Delete(key)
+}

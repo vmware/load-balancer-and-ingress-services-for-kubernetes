@@ -171,6 +171,10 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 		}
 	}
 	pods := lib.GetPodsFromService(ns, serviceName)
+	if len(pods) == 0 {
+		utils.AviLog.Infof("key: %s, msg: got no Pod for Service %s", key, serviceName)
+		return make([]AviPoolMetaServer, 0)
+	}
 
 	var poolMeta []AviPoolMetaServer
 	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(ns).Get(serviceName)

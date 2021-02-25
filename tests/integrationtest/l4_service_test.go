@@ -196,25 +196,29 @@ func TestAviSvcCreationSinglePortMultiTenantEnabled(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(modelName)
 	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
 	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
-	PollForCompletion(t, modelName, 5)
 
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Couldn't find model %v", modelName)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
-		// Tenant should be akotenant instead of admin
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(AKOTENANT))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	var aviModel interface{}
+	var found bool
+	g.Eventually(func() bool {
+		found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel != nil {
+			return true
+		}
+		return false
+	}, 40*time.Second).Should(gomega.Equal(true))
 
-		// Check for the pools
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-		address := "1.1.1.1"
-		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
-	}
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	// Tenant should be akotenant instead of admin
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AKOTENANT))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	address := "1.1.1.1"
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	DelSVC(t, NAMESPACE, SINGLEPORTSVC)

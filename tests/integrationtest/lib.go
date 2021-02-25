@@ -484,7 +484,7 @@ func PollForCompletion(t *testing.T, key string, counter int) interface{} {
 	count := 0
 	for count < counter {
 		found, aviModel := objects.SharedAviGraphLister().Get(key)
-		if !found {
+		if !found || aviModel == nil {
 			time.Sleep(1 * time.Second)
 			count = count + 1
 		} else {
