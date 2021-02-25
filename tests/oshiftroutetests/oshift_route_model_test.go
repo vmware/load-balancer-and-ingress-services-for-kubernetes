@@ -203,11 +203,14 @@ func AddLabelToNamespace(key, value, namespace, modelName string, t *testing.T) 
 	integrationtest.AddNamespace(namespace, nsLabel)
 }
 
-func SetUpTestForRoute(t *testing.T, modelName string) {
+func SetUpTestForRoute(t *testing.T, modelName string, models ...string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("L7_SHARD_SCHEME", "hostname")
 	AddLabelToNamespace(defaultKey, defaultValue, defaultNamespace, modelName, t)
 	objects.SharedAviGraphLister().Delete(modelName)
+	for _, model := range models {
+		objects.SharedAviGraphLister().Delete(model)
+	}
 
 	integrationtest.CreateSVC(t, defaultNamespace, "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, defaultNamespace, "avisvc", false, false, "1.1.1")

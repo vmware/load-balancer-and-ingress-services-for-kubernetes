@@ -119,11 +119,13 @@ func AddConfigMap() {
 	integrationtest.PollForSyncStart(ctrl, 10)
 }
 
-func SetUpTestForIngress(t *testing.T, modelName string) {
+func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("L7_SHARD_SCHEME", "hostname")
 
-	objects.SharedAviGraphLister().Delete(modelName)
+	for _, model := range modelNames {
+		objects.SharedAviGraphLister().Delete(model)
+	}
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
 }
@@ -1271,7 +1273,7 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 func TestMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multihost",
@@ -1358,7 +1360,7 @@ func TestMultiHostIngress(t *testing.T) {
 func TestMultiHostSameHostNameIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multihost",
@@ -1731,7 +1733,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 func TestEditMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multihost",
@@ -2716,7 +2718,6 @@ func TestAddIngressDefaultCert(t *testing.T) {
 			return false
 		}
 		if len(nodes[0].SniNodes) != 1 {
-			t.Logf("xxx sni nodes fail")
 			return false
 		}
 		return true

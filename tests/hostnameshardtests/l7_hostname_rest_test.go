@@ -536,7 +536,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-0"
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -800,7 +800,7 @@ func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-0"
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -880,7 +880,7 @@ func TestHostnameMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	pathSuffix := "-" + ingressName + ".com"
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
 		Name:        ingressName,

@@ -63,6 +63,17 @@ var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 
+var AllModels = []string{
+	"admin/cluster--Shared-L7-0",
+	"admin/cluster--Shared-L7-1",
+	"admin/cluster--Shared-L7-2",
+	"admin/cluster--Shared-L7-3",
+	"admin/cluster--Shared-L7-4",
+	"admin/cluster--Shared-L7-5",
+	"admin/cluster--Shared-L7-6",
+	"admin/cluster--Shared-L7-7",
+}
+
 func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
