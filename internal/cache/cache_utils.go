@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/avinetworks/sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -537,7 +536,7 @@ var controllerClusterUUID string
 // SetControllerClusterUUID sets the controller cluster's UUID value which is fetched from
 // /api/cluster. If the variable controllerClusterUUID is already set, no API call will be
 // made.
-func SetControllerClusterUUID(client *clients.AviClient) error {
+func SetControllerClusterUUID(clientPool *utils.AviRestClientPool) error {
 	if controllerClusterUUID != "" {
 		// controller cluster UUID already set
 		return nil
@@ -545,7 +544,7 @@ func SetControllerClusterUUID(client *clients.AviClient) error {
 	uri := "/api/cluster"
 	var clusterIntf interface{}
 
-	if err := client.AviSession.Get(uri, &clusterIntf); err != nil {
+	if err := clientPool.AviClient[0].AviSession.Get(uri, &clusterIntf); err != nil {
 		return fmt.Errorf("error in get uri %s: %v", uri, err)
 	}
 

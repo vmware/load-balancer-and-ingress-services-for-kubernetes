@@ -55,7 +55,7 @@ func PopulateCache() error {
 			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 			return err
 		}
-		if err = avicache.SetControllerClusterUUID(avi_rest_client_pool.AviClient[0]); err != nil {
+		if err = avicache.SetControllerClusterUUID(avi_rest_client_pool); err != nil {
 			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
 		}
 		// once the l3 cache is populated, we can call the updatestatus functions from here

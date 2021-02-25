@@ -87,7 +87,7 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
 				key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 
-			if err = updateSvcAnnotations(updatedSvc, option, service); err != nil {
+			if err = updateSvcAnnotations(updatedSvc, option, service, svcHostname); err != nil {
 				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
 				continue
 			}
@@ -97,7 +97,10 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 	return
 }
 
-func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service) error {
+func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service, svcHostname string) error {
+	if svcHostname == "" {
+		return fmt.Errorf("can't update the service annotations as hostname for this service is empty")
+	}
 	if svc == nil {
 		svc = oldSvc
 	}
