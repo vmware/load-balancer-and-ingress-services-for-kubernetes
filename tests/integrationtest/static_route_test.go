@@ -17,6 +17,7 @@ package integrationtest
 import (
 	"context"
 	"testing"
+	"time"
 
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -43,10 +44,11 @@ func TestNodeAdd(t *testing.T) {
 	}
 
 	PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Model not found for node add %v", modelName)
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -78,10 +80,11 @@ func TestNodeUpdate(t *testing.T) {
 	}
 
 	PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Model not found for node add %v", modelName)
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -102,10 +105,11 @@ func TestNodeDel(t *testing.T) {
 		t.Fatalf("error in deleting Node: %v", err)
 	}
 	PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Model not found for node add %v", modelName)
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -130,10 +134,11 @@ func TestNodeAddNoPodCIDR(t *testing.T) {
 	}
 
 	PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Model not found for node add %v", modelName)
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -170,10 +175,11 @@ func TestMultiNodeAdd(t *testing.T) {
 	}
 
 	PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Model not found for node add %v", modelName)
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 

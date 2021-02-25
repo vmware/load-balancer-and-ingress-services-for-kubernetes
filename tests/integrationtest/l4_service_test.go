@@ -134,22 +134,23 @@ func TestAviSvcCreationSinglePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForSvcLB(t)
 
-	found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
-	if !found {
-		t.Fatalf("Couldn't find model %v", SINGLEPORTMODEL)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
-		// Check for the pools
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-		address := "1.1.1.1"
-		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
-	}
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	address := "1.1.1.1"
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
 	svcExample := (FakeService{
 		Name:         SINGLEPORTSVC,
@@ -237,38 +238,38 @@ func TestAviSvcCreationMultiPort(t *testing.T) {
 
 	SetUpTestForSvcLBMultiport(t)
 
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Couldn't find model %v", modelName)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
-		// Check for the pools
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(3))
-		for _, node := range nodes[0].PoolRefs {
-			if node.Port == 8080 {
-				address := "1.1.1.1"
-				g.Expect(node.Servers).To(gomega.HaveLen(3))
-				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			} else if node.Port == 8081 {
-				address := "1.1.1.4"
-				g.Expect(node.Servers).To(gomega.HaveLen(2))
-				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			} else {
-				address := "1.1.1.6"
-				g.Expect(node.Servers).To(gomega.HaveLen(1))
-				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			}
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(3))
+	for _, node := range nodes[0].PoolRefs {
+		if node.Port == 8080 {
+			address := "1.1.1.1"
+			g.Expect(node.Servers).To(gomega.HaveLen(3))
+			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
+		} else if node.Port == 8081 {
+			address := "1.1.1.4"
+			g.Expect(node.Servers).To(gomega.HaveLen(2))
+			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
+		} else {
+			address := "1.1.1.6"
+			g.Expect(node.Servers).To(gomega.HaveLen(1))
+			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 		}
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
-		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
 	}
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
 
 	TearDownTestForSvcLBMultiport(t, g)
 }
@@ -300,39 +301,39 @@ func TestAviSvcMultiPortApplicationProf(t *testing.T) {
 
 	SetUpTestForSvcLBMultiport(t)
 
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Couldn't find model %v", modelName)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
-		// Check for the pools
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(3))
-		for _, node := range nodes[0].PoolRefs {
-			if node.Port == 8080 {
-				address := "1.1.1.1"
-				g.Expect(node.Servers).To(gomega.HaveLen(3))
-				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			} else if node.Port == 8081 {
-				address := "1.1.1.4"
-				g.Expect(node.Servers).To(gomega.HaveLen(2))
-				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			} else if node.Port == 8082 {
-				address := "1.1.1.6"
-				g.Expect(node.Servers).To(gomega.HaveLen(1))
-				g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
-			}
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(3))
+	for _, node := range nodes[0].PoolRefs {
+		if node.Port == 8080 {
+			address := "1.1.1.1"
+			g.Expect(node.Servers).To(gomega.HaveLen(3))
+			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
+		} else if node.Port == 8081 {
+			address := "1.1.1.4"
+			g.Expect(node.Servers).To(gomega.HaveLen(2))
+			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
+		} else if node.Port == 8082 {
+			address := "1.1.1.6"
+			g.Expect(node.Servers).To(gomega.HaveLen(1))
+			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
 		}
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].SharedVS).To(gomega.Equal(false))
-		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
-		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
 	}
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SharedVS).To(gomega.Equal(false))
+	g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
 
 	TearDownTestForSvcLBMultiport(t, g)
 }
@@ -362,19 +363,19 @@ func TestAviSvcUpdateEndpoint(t *testing.T) {
 		return pools[0].Servers
 	}, 5*time.Second).Should(gomega.HaveLen(2))
 
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Couldn't find model %v", modelName)
-	} else {
-		pools := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		for _, pool := range pools {
-			if pool.Port == 8080 {
-				address := "1.2.3.24"
-				g.Expect(pool.Servers).To(gomega.HaveLen(2))
-				g.Expect(pool.Servers[1].Ip.Addr).To(gomega.Equal(&address))
-			} else {
-				g.Expect(pool.Servers).To(gomega.HaveLen(0))
-			}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	pools := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
+	for _, pool := range pools {
+		if pool.Port == 8080 {
+			address := "1.2.3.24"
+			g.Expect(pool.Servers).To(gomega.HaveLen(2))
+			g.Expect(pool.Servers[1].Ip.Addr).To(gomega.Equal(&address))
+		} else {
+			g.Expect(pool.Servers).To(gomega.HaveLen(0))
 		}
 	}
 

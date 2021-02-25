@@ -73,23 +73,24 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 	defer DeleteNode(t, "testNode1")
 
 	SetUpTestForSvcLB(t)
-	found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
-	if !found {
-		t.Fatalf("Couldn't find model %v", SINGLEPORTMODEL)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
-		// Check for the pools
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
-		g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-	}
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
 	svcExample := (FakeService{
 		Name:         SINGLEPORTSVC,
@@ -143,32 +144,33 @@ func TestSinglePortL4SvcNodePortWithNodeSelector(t *testing.T) {
 	defer DeleteNode(t, "testNode1")
 
 	SetUpTestForSvcLB(t)
-	found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
-	if !found {
-		t.Fatalf("Couldn't find model %v", SINGLEPORTMODEL)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		// Check for the pools
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
+
 	TearDownTestForSvcLB(t, g)
 
 	// Reset the node filter labels, now all the nodes should get selected for backend server which is 1 in test case
 	os.Setenv("NODE_KEY", "")
 	SetUpTestForSvcLB(t)
-	found, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
-	if !found {
-		t.Fatalf("Couldn't find model %v", SINGLEPORTMODEL)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		// Check for the pools
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-		// there should be one backend server
-		g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	// there should be one backend server
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
 
 	TearDownTestForSvcLB(t, g)
 }
@@ -186,29 +188,29 @@ func TestMultiPortL4SvcNodePort(t *testing.T) {
 	CreateNode(t, "testNode1", nodeIP)
 	defer DeleteNode(t, "testNode1")
 
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if !found {
-		t.Fatalf("Couldn't find model %v", modelName)
-	} else {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
-		g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
-		g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
-		// Check for the pools
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(3))
-		for _, node := range nodes[0].PoolRefs {
-			// Since there is single node, each pool will have a single server entry which is node ip
-			g.Expect(node.Servers).To(gomega.HaveLen(1))
-			g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
-			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
-		}
-		g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
-		g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(3))
+	for _, node := range nodes[0].PoolRefs {
+		// Since there is single node, each pool will have a single server entry which is node ip
+		g.Expect(node.Servers).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
+		g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
 	}
+	g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 
 	TearDownTestForSvcLBMultiport(t, g)
 }

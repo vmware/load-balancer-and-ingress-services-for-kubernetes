@@ -536,15 +536,11 @@ func TestNPLLBSvc(t *testing.T) {
 	createPodWithNPLAnnotation(selectors)
 	setUpTestForSvcLB(t)
 
-	var aviModel interface{}
-	var found bool
 	g.Eventually(func() bool {
-		found, aviModel = objects.SharedAviGraphLister().Get(defaultLBModel)
-		return aviModel == nil
-	}, 40*time.Second).Should(gomega.Equal(false))
-	if !found {
-		t.Fatalf("Couldn't find model %v", integrationtest.SINGLEPORTMODEL)
-	}
+		found, _ := objects.SharedAviGraphLister().Get(defaultLBModel)
+		return found
+	}, 40*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(defaultLBModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
@@ -663,10 +659,11 @@ func TestNPLLBSvcNoLabel(t *testing.T) {
 	integrationtest.CreateServiceWithSelectors(t, defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
 	integrationtest.PollForCompletion(t, defaultLBModel, 5)
 
-	found, aviModel := objects.SharedAviGraphLister().Get(defaultLBModel)
-	if !found {
-		t.Fatalf("Couldn't find model %v", integrationtest.SINGLEPORTMODEL)
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(defaultLBModel)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(defaultLBModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
@@ -697,18 +694,14 @@ func TestNPLUpdateLBSvcCorrectSelector(t *testing.T) {
 	integrationtest.CreateServiceWithSelectors(t, defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
 	integrationtest.PollForCompletion(t, defaultLBModel, 10)
 
-	var aviModel interface{}
-	var found bool
 	selectors["app"] = "npl"
 	integrationtest.UpdateServiceWithSelectors(t, defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
 
 	g.Eventually(func() bool {
-		found, aviModel = objects.SharedAviGraphLister().Get(defaultLBModel)
-		return aviModel == nil
-	}, 40*time.Second).Should(gomega.Equal(false))
-	if !found {
-		t.Fatalf("Couldn't find model %v", integrationtest.SINGLEPORTMODEL)
-	}
+		found, _ := objects.SharedAviGraphLister().Get(defaultLBModel)
+		return found
+	}, 40*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(defaultLBModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
