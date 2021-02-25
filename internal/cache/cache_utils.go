@@ -15,8 +15,10 @@ package cache
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 
+	"github.com/avinetworks/sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -528,4 +530,43 @@ func (c *AviCache) ShallowCopy() map[interface{}]interface{} {
 		newMap[key] = value
 	}
 	return newMap
+}
+
+var controllerClusterUUID string
+
+// SetControllerClusterUUID sets the controller cluster's UUID value which is fetched from
+// /api/cluster. If the variable controllerClusterUUID is already set, no API call will be
+// made.
+func SetControllerClusterUUID(client *clients.AviClient) error {
+	if controllerClusterUUID != "" {
+		// controller cluster UUID already set
+		return nil
+	}
+	uri := "/api/cluster"
+	var clusterIntf interface{}
+
+	if err := client.AviSession.Get(uri, &clusterIntf); err != nil {
+		return fmt.Errorf("error in get uri %s: %v", uri, err)
+	}
+
+	if clusterIntf == nil {
+		return fmt.Errorf("unexpected response for get cluster, get URI %s returned %v type %T",
+			uri, clusterIntf, clusterIntf)
+	}
+	if cluster, ok := clusterIntf.(map[string]interface{}); ok {
+		if clusterUUID, parsed := cluster["uuid"].(string); parsed {
+			controllerClusterUUID = clusterUUID
+		} else {
+			return fmt.Errorf("error in parsing controller cluster uuid field from %v", cluster)
+		}
+	} else {
+		return fmt.Errorf("response %v couldn't be parsed to map[string][interface]", clusterIntf)
+	}
+
+	return nil
+}
+
+// GetControllerClusterUUID returns the value in controllerClusterUUID variable.
+func GetControllerClusterUUID() string {
+	return controllerClusterUUID
 }

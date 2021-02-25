@@ -42,7 +42,7 @@ type UpdateOptions struct {
 
 const (
 	VSAnnotation         = "ako.vmware.com/virtualservices"
-	ControllerAnnotation = "ako.vmware.com/controller-uuid"
+	ControllerAnnotation = "ako.vmware.com/controller-cluster-uuid"
 )
 
 // VSUuidAnnotation is maps a hostname to the UUID of the virtual service where it is placed.
@@ -239,6 +239,7 @@ func getAnnotationsPayload(vsAnnotations map[string]string, existingAnnotations 
 		existingAnnotations = make(map[string]string)
 	}
 	existingAnnotations[VSAnnotation] = string(vsAnnotationsStr)
+	existingAnnotations[ControllerAnnotation] = avicache.GetControllerClusterUUID()
 	patchPayload := map[string]interface{}{
 		"metadata": map[string]map[string]string{
 			"annotations": existingAnnotations,
