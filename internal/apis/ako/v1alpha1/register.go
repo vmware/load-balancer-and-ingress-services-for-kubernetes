@@ -52,8 +52,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&HostRuleList{},
 		&HTTPRule{},
 		&HTTPRuleList{},
-		&NsxAlbInfraSetting{},
-		&NsxAlbInfraSettingList{},
+		&AviInfraSetting{},
+		&AviInfraSettingList{},
 	)
 
 	scheme.AddKnownTypes(

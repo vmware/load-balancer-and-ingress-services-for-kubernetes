@@ -288,13 +288,13 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
 	informer.GatewayClassInformer.Informer().AddIndexers(
 		cache.Indexers{
-			lib.NsxAlbSettingGWClassIndex: func(obj interface{}) ([]string, error) {
+			lib.AviSettingGWClassIndex: func(obj interface{}) ([]string, error) {
 				gwclass, ok := obj.(*servicesapi.GatewayClass)
 				if !ok {
 					return []string{}, nil
 				}
 				if gwclass.Spec.ParametersRef != nil {
-					// sample settingKey: ako.vmware.com/NsxAlbInfraSetting/nsxalb-1
+					// sample settingKey: ako.vmware.com/AviInfraSetting/avi-1
 					settingKey := gwclass.Spec.ParametersRef.Group + "/" + gwclass.Spec.ParametersRef.Kind + "/" + gwclass.Spec.ParametersRef.Name
 					return []string{settingKey}, nil
 				}

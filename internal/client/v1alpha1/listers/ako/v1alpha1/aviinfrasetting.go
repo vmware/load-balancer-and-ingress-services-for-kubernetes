@@ -25,44 +25,44 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-// NsxAlbInfraSettingLister helps list NsxAlbInfraSettings.
+// AviInfraSettingLister helps list AviInfraSettings.
 // All objects returned here must be treated as read-only.
-type NsxAlbInfraSettingLister interface {
-	// List lists all NsxAlbInfraSettings in the indexer.
+type AviInfraSettingLister interface {
+	// List lists all AviInfraSettings in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.NsxAlbInfraSetting, err error)
-	// Get retrieves the NsxAlbInfraSetting from the index for a given name.
+	List(selector labels.Selector) (ret []*v1alpha1.AviInfraSetting, err error)
+	// Get retrieves the AviInfraSetting from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.NsxAlbInfraSetting, error)
-	NsxAlbInfraSettingListerExpansion
+	Get(name string) (*v1alpha1.AviInfraSetting, error)
+	AviInfraSettingListerExpansion
 }
 
-// nsxAlbInfraSettingLister implements the NsxAlbInfraSettingLister interface.
-type nsxAlbInfraSettingLister struct {
+// aviInfraSettingLister implements the AviInfraSettingLister interface.
+type aviInfraSettingLister struct {
 	indexer cache.Indexer
 }
 
-// NewNsxAlbInfraSettingLister returns a new NsxAlbInfraSettingLister.
-func NewNsxAlbInfraSettingLister(indexer cache.Indexer) NsxAlbInfraSettingLister {
-	return &nsxAlbInfraSettingLister{indexer: indexer}
+// NewAviInfraSettingLister returns a new AviInfraSettingLister.
+func NewAviInfraSettingLister(indexer cache.Indexer) AviInfraSettingLister {
+	return &aviInfraSettingLister{indexer: indexer}
 }
 
-// List lists all NsxAlbInfraSettings in the indexer.
-func (s *nsxAlbInfraSettingLister) List(selector labels.Selector) (ret []*v1alpha1.NsxAlbInfraSetting, err error) {
+// List lists all AviInfraSettings in the indexer.
+func (s *aviInfraSettingLister) List(selector labels.Selector) (ret []*v1alpha1.AviInfraSetting, err error) {
 	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.NsxAlbInfraSetting))
+		ret = append(ret, m.(*v1alpha1.AviInfraSetting))
 	})
 	return ret, err
 }
 
-// Get retrieves the NsxAlbInfraSetting from the index for a given name.
-func (s *nsxAlbInfraSettingLister) Get(name string) (*v1alpha1.NsxAlbInfraSetting, error) {
+// Get retrieves the AviInfraSetting from the index for a given name.
+func (s *aviInfraSettingLister) Get(name string) (*v1alpha1.AviInfraSetting, error) {
 	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("nsxalbinfrasetting"), name)
+		return nil, errors.NewNotFound(v1alpha1.Resource("aviinfrasetting"), name)
 	}
-	return obj.(*v1alpha1.NsxAlbInfraSetting), nil
+	return obj.(*v1alpha1.AviInfraSetting), nil
 }

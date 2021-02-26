@@ -95,13 +95,13 @@ func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus Upd
 	return
 }
 
-// UpdateNsxAlbInfraSettingStatus NsxAlbInfraSetting status updates
-func UpdateNsxAlbInfraSettingStatus(key string, infraSetting *akov1alpha1.NsxAlbInfraSetting, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+// UpdateAviInfraSettingStatus AviInfraSetting status updates
+func UpdateAviInfraSettingStatus(key string, infraSetting *akov1alpha1.AviInfraSetting, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 3 {
-			utils.AviLog.Errorf("key: %s, msg: UpdateNsxAlbInfraSettingStatus retried 3 times, aborting", key)
+			utils.AviLog.Errorf("key: %s, msg: UpdateAviInfraSettingStatus retried 3 times, aborting", key)
 			return
 		}
 	}
@@ -109,20 +109,20 @@ func UpdateNsxAlbInfraSettingStatus(key string, infraSetting *akov1alpha1.NsxAlb
 	infraSetting.Status.Status = updateStatus.Status
 	infraSetting.Status.Error = updateStatus.Error
 
-	_, err := lib.GetCRDClientset().AkoV1alpha1().NsxAlbInfraSettings().UpdateStatus(context.TODO(), infraSetting, metav1.UpdateOptions{})
+	_, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().UpdateStatus(context.TODO(), infraSetting, metav1.UpdateOptions{})
 	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the nsxalbinfrasetting status: %+v", key, retry, err)
-		updatedInfraSetting, err := lib.GetCRDClientset().AkoV1alpha1().NsxAlbInfraSettings().Get(context.TODO(), infraSetting.Name, metav1.GetOptions{})
+		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the aviinfrasetting status: %+v", key, retry, err)
+		updatedInfraSetting, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), infraSetting.Name, metav1.GetOptions{})
 		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: nsxalbinfrasetting not found %v", key, err)
+			utils.AviLog.Warnf("key: %s, msg: aviinfrasetting not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
-				UpdateNsxAlbInfraSettingStatus(key, updatedInfraSetting, updateStatus, retry+1)
+				UpdateAviInfraSettingStatus(key, updatedInfraSetting, updateStatus, retry+1)
 			}
 			return
 		}
-		UpdateNsxAlbInfraSettingStatus(key, updatedInfraSetting, updateStatus, retry+1)
+		UpdateAviInfraSettingStatus(key, updatedInfraSetting, updateStatus, retry+1)
 	}
 
-	utils.AviLog.Infof("key: %s, msg: Successfully updated the nsxalbinfrasetting %s status %+v", key, infraSetting.Name, utils.Stringify(updateStatus))
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the aviinfrasetting %s status %+v", key, infraSetting.Name, utils.Stringify(updateStatus))
 	return
 }

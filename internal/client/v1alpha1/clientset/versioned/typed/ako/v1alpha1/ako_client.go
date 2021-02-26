@@ -26,14 +26,18 @@ import (
 
 type AkoV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	AviInfraSettingsGetter
 	HTTPRulesGetter
 	HostRulesGetter
-	NsxAlbInfraSettingsGetter
 }
 
 // AkoV1alpha1Client is used to interact with features provided by the ako.vmware.com group.
 type AkoV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *AkoV1alpha1Client) AviInfraSettings() AviInfraSettingInterface {
+	return newAviInfraSettings(c)
 }
 
 func (c *AkoV1alpha1Client) HTTPRules(namespace string) HTTPRuleInterface {
@@ -42,10 +46,6 @@ func (c *AkoV1alpha1Client) HTTPRules(namespace string) HTTPRuleInterface {
 
 func (c *AkoV1alpha1Client) HostRules(namespace string) HostRuleInterface {
 	return newHostRules(c, namespace)
-}
-
-func (c *AkoV1alpha1Client) NsxAlbInfraSettings() NsxAlbInfraSettingInterface {
-	return newNsxAlbInfraSettings(c)
 }
 
 // NewForConfig creates a new AkoV1alpha1Client for the given config.

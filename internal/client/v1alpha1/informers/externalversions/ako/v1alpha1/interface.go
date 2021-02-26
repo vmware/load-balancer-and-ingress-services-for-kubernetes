@@ -24,12 +24,12 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// AviInfraSettings returns a AviInfraSettingInformer.
+	AviInfraSettings() AviInfraSettingInformer
 	// HTTPRules returns a HTTPRuleInformer.
 	HTTPRules() HTTPRuleInformer
 	// HostRules returns a HostRuleInformer.
 	HostRules() HostRuleInformer
-	// NsxAlbInfraSettings returns a NsxAlbInfraSettingInformer.
-	NsxAlbInfraSettings() NsxAlbInfraSettingInformer
 }
 
 type version struct {
@@ -43,6 +43,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
+// AviInfraSettings returns a AviInfraSettingInformer.
+func (v *version) AviInfraSettings() AviInfraSettingInformer {
+	return &aviInfraSettingInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
 // HTTPRules returns a HTTPRuleInformer.
 func (v *version) HTTPRules() HTTPRuleInformer {
 	return &hTTPRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
@@ -51,9 +56,4 @@ func (v *version) HTTPRules() HTTPRuleInformer {
 // HostRules returns a HostRuleInformer.
 func (v *version) HostRules() HostRuleInformer {
 	return &hostRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// NsxAlbInfraSettings returns a NsxAlbInfraSettingInformer.
-func (v *version) NsxAlbInfraSettings() NsxAlbInfraSettingInformer {
-	return &nsxAlbInfraSettingInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

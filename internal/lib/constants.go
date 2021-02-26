@@ -77,7 +77,7 @@ const (
 	GRBACControllerVersion                     = "20.1.4"
 	HostRule                                   = "HostRule"
 	HTTPRule                                   = "HTTPRule"
-	NsxAlbInfraSetting                         = "NsxAlbInfraSetting"
+	AviInfraSetting                            = "AviInfraSetting"
 	DummySecret                                = "@avisslkeycertrefdummy"
 	StatusRejected                             = "Rejected"
 	StatusAccepted                             = "Accepted"
@@ -118,6 +118,7 @@ const (
 	AviGatewayController          = "lbapi.run.tanzu.vmware.com/avi-lb"
 	NPLPodAnnotation              = "nodeportlocal.antrea.io"
 	NPLSvcAnnotation              = "nodeportlocal.antrea.io/enabled"
+	InfraSettingNameAnnotation    = "aviinfrasetting.ako.vmware.com/name"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd    = "ADD"
@@ -126,20 +127,20 @@ const (
 
 // Cache Indexer constants.
 const (
-	// NsxAlbSettingGWClassIndex maintains a map of NsxAlbInfraSetting Name to
+	// AviSettingGWClassIndex maintains a map of AviInfraSetting Name to
 	// GatewayClass Objects. This helps in fetching all GatewayClasses with a
-	// given NsxAlbinfraSetting Name.
-	NsxAlbSettingGWClassIndex = "nsxAlbSettingGWClass"
+	// given AviinfraSetting Name.
+	AviSettingGWClassIndex = "aviSettingGWClass"
 
 	// GatewayClassGatewayIndex maintains a map of GatewayClass Name to
 	// Gateway Objects. This helps in fetching all Gateways with a
 	// given GatewayClass Name.
 	GatewayClassGatewayIndex = "gatewayClassGateway"
 
-	// SeGroupNsxAlbSettingIndex maintains a map of SeGroup Name to
-	// NsxAlbInfraSetting Objects. This helps in fetching all NsxAlbInfraSettings
+	// SeGroupAviSettingIndex maintains a map of SeGroup Name to
+	// AviInfraSetting Objects. This helps in fetching all AviInfraSettings
 	// with a given SeGroup Name.
-	SeGroupNsxAlbSettingIndex = "seGroupNsxAlbSetting"
+	SeGroupAviSettingIndex = "seGroupAviSetting"
 )
 
 const (

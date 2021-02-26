@@ -130,7 +130,7 @@ func DequeueIngestion(key string, fullsync bool) {
 
 	// handle the services APIs
 	if lib.GetAdvancedL4() || lib.UseServicesAPI() &&
-		(objType == utils.L4LBService || objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.NsxAlbInfraSetting) {
+		(objType == utils.L4LBService || objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting) {
 		if !valid && objType == utils.L4LBService {
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
 		}
