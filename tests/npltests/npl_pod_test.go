@@ -528,6 +528,70 @@ func TestIngressUpdatePodWithoutLabel(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
+//TestIngressDelSvc creates a POD with NPL annotation and corresponding Service and Ingress, then verifies the model.
+//Then the Service is deleted and it is verified that corresponding servers are deleted from the model.
+func TestIngressDelSvc(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	SetUpTestForIngress(t, defaultL7Model)
+	selectors := make(map[string]string)
+	selectors["app"] = "npl"
+	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	createPodWithNPLAnnotation(selectors)
+
+	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+	if found {
+		t.Fatalf("Couldn't find Model for DELETE event %v", defaultL7Model)
+	}
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+		return found
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(defaultL7Model)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 40*time.Second).Should(gomega.Equal(1))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
+	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
+
+	integrationtest.DelSVC(t, "default", "avisvc")
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(defaultL7Model)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	verifyIngressDeletion(t, g, aviModel, 0)
+	TearDownTestForIngress(t, defaultL7Model)
+}
+
 //TestNPLLBSvc creates a Service type LB and a Pod with matching label, then the model is verified.
 func TestNPLLBSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
