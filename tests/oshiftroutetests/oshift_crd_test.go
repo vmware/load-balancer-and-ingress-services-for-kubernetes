@@ -209,7 +209,7 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 	hrname := "samplehr-foo"
 
 	// creating secure default/foo.com/foo
-	SetUpTestForRoute(t, modelName)
+	SetUpTestForRoute(t, modelName, integrationtest.AllModels...)
 	secRouteExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), secRouteExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
@@ -264,7 +264,7 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 	hrname := "samplehr-foo"
 
 	// creating insecure default/foo.com/foo
-	SetUpTestForRoute(t, modelName)
+	SetUpTestForRoute(t, modelName, integrationtest.AllModels...)
 	routeExample := FakeRoute{Path: "/foo"}.Route()
 	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
