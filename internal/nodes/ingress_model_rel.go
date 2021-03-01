@@ -362,7 +362,9 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 			if len(ingresses) == 0 {
 				objects.SharedSvcLister().IngressMappings(namespace).DeleteSvcToIngMapping(svcName)
 			}
+			return ingresses, true
 		}
+		return nil, false
 	}
 	_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
 	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingresses)
