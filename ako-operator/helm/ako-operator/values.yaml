@@ -56,6 +56,7 @@ L7Settings:
 L4Settings:
   advancedL4: "false" # Use this knob to control the settings for the services API usage. Default to not using services APIs: https://github.com/kubernetes-sigs/service-apis
   defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
+  autoFQDN: "default" # ENUM: default(<svc>.<ns>.<subdomain>), flat (<svc>-<ns>.<subdomain>), "disabled" If the value is disabled then the FQDN generation is disabled.
 
 ### This section outlines settings on the Avi controller that affects AKO's functionality.
 ControllerSettings:

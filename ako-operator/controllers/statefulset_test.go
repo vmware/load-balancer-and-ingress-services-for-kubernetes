@@ -158,6 +158,15 @@ var sfJson = `
                                 }
                             },
                             {
+                                "name": "AUTO_FQDN",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "autoFQDN",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
                                 "name": "SUBNET_IP",
                                 "valueFrom": {
                                     "configMapKeyRef": {

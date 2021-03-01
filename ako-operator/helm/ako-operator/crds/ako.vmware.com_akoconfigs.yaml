@@ -121,6 +121,9 @@ spec:
                 defaultDomain:
                   description: DefaultDomain is the default domain
                   type: string
+                autoFQDN:
+                  description: Specifies the FQDN pattern - default, flat or disabled
+                  type: string
               type: object
             l7Settings:
               description: L7Settings defines the L7 configuration for the AKO controller

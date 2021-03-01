@@ -37,7 +37,7 @@ spec:
           description: AKOConfigSpec defines the desired state of AKOConfig
           properties:
             akoSettings:
-              description: AKOSettings defines the settings requried for the AKO controller
+              description: AKOSettings defines the settings required for the AKO controller
               properties:
                 apiServerPort:
                   description: APIServerPort is the port at which the AKO API server
@@ -118,6 +118,9 @@ spec:
                   description: AdvancedL4 specifies whether the AKO controller should
                     listen for the Gateway objects
                   type: boolean
+                autoFQDN:
+                  description: Specifies the FQDN pattern - default, flat or disabled
+                  type: string
                 defaultDomain:
                   description: DefaultDomain is the default domain
                   type: string
