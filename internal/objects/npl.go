@@ -128,13 +128,13 @@ func (a *SvcPodLister) Delete(key string) {
 var podLBSvcInstance *PodLBSvcLister
 var podLBSvcOnce sync.Once
 
-func SharedPodToLBSvcLister() *PodSvcLister {
+func SharedPodToLBSvcLister() *PodLBSvcLister {
 	podLBSvcOnce.Do(func() {
 		store := NewObjectMapStore()
 		podLBSvcInstance = &PodLBSvcLister{}
 		podLBSvcInstance.store = store
 	})
-	return podSvcInstance
+	return podLBSvcInstance
 }
 
 // PodLBSvcLister stores list of services of type LB for a pod.
