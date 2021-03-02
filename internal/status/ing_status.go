@@ -26,6 +26,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -41,7 +42,7 @@ type UpdateOptions struct {
 }
 
 const (
-	VSAnnotation         = "ako.vmware.com/virtualservices"
+	VSAnnotation         = "ako.vmware.com/host-fqdn-vs-uuid-map"
 	ControllerAnnotation = "ako.vmware.com/controller-cluster-uuid"
 )
 
@@ -146,8 +147,8 @@ func updateObject(mIngress *networkingv1beta1.Ingress, updateOption UpdateOption
 	return nil
 }
 
-func updateIngAnnotations(mClient kubernetes.Interface, ingObj *networkingv1beta1.Ingress, svcMetaHostnames []string,
-	vsUUID, key string, ingHostList []string, oldIng *networkingv1beta1.Ingress, retryNum ...int) error {
+func updateIngAnnotations(mClient kubernetes.Interface, ingObj *networkingv1beta1.Ingress, hostnamesToBeUpdated []string,
+	vsUUID, key string, ingSpecHostnames []string, oldIng *networkingv1beta1.Ingress, retryNum ...int) error {
 
 	if ingObj == nil {
 		ingObj = oldIng
@@ -171,13 +172,13 @@ func updateIngAnnotations(mClient kubernetes.Interface, ingObj *networkingv1beta
 	}
 
 	// update the existing hostname vs uuid for the current update
-	for i := 0; i < len(svcMetaHostnames); i++ {
-		vsAnnotations[svcMetaHostnames[i]] = vsUUID
+	for i := 0; i < len(hostnamesToBeUpdated); i++ {
+		vsAnnotations[hostnamesToBeUpdated[i]] = vsUUID
 	}
 
 	// remove the hostname from annotations which is not part of the spec
 	for k := range vsAnnotations {
-		if !utils.HasElem(ingHostList, k) {
+		if !utils.HasElem(ingSpecHostnames, k) {
 			delete(vsAnnotations, k)
 		}
 	}
@@ -188,12 +189,13 @@ func updateIngAnnotations(mClient kubernetes.Interface, ingObj *networkingv1beta
 		utils.AviLog.Debugf("annotations update not required for this ingress: %s/%s", ingObj.Namespace, ingObj.Name)
 		return nil
 	}
-	if err = patchIngressAnnotations(ingObj, vsAnnotations, mClient); err != nil {
+	if err = patchIngressAnnotations(ingObj, vsAnnotations, mClient); err != nil && k8serrors.IsNotFound(err) {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress annotations: %v", key, err)
 		// fetch updated ingress and feed for update status
 		mIngresses := getIngresses([]string{ingObj.Namespace + "/" + ingObj.Name}, false)
 		if len(mIngresses) > 0 {
-			return updateIngAnnotations(mClient, mIngresses[ingObj.Namespace+"/"+ingObj.Name], svcMetaHostnames, vsUUID, key, ingHostList, oldIng, retry+1)
+			return updateIngAnnotations(mClient, mIngresses[ingObj.Namespace+"/"+ingObj.Name], hostnamesToBeUpdated,
+				vsUUID, key, ingSpecHostnames, oldIng, retry+1)
 		}
 	}
 
@@ -220,10 +222,7 @@ func isAnnotationsUpdateRequired(ingAnnotations map[string]string, newVSAnnotati
 	}
 	for oldHost, oldVS := range oldVSAnnotations {
 		newVS, exists := newVSAnnotations[oldHost]
-		if !exists {
-			return true
-		}
-		if newVS != oldVS {
+		if !exists || (newVS != oldVS) {
 			return true
 		}
 	}

@@ -27,6 +27,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 )
@@ -351,7 +352,7 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 
 	// compare the VirtualService annotations for this ingress object
 	if req := isAnnotationsUpdateRequired(mRoute.Annotations, vsAnnotations); req {
-		if err := patchRouteAnnotations(mRoute, vsAnnotations); err != nil {
+		if err := patchRouteAnnotations(mRoute, vsAnnotations); err != nil && k8serrors.IsNotFound(err) {
 			utils.AviLog.Errorf("key: %s, msg: error in updating the route annotations: %v", key, err)
 			// fetch updated route and retry for updating annotations
 			mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
@@ -375,7 +376,7 @@ func patchRouteAnnotations(mRoute *routev1.Route, vsAnnotations map[string]strin
 		return fmt.Errorf("error in generating payload for vs annotations %v: %v", vsAnnotations, err)
 	}
 	if _, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{}); err != nil {
-		return fmt.Errorf("error in updating route annotations %v: %v", mRoute.Annotations, err)
+		return err
 	}
 
 	return nil
@@ -545,7 +546,8 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMeta
 	}
 
 	if isAnnotationsUpdateRequired(routeObj.Annotations, existingAnnotations) {
-		if err := patchRouteAnnotations(routeObj, existingAnnotations); err != nil {
+		if err := patchRouteAnnotations(routeObj, existingAnnotations); err != nil && k8serrors.IsNotFound(err) {
+			utils.AviLog.Errorf("key: %s, msg: error in updating route annotations: %v, will retry", err)
 			return deleteRouteAnnotation(routeObj, svcMeta, isVSDelete, routeHostList, key, oldRoute, retry+1)
 		}
 		utils.AviLog.Debugf("key: %s, msg: annotations updated for route", key)
