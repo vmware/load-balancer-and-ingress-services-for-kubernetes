@@ -460,6 +460,10 @@ func (c *AviCache) AviCacheGetKeyByUuid(uuid string) (interface{}, bool) {
 			if value.(*AviVSVIPCache).Uuid == uuid {
 				return key, true
 			}
+		case *AviPGCache:
+			if value.(*AviPGCache).Uuid == uuid {
+				return key, true
+			}
 		}
 	}
 	return nil, false

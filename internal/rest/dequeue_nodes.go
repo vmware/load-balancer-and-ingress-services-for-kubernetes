@@ -89,11 +89,22 @@ func (rest *RestOperations) DeQueueNodes(key string) {
 			return
 		}
 		utils.AviLog.Debugf("key: %s, msg: VS create/update.", key)
-		if len(avimodel.GetAviVS()) != 1 {
-			utils.AviLog.Warnf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviVS())
-			return
+
+		if strings.Contains(name, "-EVH-") && lib.IsEvhEnabled() {
+			if len(avimodel.GetAviEvhVS()) != 1 {
+				utils.AviLog.Warnf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviEvhVS())
+				return
+			}
+			rest.RestOperationForEvh(name, namespace, avimodel, false, vs_cache_obj, key)
+
+		} else {
+			if len(avimodel.GetAviVS()) != 1 {
+				utils.AviLog.Warnf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviVS())
+				return
+			}
+			rest.RestOperation(name, namespace, avimodel, vs_cache_obj, key)
 		}
-		rest.RestOperation(name, namespace, avimodel, vs_cache_obj, key)
+
 	}
 
 }

@@ -936,6 +936,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 				//rData["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 
+			} else if strings.Contains(rName, "Shared-L7-EVH-") {
+				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else if strings.Contains(rName, "Shared-L7") {
 				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
@@ -952,6 +955,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
 				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
 				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
+			} else if strings.Contains(rName, "Shared-L7-EVH-") {
+				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else if strings.Contains(rName, "Shared-L7") {
 				shardVSNum = strings.Split(rName, "Shared-L7-")[1]

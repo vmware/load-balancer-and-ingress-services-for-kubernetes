@@ -531,8 +531,11 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 
 					// if we find a L7Shared pool that has the secure VS host then don't delete status
 					// update is also not required since the shard would not change, IP should remain same
-					hostname := vs_cache_obj.ServiceMetadataObj.HostNames[0]
-					hostFoundInParentPool = rest.isHostPresentInSharedPool(hostname, parent_vs_cache_obj, key)
+					if len(vs_cache_obj.ServiceMetadataObj.HostNames) > 0 {
+						hostname := vs_cache_obj.ServiceMetadataObj.HostNames[0]
+						hostFoundInParentPool = rest.isHostPresentInSharedPool(hostname, parent_vs_cache_obj, key)
+					}
+
 				}
 			}
 
