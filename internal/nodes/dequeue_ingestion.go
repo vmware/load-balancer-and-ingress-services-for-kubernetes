@@ -213,7 +213,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 		}
 		utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
 	} else {
-		utils.AviLog.Info("key: %s, NPL annotation not found for Pod", key)
+		utils.AviLog.Infof("key: %s, NPL annotation not found for Pod", key)
 		objects.SharedNPLLister().Delete(podKey)
 	}
 }

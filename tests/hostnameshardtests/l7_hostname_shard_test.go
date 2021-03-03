@@ -130,11 +130,13 @@ func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
 }
 
-func TearDownTestForIngress(t *testing.T, modelName string) {
+func TearDownTestForIngress(t *testing.T, modelNames ...string) {
 	os.Setenv("SHARD_VS_SIZE", "")
 	os.Setenv("CLOUD_NAME", "")
 
-	objects.SharedAviGraphLister().Delete(modelName)
+	for _, model := range modelNames {
+		objects.SharedAviGraphLister().Delete(model)
+	}
 	integrationtest.DelSVC(t, "default", "avisvc")
 	integrationtest.DelEP(t, "default", "avisvc")
 }
@@ -1354,7 +1356,7 @@ func TestMultiHostIngress(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngress(t, modelName)
+	TearDownTestForIngress(t, integrationtest.AllModels...)
 }
 
 func TestMultiHostSameHostNameIngress(t *testing.T) {
