@@ -72,9 +72,6 @@ func DeleteSvcAnnotation(key, namespace, name string) {
 	}
 
 	payloadValue := make(map[string]*string)
-	for key, val := range ann {
-		payloadValue[key] = &val
-	}
 	// To delete an annotation with patch call, the value has to be set to nil
 	payloadValue[lib.NPLSvcAnnotation] = nil
 
