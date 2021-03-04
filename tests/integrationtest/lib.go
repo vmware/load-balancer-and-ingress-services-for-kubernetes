@@ -815,7 +815,7 @@ func ScaleCreateEP(t *testing.T, ns string, Name string) {
 
 func DelEP(t *testing.T, ns string, Name string) {
 	err := KubeClient.CoreV1().Endpoints(ns).Delete(context.TODO(), Name, metav1.DeleteOptions{})
-	if err != nil {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		t.Fatalf("error in deleting Endpoint: %v", err)
 	}
 }
