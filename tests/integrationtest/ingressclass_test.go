@@ -31,25 +31,33 @@ import (
 type FakeIngressClass struct {
 	Name       string
 	Controller string
+	Default    bool
 }
 
-func (gwclass FakeIngressClass) IngressClass() *networkingv1beta1.IngressClass {
+func (ingclass FakeIngressClass) IngressClass() *networkingv1beta1.IngressClass {
 	ingressclass := &networkingv1beta1.IngressClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: gwclass.Name,
+			Name: ingclass.Name,
 		},
 		Spec: networkingv1beta1.IngressClassSpec{
-			Controller: gwclass.Controller,
+			Controller: ingclass.Controller,
 		},
+	}
+
+	if ingclass.Default {
+		ingressclass.Annotations = map[string]string{lib.DefaultIngressClassAnnotation: "true"}
+	} else {
+		ingressclass.Annotations = map[string]string{lib.DefaultIngressClassAnnotation: "false"}
 	}
 
 	return ingressclass
 }
 
-func SetupIngressClass(t *testing.T, gwclassName, controller string) {
+func SetupIngressClass(t *testing.T, ingclassName, controller string) {
 	ingclass := FakeIngressClass{
-		Name:       gwclassName,
+		Name:       ingclassName,
 		Controller: controller,
+		Default:    false,
 	}
 
 	ingClassCreate := ingclass.IngressClass()
@@ -73,13 +81,14 @@ func VerifyVSNodeDeletion(g *gomega.WithT, modelName string) {
 
 // Ingresss - IngressClass mapping tests
 
-func TestAdvL4WrongClassMappingInIngress(t *testing.T) {
+func TestIngressClassWrongClassMappingInIngress(t *testing.T) {
 	// create ingclass, ingress
 	// update wrong mapping of class in ingress, VS deleted
 	// fix class in ingress, VS created
 	g := gomega.NewGomegaWithT(t)
 
 	RemoveDefaultIngressClass()
+	defer AddDefaultIngressClass()
 
 	ingClassName, ingressName, ns := "avi-lb", "foo-with-class", "default"
 	modelName := "admin/cluster--Shared-L7-6"
@@ -150,5 +159,61 @@ func TestAdvL4WrongClassMappingInIngress(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 	TeardownIngressClass(t, ingClassName)
 	VerifyVSNodeDeletion(g, modelName)
-	AddDefaultIngressClass()
+}
+
+func TestDefaultIngressClassChange(t *testing.T) {
+	// use default ingress class, change default annotation to false
+	// check that ingress status is removed
+	// change back default class annotation to true
+	// ingress status IP comes back
+	g := gomega.NewGomegaWithT(t)
+
+	ingClassName, ingressName, ns := "avi-lb", "foo-with-class2", "default"
+	modelName := "admin/cluster--Shared-L7-6"
+
+	RemoveDefaultIngressClass()
+	defer AddDefaultIngressClass()
+
+	ingClass := (FakeIngressClass{
+		Name:       ingClassName,
+		Controller: lib.AviIngressController,
+		Default:    true,
+	}).IngressClass()
+	if _, err := KubeClient.NetworkingV1beta1().IngressClasses().Create(context.TODO(), ingClass, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding IngressClass: %v", err)
+	}
+
+	SetUpTestForIngress(t, modelName)
+	// ingress with no IngressClass
+	ingressCreate := (FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		DnsNames:    []string{"bar.com"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 35*time.Second).Should(gomega.Equal(1))
+
+	ingClass.Annotations = map[string]string{lib.DefaultIngressClassAnnotation: "false"}
+	ingClass.ResourceVersion = "2"
+	_, err = KubeClient.NetworkingV1beta1().IngressClasses().Update(context.TODO(), ingClass, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating IngressClass: %v", err)
+	}
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 35*time.Second).Should(gomega.Equal(0))
+
+	TearDownTestForIngress(t, modelName)
+	TeardownIngressClass(t, ingClassName)
+	VerifyVSNodeDeletion(g, modelName)
 }
