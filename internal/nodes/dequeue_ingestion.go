@@ -122,8 +122,8 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
 				return
 			}
-
-			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() {
+			//Do not handle service update if it belongs to unaccepted namespace
+			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() && utils.CheckIfNamespaceAccepted(namespace, nil, true) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
@@ -299,7 +299,7 @@ func handleL4Service(key string, fullsync bool) {
 	_, namespace, name := extractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
-	if !isServiceDelete(name, namespace, key) {
+	if !isServiceDelete(name, namespace, key) && utils.CheckIfNamespaceAccepted(namespace, nil, true) {
 		// If Service is Not Annotated with NPL annotation, annotate the service and return.
 		if lib.AutoAnnotateNPLSvc() {
 			if !status.CheckUpdateSvcAnnotation(key, namespace, name) {

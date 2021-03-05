@@ -274,7 +274,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		err = c.FullSyncK8s()
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
-			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO: %s", err)
+			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
 			lib.ShutdownApi()
 			return
 		}
@@ -389,20 +389,26 @@ func (c *AviController) FullSyncK8s() error {
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
 		return err
-	} else {
-		for _, svcObj := range svcObjs {
-			isSvcLb := isServiceLBType(svcObj)
-			var key string
-			if isSvcLb && !lib.GetLayer7Only() {
-				key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
-			} else {
-				if lib.GetAdvancedL4() {
-					continue
-				}
-				key = utils.Service + "/" + utils.ObjKey(svcObj)
+	}
+	for _, svcObj := range svcObjs {
+
+		isSvcLb := isServiceLBType(svcObj)
+		var key string
+		if isSvcLb && !lib.GetLayer7Only(){
+			svcLabel := utils.ObjKey(svcObj)
+			ns := strings.Split(svcLabel, "/")
+			//Add key if ServiceAPI or advance L4 enabled or NS is valid
+			if !utils.IsServiceNSValid(ns[0]) {
+				continue
 			}
-			nodes.DequeueIngestion(key, true)
+			key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
+		} else {
+			if lib.GetAdvancedL4() {
+				continue
+			}
+			key = utils.Service + "/" + utils.ObjKey(svcObj)
 		}
+		nodes.DequeueIngestion(key, true)
 	}
 
 	if lib.GetServiceType() == lib.NodePortLocal {
@@ -457,8 +463,8 @@ func (c *AviController) FullSyncK8s() error {
 				for _, ingObj := range ingObjs {
 					ingLabel := utils.ObjKey(ingObj)
 					ns := strings.Split(ingLabel, "/")
-					if utils.CheckIfNamespaceAccepted(ns[0], utils.GetGlobalNSFilter(), nil, true) {
-						key := utils.Ingress + "/" + ingLabel
+					if utils.CheckIfNamespaceAccepted(ns[0], nil, true) {
+						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
 						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
 						nodes.DequeueIngestion(key, true)
 					}
@@ -476,8 +482,8 @@ func (c *AviController) FullSyncK8s() error {
 					// to do move to container-lib
 					routeLabel := utils.ObjKey(routeObj)
 					ns := strings.Split(routeLabel, "/")
-					if utils.CheckIfNamespaceAccepted(ns[0], utils.GetGlobalNSFilter(), nil, true) {
-						key := utils.OshiftRoute + "/" + routeLabel
+					if utils.CheckIfNamespaceAccepted(ns[0], nil, true) {
+						key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
 						utils.AviLog.Debugf("Dequeue for route key: %v", key)
 						nodes.DequeueIngestion(key, true)
 					}
@@ -489,23 +495,21 @@ func (c *AviController) FullSyncK8s() error {
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
 				return err
-			} else {
-				for _, gatewayObj := range gatewayObjs {
-					key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
-					InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
-					nodes.DequeueIngestion(key, true)
-				}
+			}
+			for _, gatewayObj := range gatewayObjs {
+				key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+				InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
+				nodes.DequeueIngestion(key, true)
 			}
 
 			gwClassObjs, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
 				return err
-			} else {
-				for _, gwClassObj := range gwClassObjs {
-					key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
-					nodes.DequeueIngestion(key, true)
-				}
+			}
+			for _, gwClassObj := range gwClassObjs {
+				key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+				nodes.DequeueIngestion(key, true)
 			}
 		}
 	} else {
@@ -515,23 +519,21 @@ func (c *AviController) FullSyncK8s() error {
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
 			return err
-		} else {
-			for _, gatewayObj := range gatewayObjs {
-				key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
-				InformerStatusUpdatesForGateway(key, gatewayObj)
-				nodes.DequeueIngestion(key, true)
-			}
+		}
+		for _, gatewayObj := range gatewayObjs {
+			key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+			InformerStatusUpdatesForGateway(key, gatewayObj)
+			nodes.DequeueIngestion(key, true)
 		}
 
 		gwClassObjs, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
 			return err
-		} else {
-			for _, gwClassObj := range gwClassObjs {
-				key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
-				nodes.DequeueIngestion(key, true)
-			}
+		}
+		for _, gwClassObj := range gwClassObjs {
+			key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+			nodes.DequeueIngestion(key, true)
 		}
 	}
 

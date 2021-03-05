@@ -191,6 +191,29 @@ func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namesp
 	}
 
 }
+func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
+	// For Advancd L4 and service api , do not handle. services already been taken care
+	// in service handler
+	if lib.GetAdvancedL4() || lib.UseServicesAPI() {
+		return
+	}
+	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
+		return
+	}
+	for _, svcObj := range svcObjs {
+		isSvcLb := isServiceLBType(svcObj)
+
+		if isSvcLb {
+			key := utils.L4LBService + "/" + utils.ObjKey(svcObj)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+		}
+	}
+
+}
 
 /*
  * Namespace Add event: will be called during each boot or newNS added. In add event
@@ -201,8 +224,8 @@ func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namesp
  */
 /* Namespace Delete event: no op. Let individual event handler take care
  */
-/* Namespace update event:  2 cases to handle : NS label changed from 1) valid to invalid --> Call ingress delete
- * 2) invalid to valid --> Call ingress add
+/* Namespace update event:  2 cases to handle : NS label changed from 1) valid to invalid --> Call ingress and service delete
+ * 2) invalid to valid --> Call ingress and service add
  */
 
 func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
@@ -213,16 +236,15 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 			}
 			ns := obj.(*corev1.Namespace)
 			nsLabels := ns.GetLabels()
-			nsFilterObj := utils.GetGlobalNSFilter()
-			if utils.CheckIfNamespaceAccepted(ns.GetName(), nsFilterObj, nsLabels, false) {
-				utils.AddNamespaceToFilter(ns.GetName(), nsFilterObj)
+			if utils.CheckIfNamespaceAccepted(ns.GetName(), nsLabels, false) {
+				utils.AddNamespaceToFilter(ns.GetName())
 				utils.AviLog.Debugf("NS Add event: Namespace passed filter: %s", ns.GetName())
 			} else {
 				//Case: previously deleted valid NS, added back with no labels or invalid labels but nsList contain that ns
 				utils.AviLog.Debugf("NS Add event: Namespace did not pass filter: %s", ns.GetName())
-				if utils.CheckIfNamespaceAccepted(ns.GetName(), nsFilterObj, nil, true) {
+				if utils.CheckIfNamespaceAccepted(ns.GetName(), nil, true) {
 					utils.AviLog.Debugf("Ns Add event: Deleting previous valid namespace: %s from valid NS List", ns.GetName())
-					utils.DeleteNamespaceFromFilter(ns.GetName(), nsFilterObj)
+					utils.DeleteNamespaceFromFilter(ns.GetName())
 				}
 			}
 
@@ -233,30 +255,39 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 			}
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			nsFilterObj := utils.GetGlobalNSFilter()
 			if isNamespaceUpdated(nsOld, nsCur) {
-				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsFilterObj, nsOld.Labels, false)
-				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsFilterObj, nsCur.Labels, false)
+				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsOld.Labels, false)
+				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsCur.Labels, false)
 
 				if !oldNSAccepted && newNSAccepted {
 					//Case 1: Namespace updated with valid labels
-					//Call ingress add
-					utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
-					utils.AddNamespaceToFilter(nsCur.GetName(), nsFilterObj)
+					//Call ingress/route and service add
+					utils.AddNamespaceToFilter(nsCur.GetName())
 					if utils.GetInformers().IngressInformer != nil {
+						utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
 						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 					} else if utils.GetInformers().RouteInformer != nil {
+						utils.AviLog.Debugf("Adding routes for namespaces: %s", nsCur.GetName())
 						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
+					if utils.GetInformers().ServiceInformer != nil {
+						utils.AviLog.Debugf("Adding L4 services for namespaces: %s", nsCur.GetName())
+						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 					}
 				} else if oldNSAccepted && !newNSAccepted {
 					//Case 2: Old valid namespace updated with invalid labels
-					//Call ingress delete
-					utils.AviLog.Debugf("Deleting ingresses for namespaces: %s", nsCur.GetName())
-					utils.DeleteNamespaceFromFilter(nsCur.GetName(), nsFilterObj)
+					//Call ingress/route and service delete
+					utils.DeleteNamespaceFromFilter(nsCur.GetName())
 					if utils.GetInformers().IngressInformer != nil {
+						utils.AviLog.Debugf("Deleting ingresses for namespaces: %s", nsCur.GetName())
 						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
 					} else if utils.GetInformers().RouteInformer != nil {
+						utils.AviLog.Debugf("Deleting routes for namespaces: %s", nsCur.GetName())
 						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					}
+					if utils.GetInformers().ServiceInformer != nil {
+						utils.AviLog.Debugf("Deleting L4 services for namespaces: %s", nsCur.GetName())
+						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
 					}
 				}
 
@@ -275,8 +306,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
-			nsFilterObj := utils.GetGlobalNSFilter()
-			if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+			if !utils.CheckIfNamespaceAccepted(namespace, nil, true) {
 				utils.AviLog.Debugf("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
 				return
 			}
@@ -306,8 +336,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				}
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
-			nsFilterObj := utils.GetGlobalNSFilter()
-			if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+			if !utils.CheckIfNamespaceAccepted(namespace, nil, true) {
 				utils.AviLog.Debugf("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
 				return
 			}
@@ -324,8 +353,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			newRoute := cur.(*routev1.Route)
 			if isRouteUpdated(oldRoute, newRoute) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
-				nsFilterObj := utils.GetGlobalNSFilter()
-				if !utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				if !utils.CheckIfNamespaceAccepted(namespace, nil, true) {
 					utils.AviLog.Debugf("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
 					return
 				}
@@ -480,6 +508,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			isSvcLb := isServiceLBType(svc)
 			var key string
 			if isSvcLb && !lib.GetLayer7Only() {
+				//L4 Namespace sync not applicable for advance L4 and service API
+				if !utils.IsServiceNSValid(namespace) {
+					utils.AviLog.Debugf("L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", namespace)
+					return
+				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 				if lib.GetAdvancedL4() {
 					checkSvcForGatewayPortConflict(svc, key)
@@ -519,6 +552,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			var key string
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			if isSvcLb && !lib.GetLayer7Only() {
+				if !utils.IsServiceNSValid(namespace) {
+					utils.AviLog.Debugf("L4 Service delete event: Namespace: %s didn't qualify filter. Not deleting service.", namespace)
+					return
+				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
 				if lib.GetAdvancedL4() || lib.UseServicesAPI() {
@@ -542,6 +579,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				isSvcLb := isServiceLBType(svc)
 				var key string
 				if isSvcLb && !lib.GetLayer7Only() {
+					if !utils.IsServiceNSValid(namespace) {
+						utils.AviLog.Debugf("L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", namespace)
+						return
+					}
 					key = utils.L4LBService + "/" + utils.ObjKey(svc)
 					if lib.GetAdvancedL4() {
 						checkSvcForGatewayPortConflict(svc, key)
@@ -735,8 +776,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			ingress := obj.(*networkingv1beta1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			nsFilterObj := utils.GetGlobalNSFilter()
-			if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+			if utils.CheckIfNamespaceAccepted(namespace, nil, true) {
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -764,8 +804,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			nsFilterObj := utils.GetGlobalNSFilter()
-			if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+			if utils.CheckIfNamespaceAccepted(namespace, nil, true) {
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -782,8 +821,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			ingress := cur.(*networkingv1beta1.Ingress)
 			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-				nsFilterObj := utils.GetGlobalNSFilter()
-				if utils.CheckIfNamespaceAccepted(namespace, nsFilterObj, nil, true) {
+				if utils.CheckIfNamespaceAccepted(namespace, nil, true) {
 					key := utils.Ingress + "/" + utils.ObjKey(ingress)
 					bkt := utils.Bkt(namespace, numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)

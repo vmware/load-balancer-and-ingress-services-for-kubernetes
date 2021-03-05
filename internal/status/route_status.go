@@ -474,7 +474,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 			if mRoute.Status.Ingress[i].Host == host {
 				// Check if this host is still present in the spec, if so - don't delete it
 				//NS migration case: if false -> ns invalid event happened so remove status
-				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace, utils.GetGlobalNSFilter(), nil, true)
+				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace, nil, true)
 				if !utils.HasElem(hostListIng, host) || isVSDelete || !nsMigrationFilterFlag {
 					mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 				} else {
@@ -535,7 +535,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMeta
 				// 1. this host is still present in the spec, if so - don't delete it from annotations
 				// 2. in case of NS migration, if NS is moved from selected to rejected, this host then
 				//    has to be removed from the annotations list.
-				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace, utils.GetGlobalNSFilter(), nil, true)
+				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace, nil, true)
 				if !utils.HasElem(routeHostList, host) || isVSDelete || !nsMigrationFilterFlag {
 					delete(existingAnnotations, k)
 				} else {

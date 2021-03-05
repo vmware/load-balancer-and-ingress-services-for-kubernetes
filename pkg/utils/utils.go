@@ -345,32 +345,32 @@ func GetNSFilter(obj *K8ValidNamespaces) (string, string) {
 	return key, value
 }
 
-func AddNamespaceToFilter(namespace string, obj *K8ValidNamespaces) {
-	obj.validNSList.lock.Lock()
-	defer obj.validNSList.lock.Unlock()
-	obj.validNSList.nsList[namespace] = true
+func AddNamespaceToFilter(namespace string) {
+	globalNSFilterObj.validNSList.lock.Lock()
+	defer globalNSFilterObj.validNSList.lock.Unlock()
+	globalNSFilterObj.validNSList.nsList[namespace] = true
 }
 
-func DeleteNamespaceFromFilter(namespace string, obj *K8ValidNamespaces) {
-	obj.validNSList.lock.Lock()
-	defer obj.validNSList.lock.Unlock()
-	delete(obj.validNSList.nsList, namespace)
+func DeleteNamespaceFromFilter(namespace string) {
+	globalNSFilterObj.validNSList.lock.Lock()
+	defer globalNSFilterObj.validNSList.lock.Unlock()
+	delete(globalNSFilterObj.validNSList.nsList, namespace)
 }
 
-func CheckIfNamespaceAccepted(namespace string, obj *K8ValidNamespaces, nsLabels map[string]string, nonNSK8ResFlag bool) bool {
+func CheckIfNamespaceAccepted(namespace string, nsLabels map[string]string, nonNSK8ResFlag bool) bool {
 	//Return true if there is no migration labels mentioned
-	if !obj.EnableMigration {
+	if !globalNSFilterObj.EnableMigration {
 		return true
 	}
 	//For k8 resources other than namespace check NS already present or not
-	if nonNSK8ResFlag && IsNSPresent(namespace, obj) {
+	if nonNSK8ResFlag && IsNSPresent(namespace, globalNSFilterObj) {
 		return true
 	}
 
 	//Following code will be called for Namespace case only from nsevent handler
 	if len(nsLabels) != 0 {
 		// if namespace have labels
-		nsKey, nsValue := GetNSFilter(obj)
+		nsKey, nsValue := GetNSFilter(globalNSFilterObj)
 		val, ok := nsLabels[nsKey]
 		if ok && val == nsValue {
 			AviLog.Debugf("Namespace filter passed for namespace: %s", namespace)
@@ -379,11 +379,27 @@ func CheckIfNamespaceAccepted(namespace string, obj *K8ValidNamespaces, nsLabels
 	}
 	return false
 }
+func IsServiceNSValid(namespace string) bool {
+	//L4 Namespace sync not applicable for advance L4 and service API
+
+	if !GetAdvancedL4() && !UseServicesAPI() {
+		if !CheckIfNamespaceAccepted(namespace, nil, true) {
+			return false
+		}
+	}
+	return true
+}
 
 // This utility returns a true/false depending on whether
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {
 	if ok, _ := strconv.ParseBool(os.Getenv(ADVANCED_L4)); ok {
+		return true
+	}
+	return false
+}
+func UseServicesAPI() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv(SERVICES_API)); ok {
 		return true
 	}
 	return false
