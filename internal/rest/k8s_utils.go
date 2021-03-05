@@ -29,9 +29,9 @@ func (rest *RestOperations) SyncObjectStatuses() {
 	vsKeys := rest.cache.VsCacheMeta.AviGetAllKeys()
 	utils.AviLog.Debugf("Ingress status sync for vsKeys %+v", utils.Stringify(vsKeys))
 
-	var allIngressUpdateOptions []status.UpdateStatusOptions
-	var allServiceLBUpdateOptions []status.UpdateStatusOptions
-	var allGatewayUpdateOptions []status.UpdateStatusOptions
+	var allIngressUpdateOptions []status.UpdateOptions
+	var allServiceLBUpdateOptions []status.UpdateOptions
+	var allGatewayUpdateOptions []status.UpdateOptions
 	for _, vsKey := range vsKeys {
 		if vsKey.Name == lib.DummyVSForStaleData {
 			continue
@@ -51,7 +51,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		if vsSvcMetadataObj.Gateway != "" {
 			// gateway based VSes
 			allGatewayUpdateOptions = append(allGatewayUpdateOptions,
-				status.UpdateStatusOptions{
+				status.UpdateOptions{
 					Vip:             vsCacheObj.Vip,
 					ServiceMetadata: vsSvcMetadataObj,
 					Key:             "syncstatus",
@@ -66,19 +66,21 @@ func (rest *RestOperations) SyncObjectStatuses() {
 			parentVsObj, _ := parentVs.(*avicache.AviVsCache)
 			if (vsSvcMetadataObj.IngressName != "" || len(vsSvcMetadataObj.NamespaceIngressName) > 0) && vsSvcMetadataObj.Namespace != "" && parentVsObj != nil {
 				allIngressUpdateOptions = append(allIngressUpdateOptions,
-					status.UpdateStatusOptions{
-						Vip:             parentVsObj.Vip,
-						ServiceMetadata: vsSvcMetadataObj,
-						Key:             "syncstatus",
+					status.UpdateOptions{
+						Vip:                parentVsObj.Vip,
+						ServiceMetadata:    vsSvcMetadataObj,
+						Key:                "syncstatus",
+						VirtualServiceUUID: vsCacheObj.Uuid,
 					})
 			}
 		} else if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
 			// serviceLB
 			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
-				status.UpdateStatusOptions{
-					Vip:             vsCacheObj.Vip,
-					ServiceMetadata: vsSvcMetadataObj,
-					Key:             "syncstatus",
+				status.UpdateOptions{
+					Vip:                vsCacheObj.Vip,
+					ServiceMetadata:    vsSvcMetadataObj,
+					Key:                "syncstatus",
+					VirtualServiceUUID: vsCacheObj.Uuid,
 				})
 		} else {
 			// insecure VSes handler
@@ -96,10 +98,11 @@ func (rest *RestOperations) SyncObjectStatuses() {
 				// insecure pools
 				if poolCacheObj.ServiceMetadataObj.Namespace != "" {
 					allIngressUpdateOptions = append(allIngressUpdateOptions,
-						status.UpdateStatusOptions{
-							Vip:             vsCacheObj.Vip,
-							ServiceMetadata: poolCacheObj.ServiceMetadataObj,
-							Key:             "syncstatus",
+						status.UpdateOptions{
+							Vip:                vsCacheObj.Vip,
+							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
+							Key:                "syncstatus",
+							VirtualServiceUUID: vsCacheObj.Uuid,
 						})
 				}
 			}

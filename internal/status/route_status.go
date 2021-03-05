@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -26,13 +27,14 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 )
 
-func ParseOptionsFromMetadata(options []UpdateStatusOptions, bulk bool) ([]string, []UpdateStatusOptions) {
+func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []UpdateOptions) {
 	var objectsToUpdate []string
-	var updateIngressOptions []UpdateStatusOptions
+	var updateIngressOptions []UpdateOptions
 
 	for _, option := range options {
 		if len(option.ServiceMetadata.NamespaceIngressName) > 0 {
@@ -64,7 +66,7 @@ func ParseOptionsFromMetadata(options []UpdateStatusOptions, bulk bool) ([]strin
 // Currently there are too many api calls, which are different for routes and ingresses,
 // to have them under same function.
 
-func UpdateRouteIngressStatus(options []UpdateStatusOptions, bulk bool) {
+func UpdateRouteIngressStatus(options []UpdateOptions, bulk bool) {
 	if utils.GetInformers().IngressInformer != nil {
 		UpdateIngressStatus(options, bulk)
 	} else if utils.GetInformers().RouteInformer != nil {
@@ -85,7 +87,7 @@ func DeleteRouteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, isVSDel
 	}
 }
 
-func UpdateRouteStatus(options []UpdateStatusOptions, bulk bool) {
+func UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 	var err error
 	routesToUpdate, updateRouteOptions := ParseOptionsFromMetadata(options, bulk)
 
@@ -230,7 +232,7 @@ func routeStatusCheck(key string, oldStatus []routev1.RouteIngress, hostname str
 	return false
 }
 
-func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, retryNum ...int) error {
+func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryNum ...int) error {
 	if updateOption.Vip == "" {
 		return nil
 	}
@@ -286,28 +288,98 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateStatusOptions, 
 		}
 	}
 
-	if sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress); sameStatus {
+	var updatedRoute *routev1.Route
+
+	sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress)
+	if !sameStatus {
+		patchPayload, _ := json.Marshal(map[string]interface{}{
+			"status": mRoute.Status,
+		})
+
+		updatedRoute, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, msg: there was an error in updating the route status: %v", key, err)
+			// fetch updated route and feed for update status
+			mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
+			if len(mRoutes) > 0 {
+				return updateRouteObject(mRoutes[mRoute.Namespace+"/"+mRoute.Name], updateOption, retry+1)
+			}
+		}
+
+		utils.AviLog.Infof("key: %s, msg: Successfully updated the status of route: %s/%s old: %+v new: %+v",
+			key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
+	} else {
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
-		return nil
 	}
+	err = updateRouteAnnotations(updatedRoute, updateOption, mRoute, key, hostListIng)
 
-	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": mRoute.Status,
-	})
-	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the route status: %v", key, err)
-		// fetch updated route and feed for update status
-		mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
-		if len(mRoutes) > 0 {
-			return updateRouteObject(mRoutes[mRoute.Namespace+"/"+mRoute.Name], updateOption, retry+1)
+	return err
+}
+
+func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, oldRoute *routev1.Route,
+	key string, routeHostList []string, retryNum ...int) error {
+	if mRoute == nil {
+		mRoute = oldRoute
+	}
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			return errors.New("UpdateRouteStatus retried 3 times, aborting")
 		}
 	}
 
-	utils.AviLog.Infof("key: %s, msg: Successfully updated the status of route: %s/%s old: %+v new: %+v",
-		key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
-	return err
+	vsAnnotations := make(map[string]string)
+	if value, ok := mRoute.Annotations[VSAnnotation]; ok {
+		if err := json.Unmarshal([]byte(value), &vsAnnotations); err != nil {
+			utils.AviLog.Errorf("key: %s, msg: error in unmarshalling route annotations: %v", key, err)
+			// nothing else to be done, invalid annotations will be taken care of in the update call
+		}
+	}
+
+	// update the current hostname's VirtualService UUID
+	for i := 0; i < len(updateOption.ServiceMetadata.HostNames); i++ {
+		vsAnnotations[updateOption.ServiceMetadata.HostNames[i]] = updateOption.VirtualServiceUUID
+	}
+
+	// remove the non-spec hostnames
+	for k := range vsAnnotations {
+		if !utils.HasElem(routeHostList, k) {
+			delete(vsAnnotations, k)
+		}
+	}
+
+	// compare the VirtualService annotations for this ingress object
+	if req := isAnnotationsUpdateRequired(mRoute.Annotations, vsAnnotations); req {
+		if err := patchRouteAnnotations(mRoute, vsAnnotations); err != nil && k8serrors.IsNotFound(err) {
+			utils.AviLog.Errorf("key: %s, msg: error in updating the route annotations: %v", key, err)
+			// fetch updated route and retry for updating annotations
+			mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
+			if len(mRoutes) > 0 {
+				return updateRouteAnnotations(mRoute, updateOption, oldRoute, key, routeHostList, retry+1)
+			}
+		}
+		utils.AviLog.Infof("key: %s, msg: successfully updated route annotations: %s/%s, old: %+v, new: %+v",
+			key, mRoute.Namespace, mRoute.Name, oldRoute.Annotations, mRoute.Annotations)
+	} else {
+		utils.AviLog.Debugf("No annotations update required for this route: %s/%s", mRoute.Namespace,
+			mRoute.Name)
+	}
+
+	return nil
+}
+
+func patchRouteAnnotations(mRoute *routev1.Route, vsAnnotations map[string]string) error {
+	patchPayloadBytes, err := getAnnotationsPayload(vsAnnotations, mRoute.GetAnnotations())
+	if err != nil {
+		return fmt.Errorf("error in generating payload for vs annotations %v: %v", vsAnnotations, err)
+	}
+	if _, err = utils.GetInformers().OshiftClient.RouteV1().Routes(mRoute.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) bool {
@@ -412,22 +484,74 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 		}
 	}
 
-	if sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress); sameStatus {
+	var updatedRoute *routev1.Route
+	sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress)
+	if sameStatus {
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in ingress status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
-		return nil
+	} else {
+		patchPayload, _ := json.Marshal(map[string]interface{}{
+			"status": mRoute.Status,
+		})
+		updatedRoute, err = utils.GetInformers().OshiftClient.RouteV1().Routes(svc_mdata_obj.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
+			return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
+		}
+
+		utils.AviLog.Infof("key: %s, msg: Successfully deleted status of route: %s/%s old: %+v new: %+v",
+			key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	}
 
-	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": mRoute.Status,
-	})
-	_, err = utils.GetInformers().OshiftClient.RouteV1().Routes(svc_mdata_obj.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
-		return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
+	return deleteRouteAnnotation(updatedRoute, svc_mdata_obj, isVSDelete, hostListIng, key, mRoute)
+}
+
+func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMetadataObj, isVSDelete bool,
+	routeHostList []string, key string, oldRoute *routev1.Route, retryNum ...int) error {
+	if routeObj == nil {
+		routeObj = oldRoute
+	}
+	retry := 0
+	if len(retryNum) > 0 {
+		utils.AviLog.Infof("key: %s, msg: retrying to update route annotations", key)
+		retry = retryNum[0]
+		if retry >= 3 {
+			return fmt.Errorf("deleteIngressAnnotation retried 3 times, aborting")
+		}
+	}
+	existingAnnotations := make(map[string]string)
+	if annotations, exists := routeObj.Annotations[VSAnnotation]; exists {
+		if err := json.Unmarshal([]byte(annotations), &existingAnnotations); err != nil {
+			return fmt.Errorf("error in unmarshalling annotations %s, %v", annotations, err)
+		}
+	} else {
+		return fmt.Errorf("error in fetching VS annotations %v", routeObj.Annotations)
 	}
 
-	utils.AviLog.Infof("key: %s, msg: Successfully deleted status of route: %s/%s old: %+v new: %+v",
-		key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
+	for k := range existingAnnotations {
+		for _, host := range svcMeta.HostNames {
+			if k == host {
+				// Check if:
+				// 1. this host is still present in the spec, if so - don't delete it from annotations
+				// 2. in case of NS migration, if NS is moved from selected to rejected, this host then
+				//    has to be removed from the annotations list.
+				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace, utils.GetGlobalNSFilter(), nil, true)
+				if !utils.HasElem(routeHostList, host) || isVSDelete || !nsMigrationFilterFlag {
+					delete(existingAnnotations, k)
+				} else {
+					utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the ingress: %v", key, host)
+				}
+			}
+		}
+	}
+
+	if isAnnotationsUpdateRequired(routeObj.Annotations, existingAnnotations) {
+		if err := patchRouteAnnotations(routeObj, existingAnnotations); err != nil && k8serrors.IsNotFound(err) {
+			utils.AviLog.Errorf("key: %s, msg: error in updating route annotations: %v, will retry", err)
+			return deleteRouteAnnotation(routeObj, svcMeta, isVSDelete, routeHostList, key, oldRoute, retry+1)
+		}
+		utils.AviLog.Debugf("key: %s, msg: annotations updated for route", key)
+	}
+
 	return nil
 }

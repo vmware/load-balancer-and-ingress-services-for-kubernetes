@@ -2322,6 +2322,40 @@ func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, cloudUUI
 	return dnsSubDomains
 }
 
+var controllerClusterUUID string
+
+// SetControllerClusterUUID sets the controller cluster's UUID value which is fetched from
+// /api/cluster. If the variable controllerClusterUUID is already set, no API call will be
+// made.
+func SetControllerClusterUUID(clientPool *utils.AviRestClientPool) error {
+	if controllerClusterUUID != "" {
+		// controller cluster UUID already set
+		return nil
+	}
+	uri := "/api/cluster"
+	var result interface{}
+	err := lib.AviGet(clientPool.AviClient[0], uri, &result)
+	if err != nil {
+		return fmt.Errorf("cluster get uri %s returned error %v", uri, err)
+	}
+	controllerClusterData, ok := result.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("error in parsing controller cluster response: %v", result)
+	}
+	if clusterUUID, parsed := controllerClusterData["uuid"].(string); parsed {
+		controllerClusterUUID = clusterUUID
+	} else {
+		return fmt.Errorf("error in parsing controller cluster uuid field from %v", controllerClusterData)
+	}
+
+	return nil
+}
+
+// GetControllerClusterUUID returns the value in controllerClusterUUID variable.
+func GetControllerClusterUUID() string {
+	return controllerClusterUUID
+}
+
 func ValidateUserInput(client *clients.AviClient) bool {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
 

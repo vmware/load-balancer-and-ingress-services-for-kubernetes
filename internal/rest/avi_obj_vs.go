@@ -423,13 +423,13 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.Gateway != "" {
 					if lib.UseServicesAPI() {
-						status.UpdateSvcApiGatewayStatusAddress([]status.UpdateStatusOptions{{
+						status.UpdateSvcApiGatewayStatusAddress([]status.UpdateOptions{{
 							Vip:             vs_cache_obj.Vip,
 							ServiceMetadata: svc_mdata_obj,
 							Key:             key,
 						}}, false)
 					} else {
-						status.UpdateGatewayStatusAddress([]status.UpdateStatusOptions{{
+						status.UpdateGatewayStatusAddress([]status.UpdateOptions{{
 							Vip:             vs_cache_obj.Vip,
 							ServiceMetadata: svc_mdata_obj,
 							Key:             key,
@@ -437,16 +437,18 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					}
 				} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 					// This service needs an update of the status
-					status.UpdateL4LBStatus([]status.UpdateStatusOptions{{
-						Vip:             vs_cache_obj.Vip,
-						ServiceMetadata: svc_mdata_obj,
-						Key:             key,
+					status.UpdateL4LBStatus([]status.UpdateOptions{{
+						Vip:                vs_cache_obj.Vip,
+						ServiceMetadata:    svc_mdata_obj,
+						Key:                key,
+						VirtualServiceUUID: vs_cache_obj.Uuid,
 					}}, false)
 				} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
-					status.UpdateRouteIngressStatus([]status.UpdateStatusOptions{{
-						Vip:             parentVsObj.Vip,
-						ServiceMetadata: svc_mdata_obj,
-						Key:             key,
+					status.UpdateRouteIngressStatus([]status.UpdateOptions{{
+						Vip:                parentVsObj.Vip,
+						ServiceMetadata:    svc_mdata_obj,
+						Key:                key,
+						VirtualServiceUUID: vs_cache_obj.Uuid,
 					}}, false)
 				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
@@ -460,10 +462,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 							pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 							if found {
 								if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-									status.UpdateRouteIngressStatus([]status.UpdateStatusOptions{{
-										Vip:             vs_cache_obj.Vip,
-										ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
-										Key:             key,
+									status.UpdateRouteIngressStatus([]status.UpdateOptions{{
+										Vip:                vs_cache_obj.Vip,
+										ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
+										Key:                key,
+										VirtualServiceUUID: vs_cache_obj.Uuid,
 									}}, false)
 								}
 							}
@@ -500,7 +503,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 			if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 				// This service needs an update of the status
-				status.UpdateL4LBStatus([]status.UpdateStatusOptions{{
+				status.UpdateL4LBStatus([]status.UpdateOptions{{
 					Vip:             vs_cache_obj.Vip,
 					ServiceMetadata: svc_mdata_obj,
 					Key:             key,
