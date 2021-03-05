@@ -343,8 +343,19 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName string, key str
 	} else {
 		utils.AviLog.Warnf("key: %s, msg: there is no nsipamdns configured in the cloud, not configuring the default fqdn", key)
 	}
-	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: lib.GetTenant(), FQDNs: fqdns,
-		EastWest: false, VrfContext: vrfcontext}
+
+	vsVipNode := &AviVSVIPNode{
+		Name:       lib.GetVsVipName(vsName),
+		Tenant:     lib.GetTenant(),
+		FQDNs:      fqdns,
+		EastWest:   false,
+		VrfContext: vrfcontext,
+	}
+
+	if networkName := lib.GetNetworkName(); networkName != "" {
+		vsVipNode.NetworkName = &networkName
+	}
+
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	return avi_vs_meta
 }

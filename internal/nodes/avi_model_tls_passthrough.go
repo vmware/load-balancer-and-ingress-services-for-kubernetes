@@ -57,8 +57,18 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	fqdns = append(fqdns, hostname)
 
 	// VSvip node to be shared by the secure and insecure VS
-	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: lib.GetTenant(), FQDNs: fqdns,
-		EastWest: false, VrfContext: vrfcontext}
+	vsVipNode := &AviVSVIPNode{
+		Name:       lib.GetVsVipName(vsName),
+		Tenant:     lib.GetTenant(),
+		FQDNs:      fqdns,
+		EastWest:   false,
+		VrfContext: vrfcontext,
+	}
+
+	if networkName := lib.GetNetworkName(); networkName != "" {
+		vsVipNode.NetworkName = &networkName
+	}
+
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	return avi_vs_meta
 }

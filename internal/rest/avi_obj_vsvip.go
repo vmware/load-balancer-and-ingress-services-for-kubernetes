@@ -46,8 +46,8 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 	cksum := vsvip_meta.CloudConfigCksum
 	cksumstr := strconv.Itoa(int(cksum))
 
-	networkName := lib.GetNetworkName()
-	if lib.UseServicesAPI() && vsvip_meta.NetworkName != nil {
+	var networkName string
+	if vsvip_meta.NetworkName != nil {
 		networkName = *vsvip_meta.NetworkName
 	}
 	if networkName != "" {

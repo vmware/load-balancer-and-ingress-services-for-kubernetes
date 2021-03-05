@@ -111,6 +111,10 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		VrfContext: vrfcontext,
 	}
 
+	if networkName := lib.GetNetworkName(); networkName != "" {
+		vsVipNode.NetworkName = &networkName
+	}
+
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	buildL4InfraSetting(key, avi_vs_meta, vsVipNode, svcObj, nil)
 
