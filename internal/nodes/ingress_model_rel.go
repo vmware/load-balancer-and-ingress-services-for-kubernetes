@@ -98,6 +98,7 @@ var (
 	AviInfraSetting = GraphSchema{
 		Type:              "AviInfraSetting",
 		GetParentGateways: AviSettingToGateway,
+		GetParentServices: AviSettingToSvc,
 	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
@@ -121,6 +122,7 @@ type GraphSchema struct {
 	GetParentIngresses func(string, string, string) ([]string, bool)
 	GetParentRoutes    func(string, string, string) ([]string, bool)
 	GetParentGateways  func(string, string, string) ([]string, bool)
+	GetParentServices  func(string, string, string) ([]string, bool)
 }
 
 type GraphDescriptor []GraphSchema
@@ -654,6 +656,34 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, allGateways)
 	return allGateways, true
+}
+
+func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]string, bool) {
+	allSvcs := make([]string, 0)
+
+	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
+	if err == nil {
+		// Validate Avi references and configurations in AviInfraSetting.
+		if err = validateAviInfraSetting(key, infraSetting); err != nil {
+			return allSvcs, false
+		}
+	}
+
+	// get all services that are affected by this infrasetting
+	services, err := utils.GetInformers().ServiceInformer.Informer().GetIndexer().ByIndex(lib.AviSettingServicesIndex, infraSettingName)
+	if err != nil {
+		return allSvcs, false
+	}
+
+	for _, svc := range services {
+		svcObj, isSvc := svc.(*corev1.Service)
+		if isSvc {
+			allSvcs = append(allSvcs, svcObj.Namespace+"/"+svcObj.Name)
+		}
+	}
+
+	utils.AviLog.Debugf("key: %s, msg: total services retrieved from AviInfraSettings: %s", key, allSvcs)
+	return allSvcs, true
 }
 
 func parseServicesForIngress(ingSpec networkingv1beta1.IngressSpec, key string) []string {

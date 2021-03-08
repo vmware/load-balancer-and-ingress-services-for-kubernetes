@@ -564,7 +564,24 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	}
 
 	c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
+
 	c.informers.ServiceInformer.Informer().AddEventHandler(svcEventHandler)
+	c.informers.ServiceInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.AviSettingServicesIndex: func(obj interface{}) ([]string, error) {
+				service, ok := obj.(*corev1.Service)
+				if !ok {
+					return []string{}, nil
+				}
+				if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
+					if val, ok := service.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
+						return []string{val}, nil
+					}
+				}
+				return []string{}, nil
+			},
+		},
+	)
 
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {
 		blockAffinityHandler := cache.ResourceEventHandlerFuncs{

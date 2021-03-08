@@ -50,6 +50,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			routeNames, routeFound = schema.GetParentRoutes(name, namespace, key)
 		}
 	}
+
 	// if we get update for object of type k8s node, create vrf graph
 	// if in NodePort Mode we update pool servers
 	if objType == utils.NodeObj {
@@ -80,6 +81,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 		return
 	}
+
 	if objType == utils.Service {
 		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
 		found, _ := objects.SharedlbLister().Get(namespace + "/" + name)
@@ -97,6 +99,16 @@ func DequeueIngestion(key string, fullsync bool) {
 
 	if routeFound {
 		handleRoute(key, fullsync, routeNames)
+	}
+
+	// Push Services from InfraSetting updates. Valid for annotation based approach.
+	if objType == lib.AviInfraSetting && !lib.UseServicesAPI() {
+		svcNames, svcFound := schema.GetParentServices(name, namespace, key)
+		if svcFound {
+			for _, svcNSNameKey := range svcNames {
+				handleL4Service(utils.L4LBService+"/"+svcNSNameKey, fullsync)
+			}
+		}
 	}
 
 	if !ingressFound && (!lib.GetAdvancedL4() && !lib.UseServicesAPI()) {
