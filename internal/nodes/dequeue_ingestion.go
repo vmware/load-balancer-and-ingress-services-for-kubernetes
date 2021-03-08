@@ -123,7 +123,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				return
 			}
 
-			if svcObj.Spec.Type == utils.LoadBalancer {
+			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
