@@ -24,7 +24,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	_ "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
@@ -235,8 +234,7 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 		if found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			if len(nodes[0].SniNodes) > 0 &&
-				len(nodes[0].SniNodes[0].PoolRefs) == 2 &&
-				len(nodes[0].PoolRefs) == 0 {
+				len(nodes[0].SniNodes[0].PoolRefs) == 2 {
 				return true
 			}
 		}

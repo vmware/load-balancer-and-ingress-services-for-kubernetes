@@ -1031,7 +1031,6 @@ func inArray(a []string, b string) bool {
 // FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data
 // for GET objects list API. GET /api/virtualservice returns from virtualservice_mock.json and so on
 func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath string) {
-	utils.AviLog.Infof("HEY")
 	url := r.URL.EscapedPath() // url = //api/<object>/:objectId
 	splitURL := strings.Split(strings.Trim(url, "/"), "/")
 
