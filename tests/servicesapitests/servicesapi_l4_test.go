@@ -1140,7 +1140,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.BeNil())
+	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal(lib.GetNetworkName()))
 	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
 
 	settingUpdate := (FakeAviInfraSetting{
@@ -1235,7 +1235,7 @@ func TestServicesAPIInfraSettingDelete(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.BeNil())
+	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal(lib.GetNetworkName()))
 	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
 
 	TeardownAdvLBService(t, "svc", ns)

@@ -330,8 +330,18 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 	o.ConstructHTTPDataScript(vsName, key, avi_vs_meta)
 	var fqdns []string
 
-	vsVipNode := &AviVSVIPNode{Name: lib.GetVsVipName(vsName), Tenant: lib.GetTenant(), FQDNs: fqdns,
-		EastWest: false, VrfContext: vrfcontext}
+	vsVipNode := &AviVSVIPNode{
+		Name:       lib.GetVsVipName(vsName),
+		Tenant:     lib.GetTenant(),
+		FQDNs:      fqdns,
+		EastWest:   false,
+		VrfContext: vrfcontext,
+	}
+
+	if networkName := lib.GetNetworkName(); networkName != "" {
+		vsVipNode.NetworkName = &networkName
+	}
+
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	return avi_vs_meta
 }
