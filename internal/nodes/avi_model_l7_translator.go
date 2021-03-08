@@ -51,7 +51,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 		o.DeletePoolForIngress(namespace, ingName, key, vsNode)
 	} else {
 		processIng := true
-		processIng = validateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace, nil, true)
+		processIng = validateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace)
 		if !processIng {
 			// If the ingress class is not right, let's delete it.
 			o.DeletePoolForIngress(namespace, ingName, key, vsNode)

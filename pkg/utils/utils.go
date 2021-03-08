@@ -357,10 +357,16 @@ func DeleteNamespaceFromFilter(namespace string) {
 	delete(globalNSFilterObj.validNSList.nsList, namespace)
 }
 
-func CheckIfNamespaceAccepted(namespace string, nsLabels map[string]string, nonNSK8ResFlag bool) bool {
+func CheckIfNamespaceAccepted(namespace string, opts ...interface{}) bool {
 	//Return true if there is no migration labels mentioned
 	if !globalNSFilterObj.EnableMigration {
 		return true
+	}
+	var nsLabels map[string]string = nil
+	var nonNSK8ResFlag bool = true
+	if len(opts) == 2 {
+		nsLabels = opts[0].(map[string]string)
+		nonNSK8ResFlag = opts[1].(bool)
 	}
 	//For k8 resources other than namespace check NS already present or not
 	if nonNSK8ResFlag && IsNSPresent(namespace, globalNSFilterObj) {
@@ -383,7 +389,7 @@ func IsServiceNSValid(namespace string) bool {
 	//L4 Namespace sync not applicable for advance L4 and service API
 
 	if !GetAdvancedL4() && !UseServicesAPI() {
-		if !CheckIfNamespaceAccepted(namespace, nil, true) {
+		if !CheckIfNamespaceAccepted(namespace) {
 			return false
 		}
 	}

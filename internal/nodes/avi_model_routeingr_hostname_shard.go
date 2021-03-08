@@ -65,7 +65,7 @@ func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error,
 		namespace: namespace,
 	}
 	processObj := true
-	processObj = utils.CheckIfNamespaceAccepted(namespace, nil, true)
+	processObj = utils.CheckIfNamespaceAccepted(namespace)
 
 	routeObj, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).Get(name)
 	if err != nil {
@@ -137,7 +137,7 @@ func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, b
 	if err != nil {
 		return &ingrModel, err, processObj
 	}
-	processObj = validateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace, nil, true)
+	processObj = validateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace)
 	ingrModel.spec = ingObj.Spec
 	ingrModel.annotations = ingObj.GetAnnotations()
 	return &ingrModel, nil, processObj

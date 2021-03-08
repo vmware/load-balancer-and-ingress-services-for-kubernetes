@@ -197,20 +197,23 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 	if lib.GetAdvancedL4() || lib.UseServicesAPI() {
 		return
 	}
+	var key string
 	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
+		utils.AviLog.Errorf("Unable to retrieve the services during namespace sync: %s", err)
 		return
 	}
 	for _, svcObj := range svcObjs {
 		isSvcLb := isServiceLBType(svcObj)
-
+		//Add L4 and Cluster API services to queue
 		if isSvcLb {
-			key := utils.L4LBService + "/" + utils.ObjKey(svcObj)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+			key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
+		} else {
+			key = utils.Service + "/" + utils.ObjKey(svcObj)
 		}
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 
 }
@@ -236,13 +239,14 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 			}
 			ns := obj.(*corev1.Namespace)
 			nsLabels := ns.GetLabels()
-			if utils.CheckIfNamespaceAccepted(ns.GetName(), nsLabels, false) {
+			namespace := ns.GetName()
+			if utils.CheckIfNamespaceAccepted(namespace, nsLabels, false) {
 				utils.AddNamespaceToFilter(ns.GetName())
 				utils.AviLog.Debugf("NS Add event: Namespace passed filter: %s", ns.GetName())
 			} else {
 				//Case: previously deleted valid NS, added back with no labels or invalid labels but nsList contain that ns
 				utils.AviLog.Debugf("NS Add event: Namespace did not pass filter: %s", ns.GetName())
-				if utils.CheckIfNamespaceAccepted(ns.GetName(), nil, true) {
+				if utils.CheckIfNamespaceAccepted(namespace) {
 					utils.AviLog.Debugf("Ns Add event: Deleting previous valid namespace: %s from valid NS List", ns.GetName())
 					utils.DeleteNamespaceFromFilter(ns.GetName())
 				}
@@ -306,7 +310,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
-			if !utils.CheckIfNamespaceAccepted(namespace, nil, true) {
+			if !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
 				return
 			}
@@ -336,7 +340,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				}
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
-			if !utils.CheckIfNamespaceAccepted(namespace, nil, true) {
+			if !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
 				return
 			}
@@ -353,7 +357,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			newRoute := cur.(*routev1.Route)
 			if isRouteUpdated(oldRoute, newRoute) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
-				if !utils.CheckIfNamespaceAccepted(namespace, nil, true) {
+				if !utils.CheckIfNamespaceAccepted(namespace) {
 					utils.AviLog.Debugf("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
 					return
 				}
@@ -521,7 +525,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					checkSvcForSvcApiGatewayPortConflict(svc, key)
 				}
 			} else {
-				if lib.GetAdvancedL4() || lib.UseServicesAPI() {
+				if lib.GetAdvancedL4() || lib.UseServicesAPI() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -558,7 +562,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
-				if lib.GetAdvancedL4() || lib.UseServicesAPI() {
+				if lib.GetAdvancedL4() || lib.UseServicesAPI() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -591,7 +595,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						checkSvcForSvcApiGatewayPortConflict(svc, key)
 					}
 				} else {
-					if lib.GetAdvancedL4() || lib.UseServicesAPI() {
+					if lib.GetAdvancedL4() || lib.UseServicesAPI() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
 					key = utils.Service + "/" + utils.ObjKey(svc)
@@ -776,7 +780,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			ingress := obj.(*networkingv1beta1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			if utils.CheckIfNamespaceAccepted(namespace, nil, true) {
+			if utils.CheckIfNamespaceAccepted(namespace) {
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -804,7 +808,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			if utils.CheckIfNamespaceAccepted(namespace, nil, true) {
+			if utils.CheckIfNamespaceAccepted(namespace) {
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -821,7 +825,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			ingress := cur.(*networkingv1beta1.Ingress)
 			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-				if utils.CheckIfNamespaceAccepted(namespace, nil, true) {
+				if utils.CheckIfNamespaceAccepted(namespace) {
 					key := utils.Ingress + "/" + utils.ObjKey(ingress)
 					bkt := utils.Bkt(namespace, numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)

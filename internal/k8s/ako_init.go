@@ -394,16 +394,20 @@ func (c *AviController) FullSyncK8s() error {
 
 		isSvcLb := isServiceLBType(svcObj)
 		var key string
+		svcLabel := utils.ObjKey(svcObj)
+		ns := strings.Split(svcLabel, "/")
 		if isSvcLb && !lib.GetLayer7Only(){
-			svcLabel := utils.ObjKey(svcObj)
-			ns := strings.Split(svcLabel, "/")
-			//Add key if ServiceAPI or advance L4 enabled or NS is valid
+			/*
+				Key added to Ingestion queue if
+				1. Advance L4 or ServiceAPI enabled or
+				2. Namespace is valid
+			*/
 			if !utils.IsServiceNSValid(ns[0]) {
 				continue
 			}
 			key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
 		} else {
-			if lib.GetAdvancedL4() {
+			if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(ns[0]) {
 				continue
 			}
 			key = utils.Service + "/" + utils.ObjKey(svcObj)
@@ -463,7 +467,7 @@ func (c *AviController) FullSyncK8s() error {
 				for _, ingObj := range ingObjs {
 					ingLabel := utils.ObjKey(ingObj)
 					ns := strings.Split(ingLabel, "/")
-					if utils.CheckIfNamespaceAccepted(ns[0], nil, true) {
+					if utils.CheckIfNamespaceAccepted(ns[0]) {
 						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
 						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
 						nodes.DequeueIngestion(key, true)
@@ -482,7 +486,7 @@ func (c *AviController) FullSyncK8s() error {
 					// to do move to container-lib
 					routeLabel := utils.ObjKey(routeObj)
 					ns := strings.Split(routeLabel, "/")
-					if utils.CheckIfNamespaceAccepted(ns[0], nil, true) {
+					if utils.CheckIfNamespaceAccepted(ns[0]) {
 						key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
 						utils.AviLog.Debugf("Dequeue for route key: %v", key)
 						nodes.DequeueIngestion(key, true)
