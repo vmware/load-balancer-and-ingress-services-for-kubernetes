@@ -107,7 +107,16 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		}
 
 		if networkName := lib.GetNetworkName(); networkName != "" {
-			vsVipNode.NetworkName = &networkName
+			vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, networkName)
+		} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS {
+			vipNetworkList, err := lib.GetVipNetworkList()
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+				return nil
+			}
+			if len(vipNetworkList) != 0 {
+				vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, vipNetworkList...)
+			}
 		}
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == advl4v1alpha1pre1.IPAddressType {
@@ -180,7 +189,16 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		if networkName := lib.GetNetworkName(); networkName != "" {
-			vsVipNode.NetworkName = &networkName
+			vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, networkName)
+		} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS {
+			vipNetworkList, err := lib.GetVipNetworkList()
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+				return nil
+			}
+			if len(vipNetworkList) != 0 {
+				vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, vipNetworkList...)
+			}
 		}
 
 		// configures VS and VsVip nodes using infraSetting object (via CRD).

@@ -44,8 +44,6 @@ NetworkSettings:
   vipNetworkList: []
   #vipNetworkList: []
   #  - networkName: subnet-xxxxxxx
-  #  - subnetIP: 12.0.0.0
-  #    subnetPrefix: '24'
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
 L7Settings:

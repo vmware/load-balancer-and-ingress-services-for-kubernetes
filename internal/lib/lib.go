@@ -378,13 +378,11 @@ func GetNetworkName() string {
 	return ""
 }
 
-func GetVipNetworkList() ([]map[string]string, error) {
+func GetVipNetworkList() ([]string, error) {
 
-	var vipNetworkList []map[string]string
+	var vipNetworkList []string
 	type Row struct {
-		NetworkName  string `json:"networkName"`
-		SubnetIP     string `json:"subnetIP"`
-		SubnetPrefix string `json:"subnetPrefix"`
+		NetworkName string `json:"networkName"`
 	}
 	type vipNetworkListRow []Row
 
@@ -399,11 +397,7 @@ func GetVipNetworkList() ([]map[string]string, error) {
 		return vipNetworkList, fmt.Errorf("Unable to unmarshall json for vipNetworkListMap")
 	}
 	for _, subnet := range vipNetworkListObj {
-		s := make(map[string]string)
-		s["networkName"] = subnet.NetworkName
-		s["subnetIP"] = subnet.SubnetIP
-		s["subnetPrefix"] = subnet.SubnetPrefix
-		vipNetworkList = append(vipNetworkList, s)
+		vipNetworkList = append(vipNetworkList, subnet.NetworkName)
 	}
 	return vipNetworkList, nil
 }

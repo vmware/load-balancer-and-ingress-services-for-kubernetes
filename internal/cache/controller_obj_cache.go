@@ -668,8 +668,8 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			vips = append(vips, *vip.IPAddress.Addr)
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
-					if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
-						networkNames = append(networkNames, networRefName[1])
+					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
+						networkNames = append(networkNames, networkRefName[1])
 					}
 					if lib.GetCloudType() == lib.CLOUD_AWS {
 						networkRefStr := strings.Split(networkRef, "/")
@@ -1255,8 +1255,8 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			vips = append(vips, *vip.IPAddress.Addr)
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
-					if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
-						networkNames = append(networkNames, networRefName[1])
+					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
+						networkNames = append(networkNames, networkRefName[1])
 					}
 					if lib.GetCloudType() == lib.CLOUD_AWS {
 						networkRefStr := strings.Split(networkRef, "/")
