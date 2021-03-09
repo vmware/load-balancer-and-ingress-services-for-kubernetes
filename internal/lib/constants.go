@@ -54,6 +54,7 @@ const (
 	STATUS_REDIRECT                            = "HTTP_REDIRECT_STATUS_CODE_302"
 	SLOW_SYNC_TIME                             = 90 // seconds
 	LOG_LEVEL                                  = "logLevel"
+	LAYER7_ONLY                                = "layer7Only"
 	SERVICE_TYPE                               = "SERVICE_TYPE"
 	NODE_PORT                                  = "NodePort"
 	NODE_KEY                                   = "NODE_KEY"

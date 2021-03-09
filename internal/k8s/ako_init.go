@@ -133,6 +133,8 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			}
 			utils.AviLog.Infof("avi k8s configmap created")
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+			// Check if AKO is configured to only use Ingress. This value can be only set during bootup and can't be edited dynamically.
+			lib.SetLayer7Only(cm.Data[lib.LAYER7_ONLY])
 			delModels := delConfigFromData(cm.Data)
 			if !delModels {
 				status.ResetStatefulSetStatus()
@@ -385,7 +387,7 @@ func (c *AviController) FullSyncK8s() error {
 		for _, svcObj := range svcObjs {
 			isSvcLb := isServiceLBType(svcObj)
 			var key string
-			if isSvcLb {
+			if isSvcLb && !lib.GetLayer7Only() {
 				key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
 			} else {
 				if lib.GetAdvancedL4() {
