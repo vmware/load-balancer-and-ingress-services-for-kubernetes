@@ -426,7 +426,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			isSvcLb := isServiceLBType(svc)
 			var key string
-			if isSvcLb {
+			if isSvcLb && !lib.GetLayer7Only() {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 				if lib.GetAdvancedL4() {
 					checkSvcForGatewayPortConflict(svc, key)
@@ -462,7 +462,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			isSvcLb := isServiceLBType(svc)
 			var key string
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
-			if isSvcLb {
+			if isSvcLb && !lib.GetLayer7Only() {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
 				if lib.GetAdvancedL4() {
@@ -485,7 +485,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 				isSvcLb := isServiceLBType(svc)
 				var key string
-				if isSvcLb {
+				if isSvcLb && !lib.GetLayer7Only() {
 					key = utils.L4LBService + "/" + utils.ObjKey(svc)
 					if lib.GetAdvancedL4() {
 						checkSvcForGatewayPortConflict(svc, key)
