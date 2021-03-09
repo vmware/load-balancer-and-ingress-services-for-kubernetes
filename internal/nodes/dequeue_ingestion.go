@@ -291,6 +291,11 @@ func handleRoute(key string, fullsync bool, routeNames []string) {
 }
 
 func handleL4Service(key string, fullsync bool) {
+	if lib.GetLayer7Only() {
+		// If the layer 7 only flag is set, then we shouldn't handling layer 4 VSes.
+		utils.AviLog.Debugf("key: %s, msg: not handling service of type loadbalancer since AKO is configured to run in layer 7 mode only", key)
+		return
+	}
 	_, namespace, name := extractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
