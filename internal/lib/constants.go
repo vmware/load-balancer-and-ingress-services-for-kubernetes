@@ -141,6 +141,11 @@ const (
 	// AviInfraSetting Objects. This helps in fetching all AviInfraSettings
 	// with a given SeGroup Name.
 	SeGroupAviSettingIndex = "seGroupAviSetting"
+
+	// AviSettingServicesIndex maintains a map of AviInfraSetting Objects to
+	// Service Namespace/Name. This helps in fettching all Services
+	// with a given AviInfraSetting.
+	AviSettingServicesIndex = "aviSettingServices"
 )
 
 const (

@@ -23,7 +23,6 @@ import (
 
 	svcapifake "sigs.k8s.io/service-apis/pkg/client/clientset/versioned/fake"
 
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
@@ -267,51 +266,6 @@ func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
 		t.Fatalf("error in deleting AdvLB Service: %v", err)
 	}
 	integrationtest.DelEP(t, namespace, svcname)
-}
-
-type FakeAviInfraSetting struct {
-	Name        string
-	SeGroupName string
-	NetworkName string
-	EnableRhi   bool
-}
-
-func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
-	gatewayclass := &akov1alpha1.AviInfraSetting{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: infraSetting.Name,
-		},
-		Spec: akov1alpha1.AviInfraSettingSpec{
-			SeGroup: akov1alpha1.AviInfraSettingSeGroup{
-				Name: infraSetting.SeGroupName,
-			},
-			Network: akov1alpha1.AviInfraSettingNetwork{
-				Name:      infraSetting.NetworkName,
-				EnableRhi: &infraSetting.EnableRhi,
-			},
-		},
-	}
-
-	return gatewayclass
-}
-
-func SetupAviInfraSetting(t *testing.T, infraSettingName string) {
-	setting := FakeAviInfraSetting{
-		Name:        infraSettingName,
-		SeGroupName: "thisisaviref-" + infraSettingName + "-seGroup",
-		NetworkName: "thisisaviref-" + infraSettingName + "-networkName",
-		EnableRhi:   true,
-	}
-	settingCreate := setting.AviInfraSetting()
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding AviInfraSetting: %v", err)
-	}
-}
-
-func TeardownAviInfraSetting(t *testing.T, infraSettingName string) {
-	if err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting AviInfraSetting: %v", err)
-	}
 }
 
 func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
@@ -1114,7 +1068,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
 	// Create with bad seGroup ref.
-	settingCreate := (FakeAviInfraSetting{
+	settingCreate := (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisBADaviref-seGroup",
 		NetworkName: "thisisaviref-networkName",
@@ -1143,7 +1097,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal(lib.GetNetworkName()))
 	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
 
-	settingUpdate := (FakeAviInfraSetting{
+	settingUpdate := (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
 		NetworkName: "thisisaviref-networkName",
@@ -1172,7 +1126,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-networkName"))
 	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
-	settingUpdate = (FakeAviInfraSetting{
+	settingUpdate = (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
 		NetworkName: "thisisBADaviref-networkName",
@@ -1192,7 +1146,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
-	TeardownAviInfraSetting(t, settingName)
+	integrationtest.TeardownAviInfraSetting(t, settingName)
 }
 
 func TestServicesAPIInfraSettingDelete(t *testing.T) {
@@ -1207,7 +1161,7 @@ func TestServicesAPIInfraSettingDelete(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
-	SetupAviInfraSetting(t, settingName)
+	integrationtest.SetupAviInfraSetting(t, settingName)
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -1222,7 +1176,7 @@ func TestServicesAPIInfraSettingDelete(t *testing.T) {
 	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName + "-networkName"))
 	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
-	TeardownAviInfraSetting(t, settingName)
+	integrationtest.TeardownAviInfraSetting(t, settingName)
 
 	// defaults to global seGroup and networkName.
 	g.Eventually(func() string {
@@ -1257,8 +1211,8 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, settingName1)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
-	SetupAviInfraSetting(t, settingName1)
-	SetupAviInfraSetting(t, settingName2)
+	integrationtest.SetupAviInfraSetting(t, settingName1)
+	integrationtest.SetupAviInfraSetting(t, settingName2)
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -1298,7 +1252,7 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
-	TeardownAviInfraSetting(t, settingName1)
-	TeardownAviInfraSetting(t, settingName2)
+	integrationtest.TeardownAviInfraSetting(t, settingName1)
+	integrationtest.TeardownAviInfraSetting(t, settingName2)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }

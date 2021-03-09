@@ -669,3 +669,234 @@ func TestAviSvcCreationWithStaticIP(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(staticIP))
 	TearDownTestForSvcLB(t, g)
 }
+
+// Infra CRD tests via service annotation
+
+func TestWithInfraSettingStatusUpdates(t *testing.T) {
+	// create infraSetting, svcLB with bad seGroup/networkName
+	// check for Rejected status, check layer 2 for defaults
+	// change to good seGroup/networkName, check for Accepted status
+	// check layer 2 model
+
+	g := gomega.NewGomegaWithT(t)
+	settingName := "infra-setting"
+
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	svcExample := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	PollForCompletion(t, SINGLEPORTMODEL, 5)
+
+	// Create with bad seGroup ref.
+	settingCreate := (FakeAviInfraSetting{
+		Name:        settingName,
+		SeGroupName: "thisisBADaviref-seGroup",
+		NetworkName: "thisisaviref-networkName",
+		EnableRhi:   true,
+	}).AviInfraSetting()
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding AviInfraSetting: %v", err)
+	}
+
+	g.Eventually(func() string {
+		setting, _ := CRDClient.AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		return setting.Status.Status
+	}, 15*time.Second).Should(gomega.Equal("Rejected"))
+
+	// defaults to global seGroup and networkName.
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal(lib.GetNetworkName()))
+	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
+
+	settingUpdate := (FakeAviInfraSetting{
+		Name:        settingName,
+		SeGroupName: "thisisaviref-seGroup",
+		NetworkName: "thisisaviref-networkName",
+		EnableRhi:   true,
+	}).AviInfraSetting()
+	settingUpdate.ResourceVersion = "2"
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating AviInfraSetting: %v", err)
+	}
+
+	g.Eventually(func() string {
+		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		return setting.Status.Status
+	}, 15*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 35*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-networkName"))
+	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
+
+	settingUpdate = (FakeAviInfraSetting{
+		Name:        settingName,
+		SeGroupName: "thisisaviref-seGroup",
+		NetworkName: "thisisBADaviref-networkName",
+		EnableRhi:   true,
+	}).AviInfraSetting()
+	settingUpdate.ResourceVersion = "3"
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating AviInfraSetting: %v", err)
+	}
+
+	g.Eventually(func() string {
+		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		return setting.Status.Status
+	}, 15*time.Second).Should(gomega.Equal("Rejected"))
+
+	TeardownAviInfraSetting(t, settingName)
+	TearDownTestForSvcLB(t, g)
+}
+
+func TestInfraSettingDelete(t *testing.T) {
+	// create infraSetting, svcLB
+	// delete infraSetting, fallback to defaults
+
+	g := gomega.NewGomegaWithT(t)
+	settingName := "infra-setting"
+
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	svcExample := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	PollForCompletion(t, SINGLEPORTMODEL, 5)
+
+	SetupAviInfraSetting(t, settingName)
+
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName + "-networkName"))
+	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
+
+	TeardownAviInfraSetting(t, settingName)
+
+	// defaults to global seGroup and networkName.
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal(lib.GetNetworkName()))
+	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
+
+	TearDownTestForSvcLB(t, g)
+}
+
+func TestInfraSettingChangeMapping(t *testing.T) {
+	// create 2 infraSettings, svcLB
+	// update infraSetting from one to another in service annotation
+	// check changed model
+
+	g := gomega.NewGomegaWithT(t)
+
+	settingName1, settingName2 := "infra-setting1", "infra-setting2"
+
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	svcExample := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName1}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	PollForCompletion(t, SINGLEPORTMODEL, 5)
+
+	SetupAviInfraSetting(t, settingName1)
+	SetupAviInfraSetting(t, settingName2)
+
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName1 + "-seGroup"))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName1 + "-networkName"))
+
+	// TODO: Change service annotation to have infraSettting2
+	svcUpdate := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	svcUpdate.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName2}
+	svcUpdate.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName2 + "-seGroup"))
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName2 + "-networkName"))
+
+	TeardownAviInfraSetting(t, settingName1)
+	TeardownAviInfraSetting(t, settingName2)
+	TearDownTestForSvcLB(t, g)
+}

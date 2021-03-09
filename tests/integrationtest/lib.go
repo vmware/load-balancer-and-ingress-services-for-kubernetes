@@ -1031,7 +1031,6 @@ func inArray(a []string, b string) bool {
 // FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data
 // for GET objects list API. GET /api/virtualservice returns from virtualservice_mock.json and so on
 func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath string) {
-	utils.AviLog.Infof("HEY")
 	url := r.URL.EscapedPath() // url = //api/<object>/:objectId
 	splitURL := strings.Split(strings.Trim(url, "/"), "/")
 
@@ -1261,4 +1260,49 @@ func VerifyMetadataHTTPRule(g *gomega.WithT, poolKey cache.NamespaceName, rrnsna
 		}
 		return false
 	}, 50*time.Second).Should(gomega.Equal(true))
+}
+
+type FakeAviInfraSetting struct {
+	Name        string
+	SeGroupName string
+	NetworkName string
+	EnableRhi   bool
+}
+
+func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
+	gatewayclass := &akov1alpha1.AviInfraSetting{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: infraSetting.Name,
+		},
+		Spec: akov1alpha1.AviInfraSettingSpec{
+			SeGroup: akov1alpha1.AviInfraSettingSeGroup{
+				Name: infraSetting.SeGroupName,
+			},
+			Network: akov1alpha1.AviInfraSettingNetwork{
+				Name:      infraSetting.NetworkName,
+				EnableRhi: &infraSetting.EnableRhi,
+			},
+		},
+	}
+
+	return gatewayclass
+}
+
+func SetupAviInfraSetting(t *testing.T, infraSettingName string) {
+	setting := FakeAviInfraSetting{
+		Name:        infraSettingName,
+		SeGroupName: "thisisaviref-" + infraSettingName + "-seGroup",
+		NetworkName: "thisisaviref-" + infraSettingName + "-networkName",
+		EnableRhi:   true,
+	}
+	settingCreate := setting.AviInfraSetting()
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding AviInfraSetting: %v", err)
+	}
+}
+
+func TeardownAviInfraSetting(t *testing.T, infraSettingName string) {
+	if err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("error in deleting AviInfraSetting: %v", err)
+	}
 }
