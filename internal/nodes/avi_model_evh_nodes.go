@@ -22,8 +22,6 @@ import (
 	"sort"
 	"strings"
 
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -33,6 +31,55 @@ import (
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// AviVsEvhSniModel : High Level interfaces that should be implemented by
+// AviEvhVsNode and  AviVsNode
+type AviVsEvhSniModel interface {
+	GetName() string
+	SetName(string)
+
+	GetPoolRefs() []*AviPoolNode
+	SetPoolRefs([]*AviPoolNode)
+
+	GetPoolGroupRefs() []*AviPoolGroupNode
+	SetPoolGroupRefs([]*AviPoolGroupNode)
+
+	GetSSLKeyCertRefs() []*AviTLSKeyCertNode
+	SetSSLKeyCertRefs([]*AviTLSKeyCertNode)
+
+	GetHttpPolicyRefs() []*AviHttpPolicySetNode
+	SetHttpPolicyRefs([]*AviHttpPolicySetNode)
+
+	GetServiceMetadata() avicache.ServiceMetadataObj
+	SetServiceMetadata(avicache.ServiceMetadataObj)
+
+	GetSSLKeyCertAviRef() string
+	SetSSLKeyCertAviRef(string)
+
+	GetWafPolicyRef() string
+	SetWafPolicyRef(string)
+
+	GetHttpPolicySetRefs() []string
+	SetHttpPolicySetRefs([]string)
+
+	GetAppProfileRef() string
+	SetAppProfileRef(string)
+
+	GetAnalyticsProfileRef() string
+	SetAnalyticsProfileRef(string)
+
+	GetErrorPageProfileRef() string
+	SetErrorPageProfileRef(string)
+
+	GetSSLProfileRef() string
+	SetSSLProfileRef(string)
+
+	GetVsDatascriptRefs() []string
+	SetVsDatascriptRefs([]string)
+
+	GetEnabled() *bool
+	SetEnabled(*bool)
+}
 
 type AviEvhVsNode struct {
 	EVHParent     bool
@@ -46,6 +93,7 @@ type AviEvhVsNode struct {
 	ServiceEngineGroup  string
 	ApplicationProfile  string
 	NetworkProfile      string
+	EnableRhi           *bool
 	Enabled             *bool
 	PortProto           []AviPortHostProtocol // for listeners
 	DefaultPool         string
@@ -71,6 +119,128 @@ type AviEvhVsNode struct {
 	VsDatascriptRefs    []string
 	SSLProfileRef       string
 	SSLKeyCertAviRef    string
+}
+
+// Implementing AviVsEvhSniModel
+
+func (v *AviEvhVsNode) GetName() string {
+	return v.Name
+}
+
+func (v *AviEvhVsNode) SetName(name string) {
+	v.Name = name
+}
+
+func (v *AviEvhVsNode) GetPoolRefs() []*AviPoolNode {
+	return v.PoolRefs
+}
+
+func (v *AviEvhVsNode) SetPoolRefs(poolRefs []*AviPoolNode) {
+	v.PoolRefs = poolRefs
+}
+
+func (v *AviEvhVsNode) GetPoolGroupRefs() []*AviPoolGroupNode {
+	return v.PoolGroupRefs
+}
+
+func (v *AviEvhVsNode) SetPoolGroupRefs(poolGroupRefs []*AviPoolGroupNode) {
+	v.PoolGroupRefs = poolGroupRefs
+}
+
+func (v *AviEvhVsNode) GetSSLKeyCertRefs() []*AviTLSKeyCertNode {
+	return v.SSLKeyCertRefs
+}
+
+func (v *AviEvhVsNode) SetSSLKeyCertRefs(sslKeyCertRefs []*AviTLSKeyCertNode) {
+	v.SSLKeyCertRefs = sslKeyCertRefs
+}
+
+func (v *AviEvhVsNode) GetHttpPolicyRefs() []*AviHttpPolicySetNode {
+	return v.HttpPolicyRefs
+}
+
+func (v *AviEvhVsNode) SetHttpPolicyRefs(httpPolicyRefs []*AviHttpPolicySetNode) {
+	v.HttpPolicyRefs = httpPolicyRefs
+}
+
+func (v *AviEvhVsNode) GetServiceMetadata() avicache.ServiceMetadataObj {
+	return v.ServiceMetadata
+}
+
+func (v *AviEvhVsNode) SetServiceMetadata(serviceMetadata avicache.ServiceMetadataObj) {
+	v.ServiceMetadata = serviceMetadata
+}
+
+func (v *AviEvhVsNode) GetSSLKeyCertAviRef() string {
+	return v.SSLKeyCertAviRef
+}
+
+func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef string) {
+	v.SSLKeyCertAviRef = sslKeyCertAviRef
+}
+
+func (v *AviEvhVsNode) GetWafPolicyRef() string {
+	return v.WafPolicyRef
+}
+
+func (v *AviEvhVsNode) SetWafPolicyRef(wafPolicyRef string) {
+	v.WafPolicyRef = wafPolicyRef
+}
+
+func (v *AviEvhVsNode) GetHttpPolicySetRefs() []string {
+	return v.HttpPolicySetRefs
+}
+
+func (v *AviEvhVsNode) SetHttpPolicySetRefs(httpPolicySetRefs []string) {
+	v.HttpPolicySetRefs = httpPolicySetRefs
+}
+
+func (v *AviEvhVsNode) GetAppProfileRef() string {
+	return v.AppProfileRef
+}
+
+func (v *AviEvhVsNode) SetAppProfileRef(appProfileRef string) {
+	v.AppProfileRef = appProfileRef
+}
+
+func (v *AviEvhVsNode) GetAnalyticsProfileRef() string {
+	return v.AnalyticsProfileRef
+}
+
+func (v *AviEvhVsNode) SetAnalyticsProfileRef(AnalyticsProfileRef string) {
+	v.AnalyticsProfileRef = AnalyticsProfileRef
+}
+
+func (v *AviEvhVsNode) GetErrorPageProfileRef() string {
+	return v.ErrorPageProfileRef
+}
+
+func (v *AviEvhVsNode) SetErrorPageProfileRef(ErrorPageProfileRef string) {
+	v.ErrorPageProfileRef = ErrorPageProfileRef
+}
+
+func (v *AviEvhVsNode) GetSSLProfileRef() string {
+	return v.SSLProfileRef
+}
+
+func (v *AviEvhVsNode) SetSSLProfileRef(SSLProfileRef string) {
+	v.SSLProfileRef = SSLProfileRef
+}
+
+func (v *AviEvhVsNode) GetVsDatascriptRefs() []string {
+	return v.VsDatascriptRefs
+}
+
+func (v *AviEvhVsNode) SetVsDatascriptRefs(VsDatascriptRefs []string) {
+	v.VsDatascriptRefs = VsDatascriptRefs
+}
+
+func (v *AviEvhVsNode) GetEnabled() *bool {
+	return v.Enabled
+}
+
+func (v *AviEvhVsNode) SetEnabled(Enabled *bool) {
+	v.Enabled = Enabled
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -227,7 +397,7 @@ func (o *AviEvhVsNode) DeleteSSLRefInEVHNode(sslKeyCertName, key string) {
 	for i, sslKeyCertRefs := range o.SSLKeyCertRefs {
 		if sslKeyCertRefs.Name == sslKeyCertName {
 			o.SSLKeyCertRefs = append(o.SSLKeyCertRefs[:i], o.SSLKeyCertRefs[i+1:]...)
-			utils.AviLog.Infof("key: %s, msg: replaced SSLKeyCertRefs for evh in model: %s sslKeyCertRefs name: %s", key, o.Name, sslKeyCertRefs.Name)
+			utils.AviLog.Debugf("key: %s, msg: replaced SSLKeyCertRefs for evh in model: %s sslKeyCertRefs name: %s", key, o.Name, sslKeyCertRefs.Name)
 			return
 		}
 	}
@@ -290,6 +460,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		utils.Hash(v.ApplicationProfile) +
 		utils.Hash(v.NetworkProfile) +
 		utils.Hash(utils.Stringify(portproto)) +
+		utils.Hash(v.ServiceEngineGroup) +
 		sslkeyChecksum +
 		vsvipChecksum +
 		utils.Hash(vsRefs) +
@@ -297,6 +468,11 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	if v.Enabled != nil {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
+	}
+	checksum += lib.GetClusterLabelChecksum()
+
+	if v.EnableRhi != nil {
+		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
 	}
 
 	v.CloudConfigCksum = checksum
@@ -481,7 +657,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 	}
 	for _, path := range paths {
-		BuildPoolHTTPRuleForEvh(host, path.Path, ingName, namespace, key, childNode, true)
+		BuildPoolHTTPRule(host, path.Path, ingName, namespace, key, childNode, true)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. childNodeChecksum for childNode :%s is :%v", key, childNode.Name, childNode.GetCheckSum())
@@ -532,7 +708,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
 		ingName := routeIgrObj.GetName()
 		namespace := routeIgrObj.GetNamespace()
-		evhNodeName := lib.GetEvhNodeName(ingName, namespace, "", host)
+		evhNodeName := lib.GetEvhNodeName(ingName, namespace, host)
 		evhNode := vsNode[0].GetEvhNodeForName(evhNodeName)
 		hostSlice := []string{host}
 		if evhNode == nil {
@@ -567,7 +743,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 			vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
 		}
 		// build host rule for insecure ingress in evh
-		BuildL7HostRuleForEvh(host, namespace, ingName, key, evhNode)
+		BuildL7HostRule(host, namespace, ingName, key, evhNode)
 		utils.AviLog.Debugf("key: %s, Saving Model in ProcessInsecureHostsForEVH : %v", key, utils.Stringify(vsNode))
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -756,14 +932,13 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		evhSecretName := tlssetting.SecretName
 		re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
 		if re.MatchString(evhSecretName) {
-			evhSecretName = strings.Split(evhSecretName, "/")[1]
 			certsBuilt = true
 		}
 
-		evhNode := vsNode[0].GetEvhNodeForName(lib.GetEvhNodeName(ingName, namespace, evhSecretName, host))
+		evhNode := vsNode[0].GetEvhNodeForName(lib.GetEvhNodeName(ingName, namespace, host))
 		if evhNode == nil {
 			evhNode = &AviEvhVsNode{
-				Name:         lib.GetEvhNodeName(ingName, namespace, evhSecretName, host),
+				Name:         lib.GetEvhNodeName(ingName, namespace, host),
 				VHParentName: vsNode[0].Name,
 				Tenant:       lib.GetTenant(),
 				EVHParent:    false,
@@ -807,7 +982,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVSForEvh(vsNode, host, namespace, ingName, key)
 			}
 			// Enable host rule
-			BuildL7HostRuleForEvh(host, namespace, ingName, key, evhNode)
+			BuildL7HostRule(host, namespace, ingName, key, evhNode)
 		} else {
 			hostMapOk, ingressHostMap := SharedHostNameLister().Get(host)
 			if hostMapOk {
@@ -1080,7 +1255,7 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 	}
 
 	isIngr := routeIgrObj.GetType() == utils.Ingress
-	evhNodeName := lib.GetEvhNodeName(ingName, namespace, "", hostname)
+	evhNodeName := lib.GetEvhNodeName(ingName, namespace, hostname)
 	utils.AviLog.Infof("key: %s, msg: EVH node to delete: %s", key, evhNodeName)
 	keepEvh = o.ManipulateEvhNode(evhNodeName, ingName, namespace, hostname, pathSvc, vsNode, key, isIngr)
 	if !keepEvh {
@@ -1184,231 +1359,4 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 
 	// remove hostpath mappings
 	updateHostPathCacheV2(namespace, objname, hostMap, nil)
-}
-
-// CRD functions
-
-func BuildL7HostRuleForEvh(host, namespace, ingName, key string, vsNode *AviEvhVsNode) {
-	// use host to find out HostRule CRD if it exists
-	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
-	deleteCase := false
-	if !found {
-		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
-		deleteCase = true
-	}
-
-	var err error
-	var hrNSName []string
-	var hostrule *akov1alpha1.HostRule
-	if !deleteCase {
-		hrNSName = strings.Split(hrNamespaceName, "/")
-		hostrule, err = lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
-		if err != nil {
-			utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s msg: %v", key, host, err)
-			deleteCase = true
-		} else if hostrule.Status.Status == lib.StatusRejected {
-			// do not apply a rejected hostrule, this way the VS would retain
-			return
-		}
-	}
-
-	// host specific
-	var vsWafPolicy, vsAppProfile, vsSslKeyCertificate, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile string
-	var vsEnabled *bool
-	var crdStatus cache.CRDMetadata
-
-	// Initializing the values of vsHTTPPolicySets and vsDatascripts, using a nil value would impact the value of VS checksum
-	vsHTTPPolicySets := []string{}
-	vsDatascripts := []string{}
-
-	if !deleteCase {
-		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
-			vsSslKeyCertificate = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
-			vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
-		}
-
-		if hostrule.Spec.VirtualHost.TLS.SSLProfile != "" {
-			vsSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", hostrule.Spec.VirtualHost.TLS.SSLProfile)
-		}
-
-		if hostrule.Spec.VirtualHost.WAFPolicy != "" {
-			vsWafPolicy = fmt.Sprintf("/api/wafpolicy?name=%s", hostrule.Spec.VirtualHost.WAFPolicy)
-		}
-
-		if hostrule.Spec.VirtualHost.ApplicationProfile != "" {
-			vsAppProfile = fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile)
-		}
-
-		if hostrule.Spec.VirtualHost.ErrorPageProfile != "" {
-			vsErrorPageProfile = fmt.Sprintf("/api/errorpageprofile?name=%s", hostrule.Spec.VirtualHost.ErrorPageProfile)
-		}
-
-		if hostrule.Spec.VirtualHost.AnalyticsProfile != "" {
-			vsAnalyticsProfile = fmt.Sprintf("/api/analyticsprofile?name=%s", hostrule.Spec.VirtualHost.AnalyticsProfile)
-		}
-
-		for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
-			if !utils.HasElem(vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy)) {
-				vsHTTPPolicySets = append(vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy))
-			}
-		}
-
-		// delete all auto-created HttpPolicySets by AKO if override is set
-		if hostrule.Spec.VirtualHost.HTTPPolicy.Overwrite {
-			vsNode.HttpPolicyRefs = []*AviHttpPolicySetNode{}
-		}
-
-		for _, script := range hostrule.Spec.VirtualHost.Datascripts {
-			if !utils.HasElem(vsDatascripts, fmt.Sprintf("/api/vsdatascriptset?name=%s", script)) {
-				vsDatascripts = append(vsDatascripts, fmt.Sprintf("/api/vsdatascriptset?name=%s", script))
-			}
-		}
-
-		vsEnabled = hostrule.Spec.VirtualHost.EnableVirtualHost
-		crdStatus = cache.CRDMetadata{
-			Type:   "HostRule",
-			Value:  hostrule.Namespace + "/" + hostrule.Name,
-			Status: "ACTIVE",
-		}
-	} else {
-		if vsNode.ServiceMetadata.CRDStatus.Value != "" {
-			crdStatus = vsNode.ServiceMetadata.CRDStatus
-			crdStatus.Status = "INACTIVE"
-		}
-	}
-
-	vsNode.SSLKeyCertAviRef = vsSslKeyCertificate
-	vsNode.WafPolicyRef = vsWafPolicy
-	vsNode.HttpPolicySetRefs = vsHTTPPolicySets
-	vsNode.AppProfileRef = vsAppProfile
-	vsNode.AnalyticsProfileRef = vsAnalyticsProfile
-	vsNode.ErrorPageProfileRef = vsErrorPageProfile
-	vsNode.SSLProfileRef = vsSslProfile
-	vsNode.VsDatascriptRefs = vsDatascripts
-	vsNode.Enabled = vsEnabled
-	vsNode.ServiceMetadata.CRDStatus = crdStatus
-
-	utils.AviLog.Infof("key: %s, Attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.Name)
-}
-
-// BuildPoolHTTPRule notes
-// when we get an ingress update and we are building the corresponding pools of that ingress
-// we need to get all httprules which match ingress's host/path
-func BuildPoolHTTPRuleForEvh(host, path, ingName, namespace, key string, vsNode *AviEvhVsNode, isSNI bool) {
-	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
-	if !found {
-		utils.AviLog.Warnf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
-		return
-	}
-
-	// finds unique httprules to fetch from the client call
-	var getHTTPRules []string
-	for _, rule := range pathRules {
-		if !utils.HasElem(getHTTPRules, rule) {
-			getHTTPRules = append(getHTTPRules, rule)
-		}
-	}
-
-	// maintains map of rrname+path: rrobj.spec.paths, prefetched for compute ahead
-	httpruleNameObjMap := make(map[string]akov1alpha1.HTTPRulePaths)
-	for _, httprule := range getHTTPRules {
-		pathNSName := strings.Split(httprule, "/")
-		httpRuleObj, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(pathNSName[0]).Get(pathNSName[1])
-		if err != nil {
-			utils.AviLog.Debugf("key: %s, msg: httprule not found err: %+v", key, err)
-			continue
-		} else if httpRuleObj.Status.Status == lib.StatusRejected {
-			continue
-		}
-		for _, path := range httpRuleObj.Spec.Paths {
-			httpruleNameObjMap[httprule+path.Target] = path
-		}
-	}
-
-	// iterate through httpRule which we get from GetFqdnHTTPRulesMapping
-	// must contain fqdn.com: {path1: rr1, path2: rr1, path3: rr2}
-	for path, rule := range pathRules {
-		rrNamespace := strings.Split(rule, "/")[0]
-		httpRulePath, ok := httpruleNameObjMap[rule+path]
-		if !ok {
-			continue
-		}
-		if httpRulePath.TLS.Type != "" && httpRulePath.TLS.Type != lib.TypeTLSReencrypt {
-			continue
-		}
-
-		for _, pool := range vsNode.PoolRefs {
-			isPathSniEnabled := pool.SniEnabled
-			pathSslProfile := pool.SslProfileRef
-			destinationCertNode := pool.PkiProfile
-			pathHMs := pool.HealthMonitors
-
-			// pathprefix match
-			// lets say path: / and available pools are cluster--namespace-host_foo-ingName, cluster--namespace-host_bar-ingName
-			// then cluster--namespace-host_-ingName should qualify for both pools
-			// basic path prefix regex: ^<path_entered>.*
-			pathPrefix := strings.ReplaceAll(path, "/", "_")
-			// sni poolname match regex
-			secureRgx := regexp.MustCompile(fmt.Sprintf(`^%s%s-%s%s.*-%s`, lib.GetNamePrefix(), rrNamespace, host, pathPrefix, ingName))
-			// sharedvs poolname match regex
-			insecureRgx := regexp.MustCompile(fmt.Sprintf(`^%s%s.*-%s-%s`, lib.GetNamePrefix(), host+pathPrefix, rrNamespace, ingName))
-
-			if (secureRgx.MatchString(pool.Name) && isSNI) || (insecureRgx.MatchString(pool.Name) && !isSNI) {
-				utils.AviLog.Debugf("key: %s, msg: computing poolNode %s for httprule.paths.target %s", key, pool.Name, path)
-				// pool tls
-				if httpRulePath.TLS.Type != "" {
-					isPathSniEnabled = true
-					if httpRulePath.TLS.SSLProfile != "" {
-						pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", httpRulePath.TLS.SSLProfile)
-					} else {
-						pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
-					}
-
-					if httpRulePath.TLS.DestinationCA != "" {
-						destinationCertNode = &AviPkiProfileNode{
-							Name:   lib.GetPoolPKIProfileName(pool.Name),
-							Tenant: lib.GetTenant(),
-							CACert: httpRulePath.TLS.DestinationCA,
-						}
-					} else {
-						destinationCertNode = nil
-					}
-				}
-
-				for _, hm := range httpRulePath.HealthMonitors {
-					if !utils.HasElem(pathHMs, fmt.Sprintf("/api/healthmonitor?name=%s", hm)) {
-						pathHMs = append(pathHMs, fmt.Sprintf("/api/healthmonitor?name=%s", hm))
-					}
-				}
-
-				pool.SniEnabled = isPathSniEnabled
-				pool.SslProfileRef = pathSslProfile
-				pool.PkiProfile = destinationCertNode
-				pool.HealthMonitors = pathHMs
-
-				// from this path, generate refs to this pool node
-				pool.LbAlgorithm = httpRulePath.LoadBalancerPolicy.Algorithm
-				if pool.LbAlgorithm == lib.LB_ALGORITHM_CONSISTENT_HASH {
-					pool.LbAlgorithmHash = httpRulePath.LoadBalancerPolicy.Hash
-					if pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
-						if httpRulePath.LoadBalancerPolicy.HostHeader != "" {
-							pool.LbAlgoHostHeader = httpRulePath.LoadBalancerPolicy.HostHeader
-						} else {
-							utils.AviLog.Warnf("key: %s, HostHeader is not provided for LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER", key)
-						}
-					} else if httpRulePath.LoadBalancerPolicy.HostHeader != "" {
-						utils.AviLog.Warnf("key: %s, HostHeader is only applicable for LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER", key)
-					}
-				}
-				pool.ServiceMetadata.CRDStatus = cache.CRDMetadata{
-					Type:   "HTTPRule",
-					Value:  rule,
-					Status: "ACTIVE",
-				}
-				utils.AviLog.Infof("key: %s, Attached httprule %s on pool %s", key, rule, pool.Name)
-			}
-		}
-	}
-
-	return
 }

@@ -38,7 +38,7 @@ func TestHostnameMultiHostIngressStatusCheckForEvh(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -115,7 +115,7 @@ func TestHostnameMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 	pathSuffix := "-" + ingressName + ".com"
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
 		Name:        ingressName,

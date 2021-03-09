@@ -73,6 +73,14 @@ var AllModels = []string{
 	"admin/cluster--Shared-L7-5",
 	"admin/cluster--Shared-L7-6",
 	"admin/cluster--Shared-L7-7",
+	"admin/cluster--Shared-L7-EVH-0",
+	"admin/cluster--Shared-L7-EVH-1",
+	"admin/cluster--Shared-L7-EVH-2",
+	"admin/cluster--Shared-L7-EVH-3",
+	"admin/cluster--Shared-L7-EVH-4",
+	"admin/cluster--Shared-L7-EVH-5",
+	"admin/cluster--Shared-L7-EVH-6",
+	"admin/cluster--Shared-L7-EVH-7",
 }
 
 func AddConfigMap() {

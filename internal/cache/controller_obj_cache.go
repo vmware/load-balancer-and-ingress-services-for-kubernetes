@@ -1791,19 +1791,6 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					}
 				}
 
-				// Populate the PG cache
-				if vs["pool_group_ref"] != nil {
-					pgUuid := ExtractUuid(vs["pool_group_ref"].(string), "poolgroup-.*.#")
-					objKey, objFound := c.PgCache.AviCacheGetKeyByUuid(pgUuid)
-
-					if objFound {
-						pgKey := objKey.(NamespaceName)
-						poolgroupKeys = append(poolgroupKeys, pgKey)
-						pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgKey.Name)
-						poolKeys = append(poolKeys, pgpoolKeys...)
-					}
-				}
-
 				if vs["ssl_key_and_certificate_refs"] != nil {
 					for _, ssl := range vs["ssl_key_and_certificate_refs"].([]interface{}) {
 						// find the sslkey name from the ssl key cache
@@ -2049,20 +2036,6 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 								vip = vsVipData.Vips[0]
 							}
 						}
-					}
-				}
-
-				// Populate the PG cache
-				if vs["pool_group_ref"] != nil {
-					pgUuid := ExtractUuidWithoutHash(vs["pool_group_ref"].(string), "poolgroup-.*.")
-
-					objKey, objFound := c.PgCache.AviCacheGetKeyByUuid(pgUuid)
-
-					if objFound {
-						pgKey := objKey.(NamespaceName)
-						poolgroupKeys = append(poolgroupKeys, pgKey)
-						pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgKey.Name)
-						poolKeys = append(poolKeys, pgpoolKeys...)
 					}
 				}
 

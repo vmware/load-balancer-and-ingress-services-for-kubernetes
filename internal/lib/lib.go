@@ -205,11 +205,8 @@ func GetEvhVsPoolNPgName(ingName, namespace, host, path string, args ...string) 
 	return poolName
 }
 
-func GetEvhNodeName(ingName, namespace, secret string, host ...string) string {
-	if len(host) > 0 {
-		return NamePrefix + namespace + "-" + host[0]
-	}
-	return NamePrefix + ingName + "-" + namespace + "-" + secret
+func GetEvhNodeName(ingName, namespace, host string) string {
+	return NamePrefix + namespace + "-" + host
 }
 
 func GetEvhPGName(ingName, namespace, host, path string) string {
