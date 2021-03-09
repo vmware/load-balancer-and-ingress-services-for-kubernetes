@@ -843,7 +843,7 @@ func TestNPLSvcIngressAddDel(t *testing.T) {
 
 //TestSvcIngressUpdate creates a Service and an Ingress which doesn't use that Service.
 //Then the ingress is updated with correct Service and annotation of the Service is Verified.
-func TestNPLSvcIngressUpdate1(t *testing.T) {
+func TestNPLSvcIngressUpdate(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	SetUpTestForIngress(t, defaultL7Model)
@@ -971,6 +971,149 @@ func TestNPLSvcIngressUpdateWrongSvc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	TearDownTestForIngress(t, defaultL7Model)
+}
+
+//TestNPLSvcIngressUpdateClass creates a Service and an Ingress which uses that Service.
+//Then the Ingress is updated with a wrong Ingress Class name,
+//and it is verified that the NPL annotation is removed from the Service.
+//Then the Ingress is updated with correct Ingress Class name,
+//and it is verified that the NPL annotation is added in the Service.
+func TestNPLSvcIngressUpdateClass(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	SetUpTestForIngress(t, defaultL7Model)
+	selectors := make(map[string]string)
+	selectors["app"] = "npl"
+	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	createPodWithNPLAnnotation(selectors)
+
+	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+	if found {
+		t.Fatalf("Couldn't find Model %v", defaultL7Model)
+	}
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+		ClassName:   integrationtest.DefaultIngressClass,
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		ann := svc.GetAnnotations()
+		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
+			return true
+		}
+		return false
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	wrongClass := "wrong-class"
+	ingrFake.Spec.IngressClassName = &wrongClass
+	ingrFake.ResourceVersion = "2"
+	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't Update the Ingress %v", err)
+	}
+
+	g.Eventually(func() bool {
+		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		ann := svc.GetAnnotations()
+		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(false))
+
+	defaultClass := integrationtest.DefaultIngressClass
+	ingrFake.Spec.IngressClassName = &defaultClass
+	ingrFake.ResourceVersion = "2"
+	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't Update the Ingress %v", err)
+	}
+	g.Eventually(func() bool {
+		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		ann := svc.GetAnnotations()
+		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+
+	KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	TearDownTestForIngress(t, defaultL7Model)
+}
+
+//TestNPLSvcIngressRemoveAddClass creates a Service and an Ingress which uses that Service.
+//Then the Ingress Class is removed and it is verified that the NPL annotation is removed from the Service.
+//Then the Ingress Class is added back, and it is verified that the NPL annotation is added in the Service.
+func TestNPLSvcIngressRemoveAddClass(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	SetUpTestForIngress(t, defaultL7Model)
+	selectors := make(map[string]string)
+	selectors["app"] = "npl"
+	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	createPodWithNPLAnnotation(selectors)
+
+	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+	if found {
+		t.Fatalf("Couldn't find Model %v", defaultL7Model)
+	}
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+		ClassName:   integrationtest.DefaultIngressClass,
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		ann := svc.GetAnnotations()
+		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
+			return true
+		}
+		return false
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.RemoveDefaultIngressClass()
+	g.Eventually(func() bool {
+		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		ann := svc.GetAnnotations()
+		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(false))
+
+	integrationtest.AddDefaultIngressClass()
+	g.Eventually(func() bool {
+		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		ann := svc.GetAnnotations()
+		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+
+	KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	TearDownTestForIngress(t, defaultL7Model)
 }
 

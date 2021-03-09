@@ -303,6 +303,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 	} else {
+
 		// simple validator check for duplicate hostpaths, logs Warning if duplicates found
 		success := validateSpecFromHostnameCache(key, ingObj.Namespace, ingObj.Name, ingObj.Spec)
 		if !success {
@@ -313,6 +314,18 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, *ingObj.Spec.IngressClassName)
 		} else {
 			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
+		}
+
+		// If the Ingress Class is not found or is not valid, then return.
+		// When the correct Ingress Class is added, then the Ingress would be processed again.
+		if !validateIngressForClass(key, ingObj) {
+			svcToDel := objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
+			if lib.AutoAnnotateNPLSvc() {
+				for _, svc := range svcToDel {
+					status.DeleteSvcAnnotation(key, namespace, svc)
+				}
+			}
+			return ingresses, true
 		}
 
 		_, oldSvcs := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSvc(ingName)
@@ -350,7 +363,12 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 
 func IngClassToIng(ingClassName string, namespace string, key string) ([]string, bool) {
 	found, ingresses := objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).GetClassToIng(ingClassName)
-	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingresses)
+
+	// Go though the list of ingresses again to populate the ingress Service mapping and annotate servies if needed
+	for _, namespacedIngr := range ingresses {
+		ns, ingr := utils.ExtractNamespaceObjectName(namespacedIngr)
+		IngressChanges(ingr, ns, key)
+	}
 	return ingresses, found
 }
 
