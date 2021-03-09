@@ -66,8 +66,8 @@ func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gate
 	}
 
 	for _, listener := range gateway.Spec.Listeners {
-		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.GatewayNameLabelKey]
-		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.GatewayNamespaceLabelKey]
+		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.SvcApiGatewayNameLabelKey]
+		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.SvcApiGatewayNamespaceLabelKey]
 		if !nameOk || !nsOk ||
 			(gwName != gateway.Name) ||
 			(gwNamespace != gateway.Namespace) {

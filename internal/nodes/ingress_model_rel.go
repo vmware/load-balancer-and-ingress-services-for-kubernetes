@@ -714,9 +714,18 @@ func ParseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string
 	var gateway string
 	var portProtocols []string
 
+	var gwNameLabel, gwNamespaceLabel string
+	if lib.GetAdvancedL4() {
+		gwNameLabel = lib.GatewayNameLabelKey
+		gwNamespaceLabel = lib.GatewayNamespaceLabelKey
+	} else if lib.UseServicesAPI() {
+		gwNameLabel = lib.SvcApiGatewayNameLabelKey
+		gwNamespaceLabel = lib.SvcApiGatewayNamespaceLabelKey
+	}
+
 	labels := svc.GetLabels()
-	if name, ok := labels[lib.GatewayNameLabelKey]; ok {
-		if namespace, ok := labels[lib.GatewayNamespaceLabelKey]; ok {
+	if name, ok := labels[gwNameLabel]; ok {
+		if namespace, ok := labels[gwNamespaceLabel]; ok {
 			gateway = namespace + "/" + name
 		}
 	}
@@ -746,8 +755,8 @@ func parseGatewayForListeners(gateway *advl4v1alpha1pre1.Gateway, key string) []
 func parseSvcApiGatewayForListeners(gateway *svcapiv1alpha1.Gateway, key string) []string {
 	var listeners []string
 	for _, listener := range gateway.Spec.Listeners {
-		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.GatewayNameLabelKey]
-		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.GatewayNamespaceLabelKey]
+		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.SvcApiGatewayNameLabelKey]
+		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.SvcApiGatewayNamespaceLabelKey]
 		if nameOk && nsOk && gwName == gateway.Name && gwNamespace == gateway.Namespace {
 			listeners = append(listeners, fmt.Sprintf("%s/%d", listener.Protocol, listener.Port))
 		}
@@ -791,8 +800,8 @@ func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) 
 	}
 
 	for _, listener := range gateway.Spec.Listeners {
-		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.GatewayNameLabelKey]
-		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.GatewayNamespaceLabelKey]
+		gwName, nameOk := listener.Routes.Selector.MatchLabels[lib.SvcApiGatewayNameLabelKey]
+		gwNamespace, nsOk := listener.Routes.Selector.MatchLabels[lib.SvcApiGatewayNamespaceLabelKey]
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {

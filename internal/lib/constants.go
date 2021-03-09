@@ -116,6 +116,8 @@ const (
 	GatewayNameLabelKey           = "service.route.lbapi.run.tanzu.vmware.com/gateway-name"
 	GatewayNamespaceLabelKey      = "service.route.lbapi.run.tanzu.vmware.com/gateway-namespace"
 	GatewayTypeLabelKey           = "service.route.lbapi.run.tanzu.vmware.com/type"
+	SvcApiGatewayNameLabelKey        = "ako.vmware.com/gateway-name"
+	SvcApiGatewayNamespaceLabelKey   = "ako.vmware.com/gateway-namespace"
 	AviGatewayController          = "lbapi.run.tanzu.vmware.com/avi-lb"
 	NPLPodAnnotation              = "nodeportlocal.antrea.io"
 	NPLSvcAnnotation              = "nodeportlocal.antrea.io/enabled"

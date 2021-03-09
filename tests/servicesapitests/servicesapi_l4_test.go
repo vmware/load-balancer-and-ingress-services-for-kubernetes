@@ -176,9 +176,8 @@ func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
 			Port:     8081,
 			Protocol: "TCP",
 			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      gwname,
-				lib.GatewayNamespaceLabelKey: namespace,
-				lib.GatewayTypeLabelKey:      "direct",
+				lib.SvcApiGatewayNameLabelKey:      gwname,
+				lib.SvcApiGatewayNamespaceLabelKey: namespace,
 			},
 		}},
 	}
@@ -246,9 +245,8 @@ func SetupSvcApiLBService(t *testing.T, svcname, namespace, gwname, gwnamespace 
 		Name:      svcname,
 		Namespace: namespace,
 		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gwname,
-			lib.GatewayNamespaceLabelKey: gwnamespace,
-			lib.GatewayTypeLabelKey:      "direct",
+			lib.SvcApiGatewayNameLabelKey:      gwname,
+			lib.SvcApiGatewayNamespaceLabelKey: gwnamespace,
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: 8081}},
@@ -380,9 +378,8 @@ func TestServicesAPIWithStaticIP(t *testing.T) {
 			Port:     8081,
 			Protocol: "TCP",
 			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      gatewayName,
-				lib.GatewayNamespaceLabelKey: ns,
-				lib.GatewayTypeLabelKey:      "direct",
+				lib.SvcApiGatewayNameLabelKey:      gatewayName,
+				lib.SvcApiGatewayNamespaceLabelKey: ns,
 			},
 		}},
 	}
@@ -482,9 +479,8 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 		Listeners: []FakeGWListener{{
 			Port: 8081, Protocol: "TCP",
 			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      "BADGATEWAY",
-				lib.GatewayNamespaceLabelKey: ns,
-				lib.GatewayTypeLabelKey:      "direct",
+				lib.SvcApiGatewayNameLabelKey:      "BADGATEWAY",
+				lib.SvcApiGatewayNamespaceLabelKey: ns,
 			},
 		}},
 	}.Gateway()
@@ -505,9 +501,8 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 		Listeners: []FakeGWListener{{
 			Port: 8081, Protocol: "TCP",
 			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      gatewayName,
-				lib.GatewayNamespaceLabelKey: ns,
-				lib.GatewayTypeLabelKey:      "direct",
+				lib.SvcApiGatewayNameLabelKey:      gatewayName,
+				lib.SvcApiGatewayNamespaceLabelKey: ns,
 			},
 		}},
 	}.Gateway()
@@ -554,9 +549,8 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gatewayName,
-			lib.GatewayNamespaceLabelKey: ns,
-			lib.GatewayTypeLabelKey:      "direct",
+			lib.SvcApiGatewayNameLabelKey:      gatewayName,
+			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
@@ -609,9 +603,8 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gatewayName,
-			lib.GatewayNamespaceLabelKey: ns,
-			lib.GatewayTypeLabelKey:      "direct",
+			lib.SvcApiGatewayNameLabelKey:      gatewayName,
+			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
@@ -663,9 +656,8 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      "BADGATEWAY",
-			lib.GatewayNamespaceLabelKey: ns,
-			lib.GatewayTypeLabelKey:      "direct",
+			lib.SvcApiGatewayNameLabelKey:      "BADGATEWAY",
+			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
@@ -721,9 +713,8 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 			Port:     8081,
 			Protocol: "TCP",
 			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      "BADGATEWAY",
-				lib.GatewayNamespaceLabelKey: ns,
-				lib.GatewayTypeLabelKey:      "direct",
+				lib.SvcApiGatewayNameLabelKey:      "BADGATEWAY",
+				lib.SvcApiGatewayNamespaceLabelKey: ns,
 			},
 		}},
 	}.Gateway()
@@ -779,9 +770,8 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 			Port:     8080,
 			Protocol: "TCP",
 			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      gatewayName,
-				lib.GatewayNamespaceLabelKey: ns,
-				lib.GatewayTypeLabelKey:      "direct",
+				lib.SvcApiGatewayNameLabelKey:      gatewayName,
+				lib.SvcApiGatewayNamespaceLabelKey: ns,
 			},
 		}},
 	}.Gateway()
@@ -806,9 +796,8 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gatewayName,
-			lib.GatewayNamespaceLabelKey: ns,
-			lib.GatewayTypeLabelKey:      "direct",
+			lib.SvcApiGatewayNameLabelKey:      gatewayName,
+			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
@@ -869,9 +858,8 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 			Port:     8081,
 			Protocol: "UDP",
 			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      gatewayName,
-				lib.GatewayNamespaceLabelKey: ns,
-				lib.GatewayTypeLabelKey:      "direct",
+				lib.SvcApiGatewayNameLabelKey:      gatewayName,
+				lib.SvcApiGatewayNamespaceLabelKey: ns,
 			},
 		}},
 	}.Gateway()
@@ -896,9 +884,8 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gatewayName,
-			lib.GatewayNamespaceLabelKey: ns,
-			lib.GatewayTypeLabelKey:      "direct",
+			lib.SvcApiGatewayNameLabelKey:      gatewayName,
+			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
@@ -959,9 +946,8 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gateway2Name,
-			lib.GatewayNamespaceLabelKey: ns,
-			lib.GatewayTypeLabelKey:      "direct",
+			lib.SvcApiGatewayNameLabelKey:      gateway2Name,
+			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
