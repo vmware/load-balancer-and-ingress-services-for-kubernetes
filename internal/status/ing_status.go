@@ -407,7 +407,7 @@ func deleteIngressAnnotation(ingObj *networkingv1beta1.Ingress, svcMeta avicache
 			return deleteIngressAnnotation(ingObj, svcMeta, isVSDelete, ingHostList, key, mClient, oldIng, retry+1)
 		}
 	}
-	utils.AviLog.Debugf("key: %s, msg: Annotations unchanged for ingress %s/%s", ingObj.Namespace, ingObj.Name)
+	utils.AviLog.Debugf("key: %s, msg: Annotations unchanged for ingress %s/%s", key, ingObj.Namespace, ingObj.Name)
 
 	return nil
 }

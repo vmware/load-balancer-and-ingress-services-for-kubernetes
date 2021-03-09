@@ -76,6 +76,12 @@ func GetSvcKeysForNodeCRUD() (svcl4Keys []string, svcl7Keys []string) {
 	for _, svc := range svcObjs {
 		var key string
 		if isServiceLBType(svc) && !GetLayer7Only() {
+			label := utils.ObjKey(svc)
+			ns := strings.Split(label, "/")
+			//Do not append L4 service if namespace is invalid
+			if !utils.IsServiceNSValid(ns[0]) {
+				continue
+			}
 			key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			svcl4Keys = append(svcl4Keys, key)
 		}

@@ -206,7 +206,7 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 	for _, svcObj := range svcObjs {
 		isSvcLb := isServiceLBType(svcObj)
 		//Add L4 and Cluster API services to queue
-		if isSvcLb {
+		if isSvcLb && !lib.GetLayer7Only() {
 			key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
 		} else {
 			key = utils.Service + "/" + utils.ObjKey(svcObj)

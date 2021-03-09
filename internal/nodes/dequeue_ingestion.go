@@ -106,6 +106,11 @@ func DequeueIngestion(key string, fullsync bool) {
 		svcNames, svcFound := schema.GetParentServices(name, namespace, key)
 		if svcFound {
 			for _, svcNSNameKey := range svcNames {
+				ns := strings.Split(svcNSNameKey, "/")
+				//Do not append L4 service if namespace is invalid
+				if !utils.CheckIfNamespaceAccepted(ns[0]) {
+					continue
+				}
 				handleL4Service(utils.L4LBService+"/"+svcNSNameKey, fullsync)
 			}
 		}
@@ -194,6 +199,11 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 			if ok {
 				utils.AviLog.Debugf("key: %s, msg: handling l4 Services %v", key, lbSvcs)
 				for _, lbSvc := range lbSvcs {
+					ns := strings.Split(lbSvc, "/")
+					//Do not append L4 service if namespace is invalid
+					if !utils.IsServiceNSValid(ns[0]) {
+						continue
+					}
 					lbSvcKey := utils.L4LBService + "/" + lbSvc
 					handleL4Service(lbSvcKey, fullsync)
 				}
@@ -219,6 +229,11 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 			objects.SharedPodToLBSvcLister().Save(podKey, lbSvcs)
 		}
 		for _, lbSvc := range lbSvcs {
+			ns := strings.Split(lbSvc, "/")
+			//Do not append L4 service if namespace is invalid
+			if !utils.IsServiceNSValid(ns[0]) {
+				continue
+			}
 			lbSvcKey := utils.L4LBService + "/" + lbSvc
 			utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
 			handleL4Service(lbSvcKey, fullsync)

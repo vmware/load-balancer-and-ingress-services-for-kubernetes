@@ -396,7 +396,7 @@ func (c *AviController) FullSyncK8s() error {
 		var key string
 		svcLabel := utils.ObjKey(svcObj)
 		ns := strings.Split(svcLabel, "/")
-		if isSvcLb && !lib.GetLayer7Only(){
+		if isSvcLb && !lib.GetLayer7Only() {
 			/*
 				Key added to Ingestion queue if
 				1. Advance L4 or ServiceAPI enabled or
