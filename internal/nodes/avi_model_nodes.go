@@ -308,6 +308,128 @@ type AviVsNode struct {
 	SSLKeyCertAviRef      string
 }
 
+// Implementing AviVsEvhSniModel
+
+func (v *AviVsNode) GetName() string {
+	return v.Name
+}
+
+func (v *AviVsNode) SetName(Name string) {
+	v.Name = Name
+}
+
+func (v *AviVsNode) GetPoolRefs() []*AviPoolNode {
+	return v.PoolRefs
+}
+
+func (v *AviVsNode) SetPoolRefs(PoolRefs []*AviPoolNode) {
+	v.PoolRefs = PoolRefs
+}
+
+func (v *AviVsNode) GetPoolGroupRefs() []*AviPoolGroupNode {
+	return v.PoolGroupRefs
+}
+
+func (v *AviVsNode) SetPoolGroupRefs(poolGroupRefs []*AviPoolGroupNode) {
+	v.PoolGroupRefs = poolGroupRefs
+}
+
+func (v *AviVsNode) GetSSLKeyCertRefs() []*AviTLSKeyCertNode {
+	return v.SSLKeyCertRefs
+}
+
+func (v *AviVsNode) SetSSLKeyCertRefs(sslKeyCertRefs []*AviTLSKeyCertNode) {
+	v.SSLKeyCertRefs = sslKeyCertRefs
+}
+
+func (v *AviVsNode) GetHttpPolicyRefs() []*AviHttpPolicySetNode {
+	return v.HttpPolicyRefs
+}
+
+func (v *AviVsNode) SetHttpPolicyRefs(httpPolicyRefs []*AviHttpPolicySetNode) {
+	v.HttpPolicyRefs = httpPolicyRefs
+}
+
+func (v *AviVsNode) GetServiceMetadata() avicache.ServiceMetadataObj {
+	return v.ServiceMetadata
+}
+
+func (v *AviVsNode) SetServiceMetadata(serviceMetadata avicache.ServiceMetadataObj) {
+	v.ServiceMetadata = serviceMetadata
+}
+
+func (v *AviVsNode) GetSSLKeyCertAviRef() string {
+	return v.SSLKeyCertAviRef
+}
+
+func (v *AviVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef string) {
+	v.SSLKeyCertAviRef = sslKeyCertAviRef
+}
+
+func (v *AviVsNode) GetWafPolicyRef() string {
+	return v.WafPolicyRef
+}
+
+func (v *AviVsNode) SetWafPolicyRef(wafPolicyRef string) {
+	v.WafPolicyRef = wafPolicyRef
+}
+
+func (v *AviVsNode) GetHttpPolicySetRefs() []string {
+	return v.HttpPolicySetRefs
+}
+
+func (v *AviVsNode) SetHttpPolicySetRefs(httpPolicySetRefs []string) {
+	v.HttpPolicySetRefs = httpPolicySetRefs
+}
+
+func (v *AviVsNode) GetAppProfileRef() string {
+	return v.AppProfileRef
+}
+
+func (v *AviVsNode) SetAppProfileRef(appProfileRef string) {
+	v.AppProfileRef = appProfileRef
+}
+
+func (v *AviVsNode) GetAnalyticsProfileRef() string {
+	return v.AnalyticsProfileRef
+}
+
+func (v *AviVsNode) SetAnalyticsProfileRef(AnalyticsProfileRef string) {
+	v.AnalyticsProfileRef = AnalyticsProfileRef
+}
+
+func (v *AviVsNode) GetErrorPageProfileRef() string {
+	return v.ErrorPageProfileRef
+}
+
+func (v *AviVsNode) SetErrorPageProfileRef(ErrorPageProfileRef string) {
+	v.ErrorPageProfileRef = ErrorPageProfileRef
+}
+
+func (v *AviVsNode) GetSSLProfileRef() string {
+	return v.SSLProfileRef
+}
+
+func (v *AviVsNode) SetSSLProfileRef(SSLProfileRef string) {
+	v.SSLProfileRef = SSLProfileRef
+}
+
+func (v *AviVsNode) GetVsDatascriptRefs() []string {
+	return v.VsDatascriptRefs
+}
+
+func (v *AviVsNode) SetVsDatascriptRefs(VsDatascriptRefs []string) {
+	v.VsDatascriptRefs = VsDatascriptRefs
+}
+
+func (v *AviVsNode) GetEnabled() *bool {
+	return v.Enabled
+}
+
+func (v *AviVsNode) SetEnabled(Enabled *bool) {
+	v.Enabled = Enabled
+}
+
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
 	var aviVs []*AviVsNode
 	for _, model := range o.modelNodes {

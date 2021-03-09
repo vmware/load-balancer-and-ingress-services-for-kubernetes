@@ -1790,6 +1790,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						}
 					}
 				}
+
 				if vs["ssl_key_and_certificate_refs"] != nil {
 					for _, ssl := range vs["ssl_key_and_certificate_refs"].([]interface{}) {
 						// find the sslkey name from the ssl key cache
@@ -2037,6 +2038,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						}
 					}
 				}
+
 				if vs["ssl_key_and_certificate_refs"] != nil {
 					for _, ssl := range vs["ssl_key_and_certificate_refs"].([]interface{}) {
 						// find the sslkey name from the ssl key cache

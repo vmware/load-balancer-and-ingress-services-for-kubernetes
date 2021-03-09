@@ -217,13 +217,8 @@ func GetEvhVsPoolNPgName(ingName, namespace, host, path string, args ...string) 
 	return poolName
 }
 
-func GetEvhTlsNodeName(ingName, namespace, secret string, host string, path string) string {
-	path = strings.ReplaceAll(path, "/", "_")
-	if len(host) > 0 {
-		return NamePrefix + namespace + "-" + host + path + "-" + ingName
-	}
-
-	return NamePrefix + namespace + "-" + host + path + "-" + ingName + "-" + secret
+func GetEvhNodeName(ingName, namespace, host string) string {
+	return NamePrefix + namespace + "-" + host
 }
 
 func GetEvhPGName(ingName, namespace, host, path string) string {

@@ -73,6 +73,14 @@ var AllModels = []string{
 	"admin/cluster--Shared-L7-5",
 	"admin/cluster--Shared-L7-6",
 	"admin/cluster--Shared-L7-7",
+	"admin/cluster--Shared-L7-EVH-0",
+	"admin/cluster--Shared-L7-EVH-1",
+	"admin/cluster--Shared-L7-EVH-2",
+	"admin/cluster--Shared-L7-EVH-3",
+	"admin/cluster--Shared-L7-EVH-4",
+	"admin/cluster--Shared-L7-EVH-5",
+	"admin/cluster--Shared-L7-EVH-6",
+	"admin/cluster--Shared-L7-EVH-7",
 }
 
 func AddConfigMap() {
@@ -815,7 +823,7 @@ func ScaleCreateEP(t *testing.T, ns string, Name string) {
 
 func DelEP(t *testing.T, ns string, Name string) {
 	err := KubeClient.CoreV1().Endpoints(ns).Delete(context.TODO(), Name, metav1.DeleteOptions{})
-	if err != nil {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		t.Fatalf("error in deleting Endpoint: %v", err)
 	}
 }
@@ -936,6 +944,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 				//rData["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 
+			} else if strings.Contains(rName, "Shared-L7-EVH-") {
+				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else if strings.Contains(rName, "Shared-L7") {
 				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
@@ -952,6 +963,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
 				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
 				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
+			} else if strings.Contains(rName, "Shared-L7-EVH-") {
+				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else if strings.Contains(rName, "Shared-L7") {
 				shardVSNum = strings.Split(rName, "Shared-L7-")[1]

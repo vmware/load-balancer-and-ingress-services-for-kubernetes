@@ -17,12 +17,13 @@ package hostnameshardtests
 import (
 	"context"
 	"os"
+	"sort"
 	"testing"
 	"time"
 
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
@@ -156,21 +157,23 @@ func TestHostnameShardObjectsForEvh(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-EVH-0"))
 	// the certs will be associated to parent evh vs
 	g.Expect(nodes[0].SSLKeyCertRefs).Should(gomega.HaveLen(1))
-	// There will be 2 evh node one for each host+path combination
+	// There will be 2 evh node one for each host
 	g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(2))
-	g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-noo.com_foo_bar-foo-with-targets"))
+	g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-noo.com"))
 	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-noo.com_foo_bar-foo-with-targets"))
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-noo.com_foo_bar-foo-with-targets"))
 	// Shared VS in EVH will not have any certificates and httppolicy
 	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertRefs).Should(gomega.HaveLen(0))
-	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(0))
+	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-noo.com_foo_bar-foo-with-targets"))
 
-	g.Expect(nodes[0].EvhNodes[1].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
+	g.Expect(nodes[0].EvhNodes[1].Name).To(gomega.Equal("cluster--default-foo.com"))
 	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
 	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
 	// since foo is bound with cert this node will have the cert bound to it
 	g.Expect(nodes[0].EvhNodes[1].SSLKeyCertRefs).Should(gomega.HaveLen(0))
-	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs).Should(gomega.HaveLen(0))
+	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs).Should(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
@@ -427,11 +430,12 @@ func TestMultiVSIngressForEvh(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
-		g.Expect(nodes[0].EvhNodes[0].EvhPath).To(gomega.Equal("/foo"))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
 
 	} else {
 		t.Fatalf("Could not find model: %v", err)
@@ -511,22 +515,31 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(0))
 
-		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(02))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multipath" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-			} else if evhNode.Name == "cluster--default-foo.com_bar-ingress-multipath" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
-		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
+		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0]}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"/bar", "/foo"}))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name,
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].Name}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"cluster--default-foo.com_bar-ingress-multipath",
+			"cluster--default-foo.com_foo-ingress-multipath"}))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[1].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[1].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -571,22 +584,31 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(2))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multipath" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-				g.Expect(evhNode.PoolGroupRefs).Should(gomega.HaveLen(1))
-				g.Expect(evhNode.PoolRefs).Should(gomega.HaveLen(1))
-			} else if evhNode.Name == "cluster--default-foo.com_bar-ingress-multipath" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-				g.Expect(evhNode.PoolGroupRefs).Should(gomega.HaveLen(1))
-				g.Expect(evhNode.PoolRefs).Should(gomega.HaveLen(1))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
+
+		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
+		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0]}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"/bar", "/foo"}))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name,
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].Name}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"cluster--default-foo.com_bar-ingress-multipath",
+			"cluster--default-foo.com_foo-ingress-multipath"}))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(2))
+
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -642,23 +664,30 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multi1" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-				g.Expect(evhNode.PoolGroupRefs).Should(gomega.HaveLen(1))
-				g.Expect(evhNode.PoolRefs).Should(gomega.HaveLen(1))
-			} else if evhNode.Name == "cluster--default-foo.com_bar-ingress-multi2" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-				g.Expect(evhNode.PoolGroupRefs).Should(gomega.HaveLen(1))
-				g.Expect(evhNode.PoolRefs).Should(gomega.HaveLen(1))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
 
+		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
+		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0]}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"/bar", "/foo"}))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name,
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].Name}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"cluster--default-foo.com_bar-ingress-multi1",
+			"cluster--default-foo.com_foo-ingress-multi2"}))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(2))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -671,6 +700,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
 	if err != nil {
@@ -739,7 +769,7 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(2))
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			return len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)
@@ -905,7 +935,9 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in updating ingress %s", err)
 	}
+	time.Sleep(15 * time.Second)
 	integrationtest.PollForCompletion(t, modelName, 5)
+	integrationtest.DetectModelChecksumChange(t, modelName, 10)
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -930,7 +962,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 			return nodes[0].SSLKeyCertRefs[0].CloudConfigCksum
 		}, 5*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SSLKeyCertRefs[0]"]))
 
-		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -944,88 +976,6 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret-new", metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
-
-	TearDownTestForIngress(t, modelName)
-}
-func TestMultiHostIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
-	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
-	SetUpTestForIngress(t, modelName)
-
-	ingrFake := (integrationtest.FakeIngress{
-		Name:        "ingress-multihost",
-		Namespace:   "default",
-		DnsNames:    []string{"foo.com", "bar.com"},
-		Paths:       []string{"/foo", "/bar"},
-		ServiceName: "avisvc",
-	}).Ingress()
-
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
-
-	integrationtest.PollForCompletion(t, modelName, 10)
-	integrationtest.DetectModelChecksumChange(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multihost" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-			} else if evhNode.Name == "cluster--default-foo.com_bar-ingress-multihost" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
-		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
-
-	} else {
-		t.Fatalf("Could not find model: %s", modelName)
-	}
-
-	modelName = "admin/cluster--Shared-L7-EVH-1"
-
-	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-bar.com_foo-ingress-multihost" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("bar.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-			} else if evhNode.Name == "cluster--default-bar.com_bar-ingress-multihost" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("bar.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
-		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
-	} else {
-		t.Fatalf("Could not find model: %s", modelName)
-	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multihost", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
-	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
 
 	TearDownTestForIngress(t, modelName)
 }
@@ -1059,19 +1009,11 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multihost" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-			} else if evhNode.Name == "cluster--default-foo.com_bar-ingress-multihost" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
+		// Since there are two paths there will be single evh child with multiple http policies
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(2))
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -1118,11 +1060,11 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-edit"))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-edit"))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-edit"))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
-		g.Expect(nodes[0].EvhNodes[0].EvhPath).To(gomega.Equal("/foo"))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
@@ -1154,11 +1096,11 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-edit"))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-edit"))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-edit"))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
-		g.Expect(nodes[0].EvhNodes[0].EvhPath).To(gomega.Equal("/bar"))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
@@ -1218,26 +1160,27 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multipath-edit" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multipath-edit"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multipath-edit"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(1))
-			} else if evhNode.Name == "cluster--default-foo.com_bar-ingress-multipath-edit" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-multipath-edit"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-multipath-edit"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(1))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
+		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0]}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"/bar", "/foo"}))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name,
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].Name}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"cluster--default-foo.com_bar-ingress-multipath-edit",
+			"cluster--default-foo.com_foo-ingress-multipath-edit"}))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 
 	} else {
@@ -1265,26 +1208,27 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multipath-edit" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multipath-edit"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multipath-edit"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(1))
-			} else if evhNode.Name == "cluster--default-foo.com_foobar-ingress-multipath-edit" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foobar"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foobar-ingress-multipath-edit"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foobar-ingress-multipath-edit"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(1))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
+		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0]}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"/foo", "/foobar"}))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name,
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].Name}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"cluster--default-foo.com_foo-ingress-multipath-edit",
+			"cluster--default-foo.com_foobar-ingress-multipath-edit"}))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -1355,26 +1299,28 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multi1" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multi1"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multi1"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(1))
-			} else if evhNode.Name == "cluster--default-foo.com_foobar-ingress-multi2" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foobar"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foobar-ingress-multi2"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foobar-ingress-multi2"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(1))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
+
+		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0]}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"/foo", "/foobar"}))
+		g.Expect(func() []string {
+			p := []string{
+				nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name,
+				nodes[0].EvhNodes[0].HttpPolicyRefs[1].Name}
+			sort.Strings(p)
+			return p
+		}, gomega.Equal([]string{"cluster--default-foo.com_foo-ingress-multi1",
+			"cluster--default-foo.com_foobar-ingress-multi2"}))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 
 	} else {
@@ -1429,11 +1375,10 @@ func TestNoHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-ingress-nohost.default.com_foo-ingress-nohost"))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-ingress-nohost.default.com"))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-ingress-nohost.default.com_foo-ingress-nohost"))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-ingress-nohost.default.com_foo-ingress-nohost"))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("ingress-nohost.default.com"))
-		g.Expect(nodes[0].EvhNodes[0].EvhPath).To(gomega.Equal("/foo"))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
@@ -1480,11 +1425,11 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-ingress-nohost.default.com_foo-ingress-nohost"))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-ingress-nohost.default.com"))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-ingress-nohost.default.com_foo-ingress-nohost"))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-ingress-nohost.default.com_foo-ingress-nohost"))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("ingress-nohost.default.com"))
-		g.Expect(nodes[0].EvhNodes[0].EvhPath).To(gomega.Equal("/foo"))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 	} else {
@@ -1534,11 +1479,11 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-nohost"))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-nohost"))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-nohost"))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
-		g.Expect(nodes[0].EvhNodes[0].EvhPath).To(gomega.Equal("/foo"))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
@@ -1598,27 +1543,13 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multi1" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multi1"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multi1"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(1))
-			} else if evhNode.Name == "cluster--default-foo.com_bar-ingress-multi2" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-multi2"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-multi2"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(1))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
+		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[1].Servers)).To(gomega.Equal(1))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -1634,26 +1565,15 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
-		for _, evhNode := range nodes[0].EvhNodes {
-			if evhNode.Name == "cluster--default-foo.com_foo-ingress-multi1" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/foo"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multi1"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-multi1"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(2))
-			} else if evhNode.Name == "cluster--default-foo.com_bar-ingress-multi2" {
-				g.Expect(evhNode.EvhHostName).To(gomega.Equal("foo.com"))
-				g.Expect(evhNode.EvhPath).To(gomega.Equal("/bar"))
-				g.Expect(evhNode.PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-multi2"))
-				g.Expect(evhNode.PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_bar-ingress-multi2"))
-				g.Expect(len(evhNode.PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-				g.Expect(len(evhNode.PoolRefs[0].Servers)).To(gomega.Equal(2))
-			} else {
-				t.Fatalf("unexpected evh node name: %s", evhNode.Name)
-			}
-		}
+		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+		// Count should be 2 for both the backend pool members of the pool after the scaleout
+		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(2))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[1].Servers)).To(gomega.Equal(2))
+
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -1795,6 +1715,7 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(nodes[0].SSLKeyCertRefs).Should(gomega.HaveLen(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(0))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
@@ -1808,7 +1729,7 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			return len(nodes[0].EvhNodes)
-		}, 10*time.Second).Should(gomega.Equal(2))
+		}, 10*time.Second).Should(gomega.Equal(1))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -1831,6 +1752,10 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
+	// check if the certificate is deleted
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes[0].SSLKeyCertRefs).Should(gomega.HaveLen(0))
+
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-no-secret1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -1876,7 +1801,7 @@ func TestL7ModelMultiSNIForEvh(t *testing.T) {
 		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].SSLKeyCertRefs)).To(gomega.Equal(0))
@@ -1938,11 +1863,11 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 		g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].Hosts).To(gomega.HaveLen(2))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].SSLKeyCertRefs)).To(gomega.Equal(0))
-		g.Expect(nodes[0].EvhNodes[0].VHDomainNames).To(gomega.HaveLen(0))
+		g.Expect(nodes[0].EvhNodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}
@@ -2052,11 +1977,11 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(0))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].SSLKeyCertRefs)).To(gomega.Equal(0))
-		g.Expect(nodes[0].EvhNodes[0].VHDomainNames).To(gomega.HaveLen(0))
+		g.Expect(nodes[0].EvhNodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
 		t.Fatalf("Could not find Model: %v", err)
 	}

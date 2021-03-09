@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
+func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniModel) {
 	// use host to find out HostRule CRD if it exists
 	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
 	deleteCase := false
@@ -65,7 +65,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 	if !deleteCase {
 		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
 			vsSslKeyCertificate = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
-			vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
+			vsNode.SetSSLKeyCertRefs([]*AviTLSKeyCertNode{})
 		}
 
 		if hostrule.Spec.VirtualHost.TLS.SSLProfile != "" {
@@ -96,7 +96,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 
 		// delete all auto-created HttpPolicySets by AKO if override is set
 		if hostrule.Spec.VirtualHost.HTTPPolicy.Overwrite {
-			vsNode.HttpPolicyRefs = []*AviHttpPolicySetNode{}
+			vsNode.SetHttpPolicyRefs([]*AviHttpPolicySetNode{})
 		}
 
 		for _, script := range hostrule.Spec.VirtualHost.Datascripts {
@@ -112,30 +112,33 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode *AviVsNode) {
 			Status: "ACTIVE",
 		}
 	} else {
-		if vsNode.ServiceMetadata.CRDStatus.Value != "" {
-			crdStatus = vsNode.ServiceMetadata.CRDStatus
+		if vsNode.GetServiceMetadata().CRDStatus.Value != "" {
+			crdStatus = vsNode.GetServiceMetadata().CRDStatus
 			crdStatus.Status = "INACTIVE"
 		}
 	}
 
-	vsNode.SSLKeyCertAviRef = vsSslKeyCertificate
-	vsNode.WafPolicyRef = vsWafPolicy
-	vsNode.HttpPolicySetRefs = vsHTTPPolicySets
-	vsNode.AppProfileRef = vsAppProfile
-	vsNode.AnalyticsProfileRef = vsAnalyticsProfile
-	vsNode.ErrorPageProfileRef = vsErrorPageProfile
-	vsNode.SSLProfileRef = vsSslProfile
-	vsNode.VsDatascriptRefs = vsDatascripts
-	vsNode.Enabled = vsEnabled
-	vsNode.ServiceMetadata.CRDStatus = crdStatus
+	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificate)
+	vsNode.SetWafPolicyRef(vsWafPolicy)
+	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
+	vsNode.SetAppProfileRef(vsAppProfile)
+	vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
+	vsNode.SetErrorPageProfileRef(vsErrorPageProfile)
+	vsNode.SetSSLProfileRef(vsSslProfile)
+	vsNode.SetVsDatascriptRefs(vsDatascripts)
+	vsNode.SetEnabled(vsEnabled)
 
-	utils.AviLog.Infof("key: %s, Attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.Name)
+	serviceMetadataObj := vsNode.GetServiceMetadata()
+	serviceMetadataObj.CRDStatus = crdStatus
+	vsNode.SetServiceMetadata(serviceMetadataObj)
+
+	utils.AviLog.Infof("key: %s, Attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 }
 
 // BuildPoolHTTPRule notes
 // when we get an ingress update and we are building the corresponding pools of that ingress
 // we need to get all httprules which match ingress's host/path
-func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVsNode, isSNI bool) {
+func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsEvhSniModel, isSNI bool) {
 	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
 	if !found {
 		utils.AviLog.Warnf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
@@ -178,7 +181,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode *AviVs
 			continue
 		}
 
-		for _, pool := range vsNode.PoolRefs {
+		for _, pool := range vsNode.GetPoolRefs() {
 			isPathSniEnabled := pool.SniEnabled
 			pathSslProfile := pool.SslProfileRef
 			destinationCertNode := pool.PkiProfile
