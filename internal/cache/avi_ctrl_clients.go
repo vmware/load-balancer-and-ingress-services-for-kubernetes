@@ -15,7 +15,6 @@
 package cache
 
 import (
-	"errors"
 	"os"
 
 	"github.com/avinetworks/sdk/go/session"
@@ -42,42 +41,41 @@ func SharedAVIClients() *utils.AviRestClientPool {
 
 	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
 		shardSize := lib.GetshardSize()
-		if shardSize != 0 {
-			if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
-				// initializing shardSize+1 clients in pool, the +1 is used by CRD ref verification calls
-				AviClientInstance, err = utils.NewAviRestClientPool(
-					shardSize+1,
-					ctrlIpAddress,
-					ctrlUsername,
-					ctrlPassword,
-				)
-				connectionStatus = utils.AVIAPI_CONNECTED
-				if err != nil {
-					connectionStatus = utils.AVIAPI_DISCONNECTED
-					utils.AviLog.Error("AVI controller initilization failed")
-					return nil
-				}
-				// set the tenant and controller version in avisession obj
-				for _, client := range AviClientInstance.AviClient {
-					SetTenant := session.SetTenant(lib.GetTenant())
-					SetTenant(client.AviSession)
-
-					controllerVersion := utils.CtrlVersion
-					if lib.GetAdvancedL4() && lib.CheckControllerVersionCompatibility(controllerVersion, ">", lib.Advl4ControllerVersion) {
-						// for advancedL4 make sure the controller api version is set to a max version value of 20.1.2
-						controllerVersion = lib.Advl4ControllerVersion
-					}
-					//Set GRBAC Flag
-					lib.SetEnableGRBAC(controllerVersion)
-					utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
-					SetVersion := session.SetVersion(controllerVersion)
-					SetVersion(client.AviSession)
-				}
+		if shardSize == 0 {
+			// For dedicated VSes, we will have 8 threads in layer 3
+			shardSize = 8
+		}
+		if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
+			// initializing shardSize+1 clients in pool, the +1 is used by CRD ref verification calls
+			AviClientInstance, err = utils.NewAviRestClientPool(
+				shardSize+1,
+				ctrlIpAddress,
+				ctrlUsername,
+				ctrlPassword,
+			)
+			connectionStatus = utils.AVIAPI_CONNECTED
+			if err != nil {
+				connectionStatus = utils.AVIAPI_DISCONNECTED
+				utils.AviLog.Error("AVI controller initilization failed")
+				return nil
 			}
-		} else {
-			connectionStatus = utils.AVIAPI_DISCONNECTED
-			err = errors.New("Unable to initialize the Avi controller because the shard vs size is indeterministic")
-			utils.AviLog.Error(err)
+			// set the tenant and controller version in avisession obj
+			for _, client := range AviClientInstance.AviClient {
+				SetTenant := session.SetTenant(lib.GetTenant())
+				SetTenant(client.AviSession)
+
+				controllerVersion := utils.CtrlVersion
+				if lib.GetAdvancedL4() && lib.CheckControllerVersionCompatibility(controllerVersion, ">", lib.Advl4ControllerVersion) {
+					// for advancedL4 make sure the controller api version is set to a max version value of 20.1.2
+					controllerVersion = lib.Advl4ControllerVersion
+				}
+				//Set GRBAC Flag
+				lib.SetEnableGRBAC(controllerVersion)
+				utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
+				SetVersion := session.SetVersion(controllerVersion)
+				SetVersion(client.AviSession)
+
+			}
 		}
 	}
 

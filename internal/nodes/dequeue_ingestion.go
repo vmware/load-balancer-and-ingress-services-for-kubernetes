@@ -513,14 +513,15 @@ func GetShardVSPrefix(key string) string {
 func GetShardVSName(s string, key string) string {
 	var vsNum uint32
 	shardSize := lib.GetshardSize()
-	shardVsPrefix := GetShardVSPrefix(key)
 	if shardSize != 0 {
 		vsNum = utils.Bkt(s, shardSize)
 		utils.AviLog.Debugf("key: %s, msg: VS number: %v", key, vsNum)
 	} else {
-		utils.AviLog.Warnf("key: %s, msg: the value for shard_vs_size does not match the ENUM values", key)
-		return ""
+		utils.AviLog.Debugf("key: %s, msg: Processing dedicated VS", key)
+		//format: my-cluster--foo.com-dedicated for dedicated VS. This is to avoid any SNI naming conflicts
+		return lib.GetNamePrefix() + s + "-dedicated"
 	}
+	shardVsPrefix := GetShardVSPrefix(key)
 	vsName := shardVsPrefix + fmt.Sprint(vsNum)
 	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
 	return vsName

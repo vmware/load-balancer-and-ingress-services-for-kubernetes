@@ -844,7 +844,6 @@ func GetShardVSNumber(s string) string {
 	var vsNum uint32
 	shardSize := lib.GetshardSize()
 	if shardSize != 0 {
-
 		vsNum = utils.Bkt(s, shardSize)
 	} else {
 		return ""

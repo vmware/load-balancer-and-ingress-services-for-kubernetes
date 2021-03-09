@@ -476,6 +476,10 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, isEvh bool, sslKey ...utils.NamespaceName) bool {
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
 	shardSize := lib.GetshardSize()
+	if shardSize == 0 {
+		// Dedicated VS case
+		shardSize = 8
+	}
 	var retry, fastRetry bool
 	if shardSize != 0 {
 		bkt := utils.Bkt(key, shardSize)
@@ -1094,6 +1098,10 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 			// Some relationships are missing, do a manual refresh of the VS cache.
 			aviObjCache := avicache.SharedAviObjCache()
 			shardSize := lib.GetshardSize()
+			if shardSize == 0 {
+				// Dedicated VS case
+				shardSize = 8
+			}
 			if shardSize != 0 {
 				bkt := utils.Bkt(key, shardSize)
 				utils.AviLog.Warnf("key: %s, msg: corrupted sni cache found, retrying in bkt: %v", key, bkt)

@@ -236,6 +236,10 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		numWorkers = 1
 		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 		numGraphWorkers := lib.GetshardSize()
+		if numGraphWorkers == 0 {
+			// For dedicated VSes - we will have 8 layer 3 threads
+			numGraphWorkers = 8
+		}
 		graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
 		graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams).GetQueueByName(utils.GraphLayer)
 
