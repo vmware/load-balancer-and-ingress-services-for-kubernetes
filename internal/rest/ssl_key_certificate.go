@@ -54,17 +54,16 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 
 	// TODO other fields like cloud_ref and lb algo
 
-	macro := utils.AviRestObjMacro{ModelName: "SSLKeyAndCertificate", Data: sslkeycert}
-
 	var path string
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/sslkeyandcertificate/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: sslkeycert,
+		rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: sslkeycert,
 			Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
+		rest_op.ObjName = name
 	} else {
-		path = "/api/macro"
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+		path = "/api/sslkeyandcertificate"
+		rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPost, Obj: sslkeycert,
 			Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
 	}
 	return &rest_op
@@ -192,7 +191,6 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 	if lib.GetEnableGRBAC() {
 		pkiobject.Labels = lib.GetLabels()
 	}
-	macro := utils.AviRestObjMacro{ModelName: "PKIprofile", Data: pkiobject}
 
 	var path string
 	var rest_op utils.RestOp
@@ -201,8 +199,8 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pkiobject,
 			Tenant: pki_node.Tenant, Model: "PKIprofile", Version: utils.CtrlVersion}
 	} else {
-		path = "/api/macro"
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+		path = "/api/pkiprofile/"
+		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: pkiobject,
 			Tenant: pki_node.Tenant, Model: "PKIprofile", Version: utils.CtrlVersion}
 	}
 	return &rest_op

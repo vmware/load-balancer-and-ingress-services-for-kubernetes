@@ -43,7 +43,6 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	if lib.GetEnableGRBAC() {
 		pg.Labels = lib.GetLabels()
 	}
-	macro := utils.AviRestObjMacro{ModelName: "PoolGroup", Data: pg}
 
 	var path string
 	var rest_op utils.RestOp
@@ -61,8 +60,8 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pg,
 				Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
 		} else {
-			path = "/api/macro"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+			path = "/api/poolgroup/"
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: pg,
 				Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
 		}
 	}
@@ -99,7 +98,7 @@ func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *ut
 
 func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no response for PG err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no response for PG err: %v, response: %v", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 

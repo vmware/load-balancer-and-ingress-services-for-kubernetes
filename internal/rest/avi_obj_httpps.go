@@ -133,7 +133,6 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		idx = idx + 1
 	}
 
-	macro := utils.AviRestObjMacro{ModelName: "HTTPPolicySet", Data: hps}
 	var path string
 	var rest_op utils.RestOp
 	if cache_obj != nil {
@@ -151,8 +150,8 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
 				Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
 		} else {
-			path = "/api/macro"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+			path = "/api/httppolicyset/"
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: hps,
 				Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
 		}
 	}
