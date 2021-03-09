@@ -15,7 +15,6 @@
 package rest
 
 import (
-	"errors"
 	"regexp"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -23,36 +22,7 @@ import (
 
 func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) ([]map[string]interface{}, error) {
 	var resp_elems []map[string]interface{}
-	if rest_op.Method == utils.RestPost {
-		resp_arr, ok := rest_op.Response.([]interface{})
-		if !ok {
-			utils.AviLog.Warnf("key: %s, msg: response has unknown type %T", key, rest_op.Response)
-			return nil, errors.New("Malformed response")
-		}
-
-		for _, resp_elem := range resp_arr {
-			resp, ok := resp_elem.(map[string]interface{})
-			if !ok {
-				utils.AviLog.Warnf("key: %s, msg: response has unknown type %T", key, resp_elem)
-				continue
-			}
-
-			avi_url, ok := resp["url"].(string)
-			if !ok {
-				utils.AviLog.Warnf("key: %s, msg:url not present in response %v", key, resp)
-				continue
-			}
-
-			avi_obj_type, err := utils.AviUrlToObjType(avi_url)
-			if err == nil && avi_obj_type == obj_type {
-				resp_elems = append(resp_elems, resp)
-			}
-		}
-	} else {
-		// The PUT calls are specific for the resource
-		resp_elems = append(resp_elems, rest_op.Response.(map[string]interface{}))
-	}
-
+	resp_elems = append(resp_elems, rest_op.Response.(map[string]interface{}))
 	return resp_elems, nil
 }
 

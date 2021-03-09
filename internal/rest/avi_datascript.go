@@ -49,7 +49,6 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 
 	var path string
 	var rest_op utils.RestOp
-	macro := utils.AviRestObjMacro{ModelName: "VSDataScriptSet", Data: vsdatascriptset}
 	if cache_obj != nil {
 		path = "/api/vsdatascriptset/" + cache_obj.Uuid
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsdatascriptset,
@@ -64,8 +63,8 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsdatascriptset,
 				Tenant: ds_meta.Tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
 		} else {
-			path = "/api/macro"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+			path = "/api/vsdatascriptset"
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: vsdatascriptset,
 				Tenant: ds_meta.Tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
 		}
 	}
@@ -86,7 +85,7 @@ func (rest *RestOperations) AviDSDel(uuid string, tenant string, key string) *ut
 
 func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no response for datascriptset err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no response for datascriptset err: %v, response: %v", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 

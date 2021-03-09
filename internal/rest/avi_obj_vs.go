@@ -175,17 +175,13 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		if rest_method == utils.RestPut && cache_obj.Uuid != "" {
 			path = "/api/virtualservice/" + cache_obj.Uuid
 			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: vs,
-				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion, ObjName: *vs.Name}
 			rest_ops = append(rest_ops, &rest_op)
-
 		} else {
-			rest_method = utils.RestPost
-			macro := utils.AviRestObjMacro{ModelName: "VirtualService", Data: vs}
-			path = "/api/macro"
-			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: macro,
-				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+			path = "/api/virtualservice/"
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: vs,
+				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion, ObjName: *vs.Name}
 			rest_ops = append(rest_ops, &rest_op)
-
 		}
 		return rest_ops
 	}
@@ -301,13 +297,10 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		rest_ops = append(rest_ops, &rest_op)
 
 	} else {
-
-		macro := utils.AviRestObjMacro{ModelName: "VirtualService", Data: sniChild}
-		path = "/api/macro"
-		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: macro,
+		path = "/api/virtualservice"
+		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: sniChild,
 			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
 		rest_ops = append(rest_ops, &rest_op)
-
 	}
 
 	return rest_ops
@@ -315,7 +308,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no response for VS, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no response for VS, err: %v, response: %v", key, rest_op.Err, rest_op.Response)
 		return errors.New("Error rest_op")
 	}
 

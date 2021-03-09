@@ -922,25 +922,30 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 	addrPrefix := "10.250.250"
 	object := strings.Split(strings.Trim(url, "/"), "/")
 
-	if strings.Contains(url, "macro") && r.Method == "POST" {
+	if r.Method == "POST" && !strings.Contains(url, "login") {
 		data, _ := ioutil.ReadAll(r.Body)
 		json.Unmarshal(data, &resp)
-		rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
-		rName := rData["name"].(string)
+		_, rModelName := resp, ""
+		rName := resp["name"].(string)
 		objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", rModelName, rModelName, rName, RANDOMUUID, rName)
 
 		// adding additional 'uuid' and 'url' (read-only) fields in the response
-		rData["url"] = objURL
-		rData["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+		resp["url"] = objURL
+		resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
 
-		if rModelName == "virtualservice" {
+		if strings.Contains(url, "virtualservice") {
+			rModelName = "virtualservice"
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", rModelName, rModelName, rName, RANDOMUUID, rName)
+			// adding additional 'uuid' and 'url' (read-only) fields in the response
+			resp["url"] = objURL
+			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+
 			// handle sni child, fill in vs parent ref
-			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
+			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
+				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
 				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
 
-				rData["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
-				//rData["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
+				resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 
 			} else if strings.Contains(rName, "Shared-L7-EVH-") {
@@ -956,11 +961,17 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			// add vip for status update checks
 			// use vh_parent_vs_uuid for sniVS, and name for normal VSes
 
-			rData["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
-			rData["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
-		} else if rModelName == "vsvip" {
-			if vsType := rData["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName := strings.Split(rData["vh_parent_vs_uuid"].(string), "name=")[1]
+			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
+			resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
+		} else if strings.Contains(url, "vsvip") {
+			rModelName = "vsvip"
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", rModelName, rModelName, rName, RANDOMUUID, rName)
+			// adding additional 'uuid' and 'url' (read-only) fields in the response
+			resp["url"] = objURL
+			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+
+			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
+				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
 				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else if strings.Contains(rName, "Shared-L7-EVH-") {
@@ -972,10 +983,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			} else {
 				vipAddress = "10.250.250.250"
 			}
-			rData["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
+			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 		}
-
-		finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
+		finalResponse, _ = json.Marshal(resp)
 		w.WriteHeader(http.StatusOK)
 		w.Write(finalResponse)
 

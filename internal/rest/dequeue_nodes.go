@@ -36,7 +36,6 @@ import (
 type RestOperations struct {
 	cache             *avicache.AviObjCache
 	aviRestPoolClient *utils.AviRestClientPool
-	// Add locks if some code needs to be protected.
 }
 
 func NewRestOperations(cache *avicache.AviObjCache, aviRestPoolClient *utils.AviRestClientPool) RestOperations {
@@ -679,7 +678,7 @@ func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, key s
 func (rest *RestOperations) AviRestOperateWrapper(aviClient *clients.AviClient, rest_ops []*utils.RestOp) error {
 	restTimeoutChan := make(chan error, 1)
 	go func() {
-		err := rest.aviRestPoolClient.AviRestOperate(aviClient, rest_ops)
+		err := AviRestOperate(aviClient, rest_ops)
 		restTimeoutChan <- err
 	}()
 	select {
