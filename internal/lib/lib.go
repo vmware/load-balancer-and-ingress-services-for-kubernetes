@@ -73,10 +73,6 @@ func SetDisableSync(state bool) {
 func SetLayer7Only(val string) {
 	if boolVal, err := strconv.ParseBool(val); err == nil {
 		layer7Only = boolVal
-
-	} else {
-		// If the variable could not be converted, default to this being false
-		layer7Only = false
 	}
 	utils.AviLog.Infof("Setting the value for the layer7Only flag %v", layer7Only)
 }
