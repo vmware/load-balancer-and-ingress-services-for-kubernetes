@@ -93,8 +93,8 @@ func TestIngressClassWrongClassMappingInIngress(t *testing.T) {
 	ingClassName, ingressName, ns := "avi-lb", "foo-with-class", "default"
 	modelName := "admin/cluster--Shared-L7-6"
 
-	SetupIngressClass(t, ingClassName, lib.AviIngressController)
 	SetUpTestForIngress(t, modelName)
+	SetupIngressClass(t, ingClassName, lib.AviIngressController)
 	ingressCreate := (FakeIngress{
 		Name:        ingressName,
 		Namespace:   ns,
@@ -174,6 +174,8 @@ func TestDefaultIngressClassChange(t *testing.T) {
 	RemoveDefaultIngressClass()
 	defer AddDefaultIngressClass()
 
+	SetUpTestForIngress(t, modelName)
+
 	ingClass := (FakeIngressClass{
 		Name:       ingClassName,
 		Controller: lib.AviIngressController,
@@ -183,7 +185,6 @@ func TestDefaultIngressClassChange(t *testing.T) {
 		t.Fatalf("error in adding IngressClass: %v", err)
 	}
 
-	SetUpTestForIngress(t, modelName)
 	// ingress with no IngressClass
 	ingressCreate := (FakeIngress{
 		Name:        ingressName,
@@ -213,6 +214,10 @@ func TestDefaultIngressClassChange(t *testing.T) {
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 35*time.Second).Should(gomega.Equal(0))
 
+	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
 	TearDownTestForIngress(t, modelName)
 	TeardownIngressClass(t, ingClassName)
 	VerifyVSNodeDeletion(g, modelName)
