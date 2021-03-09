@@ -14,6 +14,7 @@ data:
   clusterName: {{ .Values.AKOSettings.clusterName | quote }}
   servicesAPI: {{ .Values.AKOSettings.servicesAPI | quote }}
   enableEVH: {{ .Values.AKOSettings.enableEVH | quote }}
+  layer7Only: {{ .Values.AKOSettings.layer7Only | quote }}
   tenantsPerCluster: {{ .Values.ControllerSettings.tenantsPerCluster | quote }}
   tenantName: {{ .Values.ControllerSettings.tenantName | quote }}
   defaultDomain: {{ .Values.L4Settings.defaultDomain | quote }}
