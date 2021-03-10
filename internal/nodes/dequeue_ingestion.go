@@ -104,7 +104,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// Push Services from InfraSetting updates. Valid for annotation based approach.
 	if objType == lib.AviInfraSetting && !lib.UseServicesAPI() {
 		svcNames, svcFound := schema.GetParentServices(name, namespace, key)
-		if svcFound {
+		if svcFound && utils.CheckIfNamespaceAccepted(namespace) {
 			for _, svcNSNameKey := range svcNames {
 				handleL4Service(utils.L4LBService+"/"+svcNSNameKey, fullsync)
 			}
@@ -122,8 +122,8 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
 				return
 			}
-
-			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() {
+			//Do not handle service update if it belongs to unaccepted namespace
+			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() && utils.CheckIfNamespaceAccepted(namespace) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
@@ -192,10 +192,13 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 		if found, lbSvcIntf := objects.SharedPodToLBSvcLister().Get(podKey); found {
 			lbSvcs, ok := lbSvcIntf.([]string)
 			if ok {
-				utils.AviLog.Debugf("key: %s, msg: handling l4 Services %v", key, lbSvcs)
-				for _, lbSvc := range lbSvcs {
-					lbSvcKey := utils.L4LBService + "/" + lbSvc
-					handleL4Service(lbSvcKey, fullsync)
+				//If namespace valid, do L4 service handling
+				if utils.IsServiceNSValid(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: handling l4 Services %v", key, lbSvcs)
+					for _, lbSvc := range lbSvcs {
+						lbSvcKey := utils.L4LBService + "/" + lbSvc
+						handleL4Service(lbSvcKey, fullsync)
+					}
 				}
 			} else {
 				utils.AviLog.Warnf("key: %s, msg: list services for pod is not of type []string", key)
@@ -211,19 +214,21 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 			utils.AviLog.Infof("key: %s, got error while unmarshaling NPL annotations: %v", err)
 		}
 		objects.SharedNPLLister().Save(podKey, annotations)
-		services, lbSvcs := lib.GetServicesForPod(pod)
-		if len(services) != 0 {
-			objects.SharedPodToSvcLister().Save(podKey, services)
+		if utils.IsServiceNSValid(namespace) {
+			services, lbSvcs := lib.GetServicesForPod(pod)
+			if len(services) != 0 {
+				objects.SharedPodToSvcLister().Save(podKey, services)
+			}
+			if len(lbSvcs) != 0 {
+				objects.SharedPodToLBSvcLister().Save(podKey, lbSvcs)
+			}
+			for _, lbSvc := range lbSvcs {
+				lbSvcKey := utils.L4LBService + "/" + lbSvc
+				utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
+				handleL4Service(lbSvcKey, fullsync)
+			}
+			utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
 		}
-		if len(lbSvcs) != 0 {
-			objects.SharedPodToLBSvcLister().Save(podKey, lbSvcs)
-		}
-		for _, lbSvc := range lbSvcs {
-			lbSvcKey := utils.L4LBService + "/" + lbSvc
-			utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
-			handleL4Service(lbSvcKey, fullsync)
-		}
-		utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
 	} else {
 		utils.AviLog.Infof("key: %s, NPL annotation not found for Pod", key)
 		objects.SharedNPLLister().Delete(podKey)
@@ -299,7 +304,7 @@ func handleL4Service(key string, fullsync bool) {
 	_, namespace, name := extractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
-	if !isServiceDelete(name, namespace, key) {
+	if !isServiceDelete(name, namespace, key) && utils.CheckIfNamespaceAccepted(namespace) {
 		// If Service is Not Annotated with NPL annotation, annotate the service and return.
 		if lib.AutoAnnotateNPLSvc() {
 			if !status.CheckUpdateSvcAnnotation(key, namespace, name) {

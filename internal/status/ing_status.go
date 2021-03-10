@@ -319,7 +319,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 			if status.Hostname == host {
 				// Check if this host is still present in the spec, if so - don't delete it
 				//NS migration case: if false -> ns invalid event happened so remove status
-				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace, utils.GetGlobalNSFilter(), nil, true)
+				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace)
 				if !utils.HasElem(hostListIng, host) || isVSDelete || !nsMigrationFilterFlag {
 					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 				} else {
@@ -392,7 +392,7 @@ func deleteIngressAnnotation(ingObj *networkingv1beta1.Ingress, svcMeta avicache
 				// 1. this host is still present in the spec, if so - don't delete it from annotations
 				// 2. in case of NS migration, if NS is moved from selected to rejected, this host then
 				//    has to be removed from the annotations list.
-				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace, utils.GetGlobalNSFilter(), nil, true)
+				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace)
 				if !utils.HasElem(ingHostList, host) || isVSDelete || !nsMigrationFilterFlag {
 					delete(existingAnnotations, k)
 				} else {
@@ -407,7 +407,7 @@ func deleteIngressAnnotation(ingObj *networkingv1beta1.Ingress, svcMeta avicache
 			return deleteIngressAnnotation(ingObj, svcMeta, isVSDelete, ingHostList, key, mClient, oldIng, retry+1)
 		}
 	}
-	utils.AviLog.Debugf("key: %s, msg: Annotations unchanged for ingress %s/%s", ingObj.Namespace, ingObj.Name)
+	utils.AviLog.Debugf("key: %s, msg: Annotations unchanged for ingress %s/%s", key, ingObj.Namespace, ingObj.Name)
 
 	return nil
 }
