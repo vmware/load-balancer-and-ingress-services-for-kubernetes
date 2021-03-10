@@ -1035,7 +1035,7 @@ func TestNPLSvcIngressUpdateClass(t *testing.T) {
 
 	defaultClass := integrationtest.DefaultIngressClass
 	ingrFake.Spec.IngressClassName = &defaultClass
-	ingrFake.ResourceVersion = "2"
+	ingrFake.ResourceVersion = "3"
 	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't Update the Ingress %v", err)

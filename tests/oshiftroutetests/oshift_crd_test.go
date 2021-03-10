@@ -200,16 +200,16 @@ func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 }
 
-func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
-	// 1 insecure route, 1 secure route -> secure VS via Hostrule
+func TestOshift1MultiRouteToSecureHostRule(t *testing.T) {
+	// 2 insecure route -> secure VS via Hostrule
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
 
-	// creating secure default/foo.com/foo
+	// creating insecure default/foo.com/foo
 	SetUpTestForRoute(t, modelName, integrationtest.AllModels...)
-	secRouteExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	secRouteExample := FakeRoute{Path: "/foo"}.Route()
 	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), secRouteExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
@@ -225,7 +225,6 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-	ValidateSniModel(t, g, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
