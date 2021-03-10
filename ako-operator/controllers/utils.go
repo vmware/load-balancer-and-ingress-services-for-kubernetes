@@ -11,6 +11,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// Status messages
+const (
+	SuccessfullyDeployedMsg  = "Reconciled all artifacts"
+	CleanupErrMsg            = "Error in cleaning up artifacts: "
+	FinalizerRemoveErrMsg    = "Error in removing finalizer: "
+	ArtifactsReconcileErrMsg = "Error in reconciling: "
+)
+
 // properties used for naming the dependent artifacts
 const (
 	StatefulSetName    = "ako"
@@ -57,6 +65,7 @@ const (
 	NSSyncLabelValue       = "nsSyncLabelValue"
 	TenantsPerCluster      = "tenantsPerCluster"
 	TenantName             = "tenantName"
+	Layer7Only             = "layer7Only"
 )
 
 var SecretEnvVars = map[string]string{

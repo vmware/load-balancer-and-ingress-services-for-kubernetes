@@ -55,6 +55,8 @@ type AKOSettings struct {
 	CNIPlugin string `json:"cniPlugin,omitempty"`
 	// Namespace selector specifies the namespace labels from which AKO should sync from
 	NSSelector NamespaceSelector `json:"namespaceSelector,omitempty"`
+	// Layer7Only flag, if set to true, then AKO controller will only do layer 7 loadbalancing
+	Layer7Only bool `json:"layer7Only,omitempty"`
 }
 
 type NodeNetwork struct {
