@@ -107,12 +107,14 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if !ako.GetDeletionTimestamp().IsZero() {
 		if finalizerInList(ako.GetFinalizers(), CleanupFinalizer) {
 			if err := r.CleanupArtifacts(ctx, log); err != nil {
+				r.UpdateAKOConfigStatus(ctx, CleanupErrMsg+err.Error(), &ako, log)
 				return ctrl.Result{}, err
 			}
 
 			patch := client.MergeFrom(ako.DeepCopy())
 			ako.Finalizers = removeFinalizer(ako.Finalizers, CleanupFinalizer)
 			if err := r.Patch(context.TODO(), &ako, patch); err != nil {
+				r.UpdateAKOConfigStatus(ctx, FinalizerRemoveErrMsg+err.Error(), &ako, log)
 				return ctrl.Result{}, err
 			}
 		}
@@ -123,10 +125,23 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// reconcile all objects
 	err = r.ReconcileAllArtifacts(ctx, ako, log)
 	if err != nil {
+		r.UpdateAKOConfigStatus(ctx, ArtifactsReconcileErrMsg+err.Error(), &ako, log)
 		return ctrl.Result{}, err
 	}
+	return ctrl.Result{}, r.UpdateAKOConfigStatus(ctx, SuccessfullyDeployedMsg, &ako, log)
+}
 
-	return ctrl.Result{}, nil
+func (r *AKOConfigReconciler) UpdateAKOConfigStatus(ctx context.Context, state string,
+	akoConfig *akov1alpha1.AKOConfig, log logr.Logger) error {
+
+	log.V(0).Info("updating ako config status", "status message", state)
+	akoConfig.Status.State = state
+	patch := client.MergeFrom(akoConfig.DeepCopy())
+	err := r.Client.Patch(ctx, akoConfig, patch)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {

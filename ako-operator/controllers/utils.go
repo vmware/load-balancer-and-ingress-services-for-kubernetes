@@ -12,6 +12,14 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+// Status messages
+const (
+	SuccessfullyDeployedMsg  = "Reconciled all artifacts"
+	CleanupErrMsg            = "Error in cleaning up artifacts: "
+	FinalizerRemoveErrMsg    = "Error in removing finalizer: "
+	ArtifactsReconcileErrMsg = "Error in reconciling: "
+)
+
 // properties used for naming the dependent artifacts
 const (
 	StatefulSetName    = "ako"
