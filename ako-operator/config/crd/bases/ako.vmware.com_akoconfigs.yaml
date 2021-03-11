@@ -60,6 +60,10 @@ spec:
                   description: FullSyncFrequency defines the interval at which full
                     sync is carried out by the AKO controller
                   type: string
+                layer7Only:
+                  description: Layer7Only flag, if set to true, then AKO controller
+                    will only do layer 7 loadbalancing
+                  type: boolean
                 logLevel:
                   description: LogLevel defines the log level to be used by the AKO
                     controller
