@@ -201,31 +201,28 @@ func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
 }
 
 func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
-	// 1 insecure route, 1 secure route -> secure VS via Hostrule
+	// 2 insecure route -> secure VS via Hostrule
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
 
-	// creating secure default/foo.com/foo
+	// creating insecure default/foo.com/foo
 	SetUpTestForRoute(t, modelName, integrationtest.AllModels...)
-	secRouteExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	secRouteExample := FakeRoute{Path: "/foo"}.Route()
 	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), secRouteExample, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
 	// creating insecure red/foo.com/bar
-	AddLabelToNamespace(defaultKey, defaultValue, "red", modelName, t)
 	routeExample := FakeRoute{
-		Name:      "insecure-foo",
-		Namespace: "red",
-		Path:      "/bar",
+		Name: "insecure-foo",
+		Path: "/bar",
 	}.Route()
-	_, err := OshiftClient.RouteV1().Routes("red").Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-	ValidateSniModel(t, g, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
@@ -250,7 +247,7 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	VerifySecureRouteDeletion(t, g, modelName, 1, 0)
-	VerifyRouteDeletion(t, g, aviModel, 0, "red/insecure-foo")
+	VerifyRouteDeletion(t, g, aviModel, 0, "default/insecure-foo")
 	TearDownTestForRoute(t, modelName)
 }
 
@@ -269,14 +266,12 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 	}
 
 	// creating insecure red/voo.com/voo
-	AddLabelToNamespace(defaultKey, defaultValue, "red", modelName, t)
 	routeExampleVoo := FakeRoute{
-		Name:      "voo",
-		Namespace: "red",
-		Hostname:  "voo.com",
-		Path:      "/voo",
+		Name:     "voo",
+		Hostname: "voo.com",
+		Path:     "/voo",
 	}.Route()
-	if _, err := OshiftClient.RouteV1().Routes("red").Create(context.TODO(), routeExampleVoo, metav1.CreateOptions{}); err != nil {
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleVoo, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
 
@@ -290,7 +285,7 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			if len(nodes[0].SniNodes) == 1 &&
 				len(nodes[0].PoolRefs) == 1 &&
-				nodes[0].PoolRefs[0].Name == "cluster--voo.com_voo-red-voo-avisvc" {
+				nodes[0].PoolRefs[0].Name == "cluster--voo.com_voo-default-voo-avisvc" {
 				return true
 			}
 		}
@@ -328,11 +323,11 @@ func TestOshiftMultiRouteSwitchHostRuleFqdn(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--red-voo.com_voo-voo-avisvc"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-voo.com_voo-voo-avisvc"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--voo.com"}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	VerifySecureRouteDeletion(t, g, modelName, 1, 0, "red/voo")
+	VerifySecureRouteDeletion(t, g, modelName, 1, 0, "default/voo")
 	VerifyRouteDeletion(t, g, aviModel, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }

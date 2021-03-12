@@ -57,7 +57,7 @@ const (
 	SINGLEPORTMODEL     = "admin/cluster--red-ns-testsvc"      // single port model name
 	MULTIPORTMODEL      = "admin/cluster--red-ns-testsvcmulti" // multi port model name
 	RANDOMUUID          = "random-uuid"                        // random avi object uuid
-	defaultIngressClass = "avi-lb"
+	DefaultIngressClass = "avi-lb"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -98,7 +98,7 @@ func AddConfigMap() {
 func AddDefaultIngressClass() {
 	aviIngressClass := &networking.IngressClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultIngressClass,
+			Name: DefaultIngressClass,
 			Annotations: map[string]string{
 				lib.DefaultIngressClassAnnotation: "true",
 			},
@@ -112,7 +112,7 @@ func AddDefaultIngressClass() {
 }
 
 func RemoveDefaultIngressClass() {
-	KubeClient.NetworkingV1beta1().IngressClasses().Delete(context.TODO(), defaultIngressClass, metav1.DeleteOptions{})
+	KubeClient.NetworkingV1beta1().IngressClasses().Delete(context.TODO(), DefaultIngressClass, metav1.DeleteOptions{})
 }
 
 //Fake Namespace
