@@ -278,8 +278,8 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	hostPathSvcMap := make(map[string][]IngressHostPathSvc)
 	for sniHost, paths := range tlssetting.Hosts {
 		var sniHosts []string
-		hostPathSvcMap[sniHost] = paths
-		hostMap := HostNamePathSecrets{paths: getPaths(paths), secretName: tlssetting.SecretName}
+		hostPathSvcMap[sniHost] = paths.ingressHPSvc
+		hostMap := HostNamePathSecrets{paths: getPaths(paths.ingressHPSvc), secretName: tlssetting.SecretName}
 		found, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		if found {
 			// Replace the ingress map for this host.

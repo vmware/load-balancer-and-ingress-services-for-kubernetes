@@ -1099,6 +1099,7 @@ type FakeHostRule struct {
 	ErrorPageProfile   string
 	Datascripts        []string
 	HttpPolicySets     []string
+	GslbFqdn           string
 }
 
 func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
@@ -1129,6 +1130,9 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 				ErrorPageProfile:   hr.ErrorPageProfile,
 				Datascripts:        hr.Datascripts,
 				EnableVirtualHost:  &enable,
+				Gslb: akov1alpha1.HostRuleGSLB{
+					Fqdn: hr.GslbFqdn,
+				},
 			},
 		},
 	}
@@ -1147,6 +1151,7 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
 		ErrorPageProfile:   "thisisaviref-errorprof",
 		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
 		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		GslbFqdn:           "bar.com",
 	}
 	if secure {
 		hostrule.SslKeyCertificate = "thisisaviref-sslkey"

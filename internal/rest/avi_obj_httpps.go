@@ -50,9 +50,9 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
 		match_target := avimodels.MatchTarget{}
-		if hppmap.Host != "" {
+		if len(hppmap.Host) > 0 {
 			var host []string
-			host = append(host, hppmap.Host)
+			host = hppmap.Host
 			match_crit := "HDR_EQUALS"
 			host_hdr_match := avimodels.HostHdrMatch{
 				MatchCriteria: &match_crit,

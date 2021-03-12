@@ -299,7 +299,7 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 		if found && hostData.InsecurePolicy != lib.PolicyNone {
 			// TODO: StoredPaths might be empty if the host was not specified with any paths.
 			// Verify the paths and take out the paths that are not need.
-			pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, pathsvcmap)
+			pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, pathsvcmap.ingressHPSvc)
 			if len(pathSvcDiff) == 0 {
 				Storedhosts[host].InsecurePolicy = lib.PolicyNone
 			} else {
@@ -313,7 +313,7 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 			}
 		}
 		hostsMap[host].InsecurePolicy = lib.PolicyAllow
-		hostsMap[host].PathSvc = getPathSvc(pathsvcmap)
+		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
 
 		shardVsName := DeriveHostNameShardVS(host, key)
 		if shardVsName == "" {
@@ -327,7 +327,7 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 			aviModel = NewAviObjectGraph()
 			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
 		}
-		aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName, host, routeIgrObj, pathsvcmap, key)
+		aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName, host, routeIgrObj, pathsvcmap.ingressHPSvc, key)
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
 			*modelList = append(*modelList, modelName)

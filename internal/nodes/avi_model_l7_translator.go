@@ -104,13 +104,13 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 			newHostMap := make(map[string]map[string][]string)
 			insecureHostPathMapArr := make(map[string][]string)
 			for host, pathmap := range parsedIng.IngressHostMap {
-				insecureHostPathMapArr[host] = getPaths(pathmap)
+				insecureHostPathMapArr[host] = getPaths(pathmap.ingressHPSvc)
 			}
 			newHostMap["insecure"] = insecureHostPathMapArr
 			secureHostPathMapArr := make(map[string][]string)
 			for _, tlssetting := range parsedIng.TlsCollection {
 				for sniHost, paths := range tlssetting.Hosts {
-					secureHostPathMapArr[sniHost] = getPaths(paths)
+					secureHostPathMapArr[sniHost] = getPaths(paths.ingressHPSvc)
 				}
 			}
 			newHostMap["secure"] = secureHostPathMapArr
@@ -128,7 +128,7 @@ func (o *AviObjectGraph) BuildL7VSGraph(vsName string, namespace string, ingName
 					if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 						vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 					}
-					for _, obj := range val {
+					for _, obj := range val.ingressHPSvc {
 						var priorityLabel string
 						var hostSlice []string
 						if obj.Path != "" {
@@ -474,7 +474,10 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 
 func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, hostName ...string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
+	var sniFQDNs []string
 	for host, paths := range hostpath.Hosts {
+		var pathFQDNs []string
+		pathFQDNs = append(pathFQDNs, host)
 		if len(hostName) > 0 {
 			if hostName[0] != host {
 				// If a hostname is passed to this method, ensure we only process that hostname and nothing else.
@@ -485,13 +488,16 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
 		}
-		if !utils.HasElem(tlsNode.VHDomainNames, host) {
-			tlsNode.VHDomainNames = append(tlsNode.VHDomainNames, host)
+		if paths.gslbHostHeader != "" {
+			// check if the VHDomain is already added, if not add it.
+			if !utils.HasElem(pathFQDNs, paths.gslbHostHeader) {
+				pathFQDNs = append(pathFQDNs, paths.gslbHostHeader)
+			}
 		}
-		for _, path := range paths {
+		for _, path := range paths.ingressHPSvc {
 			var httpPolicySet []AviHostPathPortPoolPG
 
-			httpPGPath := AviHostPathPortPoolPG{Host: host}
+			httpPGPath := AviHostPathPortPoolPG{Host: pathFQDNs}
 
 			if path.PathType == networkingv1beta1.PathTypeExact {
 				httpPGPath.MatchCriteria = "EQUALS"
@@ -514,7 +520,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 				localPGList[pgName] = pgNode
 				httpPGPath.PoolGroup = pgNode.Name
-				httpPGPath.Host = host
+				httpPGPath.Host = pathFQDNs
 				httpPolicySet = append(httpPolicySet, httpPGPath)
 			}
 
@@ -575,11 +581,12 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 					tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
 				}
 			}
-		}
-		for _, path := range paths {
 			BuildPoolHTTPRule(host, path.Path, ingName, namespace, key, tlsNode, true)
 		}
+		sniFQDNs = append(sniFQDNs, pathFQDNs...)
 	}
+	// Whatever is there in sniFQDNs should be in the VHDomain
+	tlsNode.VHDomainNames = sniFQDNs
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. tlsNodeChecksum for tlsNode :%s is :%v", key, tlsNode.Name, tlsNode.GetCheckSum())
 
 }

@@ -59,6 +59,7 @@ func TestHostnameCreateDeleteHostRule(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
 	g.Expect(nodes[0].SniNodes[0].SSLProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprof"))
+	g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.ContainElement("bar.com"))
 
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:              hrname,
@@ -68,6 +69,7 @@ func TestHostnameCreateDeleteHostRule(t *testing.T) {
 	}.HostRule()
 	enableVirtualHost := false
 	hrUpdate.Spec.VirtualHost.EnableVirtualHost = &enableVirtualHost
+	hrUpdate.Spec.VirtualHost.Gslb.Fqdn = "baz.com"
 	hrUpdate.ResourceVersion = "2"
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
@@ -80,7 +82,7 @@ func TestHostnameCreateDeleteHostRule(t *testing.T) {
 		}
 		return true
 	}, 25*time.Second).Should(gomega.Equal(false))
-
+	g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.ContainElement("baz.com"))
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -94,6 +96,8 @@ func TestHostnameCreateDeleteHostRule(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].SSLProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.Not(gomega.ContainElement("baz.com")))
+
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
