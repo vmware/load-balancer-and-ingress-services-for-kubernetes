@@ -42,9 +42,10 @@ var ShardSchemeMap = map[string]string{
 }
 
 var shardSizeMap = map[string]uint32{
-	"LARGE":  8,
-	"MEDIUM": 4,
-	"SMALL":  1,
+	"LARGE":     8,
+	"MEDIUM":    4,
+	"SMALL":     1,
+	"DEDICATED": 0,
 }
 
 var fqdnEnum = map[string]int32{
