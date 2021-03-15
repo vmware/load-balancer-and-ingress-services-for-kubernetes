@@ -310,6 +310,7 @@ func TestInsecureToSecureRoute(t *testing.T) {
 
 func TestSecureRouteMultiNamespace(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+	integrationtest.DeleteNamespace("test")
 	SetUpTestForRoute(t, defaultModelName)
 	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
@@ -317,6 +318,8 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
+	defer integrationtest.DeleteNamespace("test")
+
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
@@ -767,6 +770,7 @@ func TestSecureRouteInsecureRedirectToNone(t *testing.T) {
 
 func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+	integrationtest.DeleteNamespace("test")
 	SetUpTestForRoute(t, defaultModelName)
 	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
 	route1.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
@@ -775,6 +779,8 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
+	defer integrationtest.DeleteNamespace("test")
+
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
@@ -800,6 +806,8 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 
 func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+	integrationtest.DeleteNamespace("test")
+
 	SetUpTestForRoute(t, defaultModelName)
 	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
 	route1.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
@@ -808,6 +816,8 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
+	defer integrationtest.DeleteNamespace("test")
+
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
