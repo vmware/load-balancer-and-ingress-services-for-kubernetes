@@ -558,9 +558,9 @@ func TestSecureToInsecureRouteInNodePort(t *testing.T) {
 	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
-// Removing this testcase for now, as we are missing events from non default Namespace with fakeclient in case of Routes
-/*func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
+func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+	integrationtest.DeleteNamespace("test")
 
 	integrationtest.SetNodePortMode()
 	defer integrationtest.SetClusterIPMode()
@@ -575,6 +575,7 @@ func TestSecureToInsecureRouteInNodePort(t *testing.T) {
 		t.Fatalf("error in adding route: %v", err)
 	}
 	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
+	defer integrationtest.DeleteNamespace("test")
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeNodePort, false)
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
@@ -619,7 +620,7 @@ func TestSecureToInsecureRouteInNodePort(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRouteInNodePort(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
-}*/
+}
 
 func TestPassthroughRouteInNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
