@@ -43,10 +43,9 @@ func SetupDomain() {
 	cloudProperty.NSIpamDNS = subdomains
 }
 
-func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
+func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, modelNames ...string) {
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
-	PollForCompletion(t, modelName, 5)
+	SetUpTestForIngress(t, modelNames...)
 	ingressObject := FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
@@ -66,13 +65,14 @@ func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, w
 	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	PollForCompletion(t, modelName, 5)
+	PollForCompletion(t, modelNames[0], 5)
 }
 
 func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string, g *gomega.GomegaWithT) {
 	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	g.Eventually(func() error {
 		_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return err
@@ -85,7 +85,7 @@ func TestCreateIngressCacheSync(t *testing.T) {
 	var found bool
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	g.Eventually(func() bool {
 		found, _ = objects.SharedAviGraphLister().Get(modelName)
@@ -159,7 +159,7 @@ func TestCreateIngressWithFaultCacheSync(t *testing.T) {
 	defer ResetMiddleware()
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -198,7 +198,7 @@ func TestUpdatePoolCacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	// Get hold of the pool checksum on CREATE
 	poolName := "cluster--foo.com_foo-default-foo-with-targets"
@@ -253,7 +253,7 @@ func TestDeletePoolCacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	ingressUpdate := (FakeIngress{
 		Name:        "foo-with-targets",
@@ -291,7 +291,7 @@ func TestCreateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-6"}
@@ -331,7 +331,7 @@ func TestUpdateSNICacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo-with-targets-default-my-secret"}
@@ -392,7 +392,7 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 	mcache := cache.SharedAviObjCache()
 
 	// update ingress
@@ -440,6 +440,7 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 		return ""
 	}, 30*time.Second).Should(gomega.Equal("cluster--default-my-secret-v2"))
 
+	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret-v2", metav1.DeleteOptions{})
 	TearDownIngressForCacheSyncCheck(t, modelName, g)
 }
 
@@ -568,7 +569,7 @@ func TestDeleteSNICacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-6"}
@@ -613,7 +614,7 @@ func TestCUDSecretCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, false)
+	SetUpIngressForCacheSyncCheck(t, true, false, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo-with-targets-default-my-secret"}
@@ -623,7 +624,7 @@ func TestCUDSecretCacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(false))
+	}, 15*time.Second).Should(gomega.Equal(false))
 
 	// add Secret
 	AddSecret("my-secret", "default", "tlsCert", "tlsKey")
@@ -668,7 +669,7 @@ func TestIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-6"}
@@ -803,7 +804,7 @@ func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 func TestDeleteSecretSecureIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-6"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
@@ -827,7 +828,7 @@ func TestCreateIngressCacheSyncWithMultiTenant(t *testing.T) {
 	defer ResetAkoTenant()
 	var found bool
 	modelName := fmt.Sprintf("%s/cluster--Shared-L7-6", AKOTENANT)
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	g.Eventually(func() bool {
 		found, _ = objects.SharedAviGraphLister().Get(modelName)

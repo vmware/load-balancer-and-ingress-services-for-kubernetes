@@ -225,6 +225,10 @@ func TestHostnameDefaultIngressClassChange(t *testing.T) {
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 35*time.Second).Should(gomega.Equal(0))
 
+	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
 	TearDownTestForIngress(t, modelName)
 	TeardownIngressClass(t, ingClassName)
 	VerifyVSNodeDeletion(g, modelName)

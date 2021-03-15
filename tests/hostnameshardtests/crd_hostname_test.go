@@ -33,7 +33,7 @@ func TestHostnameCreateDeleteHostRule(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
@@ -109,7 +109,7 @@ func TestHostnameCreateHostRuleBeforeIngress(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -140,7 +140,7 @@ func TestHostnameInsecureToSecureHostRule(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
@@ -179,7 +179,7 @@ func TestHostnameMultiIngressToSecureHostRule(t *testing.T) {
 	hrname := "samplehr-foo"
 
 	// creating secure default/foo.com/foo
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	// creating insecure red/foo.com/bar
 	ingressObject := integrationtest.FakeIngress{
@@ -232,7 +232,7 @@ func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 	hrname := "samplehr-foo"
 
 	// creating insecure default/foo.com/foo
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	// creating insecure red/voo.com/voo
 	ingressObject := integrationtest.FakeIngress{
@@ -309,7 +309,7 @@ func TestHostnameGoodToBadHostRule(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
@@ -354,7 +354,7 @@ func TestHostnameInsecureHostAndHostrule(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
 
 	g.Eventually(func() int {
@@ -379,7 +379,7 @@ func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
@@ -507,7 +507,7 @@ func TestHostNameHTTPRuleHostSwitch(t *testing.T) {
 	rrnameFoo := "samplerr-foo"
 
 	// creates foo.com insecure
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	// creates voo.com insecure
 	ingressObject := integrationtest.FakeIngress{

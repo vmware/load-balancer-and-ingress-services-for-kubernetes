@@ -36,7 +36,7 @@ func TestHostnameCreateDeleteHostRuleForEvh(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
@@ -114,7 +114,7 @@ func TestHostnameCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -147,7 +147,7 @@ func TestHostnameInsecureToSecureHostRuleForEvh(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
@@ -186,7 +186,7 @@ func TestHostnameGoodToBadHostRuleForEvh(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
@@ -233,7 +233,7 @@ func TestHostnameInsecureHostAndHostruleForEvh(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
 
 	g.Eventually(func() int {
