@@ -42,10 +42,9 @@ func SetupDomain() {
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 }
 
-func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, withSecret bool) {
+func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, modelNames ...string) {
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
-	integrationtest.PollForCompletion(t, modelName, 5)
+	SetUpTestForIngress(t, modelNames...)
 	ingressObject := integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
@@ -67,7 +66,7 @@ func SetUpIngressForCacheSyncCheck(t *testing.T, modelName string, tlsIngress, w
 	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, modelName, 5)
+	integrationtest.PollForCompletion(t, modelNames[0], 5)
 }
 
 func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string) {
@@ -83,7 +82,7 @@ func TestHostnameCreateIngressCacheSync(t *testing.T) {
 	var found bool
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	g.Eventually(func() bool {
 		found, _ = objects.SharedAviGraphLister().Get(modelName)
@@ -130,7 +129,7 @@ func TestHostnameIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
@@ -199,7 +198,7 @@ func TestHostnameCreateIngressWithFaultCacheSync(t *testing.T) {
 	defer integrationtest.ResetMiddleware()
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -238,7 +237,7 @@ func TestHostnameUpdatePoolCacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	// Get hold of the pool checksum on CREATE
 	poolName := "cluster--foo.com_foo-default-foo-with-targets"
@@ -317,7 +316,7 @@ func TestHostnameDeletePoolCacheSync(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	modelName1 := "admin/cluster--Shared-L7-1"
-	SetUpIngressForCacheSyncCheck(t, modelName, false, false)
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	ingressUpdate := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -359,7 +358,7 @@ func TestHostnameCreateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
@@ -391,7 +390,7 @@ func TestHostnameUpdateSNICacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
@@ -452,7 +451,7 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 	mcache := cache.SharedAviObjCache()
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	// update ingress
@@ -669,7 +668,7 @@ func TestHostnameDeleteSNICacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
@@ -710,7 +709,7 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, false)
+	SetUpIngressForCacheSyncCheck(t, true, false, modelName)
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
@@ -777,7 +776,7 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 func TestHostnameDeleteSecretSecureIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	SetUpIngressForCacheSyncCheck(t, modelName, true, true)
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})

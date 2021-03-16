@@ -300,20 +300,15 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 					status.DeleteSvcAnnotation(key, namespace, svc)
 				}
 			}
-			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
+			if utils.GetIngressClassEnabled() {
+				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
+			}
 		}
 	} else {
-
 		// simple validator check for duplicate hostpaths, logs Warning if duplicates found
 		success := validateSpecFromHostnameCache(key, ingObj.Namespace, ingObj.Name, ingObj.Spec)
 		if !success {
 			return ingresses, false
-		}
-
-		if ingObj.Spec.IngressClassName != nil {
-			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, *ingObj.Spec.IngressClassName)
-		} else {
-			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 
 		// If the Ingress Class is not found or is not valid, then return.
@@ -326,6 +321,17 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 				}
 			}
 			return ingresses, true
+		}
+
+		if utils.GetIngressClassEnabled() {
+			if ingObj.Spec.IngressClassName != nil {
+				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, *ingObj.Spec.IngressClassName)
+			} else if aviIngClassName, found := isAviLBDefaultIngressClass(); found {
+				// check if default IngressClass is present, and it is Avi's IngressClass, in which case add mapping for that.
+				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, aviIngClassName)
+			} else {
+				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
+			}
 		}
 
 		_, oldSvcs := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSvc(ingName)
@@ -868,8 +874,8 @@ func validateIngressForClass(key string, ingress *networkingv1beta1.Ingress) boo
 
 	if ingress.Spec.IngressClassName == nil {
 		// check whether avi-lb ingress class is set as the default ingress class
-		if isAviLBDefaultIngressClass() {
-			utils.AviLog.Debugf("key: %s, msg: ingress class name is not specified but ako.vmware.com/avi-lb is default ingress controller", key)
+		if _, found := isAviLBDefaultIngressClass(); found {
+			utils.AviLog.Infof("key: %s, msg: ingress class name is not specified but ako.vmware.com/avi-lb is default ingress controller", key)
 			return true
 		} else {
 			utils.AviLog.Warnf("key: %s, msg: ingress class name not specified for ingress %s and ako.vmware.com/avi-lb is not default ingress controller", key, ingress.Name)
@@ -894,18 +900,18 @@ func validateIngressForClass(key string, ingress *networkingv1beta1.Ingress) boo
 	return true
 }
 
-func isAviLBDefaultIngressClass() bool {
+func isAviLBDefaultIngressClass() (string, bool) {
 	ingClassObjs, _ := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
 	for _, ingClass := range ingClassObjs {
 		if ingClass.Spec.Controller == lib.AviIngressController {
 			annotations := ingClass.GetAnnotations()
 			isDefaultClass, ok := annotations[lib.DefaultIngressClassAnnotation]
 			if ok && isDefaultClass == "true" {
-				return true
+				return ingClass.Name, true
 			}
 		}
 	}
 
 	utils.AviLog.Debugf("IngressClass with controller ako.vmware.com/avi-lb not found in the cluster")
-	return false
+	return "", false
 }

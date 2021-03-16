@@ -31,10 +31,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func SetUpTestForIngress(t *testing.T, model_Name string) {
+func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("L7_SHARD_SCHEME", "namespace")
-	objects.SharedAviGraphLister().Delete(model_Name)
+
+	for _, model := range modelNames {
+		objects.SharedAviGraphLister().Delete(model)
+	}
 	CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
 	CreateEP(t, "default", "avisvc", false, false, "1.1.1")
 }

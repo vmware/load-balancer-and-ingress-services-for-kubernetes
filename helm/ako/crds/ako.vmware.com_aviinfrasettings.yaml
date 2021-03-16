@@ -16,7 +16,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: NSX ALB Setting is used to select specific Avi controller infra attributes.
+        description: AviInfraSetting is used to select specific Avi controller infra attributes.
         properties:
           spec:
             properties:

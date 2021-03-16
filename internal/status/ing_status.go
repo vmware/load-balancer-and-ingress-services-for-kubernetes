@@ -309,22 +309,11 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	}
 
 	oldIngressStatus := mIngress.Status.LoadBalancer.DeepCopy()
-	var hostListIng []string
-	for _, rule := range mIngress.Spec.Rules {
-		hostListIng = append(hostListIng, rule.Host)
-	}
 
 	for i, status := range mIngress.Status.LoadBalancer.Ingress {
 		for _, host := range svc_mdata_obj.HostNames {
 			if status.Hostname == host {
-				// Check if this host is still present in the spec, if so - don't delete it
-				//NS migration case: if false -> ns invalid event happened so remove status
-				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace)
-				if !utils.HasElem(hostListIng, host) || isVSDelete || !nsMigrationFilterFlag {
-					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
-				} else {
-					utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the ingress: %v", key, host)
-				}
+				mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 			}
 		}
 	}
@@ -355,7 +344,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 			key, oldIngressStatus.Ingress, mIngress.Status.LoadBalancer.Ingress)
 	}
 
-	if err = deleteIngressAnnotation(updatedIng, svc_mdata_obj, isVSDelete, hostListIng, key, mClient, mIngress); err != nil {
+	if err = deleteIngressAnnotation(updatedIng, svc_mdata_obj, isVSDelete, key, mClient, mIngress); err != nil {
 		utils.AviLog.Errorf("key: %s, msg: error in deleting ingress annotation: %v", key, err)
 	}
 
@@ -363,7 +352,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 }
 
 func deleteIngressAnnotation(ingObj *networkingv1beta1.Ingress, svcMeta avicache.ServiceMetadataObj, isVSDelete bool,
-	ingHostList []string, key string, mClient kubernetes.Interface, oldIng *networkingv1beta1.Ingress,
+	key string, mClient kubernetes.Interface, oldIng *networkingv1beta1.Ingress,
 	retryNum ...int) error {
 	if ingObj == nil {
 		ingObj = oldIng
@@ -388,23 +377,14 @@ func deleteIngressAnnotation(ingObj *networkingv1beta1.Ingress, svcMeta avicache
 	for k := range existingAnnotations {
 		for _, host := range svcMeta.HostNames {
 			if k == host {
-				// Check if:
-				// 1. this host is still present in the spec, if so - don't delete it from annotations
-				// 2. in case of NS migration, if NS is moved from selected to rejected, this host then
-				//    has to be removed from the annotations list.
-				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace)
-				if !utils.HasElem(ingHostList, host) || isVSDelete || !nsMigrationFilterFlag {
-					delete(existingAnnotations, k)
-				} else {
-					utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the ingress: %v", key, host)
-				}
+				delete(existingAnnotations, k)
 			}
 		}
 	}
 
 	if isAnnotationsUpdateRequired(ingObj.Annotations, existingAnnotations) {
 		if err := patchIngressAnnotations(ingObj, existingAnnotations, mClient); err != nil {
-			return deleteIngressAnnotation(ingObj, svcMeta, isVSDelete, ingHostList, key, mClient, oldIng, retry+1)
+			return deleteIngressAnnotation(ingObj, svcMeta, isVSDelete, key, mClient, oldIng, retry+1)
 		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: Annotations unchanged for ingress %s/%s", key, ingObj.Namespace, ingObj.Name)
