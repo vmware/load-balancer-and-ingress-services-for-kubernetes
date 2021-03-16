@@ -369,8 +369,9 @@ func handleIngress(key string, fullsync bool, ingressNames []string) {
 			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 			if !found || aviModel == nil {
 				utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
+				routeIgrObj, _, _ := GetK8sIngressModel(ingress, namespace, key)
 				aviModel = NewAviObjectGraph()
-				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
+				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key, routeIgrObj)
 			}
 			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, nsing, nameing, key)
 			ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)

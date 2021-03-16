@@ -17,9 +17,9 @@ package nodes
 import (
 	"errors"
 
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -35,6 +35,7 @@ type RouteIngressModel interface {
 	GetType() string
 	GetSvcLister() *objects.SvcLister
 	GetSpec() interface{}
+	GetAnnotations() map[string]string
 	ParseHostPath() IngressConfig
 	// this is required due to different naming convention used in ingress where we dont use service name
 	// later if we decide to have common naming for ingress and route, then we can hav a common method
@@ -43,10 +44,11 @@ type RouteIngressModel interface {
 
 // OshiftRouteModel : Model for openshift routes with it's own service lister
 type OshiftRouteModel struct {
-	key       string
-	name      string
-	namespace string
-	spec      routev1.RouteSpec
+	key         string
+	name        string
+	namespace   string
+	spec        routev1.RouteSpec
+	annotations map[string]string
 }
 
 // K8sIngressModel : Model for openshift routes with default service lister
@@ -72,6 +74,7 @@ func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error,
 		return &routeModel, err, processObj
 	}
 	routeModel.spec = routeObj.Spec
+	routeModel.annotations = routeObj.GetAnnotations()
 	if !lib.HasValidBackends(routeObj.Spec, name, namespace, key) {
 		err := errors.New("validation failed for alternate backends for route: " + name)
 		return &routeModel, err, false
@@ -86,6 +89,10 @@ func (m *OshiftRouteModel) GetName() string {
 
 func (m *OshiftRouteModel) GetNamespace() string {
 	return m.namespace
+}
+
+func (m *OshiftRouteModel) GetAnnotations() map[string]string {
+	return m.annotations
 }
 
 func (m *OshiftRouteModel) GetType() string {
@@ -149,6 +156,10 @@ func (m *K8sIngressModel) GetName() string {
 
 func (m *K8sIngressModel) GetNamespace() string {
 	return m.namespace
+}
+
+func (m *K8sIngressModel) GetAnnotations() map[string]string {
+	return m.annotations
 }
 
 func (m *K8sIngressModel) GetType() string {
@@ -325,7 +336,7 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, modelName)
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key)
+			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key, routeIgrObj)
 		}
 		aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName, host, routeIgrObj, pathsvcmap.ingressHPSvc, key)
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
@@ -528,4 +539,19 @@ func updateHostPathCacheV2(ns, ingress string, oldHostMap, newHostMap map[string
 			}
 		}
 	}
+}
+
+func buildL7RouteInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, routeIgrObj RouteIngressModel) {
+	var err error
+	var infraSetting *akov1alpha1.AviInfraSetting
+
+	if infraSettingAnnotation, ok := routeIgrObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
+		infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
+			return
+		}
+	}
+
+	buildWithInfraSetting(key, vs, vsvip, infraSetting)
 }

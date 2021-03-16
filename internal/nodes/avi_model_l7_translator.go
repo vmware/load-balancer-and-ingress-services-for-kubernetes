@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -298,7 +299,7 @@ func RemoveSniInModel(currentSniNodeName string, modelSniNodes []*AviVsNode, key
 	}
 }
 
-func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsNode {
+func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIgrObj RouteIngressModel) *AviVsNode {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var avi_vs_meta *AviVsNode
@@ -350,6 +351,12 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string) *AviVsN
 		if len(vipNetworkList) != 0 {
 			vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, vipNetworkList...)
 		}
+	}
+
+	if routeIgrObj.GetType() == utils.Ingress {
+		buildL7IngressInfraSetting(key, avi_vs_meta, vsVipNode, routeIgrObj)
+	} else if routeIgrObj.GetType() == utils.OshiftRoute {
+		buildL7RouteInfraSetting(key, avi_vs_meta, vsVipNode, routeIgrObj)
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -670,4 +677,56 @@ func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostname, key string) {
 			}
 		}
 	}
+}
+
+func buildL7IngressInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, routeIgrObj RouteIngressModel) {
+	var found bool
+	var infraSetting *akov1alpha1.AviInfraSetting
+
+	var ingClassName string
+	if ingSpec, ok := routeIgrObj.GetSpec().(networkingv1beta1.IngressSpec); ok {
+		ingClassName = *ingSpec.IngressClassName
+	}
+
+	if !utils.GetIngressClassEnabled() {
+		return
+	} else if ingClassName == "" {
+		if ingClassName, found = isAviLBDefaultIngressClass(); !found {
+			return
+		}
+	}
+
+	if ingClassName != "" {
+		ingClass, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingClassName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding IngressClass %s", key, err.Error())
+			return
+		} else {
+			if ingClass.Spec.Parameters != nil && *ingClass.Spec.Parameters.APIGroup == lib.AkoGroup && ingClass.Spec.Parameters.Kind == lib.AviInfraSetting {
+				infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(ingClass.Spec.Parameters.Name)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via IngressClass %s", key, err.Error())
+					return
+				}
+			}
+		}
+	}
+
+	buildWithInfraSetting(key, vs, vsvip, infraSetting)
+}
+
+func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
+	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
+		if infraSetting.Spec.SeGroup.Name != "" {
+			// This assumes that the SeGroup has the appropriate labels configured
+			vs.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
+		}
+
+		if infraSetting.Spec.Network.EnableRhi != nil {
+			vs.EnableRhi = infraSetting.Spec.Network.EnableRhi
+		}
+
+		vsvip.NetworkName = &infraSetting.Spec.Network.Name
+	}
+	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 }
