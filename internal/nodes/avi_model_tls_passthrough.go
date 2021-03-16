@@ -66,7 +66,16 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	}
 
 	if networkName := lib.GetNetworkName(); networkName != "" {
-		vsVipNode.NetworkName = &networkName
+		vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, networkName)
+	} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS {
+		vipNetworkList, err := lib.GetVipNetworkList()
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+			return nil
+		}
+		if len(vipNetworkList) != 0 {
+			vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, vipNetworkList...)
+		}
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)

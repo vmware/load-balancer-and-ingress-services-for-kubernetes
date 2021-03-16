@@ -370,11 +370,36 @@ func GetSubnetPrefixInt() int32 {
 }
 
 func GetNetworkName() string {
+
 	networkName := os.Getenv(NETWORK_NAME)
 	if networkName != "" {
 		return networkName
 	}
 	return ""
+}
+
+func GetVipNetworkList() ([]string, error) {
+
+	var vipNetworkList []string
+	type Row struct {
+		NetworkName string `json:"networkName"`
+	}
+	type vipNetworkListRow []Row
+
+	vipNetworkListStr := os.Getenv(VIP_NETWORK_LIST)
+	if vipNetworkListStr == "" || vipNetworkListStr == "null" {
+		return vipNetworkList, fmt.Errorf("vipNetworkList not set in values yaml")
+	}
+
+	var vipNetworkListObj vipNetworkListRow
+	err := json.Unmarshal([]byte(vipNetworkListStr), &vipNetworkListObj)
+	if err != nil {
+		return vipNetworkList, fmt.Errorf("Unable to unmarshall json for vipNetworkListMap")
+	}
+	for _, subnet := range vipNetworkListObj {
+		vipNetworkList = append(vipNetworkList, subnet.NetworkName)
+	}
+	return vipNetworkList, nil
 }
 
 func GetSEGName() string {
@@ -703,8 +728,9 @@ func GetPassthroughShardVSName(s string, key string) string {
 	return vsName
 }
 
-func VSVipChecksum(FQDNs []string, IPAddress string, networkName string) uint32 {
+func VSVipChecksum(FQDNs []string, IPAddress string, networkNames []string) uint32 {
 	sort.Strings(FQDNs)
+	sort.Strings(networkNames)
 	var checksum uint32
 	if len(FQDNs) != 0 {
 		checksum = utils.Hash(utils.Stringify(FQDNs))
@@ -712,8 +738,12 @@ func VSVipChecksum(FQDNs []string, IPAddress string, networkName string) uint32 
 	if IPAddress != "" {
 		checksum += utils.Hash(IPAddress)
 	}
-	if networkName != "" {
-		checksum += utils.Hash(networkName)
+	if len(networkNames) != 0 {
+		if len(networkNames) == 1 {
+			checksum += utils.Hash(networkNames[0])
+		} else {
+			checksum += utils.Hash(utils.Stringify(networkNames))
+		}
 	}
 	checksum += GetClusterLabelChecksum()
 	return checksum

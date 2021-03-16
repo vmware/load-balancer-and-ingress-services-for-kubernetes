@@ -340,7 +340,7 @@ type AviVSVIPCache struct {
 	LastModified     string
 	InvalidData      bool
 	Vips             []string
-	NetworkName      string
+	NetworkNames     []string
 	HasReference     bool
 }
 

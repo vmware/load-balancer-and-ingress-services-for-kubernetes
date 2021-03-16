@@ -876,7 +876,7 @@ type AviVSVIPNode struct {
 	EastWest                bool
 	VrfContext              string
 	IPAddress               string
-	NetworkName             *string
+	NetworkNames            []string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 }
@@ -888,11 +888,7 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 }
 
 func (v *AviVSVIPNode) CalculateCheckSum() {
-	var networkName string
-	if v.NetworkName != nil {
-		networkName = *v.NetworkName
-	}
-	checksum := lib.VSVipChecksum(v.FQDNs, v.IPAddress, networkName)
+	checksum := lib.VSVipChecksum(v.FQDNs, v.IPAddress, v.NetworkNames)
 	checksum += lib.GetClusterLabelChecksum()
 	v.CloudConfigCksum = checksum
 }

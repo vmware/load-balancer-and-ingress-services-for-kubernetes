@@ -723,7 +723,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
 	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal(lib.GetNetworkName()))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(lib.GetNetworkName()))
 	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
 
 	settingUpdate := (FakeAviInfraSetting{
@@ -752,7 +752,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	}, 35*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
 	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-networkName"))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-networkName"))
 	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
 	settingUpdate = (FakeAviInfraSetting{
@@ -809,7 +809,7 @@ func TestInfraSettingDelete(t *testing.T) {
 	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName + "-networkName"))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-" + settingName + "-networkName"))
 	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
 	TeardownAviInfraSetting(t, settingName)
@@ -825,7 +825,7 @@ func TestInfraSettingDelete(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
 	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal(lib.GetNetworkName()))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(lib.GetNetworkName()))
 	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
 
 	TearDownTestForSvcLB(t, g)
@@ -868,7 +868,7 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName1 + "-seGroup"))
 	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName1 + "-networkName"))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-" + settingName1 + "-networkName"))
 
 	// TODO: Change service annotation to have infraSettting2
 	svcUpdate := (FakeService{
@@ -894,7 +894,7 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName2 + "-seGroup"))
 	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(*nodes[0].VSVIPRefs[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName2 + "-networkName"))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-" + settingName2 + "-networkName"))
 
 	TeardownAviInfraSetting(t, settingName1)
 	TeardownAviInfraSetting(t, settingName2)

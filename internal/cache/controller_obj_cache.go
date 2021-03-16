@@ -663,13 +663,17 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			fqdns = append(fqdns, *dnsinfo.Fqdn)
 		}
 		var vips []string
-		var networkName string
+		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
-					if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
-						networkName = networRefName[1]
+					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
+						networkNames = append(networkNames, networkRefName[1])
+					}
+					if lib.GetCloudType() == lib.CLOUD_AWS {
+						networkRefStr := strings.Split(networkRef, "/")
+						networkNames = append(networkNames, networkRefStr[len(networkRefStr)-1])
 					}
 				}
 			}
@@ -683,7 +687,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			Name:             *vsvip.Name,
 			Uuid:             *vsvip.UUID,
 			FQDNs:            fqdns,
-			NetworkName:      networkName,
+			NetworkNames:     networkNames,
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
 			CloudConfigCksum: checksum,
@@ -1246,13 +1250,17 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 		}
 
 		var vips []string
-		var networkName string
+		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
-					if networRefName := strings.Split(networkRef, "#"); len(networRefName) == 2 {
-						networkName = networRefName[1]
+					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
+						networkNames = append(networkNames, networkRefName[1])
+					}
+					if lib.GetCloudType() == lib.CLOUD_AWS {
+						networkRefStr := strings.Split(networkRef, "/")
+						networkNames = append(networkNames, networkRefStr[len(networkRefStr)-1])
 					}
 				}
 			}
@@ -1267,7 +1275,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			FQDNs:            fqdns,
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
-			NetworkName:      networkName,
+			NetworkNames:     networkNames,
 			CloudConfigCksum: checksum,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *vsvip.Name}
