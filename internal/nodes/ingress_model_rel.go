@@ -834,7 +834,7 @@ func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) 
 	}
 
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
-	if gwClassObj.Spec.Controller != lib.AviGatewayController {
+	if gwClassObj.Spec.Controller != lib.SvcApiAviGatewayController {
 		// Return an error since this is not our object.
 		return errors.New("Unexpected controller")
 	}

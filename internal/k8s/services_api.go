@@ -82,7 +82,7 @@ func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gate
 	}
 
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
-	if gwClassObj.Spec.Controller != lib.AviGatewayController {
+	if gwClassObj.Spec.Controller != lib.SvcApiAviGatewayController {
 		// Return an error since this is not our object.
 		status.UpdateSvcApiGatewayStatusGWCondition(key, gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
 			Type:    string(servicesapi.GatewayConditionScheduled),
