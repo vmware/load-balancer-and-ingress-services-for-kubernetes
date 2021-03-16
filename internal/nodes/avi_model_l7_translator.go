@@ -680,7 +680,6 @@ func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostname, key string) {
 }
 
 func buildL7IngressInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, routeIgrObj RouteIngressModel) {
-	var found bool
 	var infraSetting *akov1alpha1.AviInfraSetting
 
 	var ingClassName string
@@ -691,23 +690,23 @@ func buildL7IngressInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, 
 	if !utils.GetIngressClassEnabled() {
 		return
 	} else if ingClassName == "" {
-		if ingClassName, found = isAviLBDefaultIngressClass(); !found {
+		if defaultIngressClass, found := isAviLBDefaultIngressClass(); !found {
 			return
+		} else {
+			ingClassName = defaultIngressClass
 		}
 	}
 
-	if ingClassName != "" {
-		ingClass, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingClassName)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding IngressClass %s", key, err.Error())
-			return
-		} else {
-			if ingClass.Spec.Parameters != nil && *ingClass.Spec.Parameters.APIGroup == lib.AkoGroup && ingClass.Spec.Parameters.Kind == lib.AviInfraSetting {
-				infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(ingClass.Spec.Parameters.Name)
-				if err != nil {
-					utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via IngressClass %s", key, err.Error())
-					return
-				}
+	ingClass, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingClassName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding IngressClass %s", key, err.Error())
+		return
+	} else {
+		if ingClass.Spec.Parameters != nil && *ingClass.Spec.Parameters.APIGroup == lib.AkoGroup && ingClass.Spec.Parameters.Kind == lib.AviInfraSetting {
+			infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(ingClass.Spec.Parameters.Name)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via IngressClass %s", key, err.Error())
+				return
 			}
 		}
 	}
@@ -726,7 +725,22 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 			vs.EnableRhi = infraSetting.Spec.Network.EnableRhi
 		}
 
-		vsvip.NetworkName = &infraSetting.Spec.Network.Name
+		vsvip.NetworkNames = infraSetting.Spec.Network.Names
 	}
 	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
+}
+
+func buildL7RouteInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, routeIgrObj RouteIngressModel) {
+	var err error
+	var infraSetting *akov1alpha1.AviInfraSetting
+
+	if infraSettingAnnotation, ok := routeIgrObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
+		infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
+			return
+		}
+	}
+
+	buildWithInfraSetting(key, vs, vsvip, infraSetting)
 }

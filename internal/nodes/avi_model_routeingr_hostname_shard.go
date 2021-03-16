@@ -17,7 +17,6 @@ package nodes
 import (
 	"errors"
 
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -539,19 +538,4 @@ func updateHostPathCacheV2(ns, ingress string, oldHostMap, newHostMap map[string
 			}
 		}
 	}
-}
-
-func buildL7RouteInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, routeIgrObj RouteIngressModel) {
-	var err error
-	var infraSetting *akov1alpha1.AviInfraSetting
-
-	if infraSettingAnnotation, ok := routeIgrObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
-		infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
-			return
-		}
-	}
-
-	buildWithInfraSetting(key, vs, vsvip, infraSetting)
 }

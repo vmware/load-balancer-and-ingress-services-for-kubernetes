@@ -1297,7 +1297,7 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 				Name: infraSetting.SeGroupName,
 			},
 			Network: akov1alpha1.AviInfraSettingNetwork{
-				Name:      infraSetting.NetworkName,
+				Names:     []string{infraSetting.NetworkName},
 				EnableRhi: &infraSetting.EnableRhi,
 			},
 		},

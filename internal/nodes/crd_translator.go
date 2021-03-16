@@ -335,8 +335,9 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 // validateAviInfraSetting would do validaion checks on the
 // ingested AviInfraSetting objects
 func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
-	refData := map[string]string{
-		infraSetting.Spec.Network.Name: "Network",
+	refData := make(map[string]string)
+	for _, networkName := range infraSetting.Spec.Network.Names {
+		refData[networkName] = "Network"
 	}
 
 	if infraSetting.Spec.SeGroup.Name != "" {
