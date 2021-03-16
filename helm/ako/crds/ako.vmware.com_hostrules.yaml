@@ -47,6 +47,11 @@ spec:
                           type: string
                         type: array
                     type: object
+                  gslb:
+                    properties:
+                      fqdn:
+                        type: string
+                    type: object
                   tls:
                     properties:
                       sslProfile:

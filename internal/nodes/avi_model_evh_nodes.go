@@ -587,10 +587,12 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 	if !utils.HasElem(childNode.VHDomainNames, host) {
 		childNode.VHDomainNames = append(childNode.VHDomainNames, host)
 	}
+	var allFqdns []string
+	allFqdns = append(allFqdns, host)
 	for _, path := range paths {
 		var httpPolicySet []AviHostPathPortPoolPG
 
-		httpPGPath := AviHostPathPortPoolPG{Host: host}
+		httpPGPath := AviHostPathPortPoolPG{Host: allFqdns}
 
 		if path.PathType == networkingv1beta1.PathTypeExact {
 			httpPGPath.MatchCriteria = "EQUALS"
@@ -613,7 +615,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 			localPGList[pgName] = pgNode
 			httpPGPath.PoolGroup = pgNode.Name
-			httpPGPath.Host = host
+			httpPGPath.Host = allFqdns
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 		}
 
@@ -671,7 +673,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		BuildPoolHTTPRule(host, path.Path, ingName, namespace, key, childNode, true)
 	}
 
-	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. childNodeChecksum for childNode :%s is :%v", key, childNode.Name, childNode.GetCheckSum())
+	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. childNodeChecksum for childNode :%s is :%v", key, childNode.Name, childNode.Name)
 
 }
 
@@ -682,7 +684,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		hostData, found := Storedhosts[host]
 		if found && hostData.InsecurePolicy != lib.PolicyNone {
 			// Verify the paths and take out the paths that are not need.
-			pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, pathsvcmap)
+			pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, pathsvcmap.ingressHPSvc)
 			utils.AviLog.Debugf("key: %s, msg: pathSvcDiff %s", key, utils.Stringify(pathSvcDiff))
 			if len(pathSvcDiff) == 0 {
 				// Marking the entry as None to handle delete stale config
@@ -699,7 +701,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 			}
 		}
 		hostsMap[host].InsecurePolicy = lib.PolicyAllow
-		hostsMap[host].PathSvc = getPathSvc(pathsvcmap)
+		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
 
 		shardVsName := DeriveHostNameShardVSForEvh(host, key)
 		if shardVsName == "" {
@@ -748,7 +750,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		}
 		// build poolgroup and pool
 		isIngr := routeIgrObj.GetType() == utils.Ingress
-		aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, isIngr, host, pathsvcmap)
+		aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, isIngr, host, pathsvcmap.ingressHPSvc)
 		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 		if !foundEvhModel {
 			vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
@@ -904,8 +906,8 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	hostPathSvcMap := make(map[string][]IngressHostPathSvc)
 	for host, paths := range tlssetting.Hosts {
 		var hosts []string
-		hostPathSvcMap[host] = paths
-		hostMap := HostNamePathSecrets{paths: getPaths(paths), secretName: tlssetting.SecretName}
+		hostPathSvcMap[host] = paths.ingressHPSvc
+		hostMap := HostNamePathSecrets{paths: getPaths(paths.ingressHPSvc), secretName: tlssetting.SecretName}
 		found, ingressHostMap := SharedHostNameLister().Get(host)
 		if found {
 			// Replace the ingress map for this host.
@@ -981,7 +983,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		}
 		if certsBuilt {
 			isIngr := routeIgrObj.GetType() == utils.Ingress
-			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, isIngr, host, paths)
+			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, isIngr, host, paths.ingressHPSvc)
 			foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 			if !foundEvhModel {
 				vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)

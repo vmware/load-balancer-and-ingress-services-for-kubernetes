@@ -45,6 +45,7 @@ type HostRuleVirtualHost struct {
 	ErrorPageProfile   string             `json:"errorPageProfile,omitempty"`
 	Fqdn               string             `json:"fqdn,omitempty"`
 	HTTPPolicy         HostRuleHTTPPolicy `json:"httpPolicy,omitempty"`
+	Gslb               HostRuleGSLB       `json:"gslb,omitempty"`
 	TLS                HostRuleTLS        `json:"tls,omitempty"`
 	WAFPolicy          string             `json:"wafPolicy,omitempty"`
 }
@@ -67,6 +68,11 @@ type HostRuleSecret struct {
 type HostRuleHTTPPolicy struct {
 	PolicySets []string `json:"policySets,omitempty"`
 	Overwrite  bool     `json:"overwrite,omitempty"`
+}
+
+// HostRuleHTTPPolicy holds knobs and refs for httpPolicySets
+type HostRuleGSLB struct {
+	Fqdn string `json:"fqdn,omitempty"`
 }
 
 // HostRuleStatus holds the status of the HostRule

@@ -768,7 +768,9 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	var checksum uint32
 	for _, hpp := range v.HppMap {
 		sort.Strings(hpp.Path)
-		checksum = checksum + utils.Hash(hpp.Host) + utils.Hash(utils.Stringify(hpp))
+		sort.Strings(hpp.Host)
+		checksum = checksum + utils.Hash(utils.Stringify(hpp))
+
 	}
 	for _, redir := range v.RedirectPorts {
 		sort.Strings(redir.Hosts)
@@ -797,7 +799,7 @@ func (v *AviHttpPolicySetNode) CopyNode() AviModelNode {
 }
 
 type AviHostPathPortPoolPG struct {
-	Host          string
+	Host          []string
 	Path          []string
 	Port          uint32
 	Pool          string
@@ -1179,10 +1181,15 @@ type IngressHostPathSvc struct {
 	TargetPort  int32
 }
 
-type IngressHostMap map[string][]IngressHostPathSvc
+type IngressHostMap map[string]HostMetada
+
+type HostMetada struct {
+	ingressHPSvc   []IngressHostPathSvc
+	gslbHostHeader string
+}
 
 type TlsSettings struct {
-	Hosts      map[string][]IngressHostPathSvc
+	Hosts      map[string]HostMetada
 	SecretName string
 	SecretNS   string
 	key        string
