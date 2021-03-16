@@ -684,7 +684,7 @@ func buildL7IngressInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, 
 	var infraSetting *akov1alpha1.AviInfraSetting
 
 	var ingClassName string
-	if ingSpec, ok := routeIgrObj.GetSpec().(networkingv1beta1.IngressSpec); ok {
+	if ingSpec, ok := routeIgrObj.GetSpec().(networkingv1beta1.IngressSpec); ok && ingSpec.IngressClassName != nil {
 		ingClassName = *ingSpec.IngressClassName
 	}
 
