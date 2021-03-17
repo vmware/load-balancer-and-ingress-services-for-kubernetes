@@ -376,7 +376,7 @@ func TestHostnameCreateCacheSyncForEvh(t *testing.T) {
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
 	g.Expect(sniCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PGKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
-	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
+	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(2))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 
@@ -440,7 +440,7 @@ func TestHostnameUpdateCacheSyncForEvh(t *testing.T) {
 	}, 15*time.Second).Should(gomega.Equal(oldSniCacheObj.CloudConfigCksum))
 	sniVSCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
-	g.Expect(sniVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
+	g.Expect(sniVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(2))
 	g.Expect(sniVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(0))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
@@ -615,7 +615,7 @@ func TestHostnameMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
 		sniCacheObj2, _ := sniCache2.(*cache.AviVsCache)
 		if found1 && found2 &&
-			len(sniCacheObj1.HTTPKeyCollection) == 1 && len(sniCacheObj2.HTTPKeyCollection) == 1 {
+			len(sniCacheObj1.HTTPKeyCollection) == 2 && len(sniCacheObj2.HTTPKeyCollection) == 2 {
 			return true
 		}
 		return false
@@ -728,7 +728,7 @@ func TestHostnameDeleteCacheSyncForEvh(t *testing.T) {
 		parentSniCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 		parentSniCacheObj, _ := parentSniCache.(*cache.AviVsCache)
 
-		if found && len(parentSniCacheObj.SNIChildCollection) == 1 && len(parentSniCacheObj.HTTPKeyCollection) == 1 {
+		if found && len(parentSniCacheObj.SNIChildCollection) == 1 && len(parentSniCacheObj.HTTPKeyCollection) == 0 {
 			return true
 		}
 		return false
@@ -767,7 +767,7 @@ func TestHostnameCUDSecretCacheSyncForEvh(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(true))
 	parentVSCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 	parentVSCacheObj, _ := parentVSCache.(*cache.AviVsCache)
-	g.Expect(parentVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
+	g.Expect(parentVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(0))
 	g.Expect(parentVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 
 	// update Secret

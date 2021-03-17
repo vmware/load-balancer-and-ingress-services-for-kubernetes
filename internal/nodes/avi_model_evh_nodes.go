@@ -537,7 +537,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName string, key str
 	portProtocols = append(portProtocols, httpsPort)
 	avi_vs_meta.PortProto = portProtocols
 	// Default case.
-	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE
+	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	avi_vs_meta.EVHParent = true
 
@@ -757,6 +757,11 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 				vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
 			}
 		}
+
+		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
+		// Remove the redirect for secure to insecure transition
+		RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
+
 		// build poolgroup and pool
 		isIngr := routeIgrObj.GetType() == utils.Ingress
 		aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, isIngr, host, pathsvcmap.ingressHPSvc)
@@ -986,6 +991,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
 			evhNode.ServiceEngineGroup = lib.GetSEGName()
 		}
+		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 		evhNode.VrfContext = lib.GetVrf()
 		if !certsBuilt {
 			certsBuilt = aviModel.(*AviObjectGraph).BuildTlsCertNodeForEvh(routeIgrObj.GetSvcLister(), vsNode[0], namespace, tlssetting, key, host)
@@ -998,10 +1004,10 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
 			}
 
-			RemoveRedirectHTTPPolicyInModelForEvh(vsNode[0], host, key)
+			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
 
 			if tlssetting.redirect == true {
-				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVSForEvh(vsNode, host, namespace, ingName, key)
+				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVSForEvh(evhNode, host, namespace, ingName, key)
 			}
 			// Enable host rule
 			BuildL7HostRule(host, namespace, ingName, key, evhNode)
@@ -1017,7 +1023,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
 				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, tlssetting.SecretName, host), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
-				RemoveRedirectHTTPPolicyInModelForEvh(vsNode[0], host, key)
+				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
 			}
 
 		}
@@ -1130,7 +1136,7 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		removeFqdn := true
 		removeRedir := true
 		currentData, ok := hostsMap[host]
-		utils.AviLog.Warnf("key: %s, hostsMap: %s", key, utils.Stringify(hostsMap))
+		utils.AviLog.Debugf("key: %s, hostsMap: %s", key, utils.Stringify(hostsMap))
 		// if route is transitioning from/to passthrough route, then always remove fqdn
 		if ok && hostData.SecurePolicy != lib.PolicyPass && currentData.SecurePolicy != lib.PolicyPass {
 			if currentData.InsecurePolicy == lib.PolicyRedirect {
@@ -1310,8 +1316,8 @@ func (o *AviObjectGraph) RemoveEvhVsNode(evhVsName string, vsNode []*AviEvhVsNod
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode []*AviEvhVsNode, hostname string, namespace, ingName, key string) {
-	policyname := lib.GetL7HttpRedirPolicy(vsNode[0].Name)
+func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode *AviEvhVsNode, hostname string, namespace, ingName, key string) {
+	policyname := lib.GetL7HttpRedirPolicy(vsNode.Name)
 	myHppMap := AviRedirectPort{
 		Hosts:        []string{hostname},
 		RedirectPort: 443,
@@ -1325,9 +1331,9 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode []*AviEvhVsNode, 
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}
 
-	if policyFound := FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode[0], redirectPolicy, hostname, key); !policyFound {
+	if policyFound := FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode, redirectPolicy, hostname, key); !policyFound {
 		redirectPolicy.CalculateCheckSum()
-		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, redirectPolicy)
+		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, redirectPolicy)
 	}
 
 }
