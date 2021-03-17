@@ -34,9 +34,8 @@ type AviInfraSetting struct {
 
 // AviInfraSettingSpec consists of the main AviInfraSetting settings
 type AviInfraSettingSpec struct {
-	Network    AviInfraSettingNetwork `json:"network,omitempty"`
-	SeGroup    AviInfraSettingSeGroup `json:"seGroup,omitempty"`
-	L7Settings AviInfraL7Settings     `json:"l7Settings,omitempty"`
+	Network AviInfraSettingNetwork `json:"network,omitempty"`
+	SeGroup AviInfraSettingSeGroup `json:"seGroup,omitempty"`
 }
 
 type AviInfraSettingNetwork struct {
@@ -46,10 +45,6 @@ type AviInfraSettingNetwork struct {
 
 type AviInfraSettingSeGroup struct {
 	Name string `json:"name,omitempty"`
-}
-
-type AviInfraL7Settings struct {
-	ShardSize string `json:"shardSize,omitempty"`
 }
 
 // AviInfraSettingStatus holds the status of the AviInfraSetting
