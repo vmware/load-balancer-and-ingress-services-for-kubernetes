@@ -22,13 +22,15 @@ spec:
             properties:
               network:
                 properties:
-                  name:
-                    type: string
+                  names:
+                    items:
+                      type: string
+                    type: array
                   enableRhi:
                     type: boolean
                 type: object
                 required:
-                - name
+                - names
               seGroup:
                 properties:
                   name:

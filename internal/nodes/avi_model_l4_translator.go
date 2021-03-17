@@ -429,20 +429,5 @@ func buildL4InfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, svc *co
 		}
 	}
 
-	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
-		if infraSetting.Spec.SeGroup.Name != "" {
-			// This assumes that the SeGroup has the appropriate labels configured
-			vs.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
-		}
-
-		if infraSetting.Spec.Network.EnableRhi != nil {
-			vs.EnableRhi = infraSetting.Spec.Network.EnableRhi
-		}
-		if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS && lib.GetNetworkName() == "" {
-			//TODO: vipNetworkList from infra crd
-		} else {
-			vsvip.NetworkNames = []string{infraSetting.Spec.Network.Name}
-		}
-
-	}
+	buildWithInfraSetting(key, vs, vsvip, infraSetting)
 }

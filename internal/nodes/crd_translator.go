@@ -141,7 +141,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniMod
 func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsEvhSniModel, isSNI bool) {
 	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
 	if !found {
-		utils.AviLog.Warnf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
+		utils.AviLog.Debugf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
 		return
 	}
 
@@ -335,8 +335,9 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 // validateAviInfraSetting would do validaion checks on the
 // ingested AviInfraSetting objects
 func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
-	refData := map[string]string{
-		infraSetting.Spec.Network.Name: "Network",
+	refData := make(map[string]string)
+	for _, networkName := range infraSetting.Spec.Network.Names {
+		refData[networkName] = "Network"
 	}
 
 	if infraSetting.Spec.SeGroup.Name != "" {
@@ -420,32 +421,31 @@ func checkRefOnController(key, refKey, refValue string) error {
 		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 	}
 
-	var items []json.RawMessage
-	items = make([]json.RawMessage, result.Count)
+	items := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &items)
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
+		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal results, err: %v", key, err)
 		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 	}
 
-	item := make(map[string]string)
+	item := make(map[string]interface{})
 	err = json.Unmarshal(items[0], &item)
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal data, err: %v", key, err)
+		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal item, err: %v", key, err)
 		return fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
 	}
 
 	switch refKey {
 	case "AppProfile":
-		if appProfType, ok := item["type"]; ok && appProfType != lib.AllowedApplicationProfile {
+		if appProfType, ok := item["type"].(string); ok && appProfType != lib.AllowedApplicationProfile {
 			utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, lib.AllowedApplicationProfile)
 			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
 				refModelMap[refKey], refValue, lib.AllowedApplicationProfile)
 		}
 	case "ServiceEngineGroup":
-		if seGroupLabels, ok := item["labels"]; ok {
+		if seGroupLabels, ok := item["labels"].([]map[string]string); ok {
 			if len(seGroupLabels) == 0 {
-				utils.AviLog.Infof("key: %s, msg: ServiceEngineGroup %s not connfigured with labels", key, item["name"])
+				utils.AviLog.Infof("key: %s, msg: ServiceEngineGroup %s not configured with labels", key, item["name"].(string))
 			} else {
 				if !reflect.DeepEqual(seGroupLabels, lib.GetLabels()) {
 					utils.AviLog.Warnf("key: %s, msg: serviceEngineGroup: %s mismatched labels %s", key, refValue, utils.Stringify(seGroupLabels))
@@ -456,7 +456,7 @@ func checkRefOnController(key, refKey, refValue string) error {
 		}
 	}
 
-	if itemCreatedBy, ok := item["created_by"]; ok && itemCreatedBy == lib.GetAKOUser() {
+	if itemCreatedBy, ok := item["created_by"].(string); ok && itemCreatedBy == lib.GetAKOUser() {
 		utils.AviLog.Warnf("key: %s, msg: Cannot use object referred in CRD created by current AKO instance", key)
 		return fmt.Errorf("%s \"%s\" Invalid operation, object referred is created by current AKO instance",
 			refModelMap[refKey], refValue)

@@ -282,7 +282,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
@@ -334,7 +334,7 @@ func TestServicesAPINamingConvention(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
@@ -368,7 +368,7 @@ func TestServicesAPIWithStaticIP(t *testing.T) {
 	modelName := "admin/cluster--default-my-gateway"
 	staticIP := "80.80.80.80"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	gateway := FakeGateway{
 		Name:      gatewayName,
 		Namespace: ns,
@@ -420,7 +420,7 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 
 	g.Eventually(func() string {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -464,7 +464,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 
 	g.Eventually(func() string {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -531,7 +531,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
@@ -585,7 +585,7 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
@@ -638,7 +638,7 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
@@ -691,7 +691,7 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
@@ -746,7 +746,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
@@ -834,7 +834,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
@@ -922,7 +922,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 	modelName1 := "admin/cluster--default-my-gateway1"
 	modelName2 := "admin/cluster--default-my-gateway2"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gateway1Name, ns, gwClassName)
 	SetupGateway(t, gateway2Name, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gateway1Name, ns)
@@ -993,7 +993,7 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, "")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
@@ -1049,7 +1049,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	gwClassName, gatewayName, settingName, ns := "avi-lb", "my-gateway", "infra-setting", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, settingName)
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 
@@ -1144,7 +1144,7 @@ func TestServicesAPIInfraSettingDelete(t *testing.T) {
 	gwClassName, gatewayName, settingName, ns := "avi-lb", "my-gateway", "infra-setting", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, settingName)
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 	integrationtest.SetupAviInfraSetting(t, settingName)
@@ -1194,7 +1194,7 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 	gwClassName, gatewayName, settingName1, settingName2, ns := "avi-lb", "my-gateway", "infra-setting1", "infra-setting2", "default"
 	modelName := "admin/cluster--default-my-gateway"
 
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController, settingName1)
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName1)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 	integrationtest.SetupAviInfraSetting(t, settingName1)
@@ -1215,7 +1215,7 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 	// Change gatewayclass to have infraSettting2
 	gwClassUpdate := (FakeGWClass{
 		Name:         gwClassName,
-		Controller:   lib.AviGatewayController,
+		Controller:   lib.SvcApiAviGatewayController,
 		InfraSetting: settingName2,
 	}).GatewayClass()
 	gwClassUpdate.ResourceVersion = "2"
