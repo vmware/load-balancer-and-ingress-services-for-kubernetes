@@ -630,17 +630,11 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 
 		var poolName string
 		poolName = lib.GetEvhVsPoolNPgName(ingName, namespace, host, path.Path)
-		hostSlice := []string{host}
 		poolNode := &AviPoolNode{
 			Name:       poolName,
 			PortName:   path.PortName,
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
-			ServiceMetadata: avicache.ServiceMetadataObj{
-				IngressName: ingName,
-				Namespace:   namespace,
-				HostNames:   hostSlice,
-			},
 		}
 
 		serviceType := lib.GetServiceType()
@@ -733,6 +727,21 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		evhNodeName := lib.GetEvhNodeName(ingName, namespace, host)
 		evhNode := vsNode[0].GetEvhNodeForName(evhNodeName)
 		hostSlice := []string{host}
+
+		// Populate the hostmap with empty secret for insecure ingress
+		hostMap := HostNamePathSecrets{paths: getPaths(pathsvcmap.ingressHPSvc), secretName: ""}
+		found, ingressHostMap := SharedHostNameLister().Get(host)
+		if found {
+			// Replace the ingress map for this host.
+			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
+			ingressHostMap.GetIngressesForHostName(host)
+		} else {
+			// Create the map
+			ingressHostMap = NewSecureHostNameMapProp()
+			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
+		}
+		SharedHostNameLister().Save(host, ingressHostMap)
+
 		if evhNode == nil {
 			evhNode = &AviEvhVsNode{
 				Name:         evhNodeName,
@@ -741,9 +750,9 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 				EVHParent:    false,
 				EvhHostName:  host,
 				ServiceMetadata: avicache.ServiceMetadataObj{
-					IngressName: ingName,
-					Namespace:   namespace,
-					HostNames:   hostSlice,
+					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(host),
+					Namespace:            namespace,
+					HostNames:            hostSlice,
 				},
 			}
 
@@ -756,6 +765,11 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 			if !foundEvhModel {
 				vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
 			}
+		} else {
+			// The evh node exists, just update the svc metadata
+			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
+			evhNode.ServiceMetadata.Namespace = namespace
+			evhNode.ServiceMetadata.HostNames = hostSlice
 		}
 
 		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
