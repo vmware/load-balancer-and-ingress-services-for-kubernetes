@@ -63,7 +63,7 @@ func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec networkingv1
 		if rule.IngressRuleValue.HTTP != nil {
 			for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
 				found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
-				if found && len(val) > 0 && utils.HasElem(val, nsIngress) && len(val) > 1 {
+				if found && len(val) > 1 && utils.HasElem(val, nsIngress) {
 					// TODO: push in ako apiserver
 					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 				}
@@ -79,7 +79,7 @@ func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec networkingv1
 func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec routev1.RouteSpec) {
 	nsRoute := ns + "/" + routeName
 	found, val := SharedHostNameLister().GetHostPathStoreIngresses(routeSpec.Host, routeSpec.Path)
-	if found && len(val) > 0 && utils.HasElem(val, nsRoute) && len(val) > 1 {
+	if found && len(val) > 1 && utils.HasElem(val, nsRoute) {
 		utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in routes: %+v", key, nsRoute, routeSpec.Host, routeSpec.Path, utils.Stringify(val))
 	}
 }

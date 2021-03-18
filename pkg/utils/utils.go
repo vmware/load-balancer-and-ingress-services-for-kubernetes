@@ -386,9 +386,8 @@ func CheckIfNamespaceAccepted(namespace string, opts ...interface{}) bool {
 	return false
 }
 func IsServiceNSValid(namespace string) bool {
-	//L4 Namespace sync not applicable for advance L4 and service API
-
-	if !GetAdvancedL4() && !UseServicesAPI() {
+	//L4 Namespace sync not applicable for advance L4
+	if !GetAdvancedL4() {
 		if !CheckIfNamespaceAccepted(namespace) {
 			return false
 		}
@@ -400,12 +399,6 @@ func IsServiceNSValid(namespace string) bool {
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {
 	if ok, _ := strconv.ParseBool(os.Getenv(ADVANCED_L4)); ok {
-		return true
-	}
-	return false
-}
-func UseServicesAPI() bool {
-	if ok, _ := strconv.ParseBool(os.Getenv(SERVICES_API)); ok {
 		return true
 	}
 	return false

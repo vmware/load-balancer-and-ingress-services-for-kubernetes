@@ -256,6 +256,10 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 			return true
 		}
 	} else if lib.UseServicesAPI() {
+		//If namespace is not accepted, return true to delete model
+		if !utils.CheckIfNamespaceAccepted(namespace) {
+			return true
+		}
 		gateway, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && errors.IsNotFound(err) {
 			return true

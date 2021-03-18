@@ -192,6 +192,10 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 			}
 			gw := obj.(*servicesapi.Gateway)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
+			if !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Infof("Gateway add event. Namespace %s didn't qualify filter. Not adding gateway.", namespace)
+				return
+			}
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Infof("key: %s, msg: ADD", key)
 
@@ -210,6 +214,10 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 
 			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
+				if !utils.CheckIfNamespaceAccepted(namespace) {
+					utils.AviLog.Infof("Gateway update event. Namespace %s didn't qualify filter. Not updating gateway.", namespace)
+					return
+				}
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
 
@@ -226,6 +234,10 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 			}
 			gw := obj.(*servicesapi.Gateway)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
+			if !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Infof("Gateway delete event. Namespace %s didn't qualify filter. Not deleting gateway.", namespace)
+				return
+			}
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Infof("key: %s, msg: DELETE", key)
 			bkt := utils.Bkt(namespace, numWorkers)

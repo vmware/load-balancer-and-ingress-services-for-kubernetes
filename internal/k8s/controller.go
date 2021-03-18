@@ -194,7 +194,7 @@ func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namesp
 func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
 	// For Advancd L4 and service api , do not handle. services already been taken care
 	// in service handler
-	if lib.GetAdvancedL4() || lib.UseServicesAPI() {
+	if lib.GetAdvancedL4() {
 		return
 	}
 	var key string
@@ -208,6 +208,9 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 		//Add L4 and Cluster API services to queue
 		if isSvcLb && !lib.GetLayer7Only() {
 			key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
+			if lib.UseServicesAPI() {
+				checkSvcForSvcApiGatewayPortConflict(svcObj, key)
+			}
 		} else {
 			key = utils.Service + "/" + utils.ObjKey(svcObj)
 		}
@@ -216,6 +219,21 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 
+}
+func AddGatewaysFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
+	//TODO: Add code for gateway
+	gatewayObjs, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the gateways during namespace sync: %s", err)
+		return
+	}
+	for _, gatewayObj := range gatewayObjs {
+		key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+		InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+	}
 }
 
 /*
@@ -278,6 +296,10 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 						utils.AviLog.Debugf("Adding L4 services for namespaces: %s", nsCur.GetName())
 						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 					}
+					if lib.UseServicesAPI() {
+						utils.AviLog.Debugf("Adding Gatways for namespaces: %s", nsCur.GetName())
+						AddGatewaysFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
 				} else if oldNSAccepted && !newNSAccepted {
 					//Case 2: Old valid namespace updated with invalid labels
 					//Call ingress/route and service delete
@@ -292,6 +314,10 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 					if utils.GetInformers().ServiceInformer != nil {
 						utils.AviLog.Debugf("Deleting L4 services for namespaces: %s", nsCur.GetName())
 						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					}
+					if lib.UseServicesAPI() {
+						utils.AviLog.Debugf("Deleting Gatways for namespaces: %s", nsCur.GetName())
+						AddGatewaysFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
 					}
 				}
 
@@ -311,7 +337,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
 			if !utils.CheckIfNamespaceAccepted(namespace) {
-				utils.AviLog.Debugf("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
+				utils.AviLog.Infof("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
 				return
 			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
@@ -341,7 +367,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
 			if !utils.CheckIfNamespaceAccepted(namespace) {
-				utils.AviLog.Debugf("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
+				utils.AviLog.Infof("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
 				return
 			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
@@ -358,7 +384,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			if isRouteUpdated(oldRoute, newRoute) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
 				if !utils.CheckIfNamespaceAccepted(namespace) {
-					utils.AviLog.Debugf("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
+					utils.AviLog.Infof("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
 					return
 				}
 				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
@@ -514,7 +540,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isSvcLb && !lib.GetLayer7Only() {
 				//L4 Namespace sync not applicable for advance L4 and service API
 				if !utils.IsServiceNSValid(namespace) {
-					utils.AviLog.Debugf("L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", namespace)
+					utils.AviLog.Infof("L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", namespace)
 					return
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
@@ -525,7 +551,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					checkSvcForSvcApiGatewayPortConflict(svc, key)
 				}
 			} else {
-				if lib.GetAdvancedL4() || lib.UseServicesAPI() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -557,12 +583,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			if isSvcLb && !lib.GetLayer7Only() {
 				if !utils.IsServiceNSValid(namespace) {
-					utils.AviLog.Debugf("L4 Service delete event: Namespace: %s didn't qualify filter. Not deleting service.", namespace)
+					utils.AviLog.Infof("L4 Service delete event: Namespace: %s didn't qualify filter. Not deleting service.", namespace)
 					return
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
-				if lib.GetAdvancedL4() || lib.UseServicesAPI() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -584,7 +610,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				var key string
 				if isSvcLb && !lib.GetLayer7Only() {
 					if !utils.IsServiceNSValid(namespace) {
-						utils.AviLog.Debugf("L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", namespace)
+						utils.AviLog.Infof("L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", namespace)
 						return
 					}
 					key = utils.L4LBService + "/" + utils.ObjKey(svc)
@@ -595,7 +621,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						checkSvcForSvcApiGatewayPortConflict(svc, key)
 					}
 				} else {
-					if lib.GetAdvancedL4() || lib.UseServicesAPI() || !utils.CheckIfNamespaceAccepted(namespace) {
+					if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
 					key = utils.Service + "/" + utils.ObjKey(svc)
@@ -780,14 +806,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			ingress := obj.(*networkingv1beta1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			if utils.CheckIfNamespaceAccepted(namespace) {
-				key := utils.Ingress + "/" + utils.ObjKey(ingress)
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			} else {
-				utils.AviLog.Debugf("Ingress add event: Namespace: %s didn't qualify filter. Not adding ingress", namespace)
+			if !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Infof("Ingress add event: Namespace: %s didn't qualify filter. Not adding ingress", namespace)
+				return
 			}
+			key := utils.Ingress + "/" + utils.ObjKey(ingress)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -808,14 +834,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			if utils.CheckIfNamespaceAccepted(namespace) {
-				key := utils.Ingress + "/" + utils.ObjKey(ingress)
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			} else {
-				utils.AviLog.Debugf("Ingress Delete event: NS %s didn't qualify. Not deleting ingress", namespace)
+			if !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Infof("Ingress Delete event: Namespace: %s didn't qualify filter. Not deleting ingress", namespace)
+				return
 			}
+			key := utils.Ingress + "/" + utils.ObjKey(ingress)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
@@ -825,14 +851,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			ingress := cur.(*networkingv1beta1.Ingress)
 			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-				if utils.CheckIfNamespaceAccepted(namespace) {
-					key := utils.Ingress + "/" + utils.ObjKey(ingress)
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				} else {
-					utils.AviLog.Debugf("Ingress update Event. NS %s didn't qualify. Not updating ingress", namespace)
+				if !utils.CheckIfNamespaceAccepted(namespace) {
+					utils.AviLog.Infof("Ingress Update event: Namespace: %s didn't qualify filter. Not updating ingress", namespace)
+					return
 				}
+				key := utils.Ingress + "/" + utils.ObjKey(ingress)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
 		},
 	}
