@@ -172,8 +172,9 @@ func TestHostnameShardObjectsForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
 	// since foo is bound with cert this node will have the cert bound to it
 	g.Expect(nodes[0].EvhNodes[1].SSLKeyCertRefs).Should(gomega.HaveLen(0))
-	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs).Should(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs).Should(gomega.HaveLen(2))
 	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
+	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs[1].Name).To(gomega.Equal("cluster--default-foo.com"))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
@@ -906,8 +907,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
 		initCheckSums["nodes[0].SSLKeyCertRefs[0]"] = nodes[0].SSLKeyCertRefs[0].CloudConfigCksum
 
-		g.Expect(len(nodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
-		initCheckSums["nodes[0].HttpPolicyRefs[0]"] = nodes[0].HttpPolicyRefs[0].CloudConfigCksum
+		g.Expect(len(nodes[0].HttpPolicyRefs)).To(gomega.Equal(0))
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -962,7 +962,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 			return nodes[0].SSLKeyCertRefs[0].CloudConfigCksum
 		}, 5*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SSLKeyCertRefs[0]"]))
 
-		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(2))
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
@@ -1798,10 +1798,10 @@ func TestL7ModelMultiSNIForEvh(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].SSLKeyCertRefs)).To(gomega.Equal(0))
@@ -1859,11 +1859,11 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 		g.Expect(len(nodes)).To(gomega.Equal(1))
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].Hosts).To(gomega.HaveLen(2))
+		g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(2))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts).To(gomega.HaveLen(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].SSLKeyCertRefs)).To(gomega.Equal(0))
@@ -1977,7 +1977,7 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(2))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].SSLKeyCertRefs)).To(gomega.Equal(0))

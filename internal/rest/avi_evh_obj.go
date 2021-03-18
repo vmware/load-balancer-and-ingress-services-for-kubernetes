@@ -352,7 +352,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	east_west := false
 	var app_prof string
-	app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE
+	app_prof = "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
 	if vs_meta.AppProfileRef != "" {
 		// hostrule ref overrides defaults
 		app_prof = vs_meta.AppProfileRef

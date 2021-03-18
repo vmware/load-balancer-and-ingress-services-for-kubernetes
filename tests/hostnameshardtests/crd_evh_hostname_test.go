@@ -139,45 +139,6 @@ func TestHostnameCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameInsecureToSecureHostRuleForEvh(t *testing.T) {
-	// insecure ingress to secure VS via Hostrule
-	g := gomega.NewGomegaWithT(t)
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
-	modelName := "admin/cluster--Shared-L7-EVH-0"
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
-
-	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	g.Eventually(func() int {
-		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
-		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
-		return len(vsCacheObj.SNIChildCollection)
-	}, 15*time.Second).Should(gomega.Equal(1))
-
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
-
-	g.Eventually(func() int {
-		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
-		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
-		return len(vsCacheObj.SNIChildCollection)
-	}, 15*time.Second).Should(gomega.Equal(1))
-
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
-	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
-
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
-	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
-	g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
-
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
-}
-
 func TestHostnameGoodToBadHostRuleForEvh(t *testing.T) {
 	// create insecure ingress, apply good secure hostrule, transition to bad
 	g := gomega.NewGomegaWithT(t)
