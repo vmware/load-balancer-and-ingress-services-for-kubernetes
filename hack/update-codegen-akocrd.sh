@@ -38,8 +38,8 @@ export GO111MODULE GOFLAGS GOPATH
 mkdir -p "$GOPATH/src/github.com/vmware"
 ln -s "${SCRIPT_ROOT}" "$GOPATH/src/${AKO_PACKAGE}"
 
-readonly OUTPUT_PKG="${AKO_PACKAGE}/internal/client/${AKOCRD_VERSION}"
-readonly FQ_APIS="${AKO_PACKAGE}/internal/apis/ako/${AKOCRD_VERSION}"
+readonly OUTPUT_PKG="${AKO_PACKAGE}/pkg/client/${AKOCRD_VERSION}"
+readonly FQ_APIS="${AKO_PACKAGE}/pkg/apis/ako/${AKOCRD_VERSION}"
 readonly APIS_PKG=AKO_PACKAGE
 readonly CLIENTSET_NAME=versioned
 readonly CLIENTSET_PKG_NAME=clientset
