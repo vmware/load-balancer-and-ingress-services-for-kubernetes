@@ -15,8 +15,8 @@
 package lib
 
 import (
-	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/clientset/versioned"
-	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/client/v1alpha1/informers/externalversions/ako/v1alpha1"
+	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
+	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
 )
 
 var CRDClientset akocrd.Interface

@@ -17,9 +17,9 @@ package nodes
 import (
 	"strings"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
