@@ -121,7 +121,6 @@ func AddConfigMap() {
 
 func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("L7_SHARD_SCHEME", "hostname")
 
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)

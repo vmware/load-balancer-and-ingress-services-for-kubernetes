@@ -31,7 +31,6 @@ spec:
 {{- end }}
   l7Settings:
     defaultIngController: {{ .Values.L7Settings.defaultIngController }}
-    shardingScheme: {{ .Values.L7Settings.l7ShardingScheme | quote }}
     serviceType: {{ .Values.L7Settings.serviceType }}
     shardVSSize: {{ .Values.L7Settings.shardVSSize }}
     passthroughShardSize: {{ .Values.L7Settings.passthroughShardSize }}

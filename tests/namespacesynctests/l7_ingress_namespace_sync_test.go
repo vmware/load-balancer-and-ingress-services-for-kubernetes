@@ -99,7 +99,7 @@ func TestMain(m *testing.M) {
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
 
-	SetupNamespaceSync("app", "migrate", "namespace")
+	SetupNamespaceSync("app", "migrate")
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }
@@ -115,11 +115,10 @@ func AddConfigMap() {
 	integrationtest.PollForSyncStart(ctrl, 10)
 }
 
-func SetupNamespaceSync(key, value, shardScheme string) {
+func SetupNamespaceSync(key, value string) {
 	os.Setenv("NAMESPACE_SYNC_LABEL_KEY", key)
 	os.Setenv("NAMESPACE_SYNC_LABEL_VALUE", value)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("L7_SHARD_SCHEME", shardScheme)
 	ctrl.InitializeNamespaceSync()
 }
 
@@ -212,7 +211,7 @@ func TestNamespaceSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 	//Valid Namespace
 	namespace1 := "rednsmig"
 	err := integrationtest.AddNamespace(namespace1, nsLabel)
-	modelName1 := "admin/cluster--Shared-L7-" + integrationtest.GetShardVSNumber(namespace1)
+	modelName1 := "admin/cluster--Shared-L7-0"
 	if err != nil {
 		t.Fatal("Error while adding namespace")
 	}
@@ -255,7 +254,7 @@ func TestNamespaceSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 	}
 
 	err = integrationtest.AddNamespace(namespace, nsLabel)
-	modelName := "admin/cluster--Shared-L7-" + integrationtest.GetShardVSNumber(namespace)
+	modelName := "admin/cluster--Shared-L7-0"
 	if err != nil {
 		t.Fatal("Error while adding namespace")
 	}
@@ -316,7 +315,6 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 }
 
 func TestNSTransitionValidToInvalid(t *testing.T) {
-
 	oldLabels := map[string]string{
 		"app": "migrate",
 	}
@@ -324,12 +322,11 @@ func TestNSTransitionValidToInvalid(t *testing.T) {
 		"app": "migrate2",
 	}
 	namespace := "bluemigns"
-	modelName := "admin/cluster--Shared-L7-" + integrationtest.GetShardVSNumber(namespace)
+	modelName := "admin/cluster--Shared-L7-0"
 	checkNSTransition(t, oldLabels, newLabels, true, false, namespace, modelName)
 }
 
 func TestNSTransitionInvalidToValid(t *testing.T) {
-
 	oldLabels := map[string]string{
 		"app": "migrate2",
 	}
@@ -337,13 +334,12 @@ func TestNSTransitionInvalidToValid(t *testing.T) {
 		"app": "migrate",
 	}
 	namespace := "purple"
-	modelName := "admin/cluster--Shared-L7-" + integrationtest.GetShardVSNumber(namespace)
+	modelName := "admin/cluster--Shared-L7-0"
 
 	checkNSTransition(t, oldLabels, newLabels, false, true, namespace, modelName)
 }
 
 func TestNSTransitionInvalidToInvalid(t *testing.T) {
-
 	oldLabels := map[string]string{
 		"app": "migrate2",
 	}
@@ -351,14 +347,13 @@ func TestNSTransitionInvalidToInvalid(t *testing.T) {
 		"app": "migrate1",
 	}
 	namespace := "magenta"
-	modelName := "admin/cluster--Shared-L7-" + integrationtest.GetShardVSNumber(namespace)
+	modelName := "admin/cluster--Shared-L7-0"
 
 	checkNSTransition(t, oldLabels, newLabels, false, false, namespace, modelName)
 }
 
 //Hostname ShardScheme test case
 func TestNSTransitionValidToInvalidHostName(t *testing.T) {
-
 	oldLabels := map[string]string{
 		"app": "migrate",
 	}
@@ -367,7 +362,6 @@ func TestNSTransitionValidToInvalidHostName(t *testing.T) {
 	}
 	namespace := "whitemigns"
 	modelName := "admin/cluster--Shared-L7-0"
-	os.Setenv("L7_SHARD_SCHEME", "hostname")
 
 	checkNSTransition(t, oldLabels, newLabels, true, false, namespace, modelName)
 }

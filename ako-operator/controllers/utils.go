@@ -43,7 +43,6 @@ const (
 	SubnetIP               = "subnetIP"
 	SubnetPrefix           = "subnetPrefix"
 	NetworkName            = "networkName"
-	L7ShardingScheme       = "l7ShardingScheme"
 	LogLevel               = "logLevel"
 	DeleteConfig           = "deleteConfig"
 	AdvancedL4             = "advancedL4"
@@ -83,7 +82,6 @@ var ConfigMapEnvVars = map[string]string{
 	"SUBNET_IP":                  SubnetIP,
 	"SUBNET_PREFIX":              SubnetPrefix,
 	"NETWORK_NAME":               NetworkName,
-	"L7_SHARD_SCHEME":            L7ShardingScheme,
 	"ADVANCED_L4":                AdvancedL4,
 	"AUTO_FQDN":                  AutoFQDN,
 	"SYNC_NAMESPACE":             SyncNamespace,

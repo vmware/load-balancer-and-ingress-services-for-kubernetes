@@ -33,15 +33,6 @@ import (
 
 const VSVIP_NOTFOUND = "VsVip object not found"
 
-func FindPoolGroupForPort(pgList []*nodes.AviPoolGroupNode, portToSearch int32) string {
-	for _, pg := range pgList {
-		if pg.Port == strconv.Itoa(int(portToSearch)) {
-			return pg.Name
-		}
-	}
-	return ""
-}
-
 func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
 	if vs_meta.IsSNIChild {
 		rest_ops := rest.AviVsSniBuild(vs_meta, rest_method, cache_obj, key)

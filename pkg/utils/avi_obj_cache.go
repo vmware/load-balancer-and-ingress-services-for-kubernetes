@@ -162,7 +162,6 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient,
 	c.AviObjVSCachePopulate(client, cloud)
 	c.AviCloudPropertiesPopulate(client, cloud)
 	c.IstioMutualSSLKeyCert(client, cloud)
-	c.IstioMutualPkiProfile(client, cloud)
 
 }
 
@@ -520,61 +519,6 @@ func (c *AviObjCache) IstioMutualSSLKeyCert(client *clients.AviClient,
 				k, ssl_cache_obj)
 		}
 
-	}
-
-}
-
-func (c *AviObjCache) IstioMutualPkiProfile(client *clients.AviClient,
-	cloud string) {
-	var rest_response interface{}
-	uri := "/api/pkiprofile?include_name=true"
-	err := client.AviSession.Get(uri, &rest_response)
-	if err != nil {
-		AviLog.Warnf(`IstioMutualPkiProfile Get uri %v returned err %v`, uri, err)
-		return
-	}
-	resp, ok := rest_response.(map[string]interface{})
-	if !ok {
-		AviLog.Warnf(`IstioMutualPkiProfile Get uri %v returned %v type %T`, uri,
-			rest_response, rest_response)
-		return
-	}
-	AviLog.Infof("IstioMutualPkiProfile Get uri %v returned %v PkiProfile", uri,
-		resp["count"])
-	results, ok := resp["results"].([]interface{})
-	if !ok {
-		AviLog.Warnf(`results not of type []interface{}
-								 Instead of type %T for PkiProfile`, resp["results"])
-	}
-	for _, pki_intf := range results {
-		pki_pro, ok := pki_intf.(map[string]interface{})
-		if !ok {
-			AviLog.Warnf(`pki_intf not of type map[string]
-									 interface{}. Instead of type %T`, pki_intf)
-			continue
-		}
-
-		var tenant string
-		url, err := url.Parse(pki_pro["tenant_ref"].(string))
-		if err != nil {
-			AviLog.Warnf(`Error parsing tenant_ref %v in
-					IstioMutualPkiProfile %v`, pki_pro["tenant_ref"], pki_pro)
-			continue
-		} else if url.Fragment == "" {
-			AviLog.Warnf(`Error extracting name tenant_ref %v
-										 in IstioMutualPkiProfile set %v`, pki_pro["tenant_ref"], pki_pro)
-			continue
-		} else {
-			tenant = url.Fragment
-		}
-		if pki_pro != nil {
-			pki_cache_obj := AviPkiProfileCache{Name: pki_pro["name"].(string),
-				Tenant: tenant, Uuid: pki_pro["uuid"].(string)}
-			k := NamespaceName{Namespace: tenant, Name: pki_pro["name"].(string)}
-			c.PkiProfileCache.AviCacheAdd(k, &pki_cache_obj)
-			AviLog.Infof("Added IstioMutualPkiProfile cache key %v val %v",
-				k, pki_cache_obj)
-		}
 	}
 
 }

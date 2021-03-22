@@ -233,11 +233,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
-          - name: L7_SHARD_SCHEME
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: l7ShardingScheme
           ports:
             - name: http
               containerPort: 80

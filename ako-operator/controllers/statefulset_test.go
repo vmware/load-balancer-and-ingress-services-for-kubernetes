@@ -131,15 +131,6 @@ var sfJson = `
                                 }
                             },
                             {
-                                "name": "L7_SHARD_SCHEME",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "l7ShardingScheme",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
                                 "name": "FULL_SYNC_INTERVAL",
                                 "valueFrom": {
                                     "configMapKeyRef": {

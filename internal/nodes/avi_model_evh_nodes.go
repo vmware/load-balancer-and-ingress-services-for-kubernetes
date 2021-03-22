@@ -706,7 +706,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		hostsMap[host].InsecurePolicy = lib.PolicyAllow
 		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
 
-		shardVsName := DeriveHostNameShardVSForEvh(host, key)
+		shardVsName := DeriveShardVSForEvh(host, key)
 		if shardVsName == "" {
 			// If we aren't able to derive the ShardVS name, we should return
 			return
@@ -948,7 +948,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		}
 		SharedHostNameLister().Save(host, ingressHostMap)
 		hosts = append(hosts, host)
-		shardVsName := DeriveHostNameShardVSForEvh(host, key)
+		shardVsName := DeriveShardVSForEvh(host, key)
 		// For each host, create a EVH node with the secret giving us the key and cert.
 		// construct a EVH child VS node per tls setting which corresponds to one secret
 		if shardVsName == "" {
@@ -1134,7 +1134,7 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 	utils.AviLog.Debugf("key: %s, msg: About to delete stale data EVH Stored hosts: %v, hosts map: %v", key, utils.Stringify(Storedhosts), utils.Stringify(hostsMap))
 	for host, hostData := range Storedhosts {
 		utils.AviLog.Debugf("host to del: %s, data : %s", host, utils.Stringify(hostData))
-		shardVsName := DeriveHostNameShardVSForEvh(host, key)
+		shardVsName := DeriveShardVSForEvh(host, key)
 
 		if shardVsName == "" {
 			// If we aren't able to derive the ShardVS name, we should return
@@ -1174,7 +1174,7 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 	}
 }
 
-func DeriveHostNameShardVSForEvh(hostname string, key string) string {
+func DeriveShardVSForEvh(hostname string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
 	var vsNum uint32
@@ -1362,7 +1362,7 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
 	for host, hostData := range hostMap {
-		shardVsName := DeriveHostNameShardVSForEvh(host, key)
+		shardVsName := DeriveShardVSForEvh(host, key)
 		if hostData.SecurePolicy == lib.PolicyPass {
 			shardVsName = lib.GetPassthroughShardVSName(host, key)
 		}
@@ -1400,5 +1400,5 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 	routeIgrObj.GetSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(objname)
 
 	// remove hostpath mappings
-	updateHostPathCacheV2(namespace, objname, hostMap, nil)
+	updateHostPathCache(namespace, objname, hostMap, nil)
 }

@@ -225,37 +225,21 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	  **/
 	// start the go routines draining the queues in various layers
 	var graphQueue *utils.WorkerQueue
-	shardScheme := lib.GetShardScheme()
 	// This is the first time initialization of the queue. For hostname based sharding, we don't want layer 2 to process the queue using multiple go routines.
 	var retryQueueWorkers uint32
 	retryQueueWorkers = 1
 	slowRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.SLOW_RETRY_LAYER, SlowSyncTime: lib.SLOW_SYNC_TIME}
 	fastRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.FAST_RETRY_LAYER}
-	var numWorkers uint32
-	if shardScheme == lib.HOSTNAME_SHARD_SCHEME {
-		numWorkers = 1
-		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
-		numGraphWorkers := lib.GetshardSize()
-		if numGraphWorkers == 0 {
-			// For dedicated VSes - we will have 8 layer 3 threads
-			numGraphWorkers = 8
-		}
-		graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
-		graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams).GetQueueByName(utils.GraphLayer)
 
-	} else {
-		// Namespace sharding.
-		if lib.IsNodePortMode() {
-			// Setting the numWorkers to 1 as single node update in L2 affects multiple ingresses.
-			// Cannot have multiple workers working on ingress and node updates.
-			numWorkers = 1
-		} else {
-			numWorkers = utils.NumWorkersIngestion
-		}
-		ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
-		graphQueueParams := utils.WorkerQueue{NumWorkers: utils.NumWorkersGraph, WorkqueueName: utils.GraphLayer}
-		graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams).GetQueueByName(utils.GraphLayer)
+	numWorkers := uint32(1)
+	ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
+	numGraphWorkers := lib.GetshardSize()
+	if numGraphWorkers == 0 {
+		// For dedicated VSes - we will have 8 layer 3 threads
+		numGraphWorkers = 8
 	}
+	graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
+	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams).GetQueueByName(utils.GraphLayer)
 
 	// Setup and start event handlers for objects.
 	c.SetupEventHandlers(informers)

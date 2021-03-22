@@ -36,7 +36,6 @@ const (
 	DEFAULT_SE_GROUP                           = "Default-Group"
 	NODE_NETWORK_LIST                          = "NODE_NETWORK_LIST"
 	NODE_NETWORK_MAX_ENTRIES                   = 5
-	L7_SHARD_SCHEME                            = "L7_SHARD_SCHEME"
 	DEFAULT_DOMAIN                             = "DEFAULT_DOMAIN"
 	ADVANCED_L4                                = "ADVANCED_L4"
 	SERVICES_API                               = "SERVICES_API"
