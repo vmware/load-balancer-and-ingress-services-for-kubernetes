@@ -337,7 +337,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
 			if !utils.CheckIfNamespaceAccepted(namespace) {
-				utils.AviLog.Infof("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
+				utils.AviLog.Debugf("Route add event: Namespace: %s didn't qualify filter. Not adding route", namespace)
 				return
 			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
@@ -367,7 +367,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
 			if !utils.CheckIfNamespaceAccepted(namespace) {
-				utils.AviLog.Infof("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
+				utils.AviLog.Debugf("Route delete event: Namespace: %s didn't qualify filter. Not deleting route", namespace)
 				return
 			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
@@ -384,7 +384,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			if isRouteUpdated(oldRoute, newRoute) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
 				if !utils.CheckIfNamespaceAccepted(namespace) {
-					utils.AviLog.Infof("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
+					utils.AviLog.Debugf("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
 					return
 				}
 				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
@@ -540,7 +540,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isSvcLb && !lib.GetLayer7Only() {
 				//L4 Namespace sync not applicable for advance L4 and service API
 				if !utils.IsServiceNSValid(namespace) {
-					utils.AviLog.Infof("L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", namespace)
+					utils.AviLog.Debugf("L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", namespace)
 					return
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
@@ -583,7 +583,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			if isSvcLb && !lib.GetLayer7Only() {
 				if !utils.IsServiceNSValid(namespace) {
-					utils.AviLog.Infof("L4 Service delete event: Namespace: %s didn't qualify filter. Not deleting service.", namespace)
+					utils.AviLog.Debugf("L4 Service delete event: Namespace: %s didn't qualify filter. Not deleting service.", namespace)
 					return
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
@@ -610,7 +610,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				var key string
 				if isSvcLb && !lib.GetLayer7Only() {
 					if !utils.IsServiceNSValid(namespace) {
-						utils.AviLog.Infof("L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", namespace)
+						utils.AviLog.Debugf("L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", namespace)
 						return
 					}
 					key = utils.L4LBService + "/" + utils.ObjKey(svc)
@@ -807,7 +807,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			ingress := obj.(*networkingv1beta1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 			if !utils.CheckIfNamespaceAccepted(namespace) {
-				utils.AviLog.Infof("Ingress add event: Namespace: %s didn't qualify filter. Not adding ingress", namespace)
+				utils.AviLog.Debugf("Ingress add event: Namespace: %s didn't qualify filter. Not adding ingress", namespace)
 				return
 			}
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
@@ -835,7 +835,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 			if !utils.CheckIfNamespaceAccepted(namespace) {
-				utils.AviLog.Infof("Ingress Delete event: Namespace: %s didn't qualify filter. Not deleting ingress", namespace)
+				utils.AviLog.Debugf("Ingress Delete event: Namespace: %s didn't qualify filter. Not deleting ingress", namespace)
 				return
 			}
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
@@ -852,7 +852,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 				if !utils.CheckIfNamespaceAccepted(namespace) {
-					utils.AviLog.Infof("Ingress Update event: Namespace: %s didn't qualify filter. Not updating ingress", namespace)
+					utils.AviLog.Debugf("Ingress Update event: Namespace: %s didn't qualify filter. Not updating ingress", namespace)
 					return
 				}
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
