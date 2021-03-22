@@ -85,10 +85,6 @@ func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec rou
 }
 
 func findHostRuleMappingForFqdn(key, host string) (bool, *v1alpha1.HostRule) {
-	if lib.GetShardScheme() == "namespace" {
-		return false, nil
-	}
-
 	// from host check if hostrule is present
 	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
 	if !found {

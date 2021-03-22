@@ -149,10 +149,6 @@ func GetAdvL4PoolName(svcName, namespace, gwName string, port int32) string {
 	return NamePrefix + namespace + "-" + svcName + "-" + gwName + "--" + strconv.Itoa(int(port))
 }
 
-func GetL4PGName(vsName string, port int32) string {
-	return vsName + "-" + strconv.Itoa(int(port))
-}
-
 // All L7 object names.
 func GetVsVipName(vsName string) string {
 	return vsName
@@ -285,16 +281,6 @@ func GetTenantsPerCluster() bool {
 		return true
 	}
 	return false
-}
-
-func GetShardScheme() string {
-	shardScheme := os.Getenv(L7_SHARD_SCHEME)
-	shardSchemeName, ok := ShardSchemeMap[shardScheme]
-	if !ok {
-		return DEFAULT_SHARD_SCHEME
-	}
-	utils.AviLog.Debugf("SHARDING scheme: %s", shardSchemeName)
-	return shardSchemeName
 }
 
 func GetDefaultIngController() bool {

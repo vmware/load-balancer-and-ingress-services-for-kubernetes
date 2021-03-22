@@ -32,7 +32,6 @@ import (
 
 func SetUpTestForIngressInNodePortMode(t *testing.T, model_Name string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("L7_SHARD_SCHEME", "hostname")
 	objects.SharedAviGraphLister().Delete(model_Name)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
 }

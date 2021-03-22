@@ -196,9 +196,8 @@ func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, curr
 	return pathSvcCopy
 }
 
-// HostNameShardAndPublishV2 : based on original HostNameShardAndPublish().
-// Create model from supported objects - route/ingress, and publish to rest layer
-func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
+// HostNameShardAndPublish: Create model from supported objects - route/ingress, and publish to rest layer
+func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
 	utils.AviLog.Infof("key: %s, starting RouteHostNameShardAndPublish", key)
 	var routeIgrObj RouteIngressModel
 	var err error
@@ -258,7 +257,7 @@ func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync
 		DeleteStaleDataForEvh(routeIgrObj, key, &modelList, Storedhosts, hostsMap)
 		// hostNamePathStore cache operation
 		_, oldHostMap := routeIgrObj.GetSvcLister().IngressMappings(namespace).GetRouteIngToHost(objname)
-		updateHostPathCacheV2(namespace, objname, oldHostMap, hostsMap)
+		updateHostPathCache(namespace, objname, oldHostMap, hostsMap)
 
 		routeIgrObj.GetSvcLister().IngressMappings(namespace).UpdateRouteIngToHostMapping(objname, hostsMap)
 		// publish to rest layer
@@ -282,7 +281,7 @@ func HostNameShardAndPublishV2(objType, objname, namespace, key string, fullsync
 
 	// hostNamePathStore cache operation
 	_, oldHostMap := routeIgrObj.GetSvcLister().IngressMappings(namespace).GetRouteIngToHost(objname)
-	updateHostPathCacheV2(namespace, objname, oldHostMap, hostsMap)
+	updateHostPathCache(namespace, objname, oldHostMap, hostsMap)
 
 	routeIgrObj.GetSvcLister().IngressMappings(namespace).UpdateRouteIngToHostMapping(objname, hostsMap)
 	if !fullsync {
@@ -325,7 +324,7 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 		hostsMap[host].InsecurePolicy = lib.PolicyAllow
 		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
 
-		shardVsName := DeriveHostNameShardVS(host, key)
+		shardVsName := DeriveShardVS(host, key)
 		if shardVsName == "" {
 			// If we aren't able to derive the ShardVS name, we should return
 			return
@@ -427,7 +426,7 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	for host, hostData := range Storedhosts {
 		utils.AviLog.Debugf("host to del: %s, data : %s", host, utils.Stringify(hostData))
-		shardVsName := DeriveHostNameShardVS(host, key)
+		shardVsName := DeriveShardVS(host, key)
 		if hostData.SecurePolicy == lib.PolicyPass {
 			shardVsName = lib.GetPassthroughShardVSName(host, key)
 		}
@@ -480,7 +479,7 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
 	for host, hostData := range hostMap {
-		shardVsName := DeriveHostNameShardVS(host, key)
+		shardVsName := DeriveShardVS(host, key)
 		if hostData.SecurePolicy == lib.PolicyPass {
 			shardVsName = lib.GetPassthroughShardVSName(host, key)
 		}
@@ -517,10 +516,10 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 	routeIgrObj.GetSvcLister().IngressMappings(namespace).DeleteIngToHostMapping(objname)
 
 	// remove hostpath mappings
-	updateHostPathCacheV2(namespace, objname, hostMap, nil)
+	updateHostPathCache(namespace, objname, hostMap, nil)
 }
 
-func updateHostPathCacheV2(ns, ingress string, oldHostMap, newHostMap map[string]*objects.RouteIngrhost) {
+func updateHostPathCache(ns, ingress string, oldHostMap, newHostMap map[string]*objects.RouteIngrhost) {
 	mmapval := ns + "/" + ingress
 
 	// remove from oldHostMap

@@ -127,10 +127,6 @@ type GraphSchema struct {
 
 type GraphDescriptor []GraphSchema
 
-var SvcListerForRoutes struct {
-	SvcListerForRoute map[string]objects.SvcLister
-}
-
 func RouteChanges(routeName string, namespace string, key string) ([]string, bool) {
 	var routes []string
 	routes = append(routes, routeName)

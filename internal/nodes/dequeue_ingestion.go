@@ -36,7 +36,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
-	objType, namespace, name := extractTypeNameNamespace(key)
+	objType, namespace, name := lib.ExtractTypeNameNamespace(key)
 	if objType == utils.Pod {
 		handlePod(key, namespace, name, fullsync)
 	}
@@ -62,7 +62,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				handleL4Service(svcl4Key, fullsync)
 			}
 			for _, svcl7Key := range svcl7Keys {
-				_, namespace, svcName := extractTypeNameNamespace(svcl7Key)
+				_, namespace, svcName := lib.ExtractTypeNameNamespace(svcl7Key)
 				if ingressFound {
 					filteredIngressFound, filteredIngressNames := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
 					if !filteredIngressFound {
@@ -152,7 +152,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		if gatewayFound {
 			for _, gatewayKey := range gateways {
 				// Check the gateway has a valid subscription or not. If not, delete it.
-				namespace, _, gwName := extractTypeNameNamespace(gatewayKey)
+				namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
 				modelName := lib.GetModelName(lib.GetTenant(), lib.GetNamePrefix()+namespace+"-"+gwName)
 				if isGatewayDelete(gatewayKey, key) {
 					// Check if a model corresponding to the gateway exists or not in memory.
@@ -237,7 +237,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 
 func isGatewayDelete(gatewayKey string, key string) bool {
 	// parse the gateway name and namespace
-	namespace, _, gwName := extractTypeNameNamespace(gatewayKey)
+	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
 	if lib.GetAdvancedL4() {
 		gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && errors.IsNotFound(err) {
@@ -282,15 +282,13 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 }
 
 func handleRoute(key string, fullsync bool, routeNames []string) {
-	objType, namespace, _ := extractTypeNameNamespace(key)
+	objType, namespace, _ := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	utils.AviLog.Infof("key: %s, msg: route found: %v", key, routeNames)
-	if lib.GetShardScheme() == lib.HOSTNAME_SHARD_SCHEME {
-		for _, route := range routeNames {
-			nsroute, nameroute := getIngressNSNameForIngestion(objType, namespace, route)
-			utils.AviLog.Infof("key: %s, msg: processing route: %s", key, route)
-			HostNameShardAndPublishV2(utils.OshiftRoute, nameroute, nsroute, key, fullsync, sharedQueue)
-		}
+	for _, route := range routeNames {
+		nsroute, nameroute := getIngressNSNameForIngestion(objType, namespace, route)
+		utils.AviLog.Infof("key: %s, msg: processing route: %s", key, route)
+		HostNameShardAndPublish(utils.OshiftRoute, nameroute, nsroute, key, fullsync, sharedQueue)
 	}
 	return
 }
@@ -301,7 +299,7 @@ func handleL4Service(key string, fullsync bool) {
 		utils.AviLog.Debugf("key: %s, msg: not handling service of type loadbalancer since AKO is configured to run in layer 7 mode only", key)
 		return
 	}
-	_, namespace, name := extractTypeNameNamespace(key)
+	_, namespace, name := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
 	if !isServiceDelete(name, namespace, key) && utils.CheckIfNamespaceAccepted(namespace) {
@@ -330,13 +328,9 @@ func handleL4Service(key string, fullsync bool) {
 			// This is transition from clusterIP to service of type LB
 			objects.SharedClusterIpLister().Delete(namespace + "/" + name)
 			affectedIngs, _ := SvcToIng(name, namespace, key)
-			if lib.GetShardScheme() != lib.NAMESPACE_SHARD_SCHEME {
-				for _, ingress := range affectedIngs {
-					utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
-					HostNameShardAndPublishV2(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
-				}
-			} else {
-				utils.AviLog.Warnf("key: %s, msg: transition from ClusterIP to service of type LB is not supported in namespace based shard for ingress pool changes", key)
+			for _, ingress := range affectedIngs {
+				utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
+				HostNameShardAndPublish(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
 			}
 		}
 		return
@@ -352,40 +346,13 @@ func handleL4Service(key string, fullsync bool) {
 }
 
 func handleIngress(key string, fullsync bool, ingressNames []string) {
-	objType, namespace, _ := extractTypeNameNamespace(key)
+	objType, namespace, _ := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	if lib.GetShardScheme() == lib.NAMESPACE_SHARD_SCHEME {
-		for _, ingress := range ingressNames {
-			nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
-			shardVsName := DeriveNamespacedShardVS(nsing, key)
-			if shardVsName == "" {
-				// If we aren't able to derive the ShardVS name, we should return
-				return
-			}
-			model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
-			// The assumption is that the ingress names are from the same namespace as the service/ep updates. Kubernetes
-			// does not allow cross tenant ingress references.
-			utils.AviLog.Debugf("key: %s, msg: evaluating ingress: %s", key, ingress)
-			found, aviModel := objects.SharedAviGraphLister().Get(model_name)
-			if !found || aviModel == nil {
-				utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
-				routeIgrObj, _, _ := GetK8sIngressModel(ingress, namespace, key)
-				aviModel = NewAviObjectGraph()
-				aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key, routeIgrObj)
-			}
-			aviModel.(*AviObjectGraph).BuildL7VSGraph(shardVsName, nsing, nameing, key)
-			ok := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
-			if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-				PublishKeyToRestLayer(model_name, key, sharedQueue)
-			}
-		}
-	} else {
-		// The only other shard scheme we support now is hostname sharding.
-		for _, ingress := range ingressNames {
-			nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
-			utils.AviLog.Debugf("key: %s, msg: processing ingress: %s", key, ingress)
-			HostNameShardAndPublishV2(utils.Ingress, nameing, nsing, key, fullsync, sharedQueue)
-		}
+	// The only other shard scheme we support now is hostname sharding.
+	for _, ingress := range ingressNames {
+		nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
+		utils.AviLog.Debugf("key: %s, msg: processing ingress: %s", key, ingress)
+		HostNameShardAndPublish(utils.Ingress, nameing, nsing, key, fullsync, sharedQueue)
 	}
 }
 
@@ -479,18 +446,6 @@ func isServiceDelete(svcName string, namespace string, key string) bool {
 	return false
 }
 
-// Candidate for utils.
-func extractTypeNameNamespace(key string) (string, string, string) {
-	segments := strings.Split(key, "/")
-	if len(segments) == 3 {
-		return segments[0], segments[1], segments[2]
-	}
-	if len(segments) == 2 {
-		return segments[0], "", segments[1]
-	}
-	return "", "", segments[0]
-}
-
 func ConfigDescriptor() GraphDescriptor {
 	return SupportedGraphTypes
 }
@@ -528,16 +483,9 @@ func GetShardVSName(s string, key string) string {
 	return vsName
 }
 
-func DeriveHostNameShardVS(hostname string, key string) string {
+func DeriveShardVS(hostname string, key string) string {
 	// Read the value of the num_shards from the environment variable.
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
 	vsName := GetShardVSName(hostname, key)
-	return vsName
-}
-
-func DeriveNamespacedShardVS(namespace string, key string) string {
-	// Read the value of the num_shards from the environment variable.
-	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, namespace)
-	vsName := GetShardVSName(namespace, key)
 	return vsName
 }

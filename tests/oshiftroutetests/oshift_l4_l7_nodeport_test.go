@@ -31,7 +31,6 @@ import (
 
 func SetUpTestForRouteInNodePort(t *testing.T, modelName string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("L7_SHARD_SCHEME", "hostname")
 	AddLabelToNamespace(defaultKey, defaultValue, defaultNamespace, modelName, t)
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)

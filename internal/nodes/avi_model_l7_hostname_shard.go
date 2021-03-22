@@ -241,30 +241,6 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 	return true
 }
 
-func updateHostPathCache(ns, ingress string, oldHostMap, newHostMap map[string]map[string][]string) {
-	mmapval := ns + "/" + ingress
-
-	// remove from oldHostMap
-	for _, oldMap := range oldHostMap {
-		for host, paths := range oldMap {
-			for _, path := range paths {
-				SharedHostNameLister().RemoveHostPathStore(host, path, mmapval)
-			}
-		}
-	}
-
-	// add from newHostMap
-	if newHostMap != nil {
-		for _, newMap := range newHostMap {
-			for host, paths := range newMap {
-				for _, path := range paths {
-					SharedHostNameLister().SaveHostPathStore(host, path, mmapval)
-				}
-			}
-		}
-	}
-}
-
 func getPaths(pathMapArr []IngressHostPathSvc) []string {
 	// Returns a list of paths for a given host
 	paths := []string{}
@@ -292,7 +268,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		}
 		SharedHostNameLister().Save(sniHost, ingressHostMap)
 		sniHosts = append(sniHosts, sniHost)
-		shardVsName := DeriveHostNameShardVS(sniHost, key)
+		shardVsName := DeriveShardVS(sniHost, key)
 		// For each host, create a SNI node with the secret giving us the key and cert.
 		// construct a SNI VS node per tls setting which corresponds to one secret
 		if shardVsName == "" {

@@ -50,7 +50,6 @@ var cmJson = `
 		"deleteConfig": "false",
 		"disableStaticRouteSync": "false",
 		"fullSyncFrequency": "1800",
-		"l7ShardingScheme": "hostname",
 		"logLevel": "INFO",
 		"networkName": "test-nw",
 		"nodeKey": "key",
