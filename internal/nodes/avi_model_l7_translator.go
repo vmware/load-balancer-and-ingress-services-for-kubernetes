@@ -301,27 +301,36 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			if path.Path != "" {
 				httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			}
-
-			pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
-			var pgNode *AviPoolGroupNode
-			// There can be multiple services for the same path in case of alternate backend.
-			// In that case, make sure we are creating only one PG per path
-			pgNode, pgfound := localPGList[pgName]
-			if !pgfound {
-				pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
-				localPGList[pgName] = pgNode
-				httpPGPath.PoolGroup = pgNode.Name
-				httpPGPath.Host = pathFQDNs
-				httpPolicySet = append(httpPolicySet, httpPGPath)
-			}
-
 			var poolName string
+			var pgfound bool
+			var pgNode *AviPoolGroupNode
 			// Do not use serviceName in SNI Pool Name for ingress for backward compatibility
 			if isIngr {
 				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path)
 			} else {
 				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path, path.ServiceName)
 			}
+			httpPGPath.Host = pathFQDNs
+			// There can be multiple services for the same path in case of alternate backend.
+			// In that case, make sure we are creating only one PG per path
+			if lib.GetNoPGForSNI() && isIngr {
+				// If this flag is switched on at a time when the pool is referred by a PG, then the httppolicyset cannot refer to the same pool unless the pool is detached from the poolgroup
+				// first, and that is going to mess up the ordering. Hence creating a pool with a different name here. The previous pool will become stale in the process and will get deleted.
+				// An AKO reboot would be required to clean up any stale pools if left behind.
+				poolName = poolName + "--" + lib.PoolNameSuffixForHttpPolToPool
+				httpPGPath.Pool = poolName
+				utils.AviLog.Infof("key: %s, msg: using pool name: %s instead of poolgroups for http policy set", key, poolName)
+			} else {
+				pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
+				var pgfound bool
+				pgNode, pgfound = localPGList[pgName]
+				if !pgfound {
+					pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
+					localPGList[pgName] = pgNode
+					httpPGPath.PoolGroup = pgNode.Name
+				}
+			}
+			httpPolicySet = append(httpPolicySet, httpPGPath)
 			hostSlice := []string{host}
 			poolNode := &AviPoolNode{
 				Name:       poolName,
@@ -352,13 +361,14 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 					poolNode.Servers = servers
 				}
 			}
+			if !lib.GetNoPGForSNI() || !isIngr {
+				pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
+				ratio := path.weight
+				pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
 
-			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-			ratio := path.weight
-			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
-
-			if tlsNode.CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
-				tlsNode.ReplaceSniPGInSNINode(pgNode, key)
+				if tlsNode.CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
+					tlsNode.ReplaceSniPGInSNINode(pgNode, key)
+				}
 			}
 			if tlsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
 				// Replace the poolNode.

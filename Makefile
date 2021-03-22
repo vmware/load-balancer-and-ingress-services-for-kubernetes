@@ -4,7 +4,7 @@ GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
-AKO_VERSION=v1.3.1
+AKO_VERSION=v1.4.1
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 AKO_OPERATOR_IMAGE=ako-operator
@@ -121,6 +121,11 @@ namespacesynctests:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast
 
+.PHONY: misc 
+misc:
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/misc -failfast
+
 .PHONY: npltests 
 npltests:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
@@ -128,7 +133,7 @@ npltests:
 
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests
+	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc
 
 .PHONY: scale_test
 scale_test:

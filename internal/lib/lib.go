@@ -65,6 +65,7 @@ func GetNamePrefix() string {
 
 var DisableSync bool
 var layer7Only bool
+var noPGForSNI bool
 
 func SetDisableSync(state bool) {
 	DisableSync = state
@@ -76,6 +77,17 @@ func SetLayer7Only(val string) {
 		layer7Only = boolVal
 	}
 	utils.AviLog.Infof("Setting the value for the layer7Only flag %v", layer7Only)
+}
+
+func SetNoPGForSNI(val string) {
+	if boolVal, err := strconv.ParseBool(val); err == nil {
+		noPGForSNI = boolVal
+	}
+	utils.AviLog.Infof("Setting the value for the noPGForSNI flag %v", noPGForSNI)
+}
+
+func GetNoPGForSNI() bool {
+	return noPGForSNI
 }
 
 func GetLayer7Only() bool {

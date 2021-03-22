@@ -350,6 +350,7 @@ type AviHTTPPolicyCache struct {
 	Uuid             string
 	CloudConfigCksum string
 	PoolGroups       []string
+	Pools            []string
 	LastModified     string
 	InvalidData      bool
 	HasReference     bool

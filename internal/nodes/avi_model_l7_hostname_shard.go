@@ -217,6 +217,10 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 				} else {
 					sniPool = lib.GetSniPoolName(ingName, namespace, hostname, path, svc)
 				}
+				// Pls decprecate when PGs have http caching
+				if lib.GetNoPGForSNI() && isIngr {
+					sniPool = sniPool + "--" + lib.PoolNameSuffixForHttpPolToPool
+				}
 				o.RemovePoolNodeRefsFromSni(sniPool, modelSniNode)
 				o.RemovePoolRefsFromPG(sniPool, pgNode)
 			}
@@ -227,6 +231,11 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 					httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path)
 					o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
 				}
+			}
+			// Keeping this block separate for deprecation later.
+			if lib.GetNoPGForSNI() && isIngr {
+				httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path)
+				o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
 			}
 		}
 		// After going through the paths, if the SNI node does not have any PGs - then delete it.
