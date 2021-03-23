@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package misc
+package temp
 
 import (
 	"context"
@@ -39,6 +39,7 @@ import (
 )
 
 // Use this file to execute tests that need special handling like - configmap create/delete/update operations etc.
+// Pls delete this file/folder once this feature is deprecated in value of http caching on PG.
 
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
