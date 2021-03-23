@@ -427,7 +427,6 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 		if r.Method == "POST" && !strings.Contains(url, "login") {
 			data, _ := ioutil.ReadAll(r.Body)
 			json.Unmarshal(data, &resp)
-			fmt.Printf("xxx: resp: %v", resp)
 			if strings.Contains(url, "virtualservice") && injectFault {
 				injectFault = false
 				w.WriteHeader(http.StatusBadRequest)
@@ -438,7 +437,7 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 				} else if strings.Contains(url, "vsvip") {
 					rModelName = "vsvip"
 				} else if strings.Contains(url, "l4policy") {
-					rModelName = "l4policy"
+					rModelName = "l4policyset"
 				}
 				rName := resp["name"].(string)
 				objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)

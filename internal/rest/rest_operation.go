@@ -40,11 +40,13 @@ type modelSchema interface {
 var (
 	virtualServiceModel = initVSModel()
 	poolGroupModel      = initPGModel()
+	L4PolicySetModel    = initL4PolSetModel()
 
 	// List of Models for which we would try to remove object refs in case of error
 	supportedModelTypes = map[string]modelSchema{
 		"VirtualService": virtualServiceModel,
 		"PoolGroup":      poolGroupModel,
+		"L4PolicySet":    L4PolicySetModel,
 	}
 
 	// List of Objects for which we would handle error
@@ -165,6 +167,44 @@ func (v *virtualserviceSchema) removeVsVipRef(op *utils.RestOp, objRef string) b
 		utils.AviLog.Infof("VSVip creation failed, object ref won't be removed from Virtualservice")
 		return false
 	}
+	return true
+}
+
+type L4PolicySetSchema struct {
+	Type   string
+	refMap map[string]func(*utils.RestOp, string) bool
+}
+
+func (v *L4PolicySetSchema) GetType() string {
+	return v.Type
+}
+
+func initL4PolSetModel() *L4PolicySetSchema {
+	l4PolSet := L4PolicySetSchema{}
+	l4PolSet.Type = "L4PolicySet"
+	l4PolSet.refMap = map[string]func(*utils.RestOp, string) bool{
+		"Pool": l4PolSet.removePoolRef,
+	}
+	return &l4PolSet
+}
+
+func (v *L4PolicySetSchema) RemoveRef(refType string) func(*utils.RestOp, string) bool {
+	return v.refMap[refType]
+}
+
+func (v *L4PolicySetSchema) removePoolRef(op *utils.RestOp, objRef string) bool {
+	l4PolSet, ok := op.Obj.(*avimodels.L4PolicySet)
+	if !ok {
+		utils.AviLog.Infof("Failed to remove Pool ref, object is not of type L4PolicySet")
+		return false
+	}
+
+	for i, rule := range l4PolSet.L4ConnectionPolicy.Rules {
+		if strings.EqualFold(*rule.Action.SelectPool.PoolRef, objRef) {
+			l4PolSet.L4ConnectionPolicy.Rules = append(l4PolSet.L4ConnectionPolicy.Rules[:i], l4PolSet.L4ConnectionPolicy.Rules[i+1:]...)
+		}
+	}
+	op.Obj = l4PolSet
 	return true
 }
 
