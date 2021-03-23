@@ -209,6 +209,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 			}
 		}
 		var pgMembers []string
+		var poolMembers []string
 		if resp["http_request_policy"] != nil {
 			rules, rulessOk := resp["http_request_policy"].(map[string]interface{})
 			if rulessOk {
@@ -217,11 +218,19 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 					rulemap, _ := ruleIntf.(map[string]interface{})
 					if rulemap["switching_action"] != nil {
 						switchAction := rulemap["switching_action"].(map[string]interface{})
-						pgUuid := avicache.ExtractUuid(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
-						// Search the poolName using this Uuid in the poolcache.
-						pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
-						if found {
-							pgMembers = append(pgMembers, pgName.(string))
+						if switchAction["pool_group_ref"] != nil {
+							pgUuid := avicache.ExtractUuid(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
+							// Search the poolName using this Uuid in the poolcache.
+							pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
+							if found {
+								pgMembers = append(pgMembers, pgName.(string))
+							}
+						} else if switchAction["pool_ref"] != nil {
+							poolUuid := avicache.ExtractUuid(switchAction["pool_ref"].(string), "pool-.*.#")
+							poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
+							if found {
+								poolMembers = append(poolMembers, poolName.(string))
+							}
 						}
 					}
 				}
@@ -232,6 +241,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 			CloudConfigCksum: cksum,
 			LastModified:     lastModifiedStr,
 			PoolGroups:       pgMembers,
+			Pools:            poolMembers,
 		}
 		if lastModifiedStr == "" {
 			http_cache_obj.InvalidData = true

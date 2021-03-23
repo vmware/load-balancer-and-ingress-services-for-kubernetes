@@ -138,6 +138,8 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
 			// Check if AKO is configured to only use Ingress. This value can be only set during bootup and can't be edited dynamically.
 			lib.SetLayer7Only(cm.Data[lib.LAYER7_ONLY])
+			// Check if we need to use PGs for SNIs or not.
+			lib.SetNoPGForSNI(cm.Data[lib.NO_PG_FOR_SNI])
 			delModels := delConfigFromData(cm.Data)
 			if !delModels {
 				status.ResetStatefulSetStatus()

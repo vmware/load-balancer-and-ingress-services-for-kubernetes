@@ -56,6 +56,7 @@ const (
 	SLOW_SYNC_TIME                             = 90 // seconds
 	LOG_LEVEL                                  = "logLevel"
 	LAYER7_ONLY                                = "layer7Only"
+	NO_PG_FOR_SNI                              = "noPGForSNI"
 	SERVICE_TYPE                               = "SERVICE_TYPE"
 	NODE_PORT                                  = "NodePort"
 	NODE_KEY                                   = "NODE_KEY"
@@ -125,8 +126,9 @@ const (
 	InfraSettingNameAnnotation     = "aviinfrasetting.ako.vmware.com/name"
 
 	// Specifies command used in namespace event handler
-	NsFilterAdd    = "ADD"
-	NsFilterDelete = "DELETE"
+	NsFilterAdd                    = "ADD"
+	NsFilterDelete                 = "DELETE"
+	PoolNameSuffixForHttpPolToPool = "policy-to-pool"
 )
 
 // Cache Indexer constants.
