@@ -63,7 +63,7 @@ type WorkerQueue struct {
 	WorkqueueName string
 	workerIdMutex sync.Mutex
 	workerId      uint32
-	SyncFunc      func(string, *sync.WaitGroup) error
+	SyncFunc      func(interface{}, *sync.WaitGroup) error
 	SlowSyncTime  int
 }
 
@@ -140,7 +140,6 @@ func (c *WorkerQueue) processSingleWorkItem(worker_id uint32, wg *sync.WaitGroup
 	if shutdown {
 		return false
 	}
-	var ok bool
 	var ev string
 	// We wrap this block in a func so we can defer c.workqueue.Done.
 	err := func(obj interface{}) error {
@@ -151,16 +150,8 @@ func (c *WorkerQueue) processSingleWorkItem(worker_id uint32, wg *sync.WaitGroup
 		// put back on the workqueue and attempted again after a back-off
 		// period.
 		defer c.Workqueue[worker_id].Done(obj)
-		if ev, ok = obj.(string); !ok {
-			// As the item in the workqueue is actually invalid, we call
-			// Forget here else we'd go into a loop of attempting to
-			// process a work item that is invalid.
-			c.Workqueue[worker_id].Forget(obj)
-			runtime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
-			return nil
-		}
 		// Run the syncToAvi, passing it the ev resource to be synced.
-		err := c.SyncFunc(ev, wg)
+		err := c.SyncFunc(obj, wg)
 		if err != nil {
 			AviLog.Errorf("There was an error while syncing the key: %s", ev)
 		}

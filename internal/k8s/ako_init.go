@@ -212,12 +212,14 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	var graphwg *sync.WaitGroup
 	var fastretrywg *sync.WaitGroup
 	var slowretrywg *sync.WaitGroup
+	var statusWG *sync.WaitGroup
 	if len(waitGroupMap) > 0 {
 		// Fetch all the waitgroups
 		ingestionwg, _ = waitGroupMap[0]["ingestion"]
 		graphwg, _ = waitGroupMap[0]["graph"]
 		fastretrywg, _ = waitGroupMap[0]["fastretry"]
 		slowretrywg, _ = waitGroupMap[0]["slowretry"]
+		statusWG, _ = waitGroupMap[0]["status"]
 	}
 
 	/** Sequence:
@@ -233,6 +235,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	slowRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.SLOW_RETRY_LAYER, SlowSyncTime: lib.SLOW_SYNC_TIME}
 	fastRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.FAST_RETRY_LAYER}
 
+	statusQueueParams := utils.WorkerQueue{NumWorkers: 8, WorkqueueName: utils.StatusQueue}
 	numWorkers := uint32(1)
 	ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 	numGraphWorkers := lib.GetshardSize()
@@ -241,7 +244,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		numGraphWorkers = 8
 	}
 	graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
-	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams).GetQueueByName(utils.GraphLayer)
+	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
 	// Setup and start event handlers for objects.
 	c.SetupEventHandlers(informers)
@@ -289,6 +292,11 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
 	slowRetryQueue.SyncFunc = SyncFromSlowRetryLayer
 	slowRetryQueue.Run(stopCh, slowretrywg)
+
+	statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+	statusQueue.SyncFunc = SyncFromStatusQueue
+	statusQueue.Run(stopCh, statusWG)
+
 LABEL:
 	for {
 		select {
@@ -306,6 +314,7 @@ LABEL:
 	graphQueue.StopWorkers(stopCh)
 	fastRetryQueue.StopWorkers(stopCh)
 	slowRetryQueue.StopWorkers(stopCh)
+	statusQueue.StopWorkers(stopCh)
 }
 
 func (c *AviController) FullSync() {
@@ -642,31 +651,64 @@ func (c *AviController) DeleteModels() {
 	}
 }
 
-func SyncFromIngestionLayer(key string, wg *sync.WaitGroup) error {
+func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 	// This method will do all necessary graph calculations on the Graph Layer
 	// Let's route the key to the graph layer.
 	// NOTE: There's no error propagation from the graph layer back to the workerqueue. We will evaluate
 	// This condition in the future and visit as needed. But right now, there's no necessity for it.
 	// sharedQueue := SharedWorkQueueWrappers().GetQueueByName(queue.GraphLayer)
-	nodes.DequeueIngestion(key, false)
+
+	keyStr, ok := key.(string)
+	if !ok {
+		return nil
+	}
+	nodes.DequeueIngestion(keyStr, false)
 	return nil
 }
 
-func SyncFromFastRetryLayer(key string, wg *sync.WaitGroup) error {
-	retry.DequeueFastRetry(key)
+func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
+	keyStr, ok := key.(string)
+	if !ok {
+		return nil
+	}
+	retry.DequeueFastRetry(keyStr)
 	return nil
 }
 
-func SyncFromSlowRetryLayer(key string, wg *sync.WaitGroup) error {
-	retry.DequeueSlowRetry(key)
+func SyncFromSlowRetryLayer(key interface{}, wg *sync.WaitGroup) error {
+	keyStr, ok := key.(string)
+	if !ok {
+		return nil
+	}
+	retry.DequeueSlowRetry(keyStr)
 	return nil
 }
 
-func SyncFromNodesLayer(key string, wg *sync.WaitGroup) error {
+func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
+	keyStr, ok := key.(string)
+	if !ok {
+		return nil
+	}
 	cache := avicache.SharedAviObjCache()
 	aviclient := avicache.SharedAVIClients()
 	restlayer := rest.NewRestOperations(cache, aviclient)
-	restlayer.DeQueueNodes(key)
+	restlayer.DeQueueNodes(keyStr)
+	return nil
+}
+
+func PulishToStatusLayer(key string, data interface{}) {
+	statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+	bkt := utils.Bkt(key, statusQueue.NumWorkers)
+	statusQueue.Workqueue[bkt].AddRateLimited(data)
+}
+
+func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
+	//cache := avicache.SharedAviObjCache()
+	//aviclient := avicache.SharedAVIClients()
+	//restlayer := rest.NewRestOperations(cache, aviclient)
+	//restlayer.DeQueueNodes(key)
+	status.DequeueStatus(key)
+
 	return nil
 }
 
