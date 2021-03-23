@@ -387,7 +387,7 @@ func (c *AviController) FullSyncK8s() error {
 		if isSvcLb && !lib.GetLayer7Only() {
 			/*
 				Key added to Ingestion queue if
-				1. Advance L4 or ServiceAPI enabled or
+				1. Advance L4 enabled or
 				2. Namespace is valid
 			*/
 			if !utils.IsServiceNSValid(ns[0]) {
@@ -489,9 +489,13 @@ func (c *AviController) FullSyncK8s() error {
 				return err
 			}
 			for _, gatewayObj := range gatewayObjs {
-				key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
-				InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
-				nodes.DequeueIngestion(key, true)
+				gatewayLabel := utils.ObjKey(gatewayObj)
+				ns := strings.Split(gatewayLabel, "/")
+				if utils.CheckIfNamespaceAccepted(ns[0]) {
+					key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+					InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
+					nodes.DequeueIngestion(key, true)
+				}
 			}
 
 			gwClassObjs, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
