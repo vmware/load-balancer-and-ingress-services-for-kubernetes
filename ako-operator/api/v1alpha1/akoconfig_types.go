@@ -84,8 +84,6 @@ type NetworkSettings struct {
 type L7Settings struct {
 	// DefaultIngController specifies whether AKO controller is the default ingress controller
 	DefaultIngController bool `json:"defaultIngController,omitempty"`
-	// ShardingScheme specifies how the ingress objects are sharded
-	ShardingScheme string `json:"shardingScheme,omitempty"`
 	// ServiceType defines the service type: ClusterIP or NodePort
 	ServiceType ServiceTypeStr `json:"serviceType,omitempty"`
 	// ShardVSSize specifies the number of shard VSs to be created

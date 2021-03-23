@@ -24,7 +24,6 @@ spec:
 
   l7Settings:
     defaultIngController: true
-    shardingScheme: "hostname"
     serviceType: "ClusterIP"
     shardVSSize: "LARGE" #enum
     passthroughShardSize: "SMALL"   #enum

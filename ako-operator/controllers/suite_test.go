@@ -64,7 +64,6 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			ShardVSSize:          akov1alpha1.VSSize("LARGE"),
 			ServiceType:          akov1alpha1.ServiceTypeStr("ClusterIP"),
 			PassthroughShardSize: akov1alpha1.VSSize("SMALL"),
-			ShardingScheme:       "hostname",
 		},
 
 		L4Settings: akov1alpha1.L4Settings{

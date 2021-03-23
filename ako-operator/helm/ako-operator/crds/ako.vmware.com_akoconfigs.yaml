@@ -155,10 +155,6 @@ spec:
                   - MEDIUM
                   - SMALL
                   type: string
-                shardingScheme:
-                  description: ShardingScheme specifies how the ingress objects are
-                    sharded
-                  type: string
                 syncNamespace:
                   description: SyncNamespace takes in a namespace from which AKO will
                     sync the objects
