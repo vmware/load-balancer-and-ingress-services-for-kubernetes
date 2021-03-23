@@ -406,34 +406,53 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				utils.AviLog.Debug(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
 				if svc_mdata_obj.Gateway != "" {
-					if lib.UseServicesAPI() {
-						status.UpdateSvcApiGatewayStatusAddress([]status.UpdateOptions{{
-							Vip:             vs_cache_obj.Vip,
-							ServiceMetadata: svc_mdata_obj,
-							Key:             key,
-						}}, false)
-					} else {
-						status.UpdateGatewayStatusAddress([]status.UpdateOptions{{
-							Vip:             vs_cache_obj.Vip,
-							ServiceMetadata: svc_mdata_obj,
-							Key:             key,
-						}}, false)
+					updateOptions := status.UpdateOptions{
+						Vip:             vs_cache_obj.Vip,
+						ServiceMetadata: svc_mdata_obj,
+						Key:             key,
 					}
+					statusOption := status.StatusOptions{
+						ObjType: lib.Gateway,
+						Op:      "update",
+						Options: &updateOptions,
+					}
+					if lib.UseServicesAPI() {
+						statusOption.ObjType = lib.SERVICES_API
+					}
+					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+					statusQueue.Workqueue[0].AddRateLimited(statusOption)
+
 				} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 					// This service needs an update of the status
-					status.UpdateL4LBStatus([]status.UpdateOptions{{
+					updateOptions := status.UpdateOptions{
 						Vip:                vs_cache_obj.Vip,
 						ServiceMetadata:    svc_mdata_obj,
 						Key:                key,
 						VirtualServiceUUID: vs_cache_obj.Uuid,
-					}}, false)
+					}
+					statusOption := status.StatusOptions{
+						ObjType: utils.L4LBService,
+						Op:      "update",
+						Options: &updateOptions,
+					}
+					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+					bkt := utils.Bkt(svc_mdata_obj.NamespaceServiceName[0], statusQueue.NumWorkers)
+					statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
 				} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
-					status.UpdateRouteIngressStatus([]status.UpdateOptions{{
+					updateOptions := status.UpdateOptions{
 						Vip:                parentVsObj.Vip,
 						ServiceMetadata:    svc_mdata_obj,
 						Key:                key,
 						VirtualServiceUUID: vs_cache_obj.Uuid,
-					}}, false)
+					}
+					statusOption := status.StatusOptions{
+						ObjType: utils.Ingress,
+						Op:      "update",
+						Options: &updateOptions,
+					}
+					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+					bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
+					statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
 				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
 				// But before this a pool may have got created as a part of the macro operation, so update the ingress status here.
@@ -446,12 +465,24 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 							pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 							if found {
 								if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-									status.UpdateRouteIngressStatus([]status.UpdateOptions{{
+									utils.AviLog.Infof("xxx updating status2")
+									updateOptions := status.UpdateOptions{
 										Vip:                vs_cache_obj.Vip,
 										ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
 										Key:                key,
 										VirtualServiceUUID: vs_cache_obj.Uuid,
-									}}, false)
+									}
+									statusOption := status.StatusOptions{
+										ObjType: utils.Ingress,
+										Op:      "update",
+										Options: &updateOptions,
+									}
+									if utils.GetInformers().RouteInformer != nil {
+										statusOption.ObjType = utils.OshiftRoute
+									}
+									statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+									bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
+									statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
 								}
 							}
 						}
@@ -486,12 +517,18 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			}
 
 			if len(svc_mdata_obj.NamespaceServiceName) > 0 {
-				// This service needs an update of the status
-				status.UpdateL4LBStatus([]status.UpdateOptions{{
-					Vip:             vs_cache_obj.Vip,
-					ServiceMetadata: svc_mdata_obj,
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
 					Key:             key,
-				}}, false)
+				}
+				statusOption := status.StatusOptions{
+					ObjType: utils.L4LBService,
+					Op:      "delete",
+					Options: &updateOptions,
+				}
+				statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+				bkt := utils.Bkt(svc_mdata_obj.NamespaceServiceName[0], statusQueue.NumWorkers)
+				statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
 			}
 			rest.cache.VsCacheMeta.AviCacheAdd(k, &vs_cache_obj)
 			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(&vs_cache_obj))
@@ -539,8 +576,22 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 
 			// Reset the LB status field as well.
 			if vs_cache_obj.ServiceMetadataObj.Gateway != "" {
-				status.DeleteGatewayStatusAddress(vs_cache_obj.ServiceMetadataObj, key)
-				status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
+					Key:             key,
+				}
+				statusOption := status.StatusOptions{
+					ObjType: lib.Gateway,
+					Op:      "delete",
+					Options: &updateOptions,
+				}
+				statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+				bkt := utils.Bkt(updateOptions.ServiceMetadata.Gateway, statusQueue.NumWorkers)
+				statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+
+				statusOption.ObjType = utils.L4LBService
+				statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+
 			} else if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 				status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
 			}
@@ -548,7 +599,21 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 			if (vs_cache_obj.ServiceMetadataObj.IngressName != "" || len(vs_cache_obj.ServiceMetadataObj.NamespaceIngressName) > 0) && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
 				// SNI VS deletion related ingress status update
 				if !hostFoundInParentPool {
-					status.DeleteRouteIngressStatus(vs_cache_obj.ServiceMetadataObj, true, key)
+					updateOptions := status.UpdateOptions{
+						ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
+						Key:             key,
+					}
+					statusOption := status.StatusOptions{
+						ObjType: utils.Ingress,
+						Op:      "delete",
+						Options: &updateOptions,
+					}
+					if utils.GetInformers().RouteInformer != nil {
+						statusOption.ObjType = utils.OshiftRoute
+					}
+					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+					bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
+					statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
 				}
 			} else {
 				// Shared VS deletion related ingress status update

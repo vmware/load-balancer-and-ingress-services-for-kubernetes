@@ -37,6 +37,7 @@ const (
 	DeleteEv            EvType = "DELETE"
 	NumWorkersIngestion uint32 = 2
 	NumWorkersGraph     uint32 = 2
+	NumWorkersStatus    uint32 = 2
 )
 
 const (

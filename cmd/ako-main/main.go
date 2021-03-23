@@ -168,6 +168,8 @@ func InitializeAKC() {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
+	wgStatus := &sync.WaitGroup{}
+	waitGroupMap["status"] = wgStatus
 	go c.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	<-stopCh
 	close(ctrlCh)
@@ -177,6 +179,7 @@ func InitializeAKC() {
 		wgIngestion.Wait()
 		wgGraph.Wait()
 		wgFastRetry.Wait()
+		wgStatus.Wait()
 	}()
 	// Timeout after 60 seconds.
 	timeout := 60 * time.Second
