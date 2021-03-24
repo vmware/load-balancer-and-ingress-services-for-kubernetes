@@ -32,7 +32,9 @@ import (
 	"github.com/avinetworks/sdk/go/models"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -797,4 +799,78 @@ func ContainsFinalizer(o metav1.Object, finalizer string) bool {
 
 func GetDefaultSecretForRoutes() string {
 	return DefaultRouteCert
+}
+
+func ValidateIngressForClass(key string, ingress *networkingv1beta1.Ingress) bool {
+	// see whether ingress class resources are present or not
+	if !utils.GetIngressClassEnabled() {
+		return filterIngressOnClassAnnotation(key, ingress)
+	}
+
+	if ingress.Spec.IngressClassName == nil {
+		// check whether avi-lb ingress class is set as the default ingress class
+		if _, found := IsAviLBDefaultIngressClass(); found {
+			utils.AviLog.Infof("key: %s, msg: ingress class name is not specified but ako.vmware.com/avi-lb is default ingress controller", key)
+			return true
+		} else {
+			utils.AviLog.Warnf("key: %s, msg: ingress class name not specified for ingress %s and ako.vmware.com/avi-lb is not default ingress controller", key, ingress.Name)
+			return false
+		}
+	}
+
+	ingClassObj, err := utils.GetInformers().IngressClassInformer.Lister().Get(*ingress.Spec.IngressClassName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch corresponding networking.k8s.io/ingressclass %s %v",
+			key, *ingress.Spec.IngressClassName, err)
+		return false
+	}
+
+	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
+	if ingClassObj.Spec.Controller != AviIngressController {
+		// Return an error since this is not our object.
+		utils.AviLog.Warnf("key: %s, msg: Unexpected controller in ingress class %s", key, *ingress.Spec.IngressClassName)
+		return false
+	}
+
+	return true
+}
+
+func filterIngressOnClassAnnotation(key string, ingress *networkingv1beta1.Ingress) bool {
+	// If Avi is not the default ingress, then filter on ingress class.
+	if !GetDefaultIngController() {
+		annotations := ingress.GetAnnotations()
+		ingClass, ok := annotations[INGRESS_CLASS_ANNOT]
+		if ok && ingClass == AVI_INGRESS_CLASS {
+			return true
+		} else {
+			utils.AviLog.Infof("key: %s, msg: AKO is not running as the default ingress controller. Not processing the ingress: %s. Please annotate the ingress class as 'avi'", key, ingress.Name)
+			return false
+		}
+	} else {
+		// If Avi is the default ingress controller, sync everything than the ones that are annotated with ingress class other than 'avi'
+		annotations := ingress.GetAnnotations()
+		ingClass, ok := annotations[INGRESS_CLASS_ANNOT]
+		if ok && ingClass != AVI_INGRESS_CLASS {
+			utils.AviLog.Infof("key: %s, msg: AKO is the default ingress controller but not processing the ingress: %s since ingress class is set to : %s", key, ingress.Name, ingClass)
+			return false
+		} else {
+			return true
+		}
+	}
+}
+
+func IsAviLBDefaultIngressClass() (string, bool) {
+	ingClassObjs, _ := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
+	for _, ingClass := range ingClassObjs {
+		if ingClass.Spec.Controller == AviIngressController {
+			annotations := ingClass.GetAnnotations()
+			isDefaultClass, ok := annotations[DefaultIngressClassAnnotation]
+			if ok && isDefaultClass == "true" {
+				return ingClass.Name, true
+			}
+		}
+	}
+
+	utils.AviLog.Debugf("IngressClass with controller ako.vmware.com/avi-lb not found in the cluster")
+	return "", false
 }
