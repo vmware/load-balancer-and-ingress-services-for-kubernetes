@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestHostnameCreateDeleteHostRuleForEvh(t *testing.T) {
+func TestCreateDeleteHostRuleForEvh(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.EnableEVH()
@@ -100,7 +100,7 @@ func TestHostnameCreateDeleteHostRuleForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameCreateHostRuleBeforeIngressForEvh(t *testing.T) {
+func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
@@ -139,7 +139,7 @@ func TestHostnameCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameGoodToBadHostRuleForEvh(t *testing.T) {
+func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	// create insecure ingress, apply good secure hostrule, transition to bad
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.EnableEVH()
@@ -186,7 +186,7 @@ func TestHostnameGoodToBadHostRuleForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameInsecureHostAndHostruleForEvh(t *testing.T) {
+func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 	// create insecure ingress, insecure hostrule, hostrule should be applied in case of EVH
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.EnableEVH()
@@ -214,7 +214,7 @@ func TestHostnameInsecureHostAndHostruleForEvh(t *testing.T) {
 
 // HttpRule tests
 
-func TestHostnameHTTPRuleCreateDeleteForEvh(t *testing.T) {
+func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {
 	// ingress secure foo.com/foo /bar
 	// create httprule /foo, nothing happens
 	// create hostrule, httprule gets attached check on /foo /bar

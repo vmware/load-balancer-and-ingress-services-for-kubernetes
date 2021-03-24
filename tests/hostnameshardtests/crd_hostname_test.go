@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestHostnameCreateDeleteHostRule(t *testing.T) {
+func TestCreateDeleteHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
@@ -101,7 +101,7 @@ func TestHostnameCreateDeleteHostRule(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameCreateHostRuleBeforeIngress(t *testing.T) {
+func TestCreateHostRuleBeforeIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
@@ -138,7 +138,7 @@ func TestHostnameCreateHostRuleBeforeIngress(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameInsecureToSecureHostRule(t *testing.T) {
+func TestInsecureToSecureHostRule(t *testing.T) {
 	// insecure ingress to secure VS via Hostrule
 	g := gomega.NewGomegaWithT(t)
 
@@ -222,7 +222,7 @@ func TestGSLBHostRewriteRule(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameMultiIngressToSecureHostRule(t *testing.T) {
+func TestMultiIngressToSecureHostRule(t *testing.T) {
 	// 1 insecure ingress, 1 secure ingress -> secure VS via Hostrule
 	g := gomega.NewGomegaWithT(t)
 
@@ -275,7 +275,7 @@ func TestHostnameMultiIngressToSecureHostRule(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
+func TestMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 	// 2 insecure ingresses -> VS via Hostrule
 	g := gomega.NewGomegaWithT(t)
 
@@ -354,7 +354,7 @@ func TestHostnameMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameGoodToBadHostRule(t *testing.T) {
+func TestGoodToBadHostRule(t *testing.T) {
 	// create insecure ingress, apply good secure hostrule, transition to bad
 	g := gomega.NewGomegaWithT(t)
 
@@ -399,7 +399,7 @@ func TestHostnameGoodToBadHostRule(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameInsecureHostAndHostrule(t *testing.T) {
+func TestInsecureHostAndHostrule(t *testing.T) {
 	// create insecure ingress, insecure hostrule, nothing should be applied
 	g := gomega.NewGomegaWithT(t)
 
@@ -422,7 +422,7 @@ func TestHostnameInsecureHostAndHostrule(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
+func TestValidToInvalidHostSwitch(t *testing.T) {
 	// create insecure host foo.com, attach hostrule, change hostrule to non existing bar.com
 	// foo.com should become insecure again
 	// change hostrule back to foo.com and it should become secure again
@@ -483,7 +483,7 @@ func TestHostnameValidToInvalidHostSwitch(t *testing.T) {
 
 // HttpRule tests
 
-func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
+func TestHTTPRuleCreateDelete(t *testing.T) {
 	// ingress secure foo.com/foo /bar
 	// create httprule /foo, nothing happens
 	// create hostrule, httprule gets attached check on /foo /bar
@@ -545,7 +545,7 @@ func TestHostnameHTTPRuleCreateDelete(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostNameHTTPRuleHostSwitch(t *testing.T) {
+func TestHTTPRuleHostSwitch(t *testing.T) {
 	// ingress foo.com/foo voo.com/foo
 	// hr1: foo.com (secure), hr2: voo.com (insecure)
 	// rr1: hr1/foo ALGO1

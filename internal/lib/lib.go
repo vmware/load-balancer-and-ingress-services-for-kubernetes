@@ -43,7 +43,7 @@ var ShardSchemeMap = map[string]string{
 	"namespace": "namespace",
 }
 
-var shardSizeMap = map[string]uint32{
+var ShardSizeMap = map[string]uint32{
 	"LARGE":     8,
 	"MEDIUM":    4,
 	"SMALL":     1,
@@ -120,10 +120,10 @@ func GetEnableCtrl2014Features() bool {
 func GetshardSize() uint32 {
 	if GetAdvancedL4() {
 		// shard to 8 go routines in the REST layer
-		return shardSizeMap["LARGE"]
+		return ShardSizeMap["LARGE"]
 	}
 	shardVsSize := os.Getenv("SHARD_VS_SIZE")
-	shardSize, ok := shardSizeMap[shardVsSize]
+	shardSize, ok := ShardSizeMap[shardVsSize]
 	if ok {
 		return shardSize
 	} else {
@@ -176,9 +176,14 @@ func GetL7SharedPGName(vsName string) string {
 	return vsName
 }
 
-func GetL7PoolName(priorityLabel, namespace, ingName string, args ...string) string {
+func GetL7PoolName(priorityLabel, namespace, ingName, infrasetting string, args ...string) string {
 	priorityLabel = strings.ReplaceAll(priorityLabel, "/", "_")
-	poolName := NamePrefix + priorityLabel + "-" + namespace + "-" + ingName
+	var poolName string
+	if infrasetting != "" {
+		poolName = NamePrefix + infrasetting + "-" + priorityLabel + "-" + namespace + "-" + ingName
+	} else {
+		poolName = NamePrefix + priorityLabel + "-" + namespace + "-" + ingName
+	}
 	if len(args) > 0 {
 		svcName := args[0]
 		poolName = poolName + "-" + svcName
@@ -194,16 +199,25 @@ func GetHeaderRewritePolicy(vsName, localHost string) string {
 	return vsName + "--host-hdr-re-write" + "--" + localHost
 }
 
-func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) string {
-	if len(sniHostName) > 0 {
-		return NamePrefix + sniHostName[0]
+func GetSniNodeName(ingName, namespace, secret, settingName string, sniHostName ...string) string {
+	namePrefix := NamePrefix
+	if settingName != "" {
+		namePrefix = NamePrefix + "-" + settingName + "-"
 	}
-	return NamePrefix + ingName + "-" + namespace + "-" + secret
+	if len(sniHostName) > 0 {
+		return namePrefix + sniHostName[0]
+	}
+	return namePrefix + ingName + "-" + namespace + "-" + secret
 }
 
-func GetSniPoolName(ingName, namespace, host, path string, args ...string) string {
+func GetSniPoolName(ingName, namespace, host, path, infrasetting string, args ...string) string {
 	path = strings.ReplaceAll(path, "/", "_")
-	poolName := NamePrefix + namespace + "-" + host + path + "-" + ingName
+	var poolName string
+	if infrasetting != "" {
+		poolName = NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
+	} else {
+		poolName = NamePrefix + namespace + "-" + host + path + "-" + ingName
+	}
 	if len(args) > 0 {
 		svcName := args[0]
 		poolName = poolName + "-" + svcName
@@ -211,13 +225,20 @@ func GetSniPoolName(ingName, namespace, host, path string, args ...string) strin
 	return poolName
 }
 
-func GetSniHttpPolName(ingName, namespace, host, path string) string {
+func GetSniHttpPolName(ingName, namespace, host, path, infrasetting string) string {
 	path = strings.ReplaceAll(path, "/", "_")
+	if infrasetting != "" {
+		return NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
+	}
+
 	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
-func GetSniPGName(ingName, namespace, host, path string) string {
+func GetSniPGName(ingName, namespace, host, path, infrasetting string) string {
 	path = strings.ReplaceAll(path, "/", "_")
+	if infrasetting != "" {
+		return NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
+	}
 	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
@@ -715,7 +736,7 @@ func IsPublicCloud() bool {
 
 func PassthroughShardSize() uint32 {
 	shardVsSize := os.Getenv("PASSTHROUGH_SHARD_SIZE")
-	shardSize, ok := shardSizeMap[shardVsSize]
+	shardSize, ok := ShardSizeMap[shardVsSize]
 	if ok {
 		return shardSize
 	}

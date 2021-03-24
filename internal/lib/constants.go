@@ -152,6 +152,16 @@ const (
 	// Service Namespace/Name. This helps in fettching all Services
 	// with a given AviInfraSetting.
 	AviSettingServicesIndex = "aviSettingServices"
+
+	// AviSettingIngClassIndex maintains a map of AviInfraSetting Name to
+	// IngressClass Objects. This helps in fetching all IngressClasses with a
+	// given AviinfraSetting Name.
+	AviSettingIngClassIndex = "aviSettingIngClass"
+
+	// v maintains a map of AviInfraSetting Name to
+	// Route Objects. This helps in fetching all Routes with a
+	// given AviinfraSetting Name.
+	AviSettingRouteIndex = "aviSettingRoute"
 )
 
 const (

@@ -202,7 +202,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		// configures VS and VsVip nodes using infraSetting object (via CRD).
-		buildL4InfraSetting(key, avi_vs_meta, vsVipNode, nil, &gw.Spec.GatewayClassName)
+		if infraSetting := getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName); infraSetting != nil {
+			buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+		}
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == svcapiv1alpha1.IPAddressType {
 			vsVipNode.IPAddress = gw.Spec.Addresses[0].Value

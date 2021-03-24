@@ -665,7 +665,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 		o.AddModelNode(poolNode)
 		if !pgfound {
-			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
+			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path, "")
 			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
 			if childNode.CheckHttpPolNameNChecksumForEvh(httppolname, policyNode.GetCheckSum()) {
 				childNode.ReplaceHTTPRefInNodeForEvh(policyNode, key)
@@ -707,10 +707,6 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
 
 		shardVsName := DeriveShardVSForEvh(host, key)
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			return
-		}
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
@@ -950,11 +946,6 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		shardVsName := DeriveShardVSForEvh(host, key)
 		// For each host, create a EVH node with the secret giving us the key and cert.
 		// construct a EVH child VS node per tls setting which corresponds to one secret
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			//return hostPathMap
-			return hostPathSvcMap
-		}
 		model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
@@ -1134,10 +1125,6 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		utils.AviLog.Debugf("host to del: %s, data : %s", host, utils.Stringify(hostData))
 		shardVsName := DeriveShardVSForEvh(host, key)
 
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			return
-		}
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
@@ -1366,11 +1353,7 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 		if hostData.SecurePolicy == lib.PolicyPass {
 			shardVsName = lib.GetPassthroughShardVSName(host, key)
 		}
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			utils.AviLog.Infof("key: %s, shard vs ndoe not found for host: %s", host)
-			return
-		}
+
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
