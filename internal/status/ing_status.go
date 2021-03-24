@@ -309,11 +309,19 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	}
 
 	oldIngressStatus := mIngress.Status.LoadBalancer.DeepCopy()
+	var hostListIng []string
+	for _, rule := range mIngress.Spec.Rules {
+		hostListIng = append(hostListIng, rule.Host)
+	}
 
 	for i, status := range mIngress.Status.LoadBalancer.Ingress {
 		for _, host := range svc_mdata_obj.HostNames {
 			if status.Hostname == host {
-				mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
+				if !utils.HasElem(hostListIng, host) || isVSDelete {
+					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
+				} else {
+					utils.AviLog.Debugf("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
+				}
 			}
 		}
 	}
