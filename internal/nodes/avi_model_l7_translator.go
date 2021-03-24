@@ -475,7 +475,7 @@ func buildL7IngressInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, 
 	if !utils.GetIngressClassEnabled() {
 		return
 	} else if ingClassName == "" {
-		if defaultIngressClass, found := isAviLBDefaultIngressClass(); !found {
+		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
 			return
 		} else {
 			ingClassName = defaultIngressClass
