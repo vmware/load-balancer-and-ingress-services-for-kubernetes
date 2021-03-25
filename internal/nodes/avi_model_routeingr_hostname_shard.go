@@ -38,7 +38,7 @@ type RouteIngressModel interface {
 	ParseHostPath() IngressConfig
 	// this is required due to different naming convention used in ingress where we dont use service name
 	// later if we decide to have common naming for ingress and route, then we can hav a common method
-	GetDiffPathSvc(map[string][]string, []IngressHostPathSvc) map[string][]string
+	GetDiffPathSvc(map[string][]string, []IngressHostPathSvc, bool) map[string][]string
 }
 
 // OshiftRouteModel : Model for openshift routes with it's own service lister
@@ -111,7 +111,7 @@ func (or *OshiftRouteModel) ParseHostPath() IngressConfig {
 	return o.ParseHostPathForRoute(or.namespace, or.name, or.spec, or.key)
 }
 
-func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, currentPathSvc []IngressHostPathSvc) map[string][]string {
+func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, currentPathSvc []IngressHostPathSvc, checkSvc bool) map[string][]string {
 	pathSvcCopy := make(map[string][]string)
 	for k, v := range storedPathSvc {
 		pathSvcCopy[k] = v
@@ -121,6 +121,7 @@ func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, cur
 		currPathSvcMap[val.Path] = append(currPathSvcMap[val.Path], val.ServiceName)
 	}
 	for path, services := range currPathSvcMap {
+		// for OshiftRouteModel service diff is always checked
 		storedServices, ok := pathSvcCopy[path]
 		if ok {
 			pathSvcCopy[path] = lib.Difference(storedServices, services)
@@ -178,7 +179,7 @@ func (m *K8sIngressModel) ParseHostPath() IngressConfig {
 	return o.ParseHostPathForIngress(m.namespace, m.name, m.spec, m.annotations, m.key)
 }
 
-func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, currentPathSvc []IngressHostPathSvc) map[string][]string {
+func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, currentPathSvc []IngressHostPathSvc, checkSvc bool) map[string][]string {
 	pathSvcCopy := make(map[string][]string)
 	for k, v := range storedPathSvc {
 		pathSvcCopy[k] = v
@@ -187,10 +188,17 @@ func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, curr
 	for _, val := range currentPathSvc {
 		currPathSvcMap[val.Path] = append(currPathSvcMap[val.Path], val.ServiceName)
 	}
-	for path := range currPathSvcMap {
-		_, ok := pathSvcCopy[path]
+	for path, services := range currPathSvcMap {
+		storedServices, ok := pathSvcCopy[path]
 		if ok {
-			delete(pathSvcCopy, path)
+			if checkSvc {
+				pathSvcCopy[path] = lib.Difference(storedServices, services)
+				if len(pathSvcCopy[path]) == 0 {
+					delete(pathSvcCopy, path)
+				}
+			} else {
+				delete(pathSvcCopy, path)
+			}
 		}
 	}
 	return pathSvcCopy
@@ -308,7 +316,7 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 		if found && hostData.InsecurePolicy != lib.PolicyNone {
 			// TODO: StoredPaths might be empty if the host was not specified with any paths.
 			// Verify the paths and take out the paths that are not need.
-			pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, pathsvcmap.ingressHPSvc)
+			pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, pathsvcmap.ingressHPSvc, false)
 			if len(pathSvcDiff) == 0 {
 				Storedhosts[host].InsecurePolicy = lib.PolicyNone
 			} else {
@@ -357,7 +365,7 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 			if found && hostData.SecurePolicy == lib.PolicyEdgeTerm {
 				// TODO: StoredPaths might be empty if the host was not specified with any paths.
 				// Verify the paths and take out the paths that are not need.
-				pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, newPathSvc)
+				pathSvcDiff := routeIgrObj.GetDiffPathSvc(hostData.PathSvc, newPathSvc, false)
 
 				// For transtion from insecureEdgeTermination policy Allow -> None in a route
 				// pathSvcDiff would be empty, but we still need to delete the pool for insecure route
