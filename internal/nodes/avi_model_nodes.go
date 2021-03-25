@@ -1041,25 +1041,26 @@ func (v *AviPkiProfileNode) CalculateCheckSum() {
 }
 
 type AviPoolNode struct {
-	Name             string
-	Tenant           string
-	CloudConfigCksum uint32
-	Port             int32
-	TargetPort       int32
-	PortName         string
-	Servers          []AviPoolMetaServer
-	Protocol         string
-	LbAlgorithm      string
-	LbAlgorithmHash  string
-	LbAlgoHostHeader string
-	IngressName      string
-	PriorityLabel    string
-	ServiceMetadata  avicache.ServiceMetadataObj
-	SniEnabled       bool
-	SslProfileRef    string
-	PkiProfile       *AviPkiProfileNode
-	HealthMonitors   []string
-	VrfContext       string
+	Name                   string
+	Tenant                 string
+	CloudConfigCksum       uint32
+	Port                   int32
+	TargetPort             int32
+	PortName               string
+	Servers                []AviPoolMetaServer
+	Protocol               string
+	LbAlgorithm            string
+	LbAlgorithmHash        string
+	LbAlgoHostHeader       string
+	IngressName            string
+	PriorityLabel          string
+	ServiceMetadata        avicache.ServiceMetadataObj
+	SniEnabled             bool
+	SslProfileRef          string
+	PkiProfile             *AviPkiProfileNode
+	HealthMonitors         []string
+	ApplicationPersistence string
+	VrfContext             string
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1100,6 +1101,11 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	if v.PkiProfile != nil {
 		checksum += v.PkiProfile.GetCheckSum()
 	}
+
+	if v.ApplicationPersistence != "" {
+		checksum += utils.Hash(v.ApplicationPersistence)
+	}
+
 	checksum += lib.GetClusterLabelChecksum()
 	v.CloudConfigCksum = checksum
 }
