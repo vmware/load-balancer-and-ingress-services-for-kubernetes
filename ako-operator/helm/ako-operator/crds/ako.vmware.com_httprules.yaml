@@ -51,8 +51,16 @@ spec:
                     target:
                       pattern: ^\/.*$
                       type: string
+                    healthMonitors:
+                      items:
+                        type: string
+                      type: array
+                    applicationPersistence:
+                      type: string
                     tls:
                       properties:
+                        destinationCA:
+                          type: string
                         sslProfile:
                           type: string
                         type:
