@@ -361,8 +361,6 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 		hostPathMapSvcList.ingressHPSvc = append(hostPathMapSvcList.ingressHPSvc, hostPathMapSvc)
 	}
 
-	hostMap[hostName] = hostPathMapSvcList
-
 	var tlsConfigs []TlsSettings
 
 	// check if this host has a valid hostrule with sslkeycertref present
@@ -376,6 +374,8 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 			hostPathMapSvcList.gslbHostHeader = gslbFqdn
 		}
 	}
+	hostMap[hostName] = hostPathMapSvcList
+
 	if foundHR {
 		useHostRuleSSL, secretName = sslKeyCertHostRulePresent(hrObj, key)
 	}
