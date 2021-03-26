@@ -219,6 +219,11 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsE
 					}
 				}
 
+				var persistenceProfile string
+				if httpRulePath.ApplicationPersistence != "" {
+					persistenceProfile = fmt.Sprintf("/api/applicationpersistenceprofile?name=%s", httpRulePath.ApplicationPersistence)
+				}
+
 				for _, hm := range httpRulePath.HealthMonitors {
 					if !utils.HasElem(pathHMs, fmt.Sprintf("/api/healthmonitor?name=%s", hm)) {
 						pathHMs = append(pathHMs, fmt.Sprintf("/api/healthmonitor?name=%s", hm))
@@ -229,6 +234,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsE
 				pool.SslProfileRef = pathSslProfile
 				pool.PkiProfile = destinationCertNode
 				pool.HealthMonitors = pathHMs
+				pool.ApplicationPersistence = persistenceProfile
 
 				// from this path, generate refs to this pool node
 				pool.LbAlgorithm = httpRulePath.LoadBalancerPolicy.Algorithm
@@ -311,6 +317,7 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	refData := make(map[string]string)
 	for _, path := range httprule.Spec.Paths {
 		refData[path.TLS.SSLProfile] = "SslProfile"
+		refData[path.ApplicationPersistence] = "ApplicationPersistence"
 
 		for _, hm := range path.HealthMonitors {
 			refData[hm] = "HealthMonitor"
@@ -377,17 +384,18 @@ func addSeGroupLabel(key, segName string) {
 }
 
 var refModelMap = map[string]string{
-	"SslKeyCert":         "sslkeyandcertificate",
-	"WafPolicy":          "wafpolicy",
-	"HttpPolicySet":      "httppolicyset",
-	"SslProfile":         "sslprofile",
-	"AppProfile":         "applicationprofile",
-	"AnalyticsProfile":   "analyticsprofile",
-	"ErrorPageProfile":   "errorpageprofile",
-	"VsDatascript":       "vsdatascriptset",
-	"HealthMonitor":      "healthmonitor",
-	"ServiceEngineGroup": "serviceenginegroup",
-	"Network":            "network",
+	"SslKeyCert":             "sslkeyandcertificate",
+	"WafPolicy":              "wafpolicy",
+	"HttpPolicySet":          "httppolicyset",
+	"SslProfile":             "sslprofile",
+	"AppProfile":             "applicationprofile",
+	"AnalyticsProfile":       "analyticsprofile",
+	"ErrorPageProfile":       "errorpageprofile",
+	"VsDatascript":           "vsdatascriptset",
+	"HealthMonitor":          "healthmonitor",
+	"ApplicationPersistence": "applicationpersistenceprofile",
+	"ServiceEngineGroup":     "serviceenginegroup",
+	"Network":                "network",
 }
 
 func checkRefsOnController(key string, refMap map[string]string) error {
