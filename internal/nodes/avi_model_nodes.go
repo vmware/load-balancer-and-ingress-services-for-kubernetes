@@ -755,6 +755,7 @@ type AviHttpPolicySetNode struct {
 	CloudConfigCksum uint32
 	HppMap           []AviHostPathPortPoolPG
 	RedirectPorts    []AviRedirectPort
+	HeaderReWrite    *AviHostHeaderRewrite
 }
 
 func (v *AviHttpPolicySetNode) GetCheckSum() uint32 {
@@ -776,6 +777,10 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 		sort.Strings(redir.Hosts)
 		checksum = checksum + utils.Hash(utils.Stringify(redir.Hosts))
 	}
+	if v.HeaderReWrite != nil {
+		checksum = checksum + utils.Hash(utils.Stringify(v.HeaderReWrite))
+	}
+
 	checksum += lib.GetClusterLabelChecksum()
 	v.CloudConfigCksum = checksum
 }
@@ -813,6 +818,11 @@ type AviRedirectPort struct {
 	RedirectPort int32
 	StatusCode   string
 	VsPort       int32
+}
+
+type AviHostHeaderRewrite struct {
+	SourceHost string
+	TargetHost string
 }
 
 type AviTLSKeyCertNode struct {
@@ -984,7 +994,10 @@ func (v *AviHTTPDataScriptNode) GetCheckSum() uint32 {
 func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	checksum := lib.DSChecksum(v.PoolGroupRefs)
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetEnableCtrl2014Features() {
+		checksum += lib.GetClusterLabelChecksum()
+		checksum += utils.Hash(v.Script)
+	}
 	v.CloudConfigCksum = checksum
 }
 
