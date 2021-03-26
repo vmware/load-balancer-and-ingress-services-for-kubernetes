@@ -516,7 +516,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMeta
 		utils.AviLog.Infof("key: %s, msg: retrying to update route annotations", key)
 		retry = retryNum[0]
 		if retry >= 3 {
-			return fmt.Errorf("deleteIngressAnnotation retried 3 times, aborting")
+			return fmt.Errorf("deleteRouteAnnotation retried 3 times, aborting")
 		}
 	}
 	existingAnnotations := make(map[string]string)
@@ -539,7 +539,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMeta
 				if !utils.HasElem(routeHostList, host) || isVSDelete || !nsMigrationFilterFlag {
 					delete(existingAnnotations, k)
 				} else {
-					utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the ingress: %v", key, host)
+					utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the route: %v", key, host)
 				}
 			}
 		}
