@@ -272,7 +272,7 @@ func TestHostnameUpdatePoolCacheSyncForEvh(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
 	// Get hold of the pool checksum on CREATE
-	poolName := "cluster--default-foo.com_foo-foo-with-targets"
+	poolName := "cluster--default-foo.com_foo-foo-with-targets-avisvc"
 	mcache := cache.SharedAviObjCache()
 	poolKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: poolName}
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)

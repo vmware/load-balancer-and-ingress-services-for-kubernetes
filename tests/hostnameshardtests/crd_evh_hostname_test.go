@@ -249,8 +249,8 @@ func TestHostnameHTTPRuleCreateDeleteForEvh(t *testing.T) {
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
 
-	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-with-targets"}
-	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-foo-with-targets"}
+	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-with-targets-avisvc"}
+	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-foo-with-targets-avisvc"}
 	integrationtest.SetupHTTPRule(t, rrname, "foo.com", "/")
 	integrationtest.VerifyMetadataHTTPRule(g, poolFooKey, "default/"+rrname, true)
 	integrationtest.VerifyMetadataHTTPRule(g, poolBarKey, "default/"+rrname, true)
