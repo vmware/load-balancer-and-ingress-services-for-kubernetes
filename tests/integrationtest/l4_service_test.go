@@ -423,22 +423,29 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 		var finalResponse []byte
 		url := r.URL.EscapedPath()
 
-		if strings.Contains(url, "macro") && r.Method == "POST" {
+		rModelName := ""
+		if r.Method == "POST" && !strings.Contains(url, "login") {
 			data, _ := ioutil.ReadAll(r.Body)
 			json.Unmarshal(data, &resp)
-			rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
-			if rModelName == "virtualservice" && injectFault {
+			if strings.Contains(url, "virtualservice") && injectFault {
 				injectFault = false
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprintln(w, `{"error": "bad request"}`)
 			} else {
-				rName := rData["name"].(string)
+				if strings.Contains(url, "virtualservice") {
+					rModelName = "virtualservice"
+				} else if strings.Contains(url, "vsvip") {
+					rModelName = "vsvip"
+				} else if strings.Contains(url, "l4policy") {
+					rModelName = "l4policyset"
+				}
+				rName := resp["name"].(string)
 				objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
 
 				// adding additional 'uuid' and 'url' (read-only) fields in the response
-				rData["url"] = objURL
-				rData["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
-				finalResponse, _ = json.Marshal([]interface{}{resp["data"]})
+				resp["url"] = objURL
+				resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+				finalResponse, _ = json.Marshal(resp)
 				w.WriteHeader(http.StatusOK)
 				fmt.Fprintln(w, string(finalResponse))
 			}

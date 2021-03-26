@@ -139,14 +139,12 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		pool.HealthMonitorRefs = append(pool.HealthMonitorRefs, hm)
 	}
 
-	macro := utils.AviRestObjMacro{ModelName: "Pool", Data: pool}
-
 	// TODO Version should be latest from configmap
 	var path string
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/pool/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pool,
+		rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: pool,
 			Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
 	} else {
 		// Patch an existing pool if it exists in the cache but not associated with this VS.
@@ -155,11 +153,11 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		if ok {
 			pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
 			path = "/api/pool/" + pool_cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pool,
+			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: pool,
 				Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
 		} else {
-			path = "/api/macro"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+			path = "/api/pool/"
+			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPost, Obj: pool,
 				Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
 		}
 	}
@@ -180,7 +178,7 @@ func (rest *RestOperations) AviPoolDel(uuid string, tenant string, key string) *
 
 func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
-		utils.AviLog.Warnf("key: %s, rest_op has err or no response for POOL, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+		utils.AviLog.Warnf("key: %s, rest_op has err or no response for POOL, err: %v, response: %v", key, rest_op.Err, rest_op.Response)
 		return errors.New("Errored rest_op")
 	}
 

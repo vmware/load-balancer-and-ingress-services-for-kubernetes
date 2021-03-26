@@ -101,6 +101,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			vsvip.Labels = lib.GetLabels()
 		}
 		rest_op = utils.RestOp{
+			ObjName: name,
 			Path:    "/api/vsvip/" + cache_obj.Uuid,
 			Method:  utils.RestPut,
 			Obj:     vsvip,
@@ -202,8 +203,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			vsvip.Labels = lib.GetLabels()
 		}
 		vsvip.VsvipCloudConfigCksum = &cksumstr
-		macro := utils.AviRestObjMacro{ModelName: "VsVip", Data: vsvip}
-		path = "/api/macro"
+		path = "/api/vsvip"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
 		utils.AviLog.Debugf("key: %s, searching in cache for vsVip Key: %s", key, vsvip_key)
@@ -216,7 +216,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 					// Clear the cache for this key
 					rest.cache.VSVIPCache.AviCacheDelete(vsvip_key)
 					utils.AviLog.Warnf("key: %s, Removed the vsvip object from the cache", key)
-					rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+					rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: vsvip,
 						Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
 					return &rest_op, nil
 				}
@@ -244,7 +244,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			}
 			vsvip_avi.VsvipCloudConfigCksum = &cksumstr
 			path = "/api/vsvip/" + vsvip_cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path,
+			rest_op = utils.RestOp{
+				ObjName: name,
+				Path:    path,
 				Method:  utils.RestPut,
 				Obj:     vsvip_avi,
 				Tenant:  vsvip_meta.Tenant,
@@ -252,9 +254,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 				Version: utils.CtrlVersion,
 			}
 		} else {
-			rest_op = utils.RestOp{Path: path,
+			rest_op = utils.RestOp{
+				ObjName: name,
+				Path:    path,
 				Method:  utils.RestPost,
-				Obj:     macro,
+				Obj:     vsvip,
 				Tenant:  vsvip_meta.Tenant,
 				Model:   "VsVip",
 				Version: utils.CtrlVersion,
@@ -303,7 +307,7 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		if rest_op.Message == "" {
-			utils.AviLog.Warnf("key: %s, rest_op has err or no response for vsvip err: %s, response: %s", key, rest_op.Err, rest_op.Response)
+			utils.AviLog.Warnf("key: %s, rest_op has err or no response for vsvip err: %v, response: %v", key, rest_op.Err, rest_op.Response)
 			return errors.New("Errored vsvip rest_op")
 		}
 
