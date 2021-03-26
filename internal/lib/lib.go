@@ -107,14 +107,14 @@ func GetAKOUser() string {
 	return AKOUser
 }
 
-var enableGRBAC bool
+var enableCtrl2014Features bool
 
-func SetEnableGRBAC(controllerVersion string) {
-	enableGRBAC = CheckControllerVersionCompatibility(controllerVersion, ">=", GRBACControllerVersion)
+func SetEnableCtrl2014Features(controllerVersion string) {
+	enableCtrl2014Features = CheckControllerVersionCompatibility(controllerVersion, ">=", ControllerVersion2014)
 }
 
-func GetEnableGRBAC() bool {
-	return enableGRBAC
+func GetEnableCtrl2014Features() bool {
+	return enableCtrl2014Features
 }
 
 func GetshardSize() uint32 {
@@ -188,6 +188,10 @@ func GetL7PoolName(priorityLabel, namespace, ingName string, args ...string) str
 
 func GetL7HttpRedirPolicy(vsName string) string {
 	return vsName
+}
+
+func GetHeaderRewritePolicy(vsName, localHost string) string {
+	return vsName + "--host-hdr-re-write" + "--" + localHost
 }
 
 func GetSniNodeName(ingName, namespace, secret string, sniHostName ...string) string {
@@ -565,7 +569,7 @@ var clusterKey string
 var clusterValue string
 
 func SetClusterLabelChecksum() {
-	if GetEnableGRBAC() {
+	if GetEnableCtrl2014Features() {
 		labels := GetLabels()
 		clusterKey = *labels[0].Key
 		clusterValue = *labels[0].Value

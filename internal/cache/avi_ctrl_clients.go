@@ -70,7 +70,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 					controllerVersion = lib.Advl4ControllerVersion
 				}
 				//Set GRBAC Flag
-				lib.SetEnableGRBAC(controllerVersion)
+				lib.SetEnableCtrl2014Features(controllerVersion)
 				utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
 				SetVersion := session.SetVersion(controllerVersion)
 				SetVersion(client.AviSession)

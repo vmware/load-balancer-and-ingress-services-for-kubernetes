@@ -41,7 +41,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	hps := avimodels.HTTPPolicySet{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, HTTPRequestPolicy: &http_req_pol}
 
-	if lib.GetEnableGRBAC() {
+	if lib.GetEnableCtrl2014Features() {
 		hps.Labels = lib.GetLabels()
 	}
 	var idx int32
@@ -131,6 +131,34 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			Name: &name, Match: &match_target, RedirectAction: &redirect_action}
 		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
 		idx = idx + 1
+	}
+	if hps_meta.HeaderReWrite != nil {
+		var hostHdrActionArr []*avimodels.HTTPHdrAction
+		enable := true
+		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
+		match_crit := "HDR_EQUALS"
+		host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
+			Value: []string{hps_meta.HeaderReWrite.SourceHost}}
+		match_target := avimodels.MatchTarget{}
+		match_target.HostHdr = &host_hdr_match
+		replaceHeaderLiteral := "HTTP_REPLACE_HDR"
+		host := "Host"
+		headerVal := avimodels.HTTPHdrValue{Val: &hps_meta.HeaderReWrite.TargetHost}
+		headerData := avimodels.HTTPHdrData{Name: &host, Value: &headerVal}
+		rewriteHeader := avimodels.HTTPHdrAction{}
+		rewriteHeader.Action = &replaceHeaderLiteral
+		rewriteHeader.Hdr = &headerData
+		hostHdrActionArr = append(hostHdrActionArr, &rewriteHeader)
+		var j int32
+		j = idx
+		rule := avimodels.HTTPRequestRule{
+			Index:     &j,
+			Enable:    &enable,
+			Name:      &name,
+			Match:     &match_target,
+			HdrAction: hostHdrActionArr,
+		}
+		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
 	}
 
 	var path string
