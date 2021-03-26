@@ -1097,7 +1097,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	g.Eventually(func() string {
 		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
-	}, 15*time.Second).Should(gomega.Equal("Accepted"))
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {

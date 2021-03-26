@@ -55,6 +55,8 @@ spec:
                       items:
                         type: string
                       type: array
+                    applicationPersistence:
+                      type: string
                     tls:
                       properties:
                         destinationCA:

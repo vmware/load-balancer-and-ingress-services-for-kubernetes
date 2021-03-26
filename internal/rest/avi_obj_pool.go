@@ -112,6 +112,10 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		}
 	}
 
+	if pool_meta.ApplicationPersistence != "" {
+		pool.ApplicationPersistenceProfileRef = &pool_meta.ApplicationPersistence
+	}
+
 	for i, server := range pool_meta.Servers {
 		port := pool_meta.Port
 		sip := server.Ip

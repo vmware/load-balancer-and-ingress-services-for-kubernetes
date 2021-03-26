@@ -39,10 +39,11 @@ type HTTPRuleSpec struct {
 
 // HTTPRulePaths has settings for a specific target path
 type HTTPRulePaths struct {
-	Target             string           `json:"target,omitempty"`
-	LoadBalancerPolicy HTTPRuleLBPolicy `json:"loadBalancerPolicy,omitempty"`
-	TLS                HTTPRuleTLS      `json:"tls,omitempty"`
-	HealthMonitors     []string         `json:"healthMonitors,omitempty"`
+	Target                 string           `json:"target,omitempty"`
+	LoadBalancerPolicy     HTTPRuleLBPolicy `json:"loadBalancerPolicy,omitempty"`
+	TLS                    HTTPRuleTLS      `json:"tls,omitempty"`
+	HealthMonitors         []string         `json:"healthMonitors,omitempty"`
+	ApplicationPersistence string           `json:"applicationPersistence,omitempty"`
 }
 
 // HTTPRuleLBPolicy holds a path/pool's load balancer policies
