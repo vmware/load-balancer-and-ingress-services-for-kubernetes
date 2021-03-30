@@ -326,9 +326,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				pgNode, pgfound = localPGList[pgName]
 				if !pgfound {
 					pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
-					localPGList[pgName] = pgNode
-					httpPGPath.PoolGroup = pgNode.Name
 				}
+				localPGList[pgName] = pgNode
+				httpPGPath.PoolGroup = pgNode.Name
 			}
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 			hostSlice := []string{host}
