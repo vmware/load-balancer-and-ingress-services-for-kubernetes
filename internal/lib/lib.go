@@ -199,10 +199,10 @@ func GetHeaderRewritePolicy(vsName, localHost string) string {
 	return vsName + "--host-hdr-re-write" + "--" + localHost
 }
 
-func GetSniNodeName(ingName, namespace, secret, settingName string, sniHostName ...string) string {
+func GetSniNodeName(ingName, namespace, secret, infrasetting string, sniHostName ...string) string {
 	namePrefix := NamePrefix
-	if settingName != "" {
-		namePrefix = NamePrefix + "-" + settingName + "-"
+	if infrasetting != "" {
+		namePrefix += infrasetting + "-"
 	}
 	if len(sniHostName) > 0 {
 		return namePrefix + sniHostName[0]
@@ -262,11 +262,15 @@ func GetEvhPGName(ingName, namespace, host, path string) string {
 	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
-func GetTLSKeyCertNodeName(namespace, secret string, sniHostName ...string) string {
-	if len(sniHostName) > 0 {
-		return NamePrefix + sniHostName[0]
+func GetTLSKeyCertNodeName(namespace, secret, infrasetting string, sniHostName ...string) string {
+	namePrefix := NamePrefix
+	if infrasetting != "" {
+		namePrefix += infrasetting + "-"
 	}
-	return NamePrefix + namespace + "-" + secret
+	if len(sniHostName) > 0 {
+		return namePrefix + sniHostName[0]
+	}
+	return namePrefix + namespace + "-" + secret
 }
 
 func GetCACertNodeName(keycertname string) string {

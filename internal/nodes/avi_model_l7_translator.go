@@ -181,7 +181,7 @@ func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, keycertname
 	return cacertNode.Name
 }
 
-func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key string, sniHost ...string) bool {
+func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key string, infraSettingName string, sniHost ...string) bool {
 	mClient := utils.GetInformers().ClientSet
 	secretName := tlsData.SecretName
 	secretNS := tlsData.SecretNS
@@ -191,9 +191,15 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 
 	var certNode *AviTLSKeyCertNode
 	if len(sniHost) > 0 {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), Tenant: lib.GetTenant()}
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, infraSettingName, sniHost[0]),
+			Tenant: lib.GetTenant(),
+		}
 	} else {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: lib.GetTenant()}
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, infraSettingName),
+			Tenant: lib.GetTenant(),
+		}
 	}
 	certNode.Type = lib.CertTypeVS
 

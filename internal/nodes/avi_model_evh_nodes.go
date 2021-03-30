@@ -819,9 +819,15 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 
 	var certNode *AviTLSKeyCertNode
 	if len(host) > 0 {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName, host[0]), Tenant: lib.GetTenant()}
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, "", host[0]),
+			Tenant: lib.GetTenant(),
+		}
 	} else {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: lib.GetTenant()}
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, ""),
+			Tenant: lib.GetTenant(),
+		}
 	}
 	certNode.Type = lib.CertTypeVS
 
@@ -877,7 +883,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 	}
 	// If this SSLCertRef is already present don't add it.
 	if len(host) > 0 {
-		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, host[0]), certNode.GetCheckSum()) {
+		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, "", host[0]), certNode.GetCheckSum()) {
 			tlsNode.ReplaceEvhSSLRefInEVHNode(certNode, key)
 		}
 	} else {
@@ -1024,7 +1030,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 			// Since the cert couldn't be built, check if this EVH is affected by only in ingress if so remove the EVH node from the model
 			if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
-				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, tlssetting.SecretName, host), key)
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, tlssetting.SecretName, "", host), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
 			}
@@ -1289,7 +1295,7 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 	keepEvh = o.ManipulateEvhNode(evhNodeName, ingName, namespace, hostname, pathSvc, vsNode, key)
 	if !keepEvh {
 		// Delete the cert ref for the host
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, lib.GetTLSKeyCertNodeName(namespace, "", hostname), hostname), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, lib.GetTLSKeyCertNodeName(namespace, "", "", hostname), hostname), key)
 	}
 	if removeFqdn && !keepEvh {
 		var hosts []string
