@@ -314,14 +314,12 @@ func DeleteStaleDataForModelChange(routeIgrObj RouteIngressModel, namespace, obj
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete %s", key, utils.Stringify(hostMap))
 	for host, hostData := range hostMap {
-		oldShardVsName, newShardVsName := DeriveShardVS(host, key, routeIgrObj)
-		if oldShardVsName == newShardVsName {
+		shardVsName, newShardVsName := DeriveShardVS(host, key, routeIgrObj)
+		if shardVsName == newShardVsName {
 			continue
 		}
 
-		shardVsName := oldShardVsName
 		_, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {

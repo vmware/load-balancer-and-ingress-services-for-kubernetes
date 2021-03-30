@@ -510,7 +510,6 @@ func AviInfraSettingChange(routeIgrObj RouteIngressModel) (*akov1alpha1.AviInfra
 
 // returns old and new models if changed, else just the current one.
 func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (string, string) {
-	// Read the value of the num_shards from the environment variable or the AviInfraSetting CRD.
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
 
 	// get stored infrasetting from ingress/route
@@ -518,8 +517,7 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 	oldSetting, newSetting := AviInfraSettingChange(routeIgrObj)
 	var oldInfraPrefix, newInfraPrefix string
 
-	oldShardSize := lib.GetshardSize()
-	newShardSize := lib.GetshardSize()
+	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
 	if oldSetting != nil {
 		oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
 		oldInfraPrefix = oldSetting.Name
