@@ -86,7 +86,6 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		}
 	}
 	hps.L4ConnectionPolicy = &l4Policy
-	macro := utils.AviRestObjMacro{ModelName: "L4PolicySet", Data: hps}
 	var path string
 	var rest_op utils.RestOp
 	if cache_obj != nil {
@@ -104,8 +103,8 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
 				Tenant: hps_meta.Tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
 		} else {
-			path = "/api/macro"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: macro,
+			path = "/api/l4policyset/"
+			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: hps,
 				Tenant: hps_meta.Tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
 		}
 	}

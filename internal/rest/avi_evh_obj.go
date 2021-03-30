@@ -333,9 +333,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 
 		} else {
 			rest_method = utils.RestPost
-			macro := utils.AviRestObjMacro{ModelName: "VirtualService", Data: vs}
-			path = "/api/macro"
-			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: macro,
+			path = "/api/virtualservice/"
+			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: vs,
 				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
 			rest_ops = append(rest_ops, &rest_op)
 
@@ -462,10 +461,8 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		rest_ops = append(rest_ops, &rest_op)
 
 	} else {
-
-		macro := utils.AviRestObjMacro{ModelName: "VirtualService", Data: evhChild}
-		path = "/api/macro"
-		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: macro,
+		path = "/api/virtualservice"
+		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: evhChild,
 			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
 		rest_ops = append(rest_ops, &rest_op)
 
