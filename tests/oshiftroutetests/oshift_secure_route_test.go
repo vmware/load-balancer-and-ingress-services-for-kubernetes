@@ -362,6 +362,9 @@ func TestSecureRouteAlternateBackend(t *testing.T) {
 		return sniVS.VHDomainNames[0]
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap[0].Host[0]).To(gomega.Equal("foo.com"))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal("cluster--default-foo.com_foo-foo"))
+
 	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
