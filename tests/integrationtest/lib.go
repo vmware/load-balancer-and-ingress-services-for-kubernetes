@@ -192,6 +192,10 @@ func AddSecret(secretName string, namespace string, cert string, key string) {
 	KubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), fakeSecret, metav1.CreateOptions{})
 }
 
+func DeleteSecret(secretName string, namespace string) {
+	KubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
+}
+
 // Fake ingress
 type FakeIngress struct {
 	DnsNames     []string
