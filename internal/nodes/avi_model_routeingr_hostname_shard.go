@@ -46,6 +46,14 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		return
 	}
 
+	defer func(routeIgrObj RouteIngressModel) {
+		if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
+			objects.InfraSettingL7Lister().UpdateIngRouteInfraSettingMappings(aviInfraSetting.Name, namespace+"/"+objname)
+		} else {
+			objects.InfraSettingL7Lister().RemoveIngRouteInfraSettingMappings(namespace + "/" + objname)
+		}
+	}(routeIgrObj)
+
 	// delete old Models in case the modelNames changes because of shardSize updates via AviInfraSetting
 	if !lib.IsEvhEnabled() {
 		DeleteStaleDataForModelChange(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
@@ -117,19 +125,12 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 
 	routeIgrObj.GetSvcLister().IngressMappings(namespace).UpdateRouteIngToHostMapping(objname, hostsMap)
 
-	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		objects.InfraSettingL7Lister().UpdateIngRouteInfraSettingMappings(aviInfraSetting.Name, namespace+"/"+objname)
-	} else {
-		objects.InfraSettingL7Lister().RemoveIngRouteInfraSettingMappings(namespace + "/" + objname)
-	}
-
 	if !fullsync {
 		utils.AviLog.Infof("key: %s, msg: List of models to publish: %s", key, modelList)
 		for _, modelName := range modelList {
 			PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
 	}
-
 }
 
 func getPathSvc(currentPathSvc []IngressHostPathSvc) map[string][]string {

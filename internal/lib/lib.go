@@ -854,7 +854,7 @@ func ValidateIngressForClass(key string, ingress *networkingv1beta1.Ingress) boo
 		return false
 	}
 
-	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
+	// Additional check to see if the ingressclass is a valid avi ingress class or not.
 	if ingClassObj.Spec.Controller != AviIngressController {
 		// Return an error since this is not our object.
 		utils.AviLog.Warnf("key: %s, msg: Unexpected controller in ingress class %s", key, *ingress.Spec.IngressClassName)

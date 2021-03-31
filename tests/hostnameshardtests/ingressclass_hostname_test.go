@@ -440,15 +440,14 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(settingModelName1)
-		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
-
-	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName1)
-	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
-	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
+	g.Eventually(func() string {
+		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName1); found {
+			if settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS(); len(settingNodes[0].PoolRefs) == 1 {
+				return settingNodes[0].PoolRefs[0].Name
+			}
+		}
+		return ""
+	}, 25*time.Second).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
 
 	ingClassUpdate := (FakeIngressClass{
 		Name:            ingClassName,
@@ -466,8 +465,8 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName2)
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
-	_, aviSettingModel = objects.SharedAviGraphLister().Get(settingModelName2)
-	settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2)
+	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting2-bar.com_foo-default-foo-with-class"))
 
