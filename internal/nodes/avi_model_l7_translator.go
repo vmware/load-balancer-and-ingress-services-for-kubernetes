@@ -148,6 +148,9 @@ func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNod
 
 func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
 	scriptStr := utils.HTTP_DS_SCRIPT
+	if lib.GetEnableCtrl2014Features() {
+		scriptStr = utils.HTTP_DS_SCRIPT_MODIFIED
+	}
 	evt := utils.VS_DATASCRIPT_EVT_HTTP_REQ
 	var poolGroupRefs []string
 	pgName := lib.GetL7SharedPGName(vsName)
@@ -409,7 +412,7 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 	poolNode.PkiProfile = &pkiProfile
 }
 
-func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostname string, namespace, ingName, key string) {
+func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostname string, key string) {
 	policyname := lib.GetL7HttpRedirPolicy(vsNode[0].Name)
 	myHppMap := AviRedirectPort{
 		Hosts:        []string{hostname},
@@ -431,6 +434,25 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostname 
 
 }
 
+func (o *AviObjectGraph) BuildHeaderRewrite(vsNode []*AviVsNode, gslbHost, localHost, key string) {
+	policyname := lib.GetHeaderRewritePolicy(vsNode[0].Name, localHost)
+	rewriteRule := AviHostHeaderRewrite{
+		SourceHost: gslbHost,
+		TargetHost: localHost,
+	}
+
+	rewritePolicy := &AviHttpPolicySetNode{
+		Tenant:        lib.GetTenant(),
+		Name:          policyname,
+		HeaderReWrite: &rewriteRule,
+	}
+	if policyFound := FindAndReplaceHeaderRewriteHTTPPolicyInModel(vsNode[0], rewritePolicy, gslbHost, key); !policyFound && gslbHost != "" {
+		rewritePolicy.CalculateCheckSum()
+		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, rewritePolicy)
+	}
+
+}
+
 func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, hostname, key string) bool {
 	for _, policy := range vsNode.HttpPolicyRefs {
 		if policy.Name == httpPolicy.Name && policy.CloudConfigCksum != httpPolicy.CloudConfigCksum {
@@ -442,6 +464,34 @@ func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviH
 		}
 	}
 	return false
+}
+
+func FindAndReplaceHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, gslbHost, key string) bool {
+	for i, policy := range vsNode.HttpPolicyRefs {
+		if policy.Name == httpPolicy.Name && policy.CloudConfigCksum != httpPolicy.CloudConfigCksum {
+			if gslbHost == "" {
+				// This means the policy should be deleted.
+				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
+				return true
+			}
+			vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
+			vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, httpPolicy)
+			return true
+		}
+	}
+	return false
+}
+
+func RemoveHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, hostname, key string) {
+	policyName := lib.GetHeaderRewritePolicy(vsNode.Name, hostname)
+	for i, policy := range vsNode.HttpPolicyRefs {
+		if policy.Name == policyName {
+			// one redirect policy per shard vs
+			vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
+			utils.AviLog.Infof("key: %s, msg: removed http header rewrite policy %s in model", key, policy.Name)
+			return
+		}
+	}
 }
 
 func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostname, key string) {

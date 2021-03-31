@@ -175,6 +175,53 @@ func TestHostnameInsecureToSecureHostRule(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
+func TestGSLBHostRewriteRule(t *testing.T) {
+	// insecure ingress to secure VS via Hostrule
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	hrname := "samplehr-foo"
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
+	g.Eventually(func() int {
+		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
+		return len(vsCacheObj.SNIChildCollection)
+	}, 30*time.Second).Should(gomega.Equal(0))
+
+	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].GetHttpPolicyRefs())
+	}, 50*time.Second).Should(gomega.Equal(1))
+
+	g.Eventually(func() int {
+		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
+		return len(vsCacheObj.HTTPKeyCollection)
+	}, 30*time.Second).Should(gomega.Equal(1))
+
+	// Update the hostrule with a different GSLB host name
+	integrationtest.SetupHostRule(t, hrname, "foo.com", false, "baz.com")
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].GetHttpPolicyRefs()[0].HeaderReWrite.SourceHost == "baz.com"
+	}, 50*time.Second).Should(gomega.Equal(true))
+	integrationtest.TearDownHostRuleWithNoVerif(t, g, hrname)
+	g.Eventually(func() int {
+		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
+		return len(vsCacheObj.HTTPKeyCollection)
+	}, 30*time.Second).Should(gomega.Equal(0))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
 func TestHostnameMultiIngressToSecureHostRule(t *testing.T) {
 	// 1 insecure ingress, 1 secure ingress -> secure VS via Hostrule
 	g := gomega.NewGomegaWithT(t)

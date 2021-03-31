@@ -28,7 +28,7 @@ import (
 	avimodels "github.com/avinetworks/sdk/go/models"
 )
 
-func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, routeIgrObj RouteIngressModel, pathsvc []IngressHostPathSvc, key string) {
+func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, routeIgrObj RouteIngressModel, pathsvc []IngressHostPathSvc, gslbHostHeader, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
@@ -38,6 +38,10 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	vsNode := o.GetAviVS()
+	utils.AviLog.Debugf("key: %s, msg: GSLB host header: %v", key, gslbHostHeader)
+
+	o.BuildHeaderRewrite(vsNode, gslbHostHeader, hostname, key)
+
 	if len(vsNode) != 1 {
 		utils.AviLog.Warnf("key: %s, msg: more than one vs in model.", key)
 		return
@@ -173,6 +177,10 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 			ratio := poolNode.ServiceMetadata.PoolRatio
 			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel, Ratio: &ratio})
+		}
+		// Remove the httpredirect policy if any
+		if len(vsNode) > 0 {
+			RemoveHeaderRewriteHTTPPolicyInModel(vsNode[0], hostname, key)
 		}
 	} else {
 		// Remove the ingress from the hostmap
@@ -343,7 +351,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
 			if tlssetting.redirect == true {
-				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, namespace, ingName, key)
+				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, key)
 			}
 			BuildL7HostRule(sniHost, namespace, ingName, key, sniNode)
 		} else {

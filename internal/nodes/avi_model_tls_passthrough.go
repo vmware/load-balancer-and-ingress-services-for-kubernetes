@@ -205,7 +205,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		secureSharedVS.ServiceMetadata.PassthroughChildRef = passChildVS.Name
 	}
 
-	o.BuildPolicyRedirectForVS([]*AviVsNode{passChildVS}, hostname, namesapce, "", key)
+	o.BuildPolicyRedirectForVS([]*AviVsNode{passChildVS}, hostname, key)
 }
 
 func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {

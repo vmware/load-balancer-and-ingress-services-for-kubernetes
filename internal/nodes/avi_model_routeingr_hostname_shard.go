@@ -344,7 +344,7 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 			aviModel = NewAviObjectGraph()
 			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key, routeIgrObj)
 		}
-		aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName, host, routeIgrObj, pathsvcmap.ingressHPSvc, key)
+		aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName, host, routeIgrObj, pathsvcmap.ingressHPSvc, pathsvcmap.gslbHostHeader, key)
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
 			*modelList = append(*modelList, modelName)

@@ -1150,7 +1150,7 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 	return hostrule
 }
 
-func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
+func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...string) {
 	hostrule := FakeHostRule{
 		Name:               hrname,
 		Namespace:          "default",
@@ -1162,6 +1162,17 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool) {
 		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
 		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
 		GslbFqdn:           "bar.com",
+	}
+	if len(gslbHost) > 0 {
+		// It's assumed that the update case updates the gslb fqdn else bar.com is used.
+		hostrule.GslbFqdn = gslbHost[0]
+		hrUpdate := hostrule.HostRule()
+		hrUpdate.ResourceVersion = "2"
+		if _, err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating HostRule: %v", err)
+		}
+		fmt.Println(hrUpdate)
+		return
 	}
 	if secure {
 		hostrule.SslKeyCertificate = "thisisaviref-sslkey"
@@ -1179,6 +1190,12 @@ func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, 
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 	VerifyMetadataHostRule(g, vskey, "default/"+hrname, false)
+}
+
+func TearDownHostRuleWithNoVerif(t *testing.T, g *gomega.WithT, hrname string) {
+	if err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("error in deleting HostRule: %v", err)
+	}
 }
 
 type FakeHTTPRule struct {
