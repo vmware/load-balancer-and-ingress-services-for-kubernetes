@@ -764,7 +764,7 @@ func TestHostnameCUDSecretCacheSyncForEvh(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 30*time.Second).Should(gomega.Equal(true))
 	parentVSCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 	parentVSCacheObj, _ := parentVSCache.(*cache.AviVsCache)
 	g.Expect(parentVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(0))
@@ -801,7 +801,7 @@ func TestHostnameCUDSecretCacheSyncForEvh(t *testing.T) {
 			return true
 		}
 		return false
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
