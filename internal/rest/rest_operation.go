@@ -265,8 +265,10 @@ func AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp) error {
 				op.Method, op.Path, op.Tenant, utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
 			// Wrap the error into a websync error.
 			err := &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
-			aviErr := op.Err.(session.AviError)
-			if !isErrorRetryable(aviErr.HttpStatusCode) {
+			aviErr, ok := op.Err.(session.AviError)
+			if !ok {
+				utils.AviLog.Warnf("Error in rest operation is not of type AviError, err: %v, %T", op.Err, op.Err)
+			} else if !isErrorRetryable(aviErr.HttpStatusCode) {
 				if op.Method != utils.RestPost {
 					continue
 				}
