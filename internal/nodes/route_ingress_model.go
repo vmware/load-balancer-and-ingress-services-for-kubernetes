@@ -85,10 +85,7 @@ func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error,
 		return &routeModel, err, false
 	}
 	routeModel.infrasetting, err = getL7RouteInfraSetting(key, routeObj.GetAnnotations())
-	if err != nil {
-		return &routeModel, err, processObj
-	}
-	return &routeModel, nil, processObj
+	return &routeModel, err, processObj
 }
 
 func (m *OshiftRouteModel) GetName() string {
@@ -167,11 +164,10 @@ func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, b
 	processObj = lib.ValidateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace)
 	ingrModel.spec = ingObj.Spec
 	ingrModel.annotations = ingObj.GetAnnotations()
-	ingrModel.infrasetting, err = getL7IngressInfraSetting(key, ingObj.Spec.IngressClassName)
-	if err != nil {
-		return &ingrModel, err, processObj
+	if ingObj.Spec.IngressClassName != nil {
+		ingrModel.infrasetting, err = getL7IngressInfraSetting(key, *ingObj.Spec.IngressClassName)
 	}
-	return &ingrModel, nil, processObj
+	return &ingrModel, err, processObj
 }
 
 func (m *K8sIngressModel) GetName() string {
@@ -239,20 +235,20 @@ func (m *K8sIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
 	return m.infrasetting
 }
 
-func getL7IngressInfraSetting(key string, ingClassName *string) (*akov1alpha1.AviInfraSetting, error) {
+func getL7IngressInfraSetting(key string, ingClassName string) (*akov1alpha1.AviInfraSetting, error) {
 	var infraSetting *akov1alpha1.AviInfraSetting
 
 	if !utils.GetIngressClassEnabled() {
 		return nil, nil
-	} else if ingClassName == nil {
+	} else if ingClassName == "" {
 		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
 			return nil, nil
 		} else {
-			ingClassName = &defaultIngressClass
+			ingClassName = defaultIngressClass
 		}
 	}
 
-	ingClass, err := utils.GetInformers().IngressClassInformer.Lister().Get(*ingClassName)
+	ingClass, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingClassName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding IngressClass %s", key, err.Error())
 		return nil, err

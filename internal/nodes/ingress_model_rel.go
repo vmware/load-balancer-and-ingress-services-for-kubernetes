@@ -659,6 +659,7 @@ func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 	// Get all IngressClasses from AviInfraSetting.
 	ingClasses, err := utils.GetInformers().IngressClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingIngClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
 	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch IngressClasses corresponding to AviInfraSetting %s", key, infraSettingName)
 		return allIngresses, false
 	}
 
@@ -688,6 +689,7 @@ func AviSettingToRoute(infraSettingName, namespace, key string) ([]string, bool)
 	// Get all Routes from AviInfraSetting via annotation.
 	routes, err := utils.GetInformers().RouteInformer.Informer().GetIndexer().ByIndex(lib.AviSettingRouteIndex, infraSettingName)
 	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch Routes corresponding to AviInfraSetting %s", key, infraSettingName)
 		return allRoutes, false
 	}
 
@@ -715,6 +717,7 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 	// Get all GatewayClasses from AviInfraSetting.
 	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
 	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch GatewayClasses corresponding to AviInfraSetting %s", key, infraSettingName)
 		return allGateways, false
 	}
 
