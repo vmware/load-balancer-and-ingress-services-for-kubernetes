@@ -349,13 +349,13 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	}
 
 	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(modelName)
-		return found
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return len(nodes[0].PoolRefs) == 1 && len(nodes[0].SniNodes) == 1
+			}
+		}
+		return false
 	}, 25*time.Second).Should(gomega.Equal(true))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes).Should(gomega.HaveLen(1))
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	settingModelName := "admin/cluster--Shared-L7-my-infrasetting-0"
@@ -373,10 +373,13 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	}
 
 	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
-		return found
+		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
+			if settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS(); len(settingNodes) > 0 {
+				return len(settingNodes[0].PoolRefs) == 1
+			}
+		}
+		return false
 	}, 25*time.Second).Should(gomega.Equal(true))
-
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))

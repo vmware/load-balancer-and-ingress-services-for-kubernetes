@@ -16,7 +16,7 @@ package nodes
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -498,7 +498,7 @@ func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) st
 	if extraPrefix != "" {
 		shardVsPrefix += extraPrefix + "-"
 	}
-	vsName := shardVsPrefix + fmt.Sprint(vsNum)
+	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
 	return vsName
 }
 
