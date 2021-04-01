@@ -125,7 +125,9 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
-	buildL4InfraSetting(key, avi_vs_meta, vsVipNode, svcObj, nil)
+	if infraSetting := getL4InfraSetting(key, svcObj, nil); infraSetting != nil {
+		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+	}
 
 	if svcObj.Spec.LoadBalancerIP != "" {
 		vsVipNode.IPAddress = svcObj.Spec.LoadBalancerIP
@@ -403,7 +405,7 @@ func GetDefaultSubDomain() []string {
 	return cloudProperty.NSIpamDNS
 }
 
-func buildL4InfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, svc *corev1.Service, advl4GWClassName *string) {
+func getL4InfraSetting(key string, svc *corev1.Service, advl4GWClassName *string) *akov1alpha1.AviInfraSetting {
 	var err error
 	var infraSetting *akov1alpha1.AviInfraSetting
 
@@ -411,13 +413,13 @@ func buildL4InfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, svc *co
 		gwClass, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(*advl4GWClassName)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding GatewayClass %s", key, err.Error())
-			return
+			return nil
 		} else {
 			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
 				infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
 				if err != nil {
 					utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via GatewayClass %s", key, err.Error())
-					return
+					return nil
 				}
 			}
 		}
@@ -425,9 +427,9 @@ func buildL4InfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, svc *co
 		infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
-			return
+			return nil
 		}
 	}
 
-	buildWithInfraSetting(key, vs, vsvip, infraSetting)
+	return infraSetting
 }

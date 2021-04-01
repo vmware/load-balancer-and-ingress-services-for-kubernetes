@@ -804,7 +804,7 @@ func TestInfraSettingDelete(t *testing.T) {
 	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
 	PollForCompletion(t, SINGLEPORTMODEL, 5)
 
-	SetupAviInfraSetting(t, settingName)
+	SetupAviInfraSetting(t, settingName, "")
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
@@ -862,8 +862,8 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
 	PollForCompletion(t, SINGLEPORTMODEL, 5)
 
-	SetupAviInfraSetting(t, settingName1)
-	SetupAviInfraSetting(t, settingName2)
+	SetupAviInfraSetting(t, settingName1, "")
+	SetupAviInfraSetting(t, settingName2, "")
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
