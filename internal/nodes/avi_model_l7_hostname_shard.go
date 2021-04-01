@@ -201,7 +201,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 		isIngr := routeIgrObj.GetType() == utils.Ingress
 		// SNI VSes donot have secretname in their names
 
-		sniNodeName := lib.GetSniNodeName(ingName, namespace, "", infraSettingName, hostname)
+		sniNodeName := lib.GetSniNodeName(ingName, infraSettingName, hostname)
 		utils.AviLog.Infof("key: %s, msg: sni node to delete: %s", key, sniNodeName)
 		keepSni = o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, pathSvc, vsNode, key, isIngr, infraSettingName)
 	}
@@ -322,7 +322,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			certsBuilt = true
 		}
 
-		sniNodeName := lib.GetSniNodeName(ingName, namespace, sniSecretName, infraSettingName, sniHost)
+		sniNodeName := lib.GetSniNodeName(ingName, infraSettingName, sniHost)
 		sniNode := vsNode[0].GetSniNodeForName(sniNodeName)
 		if sniNode == nil {
 			sniNode = &AviVsNode{
