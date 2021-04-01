@@ -1147,7 +1147,7 @@ func TestServicesAPIInfraSettingDelete(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
-	integrationtest.SetupAviInfraSetting(t, settingName)
+	integrationtest.SetupAviInfraSetting(t, settingName, "")
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -1197,8 +1197,8 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName1)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
-	integrationtest.SetupAviInfraSetting(t, settingName1)
-	integrationtest.SetupAviInfraSetting(t, settingName2)
+	integrationtest.SetupAviInfraSetting(t, settingName1, "")
+	integrationtest.SetupAviInfraSetting(t, settingName2, "")
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {

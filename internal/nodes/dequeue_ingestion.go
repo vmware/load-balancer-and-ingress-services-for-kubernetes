@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -111,7 +112,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if !ingressFound && (!lib.GetAdvancedL4() && !lib.UseServicesAPI()) {
+	if !ingressFound && !lib.GetAdvancedL4() && !lib.UseServicesAPI() {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
@@ -366,7 +367,7 @@ func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, st
 		return arr[0], arr[1]
 	}
 
-	if objType == utils.IngressClass {
+	if objType == utils.IngressClass || objType == lib.AviInfraSetting {
 		arr := strings.Split(nsname, "/")
 		return arr[0], arr[1]
 	}
@@ -392,7 +393,7 @@ func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool 
 			return false
 		}
 	}
-	// // Right before saving the model, let's reset the retry counter for the graph.
+	// Right before saving the model, let's reset the retry counter for the graph.
 	aviGraph.SetRetryCounter()
 	aviGraph.CalculateCheckSum()
 	objects.SharedAviGraphLister().Save(model_name, aviGraph)
@@ -470,26 +471,68 @@ func GetShardVSPrefix(key string) string {
 	return shardVsPrefix
 }
 
-func GetShardVSName(s string, key string) string {
+func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) string {
 	var vsNum uint32
-	shardSize := lib.GetshardSize()
+	extraPrefix := strings.Join(prefix, "-")
+
 	if shardSize != 0 {
 		vsNum = utils.Bkt(s, shardSize)
 		utils.AviLog.Debugf("key: %s, msg: VS number: %v", key, vsNum)
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: Processing dedicated VS", key)
 		//format: my-cluster--foo.com-dedicated for dedicated VS. This is to avoid any SNI naming conflicts
+		if extraPrefix != "" {
+			return lib.GetNamePrefix() + extraPrefix + "-" + s + "-dedicated"
+		}
 		return lib.GetNamePrefix() + s + "-dedicated"
 	}
 	shardVsPrefix := GetShardVSPrefix(key)
+	if extraPrefix != "" {
+		shardVsPrefix += extraPrefix + "-"
+	}
 	vsName := shardVsPrefix + fmt.Sprint(vsNum)
-	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
 	return vsName
 }
 
-func DeriveShardVS(hostname string, key string) string {
-	// Read the value of the num_shards from the environment variable.
+func AviInfraSettingChange(routeIgrObj RouteIngressModel) (*akov1alpha1.AviInfraSetting, *akov1alpha1.AviInfraSetting) {
+	var oldAviInfraSetting *akov1alpha1.AviInfraSetting
+	var err error
+	if found, oldInfraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
+		oldAviInfraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(oldInfraSettingName)
+		if err != nil {
+			utils.AviLog.Warnf("AviInfraSetting not found %s", err.Error())
+		}
+	}
+
+	aviInfraSetting := routeIgrObj.GetAviInfraSetting()
+	return oldAviInfraSetting, aviInfraSetting
+}
+
+// returns old and new models if changed, else just the current one.
+func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (string, string) {
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
-	vsName := GetShardVSName(hostname, key)
-	return vsName
+
+	// get stored infrasetting from ingress/route
+	// figure out the current infrasetting via class/annotation
+	oldSetting, newSetting := AviInfraSettingChange(routeIgrObj)
+	var oldInfraPrefix, newInfraPrefix string
+
+	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
+	if oldSetting != nil {
+		oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
+		oldInfraPrefix = oldSetting.Name
+	}
+
+	if !routeIgrObj.Exists() {
+		// get the old ones.
+		newShardSize = oldShardSize
+		newInfraPrefix = oldInfraPrefix
+	} else if newSetting != nil {
+		newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
+		newInfraPrefix = newSetting.Name
+	}
+
+	oldVsName, newVsName := GetShardVSName(hostname, key, oldShardSize, oldInfraPrefix), GetShardVSName(hostname, key, newShardSize, newInfraPrefix)
+	utils.AviLog.Infof("key: %s, msg: ShardVSNames: %s %s", key, oldVsName, newVsName)
+	return oldVsName, newVsName
 }

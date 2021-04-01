@@ -128,10 +128,8 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		}
 	}
 
-	if routeIgrObj.GetType() == utils.Ingress {
-		buildL7IngressInfraSetting(key, avi_vs_meta, vsVipNode, routeIgrObj)
-	} else if routeIgrObj.GetType() == utils.OshiftRoute {
-		buildL7RouteInfraSetting(key, avi_vs_meta, vsVipNode, routeIgrObj)
+	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
+		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -183,7 +181,7 @@ func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, keycertname
 	return cacertNode.Name
 }
 
-func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key string, sniHost ...string) bool {
+func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key string, infraSettingName string, sniHost ...string) bool {
 	mClient := utils.GetInformers().ClientSet
 	secretName := tlsData.SecretName
 	secretNS := tlsData.SecretNS
@@ -193,9 +191,15 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 
 	var certNode *AviTLSKeyCertNode
 	if len(sniHost) > 0 {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), Tenant: lib.GetTenant()}
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, infraSettingName, sniHost[0]),
+			Tenant: lib.GetTenant(),
+		}
 	} else {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: lib.GetTenant()}
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, infraSettingName),
+			Tenant: lib.GetTenant(),
+		}
 	}
 	certNode.Type = lib.CertTypeVS
 
@@ -266,7 +270,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, hostName ...string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, infraSettingName string, hostName ...string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var sniFQDNs []string
 	for host, paths := range hostpath.Hosts {
@@ -304,14 +308,15 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			if path.Path != "" {
 				httpPGPath.Path = append(httpPGPath.Path, path.Path)
 			}
+
 			var poolName string
 			var pgfound bool
 			var pgNode *AviPoolGroupNode
 			// Do not use serviceName in SNI Pool Name for ingress for backward compatibility
 			if isIngr {
-				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path)
+				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path, infraSettingName)
 			} else {
-				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path, path.ServiceName)
+				poolName = lib.GetSniPoolName(ingName, namespace, host, path.Path, infraSettingName, path.ServiceName)
 			}
 			httpPGPath.Host = pathFQDNs
 			// There can be multiple services for the same path in case of alternate backend.
@@ -324,7 +329,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				httpPGPath.Pool = poolName
 				utils.AviLog.Infof("key: %s, msg: using pool name: %s instead of poolgroups for http policy set", key, poolName)
 			} else {
-				pgName := lib.GetSniPGName(ingName, namespace, host, path.Path)
+				pgName := lib.GetSniPGName(ingName, namespace, host, path.Path, infraSettingName)
 				var pgfound bool
 				pgNode, pgfound = localPGList[pgName]
 				if !pgfound {
@@ -379,7 +384,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			}
 			o.AddModelNode(poolNode)
 			if !pgfound {
-				httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
+				httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path, infraSettingName)
 				policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
 				if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
 					tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
@@ -514,41 +519,6 @@ func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostname, key string) {
 	}
 }
 
-func buildL7IngressInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, routeIgrObj RouteIngressModel) {
-	var infraSetting *akov1alpha1.AviInfraSetting
-
-	var ingClassName string
-	if ingSpec, ok := routeIgrObj.GetSpec().(networkingv1beta1.IngressSpec); ok && ingSpec.IngressClassName != nil {
-		ingClassName = *ingSpec.IngressClassName
-	}
-
-	if !utils.GetIngressClassEnabled() {
-		return
-	} else if ingClassName == "" {
-		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
-			return
-		} else {
-			ingClassName = defaultIngressClass
-		}
-	}
-
-	ingClass, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingClassName)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding IngressClass %s", key, err.Error())
-		return
-	} else {
-		if ingClass.Spec.Parameters != nil && *ingClass.Spec.Parameters.APIGroup == lib.AkoGroup && ingClass.Spec.Parameters.Kind == lib.AviInfraSetting {
-			infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(ingClass.Spec.Parameters.Name)
-			if err != nil {
-				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via IngressClass %s", key, err.Error())
-				return
-			}
-		}
-	}
-
-	buildWithInfraSetting(key, vs, vsvip, infraSetting)
-}
-
 func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.SeGroup.Name != "" {
@@ -563,19 +533,4 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		vsvip.NetworkNames = infraSetting.Spec.Network.Names
 	}
 	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
-}
-
-func buildL7RouteInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, routeIgrObj RouteIngressModel) {
-	var err error
-	var infraSetting *akov1alpha1.AviInfraSetting
-
-	if infraSettingAnnotation, ok := routeIgrObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
-		infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
-			return
-		}
-	}
-
-	buildWithInfraSetting(key, vs, vsvip, infraSetting)
 }

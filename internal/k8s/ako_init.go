@@ -438,12 +438,12 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 
-		albInfraObjs, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+		aviInfraObjs, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the alinfraobjs during full sync: %s", err)
+			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
 		} else {
-			for _, albInfraObj := range albInfraObjs {
-				key := lib.AviInfraSetting + "/" + utils.ObjKey(albInfraObj)
+			for _, aviInfraObj := range aviInfraObjs {
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfraObj)
 				nodes.DequeueIngestion(key, true)
 			}
 		}

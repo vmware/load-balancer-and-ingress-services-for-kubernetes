@@ -95,9 +95,11 @@ var (
 		GetParentGateways: GWClassToGateway,
 	}
 	AviInfraSetting = GraphSchema{
-		Type:              "AviInfraSetting",
-		GetParentGateways: AviSettingToGateway,
-		GetParentServices: AviSettingToSvc,
+		Type:               "AviInfraSetting",
+		GetParentIngresses: AviSettingToIng,
+		GetParentGateways:  AviSettingToGateway,
+		GetParentServices:  AviSettingToSvc,
+		GetParentRoutes:    AviSettingToRoute,
 	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
@@ -306,6 +308,22 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			return ingresses, false
 		}
 
+		if utils.GetIngressClassEnabled() {
+			var ingClassName string
+			if ingObj.Spec.IngressClassName != nil {
+				ingClassName = *ingObj.Spec.IngressClassName
+			} else if aviIngClassName, found := lib.IsAviLBDefaultIngressClass(); found {
+				// check if default IngressClass is present, and it is Avi's IngressClass, in which case add mapping for that.
+				ingClassName = aviIngClassName
+			}
+
+			if ingClassName != "" {
+				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, ingClassName)
+			} else {
+				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
+			}
+		}
+
 		// If the Ingress Class is not found or is not valid, then return.
 		// When the correct Ingress Class is added, then the Ingress would be processed again.
 		if !lib.ValidateIngressForClass(key, ingObj) {
@@ -316,17 +334,6 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 				}
 			}
 			return ingresses, true
-		}
-
-		if utils.GetIngressClassEnabled() {
-			if ingObj.Spec.IngressClassName != nil {
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, *ingObj.Spec.IngressClassName)
-			} else if aviIngClassName, found := lib.IsAviLBDefaultIngressClass(); found {
-				// check if default IngressClass is present, and it is Avi's IngressClass, in which case add mapping for that.
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, aviIngClassName)
-			} else {
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
-			}
 		}
 
 		_, oldSvcs := objects.SharedSvcLister().IngressMappings(namespace).GetIngToSvc(ingName)
@@ -364,8 +371,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 
 func IngClassToIng(ingClassName string, namespace string, key string) ([]string, bool) {
 	found, ingresses := objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).GetClassToIng(ingClassName)
-
-	// Go though the list of ingresses again to populate the ingress Service mapping and annotate servies if needed
+	// Go through the list of ingresses again to populate the ingress Service mapping and annotate services if needed
 	for _, namespacedIngr := range ingresses {
 		ns, ingr := utils.ExtractNamespaceObjectName(namespacedIngr)
 		IngressChanges(ingr, ns, key)
@@ -639,6 +645,64 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 	return allIngresses, true
 }
 
+func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
+	allIngresses := make([]string, 0)
+
+	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
+	if err == nil {
+		// Validate Avi references and configurations in AviInfraSetting.
+		if err = validateAviInfraSetting(key, infraSetting); err != nil {
+			return allIngresses, false
+		}
+	}
+
+	// Get all IngressClasses from AviInfraSetting.
+	ingClasses, err := utils.GetInformers().IngressClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingIngClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch IngressClasses corresponding to AviInfraSetting %s", key, infraSettingName)
+		return allIngresses, false
+	}
+
+	for _, ingClass := range ingClasses {
+		if ingClassObj, isIngClass := ingClass.(*networkingv1beta1.IngressClass); isIngClass {
+			if ingresses, found := IngClassToIng(ingClassObj.Name, namespace, key); found {
+				allIngresses = append(allIngresses, ingresses...)
+			}
+		}
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
+	return allIngresses, true
+}
+
+func AviSettingToRoute(infraSettingName, namespace, key string) ([]string, bool) {
+	allRoutes := make([]string, 0)
+
+	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
+	if err == nil {
+		// Validate Avi references and configurations in AviInfraSetting.
+		if err = validateAviInfraSetting(key, infraSetting); err != nil {
+			return allRoutes, false
+		}
+	}
+
+	// Get all Routes from AviInfraSetting via annotation.
+	routes, err := utils.GetInformers().RouteInformer.Informer().GetIndexer().ByIndex(lib.AviSettingRouteIndex, infraSettingName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch Routes corresponding to AviInfraSetting %s", key, infraSettingName)
+		return allRoutes, false
+	}
+
+	for _, route := range routes {
+		if routeObj, isRoute := route.(*routev1.Route); isRoute {
+			RouteChanges(routeObj.Name, routeObj.Namespace, key)
+		}
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Routes retrieved %s", key, allRoutes)
+	return allRoutes, true
+}
+
 func AviSettingToGateway(infraSettingName string, namespace string, key string) ([]string, bool) {
 	allGateways := make([]string, 0)
 
@@ -653,6 +717,7 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 	// Get all GatewayClasses from AviInfraSetting.
 	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
 	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch GatewayClasses corresponding to AviInfraSetting %s", key, infraSettingName)
 		return allGateways, false
 	}
 

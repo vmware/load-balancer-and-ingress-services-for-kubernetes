@@ -77,7 +77,7 @@ func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string) {
 	TearDownTestForIngress(t, modelName)
 }
 
-func TestHostnameCreateIngressCacheSync(t *testing.T) {
+func TestCreateIngressCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var found bool
 
@@ -125,7 +125,7 @@ func TestHostnameCreateIngressCacheSync(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
-func TestHostnameIngressStatusCheck(t *testing.T) {
+func TestIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
@@ -150,7 +150,7 @@ func TestHostnameIngressStatusCheck(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameCreateIngressWithFaultCacheSync(t *testing.T) {
+func TestCreateIngressWithFaultCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var found bool
 
@@ -232,7 +232,7 @@ func TestHostnameCreateIngressWithFaultCacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameUpdatePoolCacheSync(t *testing.T) {
+func TestUpdatePoolCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -310,7 +310,7 @@ func TestHostnameUpdatePoolCacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameDeletePoolCacheSync(t *testing.T) {
+func TestDeletePoolCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -354,7 +354,7 @@ func TestHostnameDeletePoolCacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameCreateSNICacheSync(t *testing.T) {
+func TestCreateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
@@ -385,7 +385,7 @@ func TestHostnameCreateSNICacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameUpdateSNICacheSync(t *testing.T) {
+func TestUpdateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -447,7 +447,7 @@ func TestHostnameUpdateSNICacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
+func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
@@ -530,7 +530,7 @@ func TestHostnameMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
+func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
 
@@ -663,7 +663,7 @@ func TestHostnameMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
-func TestHostnameDeleteSNICacheSync(t *testing.T) {
+func TestDeleteSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -705,7 +705,7 @@ func TestHostnameDeleteSNICacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameCUDSecretCacheSync(t *testing.T) {
+func TestCUDSecretCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
@@ -773,7 +773,7 @@ func TestHostnameCUDSecretCacheSync(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameDeleteSecretSecureIngressStatusCheck(t *testing.T) {
+func TestDeleteSecretSecureIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
@@ -794,7 +794,7 @@ func TestHostnameDeleteSecretSecureIngressStatusCheck(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
+func TestMultiHostIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
 
@@ -870,7 +870,7 @@ func TestHostnameMultiHostIngressStatusCheck(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
-func TestHostnameMultiHostUpdateIngressStatusCheck(t *testing.T) {
+func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 	modelName := "admin/cluster--Shared-L7-0"
