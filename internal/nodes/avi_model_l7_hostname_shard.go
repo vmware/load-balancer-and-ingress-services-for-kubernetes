@@ -308,10 +308,18 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			aviModel = NewAviObjectGraph()
 			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key, routeIgrObj)
 		}
-		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 
+		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 		if len(vsNode) < 1 {
 			return nil
+		}
+
+		if found {
+			// if vsNode already exists, check for updates via AviInfraSetting
+			vsNode := aviModel.(*AviObjectGraph).GetAviVS()
+			if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
+				buildWithInfraSetting(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+			}
 		}
 
 		certsBuilt := false
