@@ -490,6 +490,15 @@ func CheckControllerVersionCompatibility(v1, cmpSign, v2 string) bool {
 	return false
 }
 
+func IsValidCni() bool {
+	// if serviceType is set as NodePortLocal, then the CNI must be of type 'antrea'
+	if GetServiceType() == NodePortLocal && GetCNIPlugin() != ANTREA_CNI {
+		utils.AviLog.Warnf("ServiceType is set as a NodePortLocal, but the CNI is not set as antrea")
+		return false
+	}
+	return true
+}
+
 func GetDisableStaticRoute() bool {
 	if GetAdvancedL4() {
 		return true
@@ -497,7 +506,7 @@ func GetDisableStaticRoute() bool {
 	if ok, _ := strconv.ParseBool(os.Getenv(DISABLE_STATIC_ROUTE_SYNC)); ok {
 		return true
 	}
-	if IsNodePortMode() {
+	if IsNodePortMode() || GetServiceType() == NodePortLocal {
 		return true
 	}
 	return false
