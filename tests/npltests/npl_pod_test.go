@@ -174,6 +174,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
+	os.Setenv("CNI_PLUGIN", "antrea")
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
