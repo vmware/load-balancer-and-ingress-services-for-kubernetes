@@ -26,6 +26,7 @@ import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
@@ -520,7 +521,7 @@ func (o *AviEvhVsNode) ReplaceHTTPRefInNodeForEvh(newHttpNode *AviHttpPolicySetN
 
 // Insecure ingress graph functions below
 
-func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName string, key string) *AviEvhVsNode {
+func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, routeIgrObj RouteIngressModel) *AviEvhVsNode {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
@@ -575,6 +576,10 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName string, key str
 		return nil
 	} else {
 		vsVipNode.NetworkNames = networkNames
+	}
+
+	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
+		buildWithInfraSettingForEvh(key, avi_vs_meta, vsVipNode, infraSetting)
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -712,12 +717,18 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, modelName)
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName, key)
+			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName, key, routeIgrObj)
+		}
+
+		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
+		if len(vsNode) > 0 && found {
+			// if vsNode already exists, check for updates via AviInfraSetting
+			if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
+				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+			}
 		}
 
 		// Create one evh child per host and associate http policies for each path.
-
-		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
 		ingName := routeIgrObj.GetName()
 		namespace := routeIgrObj.GetNamespace()
 		evhNodeName := lib.GetEvhNodeName(ingName, namespace, host, infraSettingName)
@@ -951,12 +962,19 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName, key)
+			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName, key, routeIgrObj)
 		}
-		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
 
+		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
 		if len(vsNode) < 1 {
 			return nil
+		}
+
+		if found {
+			// if vsNode already exists, check for updates via AviInfraSetting
+			if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
+				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+			}
 		}
 
 		certsBuilt := false
@@ -1451,4 +1469,34 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 			PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
 	}
+}
+
+func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
+	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
+		if infraSetting.Spec.SeGroup.Name != "" {
+			// This assumes that the SeGroup has the appropriate labels configured
+			vs.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
+		} else {
+			vs.ServiceEngineGroup = lib.GetSEGName()
+		}
+
+		if infraSetting.Spec.Network.EnableRhi != nil {
+			vs.EnableRhi = infraSetting.Spec.Network.EnableRhi
+		} else {
+			enableRhi := lib.GetEnableRHI()
+			vs.EnableRhi = &enableRhi
+		}
+
+		if vsvip.NetworkNames != nil && len(vsvip.NetworkNames) > 0 {
+			vsvip.NetworkNames = infraSetting.Spec.Network.Names
+		} else {
+			if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+				return
+			} else {
+				vsvip.NetworkNames = networkNames
+			}
+		}
+	}
+	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 }
