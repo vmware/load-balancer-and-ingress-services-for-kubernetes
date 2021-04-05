@@ -179,7 +179,6 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
-			vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 			if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
 				buildWithInfraSetting(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
