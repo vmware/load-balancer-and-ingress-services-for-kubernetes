@@ -647,7 +647,7 @@ func SyncFromIngestionLayer(key string, wg *sync.WaitGroup) error {
 	// Let's route the key to the graph layer.
 	// NOTE: There's no error propagation from the graph layer back to the workerqueue. We will evaluate
 	// This condition in the future and visit as needed. But right now, there's no necessity for it.
-	//sharedQueue := SharedWorkQueueWrappers().GetQueueByName(queue.GraphLayer)
+	// sharedQueue := SharedWorkQueueWrappers().GetQueueByName(queue.GraphLayer)
 	nodes.DequeueIngestion(key, false)
 	return nil
 }

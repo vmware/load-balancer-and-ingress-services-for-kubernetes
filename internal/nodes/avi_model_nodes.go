@@ -898,7 +898,18 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 }
 
 func (v *AviVSVIPNode) CalculateCheckSum() {
-	checksum := lib.VSVipChecksum(v.FQDNs, v.IPAddress, v.NetworkNames)
+	var checksum uint32
+	sort.Strings(v.FQDNs)
+	sort.Strings(v.NetworkNames)
+	if len(v.FQDNs) > 0 {
+		checksum = utils.Hash(utils.Stringify(v.FQDNs))
+	}
+	if v.IPAddress != "" {
+		checksum += utils.Hash(v.IPAddress)
+	}
+	if len(v.NetworkNames) > 0 {
+		checksum += utils.Hash(utils.Stringify(v.NetworkNames))
+	}
 	checksum += lib.GetClusterLabelChecksum()
 	v.CloudConfigCksum = checksum
 }

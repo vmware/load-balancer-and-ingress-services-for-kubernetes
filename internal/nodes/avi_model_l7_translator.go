@@ -115,17 +115,11 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		VrfContext: vrfcontext,
 	}
 
-	if networkName := lib.GetNetworkName(); networkName != "" {
-		vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, networkName)
-	} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS {
-		vipNetworkList, err := lib.GetVipNetworkList()
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
-			return nil
-		}
-		if len(vipNetworkList) != 0 {
-			vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, vipNetworkList...)
-		}
+	if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+		return nil
+	} else {
+		vsVipNode.NetworkNames = networkNames
 	}
 
 	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
@@ -181,7 +175,7 @@ func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, keycertname
 	return cacertNode.Name
 }
 
-func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key string, infraSettingName string, sniHost ...string) bool {
+func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key, infraSettingName, sniHost string) bool {
 	mClient := utils.GetInformers().ClientSet
 	secretName := tlsData.SecretName
 	secretNS := tlsData.SecretNS
@@ -189,19 +183,11 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 		secretNS = namespace
 	}
 
-	var certNode *AviTLSKeyCertNode
-	if len(sniHost) > 0 {
-		certNode = &AviTLSKeyCertNode{
-			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, infraSettingName, sniHost[0]),
-			Tenant: lib.GetTenant(),
-		}
-	} else {
-		certNode = &AviTLSKeyCertNode{
-			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, infraSettingName),
-			Tenant: lib.GetTenant(),
-		}
+	certNode := &AviTLSKeyCertNode{
+		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, sniHost),
+		Tenant: lib.GetTenant(),
+		Type:   lib.CertTypeVS,
 	}
-	certNode.Type = lib.CertTypeVS
 
 	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route
 	if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
@@ -254,34 +240,29 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 		utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	}
 	// If this SSLCertRef is already present don't add it.
-	if len(sniHost) > 0 {
-		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, sniHost[0]), certNode.GetCheckSum()) {
-			if len(tlsNode.SSLKeyCertRefs) == 1 {
-				// Overwrite if the secrets are different.
-				tlsNode.SSLKeyCertRefs[0] = certNode
-				utils.AviLog.Warnf("key: %s, msg: Duplicate secrets detected for the same hostname, overwrote the secret for hostname %s, with contents of secret :%s in ns: %s", key, sniHost[0], secretName, namespace)
-			} else {
-				tlsNode.ReplaceSniSSLRefInSNINode(certNode, key)
-			}
+	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, sniHost), certNode.GetCheckSum()) {
+		if len(tlsNode.SSLKeyCertRefs) == 1 {
+			// Overwrite if the secrets are different.
+			tlsNode.SSLKeyCertRefs[0] = certNode
+			utils.AviLog.Warnf("key: %s, msg: Duplicate secrets detected for the same hostname, overwrote the secret for hostname %s, with contents of secret :%s in ns: %s", key, sniHost[0], secretName, namespace)
+		} else {
+			tlsNode.ReplaceSniSSLRefInSNINode(certNode, key)
 		}
-	} else {
-		tlsNode.SSLKeyCertRefs = append(tlsNode.SSLKeyCertRefs, certNode)
 	}
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, infraSettingName string, hostName ...string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, infraSettingName, hostName string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var sniFQDNs []string
 	for host, paths := range hostpath.Hosts {
 		var pathFQDNs []string
 		pathFQDNs = append(pathFQDNs, host)
-		if len(hostName) > 0 {
-			if hostName[0] != host {
-				// If a hostname is passed to this method, ensure we only process that hostname and nothing else.
-				continue
-			}
+		if hostName != host {
+			// Ensure that we only process provided hostname and nothing else.
+			continue
 		}
+
 		// Update the VSVIP with the host information.
 		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
 			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
@@ -524,13 +505,27 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		if infraSetting.Spec.SeGroup.Name != "" {
 			// This assumes that the SeGroup has the appropriate labels configured
 			vs.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
+		} else {
+			vs.ServiceEngineGroup = lib.GetSEGName()
 		}
 
 		if infraSetting.Spec.Network.EnableRhi != nil {
 			vs.EnableRhi = infraSetting.Spec.Network.EnableRhi
+		} else {
+			enableRhi := lib.GetEnableRHI()
+			vs.EnableRhi = &enableRhi
 		}
 
-		vsvip.NetworkNames = infraSetting.Spec.Network.Names
+		if vsvip.NetworkNames != nil && len(vsvip.NetworkNames) > 0 {
+			vsvip.NetworkNames = infraSetting.Spec.Network.Names
+		} else {
+			if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+				return
+			} else {
+				vsvip.NetworkNames = networkNames
+			}
+		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 }

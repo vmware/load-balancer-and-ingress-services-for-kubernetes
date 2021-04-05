@@ -111,17 +111,11 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		VrfContext: vrfcontext,
 	}
 
-	if networkName := lib.GetNetworkName(); networkName != "" {
-		vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, networkName)
-	} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS {
-		vipNetworkList, err := lib.GetVipNetworkList()
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
-			return nil
-		}
-		if len(vipNetworkList) != 0 {
-			vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, vipNetworkList...)
-		}
+	if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+		return nil
+	} else {
+		vsVipNode.NetworkNames = networkNames
 	}
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
