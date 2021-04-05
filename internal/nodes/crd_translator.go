@@ -418,6 +418,9 @@ func checkRefOnController(key, refKey, refValue string) error {
 
 	// assign the last avi client for ref checks
 	aviClientLen := lib.GetshardSize()
+	if aviClientLen != 0 {
+		aviClientLen = aviClientLen - 1
+	}
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)

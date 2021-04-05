@@ -151,6 +151,11 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			if servers := PopulateServersForNPL(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
 				poolNode.Servers = servers
 			}
+		} else if _, ok := svcObj.GetAnnotations()[lib.SkipNodePortAnnotation]; ok {
+			// This annotation's presence on the svc object means that the node ports should be skipped.
+			if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+				poolNode.Servers = servers
+			}
 		} else if serviceType == lib.NodePort {
 			if servers := PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
 				poolNode.Servers = servers
