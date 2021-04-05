@@ -1097,9 +1097,9 @@ func TestSniHttpPolicy(t *testing.T) {
 		g.Eventually(len(nodes), 30*time.Second).Should(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes), gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs), gomega.Equal(2))
-		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
-		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
-		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs), gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
 		g.Expect(func() []string {
 			p := []string{
 				nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
@@ -1148,10 +1148,10 @@ func TestSniHttpPolicy(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(1))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
-	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0], gomega.Equal("/foo"))
-	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name, gomega.Equal("cluster--default-foo.com_foo-ingress-shp"))
-	g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs), gomega.Equal(1))
+	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).To(gomega.Equal("/foo"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-shp"))
+	g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
 
 	_, err = (integrationtest.FakeIngress{
 		Name:      "ingress-shp",
@@ -1180,8 +1180,8 @@ func TestSniHttpPolicy(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(3))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
-	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path), gomega.Equal(1))
+	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
 	g.Expect(func() []string {
 		p := []string{
 			nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
