@@ -257,7 +257,6 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				vs_cache_obj.AddToPoolKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if svc_mdata_obj.Namespace != "" {
-					utils.AviLog.Infof("xxx updating status3")
 					updateOptions := status.UpdateOptions{
 						Vip:                vs_cache_obj.Vip,
 						ServiceMetadata:    svc_mdata_obj,
@@ -266,7 +265,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.Ingress,
-						Op:      "update",
+						Op:      lib.UpdateOperation,
 						Options: &updateOptions,
 					}
 					if utils.GetInformers().RouteInformer != nil {
@@ -320,10 +319,12 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 				// SNI VSes use the VS object metadata, delete ingress status for others
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
+					Key:             key,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.Ingress,
-					Op:      "delete",
+					Op:      lib.DeleteOperation,
+					IsVSDel: isVSDelete,
 					Options: &updateOptions,
 				}
 				if utils.GetInformers().RouteInformer != nil {

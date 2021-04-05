@@ -22,6 +22,7 @@ import (
 type StatusOptions struct {
 	ObjType string
 	Op      string
+	IsVSDel bool
 	Options *UpdateOptions
 }
 
@@ -32,33 +33,33 @@ func DequeueStatus(objIntf interface{}) error {
 		return nil
 	}
 	if obj.ObjType == utils.L4LBService {
-		if obj.Op == "update" {
+		if obj.Op == lib.UpdateOperation {
 			UpdateL4LBStatus([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == "delete" {
+		} else if obj.Op == lib.DeleteOperation {
 			DeleteL4LBStatus(obj.Options.ServiceMetadata, obj.Options.Key)
 		}
 	} else if obj.ObjType == utils.Ingress {
-		if obj.Op == "update" {
+		if obj.Op == lib.UpdateOperation {
 			UpdateIngressStatus([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == "delete" {
-			DeleteIngressStatus([]UpdateOptions{*obj.Options}, true, obj.Options.Key)
+		} else if obj.Op == lib.DeleteOperation {
+			DeleteIngressStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
 		}
 	} else if obj.ObjType == utils.OshiftRoute {
-		if obj.Op == "update" {
+		if obj.Op == lib.UpdateOperation {
 			UpdateRouteStatus([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == "delete" {
-			DeleteRouteStatus([]UpdateOptions{*obj.Options}, true, obj.Options.Key)
+		} else if obj.Op == lib.DeleteOperation {
+			DeleteRouteStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
 		}
 	} else if obj.ObjType == lib.Gateway {
-		if obj.Op == "update" {
+		if obj.Op == lib.UpdateOperation {
 			UpdateGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == "delete" {
+		} else if obj.Op == lib.DeleteOperation {
 			DeleteGatewayStatusAddress(obj.Options.ServiceMetadata, "")
 		}
 	} else if obj.ObjType == lib.SERVICES_API {
-		if obj.Op == "update" {
+		if obj.Op == lib.UpdateOperation {
 			UpdateSvcApiGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == "delete" {
+		} else if obj.Op == lib.DeleteOperation {
 			DeleteSvcApiGatewayStatusAddress(obj.Options.Key, obj.Options.ServiceMetadata)
 		}
 	}
