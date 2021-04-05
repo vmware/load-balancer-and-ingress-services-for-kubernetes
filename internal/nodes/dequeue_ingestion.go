@@ -467,7 +467,7 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 func GetShardVSPrefix(key string) string {
 	// sample prefix: clusterName--Shared-L7-
 	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-"
-	utils.AviLog.Infof("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
+	utils.AviLog.Debugf("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }
 

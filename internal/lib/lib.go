@@ -401,8 +401,22 @@ func GetSubnetPrefixInt() int32 {
 	return int32(intCidr)
 }
 
-func GetNetworkName() string {
+func GetNetworkNamesForVsVipNode() ([]string, error) {
+	if networkName := GetNetworkName(); networkName != "" {
+		return []string{networkName}, nil
+	} else if IsPublicCloud() && GetCloudType() == CLOUD_AWS {
+		vipNetworkList, err := GetVipNetworkList()
+		if err != nil {
+			return nil, err
+		}
+		if len(vipNetworkList) != 0 {
+			return vipNetworkList, nil
+		}
+	}
+	return []string{}, nil
+}
 
+func GetNetworkName() string {
 	networkName := os.Getenv(NETWORK_NAME)
 	if networkName != "" {
 		return networkName
@@ -411,7 +425,6 @@ func GetNetworkName() string {
 }
 
 func GetVipNetworkList() ([]string, error) {
-
 	var vipNetworkList []string
 	type Row struct {
 		NetworkName string `json:"networkName"`

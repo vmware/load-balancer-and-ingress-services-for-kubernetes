@@ -115,17 +115,11 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		VrfContext: vrfcontext,
 	}
 
-	if networkName := lib.GetNetworkName(); networkName != "" {
-		vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, networkName)
-	} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_AWS {
-		vipNetworkList, err := lib.GetVipNetworkList()
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
-			return nil
-		}
-		if len(vipNetworkList) != 0 {
-			vsVipNode.NetworkNames = append(vsVipNode.NetworkNames, vipNetworkList...)
-		}
+	if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+		return nil
+	} else {
+		vsVipNode.NetworkNames = networkNames
 	}
 
 	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
@@ -511,13 +505,27 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		if infraSetting.Spec.SeGroup.Name != "" {
 			// This assumes that the SeGroup has the appropriate labels configured
 			vs.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
+		} else {
+			vs.ServiceEngineGroup = lib.GetSEGName()
 		}
 
 		if infraSetting.Spec.Network.EnableRhi != nil {
 			vs.EnableRhi = infraSetting.Spec.Network.EnableRhi
+		} else {
+			enableRhi := lib.GetEnableRHI()
+			vs.EnableRhi = &enableRhi
 		}
 
-		vsvip.NetworkNames = infraSetting.Spec.Network.Names
+		if vsvip.NetworkNames != nil && len(vsvip.NetworkNames) > 0 {
+			vsvip.NetworkNames = infraSetting.Spec.Network.Names
+		} else {
+			if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
+				return
+			} else {
+				vsvip.NetworkNames = networkNames
+			}
+		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 }
