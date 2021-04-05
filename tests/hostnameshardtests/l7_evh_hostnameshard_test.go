@@ -104,7 +104,7 @@ func TestL7ModelForEvh(t *testing.T) {
 }
 
 // This tests the different objects associated in the evh model for ingress
-func TestHostnameShardObjectsForEvh(t *testing.T) {
+func TestShardObjectsForEvh(t *testing.T) {
 	// checks naming convention of all generated nodes
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()

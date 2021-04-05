@@ -665,7 +665,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 		o.AddModelNode(poolNode)
 		if !pgfound {
-			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path)
+			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path, "")
 			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
 			if childNode.CheckHttpPolNameNChecksumForEvh(httppolname, policyNode.GetCheckSum()) {
 				childNode.ReplaceHTTPRefInNodeForEvh(policyNode, key)
@@ -707,10 +707,6 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
 
 		shardVsName := DeriveShardVSForEvh(host, key)
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			return
-		}
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
@@ -823,9 +819,15 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 
 	var certNode *AviTLSKeyCertNode
 	if len(host) > 0 {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName, host[0]), Tenant: lib.GetTenant()}
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, "", host[0]),
+			Tenant: lib.GetTenant(),
+		}
 	} else {
-		certNode = &AviTLSKeyCertNode{Name: lib.GetTLSKeyCertNodeName(namespace, secretName), Tenant: lib.GetTenant()}
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(namespace, secretName, ""),
+			Tenant: lib.GetTenant(),
+		}
 	}
 	certNode.Type = lib.CertTypeVS
 
@@ -881,7 +883,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 	}
 	// If this SSLCertRef is already present don't add it.
 	if len(host) > 0 {
-		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, host[0]), certNode.GetCheckSum()) {
+		if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(namespace, secretName, "", host[0]), certNode.GetCheckSum()) {
 			tlsNode.ReplaceEvhSSLRefInEVHNode(certNode, key)
 		}
 	} else {
@@ -950,11 +952,6 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		shardVsName := DeriveShardVSForEvh(host, key)
 		// For each host, create a EVH node with the secret giving us the key and cert.
 		// construct a EVH child VS node per tls setting which corresponds to one secret
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			//return hostPathMap
-			return hostPathSvcMap
-		}
 		model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
@@ -1033,7 +1030,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 			// Since the cert couldn't be built, check if this EVH is affected by only in ingress if so remove the EVH node from the model
 			if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
-				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, tlssetting.SecretName, host), key)
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, tlssetting.SecretName, "", host), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
 			}
@@ -1134,10 +1131,6 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		utils.AviLog.Debugf("host to del: %s, data : %s", host, utils.Stringify(hostData))
 		shardVsName := DeriveShardVSForEvh(host, key)
 
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			return
-		}
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
@@ -1302,7 +1295,7 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 	keepEvh = o.ManipulateEvhNode(evhNodeName, ingName, namespace, hostname, pathSvc, vsNode, key)
 	if !keepEvh {
 		// Delete the cert ref for the host
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, lib.GetTLSKeyCertNodeName(namespace, "", hostname), hostname), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(namespace, lib.GetTLSKeyCertNodeName(namespace, "", "", hostname), hostname), key)
 	}
 	if removeFqdn && !keepEvh {
 		var hosts []string
@@ -1366,11 +1359,7 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 		if hostData.SecurePolicy == lib.PolicyPass {
 			shardVsName = lib.GetPassthroughShardVSName(host, key)
 		}
-		if shardVsName == "" {
-			// If we aren't able to derive the ShardVS name, we should return
-			utils.AviLog.Infof("key: %s, shard vs ndoe not found for host: %s", host)
-			return
-		}
+
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {

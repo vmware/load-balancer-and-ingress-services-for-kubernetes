@@ -209,7 +209,7 @@ func TestL7Model(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
-func TestHostnameShardNamingConvention(t *testing.T) {
+func TestShardNamingConvention(t *testing.T) {
 	// checks naming convention of all generated nodes
 	g := gomega.NewGomegaWithT(t)
 

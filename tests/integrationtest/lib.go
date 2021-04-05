@@ -192,6 +192,10 @@ func AddSecret(secretName string, namespace string, cert string, key string) {
 	KubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), fakeSecret, metav1.CreateOptions{})
 }
 
+func DeleteSecret(secretName string, namespace string) {
+	KubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
+}
+
 // Fake ingress
 type FakeIngress struct {
 	DnsNames     []string
@@ -1312,10 +1316,11 @@ type FakeAviInfraSetting struct {
 	SeGroupName string
 	NetworkName string
 	EnableRhi   bool
+	ShardSize   string
 }
 
 func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
-	gatewayclass := &akov1alpha1.AviInfraSetting{
+	setting := &akov1alpha1.AviInfraSetting{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: infraSetting.Name,
 		},
@@ -1330,15 +1335,20 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 		},
 	}
 
-	return gatewayclass
+	if infraSetting.ShardSize != "" {
+		setting.Spec.L7Settings.ShardSize = infraSetting.ShardSize
+	}
+
+	return setting
 }
 
-func SetupAviInfraSetting(t *testing.T, infraSettingName string) {
+func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 	setting := FakeAviInfraSetting{
 		Name:        infraSettingName,
 		SeGroupName: "thisisaviref-" + infraSettingName + "-seGroup",
 		NetworkName: "thisisaviref-" + infraSettingName + "-networkName",
 		EnableRhi:   true,
+		ShardSize:   shardSize,
 	}
 	settingCreate := setting.AviInfraSetting()
 	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {

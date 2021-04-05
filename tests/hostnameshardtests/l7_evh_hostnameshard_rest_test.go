@@ -30,7 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestHostnameMultiHostIngressStatusCheckForEvh(t *testing.T) {
+func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 
@@ -103,7 +103,7 @@ func TestHostnameMultiHostIngressStatusCheckForEvh(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
-func TestHostnameMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
+func TestMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 
@@ -178,7 +178,7 @@ func TestHostnameMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
-func TestHostnameCreateIngressCacheSyncForEvh(t *testing.T) {
+func TestCreateIngressCacheSyncForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 
@@ -235,7 +235,7 @@ func TestHostnameCreateIngressCacheSyncForEvh(t *testing.T) {
 	TearDownTestForIngress(t, modelName)
 }
 
-func TestHostnameIngressStatusCheckForEvh(t *testing.T) {
+func TestIngressStatusCheckForEvh(t *testing.T) {
 
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
@@ -262,7 +262,7 @@ func TestHostnameIngressStatusCheckForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameUpdatePoolCacheSyncForEvh(t *testing.T) {
+func TestUpdatePoolCacheSyncForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
@@ -342,7 +342,7 @@ func TestHostnameUpdatePoolCacheSyncForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameCreateCacheSyncForEvh(t *testing.T) {
+func TestCreateCacheSyncForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
@@ -382,7 +382,7 @@ func TestHostnameCreateCacheSyncForEvh(t *testing.T) {
 
 }
 
-func TestHostnameUpdateCacheSyncForEvh(t *testing.T) {
+func TestUpdateCacheSyncForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
@@ -446,7 +446,7 @@ func TestHostnameUpdateCacheSyncForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
+func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
@@ -547,7 +547,7 @@ func TestHostnameMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
+func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
@@ -694,7 +694,7 @@ func TestHostnameMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 }
 
 // Secure ingress to insecure ingress transition
-func TestHostnameDeleteCacheSyncForEvh(t *testing.T) {
+func TestDeleteCacheSyncForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
@@ -737,7 +737,7 @@ func TestHostnameDeleteCacheSyncForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameCUDSecretCacheSyncForEvh(t *testing.T) {
+func TestCUDSecretCacheSyncForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 
@@ -806,7 +806,7 @@ func TestHostnameCUDSecretCacheSyncForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-func TestHostnameDeleteSecretSecureIngressStatusCheckForEvh(t *testing.T) {
+func TestDeleteSecretSecureIngressStatusCheckForEvh(t *testing.T) {
 	integrationtest.EnableEVH()
 	defer integrationtest.DisableEVH()
 
