@@ -235,7 +235,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	slowRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.SLOW_RETRY_LAYER, SlowSyncTime: lib.SLOW_SYNC_TIME}
 	fastRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.FAST_RETRY_LAYER}
 
-	statusQueueParams := utils.WorkerQueue{NumWorkers: 8, WorkqueueName: utils.StatusQueue}
 	numWorkers := uint32(1)
 	ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 	numGraphWorkers := lib.GetshardSize()
@@ -244,7 +243,15 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		numGraphWorkers = 8
 	}
 	graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
+	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
+
+	err := PopulateCache()
+	if err != nil {
+		c.DisableSync = true
+		utils.AviLog.Errorf("failed to populate cache, disabling sync")
+		lib.ShutdownApi()
+	}
 
 	// Setup and start event handlers for objects.
 	c.SetupEventHandlers(informers)
@@ -660,6 +667,7 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 
 	keyStr, ok := key.(string)
 	if !ok {
+		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
 	}
 	nodes.DequeueIngestion(keyStr, false)
@@ -669,6 +677,7 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
 	if !ok {
+		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
 	}
 	retry.DequeueFastRetry(keyStr)
@@ -678,6 +687,7 @@ func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 func SyncFromSlowRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
 	if !ok {
+		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
 	}
 	retry.DequeueSlowRetry(keyStr)
@@ -687,6 +697,7 @@ func SyncFromSlowRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
 	if !ok {
+		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
 	}
 	cache := avicache.SharedAviObjCache()
@@ -696,19 +707,8 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func PulishToStatusLayer(key string, data interface{}) {
-	statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-	bkt := utils.Bkt(key, statusQueue.NumWorkers)
-	statusQueue.Workqueue[bkt].AddRateLimited(data)
-}
-
 func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
-	//cache := avicache.SharedAviObjCache()
-	//aviclient := avicache.SharedAVIClients()
-	//restlayer := rest.NewRestOperations(cache, aviclient)
-	//restlayer.DeQueueNodes(key)
 	status.DequeueStatus(key)
-
 	return nil
 }
 

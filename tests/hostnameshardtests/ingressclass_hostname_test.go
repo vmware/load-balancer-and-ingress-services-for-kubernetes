@@ -380,11 +380,17 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
-	g.Expect(settingNodes[0].SniNodes).Should(gomega.HaveLen(1))
+	g.Eventually(func() int {
+		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
+		settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(settingNodes[0].SniNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
 	g.Expect(settingNodes[0].SniNodes[0].Name).Should(gomega.Equal("cluster--my-infrasetting-baz.com"))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(0))
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs)
+	}, 25*time.Second).Should(gomega.Equal(0))
 
 	ingClassUpdate = (FakeIngressClass{
 		Name:       ingClassName,

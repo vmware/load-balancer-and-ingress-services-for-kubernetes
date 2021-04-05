@@ -413,7 +413,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					}
 					statusOption := status.StatusOptions{
 						ObjType: lib.Gateway,
-						Op:      "update",
+						Op:      lib.UpdateOperation,
 						Options: &updateOptions,
 					}
 					if lib.UseServicesAPI() {
@@ -432,7 +432,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.L4LBService,
-						Op:      "update",
+						Op:      lib.UpdateOperation,
 						Options: &updateOptions,
 					}
 					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
@@ -447,8 +447,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.Ingress,
-						Op:      "update",
+						Op:      lib.UpdateOperation,
 						Options: &updateOptions,
+					}
+					if utils.GetInformers().RouteInformer != nil {
+						statusOption.ObjType = utils.OshiftRoute
 					}
 					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
 					bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
@@ -465,7 +468,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 							pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 							if found {
 								if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-									utils.AviLog.Infof("xxx updating status2")
 									updateOptions := status.UpdateOptions{
 										Vip:                vs_cache_obj.Vip,
 										ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
@@ -474,7 +476,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 									}
 									statusOption := status.StatusOptions{
 										ObjType: utils.Ingress,
-										Op:      "update",
+										Op:      lib.UpdateOperation,
 										Options: &updateOptions,
 									}
 									if utils.GetInformers().RouteInformer != nil {
@@ -523,7 +525,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
-					Op:      "delete",
+					Op:      lib.DeleteOperation,
 					Options: &updateOptions,
 				}
 				statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
@@ -582,7 +584,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				}
 				statusOption := status.StatusOptions{
 					ObjType: lib.Gateway,
-					Op:      "delete",
+					Op:      lib.DeleteOperation,
 					Options: &updateOptions,
 				}
 				statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
@@ -605,7 +607,8 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.Ingress,
-						Op:      "delete",
+						Op:      lib.DeleteOperation,
+						IsVSDel: true,
 						Options: &updateOptions,
 					}
 					if utils.GetInformers().RouteInformer != nil {
