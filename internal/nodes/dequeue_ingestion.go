@@ -527,7 +527,9 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 
 	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
 	if oldSetting != nil {
-		oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
+		if oldSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+			oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
+		}
 		oldInfraPrefix = oldSetting.Name
 	}
 
@@ -536,7 +538,9 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
 	} else if newSetting != nil {
-		newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
+		if newSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
+		}
 		newInfraPrefix = newSetting.Name
 	}
 
