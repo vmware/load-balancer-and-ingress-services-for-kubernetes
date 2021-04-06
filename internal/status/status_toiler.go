@@ -20,10 +20,13 @@ import (
 )
 
 type StatusOptions struct {
-	ObjType string
-	Op      string
-	IsVSDel bool
-	Options *UpdateOptions
+	ObjType   string
+	Op        string
+	IsVSDel   bool
+	ObjName   string
+	Namespace string
+	Key       string
+	Options   *UpdateOptions
 }
 
 func PublishToStatusQueue(key string, statusOption StatusOptions) {
@@ -67,6 +70,12 @@ func DequeueStatus(objIntf interface{}) error {
 			UpdateSvcApiGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
 			DeleteSvcApiGatewayStatusAddress(obj.Options.Key, obj.Options.ServiceMetadata)
+		}
+	} else if obj.ObjType == lib.NPLService {
+		if obj.Op == lib.UpdateStatus {
+			UpdateNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
+		} else if obj.Op == lib.DeleteStatus {
+			DeleteNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
 		}
 	}
 
