@@ -110,10 +110,35 @@ func (rest *RestOperations) SyncObjectStatuses() {
 	}
 
 	if lib.GetAdvancedL4() {
-		status.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
+		for i := range allGatewayUpdateOptions {
+			statusOption := status.StatusOptions{
+				ObjType: lib.Gateway,
+				Op:      lib.UpdateStatus,
+				Options: &allGatewayUpdateOptions[i],
+			}
+			status.PublishToStatusQueue(allGatewayUpdateOptions[i].ServiceMetadata.Gateway, statusOption)
+		}
 	} else {
-		status.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
-		status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+		for i := range allIngressUpdateOptions {
+			statusOption := status.StatusOptions{
+				ObjType: utils.Ingress,
+				Op:      lib.UpdateStatus,
+				Options: &allIngressUpdateOptions[i],
+				IsVSDel: true,
+			}
+			if utils.GetInformers().RouteInformer != nil {
+				statusOption.ObjType = utils.OshiftRoute
+			}
+			status.PublishToStatusQueue(allIngressUpdateOptions[i].ServiceMetadata.IngressName, statusOption)
+		}
+		for i := range allServiceLBUpdateOptions {
+			statusOption := status.StatusOptions{
+				ObjType: utils.L4LBService,
+				Op:      lib.UpdateStatus,
+				Options: &allServiceLBUpdateOptions[i],
+			}
+			status.PublishToStatusQueue(allServiceLBUpdateOptions[i].ServiceMetadata.NamespaceServiceName[0], statusOption)
+		}
 	}
 	utils.AviLog.Infof("Status syncing completed")
 	return

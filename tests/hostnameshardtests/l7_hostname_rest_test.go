@@ -141,7 +141,7 @@ func TestIngressStatusCheck(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 5*time.Second).Should(gomega.Equal(1))
+	}, 20*time.Second).Should(gomega.Equal(1))
 	ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 	g.Expect(ingress.Status.LoadBalancer.Ingress).To(gomega.HaveLen(1))
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.Equal("10.250.250.10"))

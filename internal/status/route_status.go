@@ -76,11 +76,11 @@ func UpdateRouteIngressStatus(options []UpdateOptions, bulk bool) {
 	}
 }
 
-func DeleteRouteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, isVSDelete bool, key string) error {
+func DeleteRouteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
 	if utils.GetInformers().IngressInformer != nil {
-		return DeleteIngressStatus(svc_mdata_obj, isVSDelete, key)
+		return DeleteIngressStatus(options, isVSDelete, key)
 	} else if utils.GetInformers().RouteInformer != nil {
-		return DeleteRouteStatus(svc_mdata_obj, isVSDelete, key)
+		return DeleteRouteStatus(options, isVSDelete, key)
 	} else {
 		utils.AviLog.Errorf("key: %s, msg: Status delete failed, no suitable informers found", key)
 		return errors.New("Status delete failed, no suitable informers found")
@@ -416,7 +416,11 @@ func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) bool {
 	return true
 }
 
-func DeleteRouteStatus(svc_mdata_obj avicache.ServiceMetadataObj, isVSDelete bool, key string) error {
+func DeleteRouteStatus(options []UpdateOptions, isVSDelete bool, key string) error {
+	if len(options) == 0 {
+		return fmt.Errorf("Length of options is zero")
+	}
+	svc_mdata_obj := options[0].ServiceMetadata
 	var err error
 	if len(svc_mdata_obj.NamespaceIngressName) > 0 {
 		// This is SNI with hostname sharding.
