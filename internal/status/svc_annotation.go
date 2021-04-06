@@ -44,7 +44,12 @@ func CheckNPLSvcAnnotation(key, namespace, name string) bool {
 // If the annotation is already pressent return true
 func UpdateNPLAnnotation(key, namespace, name string) {
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
-	if err != nil || service.Spec.Type == corev1.ServiceTypeNodePort {
+	if err != nil {
+		utils.AviLog.Infof("key: %s, returning without updating NPL annotation, err %v", err)
+		return
+	}
+	if service.Spec.Type == corev1.ServiceTypeNodePort {
+		utils.AviLog.Infof("key: %s, returning without updating NPL annotation for Service type NodePort")
 		return
 	}
 	ann := service.GetAnnotations()
