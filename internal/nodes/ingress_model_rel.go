@@ -696,6 +696,11 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 	allIngresses := make([]string, 0)
 
+	if !utils.GetIngressClassEnabled() {
+		utils.AviLog.Infof("key: %s, msg: AviInfraSetting cannot be applied to Ingresses when IngressClass is not enabled in the cluster.", key)
+		return allIngresses, false
+	}
+
 	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
 	if err == nil {
 		if infraSetting.Status.Status != lib.StatusAccepted {
