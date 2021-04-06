@@ -265,15 +265,13 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.Ingress,
-						Op:      lib.UpdateOperation,
+						Op:      lib.UpdateStatus,
 						Options: &updateOptions,
 					}
 					if utils.GetInformers().RouteInformer != nil {
 						statusOption.ObjType = utils.OshiftRoute
 					}
-					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-					bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
-					statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
 			}
 		} else {
@@ -323,16 +321,14 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.Ingress,
-					Op:      lib.DeleteOperation,
+					Op:      lib.DeleteStatus,
 					IsVSDel: isVSDelete,
 					Options: &updateOptions,
 				}
 				if utils.GetInformers().RouteInformer != nil {
 					statusOption.ObjType = utils.OshiftRoute
 				}
-				statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-				bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
-				statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+				status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 			}
 		}
 	}

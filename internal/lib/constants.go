@@ -105,8 +105,8 @@ const (
 	DefaultRouteCert                           = "router-certs-default"
 	autoAnnotateService                        = "AUTO_ANNOTATE_SERVICE"
 	SeGroupLabelKey                            = "clustername"
-	UpdateOperation                            = "update"
-	DeleteOperation                            = "delete"
+	UpdateStatus                               = "UpdateStatus"
+	DeleteStatus                               = "DeleteStatus"
 
 	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"

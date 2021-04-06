@@ -267,7 +267,6 @@ func patchIngressAnnotations(ingObj *networkingv1beta1.Ingress, vsAnnotations ma
 }
 
 func DeleteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
-	//func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, isVSDelete bool, key string) error {
 	if len(options) == 0 {
 		return fmt.Errorf("Length of options is zero")
 	}
