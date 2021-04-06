@@ -574,7 +574,7 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	TeardownIngressClass(t, ingClassName)
-	VerifyVSNodeDeletion(g, modelName)
+	VerifyVSNodeDeletion(g, settingModelName)
 }
 
 func TestUpdateIngressClassWithInfraSetting(t *testing.T) {

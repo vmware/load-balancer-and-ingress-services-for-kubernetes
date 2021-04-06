@@ -670,7 +670,7 @@ func SyncFromNodesLayer(key string, wg *sync.WaitGroup) error {
 	return nil
 }
 
-//Controller Specific method
+// Controller Specific method
 func (c *AviController) InitializeNamespaceSync() {
 	nsLabelToSyncKey, nsLabelToSyncVal := lib.GetLabelToSyncNamespace()
 	if nsLabelToSyncKey != "" {

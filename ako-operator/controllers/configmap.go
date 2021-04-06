@@ -118,6 +118,25 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[ControllerIP] = ako.Spec.ControllerSettings.ControllerIP
 	cm.Data[ControllerVersion] = ako.Spec.ControllerSettings.ControllerVersion
 	cm.Data[CniPlugin] = ako.Spec.AKOSettings.CNIPlugin
+
+	enableEVH := "false"
+	if ako.Spec.AKOSettings.EnableEVH {
+		enableEVH = "true"
+	}
+	cm.Data[EnableEVH] = enableEVH
+
+	layer7Only := "false"
+	if ako.Spec.AKOSettings.Layer7Only {
+		layer7Only = "true"
+	}
+	cm.Data[Layer7Only] = layer7Only
+
+	servicesAPI := "false"
+	if ako.Spec.AKOSettings.ServicesAPI {
+		servicesAPI = "true"
+	}
+	cm.Data[ServicesAPI] = servicesAPI
+
 	cm.Data[ShardVSSize] = string(ako.Spec.L7Settings.ShardVSSize)
 	cm.Data[PassthroughShardSize] = string(ako.Spec.L7Settings.PassthroughShardSize)
 	fullSyncFreq := ako.Spec.AKOSettings.FullSyncFrequency
@@ -152,13 +171,21 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	if ako.Spec.L4Settings.AdvancedL4 {
 		advancedL4 = "true"
 	}
+	cm.Data[AdvancedL4] = advancedL4
 
 	enableRHI := "false"
 	if ako.Spec.NetworkSettings.EnableRHI {
 		enableRHI = "true"
 	}
 	cm.Data[EnableRHI] = enableRHI
-	cm.Data[AdvancedL4] = advancedL4
+
+	var err error
+	vipListBytes, err := json.Marshal(ako.Spec.NetworkSettings.VipNetworkList)
+	if err != nil {
+		return cm, err
+	}
+	cm.Data[VipNetworkList] = string(vipListBytes)
+
 	cm.Data[ServiceType] = string(ako.Spec.L7Settings.ServiceType)
 	cm.Data[NodeKey] = ako.Spec.NodePortSelector.Key
 	cm.Data[NodeValue] = ako.Spec.NodePortSelector.Value
@@ -177,7 +204,6 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 
 	nwListRows := []NodeNetworkListRow{}
 	nwListBytes := []byte{}
-	var err error
 	for _, row := range ako.Spec.NetworkSettings.NodeNetworkList {
 		nwListRows = append(nwListRows, NodeNetworkListRow{
 			Cidrs:       row.Cidrs,
@@ -192,6 +218,12 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	}
 	cm.Data[NodeNetworkList] = string(nwListBytes)
 	cm.Data[SyncNamespace] = ako.Spec.L7Settings.SyncNamespace
+
+	noPGForSni := "false"
+	if ako.Spec.L7Settings.NoPGForSNI {
+		noPGForSni = "true"
+	}
+	cm.Data[NoPGForSni] = noPGForSni
 
 	cm.Data[NSSyncLabelKey] = ako.Spec.AKOSettings.NSSelector.LabelKey
 	cm.Data[NSSyncLabelValue] = ako.Spec.AKOSettings.NSSelector.LabelValue
