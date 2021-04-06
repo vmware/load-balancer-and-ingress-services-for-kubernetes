@@ -539,6 +539,7 @@ type FakeService struct {
 	LoadBalancerIP string
 	ServicePorts   []Serviceport
 	Selectors      map[string]string
+	Annotations    map[string]string
 }
 
 type Serviceport struct {
@@ -568,9 +569,10 @@ func (svc FakeService) Service() *corev1.Service {
 			Selector:       svc.Selectors,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: svc.Namespace,
-			Name:      svc.Name,
-			Labels:    svc.Labels,
+			Namespace:   svc.Namespace,
+			Name:        svc.Name,
+			Labels:      svc.Labels,
+			Annotations: svc.Annotations,
 		},
 	}
 	return svcExample
