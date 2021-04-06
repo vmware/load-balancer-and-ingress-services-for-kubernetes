@@ -44,8 +44,12 @@ var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
 
-func syncFuncForTest(key string, wg *sync.WaitGroup) error {
-	keyChan <- key
+func syncFuncForTest(key interface{}, wg *sync.WaitGroup) error {
+	keyStr, ok := key.(string)
+	if !ok {
+		return nil
+	}
+	keyChan <- keyStr
 	return nil
 }
 

@@ -30,7 +30,6 @@ import (
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
-	k8serror "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
@@ -258,12 +257,21 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				vs_cache_obj.AddToPoolKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if svc_mdata_obj.Namespace != "" {
-					status.UpdateRouteIngressStatus([]status.UpdateOptions{{
+					updateOptions := status.UpdateOptions{
 						Vip:                vs_cache_obj.Vip,
 						ServiceMetadata:    svc_mdata_obj,
 						Key:                key,
 						VirtualServiceUUID: vs_cache_obj.Uuid,
-					}}, false)
+					}
+					statusOption := status.StatusOptions{
+						ObjType: utils.Ingress,
+						Op:      lib.UpdateStatus,
+						Options: &updateOptions,
+					}
+					if utils.GetInformers().RouteInformer != nil {
+						statusOption.ObjType = utils.OshiftRoute
+					}
+					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
 			}
 		} else {
@@ -307,11 +315,20 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 		if success {
 			if pool_cache_obj.ServiceMetadataObj.IngressName != "" {
 				// SNI VSes use the VS object metadata, delete ingress status for others
-				err := status.DeleteRouteIngressStatus(pool_cache_obj.ServiceMetadataObj, isVSDelete, key)
-				if k8serror.IsNotFound(err) {
-					// Just log and get away
-					utils.AviLog.Infof("key: %s, msg: ingress already deleted, nothing to update in status", key)
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
+					Key:             key,
 				}
+				statusOption := status.StatusOptions{
+					ObjType: utils.Ingress,
+					Op:      lib.DeleteStatus,
+					IsVSDel: isVSDelete,
+					Options: &updateOptions,
+				}
+				if utils.GetInformers().RouteInformer != nil {
+					statusOption.ObjType = utils.OshiftRoute
+				}
+				status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 			}
 		}
 	}

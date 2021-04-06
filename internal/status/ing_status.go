@@ -266,7 +266,11 @@ func patchIngressAnnotations(ingObj *networkingv1beta1.Ingress, vsAnnotations ma
 	return nil
 }
 
-func DeleteIngressStatus(svc_mdata_obj avicache.ServiceMetadataObj, isVSDelete bool, key string) error {
+func DeleteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
+	if len(options) == 0 {
+		return fmt.Errorf("Length of options is zero")
+	}
+	svc_mdata_obj := options[0].ServiceMetadata
 	var err error
 	if len(svc_mdata_obj.NamespaceIngressName) > 0 {
 		// This is SNI with hostname sharding.
