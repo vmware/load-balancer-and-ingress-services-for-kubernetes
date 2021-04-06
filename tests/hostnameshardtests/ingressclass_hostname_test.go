@@ -285,10 +285,15 @@ func TestAviInfraSettingNamingConvention(t *testing.T) {
 	shardPoolName := "cluster--my-infrasetting-bar.com_foo-default-foo-with-class"
 	sniPoolName := "cluster--my-infrasetting-default-baz.com_foo-foo-with-class"
 
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
-		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	g.Eventually(func() string {
+		found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
+		if found {
+			settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return settingNodes[0].SniNodes[0].Name
+		} else {
+			return ""
+		}
+	}, 55*time.Second).Should(gomega.Equal(sniVsName))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
@@ -296,7 +301,6 @@ func TestAviInfraSettingNamingConvention(t *testing.T) {
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs[0].Name).Should(gomega.Equal(shardVsName))
-	g.Expect(settingNodes[0].SniNodes[0].Name).Should(gomega.Equal(sniVsName))
 	g.Expect(settingNodes[0].SniNodes[0].PoolRefs[0].Name).Should(gomega.Equal(sniPoolName))
 	g.Expect(settingNodes[0].SniNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(sniPoolName))
 	g.Expect(settingNodes[0].SniNodes[0].SSLKeyCertRefs[0].Name).Should(gomega.Equal(sniVsName))
@@ -539,7 +543,15 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
+	g.Eventually(func() int {
+		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
+		if found {
+			settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(settingNodes[0].PoolRefs)
+		} else {
+			return 0
+		}
+	}, 25*time.Second).Should(gomega.Equal(1))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})

@@ -75,7 +75,6 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
 	svcExample := (FakeService{
 		Name:         SINGLEPORTSVC,
@@ -111,6 +110,78 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(true))
+	TearDownTestForSvcLB(t, g)
+}
+
+func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	SetNodePortMode()
+	defer SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	nodePort := int32(31030)
+	CreateNode(t, "testNode1", nodeIP)
+	defer DeleteNode(t, "testNode1")
+	SetUpTestForSvcLB(t)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+
+	skipNodePort := make(map[string]string)
+	skipNodePort["skipnodeport.ako.vmware.com/enabled"] = "true"
+
+	svcExample := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
+		Annotations:  skipNodePort,
+	}).Service()
+	svcExample.ResourceVersion = "3"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	address := "1.1.1.1"
+	g.Eventually(func() *string {
+		_, model := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		nodes := model.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].PoolRefs[0].Servers[0].Ip.Addr
+	}, 25*time.Second).Should(gomega.Equal(&address))
+	// Reset the annotation
+	skipNodePort = nil
+	svcExample = (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
+		Annotations:  skipNodePort,
+	}).Service()
+	svcExample.ResourceVersion = "4"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	g.Eventually(func() *string {
+		_, model := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		nodes := model.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].PoolRefs[0].Servers[0].Ip.Addr
+	}, 25*time.Second).Should(gomega.Equal(&nodeIP))
+
 	TearDownTestForSvcLB(t, g)
 }
 
