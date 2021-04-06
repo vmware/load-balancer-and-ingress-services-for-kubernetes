@@ -2409,7 +2409,8 @@ func ValidateUserInput(client *clients.AviClient) bool {
 		isNodeNetworkValid &&
 		checkPublicCloud(client) &&
 		isRequiredValuesValid &&
-		checkAndSetVRFFromNetwork(client)
+		checkAndSetVRFFromNetwork(client) &&
+		lib.IsValidCni()
 
 	if !isValid {
 		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid {

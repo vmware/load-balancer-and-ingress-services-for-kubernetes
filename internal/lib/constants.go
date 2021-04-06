@@ -20,6 +20,7 @@ const (
 	ENABLE_EVH                = "ENABLE_EVH"
 	CNI_PLUGIN                = "CNI_PLUGIN"
 	CALICO_CNI                = "calico"
+	ANTREA_CNI                = "antrea"
 	OPENSHIFT_CNI             = "openshift"
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
