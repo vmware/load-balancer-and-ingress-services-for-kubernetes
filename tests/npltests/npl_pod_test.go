@@ -101,7 +101,6 @@ func setUpTestForSvcLB(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	//integrationtest.CreateServiceWithSelectors(t, defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
 	integrationtest.PollForCompletion(t, defaultLBModel, 5)
 }
 
@@ -1139,4 +1138,61 @@ func TestNPLAutoAnnotationLBSvc(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(true))
 
 	tearDownTestForSvcLB(t, g)
+}
+
+//TestNPLSvcNodePort creates a Service and an Ingress which uses that Service.
+//Then the service type is changed to NodePort, and it is verified that the NPL annotation is removed from the Service.
+func TestNPLSvcNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	SetUpTestForIngress(t, defaultL7Model)
+	selectors := make(map[string]string)
+	selectors["app"] = "npl"
+	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	createPodWithNPLAnnotation(selectors)
+
+	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+	if found {
+		t.Fatalf("Couldn't find Model %v", defaultL7Model)
+	}
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		ann := svc.GetAnnotations()
+		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+
+	svc := integrationtest.ConstructService(defaultNS, "avisvc", corev1.ServiceTypeNodePort, false, selectors)
+	ann := make(map[string]string)
+	ann[lib.NPLSvcAnnotation] = "true"
+	svc.Annotations = ann
+	svc.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Services(defaultNS).Update(context.TODO(), svc, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+	g.Eventually(func() bool {
+		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		ann := svc.GetAnnotations()
+		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(false))
 }

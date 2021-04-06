@@ -294,7 +294,14 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			svcToDel := objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
 			if lib.AutoAnnotateNPLSvc() {
 				for _, svc := range svcToDel {
-					status.DeleteSvcAnnotation(key, namespace, svc)
+					statusOption := status.StatusOptions{
+						ObjType:   lib.NPLService,
+						Op:        lib.DeleteStatus,
+						ObjName:   svc,
+						Namespace: namespace,
+						Key:       key,
+					}
+					status.PublishToStatusQueue(svc, statusOption)
 				}
 			}
 			if utils.GetIngressClassEnabled() {
@@ -330,7 +337,14 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			svcToDel := objects.SharedSvcLister().IngressMappings(namespace).RemoveIngressMappings(ingName)
 			if lib.AutoAnnotateNPLSvc() {
 				for _, svc := range svcToDel {
-					status.DeleteSvcAnnotation(key, namespace, svc)
+					statusOption := status.StatusOptions{
+						ObjType:   lib.NPLService,
+						Op:        lib.DeleteStatus,
+						ObjName:   svc,
+						Namespace: namespace,
+						Key:       key,
+					}
+					status.PublishToStatusQueue(svc, statusOption)
 				}
 			}
 			return ingresses, true
@@ -344,7 +358,14 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			_, ingrforSvc := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svc)
 			ingrforSvc = utils.Remove(ingrforSvc, ingName)
 			if lib.AutoAnnotateNPLSvc() && len(ingrforSvc) == 0 {
-				status.DeleteSvcAnnotation(key, namespace, svc)
+				statusOption := status.StatusOptions{
+					ObjType:   lib.NPLService,
+					Op:        lib.DeleteStatus,
+					ObjName:   svc,
+					Namespace: namespace,
+					Key:       key,
+				}
+				status.PublishToStatusQueue(svc, statusOption)
 			}
 			objects.SharedSvcLister().IngressMappings(namespace).RemoveSvcFromIngressMappings(ingName, svc)
 		}
@@ -355,7 +376,16 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			objects.SharedSvcLister().IngressMappings(namespace).UpdateIngressMappings(ingName, svc)
 			// Check and update NPl annotation for svc
 			if lib.AutoAnnotateNPLSvc() {
-				status.CheckUpdateSvcAnnotation(key, namespace, svc)
+				if !status.CheckNPLSvcAnnotation(key, namespace, svc) {
+					statusOption := status.StatusOptions{
+						ObjType:   lib.NPLService,
+						Op:        lib.UpdateStatus,
+						ObjName:   svc,
+						Namespace: namespace,
+						Key:       key,
+					}
+					status.PublishToStatusQueue(svc, statusOption)
+				}
 			}
 		}
 		secrets := parseSecretsForIngress(ingObj.Spec, key)
@@ -380,7 +410,7 @@ func IngClassToIng(ingClassName string, namespace string, key string) ([]string,
 }
 
 func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
-	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	svc, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		// Detect a delete condition here.
 		if k8serrors.IsNotFound(err) {
@@ -393,15 +423,34 @@ func SvcToIng(svcName string, namespace string, key string) ([]string, bool) {
 		}
 		return nil, false
 	}
+
+	if lib.AutoAnnotateNPLSvc() && svc.Spec.Type == corev1.ServiceTypeNodePort {
+		statusOption := status.StatusOptions{
+			ObjType:   lib.NPLService,
+			Op:        lib.DeleteStatus,
+			ObjName:   svcName,
+			Namespace: namespace,
+			Key:       key,
+		}
+		status.PublishToStatusQueue(svcName, statusOption)
+	}
+
 	_, ingresses := objects.SharedSvcLister().IngressMappings(namespace).GetSvcToIng(svcName)
-	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, ingresses)
 	if len(ingresses) == 0 {
 		return nil, false
 	}
 
 	// Check if the svc has the NPL Annotation. If not, annotate and exit without returning any ingress
 	if lib.AutoAnnotateNPLSvc() {
-		if !status.CheckUpdateSvcAnnotation(key, namespace, svcName) {
+		if !status.CheckNPLSvcAnnotation(key, namespace, svcName) {
+			statusOption := status.StatusOptions{
+				ObjType:   lib.NPLService,
+				Op:        lib.UpdateStatus,
+				ObjName:   svcName,
+				Namespace: namespace,
+				Key:       key,
+			}
+			status.PublishToStatusQueue(svcName, statusOption)
 			return nil, false
 		}
 	}

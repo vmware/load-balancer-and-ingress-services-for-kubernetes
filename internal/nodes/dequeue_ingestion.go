@@ -310,7 +310,15 @@ func handleL4Service(key string, fullsync bool) {
 	if !isServiceDelete(name, namespace, key) && utils.CheckIfNamespaceAccepted(namespace) {
 		// If Service is Not Annotated with NPL annotation, annotate the service and return.
 		if lib.AutoAnnotateNPLSvc() {
-			if !status.CheckUpdateSvcAnnotation(key, namespace, name) {
+			if !status.CheckNPLSvcAnnotation(key, namespace, name) {
+				statusOption := status.StatusOptions{
+					ObjType:   lib.NPLService,
+					Op:        lib.UpdateStatus,
+					ObjName:   name,
+					Namespace: namespace,
+					Key:       key,
+				}
+				status.PublishToStatusQueue(name, statusOption)
 				return
 			}
 		}
