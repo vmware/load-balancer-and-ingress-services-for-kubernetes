@@ -507,10 +507,9 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v\n", key, err)
 		return nil, false
 	} else {
-		if err = validateHostRuleObj(key, hostrule); err != nil {
+		if hostrule.Status.Status != lib.StatusAccepted {
 			return allIngresses, false
 		}
-
 		fqdn = hostrule.Spec.VirtualHost.Fqdn
 		oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
 		if oldFound {
@@ -576,7 +575,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		utils.AviLog.Errorf("key: %s, msg: Error getting httprule: %v\n", key, err)
 		return nil, false
 	} else {
-		if err = validateHTTPRuleObj(key, httprule); err != nil {
+		if httprule.Status.Status != lib.StatusAccepted {
 			return allIngresses, false
 		}
 
@@ -650,8 +649,7 @@ func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 
 	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
 	if err == nil {
-		// Validate Avi references and configurations in AviInfraSetting.
-		if err = validateAviInfraSetting(key, infraSetting); err != nil {
+		if infraSetting.Status.Status != lib.StatusAccepted {
 			return allIngresses, false
 		}
 	}
@@ -680,8 +678,7 @@ func AviSettingToRoute(infraSettingName, namespace, key string) ([]string, bool)
 
 	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
 	if err == nil {
-		// Validate Avi references and configurations in AviInfraSetting.
-		if err = validateAviInfraSetting(key, infraSetting); err != nil {
+		if infraSetting.Status.Status != lib.StatusAccepted {
 			return allRoutes, false
 		}
 	}
@@ -709,7 +706,7 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
 	if err == nil {
 		// Validate Avi references and configurations in AviInfraSetting.
-		if err = validateAviInfraSetting(key, infraSetting); err != nil {
+		if infraSetting.Status.Status != lib.StatusAccepted {
 			return allGateways, false
 		}
 	}
@@ -748,7 +745,7 @@ func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]s
 	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
 	if err == nil {
 		// Validate Avi references and configurations in AviInfraSetting.
-		if err = validateAviInfraSetting(key, infraSetting); err != nil {
+		if infraSetting.Status.Status != lib.StatusAccepted {
 			return allSvcs, false
 		}
 	}
