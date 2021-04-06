@@ -113,37 +113,31 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		for i := range allGatewayUpdateOptions {
 			statusOption := status.StatusOptions{
 				ObjType: lib.Gateway,
-				Op:      lib.UpdateOperation,
+				Op:      lib.UpdateStatus,
 				Options: &allGatewayUpdateOptions[i],
 			}
-			statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-			bkt := utils.Bkt(allGatewayUpdateOptions[i].ServiceMetadata.Gateway, statusQueue.NumWorkers)
-			statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+			status.PublishToStatusQueue(allGatewayUpdateOptions[i].ServiceMetadata.Gateway, statusOption)
 		}
 	} else {
 		for i := range allIngressUpdateOptions {
 			statusOption := status.StatusOptions{
 				ObjType: utils.Ingress,
-				Op:      lib.UpdateOperation,
+				Op:      lib.UpdateStatus,
 				Options: &allIngressUpdateOptions[i],
 				IsVSDel: true,
 			}
 			if utils.GetInformers().RouteInformer != nil {
 				statusOption.ObjType = utils.OshiftRoute
 			}
-			statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-			bkt := utils.Bkt(allIngressUpdateOptions[i].ServiceMetadata.IngressName, statusQueue.NumWorkers)
-			statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+			status.PublishToStatusQueue(allIngressUpdateOptions[i].ServiceMetadata.IngressName, statusOption)
 		}
 		for i := range allServiceLBUpdateOptions {
 			statusOption := status.StatusOptions{
 				ObjType: utils.L4LBService,
-				Op:      lib.UpdateOperation,
+				Op:      lib.UpdateStatus,
 				Options: &allServiceLBUpdateOptions[i],
 			}
-			statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-			bkt := utils.Bkt(allServiceLBUpdateOptions[i].ServiceMetadata.NamespaceServiceName[0], statusQueue.NumWorkers)
-			statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+			status.PublishToStatusQueue(allServiceLBUpdateOptions[i].ServiceMetadata.NamespaceServiceName[0], statusOption)
 		}
 	}
 	utils.AviLog.Infof("Status syncing completed")

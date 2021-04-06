@@ -413,14 +413,13 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					}
 					statusOption := status.StatusOptions{
 						ObjType: lib.Gateway,
-						Op:      lib.UpdateOperation,
+						Op:      lib.UpdateStatus,
 						Options: &updateOptions,
 					}
 					if lib.UseServicesAPI() {
 						statusOption.ObjType = lib.SERVICES_API
 					}
-					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-					statusQueue.Workqueue[0].AddRateLimited(statusOption)
+					status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 
 				} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 					// This service needs an update of the status
@@ -432,12 +431,10 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.L4LBService,
-						Op:      lib.UpdateOperation,
+						Op:      lib.UpdateStatus,
 						Options: &updateOptions,
 					}
-					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-					bkt := utils.Bkt(svc_mdata_obj.NamespaceServiceName[0], statusQueue.NumWorkers)
-					statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+					status.PublishToStatusQueue(svc_mdata_obj.NamespaceServiceName[0], statusOption)
 				} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
 					updateOptions := status.UpdateOptions{
 						Vip:                parentVsObj.Vip,
@@ -447,15 +444,13 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.Ingress,
-						Op:      lib.UpdateOperation,
+						Op:      lib.UpdateStatus,
 						Options: &updateOptions,
 					}
 					if utils.GetInformers().RouteInformer != nil {
 						statusOption.ObjType = utils.OshiftRoute
 					}
-					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-					bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
-					statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
 				// But before this a pool may have got created as a part of the macro operation, so update the ingress status here.
@@ -476,15 +471,13 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 									}
 									statusOption := status.StatusOptions{
 										ObjType: utils.Ingress,
-										Op:      lib.UpdateOperation,
+										Op:      lib.UpdateStatus,
 										Options: &updateOptions,
 									}
 									if utils.GetInformers().RouteInformer != nil {
 										statusOption.ObjType = utils.OshiftRoute
 									}
-									statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-									bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
-									statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+									status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 								}
 							}
 						}
@@ -525,12 +518,10 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
-					Op:      lib.DeleteOperation,
+					Op:      lib.DeleteStatus,
 					Options: &updateOptions,
 				}
-				statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-				bkt := utils.Bkt(svc_mdata_obj.NamespaceServiceName[0], statusQueue.NumWorkers)
-				statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+				status.PublishToStatusQueue(svc_mdata_obj.NamespaceServiceName[0], statusOption)
 			}
 			rest.cache.VsCacheMeta.AviCacheAdd(k, &vs_cache_obj)
 			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(&vs_cache_obj))
@@ -584,15 +575,14 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				}
 				statusOption := status.StatusOptions{
 					ObjType: lib.Gateway,
-					Op:      lib.DeleteOperation,
+					Op:      lib.DeleteStatus,
 					Options: &updateOptions,
 				}
-				statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-				bkt := utils.Bkt(updateOptions.ServiceMetadata.Gateway, statusQueue.NumWorkers)
-				statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 
-				statusOption.ObjType = utils.L4LBService
-				statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+				statusOptionLBSvc := statusOption
+				statusOptionLBSvc.ObjType = utils.L4LBService
+				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOptionLBSvc)
 
 			} else if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 				status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
@@ -607,16 +597,14 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.Ingress,
-						Op:      lib.DeleteOperation,
+						Op:      lib.DeleteStatus,
 						IsVSDel: true,
 						Options: &updateOptions,
 					}
 					if utils.GetInformers().RouteInformer != nil {
 						statusOption.ObjType = utils.OshiftRoute
 					}
-					statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
-					bkt := utils.Bkt(updateOptions.ServiceMetadata.IngressName, statusQueue.NumWorkers)
-					statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
 			} else {
 				// Shared VS deletion related ingress status update

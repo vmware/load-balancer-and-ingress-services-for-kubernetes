@@ -26,6 +26,12 @@ type StatusOptions struct {
 	Options *UpdateOptions
 }
 
+func PublishToStatusQueue(key string, statusOption StatusOptions) {
+	statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
+	bkt := utils.Bkt(key, statusQueue.NumWorkers)
+	statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
+}
+
 func DequeueStatus(objIntf interface{}) error {
 	obj, ok := objIntf.(StatusOptions)
 	if !ok {
@@ -33,33 +39,33 @@ func DequeueStatus(objIntf interface{}) error {
 		return nil
 	}
 	if obj.ObjType == utils.L4LBService {
-		if obj.Op == lib.UpdateOperation {
+		if obj.Op == lib.UpdateStatus {
 			UpdateL4LBStatus([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == lib.DeleteOperation {
+		} else if obj.Op == lib.DeleteStatus {
 			DeleteL4LBStatus(obj.Options.ServiceMetadata, obj.Options.Key)
 		}
 	} else if obj.ObjType == utils.Ingress {
-		if obj.Op == lib.UpdateOperation {
+		if obj.Op == lib.UpdateStatus {
 			UpdateIngressStatus([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == lib.DeleteOperation {
+		} else if obj.Op == lib.DeleteStatus {
 			DeleteIngressStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
 		}
 	} else if obj.ObjType == utils.OshiftRoute {
-		if obj.Op == lib.UpdateOperation {
+		if obj.Op == lib.UpdateStatus {
 			UpdateRouteStatus([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == lib.DeleteOperation {
+		} else if obj.Op == lib.DeleteStatus {
 			DeleteRouteStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
 		}
 	} else if obj.ObjType == lib.Gateway {
-		if obj.Op == lib.UpdateOperation {
+		if obj.Op == lib.UpdateStatus {
 			UpdateGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == lib.DeleteOperation {
+		} else if obj.Op == lib.DeleteStatus {
 			DeleteGatewayStatusAddress(obj.Options.ServiceMetadata, "")
 		}
 	} else if obj.ObjType == lib.SERVICES_API {
-		if obj.Op == lib.UpdateOperation {
+		if obj.Op == lib.UpdateStatus {
 			UpdateSvcApiGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
-		} else if obj.Op == lib.DeleteOperation {
+		} else if obj.Op == lib.DeleteStatus {
 			DeleteSvcApiGatewayStatusAddress(obj.Options.Key, obj.Options.ServiceMetadata)
 		}
 	}
