@@ -17,6 +17,7 @@ package lib
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -642,7 +643,7 @@ func DSChecksum(pgrefs []string) uint32 {
 	return checksum
 }
 
-func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Clientset) []string {
+func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Clientset) ([]string, error) {
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
@@ -660,7 +661,11 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
-		_, err := oclient.RouteV1().Routes("").List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+		_, err := kclient.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+		if err != nil {
+			return allInformers, errors.New("Error in fetching services: " + err.Error())
+		}
+		_, err = oclient.RouteV1().Routes("").List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 		if err == nil {
 			// Openshift cluster with route support, we will just add route informer
 			allInformers = append(allInformers, utils.RouteInformer)
@@ -670,7 +675,7 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 			allInformers = append(allInformers, utils.IngressClassInformer)
 		}
 	}
-	return allInformers
+	return allInformers, nil
 }
 
 func SSLKeyCertChecksum(sslName, certificate, cacert string) uint32 {
