@@ -86,7 +86,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
 		vs.TenantRef = &tenant
-		if lib.GetEnableCtrl2014Features() {
+		if lib.GetGRBACSupport() {
 			vs.Labels = lib.GetLabels()
 		}
 		if vs_meta.SNIParent {
@@ -224,7 +224,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	sniChild.VhDomainName = vs_meta.VHDomainNames
 	ignPool := false
 	sniChild.IgnPoolNetReach = &ignPool
-	if lib.GetEnableCtrl2014Features() {
+	if lib.GetGRBACSupport() {
 		sniChild.Labels = lib.GetLabels()
 	}
 	if vs_meta.DefaultPool != "" {

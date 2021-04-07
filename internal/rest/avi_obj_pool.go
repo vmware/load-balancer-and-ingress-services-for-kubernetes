@@ -92,7 +92,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		SslProfileRef:     &pool_meta.SslProfileRef,
 		PlacementNetworks: placementNetworks,
 	}
-	if lib.GetEnableCtrl2014Features() {
+	if lib.GetGRBACSupport() {
 		pool.Labels = lib.GetLabels()
 	}
 	if pool_meta.PkiProfile != nil {
