@@ -739,7 +739,7 @@ func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
 	return nil
 }
 
-//Controller Specific method
+// Controller Specific method
 func (c *AviController) InitializeNamespaceSync() {
 	nsLabelToSyncKey, nsLabelToSyncVal := lib.GetLabelToSyncNamespace()
 	if nsLabelToSyncKey != "" {

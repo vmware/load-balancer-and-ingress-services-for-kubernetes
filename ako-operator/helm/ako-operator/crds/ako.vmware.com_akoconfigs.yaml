@@ -37,7 +37,7 @@ spec:
           description: AKOConfigSpec defines the desired state of AKOConfig
           properties:
             akoSettings:
-              description: AKOSettings defines the settings requried for the AKO controller
+              description: AKOSettings defines the settings required for the AKO controller
               properties:
                 apiServerPort:
                   description: APIServerPort is the port at which the AKO API server
@@ -49,6 +49,15 @@ spec:
                 cniPlugin:
                   description: CNIPlugin specifies the CNI to be used
                   type: string
+                enableEVH:
+                  description: EnableEVH enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services
+                  type: boolean
+                layer7Only:
+                  description: Layer7Only enables AKO to do Layer 7 loadbalancing only
+                  type: boolean
+                servicesAPI:
+                  description: ServicesAPI enables AKO to do Layer 4 loadbalancing using Services API
+                  type: boolean
                 deleteConfig:
                   description: DeleteConfig is set if clean up is required by AKO
                   type: boolean
@@ -70,7 +79,7 @@ spec:
                   - ERROR
                   type: string
                 namespaceSelector:
-                  description: Namespace selector specifies the namespace label from
+                  description: Namespace selector specifies the namespace labels from
                     which AKO should sync from
                   properties:
                     labelKey:
@@ -118,11 +127,11 @@ spec:
                   description: AdvancedL4 specifies whether the AKO controller should
                     listen for the Gateway objects
                   type: boolean
-                defaultDomain:
-                  description: DefaultDomain is the default domain
-                  type: string
                 autoFQDN:
                   description: Specifies the FQDN pattern - default, flat or disabled
+                  type: string
+                defaultDomain:
+                  description: DefaultDomain is the default domain
                   type: string
               type: object
             l7Settings:
@@ -159,6 +168,9 @@ spec:
                   description: SyncNamespace takes in a namespace from which AKO will
                     sync the objects
                   type: string
+                noPGForSNI:
+                  description: NoPGForSNI removes Avi PoolGroups from SNI VSes
+                  type: boolean
               type: object
             logFile:
               type: string
@@ -175,6 +187,12 @@ spec:
                   description: NetworkName is the name of the network as specified
                     in Avi
                   type: string
+                vipNetworkList:
+                  description: VipNetworkList holds the names of networks as specified in Avi
+                  items:
+                    type: string
+                  type: array
+                layer7Only:
                 nodeNetworkList:
                   description: 'NodeNetworkList is the list of networks and their
                     cidrs used in pool placement network for vcenter cloud. This is

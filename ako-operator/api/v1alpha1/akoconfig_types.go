@@ -55,6 +55,12 @@ type AKOSettings struct {
 	CNIPlugin string `json:"cniPlugin,omitempty"`
 	// Namespace selector specifies the namespace labels from which AKO should sync from
 	NSSelector NamespaceSelector `json:"namespaceSelector,omitempty"`
+	// EnableEVH enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services
+	EnableEVH bool `json:"enableEVH,omitempty"`
+	// Layer7Only enables AKO to do Layer 7 loadbalancing only
+	Layer7Only bool `json:"layer7Only,omitempty"`
+	// ServicesAPI enables AKO to do Layer 4 loadbalancing using Services API
+	ServicesAPI bool `json:"servicesAPI,omitempty"`
 }
 
 type NodeNetwork struct {
@@ -78,6 +84,8 @@ type NetworkSettings struct {
 	NetworkName string `json:"networkName,omitempty"`
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
+	// VipNetworkList holds the names of networks as specified in Avi
+	VipNetworkList []string `json:"vipNetworkList,omitempty"`
 }
 
 // L7Settings defines the L7 configuration for the AKO controller
@@ -92,6 +100,8 @@ type L7Settings struct {
 	PassthroughShardSize VSSize `json:"passthroughShardSize,omitempty"`
 	// SyncNamespace takes in a namespace from which AKO will sync the objects
 	SyncNamespace string `json:"syncNamespace,omitempty"`
+	// NoPGForSNI removes Avi PoolGroups from SNI VSes
+	NoPGForSNI bool `json:"noPGForSNI,omitempty"`
 }
 
 // L4Settings defines the L4 configuration for the AKO controller
