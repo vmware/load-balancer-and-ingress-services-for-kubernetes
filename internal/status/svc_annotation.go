@@ -21,21 +21,41 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// UpdateSvcAnnotation updates a Service with NPL annotation, if not already annotated.
-// If the annotation is already pressent return true
-func CheckUpdateSvcAnnotation(key, namespace, name string) bool {
+func CheckNPLSvcAnnotation(key, namespace, name string) bool {
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
-	if err != nil {
+	if err != nil || service.Spec.Type == corev1.ServiceTypeNodePort {
 		return false
 	}
 	ann := service.GetAnnotations()
 	if val, found := ann[lib.NPLSvcAnnotation]; found {
 		if val == "true" {
 			return true
+		}
+	}
+	return false
+}
+
+// UpdateSvcAnnotation updates a Service with NPL annotation, if not already annotated.
+// If the annotation is already pressent return true
+func UpdateNPLAnnotation(key, namespace, name string) {
+	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
+	if err != nil {
+		utils.AviLog.Infof("key: %s, returning without updating NPL annotation, err %v", err)
+		return
+	}
+	if service.Spec.Type == corev1.ServiceTypeNodePort {
+		utils.AviLog.Infof("key: %s, returning without updating NPL annotation for Service type NodePort")
+		return
+	}
+	ann := service.GetAnnotations()
+	if val, found := ann[lib.NPLSvcAnnotation]; found {
+		if val == "true" {
+			return
 		}
 	}
 	if ann == nil {
@@ -52,13 +72,13 @@ func CheckUpdateSvcAnnotation(key, namespace, name string) bool {
 	_, err = utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(context.TODO(), service.Name, types.MergePatchType, payloadBytes, metav1.PatchOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the Service annotation for NPL: %v", key, err)
-		return false
+		return
 	}
-	utils.AviLog.Infof("key: %s, msg: updated NPL annotation from Service: %s/%s", key, namespace, name)
-	return false
+	utils.AviLog.Infof("key: %s, msg: updated NPL annotation for Service: %s/%s", key, namespace, name)
+	return
 }
 
-func DeleteSvcAnnotation(key, namespace, name string) {
+func DeleteNPLAnnotation(key, namespace, name string) {
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 	if err != nil {
 		return
