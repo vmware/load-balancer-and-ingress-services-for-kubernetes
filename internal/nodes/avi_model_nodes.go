@@ -682,7 +682,9 @@ func (v *AviVsNode) CalculateCheckSum() {
 	if v.Enabled != nil {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
@@ -727,7 +729,9 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	if len(v.PortPool) > 0 {
 		checksum = lib.L4PolicyChecksum(ports, v.PortPool[0].Protocol)
 	}
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 	v.CloudConfigCksum = checksum
 }
 
@@ -780,8 +784,9 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	if v.HeaderReWrite != nil {
 		checksum = checksum + utils.Hash(utils.Stringify(v.HeaderReWrite))
 	}
-
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 	v.CloudConfigCksum = checksum
 }
 
@@ -839,7 +844,9 @@ type AviTLSKeyCertNode struct {
 func (v *AviTLSKeyCertNode) CalculateCheckSum() {
 	// A sum of fields for this SSL cert.
 	checksum := lib.SSLKeyCertChecksum(v.Name, string(v.Cert), v.CACert)
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 	v.CloudConfigCksum = checksum
 }
 
@@ -898,8 +905,11 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 }
 
 func (v *AviVSVIPNode) CalculateCheckSum() {
+
 	checksum := lib.VSVipChecksum(v.FQDNs, v.IPAddress, v.NetworkNames)
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 	v.CloudConfigCksum = checksum
 }
 
@@ -942,7 +952,9 @@ func (v *AviPoolGroupNode) CalculateCheckSum() {
 		return *pgMembers[i].PoolRef < *pgMembers[j].PoolRef
 	})
 	checksum := utils.Hash(utils.Stringify(pgMembers))
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 	v.CloudConfigCksum = checksum
 }
 
@@ -995,8 +1007,10 @@ func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	checksum := lib.DSChecksum(v.PoolGroupRefs)
 	if lib.GetEnableCtrl2014Features() {
-		checksum += lib.GetClusterLabelChecksum()
 		checksum += utils.Hash(v.Script)
+	}
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -1049,7 +1063,9 @@ func (v *AviPkiProfileNode) GetCheckSum() uint32 {
 
 func (v *AviPkiProfileNode) CalculateCheckSum() {
 	checksum := lib.SSLKeyCertChecksum(v.Name, "", v.CACert)
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 	v.CloudConfigCksum = checksum
 }
 
@@ -1118,8 +1134,9 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	if v.ApplicationPersistence != "" {
 		checksum += utils.Hash(v.ApplicationPersistence)
 	}
-
-	checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 	v.CloudConfigCksum = checksum
 }
 
