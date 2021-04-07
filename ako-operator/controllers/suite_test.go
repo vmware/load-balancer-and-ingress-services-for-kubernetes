@@ -44,6 +44,9 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			DisableStaticRouteSync: false,
 			ClusterName:            "test-cluster",
 			CNIPlugin:              "test-cni",
+			EnableEVH:              false,
+			Layer7Only:             false,
+			ServicesAPI:            false,
 		},
 
 		NetworkSettings: akov1alpha1.NetworkSettings{
@@ -64,6 +67,7 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			ShardVSSize:          akov1alpha1.VSSize("LARGE"),
 			ServiceType:          akov1alpha1.ServiceTypeStr("ClusterIP"),
 			PassthroughShardSize: akov1alpha1.VSSize("SMALL"),
+			NoPGForSNI:           false,
 		},
 
 		L4Settings: akov1alpha1.L4Settings{

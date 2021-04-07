@@ -56,10 +56,18 @@ spec:
                   description: DisableStaticRouteSync is set if the static route sync
                     is not required
                   type: boolean
+                enableEVH:
+                  description: EnableEVH enables the Enhanced Virtual Hosting Model
+                    in Avi Controller for the Virtual Services
+                  type: boolean
                 fullSyncFrequency:
                   description: FullSyncFrequency defines the interval at which full
                     sync is carried out by the AKO controller
                   type: string
+                layer7Only:
+                  description: Layer7Only enables AKO to do Layer 7 loadbalancing
+                    only
+                  type: boolean
                 logLevel:
                   description: LogLevel defines the log level to be used by the AKO
                     controller
@@ -78,6 +86,10 @@ spec:
                     labelValue:
                       type: string
                   type: object
+                servicesAPI:
+                  description: ServicesAPI enables AKO to do Layer 4 loadbalancing
+                    using Services API
+                  type: boolean
               type: object
             controllerSettings:
               description: ControllerSettings defines the Avi Controller parameters
@@ -131,6 +143,9 @@ spec:
                 defaultIngController:
                   description: DefaultIngController specifies whether AKO controller
                     is the default ingress controller
+                  type: boolean
+                noPGForSNI:
+                  description: NoPGForSNI removes Avi PoolGroups from SNI VSes
                   type: boolean
                 passthroughShardSize:
                   description: PassthroughShardSize specifies the number of shard
@@ -188,8 +203,6 @@ spec:
                         type: array
                       networkName:
                         type: string
-                    required:
-                    - cidrs
                     type: object
                   type: array
                 subnetIP:
@@ -198,8 +211,12 @@ spec:
                 subnetPrefix:
                   description: SubnetPrefix is the netmask for the subnet
                   type: string
-              required:
-              - subnetIP
+                vipNetworkList:
+                  description: VipNetworkList holds the names of networks as specified
+                    in Avi
+                  items:
+                    type: string
+                  type: array
               type: object
             nodePortSelector:
               description: NodePortSelector defines the node port settings, to be

@@ -2267,8 +2267,11 @@ func (c *AviObjCache) AviClusterStatusPopulate(client *clients.AviClient) error 
 	for _, node := range nodeStates {
 		nodeObj := node.(map[string]interface{})
 		if nodeObj["role"].(string) == "CLUSTER_LEADER" {
+			nodeObjUpSince, okUpSince := nodeObj["up_since"].(string)
+			nodeObjName, okName := nodeObj["name"].(string)
 			if runtimeCache != nil &&
-				(runtimeCache.UpSince != nodeObj["up_since"].(string) || runtimeCache.Name != nodeObj["name"].(string)) {
+				okUpSince && okName &&
+				(runtimeCache.UpSince != nodeObjUpSince || runtimeCache.Name != nodeObjName) {
 				// reboot AKO
 				utils.AviLog.Warnf("Avi controller leader node or leader uptime changed, shutting down AKO")
 				lib.ShutdownApi()
@@ -2276,8 +2279,8 @@ func (c *AviObjCache) AviClusterStatusPopulate(client *clients.AviClient) error 
 			}
 
 			setCacheVal := &AviClusterRuntimeCache{
-				Name:    nodeObj["name"].(string),
-				UpSince: nodeObj["up_since"].(string),
+				Name:    nodeObjName,
+				UpSince: nodeObjUpSince,
 			}
 			c.ClusterStatusCache.AviCacheAdd(lib.ClusterStatusCacheKey, setCacheVal)
 			utils.AviLog.Infof("Added ClusterStatusCache cache key %v val %v", lib.ClusterStatusCacheKey, setCacheVal)
