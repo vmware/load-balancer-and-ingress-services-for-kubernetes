@@ -108,6 +108,7 @@ const (
 	SeGroupLabelKey                            = "clustername"
 	UpdateStatus                               = "UpdateStatus"
 	DeleteStatus                               = "DeleteStatus"
+	NPLService                                 = "NPLService"
 
 	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"

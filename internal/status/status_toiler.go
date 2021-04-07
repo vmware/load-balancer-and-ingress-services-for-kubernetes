@@ -20,10 +20,13 @@ import (
 )
 
 type StatusOptions struct {
-	ObjType string
-	Op      string
-	IsVSDel bool
-	Options *UpdateOptions
+	ObjType   string
+	Op        string
+	IsVSDel   bool
+	ObjName   string
+	Namespace string
+	Key       string
+	Options   *UpdateOptions
 }
 
 func PublishToStatusQueue(key string, statusOption StatusOptions) {
@@ -38,37 +41,43 @@ func DequeueStatus(objIntf interface{}) error {
 		utils.AviLog.Warnf("key: %s, object is not of type StatusOptions, %T", obj.Options.Key, objIntf)
 		return nil
 	}
-	if obj.ObjType == utils.L4LBService {
+	switch obj.ObjType {
+	case utils.L4LBService:
 		if obj.Op == lib.UpdateStatus {
 			UpdateL4LBStatus([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
 			DeleteL4LBStatus(obj.Options.ServiceMetadata, obj.Options.Key)
 		}
-	} else if obj.ObjType == utils.Ingress {
+	case utils.Ingress:
 		if obj.Op == lib.UpdateStatus {
 			UpdateIngressStatus([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
 			DeleteIngressStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
 		}
-	} else if obj.ObjType == utils.OshiftRoute {
+	case utils.OshiftRoute:
 		if obj.Op == lib.UpdateStatus {
 			UpdateRouteStatus([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
 			DeleteRouteStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
 		}
-	} else if obj.ObjType == lib.Gateway {
+	case lib.Gateway:
 		if obj.Op == lib.UpdateStatus {
 			UpdateGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
 			DeleteGatewayStatusAddress(obj.Options.ServiceMetadata, "")
 		}
-	} else if obj.ObjType == lib.SERVICES_API {
+	case lib.SERVICES_API:
 		if obj.Op == lib.UpdateStatus {
 			UpdateSvcApiGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
 			DeleteSvcApiGatewayStatusAddress(obj.Options.Key, obj.Options.ServiceMetadata)
 		}
+	case lib.NPLService:
+		if obj.Op == lib.UpdateStatus {
+			UpdateNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
+		} else if obj.Op == lib.DeleteStatus {
+			DeleteNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
+		}
 	}
-
 	return nil
 }
