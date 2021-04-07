@@ -97,7 +97,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 
 		// Override the Vip in VsVip tto bring in updates, keeping everything else as is.
 
-		if lib.GetEnableCtrl2014Features() {
+		if lib.GetGRBACSupport() {
 			vsvip.Labels = lib.GetLabels()
 		}
 		rest_op = utils.RestOp{
@@ -199,7 +199,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			DNSInfo:           dns_info_arr,
 			Vip:               vips,
 		}
-		if lib.GetEnableCtrl2014Features() {
+		if lib.GetGRBACSupport() {
 			vsvip.Labels = lib.GetLabels()
 		}
 		vsvip.VsvipCloudConfigCksum = &cksumstr
@@ -239,7 +239,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			}
 			vsvip_avi.DNSInfo = dns_info_arr
 			vsvip_avi.VrfContextRef = &vrfContextRef
-			if lib.GetEnableCtrl2014Features() {
+			if lib.GetGRBACSupport() {
 				vsvip_avi.Labels = lib.GetLabels()
 			}
 			vsvip_avi.VsvipCloudConfigCksum = &cksumstr

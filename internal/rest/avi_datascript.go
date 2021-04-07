@@ -40,7 +40,7 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	tenant_ref := "/api/tenant/?name=" + ds_meta.Tenant
 	cr := lib.AKOUser
 	vsdatascriptset := avimodels.VSDataScriptSet{CreatedBy: &cr, Datascript: datascriptlist, Name: &ds_meta.Name, TenantRef: &tenant_ref, PoolGroupRefs: poolgroupref}
-	if lib.GetEnableCtrl2014Features() {
+	if lib.GetGRBACSupport() {
 		vsdatascriptset.Labels = lib.GetLabels()
 	}
 	if len(ds_meta.ProtocolParsers) > 0 {

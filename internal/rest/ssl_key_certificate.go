@@ -40,7 +40,7 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 		CreatedBy: &cr, TenantRef: &tenant, Certificate: &avimodels.SSLCertificate{Certificate: &certificate},
 		Key: &key, Type: &certType}
 
-	if lib.GetEnableCtrl2014Features() {
+	if lib.GetGRBACSupport() {
 		sslkeycert.Labels = lib.GetLabels()
 	}
 	if ssl_node.CACert != "" {
@@ -188,7 +188,7 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 			Certificate: &caCert,
 		}),
 	}
-	if lib.GetEnableCtrl2014Features() {
+	if lib.GetGRBACSupport() {
 		pkiobject.Labels = lib.GetLabels()
 	}
 
