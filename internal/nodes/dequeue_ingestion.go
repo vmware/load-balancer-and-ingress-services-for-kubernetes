@@ -16,7 +16,7 @@ package nodes
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -475,7 +475,7 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 func GetShardVSPrefix(key string) string {
 	// sample prefix: clusterName--Shared-L7-
 	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-"
-	utils.AviLog.Infof("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
+	utils.AviLog.Debugf("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }
 
@@ -498,7 +498,7 @@ func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) st
 	if extraPrefix != "" {
 		shardVsPrefix += extraPrefix + "-"
 	}
-	vsName := shardVsPrefix + fmt.Sprint(vsNum)
+	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
 	return vsName
 }
 
@@ -527,7 +527,9 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 
 	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
 	if oldSetting != nil {
-		oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
+		if oldSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+			oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
+		}
 		oldInfraPrefix = oldSetting.Name
 	}
 
@@ -536,7 +538,9 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
 	} else if newSetting != nil {
-		newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
+		if newSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
+		}
 		newInfraPrefix = newSetting.Name
 	}
 

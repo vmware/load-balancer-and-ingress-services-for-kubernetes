@@ -47,6 +47,10 @@ func TestCreateDeleteHostRuleForEvh(t *testing.T) {
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))

@@ -31,6 +31,9 @@ const (
 	ControllerIP           = "controllerIP"
 	ControllerVersion      = "controllerVersion"
 	CniPlugin              = "cniPlugin"
+	EnableEVH              = "enableEVH"
+	Layer7Only             = "layer7Only"
+	ServicesAPI            = "servicesAPI"
 	ShardVSSize            = "shardVSSize"
 	PassthroughShardSize   = "passhtroughShardSize"
 	FullSyncFrequency      = "fullSyncFrequency"
@@ -43,6 +46,7 @@ const (
 	SubnetIP               = "subnetIP"
 	SubnetPrefix           = "subnetPrefix"
 	NetworkName            = "networkName"
+	VipNetworkList         = "vipNetworkList"
 	LogLevel               = "logLevel"
 	DeleteConfig           = "deleteConfig"
 	AdvancedL4             = "advancedL4"
@@ -58,6 +62,7 @@ const (
 	NSSyncLabelValue       = "nsSyncLabelValue"
 	TenantsPerCluster      = "tenantsPerCluster"
 	TenantName             = "tenantName"
+	NoPGForSni             = "noPGForSni"
 )
 
 var SecretEnvVars = map[string]string{
@@ -70,6 +75,8 @@ var ConfigMapEnvVars = map[string]string{
 	"CTRL_IPADDRESS":             ControllerIP,
 	"CTRL_VERSION":               ControllerVersion,
 	"CNI_PLUGIN":                 CniPlugin,
+	"ENABLE_EVH":                 EnableEVH,
+	"SERVICES_API":               ServicesAPI,
 	"SHARD_VS_SIZE":              ShardVSSize,
 	"PASSTHROUGH_SHARD_SIZE":     PassthroughShardSize,
 	"FULL_SYNC_INTERVAL":         FullSyncFrequency,
@@ -82,6 +89,7 @@ var ConfigMapEnvVars = map[string]string{
 	"SUBNET_IP":                  SubnetIP,
 	"SUBNET_PREFIX":              SubnetPrefix,
 	"NETWORK_NAME":               NetworkName,
+	"VIP_NETWORK_LIST":           VipNetworkList,
 	"ADVANCED_L4":                AdvancedL4,
 	"AUTO_FQDN":                  AutoFQDN,
 	"SYNC_NAMESPACE":             SyncNamespace,

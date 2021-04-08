@@ -211,15 +211,12 @@ func GetHeaderRewritePolicy(vsName, localHost string) string {
 	return vsName + "--host-hdr-re-write" + "--" + localHost
 }
 
-func GetSniNodeName(ingName, namespace, secret, infrasetting string, sniHostName ...string) string {
+func GetSniNodeName(ingName, infrasetting, sniHostName string) string {
 	namePrefix := NamePrefix
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
 	}
-	if len(sniHostName) > 0 {
-		return namePrefix + sniHostName[0]
-	}
-	return namePrefix + ingName + "-" + namespace + "-" + secret
+	return namePrefix + sniHostName
 }
 
 func GetSniPoolName(ingName, namespace, host, path, infrasetting string, args ...string) string {
@@ -242,7 +239,6 @@ func GetSniHttpPolName(ingName, namespace, host, path, infrasetting string) stri
 	if infrasetting != "" {
 		return NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
 	}
-
 	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
@@ -255,9 +251,13 @@ func GetSniPGName(ingName, namespace, host, path, infrasetting string) string {
 }
 
 // evh child
-func GetEvhVsPoolNPgName(ingName, namespace, host, path string, args ...string) string {
+func GetEvhVsPoolNPgName(ingName, namespace, host, path, infrasetting string, args ...string) string {
 	path = strings.ReplaceAll(path, "/", "_")
-	poolName := NamePrefix + namespace + "-" + host + path + "-" + ingName
+	namePrefix := NamePrefix
+	if infrasetting != "" {
+		namePrefix += infrasetting + "-"
+	}
+	poolName := namePrefix + namespace + "-" + host + path + "-" + ingName
 	if len(args) > 0 {
 		svcName := args[0]
 		poolName = poolName + "-" + svcName
@@ -265,24 +265,27 @@ func GetEvhVsPoolNPgName(ingName, namespace, host, path string, args ...string) 
 	return poolName
 }
 
-func GetEvhNodeName(ingName, namespace, host string) string {
+func GetEvhNodeName(ingName, namespace, host, infrasetting string) string {
+	if infrasetting != "" {
+		return NamePrefix + infrasetting + "-" + namespace + "-" + host
+	}
 	return NamePrefix + namespace + "-" + host
 }
 
-func GetEvhPGName(ingName, namespace, host, path string) string {
+func GetEvhPGName(ingName, namespace, host, path, infrasetting string) string {
 	path = strings.ReplaceAll(path, "/", "_")
+	if infrasetting != "" {
+		return NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
+	}
 	return NamePrefix + namespace + "-" + host + path + "-" + ingName
 }
 
-func GetTLSKeyCertNodeName(namespace, secret, infrasetting string, sniHostName ...string) string {
+func GetTLSKeyCertNodeName(infrasetting, sniHostName string) string {
 	namePrefix := NamePrefix
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
 	}
-	if len(sniHostName) > 0 {
-		return namePrefix + sniHostName[0]
-	}
-	return namePrefix + namespace + "-" + secret
+	return namePrefix + sniHostName
 }
 
 func GetCACertNodeName(keycertname string) string {
@@ -410,8 +413,22 @@ func GetSubnetPrefixInt() int32 {
 	return int32(intCidr)
 }
 
-func GetNetworkName() string {
+func GetNetworkNamesForVsVipNode() ([]string, error) {
+	if networkName := GetNetworkName(); networkName != "" {
+		return []string{networkName}, nil
+	} else if IsPublicCloud() && GetCloudType() == CLOUD_AWS {
+		vipNetworkList, err := GetVipNetworkList()
+		if err != nil {
+			return nil, err
+		}
+		if len(vipNetworkList) != 0 {
+			return vipNetworkList, nil
+		}
+	}
+	return []string{}, nil
+}
 
+func GetNetworkName() string {
 	networkName := os.Getenv(NETWORK_NAME)
 	if networkName != "" {
 		return networkName
@@ -420,7 +437,6 @@ func GetNetworkName() string {
 }
 
 func GetVipNetworkList() ([]string, error) {
-
 	var vipNetworkList []string
 	type Row struct {
 		NetworkName string `json:"networkName"`
@@ -777,30 +793,9 @@ func GetPassthroughShardVSName(s string, key string) string {
 	shardSize := PassthroughShardSize()
 	shardVsPrefix := GetClusterName() + "--" + PassthroughPrefix
 	vsNum = utils.Bkt(s, shardSize)
-	vsName := shardVsPrefix + fmt.Sprint(vsNum)
+	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
 	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
 	return vsName
-}
-
-func VSVipChecksum(FQDNs []string, IPAddress string, networkNames []string) uint32 {
-	sort.Strings(FQDNs)
-	sort.Strings(networkNames)
-	var checksum uint32
-	if len(FQDNs) != 0 {
-		checksum = utils.Hash(utils.Stringify(FQDNs))
-	}
-	if IPAddress != "" {
-		checksum += utils.Hash(IPAddress)
-	}
-	if len(networkNames) != 0 {
-		if len(networkNames) == 1 {
-			checksum += utils.Hash(networkNames[0])
-		} else {
-			checksum += utils.Hash(utils.Stringify(networkNames))
-		}
-	}
-	checksum += GetClusterLabelChecksum()
-	return checksum
 }
 
 // GetLabels returns the key value pair used for tagging the segroups and routes in vrfcontext

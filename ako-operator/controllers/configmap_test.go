@@ -43,6 +43,9 @@ var cmJson = `
 		"cloudName": "test-cloud",
 		"clusterName": "test-cluster",
 		"cniPlugin": "test-cni",
+		"enableEVH: "false",
+		"layer7Only": "false",
+		"servicesAPI": "false",
 		"controllerIP": "10.10.10.11",
 		"controllerVersion": "1.1",
 		"defaultDomain": "test.com",
@@ -59,6 +62,7 @@ var cmJson = `
 		"serviceEngineGroupName": "test-group",
 		"serviceType": "ClusterIP",
 		"shardVSSize": "LARGE",
+		"noPGForSni": "false",
 		"subnetIP": "10.10.10.1",
 		"subnetPrefix": "24"
 	}

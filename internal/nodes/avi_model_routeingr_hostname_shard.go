@@ -54,12 +54,15 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		}
 	}(routeIgrObj)
 
+	isIngr := routeIgrObj.GetType() == utils.Ingress
+
 	// delete old Models in case the modelNames changes because of shardSize updates via AviInfraSetting
-	if !lib.IsEvhEnabled() {
+	if isIngr && lib.IsEvhEnabled() {
+		DeleteStaleDataForModelChangeForEvh(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
+	} else {
 		DeleteStaleDataForModelChange(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
 	}
 
-	isIngr := routeIgrObj.GetType() == utils.Ingress
 	if err != nil || !processObj {
 		utils.AviLog.Warnf("key: %s, msg: Error %v", key, err)
 		// Detect a delete condition here.
@@ -172,6 +175,15 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 			aviModel = NewAviObjectGraph()
 			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key, routeIgrObj)
 		}
+
+		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
+		if len(vsNode) > 0 && found {
+			// if vsNode already exists, check for updates via AviInfraSetting
+			if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
+				buildWithInfraSetting(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+			}
+		}
+
 		aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName, host, routeIgrObj, pathsvcmap.ingressHPSvc, pathsvcmap.gslbHostHeader, key)
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -329,7 +341,12 @@ func DeleteStaleDataForModelChange(routeIgrObj RouteIngressModel, namespace, obj
 		}
 
 		// Delete the pool corresponding to this host
-		aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
+		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
+			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true)
+		}
+		if hostData.InsecurePolicy != lib.PolicyNone {
+			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
+		}
 
 		ok := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {

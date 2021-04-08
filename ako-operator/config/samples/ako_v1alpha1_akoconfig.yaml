@@ -16,6 +16,9 @@ spec:
     disableStaticRouteSync: false
     clusterName: "my-cluster"
     cniPlugin: ""
+    enableEVH: false
+    layer7Only: false
+    servicesAPI: false
 
   networkSettings:
     subnetIP: ""
@@ -26,7 +29,8 @@ spec:
     defaultIngController: true
     serviceType: "ClusterIP"
     shardVSSize: "LARGE" #enum
-    passthroughShardSize: "SMALL"   #enum
+    passthroughShardSize: "SMALL" #enum
+    noPGForSNI: false
 
   l4Settings:
     advancedL4: false

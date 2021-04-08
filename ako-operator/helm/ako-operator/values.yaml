@@ -23,11 +23,15 @@ AKOSettings:
   disableStaticRouteSync: "false" # If the POD networks are reachable from the Avi SE, set this knob to true.
   clusterName: "k8s-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
   cniPlugin: "calico" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift 
+  enableEVH: false # This enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services 
+  layer7Only: false  # If this flag is switched on, then AKO will only do layer 7 loadbalancing.
   # namespaceSelector contains label key and value used for namespacemigration
   # same label has to be present on namespace/s which needs migration/sync to AKO
   namespaceSelector:
     labelKey: ""
     labelValue: ""
+  servicesAPI: false # Flag that enables AKO in services API mode: https://kubernetes-sigs.github.io/service-apis/. Currently implemented only for L4. This flag uses the upstream GA APIs which are not backward compatible 
+                     # with the advancedL4 APIs which uses a fork and a version of v1alpha1pre1 
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:
@@ -43,6 +47,10 @@ NetworkSettings:
   subnetPrefix: "" # Subnet Prefix of the vip network
   networkName: "" # Network Name of the vip network
   enableRHI: false # This is a cluster wide setting for BGP peering.
+  vipNetworkList: []
+  # vipNetworkList: []
+  #  - networkName: subnet-xxxxxxx
+
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
 L7Settings:
@@ -50,6 +58,7 @@ L7Settings:
   serviceType: ClusterIP #enum NodePort|ClusterIP
   shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL
   passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
+  noPGForSNI: false # Switching this knob to true, will get rid of poolgroups from SNI VSes. Do not use this flag, if you don't want http caching. This will be deprecated once the controller support caching on PGs.
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:
