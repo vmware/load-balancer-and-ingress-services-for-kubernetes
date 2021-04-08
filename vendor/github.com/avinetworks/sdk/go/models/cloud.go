@@ -41,6 +41,9 @@ type Cloud struct {
 	// By default, pool member FQDNs are resolved on the Controller. When this is set, pool member FQDNs are instead resolved on Service Engines in this cloud. This is useful in scenarios where pool member FQDNs can only be resolved from Service Engines and not from the Controller. Field introduced in 18.2.6. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	DNSResolutionOnSe *bool `json:"dns_resolution_on_se,omitempty"`
 
+	// DNS resolver for the cloud. Field introduced in 20.1.5. Maximum of 1 items allowed.
+	DNSResolvers []*DNSResolver `json:"dns_resolvers,omitempty"`
+
 	// Placeholder for description of property docker_configuration of obj type Cloud field type str  type object
 	DockerConfiguration *DockerConfiguration `json:"docker_configuration,omitempty"`
 
@@ -129,6 +132,9 @@ type Cloud struct {
 
 	// Placeholder for description of property vcenter_configuration of obj type Cloud field type str  type object
 	VcenterConfiguration *VCenterConfiguration `json:"vcenter_configuration,omitempty"`
+
+	// This deployment is VMware on AWS cloud. Field introduced in 20.1.5.
+	VmcDeployment *bool `json:"vmc_deployment,omitempty"`
 
 	// Cloud type. Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT. Allowed in Basic(Allowed values- CLOUD_NONE,CLOUD_NSXT) edition, Essentials(Allowed values- CLOUD_NONE,CLOUD_VCENTER) edition, Enterprise edition.
 	// Required: true

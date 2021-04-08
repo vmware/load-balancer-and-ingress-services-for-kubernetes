@@ -10,7 +10,7 @@ type ControllerSizingLimits struct {
 	// Controller system limits specific to cloud type for this controller sizing. Field introduced in 20.1.1.
 	ControllerSizingCloudLimits []*ControllerSizingCloudLimits `json:"controller_sizing_cloud_limits,omitempty"`
 
-	// Controller flavor (S/M/L) for this sizing limit. Enum options - CONTROLLER_SMALL, CONTROLLER_MEDIUM, CONTROLLER_LARGE. Field introduced in 20.1.1.
+	// Controller flavor (S/M/L) for this sizing limit. Enum options - CONTROLLER_ESSENTIALS, CONTROLLER_SMALL, CONTROLLER_MEDIUM, CONTROLLER_LARGE. Field introduced in 20.1.1.
 	Flavor *string `json:"flavor,omitempty"`
 
 	// Maximum number of clouds. Field introduced in 20.1.1.

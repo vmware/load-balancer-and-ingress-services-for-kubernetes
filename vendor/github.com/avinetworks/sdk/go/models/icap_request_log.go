@@ -49,7 +49,7 @@ type IcapRequestLog struct {
 	// The name of the pool that was used for the request. Field introduced in 20.1.1.
 	PoolName *string `json:"pool_name,omitempty"`
 
-	// The uuis of the pool that was used for the request. Field introduced in 20.1.1.
+	// The uuid of the pool that was used for the request. Field introduced in 20.1.1.
 	PoolUUID *string `json:"pool_uuid,omitempty"`
 
 	// Blocking reason for the content. It is available only if content was scanned by ICAP server and some violations were found. Field introduced in 20.1.1.

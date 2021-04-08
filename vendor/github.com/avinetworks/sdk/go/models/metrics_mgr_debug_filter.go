@@ -7,6 +7,9 @@ package models
 // swagger:model MetricsMgrDebugFilter
 type MetricsMgrDebugFilter struct {
 
+	// Set to ignore skip_eval_period field in metrics_anomaly_option. Field introduced in 20.1.4.
+	DebugSkipEvalPeriod *string `json:"debug_skip_eval_period,omitempty"`
+
 	// disable_hw_training of MetricsMgrDebugFilter.
 	DisableHwTraining *string `json:"disable_hw_training,omitempty"`
 

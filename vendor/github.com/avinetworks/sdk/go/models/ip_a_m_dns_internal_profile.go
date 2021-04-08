@@ -19,6 +19,6 @@ type IPAMDNSInternalProfile struct {
 	// Use usable_networks. It is a reference to an object of type Network. Field deprecated in 20.1.3.
 	UsableNetworkRefs []string `json:"usable_network_refs,omitempty"`
 
-	// Usable networks for Virtual IP. If VirtualService does not specify a network and auto_allocate_ip is set, then the first available network from this list will be chosen for IP allocation. Field introduced in 20.1.3.
+	// Usable networks for Virtual IP. If VirtualService does not specify a network and auto_allocate_ip is set, then the first available network from this list will be chosen for IP allocation. Field introduced in 20.1.3. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	UsableNetworks []*IPAMUsableNetwork `json:"usable_networks,omitempty"`
 }

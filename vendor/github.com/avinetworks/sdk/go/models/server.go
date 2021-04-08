@@ -7,7 +7,7 @@ package models
 // swagger:model Server
 type Server struct {
 
-	// Name of autoscaling group this server belongs to. Field introduced in 17.1.2. Allowed in Basic edition, Essentials edition, Enterprise edition.
+	// Name of autoscaling group this server belongs to. Field introduced in 17.1.2. Allowed in Essentials edition, Enterprise edition.
 	AutoscalingGroupName *string `json:"autoscaling_group_name,omitempty"`
 
 	// Availability-zone of the server VM.
