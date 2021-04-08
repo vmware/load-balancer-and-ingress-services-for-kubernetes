@@ -17,7 +17,7 @@ package lib
 import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	avimodels "github.com/avinetworks/sdk/go/models"
+	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
 func StaticRoutesIntfToObj(staticRoutesIntf []interface{}) []*avimodels.StaticRoute {

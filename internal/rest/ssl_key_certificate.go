@@ -25,8 +25,8 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
+	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
 func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache_obj *avicache.AviSSLCache) *utils.RestOp {

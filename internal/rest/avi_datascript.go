@@ -23,8 +23,8 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
+	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
 func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cache_obj *avicache.AviDSCache, key string) *utils.RestOp {

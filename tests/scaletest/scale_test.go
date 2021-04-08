@@ -27,8 +27,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avinetworks/sdk/go/clients"
 	"github.com/onsi/gomega"
+	"github.com/vmware/alb-sdk/go/clients"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/scaletest/lib"
 )

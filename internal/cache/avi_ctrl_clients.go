@@ -17,7 +17,7 @@ package cache
 import (
 	"os"
 
-	"github.com/avinetworks/sdk/go/session"
+	"github.com/vmware/alb-sdk/go/session"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 

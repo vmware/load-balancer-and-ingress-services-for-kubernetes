@@ -32,10 +32,10 @@ import (
 
 	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
+	"github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"

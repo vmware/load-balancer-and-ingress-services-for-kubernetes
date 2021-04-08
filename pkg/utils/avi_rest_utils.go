@@ -23,8 +23,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/avinetworks/sdk/go/clients"
-	"github.com/avinetworks/sdk/go/session"
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/session"
 )
 
 type AviRestClientPool struct {
