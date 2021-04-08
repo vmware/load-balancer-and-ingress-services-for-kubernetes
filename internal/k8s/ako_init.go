@@ -657,6 +657,32 @@ func (c *AviController) DeleteModels() {
 		status.AddStatefulSetStatus(lib.ObjectDeletionTimeoutStatus, corev1.ConditionUnknown)
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 	}
+
+	if !lib.AutoAnnotateNPLSvc() {
+		return
+	}
+	// Delete NPL annotations from the Services
+	allSvcIntf := objects.SharedClusterIpLister().GetAll()
+	allSvcs, ok := allSvcIntf.(map[string]interface{})
+	if !ok {
+		utils.AviLog.Infof("Can not delete NPL annotations, wrong type of object in ClusterIpLister: %T", allSvcIntf)
+	} else {
+		for nsSvc := range allSvcs {
+			ns, _, svc := lib.ExtractTypeNameNamespace(nsSvc)
+			status.DeleteNPLAnnotation(nsSvc, ns, svc)
+		}
+	}
+	objects.SharedlbLister().GetAll()
+	allLBSvcIntf := objects.SharedlbLister().GetAll()
+	allLBSvcs, ok := allLBSvcIntf.(map[string]interface{})
+	if !ok {
+		utils.AviLog.Infof("Can not delete NPL annotations, wrong type of object in lbLister: %T", allLBSvcIntf)
+	} else {
+		for nsSvc := range allLBSvcs {
+			ns, _, svc := lib.ExtractTypeNameNamespace(nsSvc)
+			status.DeleteNPLAnnotation(nsSvc, ns, svc)
+		}
+	}
 }
 
 func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
