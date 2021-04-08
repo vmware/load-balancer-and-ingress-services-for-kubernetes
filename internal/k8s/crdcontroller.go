@@ -303,11 +303,33 @@ var refModelMap = map[string]string{
 
 // checkRefOnController checks whether a provided ref on the controller
 func checkRefOnController(key, refKey, refValue string) error {
-	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
-	clients := avicache.SharedAVIClients()
 
 	// assign the last avi client for ref checks
 	aviClientLen := lib.GetshardSize()
+	clients := avicache.SharedAVIClients()
+
+	if lib.GetCloudType() == lib.CLOUD_AWS {
+		if refModelMap[refKey] == "network" {
+			var rest_response interface{}
+			utils.AviLog.Infof("Cloud is AWS, checking network ref using uuid")
+			uri := fmt.Sprintf("/api/%s/%s", refModelMap[refKey], refValue)
+			err := lib.AviGet(clients.AviClient[aviClientLen], uri, &rest_response)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
+				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+			} else if rest_response != nil {
+				utils.AviLog.Infof("Found %s %s on controller", refModelMap[refKey], refValue)
+				utils.AviLog.Infof("rest_response: %+v", rest_response)
+				return nil
+			} else {
+				utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
+				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+			}
+		}
+	}
+
+	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
+
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
@@ -315,23 +337,9 @@ func checkRefOnController(key, refKey, refValue string) error {
 	}
 
 	if result.Count == 0 {
-		if refModelMap[refKey] == "network" {
-			var rest_response interface{}
-			uri = fmt.Sprintf("/api/%s/%s", refModelMap[refKey], refValue)
-			err := lib.AviGet(clients.AviClient[aviClientLen], uri, &rest_response)
-			if err != nil {
-				utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
-				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-			} else if rest_response != nil {
-				return nil
-			} else {
-				utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
-				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-			}
-		} else {
-			utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
-			return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-		}
+		utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
+		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+
 	}
 
 	items := make([]json.RawMessage, result.Count)
