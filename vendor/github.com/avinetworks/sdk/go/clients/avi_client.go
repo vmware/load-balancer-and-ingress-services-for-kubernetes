@@ -62,9 +62,11 @@ type AviClient struct {
 	IPReputationDB                  *IPReputationDBClient
 	IcapProfile                     *IcapProfileClient
 	Image                           *ImageClient
+	JWTProfile                      *JWTProfileClient
 	JWTServerProfile                *JWTServerProfileClient
 	JobEntry                        *JobEntryClient
 	L4PolicySet                     *L4PolicySetClient
+	LabelGroup                      *LabelGroupClient
 	LicenseLedgerDetails            *LicenseLedgerDetailsClient
 	LogControllerMapping            *LogControllerMappingClient
 	MicroService                    *MicroServiceClient
@@ -194,9 +196,11 @@ func NewAviClient(host string, username string, options ...func(*session.AviSess
 	aviClient.IPReputationDB = NewIPReputationDBClient(aviSession)
 	aviClient.IcapProfile = NewIcapProfileClient(aviSession)
 	aviClient.Image = NewImageClient(aviSession)
+	aviClient.JWTProfile = NewJWTProfileClient(aviSession)
 	aviClient.JWTServerProfile = NewJWTServerProfileClient(aviSession)
 	aviClient.JobEntry = NewJobEntryClient(aviSession)
 	aviClient.L4PolicySet = NewL4PolicySetClient(aviSession)
+	aviClient.LabelGroup = NewLabelGroupClient(aviSession)
 	aviClient.LicenseLedgerDetails = NewLicenseLedgerDetailsClient(aviSession)
 	aviClient.LogControllerMapping = NewLogControllerMappingClient(aviSession)
 	aviClient.MicroService = NewMicroServiceClient(aviSession)

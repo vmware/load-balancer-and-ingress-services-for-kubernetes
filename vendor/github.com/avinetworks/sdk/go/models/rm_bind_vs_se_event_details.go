@@ -13,6 +13,9 @@ type RmBindVsSeEventDetails struct {
 	// ip6 of RmBindVsSeEventDetails.
 	Ip6 *string `json:"ip6,omitempty"`
 
+	// List of placement_networks configured on this interface. Field introduced in 20.1.5.
+	Networks []string `json:"networks,omitempty"`
+
 	// Placeholder for description of property primary of obj type RmBindVsSeEventDetails field type str  type boolean
 	Primary *bool `json:"primary,omitempty"`
 
