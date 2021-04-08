@@ -2,11 +2,11 @@ module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/avinetworks/sdk v0.0.0-20210127001121-7d79efee089b
+	github.com/avinetworks/sdk v0.0.0-20210406040904-9e523c129aa1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-logr/logr v0.3.0
 	github.com/go-logr/zapr v0.3.0 // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/google/go-cmp v0.5.3 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.1.2 // indirect
@@ -31,6 +31,7 @@ require (
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	gomodules.xyz/jsonpatch/v2 v2.1.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.19.3
 	k8s.io/apiextensions-apiserver v0.19.0-beta.2 // indirect

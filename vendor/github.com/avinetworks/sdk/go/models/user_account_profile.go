@@ -20,7 +20,7 @@ type UserAccountProfile struct {
 	// Maximum number of concurrent sessions allowed. There are unlimited sessions by default.
 	MaxConcurrentSessions *int32 `json:"max_concurrent_sessions,omitempty"`
 
-	// Number of login attempts before lockout. Default is 3 attempts.
+	// Number of login attempts before lockout. Default is 3 attempts. Allowed values are 3-20. Special values are 0 - 'Unlimited login attempts allowed.'.
 	MaxLoginFailureCount *int32 `json:"max_login_failure_count,omitempty"`
 
 	// Maximum number of passwords to be maintained in the password history. Default is 4 passwords.

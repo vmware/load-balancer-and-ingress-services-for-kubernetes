@@ -64,7 +64,7 @@ type HTTPApplicationProfile struct {
 	// Number of days for which the client should regard this virtual service as a known HSTS host. Allowed values are 0-10000. Allowed in Basic(Allowed values- 365) edition, Essentials(Allowed values- 365) edition, Enterprise edition.
 	HstsMaxAge *int64 `json:"hsts_max_age,omitempty"`
 
-	// Insert the 'includeSubdomains' directive in the HTTP Strict-Transport-Security header. Adding the includeSubdomains directive signals the User-Agent that the HSTS Policy applies to this HSTS Host as well as any subdomains of the host's domain name. Field introduced in 17.2.13, 18.1.4, 18.2.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
+	// Insert the 'includeSubdomains' directive in the HTTP Strict-Transport-Security header. Adding the includeSubdomains directive signals the User-Agent that the HSTS Policy applies to this HSTS Host as well as any subdomains of the host's domain name. Field introduced in 17.2.13, 18.1.4, 18.2.1. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition. Special default for Basic edition is false, Essentials edition is false, Enterprise is True.
 	HstsSubdomainsEnabled *bool `json:"hsts_subdomains_enabled,omitempty"`
 
 	// Enable HTTP2 for traffic from clients to the virtual service. Field deprecated in 20.1.1. Field introduced in 18.1.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
@@ -85,7 +85,7 @@ type HTTPApplicationProfile struct {
 	// Send HTTP 'Keep-Alive' header to the client. By default, the timeout specified in the 'Keep-Alive Timeout' field will be used unless the 'Use App Keepalive Timeout' flag is set, in which case the timeout sent by the application will be honored.
 	KeepaliveHeader *bool `json:"keepalive_header,omitempty"`
 
-	// The max idle time allowed between HTTP requests over a Keep-alive connection. Allowed values are 10-100000000. Unit is MILLISECONDS. Allowed in Basic(Allowed values- 30000) edition, Essentials(Allowed values- 30000) edition, Enterprise edition.
+	// The max idle time allowed between HTTP requests over a Keep-alive connection. Allowed values are 10-100000000. Unit is MILLISECONDS. Allowed in Essentials(Allowed values- 30000) edition, Enterprise edition.
 	KeepaliveTimeout *int32 `json:"keepalive_timeout,omitempty"`
 
 	// Maximum bad requests per second per client IP. Allowed values are 10-1000. Special values are 0- 'unlimited'.
@@ -133,7 +133,7 @@ type HTTPApplicationProfile struct {
 	// Select the PKI profile to be associated with the Virtual Service. This profile defines the Certificate Authority and Revocation List. It is a reference to an object of type PKIProfile.
 	PkiProfileRef *string `json:"pki_profile_ref,omitempty"`
 
-	// The max allowed length of time between a client establishing a TCP connection until Avi receives the first byte of the client's HTTP request. Allowed values are 10-100000000. Unit is MILLISECONDS. Allowed in Basic(Allowed values- 30000) edition, Essentials(Allowed values- 30000) edition, Enterprise edition.
+	// The max allowed length of time between a client establishing a TCP connection and Avi receives the first byte of the client's HTTP request. Allowed values are 10-100000000. Unit is MILLISECONDS. Allowed in Basic(Allowed values- 30000) edition, Essentials(Allowed values- 30000) edition, Enterprise edition.
 	PostAcceptTimeout *int32 `json:"post_accept_timeout,omitempty"`
 
 	// If enabled, an HTTP request on an SSL port will result in connection close instead of a 400 response. Field introduced in 18.2.6. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.

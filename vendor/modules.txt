@@ -3,7 +3,7 @@ cloud.google.com/go/compute/metadata
 # github.com/Masterminds/semver v1.5.0
 ## explicit
 github.com/Masterminds/semver
-# github.com/avinetworks/sdk v0.0.0-20210127001121-7d79efee089b
+# github.com/avinetworks/sdk v0.0.0-20210406040904-9e523c129aa1
 ## explicit
 github.com/avinetworks/sdk/go/clients
 github.com/avinetworks/sdk/go/models
@@ -215,6 +215,7 @@ google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
 # google.golang.org/protobuf v1.25.0
+## explicit
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt

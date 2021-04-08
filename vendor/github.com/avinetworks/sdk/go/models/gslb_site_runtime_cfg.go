@@ -19,6 +19,9 @@ type GslbSiteRuntimeCfg struct {
 	// GHM info published for a site.
 	GhmInfo *ConfigInfo `json:"ghm_info,omitempty"`
 
+	// Gslb JWTProfile info published for a site. Field introduced in 20.1.5.
+	GjwtInfo *ConfigInfo `json:"gjwt_info,omitempty"`
+
 	// Gslb info published for a site.
 	GlbInfo *ConfigInfo `json:"glb_info,omitempty"`
 

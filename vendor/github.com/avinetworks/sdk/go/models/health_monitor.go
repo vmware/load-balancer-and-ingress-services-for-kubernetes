@@ -38,8 +38,17 @@ type HealthMonitor struct {
 	// Placeholder for description of property https_monitor of obj type HealthMonitor field type str  type object
 	HTTPSMonitor *HealthMonitorHTTP `json:"https_monitor,omitempty"`
 
+	// Health monitor for IMAP. Field introduced in 20.1.5.
+	ImapMonitor *HealthMonitorImap `json:"imap_monitor,omitempty"`
+
+	// Health monitor for IMAPS. Field introduced in 20.1.5.
+	ImapsMonitor *HealthMonitorImap `json:"imaps_monitor,omitempty"`
+
 	// This field describes the object's replication scope. If the field is set to false, then the object is visible within the controller-cluster and its associated service-engines.  If the field is set to true, then the object is replicated across the federation.  . Field introduced in 17.1.3. Allowed in Basic(Allowed values- false) edition, Essentials(Allowed values- false) edition, Enterprise edition.
 	IsFederated *bool `json:"is_federated,omitempty"`
+
+	// List of labels to be used for granular RBAC. Field introduced in 20.1.5.
+	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
 
 	// Use this port instead of the port defined for the server in the Pool. If the monitor succeeds to this port, the load balanced traffic will still be sent to the port of the server defined within the Pool. Allowed values are 1-65535. Special values are 0 - 'Use server port'.
 	MonitorPort *int32 `json:"monitor_port,omitempty"`
@@ -47,6 +56,12 @@ type HealthMonitor struct {
 	// A user friendly name for this health monitor.
 	// Required: true
 	Name *string `json:"name"`
+
+	// Health monitor for POP3. Field introduced in 20.1.5.
+	Pop3Monitor *HealthMonitorPop3 `json:"pop3_monitor,omitempty"`
+
+	// Health monitor for POP3S. Field introduced in 20.1.5.
+	Pop3sMonitor *HealthMonitorPop3 `json:"pop3s_monitor,omitempty"`
 
 	// Health monitor for Radius. Field introduced in 18.2.3. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	RadiusMonitor *HealthMonitorRadius `json:"radius_monitor,omitempty"`
@@ -60,6 +75,12 @@ type HealthMonitor struct {
 	// Health monitor for SIP. Field introduced in 17.2.8, 18.1.3, 18.2.1. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	SipMonitor *HealthMonitorSIP `json:"sip_monitor,omitempty"`
 
+	// Health monitor for SMTP. Field introduced in 20.1.5.
+	SMTPMonitor *HealthMonitorSMTP `json:"smtp_monitor,omitempty"`
+
+	// Health monitor for SMTPS. Field introduced in 20.1.5.
+	SmtpsMonitor *HealthMonitorSMTP `json:"smtps_monitor,omitempty"`
+
 	// Number of continuous successful health checks before server is marked up. Allowed values are 1-50.
 	SuccessfulChecks *int32 `json:"successful_checks,omitempty"`
 
@@ -69,7 +90,7 @@ type HealthMonitor struct {
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// Type of the health monitor. Enum options - HEALTH_MONITOR_PING, HEALTH_MONITOR_TCP, HEALTH_MONITOR_HTTP, HEALTH_MONITOR_HTTPS, HEALTH_MONITOR_EXTERNAL, HEALTH_MONITOR_UDP, HEALTH_MONITOR_DNS, HEALTH_MONITOR_GSLB, HEALTH_MONITOR_SIP, HEALTH_MONITOR_RADIUS. Allowed in Basic(Allowed values- HEALTH_MONITOR_PING,HEALTH_MONITOR_TCP,HEALTH_MONITOR_UDP,HEALTH_MONITOR_HTTP,HEALTH_MONITOR_HTTPS) edition, Essentials(Allowed values- HEALTH_MONITOR_PING,HEALTH_MONITOR_TCP,HEALTH_MONITOR_UDP) edition, Enterprise edition.
+	// Type of the health monitor. Enum options - HEALTH_MONITOR_PING, HEALTH_MONITOR_TCP, HEALTH_MONITOR_HTTP, HEALTH_MONITOR_HTTPS, HEALTH_MONITOR_EXTERNAL, HEALTH_MONITOR_UDP, HEALTH_MONITOR_DNS, HEALTH_MONITOR_GSLB, HEALTH_MONITOR_SIP, HEALTH_MONITOR_RADIUS, HEALTH_MONITOR_SMTP, HEALTH_MONITOR_SMTPS, HEALTH_MONITOR_POP3, HEALTH_MONITOR_POP3S, HEALTH_MONITOR_IMAP, HEALTH_MONITOR_IMAPS. Allowed in Basic(Allowed values- HEALTH_MONITOR_PING,HEALTH_MONITOR_TCP,HEALTH_MONITOR_UDP,HEALTH_MONITOR_HTTP,HEALTH_MONITOR_HTTPS) edition, Essentials(Allowed values- HEALTH_MONITOR_PING,HEALTH_MONITOR_TCP,HEALTH_MONITOR_UDP) edition, Enterprise edition.
 	// Required: true
 	Type *string `json:"type"`
 

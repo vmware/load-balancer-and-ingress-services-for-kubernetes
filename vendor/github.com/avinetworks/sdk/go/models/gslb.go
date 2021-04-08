@@ -26,6 +26,9 @@ type Gslb struct {
 	// Sub domain configuration for the GSLB.  GSLB service's FQDN must be a match one of these subdomains. .
 	DNSConfigs []*DNSConfig `json:"dns_configs,omitempty"`
 
+	// Allows enable/disable of GslbService pool groups and pool members from the gslb follower members. Field introduced in 20.1.5.
+	EnableConfigByMembers *bool `json:"enable_config_by_members,omitempty"`
+
 	// Frequency with which errored messages are resynced to follower sites. Value of 0 disables resync behavior. Allowed values are 60-3600. Special values are 0 - 'Disable'. Field introduced in 18.2.3. Unit is SEC.
 	ErrorResyncInterval *int32 `json:"error_resync_interval,omitempty"`
 
@@ -57,6 +60,9 @@ type Gslb struct {
 
 	//  It is a reference to an object of type Tenant.
 	TenantRef *string `json:"tenant_ref,omitempty"`
+
+	// This field indicates tenant visibility for GS pool member selection across the Gslb federated objects. Field introduced in 20.1.4.
+	TenantScoped *bool `json:"tenant_scoped,omitempty"`
 
 	// Third party site member belonging to this Gslb. Field introduced in 17.1.1.
 	ThirdPartySites []*GslbThirdPartySite `json:"third_party_sites,omitempty"`

@@ -175,9 +175,6 @@ type VserverL4MetricsObj struct {
 	// Average rate of received packets dropped per second.
 	AvgRxPktsDropped *float64 `json:"avg_rx_pkts_dropped,omitempty"`
 
-	// Average rate of SYN DDoS attacks on Virtual Service.
-	AvgSynAttacks *float64 `json:"avg_syn_attacks,omitempty"`
-
 	// Total syncs sent across all connections.
 	AvgSyns *float64 `json:"avg_syns,omitempty"`
 

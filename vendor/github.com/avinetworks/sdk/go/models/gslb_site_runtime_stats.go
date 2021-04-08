@@ -67,6 +67,24 @@ type GslbSiteRuntimeStats struct {
 	// Number of num_ghm_upd_txed.
 	NumGhmUpdTxed *int32 `json:"num_ghm_upd_txed,omitempty"`
 
+	//  Field introduced in 20.1.5.
+	NumGjwtCrRxed *int32 `json:"num_gjwt_cr_rxed,omitempty"`
+
+	//  Field introduced in 20.1.5.
+	NumGjwtCrTxed *int32 `json:"num_gjwt_cr_txed,omitempty"`
+
+	//  Field introduced in 20.1.5.
+	NumGjwtDelRxed *int32 `json:"num_gjwt_del_rxed,omitempty"`
+
+	//  Field introduced in 20.1.5.
+	NumGjwtDelTxed *int32 `json:"num_gjwt_del_txed,omitempty"`
+
+	//  Field introduced in 20.1.5.
+	NumGjwtUpdRxed *int32 `json:"num_gjwt_upd_rxed,omitempty"`
+
+	//  Field introduced in 20.1.5.
+	NumGjwtUpdTxed *int32 `json:"num_gjwt_upd_txed,omitempty"`
+
 	// Number of num_glb_cr_rxed.
 	NumGlbCrRxed *int32 `json:"num_glb_cr_rxed,omitempty"`
 

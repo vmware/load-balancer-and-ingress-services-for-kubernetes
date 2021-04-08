@@ -302,7 +302,7 @@ type ServiceEngineGroup struct {
 	// Maximum number of Services Engines in this group. Allowed values are 0-1000.
 	MaxSe *int32 `json:"max_se,omitempty"`
 
-	// Maximum number of Virtual Services that can be placed on a single Service Engine. East West Virtual Services are excluded from this limit. Allowed values are 1-1000.
+	// Maximum number of Virtual Services that can be placed on a single Service Engine. Allowed values are 1-1000.
 	MaxVsPerSe *int32 `json:"max_vs_per_se,omitempty"`
 
 	// Placeholder for description of property mem_reserve of obj type ServiceEngineGroup field type str  type boolean
@@ -311,7 +311,7 @@ type ServiceEngineGroup struct {
 	// Indicates the percent of memory reserved for config updates. Allowed values are 0-100. Field introduced in 18.1.2. Unit is PERCENT.
 	MemoryForConfigUpdate *int32 `json:"memory_for_config_update,omitempty"`
 
-	// Amount of memory for each of the Service Engine virtual machines.
+	// Amount of memory for each of the Service Engine virtual machines. Changes to this setting do not affect existing SEs.
 	MemoryPerSe *int32 `json:"memory_per_se,omitempty"`
 
 	// Management network to use for Avi Service Engines. It is a reference to an object of type Network.
@@ -359,12 +359,6 @@ type ServiceEngineGroup struct {
 
 	// Idle timeout in seconds for nat udp flows in response state. Allowed values are 1-3600. Field deprecated in 18.2.5. Field introduced in 18.2.5. Unit is SECONDS.
 	NatFlowUDPResponseTimeout *int32 `json:"nat_flow_udp_response_timeout,omitempty"`
-
-	// Number of threads to poll for netlink messages excluding the thread for default namespace. Requires SE Reboot. Allowed values are 1-32. Field introduced in 20.1.3.
-	NetlinkPollerThreads *int32 `json:"netlink_poller_threads,omitempty"`
-
-	// Socket buffer size for the netlink sockets. Requires SE Reboot. Allowed values are 1-128. Field introduced in 20.1.3. Unit is MEGA_BYTES.
-	NetlinkSockBufSize *int32 `json:"netlink_sock_buf_size,omitempty"`
 
 	// This setting limits the number of non-significant logs generated per second per core on this SE. Default is 100 logs per second. Set it to zero (0) to deactivate throttling. Field introduced in 17.1.3. Unit is PER_SECOND.
 	NonSignificantLogThrottle *int32 `json:"non_significant_log_throttle,omitempty"`
@@ -438,7 +432,13 @@ type ServiceEngineGroup struct {
 	// Internal only. Used to simulate SE - SE HB failure. Field introduced in 20.1.3.
 	SeDpHmDrops *int32 `json:"se_dp_hm_drops,omitempty"`
 
-	// The highest supported SE-SE Heartbeat protocol version. This version is reported by Secondary SE to Primary SE in Heartbeat response messages. Allowed values are 1-3. Field introduced in 20.1.1.
+	// Toggle support to run SE datapath instances in isolation on exclusive CPUs. This improves latency and performance. However, this could reduce the total number of se_dp instances created on that SE instance. Supported for >= 8 CPUs. Requires SE reboot. Field introduced in 20.1.4.
+	SeDpIsolation *bool `json:"se_dp_isolation,omitempty"`
+
+	// Number of CPUs for non se-dp tasks in SE datapath isolation mode. Translates Total cpus minus 'num_non_dp_cpus' for datapath use.Requires SE reboot. Allowed values are 1-8. Special values are 0- 'auto'. Field introduced in 20.1.4.
+	SeDpIsolationNumNonDpCpus *int32 `json:"se_dp_isolation_num_non_dp_cpus,omitempty"`
+
+	// The highest supported SE-SE Heartbeat protocol version. This version is reported by Secondary SE to Primary SE in Heartbeat response messages. Allowed values are 1-2. Field introduced in 20.1.1.
 	SeDpMaxHbVersion *int32 `json:"se_dp_max_hb_version,omitempty"`
 
 	// Time (in seconds) service engine waits for after generating a Vnic transmit queue stall event before resetting theNIC. Field introduced in 18.2.5.
@@ -616,7 +616,7 @@ type ServiceEngineGroup struct {
 	// Enables the use of hyper-threaded cores on SE. Requires SE Reboot. Field introduced in 20.1.1.
 	UseHyperthreadedCores *bool `json:"use_hyperthreaded_cores,omitempty"`
 
-	// Enable InterSE Objsyc distribution framework. Field introduced in 20.1.3.
+	// Enable InterSE Objsyc distribution framework. Field introduced in 20.1.3. Allowed in Basic edition, Essentials edition, Enterprise edition.
 	UseObjsync *bool `json:"use_objsync,omitempty"`
 
 	// Use Standard SKU Azure Load Balancer. By default cloud level flag is set. If not set, it inherits/uses the use_standard_alb flag from the cloud. Field introduced in 18.2.3.
@@ -646,7 +646,7 @@ type ServiceEngineGroup struct {
 	// VCenter information for scoping at Host/Cluster level. Field introduced in 20.1.1.
 	Vcenters []*PlacementScopeConfig `json:"vcenters,omitempty"`
 
-	// Number of vcpus for each of the Service Engine virtual machines.
+	// Number of vcpus for each of the Service Engine virtual machines. Changes to this setting do not affect existing SEs.
 	VcpusPerSe *int32 `json:"vcpus_per_se,omitempty"`
 
 	// When vip_asg is set, Vip configuration will be managed by Avi.User will be able to configure vip_asg or Vips individually at the time of create. Field introduced in 17.2.12, 18.1.2.
