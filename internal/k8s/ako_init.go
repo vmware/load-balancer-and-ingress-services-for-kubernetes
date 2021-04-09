@@ -730,7 +730,7 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 	cache := avicache.SharedAviObjCache()
 	aviclient := avicache.SharedAVIClients()
 	restlayer := rest.NewRestOperations(cache, aviclient)
-	restlayer.DeQueueNodes(keyStr)
+	restlayer.DequeueNodes(keyStr)
 	return nil
 }
 
