@@ -51,7 +51,7 @@ func (rest *RestOperations) CleanupVS(key string, skipVS bool) {
 	utils.AviLog.Infof("key: %s, msg: cleanup mode, stale object removal done", key)
 }
 
-func (rest *RestOperations) DeQueueNodes(key string) {
+func (rest *RestOperations) DequeueNodes(key string) {
 	utils.AviLog.Infof("key: %s, msg: start rest layer sync.", key)
 	namespace, name := utils.ExtractNamespaceObjectName(key)
 	// Got the key from the Graph Layer - let's fetch the model
@@ -1300,7 +1300,6 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 						utils.AviLog.Debugf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
 
 						if vsvip_cache_obj.CloudConfigCksum == strconv.Itoa(int(vsvip.GetCheckSum())) {
-
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.

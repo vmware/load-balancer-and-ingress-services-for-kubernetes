@@ -191,18 +191,20 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 
 		vrfContextRef := "/api/vrfcontext?name=" + vsvip_meta.VrfContext
 		vsvip := avimodels.VsVip{
-			Name:              &name,
-			TenantRef:         &tenant,
-			CloudRef:          &cloudRef,
-			EastWestPlacement: &east_west,
-			VrfContextRef:     &vrfContextRef,
-			DNSInfo:           dns_info_arr,
-			Vip:               vips,
+			Name:                  &name,
+			TenantRef:             &tenant,
+			CloudRef:              &cloudRef,
+			EastWestPlacement:     &east_west,
+			VrfContextRef:         &vrfContextRef,
+			DNSInfo:               dns_info_arr,
+			Vip:                   vips,
+			VsvipCloudConfigCksum: &cksumstr,
 		}
+
 		if lib.GetGRBACSupport() {
 			vsvip.Labels = lib.GetLabels()
 		}
-		vsvip.VsvipCloudConfigCksum = &cksumstr
+
 		path = "/api/vsvip"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
@@ -457,8 +459,8 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vsvip_cache_obj.InvalidData = true
 		}
 
-		if resp["VsvipCloudConfigCksum"] != nil {
-			vsvip_cache_obj.CloudConfigCksum = resp["VsvipCloudConfigCksum"].(string)
+		if resp["vsvip_cloud_config_cksum"] != nil {
+			vsvip_cache_obj.CloudConfigCksum = resp["vsvip_cloud_config_cksum"].(string)
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
