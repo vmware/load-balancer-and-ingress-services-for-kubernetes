@@ -41,7 +41,7 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &pg_meta.ImplicitPriorityLabel}
 
 	if lib.GetGRBACSupport() {
-		pg.Labels = lib.GetLabels()
+		pg.Markers = lib.GetMarkers()
 	}
 
 	var path string

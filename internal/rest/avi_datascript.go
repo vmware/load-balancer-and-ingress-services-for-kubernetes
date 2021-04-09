@@ -41,7 +41,7 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	cr := lib.AKOUser
 	vsdatascriptset := avimodels.VSDataScriptSet{CreatedBy: &cr, Datascript: datascriptlist, Name: &ds_meta.Name, TenantRef: &tenant_ref, PoolGroupRefs: poolgroupref}
 	if lib.GetGRBACSupport() {
-		vsdatascriptset.Labels = lib.GetLabels()
+		vsdatascriptset.Markers = lib.GetMarkers()
 	}
 	if len(ds_meta.ProtocolParsers) > 0 {
 		vsdatascriptset.ProtocolParserRefs = ds_meta.ProtocolParsers

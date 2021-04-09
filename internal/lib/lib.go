@@ -93,6 +93,12 @@ func SetGRBACSupport(val string) {
 	if boolVal, err := strconv.ParseBool(val); err == nil {
 		gRBAC = boolVal
 	}
+	controllerVersion := utils.CtrlVersion
+	if gRBAC && CheckControllerVersionCompatibility(controllerVersion, "<", ControllerVersion2015) {
+		// GRBAC is supported from 20.1.5 and above
+		utils.AviLog.Infof("Disabling GRBAC as controller version is less than %v", ControllerVersion2015)
+		gRBAC = false
+	}
 	utils.AviLog.Infof("Setting the value for the gRBAC flag %v", gRBAC)
 }
 
@@ -641,11 +647,11 @@ func SetClusterLabelChecksum() {
 func GetClusterLabelChecksum() uint32 {
 	return clusterLabelChecksum
 }
-func ObjectLabelChecksum(objectLabels []*models.KeyValue) uint32 {
+func ObjectLabelChecksum(objectLabels []*models.RoleFilterMatchLabel) uint32 {
 	var objChecksum uint32
 
 	for _, label := range objectLabels {
-		if *label.Key == clusterKey && *label.Value == clusterValue {
+		if *label.Key == clusterKey && label.Values != nil && len(label.Values) > 0 && label.Values[0] == clusterValue {
 			objChecksum = clusterLabelChecksum
 			break
 		}
@@ -809,6 +815,19 @@ func GetLabels() []*models.KeyValue {
 	labels := []*models.KeyValue{}
 	labels = append(labels, kv)
 	return labels
+}
+
+// GetMarkers returns the key values pair used for tagging the segroups and routes in vrfcontext
+func GetMarkers() []*models.RoleFilterMatchLabel {
+	clusterName := GetClusterName()
+	labelKey := SeGroupLabelKey
+	rfml := &models.RoleFilterMatchLabel{
+		Key:    &labelKey,
+		Values: []string{clusterName},
+	}
+	rfmls := []*models.RoleFilterMatchLabel{}
+	rfmls = append(rfmls, rfml)
+	return rfmls
 }
 
 func HasValidBackends(routeSpec routev1.RouteSpec, routeName, namespace, key string) bool {

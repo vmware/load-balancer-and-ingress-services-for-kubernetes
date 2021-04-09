@@ -42,7 +42,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		CreatedBy: &cr, TenantRef: &tenant, HTTPRequestPolicy: &http_req_pol}
 
 	if lib.GetGRBACSupport() {
-		hps.Labels = lib.GetLabels()
+		hps.Markers = lib.GetMarkers()
 	}
 	var idx int32
 	idx = 0
