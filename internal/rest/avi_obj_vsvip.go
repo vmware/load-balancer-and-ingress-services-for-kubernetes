@@ -98,7 +98,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		// Override the Vip in VsVip tto bring in updates, keeping everything else as is.
 
 		if lib.GetGRBACSupport() {
-			vsvip.Labels = lib.GetLabels()
+			vsvip.Markers = lib.GetMarkers()
 		}
 		rest_op = utils.RestOp{
 			ObjName: name,
@@ -202,7 +202,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		}
 
 		if lib.GetGRBACSupport() {
-			vsvip.Labels = lib.GetLabels()
+			vsvip.Markers = lib.GetMarkers()
 		}
 
 		path = "/api/vsvip"
@@ -242,7 +242,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			vsvip_avi.DNSInfo = dns_info_arr
 			vsvip_avi.VrfContextRef = &vrfContextRef
 			if lib.GetGRBACSupport() {
-				vsvip_avi.Labels = lib.GetLabels()
+				vsvip_avi.Markers = lib.GetMarkers()
 			}
 			vsvip_avi.VsvipCloudConfigCksum = &cksumstr
 			path = "/api/vsvip/" + vsvip_cache_obj.Uuid
