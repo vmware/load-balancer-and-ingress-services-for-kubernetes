@@ -2661,8 +2661,7 @@ func checkPublicCloud(client *clients.AviClient) bool {
 		if networkName == "" && lib.GetCloudType() != lib.CLOUD_GCP {
 			if lib.GetCloudType() == lib.CLOUD_AWS {
 				//check for vipNetworkList if networkName not present for AWS Clouds
-				utils.AviLog.Infof("networkName not specified")
-				utils.AviLog.Infof("Checking for vipNetworkList as cloud is AWS")
+				utils.AviLog.Infof("networkName not specified, checking for vipNetworkList as cloud is AWS")
 				vipNetworkList, err := lib.GetVipNetworkList()
 				if err == nil && len(vipNetworkList) != 0 {
 					utils.AviLog.Infof("Proceeding as multi-vip enabled")

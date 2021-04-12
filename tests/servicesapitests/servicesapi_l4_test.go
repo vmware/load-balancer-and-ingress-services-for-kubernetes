@@ -1059,7 +1059,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	settingCreate := (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisBADaviref-seGroup",
-		NetworkName: "thisisaviref-networkName",
+		Networks:    []string{"thisisaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
@@ -1088,7 +1088,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	settingUpdate := (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
-		NetworkName: "thisisaviref-networkName",
+		Networks:    []string{"thisisaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "2"
@@ -1117,7 +1117,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	settingUpdate = (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
-		NetworkName: "thisisBADaviref-networkName",
+		Networks:    []string{"thisisBADaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "3"

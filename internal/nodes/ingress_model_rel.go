@@ -701,13 +701,6 @@ func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 		return allIngresses, false
 	}
 
-	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
-	if err == nil {
-		if infraSetting.Status.Status != lib.StatusAccepted {
-			return allIngresses, false
-		}
-	}
-
 	// Get all IngressClasses from AviInfraSetting.
 	ingClasses, err := utils.GetInformers().IngressClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingIngClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
 	if err != nil {
@@ -730,13 +723,6 @@ func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 func AviSettingToRoute(infraSettingName, namespace, key string) ([]string, bool) {
 	allRoutes := make([]string, 0)
 
-	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
-	if err == nil {
-		if infraSetting.Status.Status != lib.StatusAccepted {
-			return allRoutes, false
-		}
-	}
-
 	// Get all Routes from AviInfraSetting via annotation.
 	routes, err := utils.GetInformers().RouteInformer.Informer().GetIndexer().ByIndex(lib.AviSettingRouteIndex, infraSettingName)
 	if err != nil {
@@ -756,14 +742,6 @@ func AviSettingToRoute(infraSettingName, namespace, key string) ([]string, bool)
 
 func AviSettingToGateway(infraSettingName string, namespace string, key string) ([]string, bool) {
 	allGateways := make([]string, 0)
-
-	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
-	if err == nil {
-		// Validate Avi references and configurations in AviInfraSetting.
-		if infraSetting.Status.Status != lib.StatusAccepted {
-			return allGateways, false
-		}
-	}
 
 	// Get all GatewayClasses from AviInfraSetting.
 	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
@@ -795,14 +773,6 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 
 func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]string, bool) {
 	allSvcs := make([]string, 0)
-
-	infraSetting, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
-	if err == nil {
-		// Validate Avi references and configurations in AviInfraSetting.
-		if infraSetting.Status.Status != lib.StatusAccepted {
-			return allSvcs, false
-		}
-	}
 
 	// get all services that are affected by this infrasetting
 	services, err := utils.GetInformers().ServiceInformer.Informer().GetIndexer().ByIndex(lib.AviSettingServicesIndex, infraSettingName)

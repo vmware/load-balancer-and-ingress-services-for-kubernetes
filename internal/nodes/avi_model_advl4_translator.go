@@ -190,7 +190,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		// configures VS and VsVip nodes using infraSetting object (via CRD).
-		if infraSetting := getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName); infraSetting != nil {
+		if infraSetting, err := getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName); err == nil {
 			buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
 		}
 

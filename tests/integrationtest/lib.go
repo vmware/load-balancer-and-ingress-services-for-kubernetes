@@ -1316,7 +1316,7 @@ func VerifyMetadataHTTPRule(g *gomega.WithT, poolKey cache.NamespaceName, rrnsna
 type FakeAviInfraSetting struct {
 	Name        string
 	SeGroupName string
-	NetworkName string
+	Networks    []string
 	EnableRhi   bool
 	ShardSize   string
 }
@@ -1331,7 +1331,7 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 				Name: infraSetting.SeGroupName,
 			},
 			Network: akov1alpha1.AviInfraSettingNetwork{
-				Names:     []string{infraSetting.NetworkName},
+				Names:     infraSetting.Networks,
 				EnableRhi: &infraSetting.EnableRhi,
 			},
 		},
@@ -1348,7 +1348,7 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 	setting := FakeAviInfraSetting{
 		Name:        infraSettingName,
 		SeGroupName: "thisisaviref-" + infraSettingName + "-seGroup",
-		NetworkName: "thisisaviref-" + infraSettingName + "-networkName",
+		Networks:    []string{"thisisaviref-" + infraSettingName + "-networkName"},
 		EnableRhi:   true,
 		ShardSize:   shardSize,
 	}
