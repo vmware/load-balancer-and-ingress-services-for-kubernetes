@@ -111,6 +111,11 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		VrfContext: vrfcontext,
 	}
 
+	if lib.GetSubnetIP() != "" {
+		vsVipNode.SubnetIP = lib.GetSubnetIP()
+		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
+	}
+
 	if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
 		return nil

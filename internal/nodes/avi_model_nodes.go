@@ -893,6 +893,8 @@ type AviVSVIPNode struct {
 	EastWest                bool
 	VrfContext              string
 	IPAddress               string
+	SubnetIP                string
+	SubnetPrefix            int32
 	NetworkNames            []string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
@@ -919,6 +921,9 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	}
 	if lib.GetGRBACSupport() {
 		checksum += lib.GetClusterLabelChecksum()
+	}
+	if v.SubnetIP != "" {
+		checksum += utils.Hash(v.SubnetIP)
 	}
 	v.CloudConfigCksum = checksum
 }

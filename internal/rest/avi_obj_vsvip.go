@@ -117,23 +117,21 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		}
 
 		// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
-		subnetMask := lib.GetSubnetPrefixInt()
-		subnetAddress := lib.GetSubnetIP()
-		if lib.GetSubnetPrefix() == "" || subnetAddress == "" {
+		if vsvip_meta.SubnetIP == "" {
 			utils.AviLog.Warnf("Incomplete values provided for subnetIP, will not use IPAMNetworkSubnet in vsvip")
 		} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP {
 			// add the IPAMNetworkSubnet
 			vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
 				Subnet: &avimodels.IPAddrPrefix{
-					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &subnetAddress},
-					Mask:   &subnetMask,
+					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.SubnetIP},
+					Mask:   &vsvip_meta.SubnetPrefix,
 				},
 			}
 		} else if !lib.GetAdvancedL4() {
 			vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
 				Subnet: &avimodels.IPAddrPrefix{
-					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &subnetAddress},
-					Mask:   &subnetMask,
+					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.SubnetIP},
+					Mask:   &vsvip_meta.SubnetPrefix,
 				},
 			}
 		}
@@ -164,7 +162,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 		addr := "172.18.0.0"
 		ew_subnet := avimodels.IPAddrPrefix{
 			IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &addr},
-			Mask:   &subnetMask,
+			Mask:   &vsvip_meta.SubnetPrefix,
 		}
 
 		var east_west bool
