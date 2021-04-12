@@ -7,11 +7,11 @@ package models
 // swagger:model Tier1LogicalRouterInfo
 type Tier1LogicalRouterInfo struct {
 
-	// Segment ID. Field introduced in 20.1.1.
+	// Overlay segment path. Example- /infra/segments/Seg-Web-T1-01. Field introduced in 20.1.1.
 	// Required: true
 	SegmentID *string `json:"segment_id"`
 
-	// Tier1 logical router ID. Field introduced in 20.1.1.
+	// Tier1 logical router path. Example- /infra/tier-1s/T1-01. Field introduced in 20.1.1.
 	// Required: true
 	Tier1LrID *string `json:"tier1_lr_id"`
 }

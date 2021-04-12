@@ -23,8 +23,11 @@ type ErrorPageProfile struct {
 	// Fully qualified domain name for which the error page is generated. Field deprecated in 18.1.1. Field introduced in 17.2.4.
 	HostName *string `json:"host_name,omitempty"`
 
-	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field introduced in 20.1.3. Maximum of 4 items allowed.
+	// Key value pairs for granular object access control. Also allows for classification and tagging of similar objects. Field deprecated in 20.1.5. Field introduced in 20.1.3. Maximum of 4 items allowed.
 	Labels []*KeyValue `json:"labels,omitempty"`
+
+	// List of labels to be used for granular RBAC. Field introduced in 20.1.5.
+	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
 
 	//  Field introduced in 17.2.4.
 	// Required: true

@@ -66,6 +66,9 @@ type NsxtSegmentRuntime struct {
 	// Uuid. Field introduced in 20.1.1.
 	UUID *string `json:"uuid,omitempty"`
 
+	// Segment Vlan ids. Field introduced in 20.1.5.
+	VlanIds []string `json:"vlan_ids,omitempty"`
+
 	// Corresponding vrf context object in Avi. It is a reference to an object of type VrfContext. Field introduced in 20.1.1.
 	VrfContextRef *string `json:"vrf_context_ref,omitempty"`
 }

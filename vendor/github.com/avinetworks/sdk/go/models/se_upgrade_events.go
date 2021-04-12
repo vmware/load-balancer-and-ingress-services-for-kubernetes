@@ -31,6 +31,9 @@ type SeUpgradeEvents struct {
 	//  It is a reference to an object of type ServiceEngine.
 	SeRef *string `json:"se_ref,omitempty"`
 
+	// List of sub_tasks executed. Field introduced in 20.1.4.
+	SubTasks []string `json:"sub_tasks,omitempty"`
+
 	//  Enum options - SE_UPGRADE_PREVIEW. SE_UPGRADE_IN_PROGRESS. SE_UPGRADE_COMPLETE. SE_UPGRADE_ERROR. SE_UPGRADE_PRE_CHECKS. SE_IMAGE_INSTALL. SE_UPGRADE_IMAGE_NOT_FOUND. SE_ALREADY_UPGRADED. SE_REBOOT. SE_CONNECT_AFTER_REBOOT. SE_PRE_UPGRADE_TASKS. SE_POST_UPGRADE_TASKS. SE_WAIT_FOR_SWITCHOVER. SE_CHECK_SCALEDOUT_VS_EXISTS. SE_UPGRADE_SEMGR_REQUEST. SE_UPGRADE_SEMGR_SE_UNREACHABLE. SE_PRE_UPGRADE_SCALE_IN_OPS. SE_POST_UPGRADE_SCALE_OUT_OPS. SE_UPGRADE_SUSPENDED. SE_UPGRADE_START...
 	Task *string `json:"task,omitempty"`
 

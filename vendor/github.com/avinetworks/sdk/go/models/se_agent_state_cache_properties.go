@@ -10,6 +10,12 @@ type SeAgentStateCacheProperties struct {
 	// Max elements to flush in one shot from the internal buffer by the statecache thread. Allowed values are 1-10000. Field introduced in 18.2.5.
 	ScBatchBufferFlushLimit *int32 `json:"sc_batch_buffer_flush_limit,omitempty"`
 
+	// Max elements to dequeue in one shot from the Q by the statecache thread. Allowed values are 1-10000. Field introduced in 20.1.5.
+	ScDNSQBatchDequeueLimit *int32 `json:"sc_dns_q_batch_dequeue_limit,omitempty"`
+
+	// Max elements in the dns queue between seagent main and the statecache thread. Allowed values are 1-10000. Field introduced in 20.1.5.
+	ScDNSQMaxSize *int32 `json:"sc_dns_q_max_size,omitempty"`
+
 	// Max time to wait by the statecache thread before cleaning up connection to the controller shard. Allowed values are 1-1000000. Field introduced in 18.2.5. Unit is SECONDS.
 	ScShardCleanupMaxTime *int32 `json:"sc_shard_cleanup_max_time,omitempty"`
 

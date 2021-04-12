@@ -34,6 +34,9 @@ type EventDetails struct {
 	// Placeholder for description of property apic_agent_vs_network_error of obj type EventDetails field type str  type object
 	ApicAgentVsNetworkError *ApicAgentVsNetworkError `json:"apic_agent_vs_network_error,omitempty"`
 
+	// Placeholder for description of property app_signature_event_data of obj type EventDetails field type str  type object
+	AppSignatureEventData *AppSignatureEventData `json:"app_signature_event_data,omitempty"`
+
 	// Placeholder for description of property avg_uptime_change_details of obj type EventDetails field type str  type object
 	AvgUptimeChangeDetails *AvgUptimeChangeDetails `json:"avg_uptime_change_details,omitempty"`
 
@@ -183,6 +186,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property container_cloud_sevice of obj type EventDetails field type str  type object
 	ContainerCloudSevice *ContainerCloudService `json:"container_cloud_sevice,omitempty"`
+
+	//  Field introduced in 20.1.4.
+	ControllerDiscontinuousTimeChangeEventDetails *ControllerDiscontinuousTimeChangeEventDetails `json:"controller_discontinuous_time_change_event_details,omitempty"`
 
 	// Placeholder for description of property controller_license_reconcile_details of obj type EventDetails field type str  type object
 	ControllerLicenseReconcileDetails *ControllerLicenseReconcileDetails `json:"controller_license_reconcile_details,omitempty"`
@@ -372,6 +378,9 @@ type EventDetails struct {
 
 	// Placeholder for description of property se_details of obj type EventDetails field type str  type object
 	SeDetails *SeMgrEventDetails `json:"se_details,omitempty"`
+
+	//  Field introduced in 20.1.4.
+	SeDiscontinuousTimeChangeEventDetails *SeDiscontinuousTimeChangeEventDetails `json:"se_discontinuous_time_change_event_details,omitempty"`
 
 	// Placeholder for description of property se_dupip_event_details of obj type EventDetails field type str  type object
 	SeDupipEventDetails *SeDupipEventDetails `json:"se_dupip_event_details,omitempty"`

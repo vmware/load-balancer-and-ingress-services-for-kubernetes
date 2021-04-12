@@ -11,7 +11,7 @@ type PortMatchGeneric struct {
 	// Required: true
 	MatchCriteria *string `json:"match_criteria"`
 
-	// Listening TCP port(s). Allowed values are 1-65535.
+	// Listening TCP port(s). Allowed values are 1-65535. Field introduced in 20.1.3.
 	Ports []int64 `json:"ports,omitempty,omitempty"`
 
 	// A port range defined by a start and end, including both. Field introduced in 20.1.3.
