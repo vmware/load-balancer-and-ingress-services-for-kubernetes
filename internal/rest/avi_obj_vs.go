@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -255,6 +256,11 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 		var httpPolicyCollection []*avimodels.HTTPPolicies
 		internalPolicyIndexBuffer := int32(11)
+
+		sort.Slice(vs_meta.HttpPolicyRefs, func(i, j int) bool {
+			return vs_meta.HttpPolicyRefs[i].HppMap[0].Path[0] < vs_meta.HttpPolicyRefs[j].HppMap[0].Path[0]
+		})
+
 		for i, http := range vs_meta.HttpPolicyRefs {
 			// Update them on the VS object
 			var j int32

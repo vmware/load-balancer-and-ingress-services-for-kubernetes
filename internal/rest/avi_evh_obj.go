@@ -17,6 +17,7 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -428,19 +429,38 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 		var httpPolicyCollection []*avimodels.HTTPPolicies
 		internalPolicyIndexBuffer := int32(11)
-		for i, http := range vs_meta.HttpPolicyRefs {
-			// Update them on the VS object
-			var j int32
+		var httpsWithHppMap []*nodes.AviHttpPolicySetNode
+		var httpsNoHppMap []*nodes.AviHttpPolicySetNode
+		for _, http := range vs_meta.HttpPolicyRefs {
+			if http.HppMap != nil {
+				httpsWithHppMap = append(httpsWithHppMap, http)
+			} else {
+				httpsNoHppMap = append(httpsNoHppMap, http)
+			}
+		}
+
+		sort.Slice(httpsWithHppMap, func(i, j int) bool {
+			return httpsWithHppMap[i].HppMap[0].Path[0] < httpsWithHppMap[j].HppMap[0].Path[0]
+		})
+		var j int32
+		for i, http := range httpsWithHppMap {
 			j = int32(i) + internalPolicyIndexBuffer
+			k := j
 			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
-			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
+			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &k}
+			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
+		}
+		for _, http := range httpsNoHppMap {
+			j = j + 1
+			k := j
+			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
+			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &k}
 			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 		}
 
 		// from hostrule CRD
 		bufferLen := int32(len(httpPolicyCollection)) + internalPolicyIndexBuffer + 5
 		for i, policy := range vs_meta.HttpPolicySetRefs {
-			var j int32
 			j = int32(i) + bufferLen
 			httpPolicy := policy
 			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
