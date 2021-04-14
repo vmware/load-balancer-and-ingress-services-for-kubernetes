@@ -673,6 +673,133 @@ func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
 	VerifyVSNodeDeletion(g, settingModelName2)
 }
 
+func TestUpdateWithInfraSetting(t *testing.T) {
+	// update from ingressclass with infrasetting to another
+	// ingressclass with infrasetting in ingress
+
+	g := gomega.NewGomegaWithT(t)
+
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	modelName := "admin/cluster--Shared-L7-1"
+	secretName := "my-secret"
+
+	SetUpTestForIngress(t, modelName)
+	integrationtest.RemoveDefaultIngressClass()
+	defer integrationtest.AddDefaultIngressClass()
+
+	SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
+	ingressCreate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		ClassName:   ingClassName,
+		DnsNames:    []string{"baz.com", "bar.com"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			secretName: {"baz.com"},
+		},
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	settingModelName := "admin/cluster--Shared-L7-my-infrasetting-1"
+
+	settingsUpdate := integrationtest.FakeAviInfraSetting{
+		Name:        settingName,
+		SeGroupName: "thisisaviref-" + settingName + "-seGroup",
+		Networks:    []string{"thisisBADaviref-" + settingName + "-networkName"},
+		EnableRhi:   true,
+	}
+
+	settingCreate := settingsUpdate.AviInfraSetting()
+	settingCreate.ResourceVersion = "2"
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding AviInfraSetting: %v", err)
+	}
+
+	g.Eventually(func() string {
+		setting, _ := CRDClient.AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		return setting.Status.Status
+	}, 15*time.Second).Should(gomega.Equal("Rejected"))
+	g.Eventually(func() bool {
+		if found, _ := objects.SharedAviGraphLister().Get(modelName); !found {
+			return true
+		}
+		return false
+	}, 20*time.Second).Should(gomega.Equal(true))
+
+	settingUpdate := (integrationtest.FakeAviInfraSetting{
+		Name:        settingName,
+		SeGroupName: "thisisaviref-seGroup",
+		Networks:    []string{"thisisaviref-networkName"},
+		EnableRhi:   true,
+	}).AviInfraSetting()
+	settingUpdate.ResourceVersion = "3"
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating AviInfraSetting: %v", err)
+	}
+
+	g.Eventually(func() string {
+		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		return setting.Status.Status
+	}, 15*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(settingModelName); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 35*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
+	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-networkName"))
+	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
+
+	settingUpdate = (integrationtest.FakeAviInfraSetting{
+		Name:        settingName,
+		SeGroupName: "thisisaviref-seGroup",
+		Networks:    []string{"multivip-network1", "multivip-network2", "multivip-network3"},
+		EnableRhi:   true,
+	}).AviInfraSetting()
+	settingUpdate.ResourceVersion = "4"
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating AviInfraSetting: %v", err)
+	}
+
+	g.Eventually(func() string {
+		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		return setting.Status.Status
+	}, 15*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(settingModelName); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return len(nodes[0].VSVIPRefs[0].NetworkNames)
+			}
+		}
+		return 0
+	}, 35*time.Second).Should(gomega.Equal(3))
+	_, aviModel = objects.SharedAviGraphLister().Get(settingModelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("multivip-network1"))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[1]).Should(gomega.Equal("multivip-network2"))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[2]).Should(gomega.Equal("multivip-network3"))
+	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
+
+	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DeleteSecret(secretName, ns)
+	integrationtest.TeardownAviInfraSetting(t, settingName)
+	TearDownTestForIngress(t, modelName, settingModelName)
+	TeardownIngressClass(t, ingClassName)
+}
+
 func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	// update ingressclass (without infrasetting) in ingress
 	g := gomega.NewGomegaWithT(t)
@@ -712,10 +839,15 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() string {
+		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
+		settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return settingNodes[0].ServiceEngineGroup
+	}, 30*time.Second).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
 
 	ingressUpdate := (integrationtest.FakeIngress{
