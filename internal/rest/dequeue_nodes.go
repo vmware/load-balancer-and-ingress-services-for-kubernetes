@@ -1260,6 +1260,7 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 						dsCacheObj := ds_cache.(*avicache.AviDSCache)
 						if dsCacheObj.CloudConfigCksum != ds.GetCheckSum() {
 							utils.AviLog.Debugf("key: %s, msg: datascript checksum changed, updating - %s", key, ds.Name)
+							utils.AviLog.Infof("DS CHECKSUM CHECK: cache: %v\n model: %v", utils.Stringify(dsCacheObj), utils.Stringify(ds))
 							restOp := rest.AviDSBuild(ds, dsCacheObj, key)
 							rest_ops = append(rest_ops, restOp)
 						}
@@ -1479,6 +1480,7 @@ func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, c
 				if ok {
 					cache_ssl_nodes = Remove(cache_ssl_nodes, ssl_key)
 					ssl_cache_obj, _ := ssl_cache.(*avicache.AviSSLCache)
+					utils.AviLog.Infof("SSL CHECKSUM CHECK: cache: %v\n model: %v", utils.Stringify(ssl_cache_obj), utils.Stringify(ssl))
 					if ssl_cache_obj.CloudConfigCksum == ssl.GetCheckSum() {
 						utils.AviLog.Debugf("The checksums are same for SSL cache obj %s, not doing anything", ssl_cache_obj.Name)
 					} else {

@@ -94,12 +94,11 @@ func SetGRBACSupport(val string) {
 		gRBAC = boolVal
 	}
 	controllerVersion := utils.CtrlVersion
-	if gRBAC && CheckControllerVersionCompatibility(controllerVersion, "<", ControllerVersion2015) {
+	if gRBAC && !GetEnableCtrl2014Features() {
 		// GRBAC is supported from 20.1.5 and above
-		utils.AviLog.Infof("Disabling GRBAC as controller version is less than %v", ControllerVersion2015)
+		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is not %s or above.", controllerVersion, ControllerVersion2014)
 		gRBAC = false
 	}
-	utils.AviLog.Infof("Setting the value for the gRBAC flag %v", gRBAC)
 }
 
 func GetGRBACSupport() bool {
@@ -644,9 +643,11 @@ func SetClusterLabelChecksum() {
 		clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
 	}
 }
+
 func GetClusterLabelChecksum() uint32 {
 	return clusterLabelChecksum
 }
+
 func ObjectLabelChecksum(objectLabels []*models.RoleFilterMatchLabel) uint32 {
 	var objChecksum uint32
 
@@ -670,9 +671,16 @@ func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
 	return utils.Hash(utils.Stringify(filteredStaticRoutes))
 }
 
-func DSChecksum(pgrefs []string) uint32 {
+func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel) uint32 {
 	sort.Strings(pgrefs)
 	checksum := utils.Hash(utils.Stringify(pgrefs))
+	if GetGRBACSupport() {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
+		} else {
+			checksum += GetClusterLabelChecksum()
+		}
+	}
 	return checksum
 }
 
@@ -711,17 +719,33 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 	return allInformers, nil
 }
 
-func SSLKeyCertChecksum(sslName, certificate, cacert string) uint32 {
-	return utils.Hash(sslName + certificate + cacert)
+func SSLKeyCertChecksum(sslName, certificate, cacert string, markers []*models.RoleFilterMatchLabel) uint32 {
+	checksum := utils.Hash(sslName + certificate + cacert)
+	if GetGRBACSupport() {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
+		} else {
+			checksum += GetClusterLabelChecksum()
+		}
+	}
+	return checksum
 }
 
-func L4PolicyChecksum(ports []int64, protocol string) uint32 {
+func L4PolicyChecksum(ports []int64, protocol string, markers []*models.RoleFilterMatchLabel) uint32 {
 	var portsInt []int
 	for _, port := range ports {
 		portsInt = append(portsInt, int(port))
 	}
 	sort.Ints(portsInt)
-	return utils.Hash(utils.Stringify(portsInt)) + utils.Hash(protocol)
+	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(protocol)
+	if GetGRBACSupport() {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
+		} else {
+			checksum += GetClusterLabelChecksum()
+		}
+	}
+	return checksum
 }
 
 func IsNodePortMode() bool {

@@ -36,9 +36,15 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 	key := string(ssl_node.Key)
 	cr := lib.AKOUser
 	certType := ssl_node.Type
-	sslkeycert := avimodels.SSLKeyAndCertificate{Name: &name,
-		CreatedBy: &cr, TenantRef: &tenant, Certificate: &avimodels.SSLCertificate{Certificate: &certificate},
-		Key: &key, Type: &certType}
+
+	sslkeycert := avimodels.SSLKeyAndCertificate{
+		Name:        &name,
+		CreatedBy:   &cr,
+		TenantRef:   &tenant,
+		Certificate: &avimodels.SSLCertificate{Certificate: &certificate},
+		Key:         &key,
+		Type:        &certType,
+	}
 
 	if lib.GetGRBACSupport() {
 		sslkeycert.Markers = lib.GetMarkers()
@@ -51,8 +57,6 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 			Name:  &caName,
 		}}
 	}
-
-	// TODO other fields like cloud_ref and lb algo
 
 	var path string
 	var rest_op utils.RestOp
@@ -122,10 +126,14 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 				hasCA = true
 			}
 		}
-		checksum := lib.SSLKeyCertChecksum(name, cert, cacert)
-		checksum += lib.GetClusterLabelChecksum()
-		ssl_cache_obj := avicache.AviSSLCache{Name: name, Tenant: rest_op.Tenant,
-			Uuid: uuid, CloudConfigCksum: checksum, HasCARef: hasCA}
+
+		ssl_cache_obj := avicache.AviSSLCache{
+			Name:             name,
+			Tenant:           rest_op.Tenant,
+			Uuid:             uuid,
+			CloudConfigCksum: lib.SSLKeyCertChecksum(name, cert, cacert, nil),
+			HasCARef:         hasCA,
+		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.SSLKeyCache.AviCacheAdd(k, &ssl_cache_obj)
@@ -248,13 +256,11 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 			pkiCertificate = *rest_op.Obj.(avimodels.PKIprofile).CaCerts[0].Certificate
 		}
 
-		checksum := lib.SSLKeyCertChecksum(name, pkiCertificate, "")
-		checksum += lib.GetClusterLabelChecksum()
 		pki_cache_obj := avicache.AviPkiProfileCache{
 			Name:             name,
 			Tenant:           rest_op.Tenant,
 			Uuid:             uuid,
-			CloudConfigCksum: checksum,
+			CloudConfigCksum: lib.SSLKeyCertChecksum(name, pkiCertificate, "", nil),
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
