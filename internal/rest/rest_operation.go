@@ -228,7 +228,7 @@ func removeObjRefFromRestOps(restOps []*utils.RestOp, objName, objType string) b
 
 func isErrorRetryable(statusCode int) bool {
 	// List of status codes for which we support retry
-	if (statusCode >= 500 && statusCode < 599) || statusCode == 404 || statusCode == 408 || statusCode == 409 {
+	if (statusCode >= 500 && statusCode < 599) || statusCode == 404 || statusCode == 401 || statusCode == 408 || statusCode == 409 {
 		return true
 	}
 	return false
