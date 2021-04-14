@@ -124,7 +124,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
-	if infraSetting := getL4InfraSetting(key, svcObj, nil); infraSetting != nil {
+	if infraSetting, err := getL4InfraSetting(key, svcObj, nil); err == nil {
 		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
 	}
 
@@ -413,7 +413,7 @@ func GetDefaultSubDomain() []string {
 	return cloudProperty.NSIpamDNS
 }
 
-func getL4InfraSetting(key string, svc *corev1.Service, advl4GWClassName *string) *akov1alpha1.AviInfraSetting {
+func getL4InfraSetting(key string, svc *corev1.Service, advl4GWClassName *string) (*akov1alpha1.AviInfraSetting, error) {
 	var err error
 	var infraSetting *akov1alpha1.AviInfraSetting
 
@@ -421,13 +421,13 @@ func getL4InfraSetting(key string, svc *corev1.Service, advl4GWClassName *string
 		gwClass, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(*advl4GWClassName)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding GatewayClass %s", key, err.Error())
-			return nil
+			return nil, err
 		} else {
 			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
 				infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
 				if err != nil {
 					utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via GatewayClass %s", key, err.Error())
-					return nil
+					return nil, err
 				}
 			}
 		}
@@ -435,9 +435,14 @@ func getL4InfraSetting(key string, svc *corev1.Service, advl4GWClassName *string
 		infraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
-			return nil
+			return nil, err
 		}
 	}
 
-	return infraSetting
+	if infraSetting != nil && infraSetting.Status.Status != lib.StatusAccepted {
+		utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
+		return nil, fmt.Errorf("Referred AviInfraSetting %s is invalid", infraSetting.Name)
+	}
+
+	return infraSetting, nil
 }
