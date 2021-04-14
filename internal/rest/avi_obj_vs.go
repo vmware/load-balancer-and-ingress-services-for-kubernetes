@@ -257,16 +257,38 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		var httpPolicyCollection []*avimodels.HTTPPolicies
 		internalPolicyIndexBuffer := int32(11)
 
-		sort.Slice(vs_meta.HttpPolicyRefs, func(i, j int) bool {
-			return vs_meta.HttpPolicyRefs[i].HppMap[0].Path[0] < vs_meta.HttpPolicyRefs[j].HppMap[0].Path[0]
+		var httpsWithHppMap []*nodes.AviHttpPolicySetNode
+		var httpsNoHppMap []*nodes.AviHttpPolicySetNode
+		for _, http := range vs_meta.HttpPolicyRefs {
+			if http.HppMap != nil && http.HppMap[0].Path != nil {
+				httpsWithHppMap = append(httpsWithHppMap, http)
+			} else {
+				httpsNoHppMap = append(httpsNoHppMap, http)
+			}
+		}
+
+		sort.Slice(httpsWithHppMap, func(i, j int) bool {
+			return httpsWithHppMap[i].HppMap[0].Path[0] < httpsWithHppMap[j].HppMap[0].Path[0]
 		})
 
-		for i, http := range vs_meta.HttpPolicyRefs {
-			// Update them on the VS object
-			var j int32
+		var j int32
+		for i, http := range httpsNoHppMap {
 			j = int32(i) + internalPolicyIndexBuffer
+			k := j
 			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
-			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
+			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &k}
+			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
+		}
+		if len(httpsNoHppMap) == 0 {
+			j = internalPolicyIndexBuffer
+		} else {
+			j = j + 1
+		}
+		for _, http := range httpsWithHppMap {
+			k := j
+			j = j + 1
+			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
+			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &k}
 			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 		}
 

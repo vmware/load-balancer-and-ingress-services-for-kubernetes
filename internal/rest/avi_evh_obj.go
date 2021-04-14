@@ -432,7 +432,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		var httpsWithHppMap []*nodes.AviHttpPolicySetNode
 		var httpsNoHppMap []*nodes.AviHttpPolicySetNode
 		for _, http := range vs_meta.HttpPolicyRefs {
-			if http.HppMap != nil {
+			if http.HppMap != nil && http.HppMap[0].Path != nil {
 				httpsWithHppMap = append(httpsWithHppMap, http)
 			} else {
 				httpsNoHppMap = append(httpsNoHppMap, http)
@@ -443,16 +443,21 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 			return httpsWithHppMap[i].HppMap[0].Path[0] < httpsWithHppMap[j].HppMap[0].Path[0]
 		})
 		var j int32
-		for i, http := range httpsWithHppMap {
+		for i, http := range httpsNoHppMap {
 			j = int32(i) + internalPolicyIndexBuffer
 			k := j
 			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
 			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &k}
 			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 		}
-		for _, http := range httpsNoHppMap {
+		if len(httpsNoHppMap) == 0 {
+			j = internalPolicyIndexBuffer
+		} else {
 			j = j + 1
+		}
+		for _, http := range httpsWithHppMap {
 			k := j
+			j = j + 1
 			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
 			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &k}
 			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
@@ -461,6 +466,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		// from hostrule CRD
 		bufferLen := int32(len(httpPolicyCollection)) + internalPolicyIndexBuffer + 5
 		for i, policy := range vs_meta.HttpPolicySetRefs {
+			var j int32
 			j = int32(i) + bufferLen
 			httpPolicy := policy
 			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
