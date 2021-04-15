@@ -461,15 +461,12 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 			utils.AviLog.Warnf("Incomplete pki data unmarshalled, %s", utils.Stringify(pki))
 			continue
 		}
-		checksum := lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), "")
-		if lib.GetGRBACSupport() && pki.Markers != nil {
-			checksum += lib.ObjectLabelChecksum(pki.Markers)
-		}
+
 		pkiCacheObj := AviPkiProfileCache{
 			Name:             *pki.Name,
 			Uuid:             *pki.UUID,
 			Tenant:           lib.GetTenant(),
-			CloudConfigCksum: checksum,
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), "", pki.Markers, true),
 		}
 		*pkiData = append(*pkiData, pkiCacheObj)
 
@@ -788,14 +785,9 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
-		checksum := lib.DSChecksum(dsCacheObj.PoolGroups)
-		if lib.GetEnableCtrl2014Features() {
-			if len(ds.Datascript) == 1 {
-				checksum += utils.Hash(*ds.Datascript[0].Script)
-			}
-		}
-		if lib.GetGRBACSupport() && ds.Markers != nil {
-			checksum += lib.ObjectLabelChecksum(ds.Markers)
+		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
+		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
+			checksum += utils.Hash(*ds.Datascript[0].Script)
 		}
 		dsCacheObj.CloudConfigCksum = checksum
 		*DsData = append(*DsData, dsCacheObj)
@@ -891,17 +883,14 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 				}
 			}
 		}
-		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
-		if lib.GetGRBACSupport() && sslkey.Markers != nil {
-			checksum += lib.ObjectLabelChecksum(sslkey.Markers)
-		}
+
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
 			Cert:             *sslkey.Certificate.Certificate,
 			HasCARef:         hasCA,
 			CACertUUID:       cacertUUID,
-			CloudConfigCksum: checksum,
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, sslkey.Markers, true),
 		}
 		*SslData = append(*SslData, sslCacheObj)
 	}
@@ -965,14 +954,11 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 				}
 			}
 		}
-		checksum := lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert)
-		if lib.GetGRBACSupport() && sslkey.Markers != nil {
-			checksum += lib.ObjectLabelChecksum(sslkey.Markers)
-		}
+
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
-			CloudConfigCksum: checksum,
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, sslkey.Markers, true),
 			HasCARef:         hasCA,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *sslkey.Name}
@@ -1015,14 +1001,11 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 		if !strings.HasPrefix(*pkikey.Name, lib.GetNamePrefix()) {
 			continue
 		}
-		checksum := lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "")
-		if lib.GetGRBACSupport() && pkikey.Markers != nil {
-			checksum += lib.ObjectLabelChecksum(pkikey.Markers)
-		}
+
 		sslCacheObj := AviSSLCache{
 			Name:             *pkikey.Name,
 			Uuid:             *pkikey.UUID,
-			CloudConfigCksum: checksum,
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "", pkikey.Markers, true),
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pkikey.Name}
 		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
@@ -1145,14 +1128,9 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
-		checksum := lib.DSChecksum(dsCacheObj.PoolGroups)
-		if lib.GetGRBACSupport() && ds.Markers != nil {
-			checksum += lib.ObjectLabelChecksum(ds.Markers)
-		}
-		if lib.GetEnableCtrl2014Features() {
-			if len(ds.Datascript) == 1 {
-				checksum += utils.Hash(*ds.Datascript[0].Script)
-			}
+		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
+		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
+			checksum += utils.Hash(*ds.Datascript[0].Script)
 		}
 		dsCacheObj.CloudConfigCksum = checksum
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *ds.Name}
@@ -1417,16 +1395,13 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 				}
 			}
 		}
-		checksum := lib.L4PolicyChecksum(ports, protocol)
-		if lib.GetGRBACSupport() && l4pol.Markers != nil {
-			checksum += lib.ObjectLabelChecksum(l4pol.Markers)
-		}
+
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: checksum,
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, l4pol.Markers, true),
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *l4pol.Name}
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
@@ -1636,16 +1611,13 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		} else {
 			protocol = utils.UDP
 		}
-		checksum := lib.L4PolicyChecksum(ports, protocol)
-		if lib.GetGRBACSupport() && l4pol.Markers != nil {
-			checksum += lib.ObjectLabelChecksum(l4pol.Markers)
-		}
+
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: checksum,
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, l4pol.Markers, true),
 		}
 
 		*l4PolicyData = append(*l4PolicyData, l4PolCacheObj)

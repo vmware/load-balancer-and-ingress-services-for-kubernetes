@@ -124,9 +124,8 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		ds_cache_obj := avicache.AviDSCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid, PoolGroups: poolgroups}
 
-		checksum := lib.DSChecksum(ds_cache_obj.PoolGroups)
+		checksum := lib.DSChecksum(ds_cache_obj.PoolGroups, nil, false)
 		if lib.GetEnableCtrl2014Features() {
-			checksum += lib.GetClusterLabelChecksum()
 			checksum += utils.Hash(utils.HTTP_DS_SCRIPT_MODIFIED)
 		}
 		ds_cache_obj.CloudConfigCksum = checksum

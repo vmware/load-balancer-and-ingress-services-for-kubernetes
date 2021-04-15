@@ -176,14 +176,14 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 			pool := strings.TrimPrefix(*rule.Action.SelectPool.PoolRef, "/api/pool?name=")
 			pools = append(pools, pool)
 		}
-		checksum := lib.L4PolicyChecksum(ports, protocol)
-		checksum += lib.GetClusterLabelChecksum()
+
 		l4_cache_obj := avicache.AviL4PolicyCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			LastModified:     lastModifiedStr,
 			Pools:            pools,
-			CloudConfigCksum: checksum,
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, nil, false),
 		}
+
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.L4PolicyCache.AviCacheAdd(k, &l4_cache_obj)
 		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
