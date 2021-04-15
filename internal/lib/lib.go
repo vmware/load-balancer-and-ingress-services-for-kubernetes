@@ -96,7 +96,7 @@ func SetGRBACSupport(val string) {
 	controllerVersion := utils.CtrlVersion
 	if gRBAC && CheckControllerVersionCompatibility(controllerVersion, "<", ControllerVersion2015) {
 		// GRBAC is supported from 20.1.5 and above
-		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is less than %s.", ControllerVersion2015)
+		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is less than %s.", controllerVersion, ControllerVersion2015)
 		gRBAC = false
 	}
 }
