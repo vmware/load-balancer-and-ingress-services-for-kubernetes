@@ -425,29 +425,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 				evhChild.SslKeyAndCertificateRefs = append(evhChild.SslKeyAndCertificateRefs, certName)
 			}
 		}
-
-		var httpPolicyCollection []*avimodels.HTTPPolicies
-		internalPolicyIndexBuffer := int32(11)
-		for i, http := range vs_meta.HttpPolicyRefs {
-			// Update them on the VS object
-			var j int32
-			j = int32(i) + internalPolicyIndexBuffer
-			httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
-			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
-			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
-		}
-
-		// from hostrule CRD
-		bufferLen := int32(len(httpPolicyCollection)) + internalPolicyIndexBuffer + 5
-		for i, policy := range vs_meta.HttpPolicySetRefs {
-			var j int32
-			j = int32(i) + bufferLen
-			httpPolicy := policy
-			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
-			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
-		}
-
-		evhChild.HTTPPolicies = httpPolicyCollection
+		evhChild.HTTPPolicies = AviVsHttpPSAdd(vs_meta, true)
 	}
 
 	var rest_ops []*utils.RestOp
