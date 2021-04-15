@@ -466,7 +466,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 			Name:             *pki.Name,
 			Uuid:             *pki.UUID,
 			Tenant:           lib.GetTenant(),
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), "", pki.Markers),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), "", pki.Markers, true),
 		}
 		*pkiData = append(*pkiData, pkiCacheObj)
 
@@ -785,7 +785,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
-		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers)
+		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
 		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
 			checksum += utils.Hash(*ds.Datascript[0].Script)
 		}
@@ -890,7 +890,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 			Cert:             *sslkey.Certificate.Certificate,
 			HasCARef:         hasCA,
 			CACertUUID:       cacertUUID,
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, sslkey.Markers),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, sslkey.Markers, true),
 		}
 		*SslData = append(*SslData, sslCacheObj)
 	}
@@ -958,7 +958,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, sslkey.Markers),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, sslkey.Markers, true),
 			HasCARef:         hasCA,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *sslkey.Name}
@@ -1005,7 +1005,7 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 		sslCacheObj := AviSSLCache{
 			Name:             *pkikey.Name,
 			Uuid:             *pkikey.UUID,
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "", pkikey.Markers),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "", pkikey.Markers, true),
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pkikey.Name}
 		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
@@ -1128,7 +1128,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
-		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers)
+		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
 		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
 			checksum += utils.Hash(*ds.Datascript[0].Script)
 		}
@@ -1401,7 +1401,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, l4pol.Markers),
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, l4pol.Markers, true),
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *l4pol.Name}
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
@@ -1617,7 +1617,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, l4pol.Markers),
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, l4pol.Markers, true),
 		}
 
 		*l4PolicyData = append(*l4PolicyData, l4PolCacheObj)

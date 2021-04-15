@@ -131,7 +131,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			Name:             name,
 			Tenant:           rest_op.Tenant,
 			Uuid:             uuid,
-			CloudConfigCksum: lib.SSLKeyCertChecksum(name, cert, cacert, nil),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(name, cert, cacert, nil, false),
 			HasCARef:         hasCA,
 		}
 
@@ -260,7 +260,7 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 			Name:             name,
 			Tenant:           rest_op.Tenant,
 			Uuid:             uuid,
-			CloudConfigCksum: lib.SSLKeyCertChecksum(name, pkiCertificate, "", nil),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(name, pkiCertificate, "", nil, false),
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}

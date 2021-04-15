@@ -181,7 +181,7 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 			Uuid:             uuid,
 			LastModified:     lastModifiedStr,
 			Pools:            pools,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, nil),
+			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, nil, false),
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}

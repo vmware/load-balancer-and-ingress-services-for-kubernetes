@@ -94,9 +94,9 @@ func SetGRBACSupport(val string) {
 		gRBAC = boolVal
 	}
 	controllerVersion := utils.CtrlVersion
-	if gRBAC && !GetEnableCtrl2014Features() {
+	if gRBAC && CheckControllerVersionCompatibility(controllerVersion, "<", ControllerVersion2015) {
 		// GRBAC is supported from 20.1.5 and above
-		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is not %s or above.", controllerVersion, ControllerVersion2014)
+		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is less than %s.", ControllerVersion2015)
 		gRBAC = false
 	}
 }
@@ -671,11 +671,11 @@ func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
 	return utils.Hash(utils.Stringify(filteredStaticRoutes))
 }
 
-func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel) uint32 {
+func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	sort.Strings(pgrefs)
 	checksum := utils.Hash(utils.Stringify(pgrefs))
 	if GetGRBACSupport() {
-		if markers != nil {
+		if markers != nil && populateCache {
 			checksum += ObjectLabelChecksum(markers)
 		} else {
 			checksum += GetClusterLabelChecksum()
@@ -719,10 +719,10 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 	return allInformers, nil
 }
 
-func SSLKeyCertChecksum(sslName, certificate, cacert string, markers []*models.RoleFilterMatchLabel) uint32 {
+func SSLKeyCertChecksum(sslName, certificate, cacert string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	checksum := utils.Hash(sslName + certificate + cacert)
 	if GetGRBACSupport() {
-		if markers != nil {
+		if markers != nil && populateCache {
 			checksum += ObjectLabelChecksum(markers)
 		} else {
 			checksum += GetClusterLabelChecksum()
@@ -731,7 +731,7 @@ func SSLKeyCertChecksum(sslName, certificate, cacert string, markers []*models.R
 	return checksum
 }
 
-func L4PolicyChecksum(ports []int64, protocol string, markers []*models.RoleFilterMatchLabel) uint32 {
+func L4PolicyChecksum(ports []int64, protocol string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	var portsInt []int
 	for _, port := range ports {
 		portsInt = append(portsInt, int(port))
@@ -739,7 +739,7 @@ func L4PolicyChecksum(ports []int64, protocol string, markers []*models.RoleFilt
 	sort.Ints(portsInt)
 	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(protocol)
 	if GetGRBACSupport() {
-		if markers != nil {
+		if markers != nil && populateCache {
 			checksum += ObjectLabelChecksum(markers)
 		} else {
 			checksum += GetClusterLabelChecksum()
