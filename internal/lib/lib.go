@@ -675,11 +675,13 @@ func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populat
 	sort.Strings(pgrefs)
 	checksum := utils.Hash(utils.Stringify(pgrefs))
 	if GetGRBACSupport() {
-		if markers != nil && populateCache {
-			checksum += ObjectLabelChecksum(markers)
-		} else {
-			checksum += GetClusterLabelChecksum()
+		if populateCache {
+			if markers != nil {
+				checksum += ObjectLabelChecksum(markers)
+			}
+			return checksum
 		}
+		checksum += GetClusterLabelChecksum()
 	}
 	return checksum
 }
@@ -722,11 +724,13 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 func SSLKeyCertChecksum(sslName, certificate, cacert string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	checksum := utils.Hash(sslName + certificate + cacert)
 	if GetGRBACSupport() {
-		if markers != nil && populateCache {
-			checksum += ObjectLabelChecksum(markers)
-		} else {
-			checksum += GetClusterLabelChecksum()
+		if populateCache {
+			if markers != nil {
+				checksum += ObjectLabelChecksum(markers)
+			}
+			return checksum
 		}
+		checksum += GetClusterLabelChecksum()
 	}
 	return checksum
 }
@@ -739,11 +743,13 @@ func L4PolicyChecksum(ports []int64, protocol string, markers []*models.RoleFilt
 	sort.Ints(portsInt)
 	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(protocol)
 	if GetGRBACSupport() {
-		if markers != nil && populateCache {
-			checksum += ObjectLabelChecksum(markers)
-		} else {
-			checksum += GetClusterLabelChecksum()
+		if populateCache {
+			if markers != nil {
+				checksum += ObjectLabelChecksum(markers)
+			}
+			return checksum
 		}
+		checksum += GetClusterLabelChecksum()
 	}
 	return checksum
 }
