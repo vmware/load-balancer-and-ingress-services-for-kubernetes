@@ -709,7 +709,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	settingCreate := (FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisBADaviref-seGroup",
-		NetworkName: "thisisaviref-networkName",
+		Networks:    []string{"thisisaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
@@ -738,7 +738,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	settingUpdate := (FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
-		NetworkName: "thisisaviref-networkName",
+		Networks:    []string{"thisisaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "2"
@@ -767,7 +767,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	settingUpdate = (FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
-		NetworkName: "thisisBADaviref-networkName",
+		Networks:    []string{"thisisBADaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "3"
@@ -779,6 +779,50 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 15*time.Second).Should(gomega.Equal("Rejected"))
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(lib.GetNetworkName()))
+	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
+
+	settingUpdate = (FakeAviInfraSetting{
+		Name:        settingName,
+		SeGroupName: "thisisaviref-seGroup",
+		Networks:    []string{"multivip-network1", "multivip-network2", "multivip-network3"},
+		EnableRhi:   true,
+	}).AviInfraSetting()
+	settingUpdate.ResourceVersion = "4"
+	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating AviInfraSetting: %v", err)
+	}
+
+	g.Eventually(func() string {
+		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		return setting.Status.Status
+	}, 15*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() string {
+		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return nodes[0].ServiceEngineGroup
+			}
+		}
+		return ""
+	}, 35*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes[0].VSVIPRefs[0].NetworkNames)).Should(gomega.Equal(3))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("multivip-network1"))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[1]).Should(gomega.Equal("multivip-network2"))
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[2]).Should(gomega.Equal("multivip-network3"))
+	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
 	TeardownAviInfraSetting(t, settingName)
 	TearDownTestForSvcLB(t, g)

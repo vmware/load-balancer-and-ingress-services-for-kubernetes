@@ -2631,12 +2631,26 @@ func checkPublicCloud(client *clients.AviClient) bool {
 		// Handle all public cloud validations here
 		networkName := lib.GetNetworkName()
 		if networkName == "" && lib.GetCloudType() != lib.CLOUD_GCP {
-			// networkName is required param for AWS and Azure Clouds
+			if lib.GetCloudType() == lib.CLOUD_AWS {
+				//check for vipNetworkList if networkName not present for AWS Clouds
+				utils.AviLog.Infof("networkName not specified, checking for vipNetworkList as cloud is AWS")
+				vipNetworkList, err := lib.GetVipNetworkList()
+				if err == nil && len(vipNetworkList) != 0 {
+					utils.AviLog.Infof("Proceeding as multi-vip enabled")
+					return true
+				} else {
+					utils.AviLog.Errorf("vipNetworkList not specified, syncing will be disabled.")
+					if err != nil {
+						utils.AviLog.Errorf("%s", err.Error())
+					}
+					return false
+				}
+			}
+			// networkName is required param for Azure Clouds
 			utils.AviLog.Errorf("Required param networkName not specified, syncing will be disabled.")
 			return false
 		}
 	}
-
 	return true
 }
 
