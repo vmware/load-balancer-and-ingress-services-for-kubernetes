@@ -1016,7 +1016,7 @@ func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	checksum := lib.DSChecksum(v.PoolGroupRefs, nil, false)
 	if lib.GetEnableCtrl2014Features() {
-		checksum += utils.Hash(v.Script)
+		checksum = utils.Hash(string(checksum) + v.Script)
 	}
 	v.CloudConfigCksum = checksum
 }
