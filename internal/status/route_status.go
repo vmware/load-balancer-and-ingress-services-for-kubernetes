@@ -101,6 +101,18 @@ func UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 			if err = updateRouteObject(route, option); err != nil {
 				utils.AviLog.Errorf("key: %s, msg: updating rorute object failed: %v", option.Key, err)
 			}
+			delete(routeMap, option.IngSvc)
+		}
+	}
+
+	if bulk {
+		for routeNSName, route := range routeMap {
+			DeleteRouteStatus([]UpdateOptions{{
+				ServiceMetadata: avicache.ServiceMetadataObj{
+					NamespaceIngressName: []string{routeNSName},
+					HostNames:            []string{route.Spec.Host},
+				},
+			}}, true, lib.SyncStatusKey)
 		}
 	}
 
@@ -120,7 +132,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 	}
 
 	if bulk {
-		routeList, err := utils.GetInformers().OshiftClient.RouteV1().Routes("").List(context.TODO(), metav1.ListOptions{})
+		routeList, err := utils.GetInformers().OshiftClient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -249,10 +261,6 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 	hostnames, key := updateOption.ServiceMetadata.HostNames, updateOption.Key
 	oldRouteStatus := mRoute.Status.DeepCopy()
 
-	// Clean up all hosts that are not part of the route spec.
-	var hostListIng []string
-	hostListIng = append(hostListIng, mRoute.Spec.Host)
-
 	// If we find a hostname in the present update, let's first remove it from the existing status.
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
 		if utils.HasElem(hostnames, mRoute.Status.Ingress[i].Host) {
@@ -283,7 +291,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 
 	// remove the host from status which is not in spec
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
-		if !utils.HasElem(hostListIng, mRoute.Status.Ingress[i].Host) {
+		if mRoute.Spec.Host != mRoute.Status.Ingress[i].Host {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		}
 	}
@@ -312,13 +320,12 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	}
-	err = updateRouteAnnotations(updatedRoute, updateOption, mRoute, key, hostListIng)
+	err = updateRouteAnnotations(updatedRoute, updateOption, mRoute, key, mRoute.Spec.Host)
 
 	return err
 }
 
-func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, oldRoute *routev1.Route,
-	key string, routeHostList []string, retryNum ...int) error {
+func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, oldRoute *routev1.Route, key, routeHost string, retryNum ...int) error {
 	if mRoute == nil {
 		mRoute = oldRoute
 	}
@@ -345,7 +352,7 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 
 	// remove the non-spec hostnames
 	for k := range vsAnnotations {
-		if !utils.HasElem(routeHostList, k) {
+		if routeHost != k {
 			delete(vsAnnotations, k)
 		}
 	}
@@ -357,7 +364,7 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 			// fetch updated route and retry for updating annotations
 			mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
 			if len(mRoutes) > 0 {
-				return updateRouteAnnotations(mRoute, updateOption, oldRoute, key, routeHostList, retry+1)
+				return updateRouteAnnotations(mRoute, updateOption, oldRoute, key, routeHost, retry+1)
 			}
 		}
 		utils.AviLog.Infof("key: %s, msg: successfully updated route annotations: %s/%s, old: %+v, new: %+v",
@@ -470,8 +477,6 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 			return nil
 		}
 	}
-	var hostListIng []string
-	hostListIng = append(hostListIng, mRoute.Spec.Host)
 
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
 		for _, host := range svc_mdata_obj.HostNames {
@@ -480,7 +485,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 			}
 			// Check if this host is still present in the spec, if so - don't delete it
 			//NS migration case: if false -> ns invalid event happened so remove status
-			if !utils.HasElem(hostListIng, host) || isVSDelete || !utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace) {
+			if mRoute.Spec.Host != host || isVSDelete || !utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace) {
 				mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 			} else {
 				utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the route: %v", key, host)
@@ -507,11 +512,11 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 			key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	}
 
-	return deleteRouteAnnotation(updatedRoute, svc_mdata_obj, isVSDelete, hostListIng, key, mRoute)
+	return deleteRouteAnnotation(updatedRoute, svc_mdata_obj, isVSDelete, mRoute.Spec.Host, key, mRoute)
 }
 
 func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMetadataObj, isVSDelete bool,
-	routeHostList []string, key string, oldRoute *routev1.Route, retryNum ...int) error {
+	routeHost string, key string, oldRoute *routev1.Route, retryNum ...int) error {
 	if routeObj == nil {
 		routeObj = oldRoute
 	}
@@ -540,7 +545,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMeta
 				// 2. in case of NS migration, if NS is moved from selected to rejected, this host then
 				//    has to be removed from the annotations list.
 				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace)
-				if !utils.HasElem(routeHostList, host) || isVSDelete || !nsMigrationFilterFlag {
+				if routeHost != host || isVSDelete || !nsMigrationFilterFlag {
 					delete(existingAnnotations, k)
 				} else {
 					utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the route: %v", key, host)
@@ -552,7 +557,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMeta
 	if isAnnotationsUpdateRequired(routeObj.Annotations, existingAnnotations) {
 		if err := patchRouteAnnotations(routeObj, existingAnnotations); err != nil && k8serrors.IsNotFound(err) {
 			utils.AviLog.Errorf("key: %s, msg: error in updating route annotations: %v, will retry", err)
-			return deleteRouteAnnotation(routeObj, svcMeta, isVSDelete, routeHostList, key, oldRoute, retry+1)
+			return deleteRouteAnnotation(routeObj, svcMeta, isVSDelete, routeHost, key, oldRoute, retry+1)
 		}
 		utils.AviLog.Debugf("key: %s, msg: annotations updated for route", key)
 	}

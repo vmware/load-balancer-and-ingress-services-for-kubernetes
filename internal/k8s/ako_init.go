@@ -392,7 +392,7 @@ func (c *AviController) FullSyncK8s() error {
 		}
 	}
 
-	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
+	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
 		return err
@@ -435,7 +435,7 @@ func (c *AviController) FullSyncK8s() error {
 	}
 
 	if !lib.GetAdvancedL4() {
-		hostRuleObjs, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules("").List(labels.Set(nil).AsSelector())
+		hostRuleObjs, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
 		} else {
@@ -445,7 +445,7 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 
-		httpRuleObjs, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules("").List(labels.Set(nil).AsSelector())
+		httpRuleObjs, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the httprules during full sync: %s", err)
 		} else {
@@ -467,7 +467,7 @@ func (c *AviController) FullSyncK8s() error {
 
 		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
-			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses("").List(labels.Set(nil).AsSelector())
+			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
 			} else {
@@ -502,7 +502,7 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 		if lib.UseServicesAPI() {
-			gatewayObjs, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways("").List(labels.Set(nil).AsSelector())
+			gatewayObjs, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
 				return err
@@ -530,7 +530,7 @@ func (c *AviController) FullSyncK8s() error {
 	} else {
 		//Gateway Section
 
-		gatewayObjs, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways("").List(labels.Set(nil).AsSelector())
+		gatewayObjs, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
 			return err

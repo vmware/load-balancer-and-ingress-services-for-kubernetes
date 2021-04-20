@@ -92,6 +92,15 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 				continue
 			}
 		}
+		delete(serviceMap, option.IngSvc)
+	}
+
+	if bulk {
+		for svcNSName := range serviceMap {
+			DeleteL4LBStatus(avicache.ServiceMetadataObj{
+				NamespaceServiceName: []string{svcNSName},
+			}, lib.SyncStatusKey)
+		}
 	}
 
 	return
@@ -196,7 +205,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 	}
 
 	if bulk {
-		serviceLBList, err := mClient.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{})
+		serviceLBList, err := mClient.CoreV1().Services(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
 			// retry get if request timeout
