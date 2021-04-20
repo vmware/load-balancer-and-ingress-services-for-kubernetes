@@ -92,7 +92,19 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gw := obj.(*advl4v1alpha1pre1.Gateway)
+			gw, ok := obj.(*advl4v1alpha1pre1.Gateway)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				gw, ok = tombstone.Obj.(*advl4v1alpha1pre1.Gateway)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an Gateway: %#v", obj)
+					return
+				}
+			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Infof("key: %s, msg: DELETE", key)
@@ -131,7 +143,19 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gwclass := obj.(*advl4v1alpha1pre1.GatewayClass)
+			gwclass, ok := obj.(*advl4v1alpha1pre1.GatewayClass)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				gwclass, ok = tombstone.Obj.(*advl4v1alpha1pre1.GatewayClass)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an GatewayClass: %#v", obj)
+					return
+				}
+			}
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwclass)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwclass))
 			utils.AviLog.Infof("key: %s, msg: DELETE", key)
