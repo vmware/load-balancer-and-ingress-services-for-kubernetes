@@ -39,12 +39,12 @@ func NewCRDInformers(cs akocrd.Interface) {
 	akoInformerFactory = akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
 	hostRuleInformer := akoInformerFactory.Ako().V1alpha1().HostRules()
 	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
-	albSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
+	aviSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
 
 	lib.SetCRDInformers(&lib.AKOCrdInformers{
 		HostRuleInformer:        hostRuleInformer,
 		HTTPRuleInformer:        httpRuleInformer,
-		AviInfraSettingInformer: albSettingsInformer,
+		AviInfraSettingInformer: aviSettingsInformer,
 	})
 }
 
@@ -63,13 +63,13 @@ func isHTTPRuleUpdated(oldHTTPRule, newHTTPRule *akov1alpha1.HTTPRule) bool {
 	return false
 }
 
-func isAlbInfraUpdated(oldAlbInfra, newAlbInfra *akov1alpha1.AviInfraSetting) bool {
-	if oldAlbInfra.ResourceVersion == newAlbInfra.ResourceVersion {
+func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1alpha1.AviInfraSetting) bool {
+	if oldAviInfra.ResourceVersion == newAviInfra.ResourceVersion {
 		return false
 	}
 
-	oldSpecHash := utils.Hash(utils.Stringify(oldAlbInfra.Spec))
-	newSpecHash := utils.Hash(utils.Stringify(newAlbInfra.Spec))
+	oldSpecHash := utils.Hash(utils.Stringify(oldAviInfra.Spec))
+	newSpecHash := utils.Hash(utils.Stringify(newAviInfra.Spec))
 
 	if oldSpecHash != newSpecHash {
 		return true
@@ -114,7 +114,19 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			hostrule := obj.(*akov1alpha1.HostRule)
+			hostrule, ok := obj.(*akov1alpha1.HostRule)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				hostrule, ok = tombstone.Obj.(*akov1alpha1.HostRule)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an HostRule: %#v", obj)
+					return
+				}
+			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 			key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
@@ -156,7 +168,19 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			httprule := obj.(*akov1alpha1.HTTPRule)
+			httprule, ok := obj.(*akov1alpha1.HTTPRule)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				httprule, ok = tombstone.Obj.(*akov1alpha1.HTTPRule)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an HTTPRule: %#v", obj)
+					return
+				}
+			}
 			key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
@@ -166,15 +190,15 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		},
 	}
 
-	albInfraEventHandler := cache.ResourceEventHandlerFuncs{
+	aviInfraEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
 				return
 			}
-			albinfra := obj.(*akov1alpha1.AviInfraSetting)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(albinfra))
-			key := lib.AviInfraSetting + "/" + utils.ObjKey(albinfra)
-			err := validateAviInfraSetting(key, albinfra)
+			aviinfra := obj.(*akov1alpha1.AviInfraSetting)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
+			key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
+			err := validateAviInfraSetting(key, aviinfra)
 			utils.AviLog.Warnf("Error retrieved during validation of aviinfra crd : %v", err)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -182,11 +206,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		},
 		UpdateFunc: func(old, new interface{}) {
 			oldObj := old.(*akov1alpha1.AviInfraSetting)
-			albInfra := new.(*akov1alpha1.AviInfraSetting)
-			if isAlbInfraUpdated(oldObj, albInfra) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(albInfra))
-				key := lib.AviInfraSetting + "/" + utils.ObjKey(albInfra)
-				err := validateAviInfraSetting(key, albInfra)
+			aviInfra := new.(*akov1alpha1.AviInfraSetting)
+			if isAviInfraUpdated(oldObj, aviInfra) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
+				err := validateAviInfraSetting(key, aviInfra)
 				utils.AviLog.Warnf("Error retrieved during validation of aviinfra crd : %v", err)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -197,9 +221,21 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			albinfra := obj.(*akov1alpha1.AviInfraSetting)
-			key := lib.AviInfraSetting + "/" + utils.ObjKey(albinfra)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(albinfra))
+			aviinfra, ok := obj.(*akov1alpha1.AviInfraSetting)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				aviinfra, ok = tombstone.Obj.(*akov1alpha1.AviInfraSetting)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an AviInfraSetting: %#v", obj)
+					return
+				}
+			}
+			key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			// no need to validate for delete handler
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -210,7 +246,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	informer.HostRuleInformer.Informer().AddEventHandler(hostRuleEventHandler)
 	informer.HTTPRuleInformer.Informer().AddEventHandler(httpRuleEventHandler)
 
-	informer.AviInfraSettingInformer.Informer().AddEventHandler(albInfraEventHandler)
+	informer.AviInfraSettingInformer.Informer().AddEventHandler(aviInfraEventHandler)
 	informer.AviInfraSettingInformer.Informer().AddIndexers(
 		cache.Indexers{
 			lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
