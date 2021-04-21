@@ -26,7 +26,7 @@ import (
 // +kubebuilder:validation:Enum=INFO;DEBUG;WARN;ERROR
 type LogLevelType string
 
-// +kubebuilder:validation:Enum=NodePort;ClusterIP
+// +kubebuilder:validation:Enum=NodePort;ClusterIP;NodePortLocal
 type ServiceTypeStr string
 
 // +kubebuilder:validation:Enum=LARGE;MEDIUM;SMALL
@@ -92,7 +92,7 @@ type NetworkSettings struct {
 type L7Settings struct {
 	// DefaultIngController specifies whether AKO controller is the default ingress controller
 	DefaultIngController bool `json:"defaultIngController,omitempty"`
-	// ServiceType defines the service type: ClusterIP or NodePort
+	// ServiceType defines the service type: ClusterIP, NodePort or NodePortLocal
 	ServiceType ServiceTypeStr `json:"serviceType,omitempty"`
 	// ShardVSSize specifies the number of shard VSs to be created
 	ShardVSSize VSSize `json:"shardVSSize,omitempty"`
