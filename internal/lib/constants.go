@@ -111,6 +111,7 @@ const (
 	UpdateStatus                               = "UpdateStatus"
 	DeleteStatus                               = "DeleteStatus"
 	NPLService                                 = "NPLService"
+	SyncStatusKey                              = "syncstatus"
 
 	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
