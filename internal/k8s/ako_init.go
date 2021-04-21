@@ -172,6 +172,9 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			if isValidUserInput {
 				if delConfigFromData(cm.Data) {
 					c.DeleteModels()
+					if lib.GetServiceType() == "ClusterIP" {
+						avicache.DeConfigureSeGroupLabels()
+					}
 				} else {
 					status.ResetStatefulSetStatus()
 					quickSyncCh <- struct{}{}

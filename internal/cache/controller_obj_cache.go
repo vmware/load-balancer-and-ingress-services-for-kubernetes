@@ -2532,6 +2532,46 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 	return true
 }
 
+// DeConfigureSeGroupLabels deconfigures labels on the SeGroup.
+func DeConfigureSeGroupLabels() {
+	if len(lib.GetLabels()) == 0 {
+		return
+	}
+	segName := lib.GetSEGName()
+	clients := SharedAVIClients()
+	aviClientLen := lib.GetshardSize()
+	client := clients.AviClient[aviClientLen-1]
+	seGroup, err := GetAviSeGroup(client, segName)
+	if err != nil {
+		utils.AviLog.Error(err)
+		return
+	}
+	clusterLabel := lib.GetLabels()[0]
+	// Remove the label from the SEG that belongs to this cluster
+	for i, label := range seGroup.Labels {
+		if *label.Key == *clusterLabel.Key && *label.Value == *clusterLabel.Value {
+			seGroup.Labels = append(seGroup.Labels[:i], seGroup.Labels[i+1:]...)
+		}
+	}
+	utils.AviLog.Infof("Updating the following labels: %v, on the SE Group", utils.Stringify(seGroup.Labels))
+	uri := "/api/serviceenginegroup/" + *seGroup.UUID
+	response := models.ServiceEngineGroupAPIResponse{}
+	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
+	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
+		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+		SetTenant := session.SetTenant(lib.GetTenant())
+		SetAdminTenant(client.AviSession)
+		defer SetTenant(client.AviSession)
+	}
+
+	err = lib.AviPut(client, uri, seGroup, response)
+	if err != nil {
+		utils.AviLog.Warnf("Deconfiguring SE Group labels failed on %v with error %v", segName, err.Error())
+		return
+	}
+	utils.AviLog.Infof("Successfully deconfigured SE Group labels  on %v", segName)
+}
+
 func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEngineGroup, error) {
 	uri := "/api/serviceenginegroup/?include_name&name=" + segName + "&cloud_ref.name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
