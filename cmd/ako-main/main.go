@@ -25,6 +25,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+
 	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
@@ -138,6 +140,12 @@ func InitializeAKC() {
 		if lib.UseServicesAPI() {
 			k8s.NewSvcApiInformers(svcAPIClient)
 		}
+	}
+
+	aviObjCache := avicache.SharedAviObjCache()
+	aviRestClientPool := avicache.SharedAVIClients()
+	if !aviObjCache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
+		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 
 	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
