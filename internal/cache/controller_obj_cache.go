@@ -927,6 +927,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 		utils.AviLog.Warnf("Failed to unmarshal sslkeyandcertificate data, err: %v", err)
 		return err
 	}
+
 	for i := 0; i < len(elems); i++ {
 		sslkey := models.SSLKeyAndCertificate{}
 		err = json.Unmarshal(elems[i], &sslkey)
@@ -938,6 +939,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(sslkey))
 			continue
 		}
+
 		//Only cache a SSL keys that belongs to this AKO.
 		if !strings.HasPrefix(*sslkey.Name, lib.GetNamePrefix()) {
 			continue
@@ -2217,6 +2219,35 @@ func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud st
 		}
 	}
 	return poolKeyCollection
+}
+
+func (c *AviObjCache) IsAviClusterActive(client *clients.AviClient) bool {
+	uri := "/api/cluster/runtime"
+	var response map[string]interface{}
+	err := lib.AviGet(client, uri, &response)
+	if err != nil {
+		utils.AviLog.Warnf("Cluster status Get uri %v returned err %v", uri, err)
+		return false
+	}
+
+	clusterStateMap, ok := response["cluster_state"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Warnf("Unexpected type for cluster_state map %T", response["cluster_states"])
+		return false
+	}
+
+	clusterState, ok := clusterStateMap["state"].(string)
+	if !ok {
+		utils.AviLog.Warnf("Unexpected type for cluster state %T", clusterStateMap["state"])
+		return false
+	}
+
+	utils.AviLog.Infof("Avi cluster state is %s", clusterState)
+	if clusterState == "CLUSTER_UP_NO_HA" || clusterState == "CLUSTER_UP_HA_ACTIVE" || clusterState == "CLUSTER_UP_HA_COMPROMISED" {
+		return true
+	}
+
+	return false
 }
 
 func (c *AviObjCache) AviClusterStatusPopulate(client *clients.AviClient) error {
