@@ -71,6 +71,16 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 				Status: metav1.ConditionTrue,
 			})
 			UpdateSvcApiGatewayStatusObject(option.Key, gw, gwStatus)
+			delete(gatewayMap, option.IngSvc)
+		}
+	}
+
+	// reset IPAddress and finalizer from Gateways that do not have a corresponding VS in cache
+	if bulk {
+		for gwNSName := range gatewayMap {
+			DeleteSvcApiGatewayStatusAddress("", avicache.ServiceMetadataObj{
+				Gateway: gwNSName,
+			})
 		}
 	}
 
@@ -93,19 +103,45 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 	}
 
 	if bulk {
-		gwList, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways("").List(context.TODO(), metav1.ListOptions{})
+		// Get GatewayClasses with Avi set as the controller, get corresponding Gateways,
+		// to return all AKO ingestable Gateways.
+		aviGWClasses := make(map[string]bool)
+		gwClassList, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Could not get the GatewayClass object for UpdateStatus: %s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getSvcApiGateways(gwNSNames, bulk, retry+1)
+			}
+			return gwMap
+		}
+
+		if len(gwClassList.Items) == 0 {
+			return gwMap
+		}
+
+		for i := range gwClassList.Items {
+			if gwClassList.Items[i].Spec.Controller == lib.SvcApiAviGatewayController {
+				aviGWClasses[gwClassList.Items[i].Name] = true
+			}
+		}
+
+		gwList, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the gateway object for UpdateStatus: %s", err)
 			// retry get if request timeout
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getSvcApiGateways(gwNSNames, bulk, retry+1)
 			}
-		} else {
-			for i := range gwList.Items {
+		}
+
+		for i := range gwList.Items {
+			if _, ok := aviGWClasses[gwList.Items[i].Spec.GatewayClassName]; ok {
 				ing := gwList.Items[i]
 				gwMap[ing.Namespace+"/"+ing.Name] = &ing
 			}
 		}
+
 		return gwMap
 	}
 

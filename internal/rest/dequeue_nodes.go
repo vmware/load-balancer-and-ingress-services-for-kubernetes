@@ -843,7 +843,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 			// TODO (sudswas): if error code 400 happens, it means layer 2's model has issue - can re-trigger a model eval in that case?
 			// If it's 409 it refers to a conflict. That means the cache should be refreshed for the particular object.
 
-			utils.AviLog.Infof("key: %s, msg: Confict for object: %s of type :%s", key, rest_op.ObjName, rest_op.Model)
+			utils.AviLog.Infof("key: %s, msg: Conflict for object: %s of type :%s", key, rest_op.ObjName, rest_op.Model)
 			switch rest_op.Model {
 			case "Pool":
 				var poolObjName string
