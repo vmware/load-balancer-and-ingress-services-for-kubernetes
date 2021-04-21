@@ -63,6 +63,23 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 			if err = updateObject(ingress, option); err != nil {
 				utils.AviLog.Error("key: %s, msg: updating Ingress object failed: %v", option.Key, err)
 			}
+			delete(ingressMap, option.IngSvc)
+		}
+	}
+
+	// reset IPAddress and finalizer from Gateways that do not have a corresponding VS in cache
+	if bulk {
+		for ingNSName, ing := range ingressMap {
+			var hostnames []string
+			for _, rule := range ing.Spec.Rules {
+				hostnames = append(hostnames, rule.Host)
+			}
+			DeleteIngressStatus([]UpdateOptions{{
+				ServiceMetadata: avicache.ServiceMetadataObj{
+					NamespaceIngressName: []string{ingNSName},
+					HostNames:            hostnames,
+				},
+			}}, true, lib.SyncStatusKey)
 		}
 	}
 
@@ -451,7 +468,32 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 	}
 
 	if bulk {
-		ingressList, err := mClient.NetworkingV1beta1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
+		// Get IngressClasses with Avi set as the controller, get corresponding Ingresses,
+		// to return all AKO ingestable Ingresses.
+		aviIngClasses := make(map[string]bool)
+		if utils.GetIngressClassEnabled() {
+			ingClassList, err := mClient.NetworkingV1beta1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
+			if err != nil {
+				utils.AviLog.Warnf("Could not get the IngressClass object for UpdateStatus: %s", err)
+				// retry get if request timeout
+				if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+					return getIngresses(ingressNSNames, bulk, retry+1)
+				}
+				return ingressMap
+			}
+
+			if len(ingClassList.Items) == 0 {
+				return ingressMap
+			}
+
+			for i := range ingClassList.Items {
+				if ingClassList.Items[i].Spec.Controller == lib.SvcApiAviGatewayController {
+					aviIngClasses[ingClassList.Items[i].Name] = true
+				}
+			}
+		}
+
+		ingressList, err := mClient.NetworkingV1beta1().Ingresses(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %v", err)
 			// retry get if request timeout
@@ -459,9 +501,26 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
 		}
+
 		for i := range ingressList.Items {
-			ing := ingressList.Items[i]
-			ingressMap[ing.Namespace+"/"+ing.Name] = &ing
+			var returnIng bool
+			if utils.GetIngressClassEnabled() {
+				if ingressList.Items[i].Spec.IngressClassName != nil {
+					if _, ok := aviIngClasses[*ingressList.Items[i].Spec.IngressClassName]; ok {
+						returnIng = true
+					}
+				} else if _, ok := lib.IsAviLBDefaultIngressClass(); ok {
+					returnIng = true
+				}
+			} else {
+				if ingClass, ok := ingressList.Items[i].Annotations[lib.INGRESS_CLASS_ANNOT]; ok && ingClass == lib.AVI_INGRESS_CLASS {
+					returnIng = true
+				}
+			}
+			if returnIng {
+				ing := ingressList.Items[i]
+				ingressMap[ing.Namespace+"/"+ing.Name] = &ing
+			}
 		}
 
 		return ingressMap

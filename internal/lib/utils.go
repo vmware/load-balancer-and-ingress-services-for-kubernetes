@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -68,7 +69,7 @@ func IsServiceClusterIPType(svcObj *corev1.Service) bool {
 func GetSvcKeysForNodeCRUD() (svcl4Keys []string, svcl7Keys []string) {
 	// For NodePort if the node matches the  selector update all L4 services.
 
-	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services("").List(labels.Set(nil).AsSelector())
+	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the services : %s", err)
 		return

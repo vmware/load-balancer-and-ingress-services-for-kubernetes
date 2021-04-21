@@ -704,11 +704,11 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
-		_, err := kclient.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+		_, err := kclient.CoreV1().Services(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 		if err != nil {
 			return allInformers, errors.New("Error in fetching services: " + err.Error())
 		}
-		_, err = oclient.RouteV1().Routes("").List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+		_, err = oclient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 		if err == nil {
 			// Openshift cluster with route support, we will just add route informer
 			allInformers = append(allInformers, utils.RouteInformer)

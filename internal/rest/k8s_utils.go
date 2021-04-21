@@ -54,7 +54,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 				status.UpdateOptions{
 					Vip:             vsCacheObj.Vip,
 					ServiceMetadata: vsSvcMetadataObj,
-					Key:             "syncstatus",
+					Key:             lib.SyncStatusKey,
 				})
 		} else if parentVsKey != (avicache.NamespaceName{}) {
 			// secure VSes handler
@@ -69,7 +69,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 					status.UpdateOptions{
 						Vip:                parentVsObj.Vip,
 						ServiceMetadata:    vsSvcMetadataObj,
-						Key:                "syncstatus",
+						Key:                lib.SyncStatusKey,
 						VirtualServiceUUID: vsCacheObj.Uuid,
 					})
 			}
@@ -79,7 +79,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 				status.UpdateOptions{
 					Vip:                vsCacheObj.Vip,
 					ServiceMetadata:    vsSvcMetadataObj,
-					Key:                "syncstatus",
+					Key:                lib.SyncStatusKey,
 					VirtualServiceUUID: vsCacheObj.Uuid,
 				})
 		} else {
@@ -101,7 +101,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 						status.UpdateOptions{
 							Vip:                vsCacheObj.Vip,
 							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
-							Key:                "syncstatus",
+							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,
 						})
 				}
@@ -110,35 +110,12 @@ func (rest *RestOperations) SyncObjectStatuses() {
 	}
 
 	if lib.GetAdvancedL4() {
-		for i := range allGatewayUpdateOptions {
-			statusOption := status.StatusOptions{
-				ObjType: lib.Gateway,
-				Op:      lib.UpdateStatus,
-				Options: &allGatewayUpdateOptions[i],
-			}
-			status.PublishToStatusQueue(allGatewayUpdateOptions[i].ServiceMetadata.Gateway, statusOption)
-		}
+		status.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
+	} else if lib.UseServicesAPI() {
+		status.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
 	} else {
-		for i := range allIngressUpdateOptions {
-			statusOption := status.StatusOptions{
-				ObjType: utils.Ingress,
-				Op:      lib.UpdateStatus,
-				Options: &allIngressUpdateOptions[i],
-				IsVSDel: true,
-			}
-			if utils.GetInformers().RouteInformer != nil {
-				statusOption.ObjType = utils.OshiftRoute
-			}
-			status.PublishToStatusQueue(allIngressUpdateOptions[i].ServiceMetadata.IngressName, statusOption)
-		}
-		for i := range allServiceLBUpdateOptions {
-			statusOption := status.StatusOptions{
-				ObjType: utils.L4LBService,
-				Op:      lib.UpdateStatus,
-				Options: &allServiceLBUpdateOptions[i],
-			}
-			status.PublishToStatusQueue(allServiceLBUpdateOptions[i].ServiceMetadata.NamespaceServiceName[0], statusOption)
-		}
+		status.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
+		status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 	}
 	utils.AviLog.Infof("Status syncing completed")
 	return
