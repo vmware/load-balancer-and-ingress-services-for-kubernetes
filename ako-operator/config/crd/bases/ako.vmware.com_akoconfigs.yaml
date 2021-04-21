@@ -156,11 +156,12 @@ spec:
                   - SMALL
                   type: string
                 serviceType:
-                  description: 'ServiceType defines the service type: ClusterIP or
-                    NodePort'
+                  description: 'ServiceType defines the service type: ClusterIP, NodePort
+                    or NodePortLocal'
                   enum:
                   - NodePort
                   - ClusterIP
+                  - NodePortLocal
                   type: string
                 shardVSSize:
                   description: ShardVSSize specifies the number of shard VSs to be
