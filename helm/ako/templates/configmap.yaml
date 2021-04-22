@@ -25,7 +25,6 @@ data:
   subnetIP: {{ .Values.NetworkSettings.subnetIP | quote }}
   enableRHI: {{ .Values.NetworkSettings.enableRHI | quote }}
   subnetPrefix: {{ .Values.NetworkSettings.subnetPrefix | quote }}
-  networkName: {{ .Values.NetworkSettings.networkName | quote }}
   logLevel: {{ .Values.AKOSettings.logLevel | quote }}
   deleteConfig: {{ .Values.AKOSettings.deleteConfig | quote }}
   advancedL4: {{ .Values.L4Settings.advancedL4 | quote }}
