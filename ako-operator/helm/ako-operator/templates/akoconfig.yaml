@@ -29,10 +29,10 @@ spec:
     networkName: {{ .Values.NetworkSettings.networkName | quote }}
     enableRHI: {{ .Values.NetworkSettings.enableRHI }}
     vipNetworkList: |-
-    {{ .Values.NetworkSettings.vipNetworkList | mustToJson }}
+      {{ .Values.NetworkSettings.vipNetworkList | mustToJson }}
 {{- with .Values.NetworkSettings.nodeNetworkList }}
     nodeNetworkList:
-      {{- toYaml . | nindent 4 }}
+{{- toYaml . | nindent 4 }}
 {{- end }}
   l7Settings:
     defaultIngController: {{ .Values.L7Settings.defaultIngController }}
