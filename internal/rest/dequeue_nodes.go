@@ -407,7 +407,9 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 			sniVsKey, ok := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(sni_uuid)
 			if ok {
 				delSNI := sniVsKey.(avicache.NamespaceName)
-				rest.SNINodeDelete(delSNI, namespace, rest_ops, nil, key)
+				if !rest.SNINodeDelete(delSNI, namespace, rest_ops, nil, key) {
+					return false
+				}
 			}
 		}
 		if !skipVS {
@@ -1086,7 +1088,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 	return cache_pool_nodes, rest_ops
 }
 
-func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, avimodel *nodes.AviObjectGraph, key string) {
+func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, avimodel *nodes.AviObjectGraph, key string) bool {
 	utils.AviLog.Infof("key: %s, msg: about to delete the SNI child %s", key, del_sni)
 	sni_key := avicache.NamespaceName{Namespace: namespace, Name: del_sni.Name}
 	sni_cache_obj := rest.getVsCacheObj(sni_key, key)
@@ -1111,7 +1113,7 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 					if !ok {
 						// Object deleted
 						utils.AviLog.Warnf("key: %s, msg: SNI object already deleted")
-						return
+						return true
 					}
 					vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
 					if done {
@@ -1122,8 +1124,9 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 				sni_cache_obj = rest.getVsCacheObj(sni_key, key)
 			}
 		}
-		rest.deleteSniVs(sni_key, sni_cache_obj, avimodel, namespace, key)
+		return rest.deleteSniVs(sni_key, sni_cache_obj, avimodel, namespace, key)
 	}
+	return true
 
 }
 
