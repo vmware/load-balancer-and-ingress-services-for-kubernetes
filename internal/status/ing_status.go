@@ -248,18 +248,27 @@ func isAnnotationsUpdateRequired(ingAnnotations map[string]string, newVSAnnotati
 }
 
 func getAnnotationsPayload(vsAnnotations map[string]string, existingAnnotations map[string]string) ([]byte, error) {
-	vsAnnotationsStr, err := json.Marshal(vsAnnotations)
-	if err != nil {
-		return nil, fmt.Errorf("error in marshalling vs annotations: %v", err)
+	var vsAnnotationVal, ctrlAnnotationVal *string
+	ctrlAnnotationValStr := avicache.GetControllerClusterUUID()
+	if len(vsAnnotations) == 0 {
+		vsAnnotationVal = nil
+		ctrlAnnotationVal = nil
+	} else {
+		vsAnnotationsBytes, err := json.Marshal(vsAnnotations)
+		if err != nil {
+			return nil, fmt.Errorf("error in marshalling vs annotations: %v", err)
+		}
+		vsAnnotationsStrStr := string(vsAnnotationsBytes)
+		vsAnnotationVal = &vsAnnotationsStrStr
+		ctrlAnnotationVal = &ctrlAnnotationValStr
 	}
-	if len(existingAnnotations) == 0 {
-		existingAnnotations = make(map[string]string)
-	}
-	existingAnnotations[VSAnnotation] = string(vsAnnotationsStr)
-	existingAnnotations[ControllerAnnotation] = avicache.GetControllerClusterUUID()
+
 	patchPayload := map[string]interface{}{
-		"metadata": map[string]map[string]string{
-			"annotations": existingAnnotations,
+		"metadata": map[string]map[string]*string{
+			"annotations": {
+				VSAnnotation:         vsAnnotationVal,
+				ControllerAnnotation: ctrlAnnotationVal,
+			},
 		},
 	}
 	patchPayloadBytes, err := json.Marshal(patchPayload)
@@ -275,10 +284,8 @@ func patchIngressAnnotations(ingObj *networkingv1beta1.Ingress, vsAnnotations ma
 	if err != nil {
 		return fmt.Errorf("error in generating payload for vs annotations %v: %v", vsAnnotations, err)
 	}
-
-	_, err = mClient.NetworkingV1beta1().Ingresses(ingObj.Namespace).Patch(context.TODO(), ingObj.Name, types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{})
-	if err != nil {
-		return fmt.Errorf("error in updating ingress: %v", err)
+	if _, err = mClient.NetworkingV1beta1().Ingresses(ingObj.Namespace).Patch(context.TODO(), ingObj.Name, types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{}); err != nil {
+		return err
 	}
 	return nil
 }

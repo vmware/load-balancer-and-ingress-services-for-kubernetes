@@ -170,13 +170,12 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 }
 
 func deleteSvcAnnotation(svc *corev1.Service) error {
-	payloadValue := make(map[string]*string)
-	payloadValue[VSAnnotation] = nil
-	payloadValue[ControllerAnnotation] = nil
-
 	payloadData := map[string]interface{}{
 		"metadata": map[string]map[string]*string{
-			"annotations": payloadValue,
+			"annotations": {
+				VSAnnotation:         nil,
+				ControllerAnnotation: nil,
+			},
 		},
 	}
 
