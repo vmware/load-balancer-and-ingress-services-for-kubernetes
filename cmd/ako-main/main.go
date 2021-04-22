@@ -142,6 +142,10 @@ func InitializeAKC() {
 		}
 	}
 
+	if _, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+		utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
+	}
+
 	aviObjCache := avicache.SharedAviObjCache()
 	aviRestClientPool := avicache.SharedAVIClients()
 	if !aviObjCache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {

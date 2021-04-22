@@ -2700,25 +2700,15 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 func checkPublicCloud(client *clients.AviClient) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
-		networkName := lib.GetNetworkName()
-		if networkName == "" && lib.GetCloudType() != lib.CLOUD_GCP {
-			if lib.GetCloudType() == lib.CLOUD_AWS {
-				//check for vipNetworkList if networkName not present for AWS Clouds
-				utils.AviLog.Infof("networkName not specified, checking for vipNetworkList as cloud is AWS")
-				vipNetworkList, err := lib.GetVipNetworkList()
-				if err == nil && len(vipNetworkList) != 0 {
-					utils.AviLog.Infof("Proceeding as multi-vip enabled")
-					return true
-				} else {
-					utils.AviLog.Errorf("vipNetworkList not specified, syncing will be disabled.")
-					if err != nil {
-						utils.AviLog.Errorf("%s", err.Error())
-					}
-					return false
-				}
+		if lib.GetCloudType() != lib.CLOUD_GCP {
+			vipNetworkList, err := lib.GetVipNetworkList()
+			if err == nil && len(vipNetworkList) != 0 {
+				return true
 			}
-			// networkName is required param for Azure Clouds
-			utils.AviLog.Errorf("Required param networkName not specified, syncing will be disabled.")
+			utils.AviLog.Errorf("vipNetworkList not specified, syncing will be disabled.")
+			if err != nil {
+				utils.AviLog.Errorf("%s", err.Error())
+			}
 			return false
 		}
 	}
@@ -2785,11 +2775,17 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		return true
 	}
 
-	networkName := lib.GetNetworkName()
-	if networkName == "" {
-		utils.AviLog.Warnf("Param networkName not specified, skipping fetching of the VRF setting from network")
+	networkList, err := lib.GetVipNetworkList()
+	if err != nil {
+		utils.AviLog.Warnf("Error gettting Network name: %s, skipping fetching of the VRF setting from network", err.Error())
 		return true
 	}
+
+	if len(networkList) == 0 {
+		utils.AviLog.Warnf("Network name net specified, skipping fetching of the VRF setting from network")
+		return true
+	}
+	networkName := networkList[0]
 
 	uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)

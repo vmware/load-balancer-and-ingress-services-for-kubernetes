@@ -578,7 +578,6 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 
 	if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
-		return nil
 	} else {
 		vsVipNode.NetworkNames = networkNames
 	}
@@ -1501,8 +1500,7 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 			vsvip.SubnetIP = ""
 		} else {
 			if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
-				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
-				return
+				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 			} else {
 				vsvip.NetworkNames = networkNames
 			}

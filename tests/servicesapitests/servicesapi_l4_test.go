@@ -47,7 +47,7 @@ var CRDClient *crdfake.Clientset
 func TestMain(m *testing.M) {
 	os.Setenv("SERVICES_API", "true")
 	os.Setenv("INGRESS_API", "extensionv1")
-	os.Setenv("NETWORK_NAME", "net123")
+	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
 	os.Setenv("SEG_NAME", "Default-Group")
@@ -1082,7 +1082,8 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(lib.GetNetworkName()))
+	netList, _ := lib.GetVipNetworkList()
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(netList[0]))
 	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
 
 	settingUpdate := (integrationtest.FakeAviInfraSetting{
@@ -1177,7 +1178,8 @@ func TestServicesAPIInfraSettingDelete(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(lib.GetNetworkName()))
+	netList, _ := lib.GetVipNetworkList()
+	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(netList[0]))
 	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
 
 	TeardownAdvLBService(t, "svc", ns)

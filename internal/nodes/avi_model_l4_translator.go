@@ -117,8 +117,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
-		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
-		return nil
+		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 	} else {
 		vsVipNode.NetworkNames = networkNames
 	}
