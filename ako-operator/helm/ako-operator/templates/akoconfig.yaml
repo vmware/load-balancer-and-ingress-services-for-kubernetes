@@ -16,9 +16,9 @@ spec:
     disableStaticRouteSync: {{ .Values.AKOSettings.disableStaticRouteSync }}
     clusterName: {{ .Values.AKOSettings.clusterName }}
     cniPlugin: {{ .Values.AKOSettings.cniPlugin | quote }}
-    enableEVH: {{ .Values.AKOSettings.enableEVH | quote }}
-    layer7Only: {{ .Values.AKOSettings.layer7Only | quote }}
-    servicesAPI: {{ .Values.AKOSettings.servicesAPI | quote }}
+    enableEVH: {{ .Values.AKOSettings.enableEVH }}
+    layer7Only: {{ .Values.AKOSettings.layer7Only }}
+    servicesAPI: {{ .Values.AKOSettings.servicesAPI }}
     namespaceSelector:
       labelKey: {{ .Values.AKOSettings.namespaceSelector.labelKey | quote }}
       labelValue: {{ .Values.AKOSettings.namespaceSelector.labelValue | quote }}
@@ -28,8 +28,10 @@ spec:
     subnetPrefix: {{ .Values.NetworkSettings.subnetPrefix | quote }}
     networkName: {{ .Values.NetworkSettings.networkName | quote }}
     enableRHI: {{ .Values.NetworkSettings.enableRHI }}
-    vipNetworkList: |-
-      {{ .Values.NetworkSettings.vipNetworkList | mustToJson }}
+{{- with .Values.NetworkSettings.vipNetworkList }}
+    vipNetworkList:
+{{- toYaml . | nindent 4 }}
+{{- end }}
 {{- with .Values.NetworkSettings.nodeNetworkList }}
     nodeNetworkList:
 {{- toYaml . | nindent 4 }}
