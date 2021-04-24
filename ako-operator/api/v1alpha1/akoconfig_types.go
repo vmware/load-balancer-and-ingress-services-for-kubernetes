@@ -68,6 +68,10 @@ type NodeNetwork struct {
 	Cidrs       []string `json:"cidrs,omitempty"`
 }
 
+type VipNetwork struct {
+	NetworkName string `json:"networkName,omitempty"`
+}
+
 // NetworkSettings defines the network details required for the AKO controller
 type NetworkSettings struct {
 	// NodeNetworkList is the list of networks and their cidrs used in pool placement network for vcenter
@@ -85,7 +89,7 @@ type NetworkSettings struct {
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
 	// VipNetworkList holds the names of networks as specified in Avi
-	VipNetworkList []string `json:"vipNetworkList,omitempty"`
+	VipNetworkList []VipNetwork `json:"vipNetworkList,omitempty"`
 }
 
 // L7Settings defines the L7 configuration for the AKO controller

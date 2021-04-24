@@ -180,11 +180,24 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[EnableRHI] = enableRHI
 
 	var err error
-	vipListBytes, err := json.Marshal(ako.Spec.NetworkSettings.VipNetworkList)
-	if err != nil {
-		return cm, err
+	type VipNetworkListRow struct {
+		NetworkName string `json:"networkName"`
 	}
-	cm.Data[VipNetworkList] = string(vipListBytes)
+
+	vipNwListRows := []VipNetworkListRow{}
+	vipNwListBytes := []byte{}
+	for _, row := range ako.Spec.NetworkSettings.VipNetworkList {
+		vipNwListRows = append(vipNwListRows, VipNetworkListRow{
+			NetworkName: row.NetworkName,
+		})
+	}
+	if len(vipNwListRows) != 0 {
+		vipNwListBytes, err = json.Marshal(vipNwListRows)
+		if err != nil {
+			return cm, err
+		}
+	}
+	cm.Data[VipNetworkList] = string(vipNwListBytes)
 
 	cm.Data[ServiceType] = string(ako.Spec.L7Settings.ServiceType)
 	cm.Data[NodeKey] = ako.Spec.NodePortSelector.Key
