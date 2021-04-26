@@ -70,7 +70,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 	}
 
-	if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+	if networkNames, err := lib.GetVipNetworkList(); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 	} else {
 		vsVipNode.NetworkNames = networkNames

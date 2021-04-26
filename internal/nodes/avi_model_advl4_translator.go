@@ -111,9 +111,8 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 		}
 
-		if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+		if networkNames, err := lib.GetVipNetworkList(); err != nil {
 			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
-			//return nil
 		} else {
 			vsVipNode.NetworkNames = networkNames
 		}
@@ -192,7 +191,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 		}
 
-		if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+		if networkNames, err := lib.GetVipNetworkList(); err != nil {
 			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %v", key, err.Error())
 		} else {
 			vsVipNode.NetworkNames = networkNames
