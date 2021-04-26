@@ -540,7 +540,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMeta
 			return fmt.Errorf("error in unmarshalling annotations %s, %v", annotations, err)
 		}
 	} else {
-		return fmt.Errorf("error in fetching VS annotations %v", routeObj.Annotations)
+		utils.AviLog.Debugf("VS annotations not found for route %s/%s", routeObj.Namespace, routeObj.Name)
 	}
 
 	for k := range existingAnnotations {
