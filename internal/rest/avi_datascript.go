@@ -16,6 +16,7 @@ package rest
 
 import (
 	"errors"
+	"fmt"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -39,7 +40,13 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	datascriptlist = append(datascriptlist, &datascript)
 	tenant_ref := "/api/tenant/?name=" + ds_meta.Tenant
 	cr := lib.AKOUser
-	vsdatascriptset := avimodels.VSDataScriptSet{CreatedBy: &cr, Datascript: datascriptlist, Name: &ds_meta.Name, TenantRef: &tenant_ref, PoolGroupRefs: poolgroupref}
+	vsdatascriptset := avimodels.VSDataScriptSet{
+		CreatedBy:     &cr,
+		Datascript:    datascriptlist,
+		Name:          &ds_meta.Name,
+		TenantRef:     &tenant_ref,
+		PoolGroupRefs: poolgroupref,
+	}
 	if lib.GetGRBACSupport() {
 		vsdatascriptset.Markers = lib.GetMarkers()
 	}
@@ -89,9 +96,9 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		return errors.New("Errored rest_op")
 	}
 
-	resp_elems, ok := RestRespArrToObjByType(rest_op, "vsdatascriptset", key)
+	resp_elems := RestRespArrToObjByType(rest_op, "vsdatascriptset", key)
 	utils.AviLog.Debugf("The datascriptset object response %v", rest_op.Response)
-	if ok != nil || resp_elems == nil {
+	if resp_elems == nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to find datascriptset obj in resp %v", key, rest_op.Response)
 		return errors.New("datascriptset not found")
 	}
@@ -108,7 +115,6 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 			utils.AviLog.Warnf("key: %s, msg: DS Uuid not present in response %v", key, resp)
 			continue
 		}
-		// Datascript should not have a checksum
 
 		var poolgroups []string
 		if resp["pool_group_refs"] != nil {
@@ -124,9 +130,10 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		ds_cache_obj := avicache.AviDSCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid, PoolGroups: poolgroups}
 
+		// Datascript should not have a checksum
 		checksum := lib.DSChecksum(ds_cache_obj.PoolGroups, nil, false)
 		if lib.GetEnableCtrl2014Features() {
-			checksum = utils.Hash(string(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
+			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
 		}
 		ds_cache_obj.CloudConfigCksum = checksum
 

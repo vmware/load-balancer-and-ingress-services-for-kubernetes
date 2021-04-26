@@ -345,8 +345,8 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		return errors.New("Error rest_op")
 	}
 
-	resp_elems, ok := RestRespArrToObjByType(rest_op, "virtualservice", key)
-	if ok != nil || resp_elems == nil {
+	resp_elems := RestRespArrToObjByType(rest_op, "virtualservice", key)
+	if resp_elems == nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to find vs obj in resp %v", key, rest_op.Response)
 		return errors.New("vs not found")
 	}
