@@ -787,7 +787,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 		}
 		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
 		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
-			checksum = utils.Hash(string(checksum) + *ds.Datascript[0].Script)
+			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
 		}
 		dsCacheObj.CloudConfigCksum = checksum
 		*DsData = append(*DsData, dsCacheObj)
@@ -1132,7 +1132,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 		}
 		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
 		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
-			checksum = utils.Hash(string(checksum) + *ds.Datascript[0].Script)
+			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
 		}
 		dsCacheObj.CloudConfigCksum = checksum
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *ds.Name}
