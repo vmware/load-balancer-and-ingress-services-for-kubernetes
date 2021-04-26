@@ -2700,15 +2700,12 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 func checkPublicCloud(client *clients.AviClient) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
-		if lib.GetCloudType() != lib.CLOUD_GCP {
-			vipNetworkList, err := lib.GetVipNetworkList()
-			if err == nil && len(vipNetworkList) != 0 {
-				return true
-			}
+		vipNetworkList, err := lib.GetVipNetworkList()
+		if err != nil {
+			utils.AviLog.Errorf("Got error while fetching VIP network list: %s", err.Error())
+			return false
+		} else if len(vipNetworkList) == 0 {
 			utils.AviLog.Errorf("vipNetworkList not specified, syncing will be disabled.")
-			if err != nil {
-				utils.AviLog.Errorf("%s", err.Error())
-			}
 			return false
 		}
 	}
@@ -2785,6 +2782,12 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		utils.AviLog.Warnf("Network name net specified, skipping fetching of the VRF setting from network")
 		return true
 	}
+
+	if !validateNetworkNames(client, networkList) {
+		utils.AviLog.Warnf("Failed to validate Network Names specified in VIP Network List")
+		return false
+	}
+
 	networkName := networkList[0]
 
 	uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
@@ -2821,6 +2824,29 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 	vrfName := strings.Split(vrfRef, "#")[1]
 	utils.AviLog.Infof("Setting VRF %s found from network %s", vrfName, networkName)
 	lib.SetVrf(vrfName)
+	return true
+}
+
+func validateNetworkNames(client *clients.AviClient, networkList []string) bool {
+	for _, networkName := range networkList {
+		uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
+		result, err := lib.AviGetCollectionRaw(client, uri)
+		if err != nil {
+			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+			return false
+		}
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			return false
+		}
+
+		if result.Count == 0 {
+			utils.AviLog.Warnf("No networks found for networkName: %s", networkName)
+			return false
+		}
+	}
 	return true
 }
 

@@ -418,20 +418,6 @@ func GetSubnetPrefixInt() int32 {
 	return int32(intCidr)
 }
 
-func GetNetworkNamesForVsVipNode() ([]string, error) {
-	vipNetworkList, err := GetVipNetworkList()
-	if err != nil {
-		return nil, err
-	}
-	if len(vipNetworkList) > 1 {
-		// Only AWS cloud supports multiple VIP networks
-		if !(IsPublicCloud() && GetCloudType() != CLOUD_AWS) {
-			return nil, fmt.Errorf("More than one network specified in VIP Network List and Cloud type is not AWS")
-		}
-	}
-	return vipNetworkList, nil
-}
-
 func GetVipNetworkList() ([]string, error) {
 	var vipNetworkList []string
 	type Row struct {
@@ -451,6 +437,12 @@ func GetVipNetworkList() ([]string, error) {
 	}
 	for _, subnet := range vipNetworkListObj {
 		vipNetworkList = append(vipNetworkList, subnet.NetworkName)
+	}
+	if len(vipNetworkList) > 1 {
+		// Only AWS cloud supports multiple VIP networks
+		if !(IsPublicCloud() && GetCloudType() != CLOUD_AWS) {
+			return nil, fmt.Errorf("More than one network specified in VIP Network List and Cloud type is not AWS")
+		}
 	}
 	return vipNetworkList, nil
 }

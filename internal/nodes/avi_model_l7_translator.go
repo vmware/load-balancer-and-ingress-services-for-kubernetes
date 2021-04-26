@@ -120,7 +120,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 	}
 
-	if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+	if networkNames, err := lib.GetVipNetworkList(); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 	} else {
 		vsVipNode.NetworkNames = networkNames
@@ -524,7 +524,7 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 			vsvip.NetworkNames = infraSetting.Spec.Network.Names
 			vsvip.SubnetIP = ""
 		} else {
-			if networkNames, err := lib.GetNetworkNamesForVsVipNode(); err != nil {
+			if networkNames, err := lib.GetVipNetworkList(); err != nil {
 				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err)
 			} else {
 				vsvip.NetworkNames = networkNames
