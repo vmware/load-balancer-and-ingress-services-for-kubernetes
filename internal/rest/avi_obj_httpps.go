@@ -204,8 +204,8 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 		return errors.New("Errored rest_op")
 	}
 
-	resp_elems, ok := RestRespArrToObjByType(rest_op, "httppolicyset", key)
-	if ok != nil || resp_elems == nil {
+	resp_elems := RestRespArrToObjByType(rest_op, "httppolicyset", key)
+	if resp_elems == nil {
 		utils.AviLog.Warnf("Unable to find HTTP Policy Set obj in resp %v", rest_op.Response)
 		return errors.New("HTTP Policy Set object not found")
 	}

@@ -185,9 +185,9 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 		return errors.New("Errored rest_op")
 	}
 
-	resp_elems, ok := RestRespArrToObjByType(rest_op, "pool", key)
+	resp_elems := RestRespArrToObjByType(rest_op, "pool", key)
 	utils.AviLog.Debugf("key: %s, msg: the pool object response %v", key, rest_op.Response)
-	if ok != nil || resp_elems == nil {
+	if resp_elems == nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to find pool obj in resp %v", key, rest_op.Response)
 		return errors.New("pool not found")
 	}

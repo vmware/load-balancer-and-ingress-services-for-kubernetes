@@ -525,7 +525,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					// Go over each of the failed requests and enqueue them to the worker queue for retry.
 					if rest_ops[i].Err != nil {
 						// check for VSVIP errors for blocked IP address updates
-						if lib.GetAdvancedL4() && checkVsVipUpdateErrors(key, rest_ops[i]) {
+						if checkVsVipUpdateErrors(key, rest_ops[i]) {
 							rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
 							continue
 						}
