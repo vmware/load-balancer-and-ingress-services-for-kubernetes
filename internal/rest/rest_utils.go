@@ -20,10 +20,13 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) ([]map[string]interface{}, error) {
+func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) []map[string]interface{} {
 	var resp_elems []map[string]interface{}
-	resp_elems = append(resp_elems, rest_op.Response.(map[string]interface{}))
-	return resp_elems, nil
+	if restResponse, ok := rest_op.Response.(map[string]interface{}); ok {
+		resp_elems = append(resp_elems, restResponse)
+		return resp_elems
+	}
+	return nil
 }
 
 func ExtractVsName(word string) string {

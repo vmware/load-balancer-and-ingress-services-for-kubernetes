@@ -268,6 +268,8 @@ func AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp) error {
 			aviErr, ok := op.Err.(session.AviError)
 			if !ok {
 				utils.AviLog.Warnf("Error in rest operation is not of type AviError, err: %v, %T", op.Err, op.Err)
+			} else if op.Model == "VsVip" && op.Method == utils.RestPut {
+				utils.AviLog.Debugf("Error in rest operation for VsVip Put request.")
 			} else if !isErrorRetryable(aviErr.HttpStatusCode) {
 				if op.Method != utils.RestPost {
 					continue
