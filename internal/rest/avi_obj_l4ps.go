@@ -129,8 +129,8 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 		return errors.New("Errored rest_op")
 	}
 
-	resp_elems, ok := RestRespArrToObjByType(rest_op, "l4policyset", key)
-	if ok != nil || resp_elems == nil {
+	resp_elems := RestRespArrToObjByType(rest_op, "l4policyset", key)
+	if resp_elems == nil {
 		utils.AviLog.Warnf("Unable to find L4 Policy Set obj in resp %v", rest_op.Response)
 		return errors.New("L4 Policy Set object not found")
 	}

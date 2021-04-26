@@ -355,8 +355,8 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		}
 	}
 
-	resp_elems, ok := RestRespArrToObjByType(rest_op, "vsvip", key)
-	if ok != nil || resp_elems == nil {
+	resp_elems := RestRespArrToObjByType(rest_op, "vsvip", key)
+	if resp_elems == nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to find vsvip obj in resp %v", key, rest_op.Response)
 		return errors.New("vsvip not found")
 	}
