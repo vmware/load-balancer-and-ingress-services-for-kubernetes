@@ -343,8 +343,8 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 		hostListIng = append(hostListIng, rule.Host)
 	}
 
-	for i, status := range mIngress.Status.LoadBalancer.Ingress {
-		for _, host := range svc_mdata_obj.HostNames {
+	for _, host := range svc_mdata_obj.HostNames {
+		for i, status := range mIngress.Status.LoadBalancer.Ingress {
 			if status.Hostname != host {
 				continue
 			}
