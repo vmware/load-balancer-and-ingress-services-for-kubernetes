@@ -619,39 +619,38 @@ func (v *AviVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, sniChecksum, sslkeyChecksum, l4policyChecksum, passthroughChecksum, vsvipChecksum uint32
+	var checksumStringSlice []string
 
 	for _, ds := range v.HTTPDSrefs {
-		dsChecksum += ds.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "HTTPDS"+ds.Name)
 	}
 
 	for _, httppol := range v.HttpPolicyRefs {
-		httppolChecksum += httppol.GetCheckSum()
-	}
-
-	for _, sninode := range v.SniNodes {
-		sniChecksum += sninode.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "HttpPolicy"+httppol.Name)
 	}
 
 	for _, cacert := range v.CACertRefs {
-		sslkeyChecksum += cacert.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "CACert"+cacert.Name)
 	}
 
 	for _, sslkeycert := range v.SSLKeyCertRefs {
-		sslkeyChecksum += sslkeycert.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "SSLKeyCert"+sslkeycert.Name)
 	}
 
 	for _, vsvipref := range v.VSVIPRefs {
-		vsvipChecksum += vsvipref.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "VSVIP"+vsvipref.Name)
 	}
 
 	for _, l4policy := range v.L4PolicyRefs {
-		l4policyChecksum += l4policy.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "L4Policy"+l4policy.Name)
 	}
 
 	for _, passthroughChild := range v.PassthroughChildNodes {
-		passthroughChecksum += passthroughChild.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "Passthrough"+passthroughChild.Name)
 	}
+
+	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
+	// will change the eventual checksum Hash.
 
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
@@ -659,7 +658,6 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	vsRefs := v.WafPolicyRef +
 		v.AppProfileRef +
-		utils.Stringify(policies) +
 		v.AnalyticsProfileRef +
 		v.ErrorPageProfileRef +
 		v.SSLProfileRef
@@ -668,22 +666,25 @@ func (v *AviVsNode) CalculateCheckSum() {
 		vsRefs += utils.Stringify(scripts)
 	}
 
-	checksum := dsChecksum +
-		httppolChecksum +
-		sniChecksum +
-		utils.Hash(v.ApplicationProfile) +
-		utils.Hash(v.ServiceEngineGroup) +
-		utils.Hash(v.NetworkProfile) +
-		utils.Hash(utils.Stringify(portproto)) +
-		sslkeyChecksum +
-		vsvipChecksum +
-		utils.Hash(vsRefs) +
-		l4policyChecksum +
-		passthroughChecksum
+	if len(policies) > 0 {
+		vsRefs += utils.Stringify(policies)
+	}
+
+	sort.Strings(checksumStringSlice)
+	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
+		v.ApplicationProfile +
+		v.ServiceEngineGroup +
+		v.NetworkProfile +
+		utils.Stringify(portproto))
+
+	if vsRefs != "" {
+		checksum += utils.Hash(vsRefs)
+	}
 
 	if v.Enabled != nil {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
+
 	if lib.GetGRBACSupport() {
 		checksum += lib.GetClusterLabelChecksum()
 	}
