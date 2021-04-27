@@ -84,12 +84,10 @@ type NetworkSettings struct {
 	SubnetIP string `json:"subnetIP,omitempty"`
 	// SubnetPrefix is the netmask for the subnet
 	SubnetPrefix string `json:"subnetPrefix,omitempty"`
-	// NetworkName is the name of the network as specified in Avi
-	NetworkName string `json:"networkName,omitempty"`
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
 	// VipNetworkList holds the names of networks as specified in Avi
-	VipNetworkList []VipNetwork `json:"vipNetworkList,omitempty"`
+	VipNetworkList []map[string]string `json:"vipNetworkList,omitempty"`
 }
 
 // L7Settings defines the L7 configuration for the AKO controller
