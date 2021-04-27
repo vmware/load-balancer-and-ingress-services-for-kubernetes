@@ -65,6 +65,7 @@ func createOrUpdateClusterRole(ctx context.Context, ako akov1alpha1.AKOConfig, l
 	err := r.Get(ctx, getCRName(), &newCR)
 	if err != nil {
 		log.V(0).Info("error getting a clusterrole with name", "name", getCRName().Name, "err", err)
+		return err
 	}
 	// update this object in the global list
 	objList := getObjectList()
@@ -119,7 +120,7 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 			},
 			{
 				APIGroups: []string{"ako.vmware.com"},
-				Resources: []string{"hostrules", "hostrules/status", "httprules", "httprules/status"},
+				Resources: []string{"hostrules", "hostrules/status", "httprules", "httprules/status", "aviinfrasettings", "aviinfrasettings/status"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
 			},
 			{
