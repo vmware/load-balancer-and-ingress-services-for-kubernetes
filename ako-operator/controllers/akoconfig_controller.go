@@ -109,8 +109,10 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err := r.CleanupArtifacts(ctx, log); err != nil {
 				return ctrl.Result{}, err
 			}
+
+			patch := client.MergeFrom(ako.DeepCopy())
 			ako.Finalizers = removeFinalizer(ako.Finalizers, CleanupFinalizer)
-			if err := r.Update(ctx, &ako); err != nil {
+			if err := r.Patch(context.TODO(), &ako, patch); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
