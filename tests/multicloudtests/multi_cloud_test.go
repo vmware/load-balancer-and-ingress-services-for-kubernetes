@@ -235,7 +235,7 @@ func injectMWForCloud() {
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
-	os.Setenv("NETWORK_NAME", "net123")
+	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
@@ -288,15 +288,15 @@ func TestAWSCloudValidation(t *testing.T) {
 	os.Setenv("CLOUD_NAME", "CLOUD_AWS")
 	utils.SetCloudName("CLOUD_AWS")
 	os.Setenv("SERVICE_TYPE", "NodePort")
-	os.Setenv("NETWORK_NAME", "")
+	os.Setenv("VIP_NETWORK_LIST", `[]`)
 
 	AddConfigMap(t)
 
 	if !ctrl.DisableSync {
-		t.Fatalf("CLOUD_AWS should not be allowed if NETWORK_NAME is empty")
+		t.Fatalf("CLOUD_AWS should not be allowed if VIP_NETWORK_LIST is empty")
 	}
 	DeleteConfigMap(t)
-	os.Setenv("NETWORK_NAME", "net123")
+	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 }
 
 // TestAzureCloudValidation tests validation in place for public clouds
@@ -304,15 +304,15 @@ func TestAzureCloudValidation(t *testing.T) {
 	os.Setenv("CLOUD_NAME", "CLOUD_AZURE")
 	utils.SetCloudName("CLOUD_AZURE")
 	os.Setenv("SERVICE_TYPE", "NodePort")
-	os.Setenv("NETWORK_NAME", "")
+	os.Setenv("VIP_NETWORK_LIST", `[]`)
 
 	AddConfigMap(t)
 
 	if !ctrl.DisableSync {
-		t.Fatalf("CLOUD_AZURE should not be allowed if NETWORK_NAME is empty")
+		t.Fatalf("CLOUD_AZURE should not be allowed if VIP_NETWORK_LIST is empty")
 	}
 	DeleteConfigMap(t)
-	os.Setenv("NETWORK_NAME", "net123")
+	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 }
 
 // TestAWSCloudInClusterIPMode tests case where AWS CLOUD is configured in ClousterIP mode. Sync should be allowed.
