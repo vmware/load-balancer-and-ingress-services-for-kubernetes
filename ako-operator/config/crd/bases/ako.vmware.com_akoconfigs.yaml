@@ -187,10 +187,6 @@ spec:
                 enableRHI:
                   description: EnableRHI is a cluster wide setting for BGP peering
                   type: boolean
-                networkName:
-                  description: NetworkName is the name of the network as specified
-                    in Avi
-                  type: string
                 nodeNetworkList:
                   description: 'NodeNetworkList is the list of networks and their
                     cidrs used in pool placement network for vcenter cloud. This is
@@ -216,7 +212,9 @@ spec:
                   description: VipNetworkList holds the names of networks as specified
                     in Avi
                   items:
-                    type: string
+                    additionalProperties:
+                      type: string
+                    type: object
                   type: array
               type: object
             nodePortSelector:
