@@ -478,8 +478,9 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 		}
 	}
 
-	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
-		for _, host := range svc_mdata_obj.HostNames {
+	utils.AviLog.Infof("key: %s, deleting hostnames %v from Route status %s/%s", svc_mdata_obj.HostNames, svc_mdata_obj.Namespace, svc_mdata_obj.IngressName)
+	for _, host := range svc_mdata_obj.HostNames {
+		for i := 0; i < len(mRoute.Status.Ingress); i++ {
 			if mRoute.Status.Ingress[i].Host != host {
 				continue
 			}
@@ -502,6 +503,11 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 		patchPayload, _ := json.Marshal(map[string]interface{}{
 			"status": mRoute.Status,
 		})
+		if len(mRoute.Status.Ingress) == 0 {
+			patchPayload, _ = json.Marshal(map[string]interface{}{
+				"status": nil,
+			})
+		}
 		updatedRoute, err = utils.GetInformers().OshiftClient.RouteV1().Routes(svc_mdata_obj.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
@@ -534,7 +540,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMeta
 			return fmt.Errorf("error in unmarshalling annotations %s, %v", annotations, err)
 		}
 	} else {
-		return fmt.Errorf("error in fetching VS annotations %v", routeObj.Annotations)
+		utils.AviLog.Debugf("VS annotations not found for route %s/%s", routeObj.Namespace, routeObj.Name)
 	}
 
 	for k := range existingAnnotations {

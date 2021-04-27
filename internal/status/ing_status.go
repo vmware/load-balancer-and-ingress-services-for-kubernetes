@@ -343,8 +343,8 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 		hostListIng = append(hostListIng, rule.Host)
 	}
 
-	for i, status := range mIngress.Status.LoadBalancer.Ingress {
-		for _, host := range svc_mdata_obj.HostNames {
+	for _, host := range svc_mdata_obj.HostNames {
+		for i, status := range mIngress.Status.LoadBalancer.Ingress {
 			if status.Hostname != host {
 				continue
 			}
@@ -409,7 +409,8 @@ func deleteIngressAnnotation(ingObj *networkingv1beta1.Ingress, svcMeta avicache
 			return fmt.Errorf("error in unmarshalling annotations for ingress: %v", err)
 		}
 	} else {
-		return fmt.Errorf("error in fetching annotations for ingress %s/%s", ingObj.Namespace, ingObj.Name)
+		utils.AviLog.Debugf("VS annotations not found for ingress %s/%s", ingObj.Namespace, ingObj.Name)
+		return nil
 	}
 
 	for k := range existingAnnotations {
