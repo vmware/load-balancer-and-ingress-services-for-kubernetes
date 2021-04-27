@@ -169,11 +169,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: defaultIngController
-          - name: NETWORK_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: networkName
           - name: SEG_NAME
             valueFrom:
               configMapKeyRef:
