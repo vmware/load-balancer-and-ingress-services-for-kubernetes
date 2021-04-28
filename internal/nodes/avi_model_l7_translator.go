@@ -520,7 +520,7 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 			vs.EnableRhi = &enableRhi
 		}
 
-		if vsvip.NetworkNames != nil && len(vsvip.NetworkNames) > 0 {
+		if len(infraSetting.Spec.Network.Names) > 0 {
 			vsvip.NetworkNames = infraSetting.Spec.Network.Names
 			vsvip.SubnetIP = ""
 		} else {
