@@ -136,7 +136,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			}
 		}
 
-		// configuring static IP, from gateway.Addresses (advl4) and service.loadBalancerIP (l4)
+		// configuring static IP, from gateway.Addresses (advl4, svcapi) and service.loadBalancerIP (l4)
 		if vsvip_meta.IPAddress != "" {
 			vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
 		}
