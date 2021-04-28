@@ -91,8 +91,9 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			hostrule := obj.(*akov1alpha1.HostRule)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 			key := lib.HostRule + "/" + utils.ObjKey(hostrule)
-			err := validateHostRuleObj(key, hostrule)
-			utils.AviLog.Warnf("Error retrieved during validation of hostrule : %v", err)
+			if err := validateHostRuleObj(key, hostrule); err != nil {
+				utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
+			}
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -103,8 +104,9 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			if !reflect.DeepEqual(oldObj.Spec, hostrule.Spec) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
-				err := validateHostRuleObj(key, hostrule)
-				utils.AviLog.Warnf("Error retrieved during validation of hostrule : %v", err)
+				if err := validateHostRuleObj(key, hostrule); err != nil {
+					utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
+				}
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -143,8 +145,9 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			httprule := obj.(*akov1alpha1.HTTPRule)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 			key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
-			err := validateHTTPRuleObj(key, httprule)
-			utils.AviLog.Warnf("Error retrieved during validation of httprule : %v", err)
+			if err := validateHTTPRuleObj(key, httprule); err != nil {
+				utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+			}
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -157,8 +160,9 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			if isHTTPRuleUpdated(oldObj, httprule) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
-				err := validateHTTPRuleObj(key, httprule)
-				utils.AviLog.Warnf("Error retrieved during validation of httprule : %v", err)
+				if err := validateHTTPRuleObj(key, httprule); err != nil {
+					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+				}
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -198,8 +202,9 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			aviinfra := obj.(*akov1alpha1.AviInfraSetting)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 			key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
-			err := validateAviInfraSetting(key, aviinfra)
-			utils.AviLog.Warnf("Error retrieved during validation of aviinfra crd : %v", err)
+			if err := validateAviInfraSetting(key, aviinfra); err != nil {
+				utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+			}
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -210,8 +215,9 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			if isAviInfraUpdated(oldObj, aviInfra) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
-				err := validateAviInfraSetting(key, aviInfra)
-				utils.AviLog.Warnf("Error retrieved during validation of aviinfra crd : %v", err)
+				if err := validateAviInfraSetting(key, aviInfra); err != nil {
+					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+				}
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
