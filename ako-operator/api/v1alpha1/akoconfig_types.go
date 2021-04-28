@@ -87,7 +87,7 @@ type NetworkSettings struct {
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
 	// VipNetworkList holds the names of networks as specified in Avi
-	VipNetworkList []map[string]string `json:"vipNetworkList,omitempty"`
+	VipNetworkList []VipNetwork `json:"vipNetworkList,omitempty"`
 }
 
 // L7Settings defines the L7 configuration for the AKO controller

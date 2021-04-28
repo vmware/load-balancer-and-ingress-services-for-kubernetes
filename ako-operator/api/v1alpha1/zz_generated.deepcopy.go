@@ -209,16 +209,8 @@ func (in *NetworkSettings) DeepCopyInto(out *NetworkSettings) {
 	}
 	if in.VipNetworkList != nil {
 		in, out := &in.VipNetworkList, &out.VipNetworkList
-		*out = make([]map[string]string, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = make(map[string]string, len(*in))
-				for key, val := range *in {
-					(*out)[key] = val
-				}
-			}
-		}
+		*out = make([]VipNetwork, len(*in))
+		copy(*out, *in)
 	}
 }
 
