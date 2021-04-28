@@ -158,7 +158,6 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 
 	cm.Data[SubnetIP] = ako.Spec.NetworkSettings.SubnetIP
 	cm.Data[SubnetPrefix] = ako.Spec.NetworkSettings.SubnetPrefix
-	cm.Data[NetworkName] = ako.Spec.NetworkSettings.NetworkName
 	cm.Data[LogLevel] = string(ako.Spec.LogLevel)
 
 	deleteConfig := "false"
@@ -180,24 +179,11 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[EnableRHI] = enableRHI
 
 	var err error
-	type VipNetworkListRow struct {
-		NetworkName string `json:"networkName"`
+	vipListBytes, err := json.Marshal(ako.Spec.NetworkSettings.VipNetworkList)
+	if err != nil {
+		return cm, err
 	}
-
-	vipNwListRows := []VipNetworkListRow{}
-	vipNwListBytes := []byte{}
-	for _, row := range ako.Spec.NetworkSettings.VipNetworkList {
-		vipNwListRows = append(vipNwListRows, VipNetworkListRow{
-			NetworkName: row.NetworkName,
-		})
-	}
-	if len(vipNwListRows) != 0 {
-		vipNwListBytes, err = json.Marshal(vipNwListRows)
-		if err != nil {
-			return cm, err
-		}
-	}
-	cm.Data[VipNetworkList] = string(vipNwListBytes)
+	cm.Data[VipNetworkList] = string(vipListBytes)
 
 	cm.Data[ServiceType] = string(ako.Spec.L7Settings.ServiceType)
 	cm.Data[NodeKey] = ako.Spec.NodePortSelector.Key

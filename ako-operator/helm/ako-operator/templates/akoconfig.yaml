@@ -26,7 +26,6 @@ spec:
   networkSettings:
     subnetIP: {{ .Values.NetworkSettings.subnetIP | quote }}
     subnetPrefix: {{ .Values.NetworkSettings.subnetPrefix | quote }}
-    networkName: {{ .Values.NetworkSettings.networkName | quote }}
     enableRHI: {{ .Values.NetworkSettings.enableRHI }}
 {{- with .Values.NetworkSettings.vipNetworkList }}
     vipNetworkList:
