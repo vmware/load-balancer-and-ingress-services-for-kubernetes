@@ -126,6 +126,8 @@ func (v *AviObjectGraph) DecrementRetryCounter() {
 }
 
 func (v *AviObjectGraph) CalculateCheckSum() {
+	v.Lock.Lock()
+	defer v.Lock.Unlock()
 	// A sum of fields for this model.
 	v.GraphChecksum = 0
 	for _, model := range v.modelNodes {

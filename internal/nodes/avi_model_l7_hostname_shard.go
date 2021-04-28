@@ -313,83 +313,90 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if len(vsNode) < 1 {
 			return nil
 		}
-
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
 				buildWithInfraSetting(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
-
-		certsBuilt := false
-		sniSecretName := tlssetting.SecretName
-		re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
-		if re.MatchString(sniSecretName) {
-			sniSecretName = strings.Split(sniSecretName, "/")[1]
-			certsBuilt = true
-		}
-
-		sniNodeName := lib.GetSniNodeName(ingName, infraSettingName, sniHost)
-		sniNode := vsNode[0].GetSniNodeForName(sniNodeName)
-		if sniNode == nil {
-			sniNode = &AviVsNode{
-				Name:         sniNodeName,
-				VHParentName: vsNode[0].Name,
-				Tenant:       lib.GetTenant(),
-				IsSNIChild:   true,
-				ServiceMetadata: avicache.ServiceMetadataObj{
-					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
-					Namespace:            namespace,
-					HostNames:            sniHosts,
-				},
-			}
-		} else {
-			// The SNI node exists, just update the svc metadata
-			sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
-			sniNode.ServiceMetadata.Namespace = namespace
-			sniNode.ServiceMetadata.HostNames = sniHosts
-			if sniNode.SSLKeyCertAviRef != "" {
-				certsBuilt = true
-			}
-		}
-
-		sniNode.ServiceEngineGroup = lib.GetSEGName()
-		sniNode.VrfContext = lib.GetVrf()
-		if !certsBuilt {
-			certsBuilt = aviModel.(*AviObjectGraph).BuildTlsCertNode(routeIgrObj.GetSvcLister(), sniNode, namespace, tlssetting, key, infraSettingName, sniHost)
-		}
-		if certsBuilt {
-			isIngr := routeIgrObj.GetType() == utils.Ingress
-			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, sniSecretName, key, isIngr, infraSettingName, sniHost)
-			foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
-			if !foundSniModel {
-				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
-			}
-			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
-			if tlssetting.redirect == true {
-				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVS(vsNode, sniHost, key)
-			}
-			BuildL7HostRule(sniHost, namespace, ingName, key, sniNode)
-		} else {
-			hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
-			if hostMapOk {
-				// Replace the ingress map for this host.
-				keyToRemove := namespace + "/" + ingName
-				delete(ingressHostMap.HostNameMap, keyToRemove)
-				SharedHostNameLister().Save(sniHost, ingressHostMap)
-			}
-			// Since the cert couldn't be built, check if this SNI is affected by only in ingress if so remove the sni node from the model
-			if len(ingressHostMap.GetIngressesForHostName(sniHost)) == 0 {
-				RemoveSniInModel(sniNode.Name, vsNode, key)
-				RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
-			}
-		}
+		modelGraph := aviModel.(*AviObjectGraph)
+		modelGraph.BuildModelGraphForSNI(routeIgrObj, ingressHostMap, sniHosts, tlssetting, ingName, namespace, infraSettingName, sniHost, key)
 		// Only add this node to the list of models if the checksum has changed.
-		modelChanged := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
+		modelChanged := saveAviModel(model_name, modelGraph, key)
 		if !utils.HasElem(*modelList, model_name) && modelChanged {
 			*modelList = append(*modelList, model_name)
 		}
 	}
 
 	return hostPathSvcMap
+}
+
+func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, sniHosts []string, tlssetting TlsSettings, ingName, namespace, infraSettingName, sniHost, key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
+	vsNode := o.GetAviVS()
+
+	certsBuilt := false
+	sniSecretName := tlssetting.SecretName
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
+	if re.MatchString(sniSecretName) {
+		sniSecretName = strings.Split(sniSecretName, "/")[1]
+		certsBuilt = true
+	}
+
+	sniNodeName := lib.GetSniNodeName(ingName, infraSettingName, sniHost)
+	sniNode := vsNode[0].GetSniNodeForName(sniNodeName)
+	if sniNode == nil {
+		sniNode = &AviVsNode{
+			Name:         sniNodeName,
+			VHParentName: vsNode[0].Name,
+			Tenant:       lib.GetTenant(),
+			IsSNIChild:   true,
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
+				Namespace:            namespace,
+				HostNames:            sniHosts,
+			},
+		}
+	} else {
+		// The SNI node exists, just update the svc metadata
+		sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
+		sniNode.ServiceMetadata.Namespace = namespace
+		sniNode.ServiceMetadata.HostNames = sniHosts
+		if sniNode.SSLKeyCertAviRef != "" {
+			certsBuilt = true
+		}
+	}
+
+	sniNode.ServiceEngineGroup = lib.GetSEGName()
+	sniNode.VrfContext = lib.GetVrf()
+	if !certsBuilt {
+		certsBuilt = o.BuildTlsCertNode(routeIgrObj.GetSvcLister(), sniNode, namespace, tlssetting, key, infraSettingName, sniHost)
+	}
+	if certsBuilt {
+		isIngr := routeIgrObj.GetType() == utils.Ingress
+		o.BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, sniSecretName, key, isIngr, infraSettingName, sniHost)
+		foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
+		if !foundSniModel {
+			vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
+		}
+		RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
+		if tlssetting.redirect == true {
+			o.BuildPolicyRedirectForVS(vsNode, sniHost, key)
+		}
+		BuildL7HostRule(sniHost, namespace, ingName, key, sniNode)
+	} else {
+		hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
+		if hostMapOk {
+			// Replace the ingress map for this host.
+			keyToRemove := namespace + "/" + ingName
+			delete(ingressHostMap.HostNameMap, keyToRemove)
+			SharedHostNameLister().Save(sniHost, ingressHostMap)
+		}
+		// Since the cert couldn't be built, check if this SNI is affected by only in ingress if so remove the sni node from the model
+		if len(ingressHostMap.GetIngressesForHostName(sniHost)) == 0 {
+			RemoveSniInModel(sniNode.Name, vsNode, key)
+			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
+		}
+	}
 }
