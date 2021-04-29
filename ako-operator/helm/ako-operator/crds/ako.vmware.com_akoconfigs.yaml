@@ -189,9 +189,13 @@ spec:
                     in Avi
                   type: string
                 vipNetworkList:
-                  description: VipNetworkList holds the names of networks as specified in Avi
+                  description: VipNetworkList holds the names of networks as specified
+                    in Avi
                   items:
-                    type: string
+                    properties:
+                      networkName:
+                        type: string
+                    type: object
                   type: array
                 layer7Only:
                 nodeNetworkList:
