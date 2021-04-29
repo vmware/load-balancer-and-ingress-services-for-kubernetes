@@ -75,7 +75,7 @@ func SetUpTestForIngress(t *testing.T, modelName string) {
 func createPodWithNPLAnnotation(labels map[string]string) {
 	testPod := getTestPod(labels)
 	ann := make(map[string]string)
-	ann[lib.NPLPodAnnotation] = "[{\"podPort\":80,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
+	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
 	testPod.Annotations = ann
 	KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
 }
@@ -83,7 +83,7 @@ func createPodWithNPLAnnotation(labels map[string]string) {
 func updatePodWithNPLAnnotation(labels map[string]string) {
 	testPod := getTestPod(labels)
 	ann := make(map[string]string)
-	ann[lib.NPLPodAnnotation] = "[{\"podPort\":80,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
+	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
 	testPod.Annotations = ann
 	testPod.ResourceVersion = "2"
 	KubeClient.CoreV1().Pods(defaultNS).Update(context.TODO(), &testPod, metav1.UpdateOptions{})
