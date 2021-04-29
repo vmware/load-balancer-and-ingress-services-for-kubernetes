@@ -59,7 +59,6 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			SubnetIP:     "10.10.10.1",
 			SubnetPrefix: "24",
 			EnableRHI:    false,
-			NetworkName:  "test-nw",
 		},
 
 		L7Settings: akov1alpha1.L7Settings{

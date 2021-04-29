@@ -23,7 +23,8 @@ spec:
   networkSettings:
     subnetIP: ""
     subnetPrefix: ""
-    networkName: ""
+    vipNetworkList:
+      - networkName: ""
 
   l7Settings:
     defaultIngController: true

@@ -158,7 +158,6 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 
 	cm.Data[SubnetIP] = ako.Spec.NetworkSettings.SubnetIP
 	cm.Data[SubnetPrefix] = ako.Spec.NetworkSettings.SubnetPrefix
-	cm.Data[NetworkName] = ako.Spec.NetworkSettings.NetworkName
 	cm.Data[LogLevel] = string(ako.Spec.LogLevel)
 
 	deleteConfig := "false"
