@@ -212,8 +212,9 @@ spec:
                   description: VipNetworkList holds the names of networks as specified
                     in Avi
                   items:
-                    additionalProperties:
-                      type: string
+                    properties:
+                      networkName:
+                        type: string
                     type: object
                   type: array
               type: object

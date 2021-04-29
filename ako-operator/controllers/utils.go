@@ -45,7 +45,6 @@ const (
 	DefaultIngController   = "defaultIngController"
 	SubnetIP               = "subnetIP"
 	SubnetPrefix           = "subnetPrefix"
-	NetworkName            = "networkName"
 	VipNetworkList         = "vipNetworkList"
 	LogLevel               = "logLevel"
 	DeleteConfig           = "deleteConfig"
@@ -88,7 +87,6 @@ var ConfigMapEnvVars = map[string]string{
 	"DEFAULT_ING_CONTROLLER":     DefaultIngController,
 	"SUBNET_IP":                  SubnetIP,
 	"SUBNET_PREFIX":              SubnetPrefix,
-	"NETWORK_NAME":               NetworkName,
 	"VIP_NETWORK_LIST":           VipNetworkList,
 	"ADVANCED_L4":                AdvancedL4,
 	"AUTO_FQDN":                  AutoFQDN,
