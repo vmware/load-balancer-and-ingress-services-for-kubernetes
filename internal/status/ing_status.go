@@ -517,7 +517,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 					if _, ok := aviIngClasses[*ingressList.Items[i].Spec.IngressClassName]; ok {
 						returnIng = true
 					}
-				} else if _, ok := lib.IsAviLBDefaultIngressClass(); ok {
+				} else if _, ok := lib.IsAviLBDefaultIngressClassWithClient(mClient); ok {
 					returnIng = true
 				}
 			} else {
