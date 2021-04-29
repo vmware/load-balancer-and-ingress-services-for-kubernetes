@@ -955,3 +955,19 @@ func IsAviLBDefaultIngressClass() (string, bool) {
 	utils.AviLog.Debugf("IngressClass with controller ako.vmware.com/avi-lb not found in the cluster")
 	return "", false
 }
+
+func IsAviLBDefaultIngressClassWithClient(kc kubernetes.Interface) (string, bool) {
+	ingClassObjs, _ := kc.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
+	for _, ingClass := range ingClassObjs.Items {
+		if ingClass.Spec.Controller == AviIngressController {
+			annotations := ingClass.GetAnnotations()
+			isDefaultClass, ok := annotations[DefaultIngressClassAnnotation]
+			if ok && isDefaultClass == "true" {
+				return ingClass.Name, true
+			}
+		}
+	}
+
+	utils.AviLog.Debugf("IngressClass with controller ako.vmware.com/avi-lb not found in the cluster")
+	return "", false
+}
