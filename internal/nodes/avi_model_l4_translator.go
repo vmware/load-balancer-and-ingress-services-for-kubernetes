@@ -232,13 +232,15 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			} else {
 				atype = "V6"
 			}
-			server := AviPoolMetaServer{
-				Port: int32(a.NodePort),
-				Ip: models.IPAddr{
-					Addr: &a.NodeIP,
-					Type: &atype,
-				}}
-			poolMeta = append(poolMeta, server)
+			if _, ok := targetPorts[a.PodPort]; ok {
+				server := AviPoolMetaServer{
+					Port: int32(a.NodePort),
+					Ip: models.IPAddr{
+						Addr: &a.NodeIP,
+						Type: &atype,
+					}}
+				poolMeta = append(poolMeta, server)
+			}
 		}
 	}
 	utils.AviLog.Infof("key: %s, msg: servers for port: %v, are: %v", key, poolNode.Port, utils.Stringify(poolMeta))
