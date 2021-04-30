@@ -528,9 +528,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	// This is a shared VS - always created in the admin namespace for now.
 	avi_vs_meta := &AviEvhVsNode{Name: vsName, Tenant: lib.GetTenant(),
 		SharedVS: true}
-	if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-		avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
-	}
+	avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
 	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
@@ -767,11 +765,6 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 				},
 			}
 
-			if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-				evhNode.ServiceEngineGroup = lib.GetSEGName()
-			}
-			evhNode.VrfContext = lib.GetVrf()
-
 			foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 			if !foundEvhModel {
 				vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
@@ -782,7 +775,8 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 			evhNode.ServiceMetadata.Namespace = namespace
 			evhNode.ServiceMetadata.HostNames = hostSlice
 		}
-
+		evhNode.ServiceEngineGroup = lib.GetSEGName()
+		evhNode.VrfContext = lib.GetVrf()
 		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 		// Remove the redirect for secure to insecure transition
 		RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
@@ -1002,9 +996,6 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 					HostNames:            hosts,
 				},
 			}
-			if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-				evhNode.ServiceEngineGroup = lib.GetSEGName()
-			}
 		} else {
 			// The evh node exists, just update the svc metadata
 			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
@@ -1014,10 +1005,8 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				certsBuilt = true
 			}
 		}
-		if lib.GetSEGName() != lib.DEFAULT_SE_GROUP {
-			evhNode.ServiceEngineGroup = lib.GetSEGName()
-		}
 		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
+		evhNode.ServiceEngineGroup = lib.GetSEGName()
 		evhNode.VrfContext = lib.GetVrf()
 		if !certsBuilt {
 			certsBuilt = aviModel.(*AviObjectGraph).BuildTlsCertNodeForEvh(routeIgrObj.GetSvcLister(), vsNode[0], namespace, tlssetting, key, infraSettingName, host)
