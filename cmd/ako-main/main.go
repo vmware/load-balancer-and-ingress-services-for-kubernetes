@@ -142,10 +142,6 @@ func InitializeAKC() {
 		}
 	}
 
-	if _, err := lib.GetVipNetworkList(); err != nil {
-		utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
-	}
-
 	aviObjCache := avicache.SharedAviObjCache()
 	aviRestClientPool := avicache.SharedAVIClients()
 	if !aviObjCache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
@@ -161,6 +157,10 @@ func InitializeAKC() {
 	if err != nil {
 		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")
 		return
+	}
+
+	if _, err := lib.GetVipNetworkList(); err != nil {
+		utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
 	}
 
 	c.InitializeNamespaceSync()
