@@ -440,7 +440,7 @@ func GetVipNetworkList() ([]string, error) {
 	}
 	if len(vipNetworkList) > 1 {
 		// Only AWS cloud supports multiple VIP networks
-		if !(IsPublicCloud() && GetCloudType() != CLOUD_AWS) {
+		if GetCloudType() != CLOUD_AWS {
 			return nil, fmt.Errorf("More than one network specified in VIP Network List and Cloud type is not AWS")
 		}
 	}
