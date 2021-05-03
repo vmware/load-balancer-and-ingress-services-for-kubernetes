@@ -409,10 +409,6 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool
 		evhChild.PoolRef = &pool_ref
 	}
-	if len(vs_meta.PoolGroupRefs) > 0 {
-		poolgroup_ref := "/api/poolgroup/?name=" + vs_meta.PoolGroupRefs[0].Name
-		evhChild.PoolGroupRef = &poolgroup_ref
-	}
 
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
