@@ -1313,18 +1313,20 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 		var pools []string
 		if httppol.HTTPRequestPolicy != nil {
 			for _, rule := range httppol.HTTPRequestPolicy.Rules {
-				val := reflect.ValueOf(rule.SwitchingAction)
-				if !val.Elem().FieldByName("PoolGroupRef").IsNil() {
-					pgUuid := ExtractUuid(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
-					pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
-					if found {
-						poolGroups = append(poolGroups, pgName.(string))
-					}
-				} else if !val.Elem().FieldByName("PoolRef").IsNil() {
-					poolUuid := ExtractUuid(*rule.SwitchingAction.PoolRef, "pool-.*.#")
-					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
-					if found {
-						pools = append(pools, poolName.(string))
+				if rule.SwitchingAction != nil {
+					val := reflect.ValueOf(rule.SwitchingAction)
+					if !val.Elem().FieldByName("PoolGroupRef").IsNil() {
+						pgUuid := ExtractUuid(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
+						pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
+						if found {
+							poolGroups = append(poolGroups, pgName.(string))
+						}
+					} else if !val.Elem().FieldByName("PoolRef").IsNil() {
+						poolUuid := ExtractUuid(*rule.SwitchingAction.PoolRef, "pool-.*.#")
+						poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
+						if found {
+							pools = append(pools, poolName.(string))
+						}
 					}
 				}
 			}
