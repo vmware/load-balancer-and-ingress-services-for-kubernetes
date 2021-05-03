@@ -29,6 +29,7 @@ func SharedCRDLister() *CRDLister {
 			HostRuleFQDNCache:  NewObjectMapStore(),
 			FqdnHTTPRulesCache: NewObjectMapStore(),
 			HTTPRuleFqdnCache:  NewObjectMapStore(),
+			FqdnToGSFQDNCache:  NewObjectMapStore(),
 		}
 	})
 	return CRDinstance
@@ -44,6 +45,9 @@ type CRDLister struct {
 
 	// hr1: fqdn.com - required for httprule
 	HostRuleFQDNCache *ObjectMapStore
+
+	// hr1: gsfqdn.com
+	FqdnToGSFQDNCache *ObjectMapStore
 
 	// fqdn.com: {path1: rr1, path2: rr1, path3: rr2}
 	FqdnHTTPRulesCache *ObjectMapStore
@@ -70,6 +74,14 @@ func (c *CRDLister) GetHostruleToFQDNMapping(hostrule string) (bool, string) {
 	return true, fqdn.(string)
 }
 
+func (c *CRDLister) GetLocalFqdnToGSFQDNMapping(fqdn string) (bool, string) {
+	found, gsfqdn := c.FqdnToGSFQDNCache.Get(fqdn)
+	if !found {
+		return false, ""
+	}
+	return true, gsfqdn.(string)
+}
+
 func (c *CRDLister) DeleteHostruleFQDNMapping(hostrule string) bool {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()
@@ -77,10 +89,26 @@ func (c *CRDLister) DeleteHostruleFQDNMapping(hostrule string) bool {
 	if found {
 		success1 := c.HostRuleFQDNCache.Delete(hostrule)
 		success2 := c.FqdnHostRuleCache.Delete(fqdn.(string))
-		// utils.AviLog.Infof("Deleted the ingress mappings for hostrule: %s, fqdn: %s", hostrule, fqdn)
 		return success1 && success2
 	}
 	return true
+}
+
+func (c *CRDLister) DeleteLocalFqdnToGsFqdnMap(fqdn string) bool {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	found, _ := c.FqdnToGSFQDNCache.Get(fqdn)
+	if found {
+		success := c.FqdnToGSFQDNCache.Delete(fqdn)
+		return success
+	}
+	return true
+}
+
+func (c *CRDLister) UpdateLocalFQDNToGSFqdnMapping(fqdn string, gsFqdn string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	c.FqdnToGSFQDNCache.AddOrUpdate(fqdn, gsFqdn)
 }
 
 func (c *CRDLister) UpdateFQDNHostruleMapping(fqdn string, hostrule string) {

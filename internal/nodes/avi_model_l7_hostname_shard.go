@@ -212,7 +212,13 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 		RemoveFQDNsFromModel(vsNode[0], hosts, key)
 	}
 	if removeRedir && !keepSni {
-		RemoveRedirectHTTPPolicyInModel(vsNode[0], hostname, key)
+		var hostnames []string
+		found, gsFqdnCache := objects.SharedCRDLister().GetLocalFqdnToGSFQDNMapping(hostname)
+		if found {
+			hostnames = append(hostnames, gsFqdnCache)
+		}
+		hostnames = append(hostnames, hostname)
+		RemoveRedirectHTTPPolicyInModel(vsNode[0], hostnames, key)
 	}
 
 }
@@ -320,7 +326,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 		}
 		modelGraph := aviModel.(*AviObjectGraph)
-		modelGraph.BuildModelGraphForSNI(routeIgrObj, ingressHostMap, sniHosts, tlssetting, ingName, namespace, infraSettingName, sniHost, key)
+		modelGraph.BuildModelGraphForSNI(routeIgrObj, ingressHostMap, sniHosts, tlssetting, ingName, namespace, infraSettingName, sniHost, paths.gslbHostHeader, key)
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(model_name, modelGraph, key)
 		if !utils.HasElem(*modelList, model_name) && modelChanged {
@@ -331,7 +337,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	return hostPathSvcMap
 }
 
-func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, sniHosts []string, tlssetting TlsSettings, ingName, namespace, infraSettingName, sniHost, key string) {
+func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, sniHosts []string, tlssetting TlsSettings, ingName, namespace, infraSettingName, sniHost, gsFqdn string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	vsNode := o.GetAviVS()
@@ -370,6 +376,21 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 
 	sniNode.ServiceEngineGroup = lib.GetSEGName()
 	sniNode.VrfContext = lib.GetVrf()
+	var sniHostToRemove []string
+	sniHostToRemove = append(sniHostToRemove, sniHost)
+	found, gsFqdnCache := objects.SharedCRDLister().GetLocalFqdnToGSFQDNMapping(sniHost)
+	if gsFqdn == "" {
+		// If the gslbHostHeader is empty but it is present in the in memory cache, then add it as a candidate for removal and  remove the in memory cache relationship
+		if found {
+			sniHostToRemove = append(sniHostToRemove, gsFqdnCache)
+			objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(sniHost)
+		}
+	} else {
+		if gsFqdn != gsFqdnCache {
+			sniHostToRemove = append(sniHostToRemove, gsFqdnCache)
+		}
+		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(sniHost, gsFqdn)
+	}
 	if !certsBuilt {
 		certsBuilt = o.BuildTlsCertNode(routeIgrObj.GetSvcLister(), sniNode, namespace, tlssetting, key, infraSettingName, sniHost)
 	}
@@ -380,9 +401,12 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		if !foundSniModel {
 			vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 		}
-		RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
+		RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
 		if tlssetting.redirect == true {
-			o.BuildPolicyRedirectForVS(vsNode, sniHost, key)
+			if gsFqdn != "" {
+				sniHosts = append(sniHosts, gsFqdn)
+			}
+			o.BuildPolicyRedirectForVS(vsNode, sniHosts, key)
 		}
 		BuildL7HostRule(sniHost, namespace, ingName, key, sniNode)
 	} else {
@@ -396,7 +420,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		// Since the cert couldn't be built, check if this SNI is affected by only in ingress if so remove the sni node from the model
 		if len(ingressHostMap.GetIngressesForHostName(sniHost)) == 0 {
 			RemoveSniInModel(sniNode.Name, vsNode, key)
-			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHost, key)
+			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
 		}
 	}
 }

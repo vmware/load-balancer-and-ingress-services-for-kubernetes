@@ -176,10 +176,11 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	if len(secureSharedVS.PassthroughChildNodes) > 0 {
 		passChildVS = secureSharedVS.PassthroughChildNodes[0]
 	}
-
+	var hostnameSlice []string
+	hostnameSlice = append(hostnameSlice, hostname)
 	if !redirect {
 		if passChildVS != nil {
-			RemoveRedirectHTTPPolicyInModel(passChildVS, hostname, key)
+			RemoveRedirectHTTPPolicyInModel(passChildVS, hostnameSlice, key)
 		}
 		return
 	}
@@ -202,8 +203,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		passChildVS.ServiceMetadata.PassthroughParentRef = secureSharedVS.Name
 		secureSharedVS.ServiceMetadata.PassthroughChildRef = passChildVS.Name
 	}
-
-	o.BuildPolicyRedirectForVS([]*AviVsNode{passChildVS}, hostname, key)
+	o.BuildPolicyRedirectForVS([]*AviVsNode{passChildVS}, hostnameSlice, key)
 }
 
 func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
@@ -262,7 +262,9 @@ func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string
 		if len(vsNode[0].PassthroughChildNodes) > 0 {
 			passChild := vsNode[0].PassthroughChildNodes[0]
 			utils.AviLog.Infof("key: %s, msg: Removing redierct policy for %s from passthrough VS %s", key, hostname, passChild.Name)
-			RemoveRedirectHTTPPolicyInModel(passChild, hostname, key)
+			var hostnameSlice []string
+			hostnameSlice = append(hostnameSlice, hostname)
+			RemoveRedirectHTTPPolicyInModel(passChild, hostnameSlice, key)
 		}
 	}
 
