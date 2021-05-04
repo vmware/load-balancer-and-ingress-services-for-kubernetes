@@ -184,6 +184,12 @@ spec:
               description: NetworkSettings defines the network details required for
                 the AKO controller
               properties:
+                bgpPeerLabels:
+                  description: BGPPeerLabels enables selection of BGP peers, for VsVip
+                    advertisement.
+                  items:
+                    type: string
+                  type: array
                 enableRHI:
                   description: EnableRHI is a cluster wide setting for BGP peering
                   type: boolean

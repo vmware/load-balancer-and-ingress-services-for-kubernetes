@@ -46,6 +46,10 @@ NetworkSettings:
   subnetIP: "" # Subnet IP of the vip network
   subnetPrefix: "" # Subnet Prefix of the vip network
   enableRHI: false # This is a cluster wide setting for BGP peering.
+  bgpPeerLabels: [] # Select BGP peers using bgpPeerLabels, for VsVip advertisement.
+  # bgpPeerLabels:
+  #   - peer1
+  #   - peer2
   vipNetworkList: [] # Network Name of the VIP network, multiple networks allowed only for AWS Cloud.
   # vipNetworkList:
   #   - networkName: net1

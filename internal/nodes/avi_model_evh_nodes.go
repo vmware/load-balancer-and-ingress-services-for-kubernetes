@@ -567,16 +567,21 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 
 	vsVipNode := &AviVSVIPNode{
-		Name:       lib.GetVsVipName(vsName),
-		Tenant:     lib.GetTenant(),
-		FQDNs:      fqdns,
-		EastWest:   false,
-		VrfContext: vrfcontext,
+		Name:          lib.GetVsVipName(vsName),
+		Tenant:        lib.GetTenant(),
+		FQDNs:         fqdns,
+		EastWest:      false,
+		VrfContext:    vrfcontext,
+		BGPPeerLabels: nil,
 	}
 
 	if lib.GetSubnetIP() != "" {
 		vsVipNode.SubnetIP = lib.GetSubnetIP()
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
+	}
+
+	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+		vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -642,6 +647,10 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			PortName:   path.PortName,
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
+		}
+
+		if vsNode[0].EnableRhi != nil {
+			poolNode.VsRhiEnabled = vsNode[0].EnableRhi
 		}
 
 		serviceType := lib.GetServiceType()
@@ -1521,6 +1530,16 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		} else {
 			enableRhi := lib.GetEnableRHI()
 			vs.EnableRhi = &enableRhi
+		}
+
+		if vs.EnableRhi != nil && *vs.EnableRhi {
+			if infraSetting.Spec.Network.BgpPeerLabels != nil {
+				vsvip.BGPPeerLabels = &infraSetting.Spec.Network.BgpPeerLabels
+			} else {
+				vsvip.BGPPeerLabels = lib.GetBgpPeerLabels()
+			}
+		} else {
+			vsvip.BGPPeerLabels = nil
 		}
 
 		if vsvip.NetworkNames != nil && len(vsvip.NetworkNames) > 0 {

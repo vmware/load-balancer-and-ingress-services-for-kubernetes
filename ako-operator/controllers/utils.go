@@ -46,6 +46,7 @@ const (
 	SubnetIP               = "subnetIP"
 	SubnetPrefix           = "subnetPrefix"
 	VipNetworkList         = "vipNetworkList"
+	BgpPeerLabels          = "bgpPeerLabels"
 	LogLevel               = "logLevel"
 	DeleteConfig           = "deleteConfig"
 	AdvancedL4             = "advancedL4"

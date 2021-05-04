@@ -104,8 +104,13 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 					HostNames:   storedHosts,
 					PoolRatio:   obj.weight,
 				},
+				VrfContext: lib.GetVrf(),
 			}
-			poolNode.VrfContext = lib.GetVrf()
+
+			if vsNode[0].EnableRhi != nil {
+				poolNode.VsRhiEnabled = vsNode[0].EnableRhi
+			}
+
 			serviceType := lib.GetServiceType()
 			if serviceType == lib.NodePortLocal {
 				if servers := PopulateServersForNPL(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
@@ -366,6 +371,9 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 				HostNames:            sniHosts,
 			},
 		}
+
+		enableRhi := lib.GetEnableRHI()
+		sniNode.EnableRhi = &enableRhi
 	} else {
 		// The SNI node exists, just update the svc metadata
 		sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)

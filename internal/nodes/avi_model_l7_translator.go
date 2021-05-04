@@ -87,6 +87,9 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		ServiceEngineGroup: lib.GetSEGName(),
 	}
 
+	enableRhi := lib.GetEnableRHI()
+	avi_vs_meta.EnableRhi = &enableRhi
+
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
 	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
@@ -108,16 +111,21 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	var fqdns []string
 
 	vsVipNode := &AviVSVIPNode{
-		Name:       lib.GetVsVipName(vsName),
-		Tenant:     lib.GetTenant(),
-		FQDNs:      fqdns,
-		EastWest:   false,
-		VrfContext: vrfcontext,
+		Name:          lib.GetVsVipName(vsName),
+		Tenant:        lib.GetTenant(),
+		FQDNs:         fqdns,
+		EastWest:      false,
+		VrfContext:    vrfcontext,
+		BGPPeerLabels: nil,
 	}
 
 	if lib.GetSubnetIP() != "" {
 		vsVipNode.SubnetIP = lib.GetSubnetIP()
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
+	}
+
+	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+		vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -337,6 +345,10 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				},
 			}
 
+			if vsNode[0].EnableRhi != nil {
+				poolNode.VsRhiEnabled = vsNode[0].EnableRhi
+			}
+
 			if hostpath.reencrypt == true {
 				o.BuildPoolSecurity(poolNode, hostpath, key)
 			}
@@ -521,6 +533,16 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		} else {
 			enableRhi := lib.GetEnableRHI()
 			vs.EnableRhi = &enableRhi
+		}
+
+		if vs.EnableRhi != nil && *vs.EnableRhi {
+			if infraSetting.Spec.Network.BgpPeerLabels != nil {
+				vsvip.BGPPeerLabels = &infraSetting.Spec.Network.BgpPeerLabels
+			} else {
+				vsvip.BGPPeerLabels = lib.GetBgpPeerLabels()
+			}
+		} else {
+			vsvip.BGPPeerLabels = nil
 		}
 
 		if len(infraSetting.Spec.Network.Names) > 0 {

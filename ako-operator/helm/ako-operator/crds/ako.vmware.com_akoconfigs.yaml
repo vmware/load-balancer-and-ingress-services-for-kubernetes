@@ -184,10 +184,12 @@ spec:
                 enableRHI:
                   description: EnableRHI is a cluster wide setting for BGP peering
                   type: boolean
-                networkName:
-                  description: NetworkName is the name of the network as specified
-                    in Avi
-                  type: string
+                bgpPeerLabels:
+                  description: BGPPeerLabel enables selection of BGP peers, for VsVip
+                    advertisement.
+                  items:
+                    type: string
+                  type: array
                 vipNetworkList:
                   description: VipNetworkList holds the names of networks as specified
                     in Avi
@@ -198,32 +200,33 @@ spec:
                     type: object
                   type: array
                 layer7Only:
-                nodeNetworkList:
-                  description: 'NodeNetworkList is the list of networks and their
-                    cidrs used in pool placement network for vcenter cloud. This is
-                    not required for either of these cases: 1. nodeport is enabled
-                    2. static routes are disabled 3. non vcenter clouds'
-                  items:
-                    properties:
-                      cidrs:
-                        items:
-                          type: string
-                        type: array
-                      networkName:
-                        type: string
-                    required:
-                    - cidrs
-                    type: object
-                  type: array
-                subnetIP:
-                  description: SubnetIP is the Network IP for the subnet to be used
-                  type: string
-                subnetPrefix:
-                  description: SubnetPrefix is the netmask for the subnet
-                  type: string
-              required:
-              - subnetIP
-              type: object
+                  properties:
+                    nodeNetworkList:
+                      description: 'NodeNetworkList is the list of networks and their
+                        cidrs used in pool placement network for vcenter cloud. This is
+                        not required for either of these cases: 1. nodeport is enabled
+                        2. static routes are disabled 3. non vcenter clouds'
+                      items:
+                        properties:
+                          cidrs:
+                            items:
+                              type: string
+                            type: array
+                          networkName:
+                            type: string
+                        required:
+                        - cidrs
+                        type: object
+                      type: array
+                    subnetIP:
+                      description: SubnetIP is the Network IP for the subnet to be used
+                      type: string
+                    subnetPrefix:
+                      description: SubnetPrefix is the netmask for the subnet
+                      type: string
+                  type: object
+                  required:
+                  - subnetIP
             nodePortSelector:
               description: NodePortSelector defines the node port settings, to be
                 used only if the serviceTYpe is selected NodePort

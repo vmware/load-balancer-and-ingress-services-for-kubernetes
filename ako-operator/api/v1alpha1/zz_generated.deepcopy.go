@@ -207,6 +207,11 @@ func (in *NetworkSettings) DeepCopyInto(out *NetworkSettings) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.BGPPeerLabels != nil {
+		in, out := &in.BGPPeerLabels, &out.BGPPeerLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.VipNetworkList != nil {
 		in, out := &in.VipNetworkList, &out.VipNetworkList
 		*out = make([]VipNetwork, len(*in))

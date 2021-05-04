@@ -79,6 +79,9 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
+		enableRhi := lib.GetEnableRHI()
+		avi_vs_meta.EnableRhi = &enableRhi
+
 		isTCP := false
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
@@ -100,15 +103,20 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		}
 
 		vsVipNode := &AviVSVIPNode{
-			Name:       lib.GetL4VSVipName(gatewayName, namespace),
-			Tenant:     lib.GetTenant(),
-			EastWest:   false,
-			VrfContext: lib.GetVrf(),
+			Name:          lib.GetL4VSVipName(gatewayName, namespace),
+			Tenant:        lib.GetTenant(),
+			EastWest:      false,
+			VrfContext:    lib.GetVrf(),
+			BGPPeerLabels: nil,
 		}
 
 		if lib.GetSubnetIP() != "" {
 			vsVipNode.SubnetIP = lib.GetSubnetIP()
 			vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
+		}
+
+		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+			vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
 		}
 
 		if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -122,7 +130,6 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		}
 
 		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
-		utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 		return avi_vs_meta
 	}
 	return nil
@@ -159,6 +166,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
+		enableRhi := lib.GetEnableRHI()
+		avi_vs_meta.EnableRhi = &enableRhi
+
 		isTCP := false
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
@@ -180,15 +190,20 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		vsVipNode := &AviVSVIPNode{
-			Name:       lib.GetL4VSVipName(gatewayName, namespace),
-			Tenant:     lib.GetTenant(),
-			EastWest:   false,
-			VrfContext: lib.GetVrf(),
+			Name:          lib.GetL4VSVipName(gatewayName, namespace),
+			Tenant:        lib.GetTenant(),
+			EastWest:      false,
+			VrfContext:    lib.GetVrf(),
+			BGPPeerLabels: nil,
 		}
 
 		if lib.GetSubnetIP() != "" {
 			vsVipNode.SubnetIP = lib.GetSubnetIP()
 			vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
+		}
+
+		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+			vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
 		}
 
 		if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -207,7 +222,6 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
-		utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 		return avi_vs_meta
 	}
 	return nil
@@ -236,6 +250,10 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			Protocol:   portProto[0],
 			PortName:   "",
 			VrfContext: lib.GetVrf(),
+		}
+
+		if vsNode.EnableRhi != nil {
+			poolNode.VsRhiEnabled = vsNode.EnableRhi
 		}
 
 		// If the service has multiple ports but the gateway specifies one of them as listeners then we pick the portname from the service and populate it in pool portname.

@@ -28,9 +28,11 @@ spec:
                     type: array
                   enableRhi:
                     type: boolean
+                  bgpPeerLabels:
+                    items:
+                      type: string
+                    type: array
                 type: object
-                required:
-                - names
               seGroup:
                 properties:
                   name:

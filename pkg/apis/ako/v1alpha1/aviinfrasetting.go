@@ -40,8 +40,9 @@ type AviInfraSettingSpec struct {
 }
 
 type AviInfraSettingNetwork struct {
-	Names     []string `json:"names,omitempty"`
-	EnableRhi *bool    `json:"enableRhi,omitempty"`
+	Names         []string `json:"names,omitempty"`
+	EnableRhi     *bool    `json:"enableRhi,omitempty"`
+	BgpPeerLabels []string `json:"bgpPeerLabels,omitempty"`
 }
 
 type AviInfraSettingSeGroup struct {

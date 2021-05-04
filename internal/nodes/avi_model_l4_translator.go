@@ -70,6 +70,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 		fqdns = append(fqdns, fqdn)
 	}
+
 	avi_vs_meta = &AviVsNode{
 		Name:     vsName,
 		Tenant:   lib.GetTenant(),
@@ -80,6 +81,9 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
 	}
+
+	enableRhi := lib.GetEnableRHI()
+	avi_vs_meta.EnableRhi = &enableRhi
 
 	vrfcontext := lib.GetVrf()
 	avi_vs_meta.VrfContext = vrfcontext
@@ -104,16 +108,21 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	vsVipNode := &AviVSVIPNode{
-		Name:       vsVipName,
-		Tenant:     lib.GetTenant(),
-		FQDNs:      fqdns,
-		EastWest:   false,
-		VrfContext: vrfcontext,
+		Name:          vsVipName,
+		Tenant:        lib.GetTenant(),
+		FQDNs:         fqdns,
+		EastWest:      false,
+		VrfContext:    vrfcontext,
+		BGPPeerLabels: nil,
 	}
 
 	if lib.GetSubnetIP() != "" {
 		vsVipNode.SubnetIP = lib.GetSubnetIP()
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
+	}
+
+	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+		vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -132,7 +141,6 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
-	utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta
 }
 
@@ -141,8 +149,17 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 	var portPoolSet []AviHostPathPortPoolPG
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
-		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: lib.GetTenant(), Protocol: portProto.Protocol, PortName: portProto.Name}
-		poolNode.VrfContext = lib.GetVrf()
+		poolNode := &AviPoolNode{
+			Name:       lib.GetL4PoolName(vsNode.Name, filterPort),
+			Tenant:     lib.GetTenant(),
+			Protocol:   portProto.Protocol,
+			PortName:   portProto.Name,
+			VrfContext: lib.GetVrf(),
+		}
+
+		if vsNode.EnableRhi != nil {
+			poolNode.VsRhiEnabled = vsNode.EnableRhi
+		}
 
 		serviceType := lib.GetServiceType()
 		if serviceType == lib.NodePortLocal {

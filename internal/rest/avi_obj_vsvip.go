@@ -34,7 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
+func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCache *avicache.AviVsCache, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
 	name := vsvip_meta.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
@@ -96,8 +96,19 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			}
 		}
 
-		// Override the Vip in VsVip tto bring in updates, keeping everything else as is.
+		if !vsCache.EnableRhi && vsvip_meta.BGPPeerLabels != nil && len(*vsvip_meta.BGPPeerLabels) > 0 {
+			err = fmt.Errorf("To use selective vip advertisement, %s VS must advertise vips via BGP. Please recreate the VS.", vsCache.Name)
+			utils.AviLog.Error(err)
+			return nil, err
+		}
 
+		if vsvip_meta.BGPPeerLabels != nil {
+			vsvip.BgpPeerLabels = *vsvip_meta.BGPPeerLabels
+		} else {
+			vsvip.BgpPeerLabels = nil
+		}
+
+		// Override the Vip in VsVip to bring in updates, keeping everything else as is.
 		if lib.GetGRBACSupport() {
 			vsvip.Markers = lib.GetMarkers()
 		}
@@ -200,6 +211,10 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			VsvipCloudConfigCksum: &cksumstr,
 		}
 
+		if vsvip_meta.BGPPeerLabels != nil {
+			vsvip.BgpPeerLabels = *vsvip_meta.BGPPeerLabels
+		}
+
 		if lib.GetGRBACSupport() {
 			vsvip.Markers = lib.GetMarkers()
 		}
@@ -240,6 +255,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, cache_
 			}
 			vsvip_avi.DNSInfo = dns_info_arr
 			vsvip_avi.VrfContextRef = &vrfContextRef
+			if vsvip_meta.BGPPeerLabels != nil {
+				vsvip_avi.BgpPeerLabels = *vsvip_meta.BGPPeerLabels
+			} else {
+				vsvip_avi.BgpPeerLabels = nil
+			}
 			if lib.GetGRBACSupport() {
 				vsvip_avi.Markers = lib.GetMarkers()
 			}
