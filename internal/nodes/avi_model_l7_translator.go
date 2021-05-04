@@ -445,18 +445,19 @@ func (o *AviObjectGraph) BuildHeaderRewrite(vsNode []*AviVsNode, gslbHost, local
 
 func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, hostnames []string, key string) bool {
 	// The hostnames slice can at max have 2 elements.
+	var policyFound bool
 	for _, hostname := range hostnames {
 		for _, policy := range vsNode.HttpPolicyRefs {
-			if policy.Name == httpPolicy.Name && policy.CloudConfigCksum != httpPolicy.CloudConfigCksum {
+			if policy.Name == httpPolicy.Name {
 				if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
 					policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
 					utils.AviLog.Infof("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
 				}
-				return true
+				policyFound = true
 			}
 		}
 	}
-	return false
+	return policyFound
 }
 
 func FindAndReplaceHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, gslbHost, key string) bool {
@@ -489,7 +490,6 @@ func RemoveHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, hostname, key strin
 
 func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostnames []string, key string) {
 	policyName := lib.GetL7HttpRedirPolicy(vsNode.Name)
-	deletePolicy := false
 	for _, hostname := range hostnames {
 		for i, policy := range vsNode.HttpPolicyRefs {
 			if policy.Name == policyName {
@@ -497,10 +497,6 @@ func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostnames []string, key 
 				policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
 				utils.AviLog.Infof("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policy.Name, policy.RedirectPorts[0].Hosts)
 				if len(policy.RedirectPorts[0].Hosts) == 0 {
-					deletePolicy = true
-				}
-
-				if deletePolicy {
 					vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
 					utils.AviLog.Infof("key: %s, msg: removed policy %s in model", key, policy.Name)
 				}
