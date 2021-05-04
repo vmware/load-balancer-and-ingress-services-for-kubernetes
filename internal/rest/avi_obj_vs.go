@@ -69,7 +69,9 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		} else {
 			enableRhi = lib.GetEnableRHI()
 		}
-		vs.EnableRhi = &enableRhi
+		if enableRhi {
+			vs.EnableRhi = &enableRhi
+		}
 
 		if lib.GetAdvancedL4() {
 			ignPool := true
