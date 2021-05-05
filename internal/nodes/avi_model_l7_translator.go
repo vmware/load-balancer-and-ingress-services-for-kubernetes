@@ -402,10 +402,10 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 	poolNode.PkiProfile = &pkiProfile
 }
 
-func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostname string, key string) {
+func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostnames []string, key string) {
 	policyname := lib.GetL7HttpRedirPolicy(vsNode[0].Name)
 	myHppMap := AviRedirectPort{
-		Hosts:        []string{hostname},
+		Hosts:        hostnames,
 		RedirectPort: 443,
 		StatusCode:   lib.STATUS_REDIRECT,
 		VsPort:       80,
@@ -417,7 +417,7 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostname 
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}
 
-	if policyFound := FindAndReplaceRedirectHTTPPolicyInModel(vsNode[0], redirectPolicy, hostname, key); !policyFound {
+	if policyFound := FindAndReplaceRedirectHTTPPolicyInModel(vsNode[0], redirectPolicy, hostnames, key); !policyFound {
 		redirectPolicy.CalculateCheckSum()
 		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, redirectPolicy)
 	}
@@ -443,17 +443,21 @@ func (o *AviObjectGraph) BuildHeaderRewrite(vsNode []*AviVsNode, gslbHost, local
 
 }
 
-func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, hostname, key string) bool {
-	for _, policy := range vsNode.HttpPolicyRefs {
-		if policy.Name == httpPolicy.Name && policy.CloudConfigCksum != httpPolicy.CloudConfigCksum {
-			if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
-				policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
-				utils.AviLog.Infof("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
+func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, hostnames []string, key string) bool {
+	// The hostnames slice can at max have 2 elements.
+	var policyFound bool
+	for _, hostname := range hostnames {
+		for _, policy := range vsNode.HttpPolicyRefs {
+			if policy.Name == httpPolicy.Name {
+				if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
+					policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
+					utils.AviLog.Infof("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
+				}
+				policyFound = true
 			}
-			return true
 		}
 	}
-	return false
+	return policyFound
 }
 
 func FindAndReplaceHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, gslbHost, key string) bool {
@@ -484,21 +488,18 @@ func RemoveHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, hostname, key strin
 	}
 }
 
-func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostname, key string) {
+func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostnames []string, key string) {
 	policyName := lib.GetL7HttpRedirPolicy(vsNode.Name)
-	deletePolicy := false
-	for i, policy := range vsNode.HttpPolicyRefs {
-		if policy.Name == policyName {
-			// one redirect policy per shard vs
-			policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
-			utils.AviLog.Infof("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policy.Name, policy.RedirectPorts[0].Hosts)
-			if len(policy.RedirectPorts[0].Hosts) == 0 {
-				deletePolicy = true
-			}
-
-			if deletePolicy {
-				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
-				utils.AviLog.Infof("key: %s, msg: removed policy %s in model", key, policy.Name)
+	for _, hostname := range hostnames {
+		for i, policy := range vsNode.HttpPolicyRefs {
+			if policy.Name == policyName {
+				// one redirect policy per shard vs
+				policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
+				utils.AviLog.Infof("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policy.Name, policy.RedirectPorts[0].Hosts)
+				if len(policy.RedirectPorts[0].Hosts) == 0 {
+					vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
+					utils.AviLog.Infof("key: %s, msg: removed policy %s in model", key, policy.Name)
+				}
 			}
 		}
 	}

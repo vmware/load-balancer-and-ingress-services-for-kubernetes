@@ -1085,7 +1085,7 @@ func RemoveEvhInModel(currentEvhNodeName string, modelEvhNodes []*AviEvhVsNode, 
 
 func FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode *AviEvhVsNode, httpPolicy *AviHttpPolicySetNode, hostname, key string) bool {
 	for _, policy := range vsNode.HttpPolicyRefs {
-		if policy.Name == httpPolicy.Name && policy.CloudConfigCksum != httpPolicy.CloudConfigCksum {
+		if policy.Name == httpPolicy.Name {
 			if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
 				policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
 				utils.AviLog.Infof("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
