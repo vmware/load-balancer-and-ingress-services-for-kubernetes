@@ -239,7 +239,13 @@ func GetSniPoolName(ingName, namespace, host, path, infrasetting string, args ..
 	return poolName
 }
 
-func GetSniHttpPolName(ingName, namespace, host, path, infrasetting string) string {
+func GetSniHttpPolName(namespace, host, infrasetting string) string {
+	if infrasetting != "" {
+		return NamePrefix + infrasetting + "-" + namespace + "-" + host
+	}
+	return NamePrefix + namespace + "-" + host
+}
+func GetSniHppMapName(ingName, namespace, host, path, infrasetting string) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	if infrasetting != "" {
 		return NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName

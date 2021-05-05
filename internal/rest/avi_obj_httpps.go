@@ -17,6 +17,7 @@ package rest
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -36,7 +37,6 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	cksumString := strconv.Itoa(int(cksum))
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
 	cr := lib.AKOUser
-
 	http_req_pol := avimodels.HTTPRequestPolicy{}
 	hps := avimodels.HTTPPolicySet{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, HTTPRequestPolicy: &http_req_pol}
@@ -44,9 +44,50 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	if lib.GetGRBACSupport() {
 		hps.Markers = lib.GetMarkers()
 	}
+	var hppmapWithPath []nodes.AviHostPathPortPoolPG
+	var hppmapWithoutPath []nodes.AviHostPathPortPoolPG
+	var hppmapAllPaths []nodes.AviHostPathPortPoolPG
+	for _, hppmap := range hps_meta.HppMap {
+		if hppmap.Path != nil {
+			hppmapWithPath = append(hppmapWithPath, hppmap)
+		} else {
+			hppmapWithoutPath = append(hppmapWithoutPath, hppmap)
+		}
+	}
+	sort.Slice(hppmapWithPath, func(i, j int) bool {
+		return hppmapWithPath[i].Path[0] > hppmapWithPath[j].Path[0]
+	})
+
+	hppmapAllPaths = append(hppmapAllPaths, hppmapWithPath...)
+	hppmapAllPaths = append(hppmapAllPaths, hppmapWithoutPath...)
+
 	var idx int32
 	idx = 0
-	for _, hppmap := range hps_meta.HppMap {
+	for _, hppmap := range hps_meta.RedirectPorts {
+		enable := true
+		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
+		match_target := avimodels.MatchTarget{}
+		if len(hppmap.Hosts) > 0 {
+			match_crit := "HDR_EQUALS"
+			host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
+				Value: hppmap.Hosts}
+			match_target.HostHdr = &host_hdr_match
+			port_match_crit := "IS_IN"
+			match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
+		}
+		redirect_action := avimodels.HTTPRedirectAction{}
+		protocol := "HTTPS"
+		redirect_action.StatusCode = &hppmap.StatusCode
+		redirect_action.Protocol = &protocol
+		redirect_action.Port = &hppmap.RedirectPort
+		var j int32
+		j = idx
+		rule := avimodels.HTTPRequestRule{Enable: &enable, Index: &j,
+			Name: &name, Match: &match_target, RedirectAction: &redirect_action}
+		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
+		idx = idx + 1
+	}
+	for _, hppmap := range hppmapAllPaths {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
 		match_target := avimodels.MatchTarget{}
@@ -108,30 +149,6 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		idx = idx + 1
 	}
 
-	for _, hppmap := range hps_meta.RedirectPorts {
-		enable := true
-		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		match_target := avimodels.MatchTarget{}
-		if len(hppmap.Hosts) > 0 {
-			match_crit := "HDR_EQUALS"
-			host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
-				Value: hppmap.Hosts}
-			match_target.HostHdr = &host_hdr_match
-			port_match_crit := "IS_IN"
-			match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
-		}
-		redirect_action := avimodels.HTTPRedirectAction{}
-		protocol := "HTTPS"
-		redirect_action.StatusCode = &hppmap.StatusCode
-		redirect_action.Protocol = &protocol
-		redirect_action.Port = &hppmap.RedirectPort
-		var j int32
-		j = idx
-		rule := avimodels.HTTPRequestRule{Enable: &enable, Index: &j,
-			Name: &name, Match: &match_target, RedirectAction: &redirect_action}
-		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
-		idx = idx + 1
-	}
 	if hps_meta.HeaderReWrite != nil {
 		var hostHdrActionArr []*avimodels.HTTPHdrAction
 		enable := true
@@ -160,7 +177,6 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		}
 		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
 	}
-
 	var path string
 	var rest_op utils.RestOp
 	if cache_obj != nil {

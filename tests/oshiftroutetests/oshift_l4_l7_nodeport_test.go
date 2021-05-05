@@ -599,14 +599,16 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return len(sniVS.PoolRefs)
 	}, 50*time.Second).Should(gomega.Equal(2))
-	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
 		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" && pool.Name != "cluster--test-foo.com_bar-foo-avisvc" {
 			t.Fatalf("Unexpected poolName found: %s", pool.Name)
 		}
 	}
-	for _, httpps := range sniVS.HttpPolicyRefs {
+
+	for _, httpps := range sniVS.HttpPolicyRefs[0].HppMap {
 		if httpps.Name != "cluster--default-foo.com_foo-foo" && httpps.Name != "cluster--test-foo.com_bar-foo" {
 			t.Fatalf("Unexpected http policyset found: %s", httpps.Name)
 		}

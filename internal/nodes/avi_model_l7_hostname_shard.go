@@ -40,8 +40,6 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 	vsNode := o.GetAviVS()
 	utils.AviLog.Debugf("key: %s, msg: GSLB host header: %v", key, gslbHostHeader)
 
-	o.BuildHeaderRewrite(vsNode, gslbHostHeader, hostname, key)
-
 	if len(vsNode) != 1 {
 		utils.AviLog.Warnf("key: %s, msg: more than one vs in model.", key)
 		return
@@ -54,6 +52,8 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 		infraSettingName = aviInfraSetting.Name
 	}
 
+	//As we are dealing with vsNode[0] in rewrite function, moved it to down
+	o.BuildHeaderRewrite(vsNode, gslbHostHeader, hostname, key)
 	utils.AviLog.Infof("key: %s, msg: The pathsvc mapping: %v", key, pathsvc)
 	for _, obj := range pathsvc {
 		if obj.Path != "" {
@@ -249,13 +249,13 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 			if pgNode != nil {
 				if len(pgNode.Members) == 0 {
 					o.RemovePGNodeRefs(pgName, modelSniNode)
-					httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path, infraSettingName)
+					httppolname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName)
 					o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
 				}
 			}
 			// Keeping this block separate for deprecation later.
 			if lib.GetNoPGForSNI() && isIngr {
-				httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path, infraSettingName)
+				httppolname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName)
 				o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
 			}
 		}

@@ -1331,7 +1331,6 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 				}
 			}
 		}
-
 		httpPolCacheObj := AviHTTPPolicyCache{
 			Name:             *httppol.Name,
 			Uuid:             *httppol.UUID,

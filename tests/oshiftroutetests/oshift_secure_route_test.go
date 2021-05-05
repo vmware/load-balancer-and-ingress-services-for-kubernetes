@@ -123,6 +123,9 @@ func ValidateSniModel(t *testing.T, g *gomega.GomegaWithT, modelName string, red
 		}
 	}
 	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(redirectPol))
+	if redirectPol == 1 {
+		g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(redirectPol))
+	}
 	dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 	g.Expect(len(dsNodes)).To(gomega.Equal(1))
 
@@ -144,7 +147,8 @@ func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interfac
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return len(sniVS.PoolRefs)
 	}, 20*time.Second).Should(gomega.Equal(2))
-	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(2))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
@@ -152,7 +156,8 @@ func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interfac
 			t.Fatalf("Unexpected poolName found: %s", pool.Name)
 		}
 	}
-	for _, httpps := range sniVS.HttpPolicyRefs {
+
+	for _, httpps := range sniVS.HttpPolicyRefs[0].HppMap {
 		if httpps.Name != "cluster--default-foo.com_foo-foo" && httpps.Name != "cluster--test-foo.com_bar-foo" {
 			t.Fatalf("Unexpected http policyset found: %s", httpps.Name)
 		}
@@ -369,6 +374,7 @@ func TestSecureRouteAlternateBackend(t *testing.T) {
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
@@ -424,6 +430,7 @@ func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
@@ -479,6 +486,7 @@ func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
@@ -534,6 +542,7 @@ func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(1))
 
 	for _, pool := range sniVS.PoolRefs {
@@ -956,6 +965,7 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
 	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
@@ -1009,7 +1019,8 @@ func TestSecureOshiftNamingConvention(t *testing.T) {
 	g.Expect(vsNode.SniNodes[0].PoolRefs[0].PkiProfile.Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-avisvc-pkiprofile"))
 	g.Expect(vsNode.SniNodes[0].CACertRefs[0].Name).To(gomega.Equal("cluster--foo.com-cacert"))
 	g.Expect(vsNode.SniNodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("cluster--foo.com"))
-	g.Expect(vsNode.SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo"))
+	g.Expect(vsNode.SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com"))
+	g.Expect(vsNode.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo"))
 	g.Expect(vsNode.VSVIPRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
 
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)

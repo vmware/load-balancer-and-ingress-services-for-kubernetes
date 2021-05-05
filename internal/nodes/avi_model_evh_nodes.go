@@ -494,10 +494,9 @@ func (v *AviEvhVsNode) CopyNode() AviModelNode {
 }
 
 func (o *AviEvhVsNode) CheckHttpPolNameNChecksumForEvh(httpNodeName string, checksum uint32) bool {
-	for _, http := range o.HttpPolicyRefs {
-		if http.Name == httpNodeName {
-			//Check if their checksums are same
-			if http.GetCheckSum() == checksum {
+	if o.HttpPolicyRefs != nil {
+		for _, httpmap := range o.HttpPolicyRefs[0].HppMap {
+			if httpmap.Name == httpNodeName && httpmap.Checksum == checksum {
 				return false
 			}
 		}
@@ -505,18 +504,24 @@ func (o *AviEvhVsNode) CheckHttpPolNameNChecksumForEvh(httpNodeName string, chec
 	return true
 }
 
-func (o *AviEvhVsNode) ReplaceHTTPRefInNodeForEvh(newHttpNode *AviHttpPolicySetNode, key string) {
-	for i, http := range o.HttpPolicyRefs {
-		if http.Name == newHttpNode.Name {
-			o.HttpPolicyRefs = append(o.HttpPolicyRefs[:i], o.HttpPolicyRefs[i+1:]...)
-			o.HttpPolicyRefs = append(o.HttpPolicyRefs, newHttpNode)
-			utils.AviLog.Infof("key: %s, msg: replaced Evh http in model: %s Pool name: %s", key, o.Name, http.Name)
-			return
+func (o *AviEvhVsNode) ReplaceHTTPRefInNodeForEvh(httpPGPath AviHostPathPortPoolPG, key string) {
+	hppRefFound := false
+	if o.HttpPolicyRefs != nil {
+		for i, http := range o.HttpPolicyRefs[0].HppMap {
+			if http.Name == httpPGPath.Name {
+				hppRefFound = true
+				if http.Checksum != httpPGPath.Checksum {
+					o.HttpPolicyRefs[0].HppMap = append(o.HttpPolicyRefs[i].HppMap[:i], o.HttpPolicyRefs[i].HppMap[i+1:]...)
+					o.HttpPolicyRefs[0].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
+				}
+				break
+			}
+		}
+		// If we have reached here it means we haven't found a match. Just append.
+		if !hppRefFound {
+			o.HttpPolicyRefs[0].HppMap = append(o.HttpPolicyRefs[0].HppMap, httpPGPath)
 		}
 	}
-	// If we have reached here it means we haven't found a match. Just append.
-	o.HttpPolicyRefs = append(o.HttpPolicyRefs, newHttpNode)
-	return
 }
 
 // Insecure ingress graph functions below
@@ -600,9 +605,14 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 	}
 	var allFqdns []string
 	allFqdns = append(allFqdns, host)
-	for _, path := range paths {
-		var httpPolicySet []AviHostPathPortPoolPG
+	//There is one httpref per host ... so add
+	if childNode.HttpPolicyRefs == nil {
+		httppolname := lib.GetSniHttpPolName(namespace, host, infraSettingName)
+		policyNode := &AviHttpPolicySetNode{Name: httppolname, Tenant: lib.GetTenant()}
+		childNode.HttpPolicyRefs = append(childNode.HttpPolicyRefs, policyNode)
+	}
 
+	for _, path := range paths {
 		httpPGPath := AviHostPathPortPoolPG{Host: allFqdns}
 
 		if path.PathType == networkingv1beta1.PathTypeExact {
@@ -626,8 +636,8 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 			localPGList[pgName] = pgNode
 			httpPGPath.PoolGroup = pgNode.Name
-			httpPGPath.Host = allFqdns
-			httpPolicySet = append(httpPolicySet, httpPGPath)
+			//httpPGPath.Host = allFqdns
+			//httpPolicySet = append(httpPolicySet, httpPGPath)
 		}
 
 		var poolName string
@@ -667,10 +677,12 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 		o.AddModelNode(poolNode)
 		if !pgfound {
-			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path, infraSettingName)
-			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
-			if childNode.CheckHttpPolNameNChecksumForEvh(httppolname, policyNode.GetCheckSum()) {
-				childNode.ReplaceHTTPRefInNodeForEvh(policyNode, key)
+			httppolname := lib.GetSniHppMapName(ingName, namespace, host, path.Path, infraSettingName)
+			httpPGPath.Name = httppolname
+			httpPGPath.CalculateCheckSum()
+
+			if childNode.CheckHttpPolNameNChecksumForEvh(httppolname, httpPGPath.Checksum) {
+				childNode.ReplaceHTTPRefInNodeForEvh(httpPGPath, key)
 			}
 		}
 	}
@@ -1083,14 +1095,16 @@ func RemoveEvhInModel(currentEvhNodeName string, modelEvhNodes []*AviEvhVsNode, 
 	}
 }
 
-func FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode *AviEvhVsNode, httpPolicy *AviHttpPolicySetNode, hostname, key string) bool {
-	for _, policy := range vsNode.HttpPolicyRefs {
-		if policy.Name == httpPolicy.Name {
-			if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
-				policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
-				utils.AviLog.Infof("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
+func FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode *AviEvhVsNode, policyName, hostname, key string) bool {
+
+	if vsNode.HttpPolicyRefs != nil && vsNode.HttpPolicyRefs[0].RedirectPorts != nil {
+		for _, policy := range vsNode.HttpPolicyRefs[0].RedirectPorts {
+			if policy.Name == policyName {
+				if !utils.HasElem(policy.Hosts, hostname) {
+					policy.Hosts = append(policy.Hosts, hostname)
+				}
+				return true
 			}
-			return true
 		}
 	}
 	return false
@@ -1098,24 +1112,25 @@ func FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode *AviEvhVsNode, httpPol
 
 func RemoveRedirectHTTPPolicyInModelForEvh(vsNode *AviEvhVsNode, hostname, key string) {
 	policyName := lib.GetL7HttpRedirPolicy(vsNode.Name)
-	deletePolicy := false
-	for i, policy := range vsNode.HttpPolicyRefs {
-		if policy.Name == policyName {
-			// one redirect policy per shard vs
-			policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
-			utils.AviLog.Infof("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policy.Name, policy.RedirectPorts[0].Hosts)
-			if len(policy.RedirectPorts[0].Hosts) == 0 {
-				deletePolicy = true
-			}
-
-			if deletePolicy {
-				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
-				utils.AviLog.Infof("key: %s, msg: removed policy %s in model", key, policy.Name)
+	if vsNode.HttpPolicyRefs != nil && vsNode.HttpPolicyRefs[0].RedirectPorts != nil {
+		// one redirect policy per vs
+		if vsNode.HttpPolicyRefs[0].RedirectPorts[0].Name == policyName {
+			vsNode.HttpPolicyRefs[0].RedirectPorts[0].Hosts = utils.Remove(vsNode.HttpPolicyRefs[0].RedirectPorts[0].Hosts, hostname)
+			utils.AviLog.Infof("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policyName, vsNode.HttpPolicyRefs[0].RedirectPorts[0].Hosts)
+			if len(vsNode.HttpPolicyRefs[0].RedirectPorts[0].Hosts) == 0 {
+				vsNode.HttpPolicyRefs[0].RedirectPorts = nil
+				utils.AviLog.Infof("key: %s, msg: removed policy %s in model", key, policyName)
 			}
 		}
+		DeleteVSHTTPPolicyRefForEVH(vsNode)
 	}
 }
-
+func DeleteVSHTTPPolicyRefForEVH(vsNode *AviEvhVsNode) {
+	if len(vsNode.HttpPolicyRefs[0].HppMap) == 0 && len(vsNode.HttpPolicyRefs[0].RedirectPorts) == 0 && vsNode.HttpPolicyRefs[0].HeaderReWrite == nil {
+		var vsNodePolRefs []*AviHttpPolicySetNode
+		vsNode.HttpPolicyRefs = vsNodePolRefs
+	}
+}
 func RemoveFQDNsFromModelForEvh(vsNode *AviEvhVsNode, hosts []string, key string) {
 	if len(vsNode.VSVIPRefs) > 0 {
 		for i, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
@@ -1230,17 +1245,18 @@ func (o *AviObjectGraph) RemovePoolNodeRefsFromEvh(poolName string, evhNode *Avi
 
 }
 
-func (o *AviObjectGraph) RemoveHTTPRefsFromEvh(httpPol string, evhNode *AviEvhVsNode) {
-
-	for i, pol := range evhNode.HttpPolicyRefs {
-		if pol.Name == httpPol {
-			utils.AviLog.Debugf("Removing http pol ref: %s", httpPol)
-			evhNode.HttpPolicyRefs = append(evhNode.HttpPolicyRefs[:i], evhNode.HttpPolicyRefs[i+1:]...)
-			break
+func (o *AviObjectGraph) RemoveHTTPRefsFromEvh(hppMapName string, evhNode *AviEvhVsNode) {
+	if evhNode.HttpPolicyRefs != nil {
+		for i, hppmap := range evhNode.HttpPolicyRefs[0].HppMap {
+			if hppmap.Name == hppMapName {
+				evhNode.HttpPolicyRefs[0].HppMap = append(evhNode.HttpPolicyRefs[0].HppMap[:i], evhNode.HttpPolicyRefs[0].HppMap[i+1:]...)
+				break
+			}
 		}
+		utils.AviLog.Debugf("After removing the http policy nodes are: %s", utils.Stringify(evhNode.HttpPolicyRefs))
+		//TODO: Next PR optimization: make EVH and SNI following func same
+		DeleteVSHTTPPolicyRefForEVH(evhNode)
 	}
-	utils.AviLog.Debugf("After removing the http policy nodes are: %s", utils.Stringify(evhNode.HttpPolicyRefs))
-
 }
 
 func (o *AviObjectGraph) RemovePGNodeRefsForEvh(pgName string, vsNode *AviEvhVsNode) {
@@ -1275,7 +1291,8 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 				if pgNode != nil {
 					if len(pgNode.Members) == 0 {
 						o.RemovePGNodeRefsForEvh(pgName, modelEvhNode)
-						httppolname := lib.GetEvhVsPoolNPgName(ingName, namespace, hostname, path, infraSettingName)
+						httppolname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName)
+						//httppolname := lib.GetEvhVsPoolNPgName(ingName, namespace, hostname, path, infraSettingName)
 						o.RemoveHTTPRefsFromEvh(httppolname, modelEvhNode)
 					}
 				}
@@ -1358,23 +1375,22 @@ func (o *AviObjectGraph) RemoveEvhVsNode(evhVsName string, vsNode []*AviEvhVsNod
 }
 
 func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode *AviEvhVsNode, hostname string, namespace, ingName, key string) {
+
+	if vsNode.HttpPolicyRefs == nil {
+		httppolname := vsNode.Name
+		policyNode := &AviHttpPolicySetNode{Name: httppolname, Tenant: lib.GetTenant()}
+		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policyNode)
+	}
 	policyname := lib.GetL7HttpRedirPolicy(vsNode.Name)
-	myHppMap := AviRedirectPort{
+	redirectMap := AviRedirectPort{
+		Name:         policyname,
 		Hosts:        []string{hostname},
 		RedirectPort: 443,
 		StatusCode:   lib.STATUS_REDIRECT,
 		VsPort:       80,
 	}
-
-	redirectPolicy := &AviHttpPolicySetNode{
-		Tenant:        lib.GetTenant(),
-		Name:          policyname,
-		RedirectPorts: []AviRedirectPort{myHppMap},
-	}
-
-	if policyFound := FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode, redirectPolicy, hostname, key); !policyFound {
-		redirectPolicy.CalculateCheckSum()
-		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, redirectPolicy)
+	if policyFound := FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode, policyname, hostname, key); !policyFound {
+		vsNode.HttpPolicyRefs[0].RedirectPorts = append(vsNode.HttpPolicyRefs[0].RedirectPorts, redirectMap)
 	}
 
 }

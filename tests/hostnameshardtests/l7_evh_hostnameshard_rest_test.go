@@ -376,7 +376,7 @@ func TestCreateCacheSyncForEvh(t *testing.T) {
 	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
 	g.Expect(sniCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.PGKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
-	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(2))
+	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 
@@ -417,8 +417,8 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 	}
 
 	// verify that a NEW httppolicy set object is created
-	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-with-targets"}
-	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-updated-foo-with-targets"}
+	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
+	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(newHttpPolKey)
 		return found
@@ -427,7 +427,7 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(oldHttpPolKey)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(false))
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	// verify same vs cksum
 	g.Eventually(func() string {
@@ -440,7 +440,7 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 	}, 15*time.Second).Should(gomega.Equal(oldSniCacheObj.CloudConfigCksum))
 	sniVSCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	sniVSCacheObj, _ := sniVSCache.(*cache.AviVsCache)
-	g.Expect(sniVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(2))
+	g.Expect(sniVSCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniVSCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(0))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
@@ -615,7 +615,7 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
 		sniCacheObj2, _ := sniCache2.(*cache.AviVsCache)
 		if found1 && found2 &&
-			len(sniCacheObj1.HTTPKeyCollection) == 2 && len(sniCacheObj2.HTTPKeyCollection) == 2 {
+			len(sniCacheObj1.HTTPKeyCollection) == 1 && len(sniCacheObj2.HTTPKeyCollection) == 1 {
 			return true
 		}
 		return false

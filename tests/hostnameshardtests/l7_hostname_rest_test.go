@@ -417,9 +417,9 @@ func TestUpdateSNICacheSync(t *testing.T) {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	// verify that a NEW httppolicy set object is created
-	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-with-targets"}
-	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-updated-foo-with-targets"}
+	// verify that a NEW httppolicy set object is created.. useful???
+	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
+	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(newHttpPolKey)
 		return found
@@ -428,7 +428,7 @@ func TestUpdateSNICacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(oldHttpPolKey)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(false))
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	// verify same vs cksum
 	g.Eventually(func() string {
@@ -519,7 +519,7 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 		sniCache1, found1 := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
 		if found1 &&
-			len(sniCacheObj1.SSLKeyCertCollection) == 1 && len(sniCacheObj1.HTTPKeyCollection) == 2 {
+			len(sniCacheObj1.SSLKeyCertCollection) == 1 && len(sniCacheObj1.HTTPKeyCollection) == 1 {
 			return true
 		}
 		return false
