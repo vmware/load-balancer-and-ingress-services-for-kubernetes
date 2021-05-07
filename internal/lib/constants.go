@@ -112,6 +112,7 @@ const (
 	DeleteStatus                               = "DeleteStatus"
 	NPLService                                 = "NPLService"
 	SyncStatusKey                              = "syncstatus"
+	NoFreeIPError                              = "No available free IPs"
 
 	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"

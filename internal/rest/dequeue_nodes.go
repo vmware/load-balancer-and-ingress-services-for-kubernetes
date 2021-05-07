@@ -539,15 +539,19 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						}
 						if refreshCacheForRetry {
 							utils.AviLog.Warnf("key: %s, msg: Retrieved key for Retry:%s, object: %s", key, publishKey, rest_ops[i].ObjName)
+							aviError, ok := rest_ops[i].Err.(session.AviError)
+							if !ok {
+								utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
+								continue
+							}
 							if avimodel.GetRetryCounter() != 0 {
-								aviError, ok := rest_ops[i].Err.(session.AviError)
-								if !ok {
-									utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
-									continue
-								}
 								retryable, fastRetryable := rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
 								fastRetry = fastRetry || fastRetryable
 								retry = retry || retryable
+							} else if aviError.HttpStatusCode == 400 && strings.Contains(*aviError.Message, lib.NoFreeIPError) {
+								fastRetry = false
+								retry = true
+								utils.AviLog.Warnf("key: %s, msg: Got no free IP error, would be added to slow retry queue", key)
 							} else {
 								utils.AviLog.Warnf("key: %s, msg: retry count exhausted, skipping", key)
 							}
@@ -571,7 +575,11 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				}
 
 				if retry {
-					rest.PublishKeyToRetryLayer(publishKey, key)
+					if fastRetry {
+						rest.PublishKeyToRetryLayer(publishKey, key)
+					} else {
+						rest.PublishKeyToSlowRetryLayer(publishKey, key)
+					}
 				}
 				return false
 			}
@@ -936,6 +944,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 			// This status code refers to a problem with the controller timeouts. We need to re-init the session object.
 			utils.AviLog.Infof("key :%s, msg: Controller request timed out, will re-init session by retrying", key)
 
+		} else if statuscode == 400 && strings.Contains(*aviError.Message, lib.NoFreeIPError) {
+			utils.AviLog.Infof("key: %s, msg:  msg: Got no free IP error, would be added to slow retry queue", key)
+			fastRetry = false
 		} else {
 
 			// We don't want to handle any other error code like 400 etc.
