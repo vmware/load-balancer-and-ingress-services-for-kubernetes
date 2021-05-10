@@ -83,16 +83,14 @@ var AllModels = []string{
 	"admin/cluster--Shared-L7-EVH-7",
 }
 
-func AddConfigMap() {
+func AddConfigMap(client *k8sfake.Clientset) {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
+			Namespace: utils.GetAKONamespace(),
+			Name:      lib.AviConfigMap,
 		},
 	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-
-	PollForSyncStart(ctrl, 10)
+	client.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
 func AddDefaultIngressClass() {
@@ -645,14 +643,6 @@ func SetNodePortMode() {
 
 func SetClusterIPMode() {
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
-}
-
-func EnableEVH() {
-	os.Setenv("ENABLE_EVH", "true")
-}
-
-func DisableEVH() {
-	os.Setenv("ENABLE_EVH", "false")
 }
 
 func CreateNode(t *testing.T, nodeName string, nodeIP string) {

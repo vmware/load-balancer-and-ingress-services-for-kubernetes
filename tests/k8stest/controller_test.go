@@ -83,16 +83,6 @@ func setupQueue(stopCh <-chan struct{}) {
 	ingestionQueue.Run(stopCh, wgIngestion)
 }
 
-func addConfigMap() {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	kubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-}
-
 func TestMain(m *testing.M) {
 	kubeClient = k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
@@ -127,7 +117,10 @@ func TestMain(m *testing.M) {
 	keyChan = make(chan string)
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
-	addConfigMap()
+
+	integrationtest.AddConfigMap(kubeClient)
+	integrationtest.PollForSyncStart(ctrl, 10)
+
 	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh, quickSyncCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)

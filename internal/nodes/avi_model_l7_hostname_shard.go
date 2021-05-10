@@ -107,10 +107,6 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 				VrfContext: lib.GetVrf(),
 			}
 
-			if vsNode[0].EnableRhi != nil {
-				poolNode.VsRhiEnabled = vsNode[0].EnableRhi
-			}
-
 			serviceType := lib.GetServiceType()
 			if serviceType == lib.NodePortLocal {
 				if servers := PopulateServersForNPL(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
@@ -371,9 +367,6 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 				HostNames:            sniHosts,
 			},
 		}
-
-		enableRhi := lib.GetEnableRHI()
-		sniNode.EnableRhi = &enableRhi
 	} else {
 		// The SNI node exists, just update the svc metadata
 		sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
@@ -412,7 +405,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
 		}
 		RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
-		if tlssetting.redirect == true {
+		if tlssetting.redirect {
 			if gsFqdn != "" {
 				sniHosts = append(sniHosts, gsFqdn)
 			}

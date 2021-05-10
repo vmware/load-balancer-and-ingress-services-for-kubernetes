@@ -438,8 +438,8 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
-				if val, ok := resp["enable_rhi"]; ok {
-					vs_cache_obj.EnableRhi = val.(bool)
+				if val, ok := resp["enable_rhi"].(bool); ok {
+					vs_cache_obj.EnableRhi = val
 				}
 				if vhParentKey != nil {
 					vs_cache_obj.ParentVSRef = vhParentKey.(avicache.NamespaceName)
@@ -541,8 +541,8 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				ServiceMetadataObj: svc_mdata_obj,
 				LastModified:       lastModifiedStr,
 			}
-			if val, ok := resp["enable_rhi"]; ok {
-				vs_cache_obj.EnableRhi = val.(bool)
+			if val, ok := resp["enable_rhi"].(bool); ok {
+				vs_cache_obj.EnableRhi = val
 			}
 			if lastModifiedStr == "" {
 				vs_cache_obj.InvalidData = true

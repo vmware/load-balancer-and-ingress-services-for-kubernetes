@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package hostnameshardtests
+package evhtests
 
 import (
 	"context"
@@ -54,10 +54,6 @@ func VerifyEvhIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{
 }
 
 func TestL7ModelForEvh(t *testing.T) {
-
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -106,8 +102,6 @@ func TestL7ModelForEvh(t *testing.T) {
 // This tests the different objects associated in the evh model for ingress
 func TestShardObjectsForEvh(t *testing.T) {
 	// checks naming convention of all generated nodes
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -184,9 +178,6 @@ func TestShardObjectsForEvh(t *testing.T) {
 }
 
 func TestNoBackendL7ModelForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -225,9 +216,6 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 }
 
 func TestMultiIngressToSameSvcForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
@@ -399,9 +387,6 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 }
 
 func TestMultiVSIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -485,9 +470,6 @@ func TestMultiVSIngressForEvh(t *testing.T) {
 
 // TestMultiPathIngressForEvh in evh mode will validate if 2 evh nodes with host + path are created
 func TestMultiPathIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -555,9 +537,6 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 }
 
 func TestMultiPortServiceIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -623,9 +602,6 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 }
 
 func TestMultiIngressSameHostForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -713,9 +689,6 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 }
 
 func TestDeleteBackendServiceForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -798,9 +771,6 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 }
 
 func TestUpdateBackendServiceForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	SetUpTestForIngress(t, modelName)
@@ -864,9 +834,6 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 }
 
 func TestL2ChecksumsUpdateForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -981,9 +948,6 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 }
 
 func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	SetUpTestForIngress(t, modelName)
@@ -1029,9 +993,6 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 }
 
 func TestEditPathIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	SetUpTestForIngress(t, modelName)
@@ -1118,9 +1079,6 @@ func TestEditPathIngressForEvh(t *testing.T) {
 }
 
 func TestEditMultiPathIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	SetUpTestForIngress(t, modelName)
@@ -1244,9 +1202,6 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 }
 
 func TestEditMultiIngressSameHostForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	model_name := "admin/cluster--Shared-L7-EVH-0"
@@ -1346,9 +1301,6 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 }
 
 func TestNoHostIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-2"
 	SetUpTestForIngress(t, modelName)
@@ -1396,9 +1348,6 @@ func TestNoHostIngressForEvh(t *testing.T) {
 }
 
 func TestEditNoHostToHostIngressForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-2"
 	SetUpTestForIngress(t, modelName)
@@ -1501,9 +1450,6 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 }
 
 func TestScaleEndpointsForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -1598,9 +1544,6 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 // Additional SNI test cases follow:
 
 func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	SetUpTestForIngress(t, modelName)
@@ -1664,9 +1607,6 @@ func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 }
 
 func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	SetUpTestForIngress(t, modelName)
@@ -1768,9 +1708,6 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 }
 
 func TestL7ModelMultiSNIForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -1821,8 +1758,6 @@ func TestL7ModelMultiSNIForEvh(t *testing.T) {
 
 func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 	// This test covers creating multiple SNI nodes via multiple secrets.
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
 
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
@@ -1924,14 +1859,11 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 }
 
 func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
-	SetUpTestForIngress(t, modelName)
+	SetUpTestForIngress(t, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",

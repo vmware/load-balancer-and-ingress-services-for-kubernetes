@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package hostnameshardtests
+package evhtests
 
 import (
 	"context"
@@ -31,15 +31,12 @@ import (
 )
 
 func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
-	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
-
 	SetupDomain()
 	SetUpTestForIngress(t, integrationtest.AllModels...)
+	modelName := "admin/cluster--Shared-L7-EVH-0"
 	integrationtest.PollForCompletion(t, modelName, 5)
+	g := gomega.NewGomegaWithT(t)
+
 	ingressObject := integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
@@ -82,7 +79,7 @@ func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 15*time.Second).Should(gomega.Equal(3))
+	}, 45*time.Second).Should(gomega.Equal(3))
 	ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 	// fake avi controller server returns IP in the form: 10.250.250.1<Shared-L7-NUM>
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))
@@ -104,9 +101,6 @@ func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 }
 
 func TestMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	var err error
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -117,6 +111,7 @@ func TestMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 	SetupDomain()
 	SetUpTestForIngress(t, integrationtest.AllModels...)
 	integrationtest.PollForCompletion(t, modelName, 5)
+
 	ingressObject := integrationtest.FakeIngress{
 		Name:        ingressName,
 		Namespace:   "default",
@@ -179,9 +174,6 @@ func TestMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 }
 
 func TestCreateIngressCacheSyncForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	var found bool
 
@@ -236,10 +228,6 @@ func TestCreateIngressCacheSyncForEvh(t *testing.T) {
 }
 
 func TestIngressStatusCheckForEvh(t *testing.T) {
-
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -263,8 +251,6 @@ func TestIngressStatusCheckForEvh(t *testing.T) {
 }
 
 func TestUpdatePoolCacheSyncForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -343,8 +329,6 @@ func TestUpdatePoolCacheSyncForEvh(t *testing.T) {
 }
 
 func TestCreateCacheSyncForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -383,8 +367,6 @@ func TestCreateCacheSyncForEvh(t *testing.T) {
 }
 
 func TestUpdateCacheSyncForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -447,8 +429,6 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 }
 
 func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -536,10 +516,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 	sniVSKey3 := cache.NamespaceName{Namespace: "admin", Name: "cluster--red-foo.com"}
 	g.Eventually(func() bool {
 		_, found1 := mcache.VsCacheMeta.AviCacheGet(sniVSKey3)
-		if found1 {
-			return true
-		}
-		return false
+		return found1
 	}, 20*time.Second).Should(gomega.Equal(true))
 	if err := KubeClient.NetworkingV1beta1().Ingresses("red").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -548,16 +525,13 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 }
 
 func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
-
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 
 	SetupDomain()
 	SetUpTestForIngress(t, modelName, "admin/cluster--Shared-L7-EVH-1", "admin/cluster--Shared-L7-EVH-3")
 	integrationtest.PollForCompletion(t, modelName, 5)
+
 	ingressObject := integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
@@ -695,8 +669,6 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 
 // Secure ingress to insecure ingress transition
 func TestDeleteCacheSyncForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
@@ -738,9 +710,6 @@ func TestDeleteCacheSyncForEvh(t *testing.T) {
 }
 
 func TestCUDSecretCacheSyncForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-EVH-0"
@@ -788,11 +757,10 @@ func TestCUDSecretCacheSyncForEvh(t *testing.T) {
 
 	// ssl key must be deleted again and evh vs should  be deleted
 	g.Eventually(func() bool {
-		_, found := mcache.SSLKeyCache.AviCacheGet(sslKey)
-		return found
-	}, 5*time.Second).Should(gomega.Equal(false))
-	_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
-	g.Expect(found).To(gomega.Equal(false))
+		_, sslfound := mcache.SSLKeyCache.AviCacheGet(sslKey)
+		_, snifound := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
+		return sslfound && snifound
+	}, 15*time.Second).Should(gomega.Equal(false))
 
 	g.Eventually(func() bool {
 		parentVSCache, found := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
@@ -807,9 +775,6 @@ func TestCUDSecretCacheSyncForEvh(t *testing.T) {
 }
 
 func TestDeleteSecretSecureIngressStatusCheckForEvh(t *testing.T) {
-	integrationtest.EnableEVH()
-	defer integrationtest.DisableEVH()
-
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)

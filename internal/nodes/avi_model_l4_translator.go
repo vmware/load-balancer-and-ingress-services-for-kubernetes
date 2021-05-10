@@ -108,12 +108,11 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	vsVipNode := &AviVSVIPNode{
-		Name:          vsVipName,
-		Tenant:        lib.GetTenant(),
-		FQDNs:         fqdns,
-		EastWest:      false,
-		VrfContext:    vrfcontext,
-		BGPPeerLabels: nil,
+		Name:       vsVipName,
+		Tenant:     lib.GetTenant(),
+		FQDNs:      fqdns,
+		EastWest:   false,
+		VrfContext: vrfcontext,
 	}
 
 	if lib.GetSubnetIP() != "" {
@@ -122,7 +121,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
-		vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
+		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -155,10 +154,6 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			Protocol:   portProto.Protocol,
 			PortName:   portProto.Name,
 			VrfContext: lib.GetVrf(),
-		}
-
-		if vsNode.EnableRhi != nil {
-			poolNode.VsRhiEnabled = vsNode.EnableRhi
 		}
 
 		serviceType := lib.GetServiceType()

@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package hostnameshardtests
+package ingresstests
 
 import (
 	"context"
@@ -333,8 +333,10 @@ func TestDeletePoolCacheSync(t *testing.T) {
 
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName1)
-		vs := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return vs[0].PoolRefs[0].Name
+		if vs := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(vs) > 0 && len(vs[0].PoolRefs) > 0 {
+			return vs[0].PoolRefs[0].Name
+		}
+		return ""
 	}, 5*time.Second).Should(gomega.ContainSubstring("bar.com"))
 
 	// check that old pool is deleted and new one is created, will have different names

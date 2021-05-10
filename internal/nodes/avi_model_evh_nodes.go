@@ -567,12 +567,11 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 
 	vsVipNode := &AviVSVIPNode{
-		Name:          lib.GetVsVipName(vsName),
-		Tenant:        lib.GetTenant(),
-		FQDNs:         fqdns,
-		EastWest:      false,
-		VrfContext:    vrfcontext,
-		BGPPeerLabels: nil,
+		Name:       lib.GetVsVipName(vsName),
+		Tenant:     lib.GetTenant(),
+		FQDNs:      fqdns,
+		EastWest:   false,
+		VrfContext: vrfcontext,
 	}
 
 	if lib.GetSubnetIP() != "" {
@@ -581,7 +580,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
-		vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
+		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -647,10 +646,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			PortName:   path.PortName,
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
-		}
-
-		if vsNode[0].EnableRhi != nil {
-			poolNode.VsRhiEnabled = vsNode[0].EnableRhi
 		}
 
 		serviceType := lib.GetServiceType()
@@ -1058,7 +1053,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 
 			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 
-			if tlssetting.redirect == true {
+			if tlssetting.redirect {
 				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVSForEvh(evhNode, hosts, namespace, ingName, key)
 			}
 			// Enable host rule
@@ -1534,9 +1529,9 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 
 		if vs.EnableRhi != nil && *vs.EnableRhi {
 			if infraSetting.Spec.Network.BgpPeerLabels != nil {
-				vsvip.BGPPeerLabels = &infraSetting.Spec.Network.BgpPeerLabels
+				vsvip.BGPPeerLabels = infraSetting.Spec.Network.BgpPeerLabels
 			} else {
-				vsvip.BGPPeerLabels = lib.GetBgpPeerLabels()
+				vsvip.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 			}
 		} else {
 			vsvip.BGPPeerLabels = nil

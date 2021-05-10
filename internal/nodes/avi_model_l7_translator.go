@@ -111,12 +111,11 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	var fqdns []string
 
 	vsVipNode := &AviVSVIPNode{
-		Name:          lib.GetVsVipName(vsName),
-		Tenant:        lib.GetTenant(),
-		FQDNs:         fqdns,
-		EastWest:      false,
-		VrfContext:    vrfcontext,
-		BGPPeerLabels: nil,
+		Name:       lib.GetVsVipName(vsName),
+		Tenant:     lib.GetTenant(),
+		FQDNs:      fqdns,
+		EastWest:   false,
+		VrfContext: vrfcontext,
 	}
 
 	if lib.GetSubnetIP() != "" {
@@ -125,7 +124,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
-		vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
+		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -345,10 +344,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				},
 			}
 
-			if vsNode[0].EnableRhi != nil {
-				poolNode.VsRhiEnabled = vsNode[0].EnableRhi
-			}
-
 			if hostpath.reencrypt == true {
 				o.BuildPoolSecurity(poolNode, hostpath, key)
 			}
@@ -537,9 +532,9 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 
 		if vs.EnableRhi != nil && *vs.EnableRhi {
 			if infraSetting.Spec.Network.BgpPeerLabels != nil {
-				vsvip.BGPPeerLabels = &infraSetting.Spec.Network.BgpPeerLabels
+				vsvip.BGPPeerLabels = infraSetting.Spec.Network.BgpPeerLabels
 			} else {
-				vsvip.BGPPeerLabels = lib.GetBgpPeerLabels()
+				vsvip.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 			}
 		} else {
 			vsvip.BGPPeerLabels = nil

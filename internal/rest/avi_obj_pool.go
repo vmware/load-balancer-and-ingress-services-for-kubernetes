@@ -42,13 +42,11 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	svc_mdata := string(svc_mdata_json)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	vrfContextRef := "/api/vrfcontext?name=" + pool_meta.VrfContext
-
 	placementNetworks := []*avimodels.PlacementNetwork{}
 	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 
-	// Set pool placement network if node network details are present and cloud type is CLOUD_VCENTER
-	// and the pool belongs to a non BGP VS.
-	if len(nodeNetworkMap) != 0 && lib.GetCloudType() == lib.CLOUD_VCENTER && (pool_meta.VsRhiEnabled == nil || !*pool_meta.VsRhiEnabled) {
+	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER
+	if len(nodeNetworkMap) != 0 && lib.GetCloudType() == lib.CLOUD_VCENTER {
 		for network, cidrs := range nodeNetworkMap {
 			for _, cidr := range cidrs {
 				placementNetwork := avimodels.PlacementNetwork{}

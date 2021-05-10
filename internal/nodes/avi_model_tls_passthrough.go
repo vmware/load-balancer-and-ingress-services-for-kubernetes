@@ -61,12 +61,11 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 
 	// VSvip node to be shared by the secure and insecure VS
 	vsVipNode := &AviVSVIPNode{
-		Name:          lib.GetVsVipName(vsName),
-		Tenant:        lib.GetTenant(),
-		FQDNs:         fqdns,
-		EastWest:      false,
-		VrfContext:    vrfcontext,
-		BGPPeerLabels: nil,
+		Name:       lib.GetVsVipName(vsName),
+		Tenant:     lib.GetTenant(),
+		FQDNs:      fqdns,
+		EastWest:   false,
+		VrfContext: vrfcontext,
 	}
 
 	if lib.GetSubnetIP() != "" {
@@ -75,7 +74,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
-		vsVipNode.BGPPeerLabels = lib.GetBgpPeerLabels()
+		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -137,10 +136,6 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				Name:       poolName,
 				Tenant:     lib.GetTenant(),
 				VrfContext: lib.GetVrf(),
-			}
-
-			if secureSharedVS.EnableRhi != nil {
-				poolNode.VsRhiEnabled = secureSharedVS.EnableRhi
 			}
 
 			o.AddModelNode(poolNode)
@@ -216,9 +211,6 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 			PortProto:          []AviPortHostProtocol{{Port: 80, Protocol: utils.HTTP}},
 		}
 
-		enableRhi := lib.GetEnableRHI()
-		passChildVS.EnableRhi = &enableRhi
-
 		passChildVS.VSVIPRefs = append(passChildVS.VSVIPRefs, secureSharedVS.VSVIPRefs...)
 		secureSharedVS.PassthroughChildNodes = append(secureSharedVS.PassthroughChildNodes, passChildVS)
 
@@ -229,13 +221,17 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 }
 
 func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
-	scriptStr := lib.PassthroughDatascript
-	evt := "VS_DATASCRIPT_EVT_L4_REQUEST"
-	dsName := lib.GetL7InsecureDSName(vsName)
-	script := &DataScript{Script: scriptStr, Evt: evt}
-	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: lib.GetTenant(), DataScript: script}
+	dsScriptNode := &AviHTTPDataScriptNode{
+		Name:   lib.GetL7InsecureDSName(vsName),
+		Tenant: lib.GetTenant(),
+		DataScript: &DataScript{
+			Script: lib.PassthroughDatascript,
+			Evt:    "VS_DATASCRIPT_EVT_L4_REQUEST",
+		},
+		ProtocolParsers: []string{"/api/protocolparser/?name=Default-TLS"},
+	}
+
 	dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "CLUSTER", lib.GetClusterName(), 1)
-	dsScriptNode.ProtocolParsers = []string{"/api/protocolparser/?name=Default-TLS"}
 
 	vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
 	o.AddModelNode(dsScriptNode)

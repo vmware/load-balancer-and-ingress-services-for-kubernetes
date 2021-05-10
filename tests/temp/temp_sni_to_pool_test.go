@@ -97,7 +97,9 @@ func TestMain(m *testing.M) {
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
 
-	AddConfigMap()
+	integrationtest.AddConfigMap(KubeClient)
+	integrationtest.PollForSyncStart(ctrl, 10)
+
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
@@ -225,18 +227,6 @@ func UpdateConfigMap(key, val string) {
 	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
 	// Wait for the configmap changes to take effect
 	time.Sleep(3 * time.Second)
-}
-
-func AddConfigMap() {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-
-	integrationtest.PollForSyncStart(ctrl, 10)
 }
 
 func SetUpTestForIngress(t *testing.T, modelNames ...string) {

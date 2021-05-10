@@ -96,14 +96,14 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			}
 		}
 
-		if !vsCache.EnableRhi && vsvip_meta.BGPPeerLabels != nil && len(*vsvip_meta.BGPPeerLabels) > 0 {
-			err = fmt.Errorf("To use selective vip advertisement, %s VS must advertise vips via BGP. Please recreate the VS.", vsCache.Name)
+		if !vsCache.EnableRhi && len(vsvip_meta.BGPPeerLabels) > 0 {
+			err = fmt.Errorf("to use selective vip advertisement, %s VS must advertise vips via BGP. Please recreate the VS", vsCache.Name)
 			utils.AviLog.Error(err)
 			return nil, err
 		}
 
-		if vsvip_meta.BGPPeerLabels != nil {
-			vsvip.BgpPeerLabels = *vsvip_meta.BGPPeerLabels
+		if len(vsvip_meta.BGPPeerLabels) > 0 {
+			vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
 		} else {
 			vsvip.BgpPeerLabels = nil
 		}
@@ -211,8 +211,8 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			VsvipCloudConfigCksum: &cksumstr,
 		}
 
-		if vsvip_meta.BGPPeerLabels != nil {
-			vsvip.BgpPeerLabels = *vsvip_meta.BGPPeerLabels
+		if len(vsvip_meta.BGPPeerLabels) > 0 {
+			vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
 		}
 
 		if lib.GetGRBACSupport() {
@@ -255,8 +255,8 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			}
 			vsvip_avi.DNSInfo = dns_info_arr
 			vsvip_avi.VrfContextRef = &vrfContextRef
-			if vsvip_meta.BGPPeerLabels != nil {
-				vsvip_avi.BgpPeerLabels = *vsvip_meta.BGPPeerLabels
+			if len(vsvip_meta.BGPPeerLabels) > 0 {
+				vsvip_avi.BgpPeerLabels = vsvip_meta.BGPPeerLabels
 			} else {
 				vsvip_avi.BgpPeerLabels = nil
 			}

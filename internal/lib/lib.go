@@ -447,14 +447,14 @@ func GetVipNetworkList() ([]string, error) {
 	return vipNetworkList, nil
 }
 
-func GetBgpPeerLabels() *[]string {
+func GetGlobalBgpPeerLabels() []string {
 	var bgpPeerLabels []string
 	bgpPeerLabelsStr := os.Getenv(BGP_PEER_LABELS)
 	err := json.Unmarshal([]byte(bgpPeerLabelsStr), &bgpPeerLabels)
 	if err != nil {
 		utils.AviLog.Warnf("Unable to fetch the BGP Peer labels from environment variables.")
 	}
-	return &bgpPeerLabels
+	return bgpPeerLabels
 }
 
 func GetSEGName() string {

@@ -2839,9 +2839,9 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 
 func checkBGPParams() bool {
 	enableRhi := lib.GetEnableRHI()
-	bgpPeerLabels := lib.GetBgpPeerLabels()
-	if !enableRhi && len(*bgpPeerLabels) > 0 {
-		utils.AviLog.Error("BGPPeerLabels %s cannot be set if EnableRhi is set to %v.", utils.Stringify(*bgpPeerLabels), enableRhi)
+	bgpPeerLabels := lib.GetGlobalBgpPeerLabels()
+	if !enableRhi && len(bgpPeerLabels) > 0 {
+		utils.AviLog.Error("BGPPeerLabels %s cannot be set if EnableRhi is set to %v.", utils.Stringify(bgpPeerLabels), enableRhi)
 		return false
 	}
 	return true

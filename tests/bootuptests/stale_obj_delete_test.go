@@ -1,7 +1,6 @@
 package bootuptests
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -13,8 +12,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
@@ -68,17 +65,6 @@ func TestMain(m *testing.M) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	os.Exit(m.Run())
-}
-
-func addConfigMap() {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-
 }
 
 func injectMWForObjDeletion() {
@@ -143,7 +129,7 @@ func TestObjDeletion(t *testing.T) {
 	//uuidMap["vsvip-82b41dd7-5b19-4007-85d4-530acea4d86b"] = true
 
 	injectMWForObjDeletion()
-	addConfigMap()
+	integrationtest.AddConfigMap(KubeClient)
 	go k8s.PopulateCache()
 	// DeleteConfigMap(t)
 	integrationtest.ResetMiddleware()
