@@ -429,8 +429,10 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 10*time.Second).Should(gomega.Equal(0))
-	svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
-	g.Expect(svc.Status.LoadBalancer.Ingress).To(gomega.HaveLen(0))
+	g.Eventually(func() int {
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
+		return len(svc.Status.LoadBalancer.Ingress)
+	}, 10*time.Second).Should(gomega.Equal(0))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)

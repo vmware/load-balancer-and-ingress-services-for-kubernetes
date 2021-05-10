@@ -133,7 +133,7 @@ npltests:
 
 .PHONY: int_test
 int_test:
-	make -j k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc
+	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc
 
 .PHONY: scale_test
 scale_test:

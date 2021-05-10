@@ -195,6 +195,14 @@ func TestPassthroughRemoveRedirectRoute(t *testing.T) {
 	vs := graph.GetAviVS()[0]
 
 	VerifyOnePasthrough(t, g, vs)
+
+	g.Eventually(func() int {
+		aviModel := ValidatePassthroughModel(t, g, DefaultPassthroughModel)
+		graph := aviModel.(*avinodes.AviObjectGraph)
+		vs := graph.GetAviVS()[0]
+		return len(vs.PassthroughChildNodes)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
 	g.Expect(vs.PassthroughChildNodes).To(gomega.HaveLen(0))
 
 	VerifyPassthroughRouteDeletion(t, g, DefaultPassthroughModel, 0, 0)

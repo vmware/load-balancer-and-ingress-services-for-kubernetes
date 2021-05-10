@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/clients"
@@ -226,9 +227,12 @@ func removeObjRefFromRestOps(restOps []*utils.RestOp, objName, objType string) b
 	return true
 }
 
-func isErrorRetryable(statusCode int) bool {
+func isErrorRetryable(statusCode int, errMsg string) bool {
 	// List of status codes for which we support retry
 	if (statusCode >= 500 && statusCode < 599) || statusCode == 404 || statusCode == 401 || statusCode == 408 || statusCode == 409 {
+		return true
+	}
+	if statusCode == 400 && strings.Contains(errMsg, lib.NoFreeIPError) {
 		return true
 	}
 	return false
@@ -270,7 +274,7 @@ func AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp) error {
 				utils.AviLog.Warnf("Error in rest operation is not of type AviError, err: %v, %T", op.Err, op.Err)
 			} else if op.Model == "VsVip" && op.Method == utils.RestPut {
 				utils.AviLog.Debugf("Error in rest operation for VsVip Put request.")
-			} else if !isErrorRetryable(aviErr.HttpStatusCode) {
+			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
 					continue
 				}
