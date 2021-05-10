@@ -54,7 +54,8 @@ func TestCreateDeleteHostRuleForEvh(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))
-	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 	g.Expect(nodes[0].EvhNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
 	g.Expect(nodes[0].EvhNodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
@@ -65,7 +66,7 @@ func TestCreateDeleteHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
-	g.Expect(nodes[0].EvhNodes[0].SSLProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprof"))
+	g.Expect(nodes[0].SSLProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprof"))
 
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:              hrname,
@@ -93,14 +94,14 @@ func TestCreateDeleteHostRuleForEvh(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].AppProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
-	g.Expect(nodes[0].EvhNodes[0].SSLProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SSLProfileRef).To(gomega.Equal(""))
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
@@ -124,7 +125,7 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		if len(nodes[0].EvhNodes) == 1 {
-			return nodes[0].EvhNodes[0].SSLKeyCertAviRef
+			return nodes[0].SSLKeyCertAviRef
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref-sslkey"))
@@ -136,7 +137,7 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		if len(nodes[0].EvhNodes) == 1 {
-			return nodes[0].EvhNodes[0].SSLKeyCertAviRef
+			return nodes[0].SSLKeyCertAviRef
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.Equal(""))
@@ -179,7 +180,7 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return nodes[0].EvhNodes[0].SSLKeyCertAviRef
+		return nodes[0].SSLKeyCertAviRef
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref"))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
