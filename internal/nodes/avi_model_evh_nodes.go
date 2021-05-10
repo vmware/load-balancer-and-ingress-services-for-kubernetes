@@ -636,8 +636,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 			localPGList[pgName] = pgNode
 			httpPGPath.PoolGroup = pgNode.Name
-			//httpPGPath.Host = allFqdns
-			//httpPolicySet = append(httpPolicySet, httpPGPath)
 		}
 
 		var poolName string
@@ -1292,7 +1290,6 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 					if len(pgNode.Members) == 0 {
 						o.RemovePGNodeRefsForEvh(pgName, modelEvhNode)
 						httppolname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName)
-						//httppolname := lib.GetEvhVsPoolNPgName(ingName, namespace, hostname, path, infraSettingName)
 						o.RemoveHTTPRefsFromEvh(httppolname, modelEvhNode)
 					}
 				}

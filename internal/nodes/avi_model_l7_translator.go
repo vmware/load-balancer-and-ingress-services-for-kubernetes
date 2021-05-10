@@ -507,9 +507,10 @@ func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostnames []string, key 
 					}
 				}
 			}
-			DeleteVSHTTPPolicyRef(vsNode)
 		}
+		DeleteVSHTTPPolicyRef(vsNode)
 	}
+
 }
 
 func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
