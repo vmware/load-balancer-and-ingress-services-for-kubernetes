@@ -789,6 +789,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		}
 		// build host rule for insecure ingress in evh
 		BuildL7HostRule(host, namespace, ingName, key, evhNode)
+		manipulateEvhNodeForSSL(vsNode[0], evhNode)
 		utils.AviLog.Debugf("key: %s, Saving Model in ProcessInsecureHostsForEVH : %v", key, utils.Stringify(vsNode))
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -1025,6 +1026,8 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 			// Enable host rule
 			BuildL7HostRule(host, namespace, ingName, key, evhNode)
+			manipulateEvhNodeForSSL(vsNode[0], evhNode)
+
 		} else {
 			hostMapOk, ingressHostMap := SharedHostNameLister().Get(host)
 			if hostMapOk {
@@ -1496,4 +1499,11 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
+}
+
+func manipulateEvhNodeForSSL(vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {
+	vsNode.SetSSLKeyCertAviRef(evhNode.GetSSLKeyCertAviRef())
+	evhNode.SetSSLKeyCertAviRef("")
+	vsNode.SetSSLProfileRef(evhNode.GetSSLProfileRef())
+	evhNode.SetSSLProfileRef("")
 }
