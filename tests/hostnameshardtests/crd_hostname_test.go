@@ -212,6 +212,7 @@ func TestGSLBHostRewriteRule(t *testing.T) {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].GetHttpPolicyRefs()[0].HeaderReWrite.SourceHost == "baz.com"
 	}, 50*time.Second).Should(gomega.Equal(true))
+
 	integrationtest.TearDownHostRuleWithNoVerif(t, g, hrname)
 	g.Eventually(func() int {
 		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)

@@ -462,7 +462,7 @@ func FindAndReplaceRedirectHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviH
 
 func FindAndReplaceHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, httpPolicy *AviHttpPolicySetNode, gslbHost, key string) bool {
 	for i, policy := range vsNode.HttpPolicyRefs {
-		if policy.Name == httpPolicy.Name && policy.CloudConfigCksum != httpPolicy.CloudConfigCksum {
+		if policy.Name == httpPolicy.Name {
 			if gslbHost == "" {
 				// This means the policy should be deleted.
 				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
