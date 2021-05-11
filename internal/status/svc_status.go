@@ -104,7 +104,7 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 
 func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service, svcHostname string) error {
 	if svcHostname == "" {
-		utils.AviLog.Debugf("Can't update the service annotations as hostname for this service is empty.")
+		utils.AviLog.Infof("Can't update the service annotations as hostname for this service is empty.")
 		return nil
 	}
 	if svc == nil {
