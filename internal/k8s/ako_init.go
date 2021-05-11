@@ -265,6 +265,8 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	graphQueue.Run(stopCh, graphwg)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
+
+	refreshAuthtokenInterval := 12 //hours
 	if lib.GetAdvancedL4() {
 		// Set the error to nil
 		err = nil
@@ -276,6 +278,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	} else {
 		// First boot sync
 		err = c.FullSyncK8s()
+		c.RefreshAuthtoken()
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
 			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
@@ -289,6 +292,12 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 			go worker.Run()
 		} else {
 			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
+		}
+		ctrlAuthtoken := os.Getenv("CTRL_AUTHTOKEN")
+		if ctrlAuthtoken != "" {
+			worker = utils.NewFullSyncThread(time.Duration(refreshAuthtokenInterval) * time.Hour)
+			worker.SyncFunction = c.RefreshAuthtoken
+			go worker.Run()
 		}
 	}
 
@@ -326,6 +335,49 @@ LABEL:
 	fastRetryQueue.StopWorkers(stopCh)
 	slowRetryQueue.StopWorkers(stopCh)
 	statusQueue.StopWorkers(stopCh)
+}
+
+func (c *AviController) RefreshAuthtoken() {
+	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
+	ctrlUsername := os.Getenv("CTRL_USERNAME")
+	ctrlAuthtoken := os.Getenv("CTRL_AUTHTOKEN")
+	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthtoken)
+	if aviClient != nil {
+		tokenPath := "api/user-token"
+		var robj interface{}
+
+		err := aviClient.AviSession.Get(tokenPath, &robj)
+		if err != nil {
+			utils.AviLog.Warnf("failed to get token, err: %+v", err)
+		}
+		for _, aviToken := range robj.(map[string]interface{})["results"].([]interface{}) {
+			if aviToken.(map[string]interface{})["token"].(string) == ctrlAuthtoken {
+				expiry := aviToken.(map[string]interface{})["expires_at"].(string)
+				layout := "2006-01-02T15:04:05.000000+00:00"
+				expiryTime, err := time.Parse(layout, expiry)
+				if err != nil {
+					utils.AviLog.Warnf("Unable to parse token expiry time, err: %+v", err)
+					return
+				}
+				utils.AviLog.Infof("Expiry time for current token: %+v", expiryTime)
+				if expiryTime.Sub(time.Now()) > 7*24*time.Hour {
+					return
+				}
+			}
+		}
+		data := make(map[string]string)
+		data["hours"] = strconv.Itoa(10 * 24) //10 days | 240 hours
+		err = aviClient.AviSession.Post(tokenPath, data, &robj)
+		if err != nil {
+			utils.AviLog.Warnf("failed to post new token, err: %+v", err)
+			return
+		}
+		token := fmt.Sprintf("%v", robj.(map[string]interface{})["token"])
+		utils.AviLog.Debugf("new token: %+v", token)
+		//TODO:
+		// update secret
+		// delete old token
+	}
 }
 
 func (c *AviController) FullSync() {
