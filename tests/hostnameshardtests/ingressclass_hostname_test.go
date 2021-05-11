@@ -474,13 +474,16 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 		t.Fatalf("error updating IngressClass")
 	}
 
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(settingModelName2)
-		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	g.Eventually(func() int {
+		found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2)
+		if found {
+			settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(settingNodes[0].PoolRefs)
+		}
+		return 0
+	}, 25*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting2-bar.com_foo-default-foo-with-class"))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
