@@ -67,7 +67,7 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 		}
 	}
 
-	// reset IPAddress and finalizer from Gateways that do not have a corresponding VS in cache
+	// reset IPAddress and annotations from Ingresses that do not have a corresponding VS in cache
 	if bulk {
 		for ingNSName, ing := range ingressMap {
 			var hostnames []string
