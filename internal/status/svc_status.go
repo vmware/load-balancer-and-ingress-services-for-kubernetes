@@ -77,19 +77,17 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 				updatedSvc, err = utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(context.TODO(), service.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 				if err != nil {
 					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
-					continue
+				} else {
+					utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
+						key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 				}
-				utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
-					key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
-
+			} else {
+				utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
+					key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 			}
-
-			utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
-				key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 
 			if err = updateSvcAnnotations(updatedSvc, option, service, svcHostname); err != nil {
 				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
-				continue
 			}
 		}
 		delete(serviceMap, option.IngSvc)
@@ -102,13 +100,12 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			}, lib.SyncStatusKey)
 		}
 	}
-
-	return
 }
 
 func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service, svcHostname string) error {
 	if svcHostname == "" {
-		return fmt.Errorf("can't update the service annotations as hostname for this service is empty")
+		utils.AviLog.Infof("Can't update the service annotations as hostname for this service is empty.")
+		return nil
 	}
 	if svc == nil {
 		svc = oldSvc
