@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
@@ -259,4 +261,39 @@ func TestPassthroughRouteWrongAlternateBackend(t *testing.T) {
 
 	TearDownRouteForRestCheck(t, DefaultPassthroughModel)
 	objects.SharedAviGraphLister().Delete(DefaultPassthroughModel)
+}
+
+func TestBootupRouteStatusPersistence(t *testing.T) {
+	// create route, sync route and check for status, remove status
+	// call SyncObjectStatuses to check if status remains the same
+
+	g := gomega.NewGomegaWithT(t)
+
+	SetUpTestForRoute(t, defaultModelName)
+	routeExample := FakeRoute{}.Route()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	routeExample.ResourceVersion = "2"
+	routeExample.Status.Ingress = []routev1.RouteIngress{}
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).UpdateStatus(context.TODO(), routeExample, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in adding Ingress Status: %v", err)
+	}
+
+	aviRestClientPool := cache.SharedAVIClients()
+	aviObjCache := cache.SharedAviObjCache()
+	restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
+	restlayer.SyncObjectStatuses()
+
+	var route *routev1.Route
+	g.Eventually(func() string {
+		route, _ = OshiftClient.RouteV1().Routes("default").Get(context.TODO(), defaultRouteName, metav1.GetOptions{})
+		if (len(route.Status.Ingress)) != 1 {
+			return ""
+		}
+		return route.Status.Ingress[0].Host
+	}, 30*time.Second).Should(gomega.Equal(defaultHostname))
+	TearDownRouteForRestCheck(t, DefaultPassthroughModel)
 }

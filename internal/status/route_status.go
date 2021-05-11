@@ -269,24 +269,22 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 	}
 
 	// Handle fresh hostname update
-	if updateOption.Vip != "" {
-		for _, host := range hostnames {
-			now := metav1.Now()
-			condition := routev1.RouteIngressCondition{
-				Message:            updateOption.Vip,
-				Status:             corev1.ConditionTrue,
-				LastTransitionTime: &now,
-				Type:               routev1.RouteAdmitted,
-			}
-			rtIngress := routev1.RouteIngress{
-				Host:       host,
-				RouterName: lib.AKOUser,
-				Conditions: []routev1.RouteIngressCondition{
-					condition,
-				},
-			}
-			mRoute.Status.Ingress = append(mRoute.Status.Ingress, rtIngress)
+	for _, host := range hostnames {
+		now := metav1.Now()
+		condition := routev1.RouteIngressCondition{
+			Message:            updateOption.Vip,
+			Status:             corev1.ConditionTrue,
+			LastTransitionTime: &now,
+			Type:               routev1.RouteAdmitted,
 		}
+		rtIngress := routev1.RouteIngress{
+			Host:       host,
+			RouterName: lib.AKOUser,
+			Conditions: []routev1.RouteIngressCondition{
+				condition,
+			},
+		}
+		mRoute.Status.Ingress = append(mRoute.Status.Ingress, rtIngress)
 	}
 
 	// remove the host from status which is not in spec
