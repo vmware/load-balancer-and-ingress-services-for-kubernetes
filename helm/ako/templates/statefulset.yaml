@@ -50,11 +50,20 @@ spec:
               secretKeyRef:
                 name: avi-secret
                 key: username
+          {{ if .Values.avicredentials.password  }}
           - name: CTRL_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: avi-secret
                 key: password
+            {{ end }}
+          {{ if .Values.avicredentials.authtoken  }}
+          - name: CTRL_AUTHTOKEN
+            valueFrom:
+              secretKeyRef:
+                name: avi-secret
+                key: authtoken
+            {{ end }}
           {{ if .Values.avicredentials.certificateAuthorityData  }}
           - name: CTRL_CA_DATA
             valueFrom:

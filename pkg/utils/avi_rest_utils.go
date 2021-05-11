@@ -38,20 +38,50 @@ func SharedAVIClients() *AviRestClientPool {
 	// TODO: Propagate error
 	ctrlUsername := os.Getenv("CTRL_USERNAME")
 	ctrlPassword := os.Getenv("CTRL_PASSWORD")
+	ctrlAuthtoken := os.Getenv("CTRL_AUTHTOKEN")
 	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
 
-	if ctrlUsername == "" || ctrlPassword == "" || ctrlIpAddress == "" {
+	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthtoken == "") || ctrlIpAddress == "" {
 		AviLog.Fatal(`AVI controller information missing. Update them in kubernetes secret or via environment variables.`)
 	}
 	clientonce.Do(func() {
 		AviClientInstance, _ = NewAviRestClientPool(NumWorkersGraph,
-			ctrlIpAddress, ctrlUsername, ctrlPassword)
+			ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthtoken)
 	})
 	return AviClientInstance
 }
 
+func NewAviRestClientWithToken(api_ep string, username string, authtoken string) *clients.AviClient {
+	var aviClient *clients.AviClient
+	var transport *http.Transport
+
+	rootPEMCerts := os.Getenv("CTRL_CA_DATA")
+	if rootPEMCerts != "" {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
+
+		transport =
+			&http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: caCertPool,
+				},
+			}
+	}
+	var err error
+	if rootPEMCerts != "" {
+		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authtoken), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+	} else {
+		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authtoken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+	}
+	if err != nil {
+		AviLog.Warnf("NewAviClient returned err %v", err)
+		return nil
+	}
+	return aviClient
+}
+
 func NewAviRestClientPool(num uint32, api_ep string, username string,
-	password string) (*AviRestClientPool, error) {
+	password string, authtoken string) (*AviRestClientPool, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
@@ -83,10 +113,10 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 
 			if rootPEMCerts != "" {
 				aviClient, err = clients.NewAviClient(api_ep, username,
-					session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+					session.SetPassword(password), session.SetAuthToken(authtoken), session.SetNoControllerStatusCheck, session.SetTransport(transport))
 			} else {
 				aviClient, err = clients.NewAviClient(api_ep, username,
-					session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+					session.SetPassword(password), session.SetAuthToken(authtoken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
 			}
 			if err != nil {
 				AviLog.Warnf("NewAviClient returned err %v", err)
