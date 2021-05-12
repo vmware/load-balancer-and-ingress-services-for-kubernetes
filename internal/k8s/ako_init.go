@@ -16,6 +16,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -374,9 +375,29 @@ func (c *AviController) RefreshAuthtoken() {
 		}
 		token := fmt.Sprintf("%v", robj.(map[string]interface{})["token"])
 		utils.AviLog.Debugf("new token: %+v", token)
+
 		//TODO:
 		// update secret
+		aviSecret, err := c.informers.KubeClientIntf.ClientSet.CoreV1().Secrets("avi-system").Get(context.TODO(), "avi-secret", metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("failed to get secret, err: %+v", err)
+			return
+		}
+		utils.AviLog.Debugf("arif debug: old authtoken %+v", aviSecret.Data["authtoken"])
+		aviSecret.Data["authtoken"] = []byte(base64.StdEncoding.EncodeToString([]byte(token)))
+		utils.AviLog.Debugf("arif debug: new authtoken %+v", aviSecret.Data["authtoken"])
+		_, err = c.informers.KubeClientIntf.ClientSet.CoreV1().Secrets("avi-system").Update(context.TODO(), aviSecret, metav1.UpdateOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("failed to update secret, err: %+v", err)
+			return
+		}
+		utils.AviLog.Infof("Successfully updated authtoken")
 		// delete old token
+		err = aviClient.AviSession.Delete(tokenPath + "/" + ctrlAuthtoken)
+		if err != nil {
+			utils.AviLog.Warnf("failed to delete old token, err: %+v", err)
+		}
+		return
 	}
 }
 
