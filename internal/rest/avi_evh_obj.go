@@ -393,18 +393,22 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	ignPool := false
 	evhChild.IgnPoolNetReach = &ignPool
 	// Fill vhmatch information
-	match_case := "SENSITIVE"
-	matchCriteria := "BEGINS_WITH"
-	path_match := avimodels.PathMatch{
-		MatchCriteria: &matchCriteria,
-		MatchCase:     &match_case,
-		MatchStr:      []string{"/"},
-	}
-	pathMatches := make([]*avimodels.PathMatch, 0)
-	pathMatches = append(pathMatches, &path_match)
-	vhMatch := &avimodels.VHMatch{Host: &vs_meta.EvhHostName, Path: pathMatches}
 	vhMatches := make([]*avimodels.VHMatch, 0)
-	vhMatches = append(vhMatches, vhMatch)
+	for _, Vhostname := range vs_meta.VHDomainNames {
+		match_case := "SENSITIVE"
+		matchCriteria := "BEGINS_WITH"
+		pathMatches := make([]*avimodels.PathMatch, 0)
+		path_match := avimodels.PathMatch{
+			MatchCriteria: &matchCriteria,
+			MatchCase:     &match_case,
+			MatchStr:      []string{"/"},
+		}
+		pathMatches = append(pathMatches, &path_match)
+		hostname := Vhostname
+		vhMatch := &avimodels.VHMatch{Host: &hostname, Path: pathMatches}
+		vhMatches = append(vhMatches, vhMatch)
+	}
+
 	evhChild.VhMatches = vhMatches
 
 	if vs_meta.DefaultPool != "" {
