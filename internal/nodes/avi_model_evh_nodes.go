@@ -1116,7 +1116,7 @@ func FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode *AviEvhVsNode, httpPol
 			if policy.Name == httpPolicy.Name {
 				if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
 					policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
-					utils.AviLog.Infof("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
+					utils.AviLog.Debugf("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
 				}
 				policyFound = true
 			}
@@ -1130,12 +1130,14 @@ func RemoveRedirectHTTPPolicyInModelForEvh(vsNode *AviEvhVsNode, hostnames []str
 	for _, hostname := range hostnames {
 		for i, policy := range vsNode.HttpPolicyRefs {
 			if policy.Name == policyName {
-				// one redirect policy per shard vs
-				policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
-				utils.AviLog.Infof("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policy.Name, policy.RedirectPorts[0].Hosts)
+				// one redirect policy per child EVH vs
+				if utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
+					policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
+					utils.AviLog.Debugf("key: %s, msg: removed host %s from policy %s in model", key, hostname, policy.Name)
+				}
 				if len(policy.RedirectPorts[0].Hosts) == 0 {
 					vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
-					utils.AviLog.Infof("key: %s, msg: removed policy %s in model", key, policy.Name)
+					utils.AviLog.Infof("key: %s, msg: removed redirect policy %s in model", key, policy.Name)
 				}
 			}
 		}
