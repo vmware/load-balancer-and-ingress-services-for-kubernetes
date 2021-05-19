@@ -117,14 +117,12 @@ func updateObject(mIngress *networkingv1beta1.Ingress, updateOption UpdateOption
 	}
 
 	// Handle fresh hostname update
-	if updateOption.Vip != "" {
-		for _, host := range hostnames {
-			lbIngress := corev1.LoadBalancerIngress{
-				IP:       updateOption.Vip,
-				Hostname: host,
-			}
-			mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress, lbIngress)
+	for _, host := range hostnames {
+		lbIngress := corev1.LoadBalancerIngress{
+			IP:       updateOption.Vip,
+			Hostname: host,
 		}
+		mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress, lbIngress)
 	}
 
 	// remove the host from status which is not in spec

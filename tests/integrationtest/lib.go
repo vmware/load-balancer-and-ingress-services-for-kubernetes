@@ -1177,7 +1177,6 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 		if _, err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 			t.Fatalf("error in updating HostRule: %v", err)
 		}
-		fmt.Println(hrUpdate)
 		return
 	}
 	if secure {
