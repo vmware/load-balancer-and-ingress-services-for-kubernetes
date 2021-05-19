@@ -979,6 +979,14 @@ func TestBootupIngressStatusPersistence(t *testing.T) {
 		return found
 	}, 15*time.Second).Should(gomega.Equal(true))
 
+	g.Eventually(func() string {
+		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
+		if len(ingress.Status.LoadBalancer.Ingress) > 0 {
+			return ingress.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.10"))
+
 	ingrFake.ResourceVersion = "2"
 	ingrFake.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{}
 	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").UpdateStatus(context.TODO(), ingrFake, metav1.UpdateOptions{}); err != nil {
@@ -996,6 +1004,6 @@ func TestBootupIngressStatusPersistence(t *testing.T) {
 			return ingress.Status.LoadBalancer.Ingress[0].IP
 		}
 		return ""
-	}, 20*time.Second).Should(gomega.Equal("10.250.250.10"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.10"))
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }

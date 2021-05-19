@@ -133,6 +133,7 @@ const (
 	NPLSvcAnnotation               = "nodeportlocal.antrea.io/enabled"
 	InfraSettingNameAnnotation     = "aviinfrasetting.ako.vmware.com/name"
 	SkipNodePortAnnotation         = "skipnodeport.ako.vmware.com/enabled"
+	PassthroughAnnotation          = "passthrough.ako.vmware.com/enabled"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"
