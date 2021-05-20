@@ -220,6 +220,97 @@ func TestPassthroughIngressAddAnnotation(t *testing.T) {
 	TearDownTestForIngress(t, DefaultPassthroughModel)
 }
 
+func TestPassthroughMultipleIngresses(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForIngress(t, DefaultPassthroughModel)
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:        passthroughIngressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	ann := make(map[string]string)
+	ann[lib.PassthroughAnnotation] = "true"
+	ingrFake1.SetAnnotations(ann)
+	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	passthroughIngressName2 := "bar"
+	ingrFake2 := (integrationtest.FakeIngress{
+		Name:        passthroughIngressName2,
+		Namespace:   "default",
+		DnsNames:    []string{"bar.com"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	ingrFake2.SetAnnotations(ann)
+	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, DefaultPassthroughModel, 5)
+
+	_, aviModel := objects.SharedAviGraphLister().Get(DefaultPassthroughModel)
+	graph := aviModel.(*avinodes.AviObjectGraph)
+	vs := graph.GetAviVS()[0]
+
+	g.Eventually(func() int {
+		return len(vs.HTTPDSrefs[0].PoolGroupRefs)
+	}, 60*time.Second).Should(gomega.Equal(2))
+
+	for _, pgname := range vs.HTTPDSrefs[0].PoolGroupRefs {
+		if pgname != "cluster--foo.com" && pgname != "cluster--bar.com" {
+			t.Fatalf("Unexpected pg ref in datascript: %s", pgname)
+		}
+	}
+
+	g.Expect(vs.PoolGroupRefs).To(gomega.HaveLen(2))
+	for _, pg := range vs.PoolGroupRefs {
+		if pg.Name == "cluster--foo.com" {
+			g.Expect(pg.Members).To(gomega.HaveLen(1))
+			g.Expect(*pg.Members[0].PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com-avisvc"))
+		} else if pg.Name == "cluster--bar.com" {
+			g.Expect(pg.Members).To(gomega.HaveLen(1))
+			g.Expect(*pg.Members[0].PoolRef).To(gomega.Equal("/api/pool?name=cluster--bar.com-avisvc"))
+		} else {
+			t.Fatalf("Unexpected PG: %s", pg.Name)
+		}
+	}
+
+	g.Expect(vs.PoolRefs).To(gomega.HaveLen(2))
+	for _, pool := range vs.PoolRefs {
+		if pool.Name == "cluster--foo.com-avisvc" || pool.Name == "cluster--bar.com-avisvc" {
+			g.Expect(pool.Servers).To(gomega.HaveLen(1))
+		} else {
+			t.Fatalf("Unexpected Pool: %s", pool.Name)
+		}
+	}
+
+	g.Expect(vs.PassthroughChildNodes).To(gomega.HaveLen(1))
+	passInsecureNode := vs.PassthroughChildNodes[0]
+	g.Expect(passInsecureNode.Name).To(gomega.Equal("cluster--Shared-Passthrough-0-insecure"))
+	for _, redir := range passInsecureNode.HttpPolicyRefs {
+		if redir.RedirectPorts[0].Hosts[0] != "foo.com" && redir.RedirectPorts[0].Hosts[0] != "bar.com" {
+			t.Fatalf("unexpected redirect policy for: %s", redir.RedirectPorts[0].Hosts[0])
+		}
+		g.Expect(redir.RedirectPorts[0].StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
+	}
+
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), passthroughIngressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting Ingress: %v", err)
+	}
+	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), passthroughIngressName2, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting Ingress: %v", err)
+	}
+	VerifyPassthroughIngressDeletion(t, g, DefaultPassthroughModel, 0, 0)
+	TearDownTestForIngress(t, DefaultPassthroughModel)
+}
+
 func TestAddIngressDefaultCert(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
