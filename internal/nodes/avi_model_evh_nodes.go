@@ -588,18 +588,18 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	return avi_vs_meta
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key, host, infraSettingName string, paths []IngressHostPathSvc) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key, infraSettingName string, hosts []string, paths []IngressHostPathSvc) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 
 	// Update the VSVIP with the host information.
-	if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, host) {
-		vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, host)
+	if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hosts[0]) {
+		vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hosts[0])
 	}
-	if !utils.HasElem(childNode.VHDomainNames, host) {
-		childNode.VHDomainNames = append(childNode.VHDomainNames, host)
-	}
+
+	childNode.VHDomainNames = hosts
+
 	var allFqdns []string
-	allFqdns = append(allFqdns, host)
+	allFqdns = append(allFqdns, hosts...)
 	for _, path := range paths {
 		var httpPolicySet []AviHostPathPortPoolPG
 
@@ -617,7 +617,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
 		}
 
-		pgName := lib.GetEvhVsPoolNPgName(ingName, namespace, host, path.Path, infraSettingName)
+		pgName := lib.GetEvhVsPoolNPgName(ingName, namespace, hosts[0], path.Path, infraSettingName)
 		var pgNode *AviPoolGroupNode
 		// There can be multiple services for the same path in case of alternate backend.
 		// In that case, make sure we are creating only one PG per path
@@ -631,7 +631,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 
 		var poolName string
-		poolName = lib.GetEvhVsPoolNPgName(ingName, namespace, host, path.Path, infraSettingName, path.ServiceName)
+		poolName = lib.GetEvhVsPoolNPgName(ingName, namespace, hosts[0], path.Path, infraSettingName, path.ServiceName)
 		poolNode := &AviPoolNode{
 			Name:       poolName,
 			PortName:   path.PortName,
@@ -667,7 +667,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 		o.AddModelNode(poolNode)
 		if !pgfound {
-			httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path, infraSettingName)
+			httppolname := lib.GetSniHttpPolName(ingName, namespace, hosts[0], path.Path, infraSettingName)
 			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
 			if childNode.CheckHttpPolNameNChecksumForEvh(httppolname, policyNode.GetCheckSum()) {
 				childNode.ReplaceHTTPRefInNodeForEvh(policyNode, key)
@@ -675,7 +675,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 	}
 	for _, path := range paths {
-		BuildPoolHTTPRule(host, path.Path, ingName, namespace, key, childNode, true)
+		BuildPoolHTTPRule(hosts[0], path.Path, ingName, namespace, key, childNode, true)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. childNodeChecksum for childNode :%s is :%v", key, childNode.Name, childNode.Name)
@@ -779,10 +779,14 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		evhNode.VrfContext = lib.GetVrf()
 		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 		// Remove the redirect for secure to insecure transition
-		RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
+		hosts := []string{host}
+		if pathsvcmap.gslbHostHeader != "" {
+			hosts = append(hosts, pathsvcmap.gslbHostHeader)
+		}
+		RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
 
 		// build poolgroup and pool
-		aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, host, infraSettingName, pathsvcmap.ingressHPSvc)
+		aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, pathsvcmap.ingressHPSvc)
 		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 		if !foundEvhModel {
 			vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
@@ -1009,20 +1013,39 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 		evhNode.ServiceEngineGroup = lib.GetSEGName()
 		evhNode.VrfContext = lib.GetVrf()
+		var hostsToRemove []string
+		hostsToRemove = append(hostsToRemove, host)
+		found, gsFqdnCache := objects.SharedCRDLister().GetLocalFqdnToGSFQDNMapping(host)
+		if paths.gslbHostHeader == "" {
+			// If the gslbHostHeader is empty but it is present in the in memory cache, then add it as a candidate for removal and  remove the in memory cache relationship
+			if found {
+				hostsToRemove = append(hostsToRemove, gsFqdnCache)
+				objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(host)
+			}
+		} else {
+			if paths.gslbHostHeader != gsFqdnCache {
+				hostsToRemove = append(hostsToRemove, gsFqdnCache)
+			}
+			objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(host, paths.gslbHostHeader)
+		}
 		if !certsBuilt {
 			certsBuilt = aviModel.(*AviObjectGraph).BuildTlsCertNodeForEvh(routeIgrObj.GetSvcLister(), vsNode[0], namespace, tlssetting, key, infraSettingName, host)
 		}
 		if certsBuilt {
-			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, host, infraSettingName, paths.ingressHPSvc)
+			hosts := []string{host}
+			if paths.gslbHostHeader != "" {
+				hosts = append(hosts, paths.gslbHostHeader)
+			}
+			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, paths.ingressHPSvc)
 			foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 			if !foundEvhModel {
 				vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
 			}
 
-			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
+			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 
 			if tlssetting.redirect == true {
-				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVSForEvh(evhNode, host, namespace, ingName, key)
+				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVSForEvh(evhNode, hosts, namespace, ingName, key)
 			}
 			// Enable host rule
 			BuildL7HostRule(host, namespace, ingName, key, evhNode)
@@ -1040,7 +1063,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
 				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
-				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, host, key)
+				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 			}
 
 		}
@@ -1086,34 +1109,36 @@ func RemoveEvhInModel(currentEvhNodeName string, modelEvhNodes []*AviEvhVsNode, 
 	}
 }
 
-func FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode *AviEvhVsNode, httpPolicy *AviHttpPolicySetNode, hostname, key string) bool {
-	for _, policy := range vsNode.HttpPolicyRefs {
-		if policy.Name == httpPolicy.Name {
-			if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
-				policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
-				utils.AviLog.Infof("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
+func FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode *AviEvhVsNode, httpPolicy *AviHttpPolicySetNode, hostnames []string, key string) bool {
+	var policyFound bool
+	for _, hostname := range hostnames {
+		for _, policy := range vsNode.HttpPolicyRefs {
+			if policy.Name == httpPolicy.Name {
+				if !utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
+					policy.RedirectPorts[0].Hosts = append(policy.RedirectPorts[0].Hosts, hostname)
+					utils.AviLog.Debugf("key: %s, msg: replaced host %s for policy %s in model", key, hostname, policy.Name)
+				}
+				policyFound = true
 			}
-			return true
 		}
 	}
-	return false
+	return policyFound
 }
 
-func RemoveRedirectHTTPPolicyInModelForEvh(vsNode *AviEvhVsNode, hostname, key string) {
+func RemoveRedirectHTTPPolicyInModelForEvh(vsNode *AviEvhVsNode, hostnames []string, key string) {
 	policyName := lib.GetL7HttpRedirPolicy(vsNode.Name)
-	deletePolicy := false
-	for i, policy := range vsNode.HttpPolicyRefs {
-		if policy.Name == policyName {
-			// one redirect policy per shard vs
-			policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
-			utils.AviLog.Infof("key: %s, msg: removed host %s from policy %s in model %v", key, hostname, policy.Name, policy.RedirectPorts[0].Hosts)
-			if len(policy.RedirectPorts[0].Hosts) == 0 {
-				deletePolicy = true
-			}
-
-			if deletePolicy {
-				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
-				utils.AviLog.Infof("key: %s, msg: removed policy %s in model", key, policy.Name)
+	for _, hostname := range hostnames {
+		for i, policy := range vsNode.HttpPolicyRefs {
+			if policy.Name == policyName {
+				// one redirect policy per child EVH vs
+				if utils.HasElem(policy.RedirectPorts[0].Hosts, hostname) {
+					policy.RedirectPorts[0].Hosts = utils.Remove(policy.RedirectPorts[0].Hosts, hostname)
+					utils.AviLog.Debugf("key: %s, msg: removed host %s from policy %s in model", key, hostname, policy.Name)
+				}
+				if len(policy.RedirectPorts[0].Hosts) == 0 {
+					vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
+					utils.AviLog.Infof("key: %s, msg: removed redirect policy %s in model", key, policy.Name)
+				}
 			}
 		}
 	}
@@ -1341,7 +1366,13 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 		RemoveFQDNsFromModelForEvh(vsNode[0], hosts, key)
 	}
 	if removeRedir && !keepEvh {
-		RemoveRedirectHTTPPolicyInModelForEvh(vsNode[0], hostname, key)
+		var hostnames []string
+		found, gsFqdnCache := objects.SharedCRDLister().GetLocalFqdnToGSFQDNMapping(hostname)
+		if found {
+			hostnames = append(hostnames, gsFqdnCache)
+		}
+		hostnames = append(hostnames, hostname)
+		RemoveRedirectHTTPPolicyInModelForEvh(vsNode[0], hostnames, key)
 	}
 
 }
@@ -1360,10 +1391,10 @@ func (o *AviObjectGraph) RemoveEvhVsNode(evhVsName string, vsNode []*AviEvhVsNod
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode *AviEvhVsNode, hostname string, namespace, ingName, key string) {
+func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode *AviEvhVsNode, hostnames []string, namespace, ingName, key string) {
 	policyname := lib.GetL7HttpRedirPolicy(vsNode.Name)
 	myHppMap := AviRedirectPort{
-		Hosts:        []string{hostname},
+		Hosts:        hostnames,
 		RedirectPort: 443,
 		StatusCode:   lib.STATUS_REDIRECT,
 		VsPort:       80,
@@ -1375,7 +1406,7 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode *AviEvhVsNode, ho
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}
 
-	if policyFound := FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode, redirectPolicy, hostname, key); !policyFound {
+	if policyFound := FindAndReplaceRedirectHTTPPolicyInModelforEvh(vsNode, redirectPolicy, hostnames, key); !policyFound {
 		redirectPolicy.CalculateCheckSum()
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, redirectPolicy)
 	}
