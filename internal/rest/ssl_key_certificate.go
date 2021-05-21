@@ -66,9 +66,18 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 			Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
 		rest_op.ObjName = name
 	} else {
-		path = "/api/sslkeyandcertificate"
-		rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPost, Obj: sslkeycert,
-			Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
+		ssl_key := avicache.NamespaceName{Namespace: ssl_node.Tenant, Name: name}
+		ssl_cache, ok := rest.cache.SSLKeyCache.AviCacheGet(ssl_key)
+		if ok {
+			ssl_cache_obj, _ := ssl_cache.(*avicache.AviSSLCache)
+			path = "/api/sslkeyandcertificate/" + ssl_cache_obj.Uuid
+			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: sslkeycert,
+				Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
+		} else {
+			path = "/api/sslkeyandcertificate"
+			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPost, Obj: sslkeycert,
+				Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
+		}
 	}
 	return &rest_op
 }
