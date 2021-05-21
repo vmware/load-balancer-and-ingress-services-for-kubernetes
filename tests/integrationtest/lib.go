@@ -999,6 +999,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		data, _ := ioutil.ReadAll(r.Body)
 		json.Unmarshal(data, &resp)
 		resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
+		if vsType, ok := resp["type"]; ok && vsType == "VS_TYPE_VH_CHILD" {
+			parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
+			resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
+		}
 		finalResponse, _ = json.Marshal(resp)
 		w.WriteHeader(http.StatusOK)
 		w.Write(finalResponse)

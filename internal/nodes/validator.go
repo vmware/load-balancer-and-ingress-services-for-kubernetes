@@ -174,6 +174,13 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 		useDefaultSecret = strings.EqualFold(val, "true")
 	}
 
+	var passthroughEnabled bool
+	pass := PassthroughSettings{}
+	passConfig := make(map[string]PassthroughSettings)
+	if val, found := annotations[lib.PassthroughAnnotation]; found {
+		passthroughEnabled = strings.EqualFold(val, "true")
+	}
+
 	var tlsConfigs []TlsSettings
 	for _, rule := range ingSpec.Rules {
 		var hostPathMapSvcList HostMetada
@@ -246,7 +253,13 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 			}
 		}
 
-		if useHostRuleSSL {
+		if passthroughEnabled {
+			pass.host = hostName
+			pass.PathSvc = hostPathMapSvcList.ingressHPSvc
+			// For secure ingress redirect is enabled, hence enabling this for passthrough ingresses too
+			pass.redirect = true
+			passConfig[hostName] = pass
+		} else if useHostRuleSSL {
 			additionalSecureHostMap[hostName] = hostPathMapSvcList
 		} else if useDefaultSecret {
 			defaultTLS := TlsSettings{}
@@ -264,6 +277,12 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 		} else {
 			hostMap[hostName] = hostPathMapSvcList
 		}
+	}
+
+	if passthroughEnabled {
+		ingressConfig.PassthroughCollection = passConfig
+		utils.AviLog.Infof("key: %s, msg: host path config from passthrough enabled ingress: %+v", key, utils.Stringify(ingressConfig))
+		return ingressConfig
 	}
 
 	for _, tlsSettings := range ingSpec.TLS {
