@@ -724,7 +724,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.Pool:
 					poolObjName = *rest_op.Obj.(avimodels.Pool).Name
 				}
-				rest_op.ObjName = poolObjName
+				if poolObjName != "" {
+					rest_op.ObjName = poolObjName
+				}
 				rest.AviPoolCacheDel(rest_op, aviObjKey, key)
 			case "PoolGroup":
 				var pgObjName string
@@ -734,7 +736,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.PoolGroup:
 					pgObjName = *rest_op.Obj.(avimodels.PoolGroup).Name
 				}
-				rest_op.ObjName = pgObjName
+				if pgObjName != "" {
+					rest_op.ObjName = pgObjName
+				}
 				if strings.Contains(errorStr, "Pool object not found!") {
 					// PG error with pool object not found.
 					aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
@@ -793,7 +797,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.VsVip:
 					VsVip = *rest_op.Obj.(avimodels.VsVip).Name
 				}
-				rest_op.ObjName = VsVip
+				if VsVip != "" {
+					rest_op.ObjName = VsVip
+				}
 				rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
 			case "HTTPPolicySet":
 				var HTTPPolicySet string
@@ -803,7 +809,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.HTTPPolicySet:
 					HTTPPolicySet = *rest_op.Obj.(avimodels.HTTPPolicySet).Name
 				}
-				rest_op.ObjName = HTTPPolicySet
+				if HTTPPolicySet != "" {
+					rest_op.ObjName = HTTPPolicySet
+				}
 				rest.AviHTTPPolicyCacheDel(rest_op, aviObjKey, key)
 			case "L4PolicySet":
 				var L4PolicySet string
@@ -813,7 +821,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.L4PolicySet:
 					L4PolicySet = *rest_op.Obj.(avimodels.L4PolicySet).Name
 				}
-				rest_op.ObjName = L4PolicySet
+				if L4PolicySet != "" {
+					rest_op.ObjName = L4PolicySet
+				}
 				rest.AviL4PolicyCacheDel(rest_op, aviObjKey, key)
 			case "SSLKeyAndCertificate":
 				var SSLKeyAndCertificate string
@@ -823,7 +833,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.SSLKeyAndCertificate:
 					SSLKeyAndCertificate = *rest_op.Obj.(avimodels.SSLKeyAndCertificate).Name
 				}
-				rest_op.ObjName = SSLKeyAndCertificate
+				if SSLKeyAndCertificate != "" {
+					rest_op.ObjName = SSLKeyAndCertificate
+				}
 				rest.AviSSLCacheDel(rest_op, aviObjKey, key)
 			case "PKIprofile":
 				var PKIprofile string
@@ -833,7 +845,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.PKIprofile:
 					PKIprofile = *rest_op.Obj.(avimodels.PKIprofile).Name
 				}
-				rest_op.ObjName = PKIprofile
+				if PKIprofile != "" {
+					rest_op.ObjName = PKIprofile
+				}
 				rest.AviPkiProfileCacheDel(rest_op, aviObjKey, key)
 			case "VirtualService":
 				rest.AviVsCacheDel(rest_op, aviObjKey, key)
@@ -845,7 +859,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.VSDataScriptSet:
 					VSDataScriptSet = *rest_op.Obj.(avimodels.VSDataScriptSet).Name
 				}
-				rest_op.ObjName = VSDataScriptSet
+				if VSDataScriptSet != "" {
+					rest_op.ObjName = VSDataScriptSet
+				}
 				rest.AviDSCacheDel(rest_op, aviObjKey, key)
 			}
 		} else if statuscode == 409 {
