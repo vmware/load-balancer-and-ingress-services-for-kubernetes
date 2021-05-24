@@ -415,31 +415,30 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		return portproto[i].Name < portproto[j].Name
 	})
 
-	var dsChecksum, httppolChecksum, evhChecksum, sslkeyChecksum, vsvipChecksum uint32
+	var checksumStringSlice []string
 
 	for _, ds := range v.HTTPDSrefs {
-		dsChecksum += ds.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "HTTPDS"+ds.Name)
 	}
 
 	for _, httppol := range v.HttpPolicyRefs {
-		httppolChecksum += httppol.GetCheckSum()
-	}
-
-	for _, EVHNode := range v.EvhNodes {
-		evhChecksum += EVHNode.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "HttpPolicy"+httppol.Name)
 	}
 
 	for _, cacert := range v.CACertRefs {
-		sslkeyChecksum += cacert.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "CACert"+cacert.Name)
 	}
 
 	for _, sslkeycert := range v.SSLKeyCertRefs {
-		sslkeyChecksum += sslkeycert.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "SSLKeyCert"+sslkeycert.Name)
 	}
 
 	for _, vsvipref := range v.VSVIPRefs {
-		vsvipChecksum += vsvipref.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "VSVIP"+vsvipref.Name)
 	}
+
+	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
+	// will change the eventual checksum Hash.
 
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
@@ -447,7 +446,6 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	vsRefs := v.WafPolicyRef +
 		v.AppProfileRef +
-		utils.Stringify(policies) +
 		v.AnalyticsProfileRef +
 		v.ErrorPageProfileRef +
 		v.SSLProfileRef
@@ -456,22 +454,29 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		vsRefs += utils.Stringify(scripts)
 	}
 
-	checksum := dsChecksum +
-		httppolChecksum +
-		evhChecksum +
-		utils.Hash(v.ApplicationProfile) +
-		utils.Hash(v.NetworkProfile) +
-		utils.Hash(utils.Stringify(portproto)) +
-		utils.Hash(v.ServiceEngineGroup) +
-		sslkeyChecksum +
-		vsvipChecksum +
-		utils.Hash(vsRefs) +
-		utils.Hash(v.EvhHostName)
+	if len(policies) > 0 {
+		vsRefs += utils.Stringify(policies)
+	}
+
+	sort.Strings(checksumStringSlice)
+	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
+		v.ApplicationProfile +
+		v.ServiceEngineGroup +
+		v.NetworkProfile +
+		utils.Stringify(portproto) +
+		v.EvhHostName)
+
+	if vsRefs != "" {
+		checksum += utils.Hash(vsRefs)
+	}
 
 	if v.Enabled != nil {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
-	checksum += lib.GetClusterLabelChecksum()
+
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
