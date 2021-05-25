@@ -413,3 +413,25 @@ func GetAKONamespace() string {
 	}
 	return AKO_DEFAULT_NS
 }
+
+func GetTokenFromRestObj(robj interface{}, ctrlAuthtoken string) (string, bool) {
+	for _, aviToken := range robj.(map[string]interface{})["results"].([]interface{}) {
+		if aviToken.(map[string]interface{})["token"].(string) == ctrlAuthtoken {
+			expiry := aviToken.(map[string]interface{})["expires_at"].(string)
+			layout := "2006-01-02T15:04:05.000000+00:00"
+			expiryTime, err := time.Parse(layout, expiry)
+			if err != nil {
+				AviLog.Warnf("Unable to parse token expiry time, err: %+v", err)
+				return "", false
+			}
+			AviLog.Infof("Expiry time for current token: %+v", expiryTime)
+			if expiryTime.Sub(time.Now()) > (RefreshAuthtokenPeriod*AuthtokenExpiry)*time.Hour {
+				return "", false
+			}
+			tokenIDToDelete := aviToken.(map[string]interface{})["uuid"].(string)
+			return tokenIDToDelete, true
+		}
+	}
+	AviLog.Warnf("Unable to find token on controller")
+	return "", true
+}

@@ -57,6 +57,13 @@ func TestMain(m *testing.M) {
 	k8s.NewCRDInformers(CRDClient)
 
 	KubeClient = k8sfake.NewSimpleClientset()
+	data := map[string][]byte{
+		"username": []byte("admin"),
+		"password": []byte("admin"),
+	}
+	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: "avi-system"}
+	secret := &corev1.Secret{Data: data, ObjectMeta: object}
+	KubeClient.CoreV1().Secrets("avi-system").Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	SvcAPIClient = svcapifake.NewSimpleClientset()
 	lib.SetServicesAPIClientset(SvcAPIClient)

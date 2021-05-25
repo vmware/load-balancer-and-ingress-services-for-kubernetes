@@ -16,7 +16,6 @@ package k8s
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -205,6 +204,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
 	// set up signals so we handle the first shutdown signal gracefully
 	var worker *utils.FullSyncThread
+	var tokenWorker *utils.FullSyncThread
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = informers.OshiftClient
 	if lib.GetNamespaceToSync() != "" {
@@ -267,7 +267,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 
-	refreshAuthtokenInterval := 12 //hours
 	if lib.GetAdvancedL4() {
 		// Set the error to nil
 		err = nil
@@ -279,7 +278,10 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	} else {
 		// First boot sync
 		err = c.FullSyncK8s()
-		c.RefreshAuthtoken()
+		ctrlAuthtoken := os.Getenv("CTRL_AUTHTOKEN")
+		if ctrlAuthtoken != "" {
+			c.RefreshAuthtoken()
+		}
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
 			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
@@ -294,11 +296,11 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		} else {
 			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
 		}
-		ctrlAuthtoken := os.Getenv("CTRL_AUTHTOKEN")
+
 		if ctrlAuthtoken != "" {
-			worker = utils.NewFullSyncThread(time.Duration(refreshAuthtokenInterval) * time.Hour)
-			worker.SyncFunction = c.RefreshAuthtoken
-			go worker.Run()
+			tokenWorker = utils.NewFullSyncThread(time.Duration(utils.RefreshAuthtokenInterval) * time.Hour)
+			tokenWorker.SyncFunction = c.RefreshAuthtoken
+			go tokenWorker.Run()
 		}
 	}
 
@@ -339,69 +341,11 @@ LABEL:
 }
 
 func (c *AviController) RefreshAuthtoken() {
-	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
-	ctrlUsername := os.Getenv("CTRL_USERNAME")
-	ctrlAuthtoken := os.Getenv("CTRL_AUTHTOKEN")
-	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthtoken)
-	if aviClient != nil {
-		tokenPath := "api/user-token"
-		var robj interface{}
-
-		err := aviClient.AviSession.Get(tokenPath, &robj)
-		if err != nil {
-			utils.AviLog.Warnf("failed to get token, err: %+v", err)
-		}
-		for _, aviToken := range robj.(map[string]interface{})["results"].([]interface{}) {
-			if aviToken.(map[string]interface{})["token"].(string) == ctrlAuthtoken {
-				expiry := aviToken.(map[string]interface{})["expires_at"].(string)
-				layout := "2006-01-02T15:04:05.000000+00:00"
-				expiryTime, err := time.Parse(layout, expiry)
-				if err != nil {
-					utils.AviLog.Warnf("Unable to parse token expiry time, err: %+v", err)
-					return
-				}
-				utils.AviLog.Infof("Expiry time for current token: %+v", expiryTime)
-				if expiryTime.Sub(time.Now()) > 7*24*time.Hour {
-					return
-				}
-			}
-		}
-		data := make(map[string]string)
-		data["hours"] = strconv.Itoa(10 * 24) //10 days | 240 hours
-		err = aviClient.AviSession.Post(tokenPath, data, &robj)
-		if err != nil {
-			utils.AviLog.Warnf("failed to post new token, err: %+v", err)
-			return
-		}
-		token := fmt.Sprintf("%v", robj.(map[string]interface{})["token"])
-		utils.AviLog.Debugf("new token: %+v", token)
-
-		//TODO:
-		// update secret
-		aviSecret, err := c.informers.KubeClientIntf.ClientSet.CoreV1().Secrets("avi-system").Get(context.TODO(), "avi-secret", metav1.GetOptions{})
-		if err != nil {
-			utils.AviLog.Warnf("failed to get secret, err: %+v", err)
-			return
-		}
-		utils.AviLog.Debugf("arif debug: old authtoken %+v", aviSecret.Data["authtoken"])
-		aviSecret.Data["authtoken"] = []byte(base64.StdEncoding.EncodeToString([]byte(token)))
-		utils.AviLog.Debugf("arif debug: new authtoken %+v", aviSecret.Data["authtoken"])
-		_, err = c.informers.KubeClientIntf.ClientSet.CoreV1().Secrets("avi-system").Update(context.TODO(), aviSecret, metav1.UpdateOptions{})
-		if err != nil {
-			utils.AviLog.Warnf("failed to update secret, err: %+v", err)
-			return
-		}
-		utils.AviLog.Infof("Successfully updated authtoken")
-		// delete old token
-		err = aviClient.AviSession.Delete(tokenPath + "/" + ctrlAuthtoken)
-		if err != nil {
-			utils.AviLog.Warnf("failed to delete old token, err: %+v", err)
-		}
-		return
-	}
+	lib.RefreshAuthtoken(c.informers.KubeClientIntf.ClientSet)
 }
 
 func (c *AviController) FullSync() {
+
 	avi_rest_client_pool := avicache.SharedAVIClients()
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.

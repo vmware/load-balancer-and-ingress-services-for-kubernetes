@@ -32,9 +32,11 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	var err error
 	var connectionStatus string
 
-	ctrlUsername := os.Getenv("CTRL_USERNAME")
-	ctrlPassword := os.Getenv("CTRL_PASSWORD")
-	ctrlAuthtoken := os.Getenv("CTRL_AUTHTOKEN")
+	kc := utils.GetInformers().ClientSet
+	ctrlUsername, ctrlPassword, ctrlAuthtoken, err := lib.GetControllerPropertiesFromSecret(kc)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to read details from secret, err:", err)
+	}
 	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthtoken == "") || ctrlIpAddress == "" {
 		utils.AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret or via environment variables.")

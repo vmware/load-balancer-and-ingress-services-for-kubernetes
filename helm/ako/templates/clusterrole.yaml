@@ -21,7 +21,7 @@ rules:
     verbs: ["get","watch","list"]
 {{- end}}
   - apiGroups: [""]
-    resources: ["services", "services/status"]
+    resources: ["services", "services/status", "secrets"]
     verbs: ["get","watch","list","patch", "update"]
   - apiGroups: [""]
     resources: ["services"]

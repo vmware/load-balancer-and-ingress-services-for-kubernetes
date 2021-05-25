@@ -76,6 +76,10 @@ const (
 	ADVANCED_L4                   = "ADVANCED_L4"
 	SERVICES_API                  = "SERVICES_API"
 
+	RefreshAuthtokenInterval = 12  //hours
+	AuthtokenExpiry          = 240 //hours
+	RefreshAuthtokenPeriod   = 0.5 //ratio
+
 	// container-lib/api constants
 	AVIAPI_INITIATING   = "INITIATING"
 	AVIAPI_CONNECTED    = "CONNECTED"

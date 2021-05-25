@@ -971,3 +971,59 @@ func IsAviLBDefaultIngressClassWithClient(kc kubernetes.Interface) (string, bool
 	utils.AviLog.Debugf("IngressClass with controller ako.vmware.com/avi-lb not found in the cluster")
 	return "", false
 }
+
+func GetControllerPropertiesFromSecret(kc kubernetes.Interface) (string, string, string, error) {
+	aviSecret, err := kc.CoreV1().Secrets("avi-system").Get(context.TODO(), "avi-secret", metav1.GetOptions{})
+	if err != nil {
+		return "", "", "", err
+	}
+	ctrlUsername := string(aviSecret.Data["username"])
+	if aviSecret.Data["password"] != nil {
+		ctrlPassword := string(aviSecret.Data["password"])
+		return ctrlUsername, ctrlPassword, "", nil
+	}
+	if aviSecret.Data["authtoken"] != nil {
+		ctrlAuthtoken := string(aviSecret.Data["authtoken"])
+		return ctrlUsername, "", ctrlAuthtoken, nil
+	}
+	return ctrlUsername, "", "", nil
+}
+
+func RefreshAuthtoken(kc kubernetes.Interface) {
+
+	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
+	ctrlUsername, _, ctrlAuthtoken, err := GetControllerPropertiesFromSecret(kc)
+	if err != nil {
+		utils.AviLog.Errorf("Filed to read from avi secret, err:", err)
+	}
+	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthtoken)
+	if aviClient != nil {
+		userTokensListResp, err := utils.AuthtokenGet(aviClient)
+		if err != nil {
+			return
+		}
+		if oldTokenID, ok := utils.GetTokenFromRestObj(userTokensListResp, ctrlAuthtoken); ok {
+			newTokenResp, err := utils.AuthtokenCreate(aviClient)
+			if err != nil {
+				return
+			}
+			token := fmt.Sprintf("%v", newTokenResp.(map[string]interface{})["token"])
+			utils.AviLog.Infof("new token: %+v", token)
+			aviSecret, err := kc.CoreV1().Secrets(AviNS).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+			if err != nil {
+				utils.AviLog.Warnf("failed to get secret, err: %+v", err)
+				return
+			}
+			aviSecret.Data["authtoken"] = []byte(token)
+			_, err = kc.CoreV1().Secrets(AviNS).Update(context.TODO(), aviSecret, metav1.UpdateOptions{})
+			if err != nil {
+				utils.AviLog.Warnf("failed to update secret, err: %+v", err)
+				return
+			}
+			utils.AviLog.Infof("Successfully updated authtoken")
+			if oldTokenID != "" {
+				utils.AuthtokenDelete(aviClient, oldTokenID)
+			}
+		}
+	}
+}
