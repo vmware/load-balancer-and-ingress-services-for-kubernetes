@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/avinetworks/sdk/go/clients"
@@ -205,4 +206,38 @@ func AviModelToUrl(model string) string {
 		AviLog.Warnf("Unknown model %v", model)
 		return ""
 	}
+}
+
+func AuthtokenGet(c *clients.AviClient) (interface{}, error) {
+	tokenPath := "api/user-token"
+	var robj interface{}
+	err := c.AviSession.Get(tokenPath, &robj)
+	if err != nil {
+		AviLog.Warnf("failed to get token, err: %+v", err)
+		return robj, err
+	}
+	return robj, nil
+}
+
+func AuthtokenCreate(c *clients.AviClient) (interface{}, error) {
+	tokenPath := "api/user-token"
+	var robj interface{}
+	data := make(map[string]string)
+	data["hours"] = strconv.Itoa(AuthtokenExpiry)
+	err := c.AviSession.Post(tokenPath, data, &robj)
+	if err != nil {
+		AviLog.Warnf("failed to post new token, err: %+v", err)
+		return robj, err
+	}
+	return robj, nil
+}
+
+func AuthtokenDelete(c *clients.AviClient, tokenID string) error {
+	tokenPath := "api/user-token"
+	err := c.AviSession.Delete(tokenPath + "/" + tokenID)
+	if err != nil {
+		AviLog.Warnf("failed to delete old token, err: %+v", err)
+		return err
+	}
+	return nil
 }

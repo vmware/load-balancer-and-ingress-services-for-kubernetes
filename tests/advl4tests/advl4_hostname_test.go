@@ -52,6 +52,13 @@ func TestMain(m *testing.M) {
 	AdvL4Client = advl4fake.NewSimpleClientset()
 	// lib.SetCRDClientset(CRDClient)
 	lib.SetAdvL4Clientset(AdvL4Client)
+	data := map[string][]byte{
+		"username": []byte("admin"),
+		"password": []byte("admin"),
+	}
+	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: "avi-system"}
+	secret := &corev1.Secret{Data: data, ObjectMeta: object}
+	KubeClient.CoreV1().Secrets("avi-system").Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
