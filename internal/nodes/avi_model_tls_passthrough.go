@@ -80,7 +80,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	return avi_vs_meta
 }
 
-func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namesapce, key string, redirect bool) {
+func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namespace, key string, redirect bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	vsList := o.GetAviVS()
@@ -136,17 +136,22 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		poolNode.Port = obj.Port
 		poolNode.TargetPort = obj.TargetPort
 		poolNode.ServiceMetadata = avicache.ServiceMetadataObj{
-			IngressName: objName, Namespace: namesapce, PoolRatio: obj.weight,
+			IngressName: objName, Namespace: namespace, PoolRatio: obj.weight,
 			HostNames: []string{hostname},
 		}
 
 		poolNode.Servers = []AviPoolMetaServer{}
-		if !lib.IsNodePortMode() {
-			if servers := PopulateServers(poolNode, namesapce, obj.ServiceName, true, key); servers != nil {
+		serviceType := lib.GetServiceType()
+		if serviceType == lib.NodePortLocal {
+			if servers := PopulateServersForNPL(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+				poolNode.Servers = servers
+			}
+		} else if serviceType == lib.NodePort {
+			if servers := PopulateServersForNodePort(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
 			}
 		} else {
-			if servers := PopulateServersForNodePort(poolNode, namesapce, obj.ServiceName, true, key); servers != nil {
+			if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
 			}
 		}
