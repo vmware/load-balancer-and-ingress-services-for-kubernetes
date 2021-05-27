@@ -467,7 +467,6 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 
 	if infraSetting.Spec.SeGroup.Name != "" {
 		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
-		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
 	}
 
 	if err := checkRefsOnController(key, refData); err != nil {
@@ -476,6 +475,13 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 			Error:  err.Error(),
 		})
 		return err
+	}
+
+	// This would add SEG labels only if they are not configured yet. In case there is a label mismatch
+	// to any pre-existing SEG labels, the AviInfraSettig CR will get Rejected from the checkRefsOnController
+	// step before this.
+	if infraSetting.Spec.SeGroup.Name != "" {
+		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
 	}
 
 	status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
@@ -498,5 +504,6 @@ func addSeGroupLabel(key, segName string) {
 		utils.AviLog.Error(err)
 		return
 	}
+
 	avicache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
 }
