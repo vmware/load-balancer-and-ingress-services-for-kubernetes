@@ -673,7 +673,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 				poolNode.Servers = servers
 			}
 		}
-		//Markers: Will be used at rest layer and in httprule comparision.
+		//Markers: Will be used at rest layer and in httprule comparison.
 		markers := map[string]string{}
 		markers["namespace"] = namespace
 		markers["host"] = hosts[0]

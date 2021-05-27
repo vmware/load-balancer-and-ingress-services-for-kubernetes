@@ -608,8 +608,6 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 	g.Expect(parentCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(parentCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com")))
 
-	sniCache, _ = mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
-	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(barCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
 	g.Expect(barCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal(lib.Encode("cluster--bar.com")))
 
