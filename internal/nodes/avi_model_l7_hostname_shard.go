@@ -178,11 +178,13 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 		}
 		pgName := lib.GetL7SharedPGName(vsName)
 		pgNode := o.GetPoolGroupByName(pgName)
-		pgNode.Members = nil
-		for _, poolNode := range vsNode[0].PoolRefs {
-			ratio := poolNode.ServiceMetadata.PoolRatio
-			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel, Ratio: &ratio})
+		if pgNode != nil {
+			pgNode.Members = nil
+			for _, poolNode := range vsNode[0].PoolRefs {
+				ratio := poolNode.ServiceMetadata.PoolRatio
+				pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
+				pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, PriorityLabel: &poolNode.PriorityLabel, Ratio: &ratio})
+			}
 		}
 		// Remove the httpredirect policy if any
 		if len(vsNode) > 0 {
