@@ -1111,6 +1111,7 @@ type AviPoolNode struct {
 	ApplicationPersistence string
 	VrfContext             string
 	T1Lr                   string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
+	Markers                map[string]string
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {

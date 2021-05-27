@@ -673,6 +673,16 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 				poolNode.Servers = servers
 			}
 		}
+		//Markers: Will be used at rest layer and in httprule comparision.
+		markers := map[string]string{}
+		markers["namespace"] = namespace
+		markers["host"] = hosts[0]
+		markers["path"] = path.Path
+		markers["ingName"] = ingName
+		markers["infraSettingName"] = infraSettingName
+		markers["serviceName"] = path.ServiceName
+
+		poolNode.Markers = markers
 
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		ratio := path.weight
@@ -831,8 +841,8 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 // secure ingress graph functions
 
 // BuildCACertNode : Build a new node to store CA cert, this would be referred by the corresponding keycert
-func (o *AviObjectGraph) BuildCACertNodeForEvh(tlsNode *AviEvhVsNode, cacert, keycertname, key string) string {
-	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(keycertname), Tenant: lib.GetTenant()}
+func (o *AviObjectGraph) BuildCACertNodeForEvh(tlsNode *AviEvhVsNode, cacert, infraSettingName, host, key string) string {
+	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(infraSettingName, host), Tenant: lib.GetTenant()}
 	cacertNode.Type = lib.CertTypeCA
 	cacertNode.Cert = []byte(cacert)
 
@@ -867,9 +877,9 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 			certNode.Cert = []byte(tlsData.cert)
 			certNode.Key = []byte(tlsData.key)
 			if tlsData.cacert != "" {
-				certNode.CACert = o.BuildCACertNodeForEvh(tlsNode, tlsData.cacert, certNode.Name, key)
+				certNode.CACert = o.BuildCACertNodeForEvh(tlsNode, tlsData.cacert, infraSettingName, host, key)
 			} else {
-				tlsNode.DeleteCACertRefInEVHNode(lib.GetCACertNodeName(certNode.Name), key)
+				tlsNode.DeleteCACertRefInEVHNode(lib.GetCACertNodeName(infraSettingName, host), key)
 			}
 		} else {
 			ok, _ := svcLister.IngressMappings(namespace).GetSecretToIng(secretName)

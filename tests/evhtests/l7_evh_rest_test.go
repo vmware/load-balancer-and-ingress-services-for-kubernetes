@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -187,7 +188,7 @@ func TestCreateIngressCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com")}
 	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
@@ -214,10 +215,10 @@ func TestCreateIngressCacheSyncForEvh(t *testing.T) {
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.BeNil())
 	g.Expect(sniCacheObj.ParentVSRef).To(gomega.Equal(vsKey))
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
+	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("ako-encoded"))
 	g.Expect(sniCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.PGKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
+	g.Expect(sniCacheObj.PGKeyCollection[0].Name).To(gomega.ContainSubstring("ako-encoded"))
 
 	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -260,7 +261,7 @@ func TestUpdatePoolCacheSyncForEvh(t *testing.T) {
 	// Get hold of the pool checksum on CREATE
 	poolName := "cluster--default-foo.com_foo-foo-with-targets-avisvc"
 	mcache := cache.SharedAviObjCache()
-	poolKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: poolName}
+	poolKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: lib.Encode(poolName)}
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)
 	poolCacheBeforeObj, _ := poolCacheBefore.(*cache.AviPoolCache)
 	oldPoolCksum := poolCacheBeforeObj.CloudConfigCksum
@@ -336,7 +337,7 @@ func TestCreateCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com")}
 
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
@@ -357,9 +358,7 @@ func TestCreateCacheSyncForEvh(t *testing.T) {
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.BeNil())
 	g.Expect(sniCacheObj.ParentVSRef).To(gomega.Equal(parentVSKey))
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
 	g.Expect(sniCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.PGKeyCollection[0].Name).To(gomega.ContainSubstring("foo-with-targets"))
 	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(2))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
@@ -374,7 +373,7 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	mcache := cache.SharedAviObjCache()
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com")}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		return found
@@ -399,8 +398,8 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 	}
 
 	// verify that a NEW httppolicy set object is created
-	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-with-targets"}
-	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-updated-foo-with-targets"}
+	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_foo-foo-with-targets")}
+	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_bar-updated-foo-with-targets")}
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(newHttpPolKey)
 		return found
@@ -454,8 +453,8 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
-	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-bar.com"}
+	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com")}
+	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-bar.com")}
 	g.Eventually(func() bool {
 		sniCache1, found1 := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 		sniCache2, found2 := mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
@@ -478,7 +477,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 			return parentCacheObj.SSLKeyCertCollection[0].Name
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("cluster--foo.com"))
+	}, 40*time.Second).Should(gomega.Equal(lib.Encode("cluster--foo.com")))
 
 	parentVSKey1 := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"}
 	parentCache1, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey1)
@@ -489,7 +488,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 			return parentCacheObj1.SSLKeyCertCollection[0].Name
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("cluster--bar.com"))
+	}, 40*time.Second).Should(gomega.Equal(lib.Encode("cluster--bar.com")))
 
 	g.Eventually(func() string {
 		sniCache1, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
@@ -513,7 +512,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 	if _, err := KubeClient.NetworkingV1beta1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
-	sniVSKey3 := cache.NamespaceName{Namespace: "admin", Name: "cluster--red-foo.com"}
+	sniVSKey3 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--red-foo.com")}
 	g.Eventually(func() bool {
 		_, found1 := mcache.VsCacheMeta.AviCacheGet(sniVSKey3)
 		return found1
@@ -554,8 +553,8 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
-	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-bar.com"}
+	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com")}
+	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-bar.com")}
 	xyzParentKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-3"}
 	barParentKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"}
 
@@ -605,16 +604,14 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(1))
 	sniCache, _ = mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
-	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(0))
 	g.Expect(parentCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(parentCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("cluster--foo.com"))
+	g.Expect(parentCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com")))
 
 	sniCache, _ = mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
-	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("bar.com"))
 	g.Expect(barCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(1))
-	g.Expect(barCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal("cluster--bar.com"))
+	g.Expect(barCacheObj.SSLKeyCertCollection[0].Name).To(gomega.Equal(lib.Encode("cluster--bar.com")))
 
 	// delete one secret
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret-v2", metav1.DeleteOptions{})
@@ -655,7 +652,6 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 	sniCache, _ = mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 	sniCacheObj, _ = sniCache.(*cache.AviVsCache)
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("foo.com"))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(0))
 
 	KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
@@ -677,7 +673,7 @@ func TestDeleteCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com")}
 
 	ingressUpdate := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -717,8 +713,8 @@ func TestCUDSecretCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
-	sslKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com")}
+	sslKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com")}
 
 	// no ssl key cache would be found since the secret is not yet added
 	g.Eventually(func() bool {
