@@ -564,7 +564,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("cluster--default-foo.com"))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com")))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
