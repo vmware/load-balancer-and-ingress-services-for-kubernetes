@@ -1214,20 +1214,23 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (string, string) {
 	// Read the value of the num_shards from the environment variable.
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
+	var newInfraPrefix, oldInfraPrefix string
+	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
 
 	// get stored infrasetting from ingress/route
 	// figure out the current infrasetting via class/annotation
-	oldSetting, newSetting := AviInfraSettingChange(routeIgrObj)
-	var oldInfraPrefix, newInfraPrefix string
-
-	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
-	if oldSetting != nil {
-		if oldSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
-			oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
+	var oldSettingName string
+	var found bool
+	if found, oldSettingName = objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
+		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
+			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		oldInfraPrefix = oldSetting.Name
+		oldInfraPrefix = oldSettingName
+	} else {
+		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
 	}
 
+	newSetting := routeIgrObj.GetAviInfraSetting()
 	if !routeIgrObj.Exists() {
 		// get the old ones.
 		newShardSize = oldShardSize

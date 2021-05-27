@@ -938,6 +938,7 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 	}, 55*time.Second).Should(gomega.Equal(sniVsName))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*settingNodes[0].EnableRhi).Should(gomega.Equal(true))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
 	g.Expect(settingNodes[0].VSVIPRefs[0].BGPPeerLabels).Should(gomega.HaveLen(2))
 	g.Expect((settingNodes[0].VSVIPRefs[0].BGPPeerLabels)[0]).Should(gomega.ContainSubstring("peer"))

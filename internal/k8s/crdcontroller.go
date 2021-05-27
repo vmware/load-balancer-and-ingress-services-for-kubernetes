@@ -462,7 +462,7 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
 	if ((infraSetting.Spec.Network.EnableRhi != nil && !*infraSetting.Spec.Network.EnableRhi) || infraSetting.Spec.Network.EnableRhi == nil) &&
 		len(infraSetting.Spec.Network.BgpPeerLabels) > 0 {
-		err := fmt.Errorf("BGPPeerLabels cannot be set if EnableRhi is true.")
+		err := fmt.Errorf("BGPPeerLabels cannot be set if EnableRhi is false.")
 		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),

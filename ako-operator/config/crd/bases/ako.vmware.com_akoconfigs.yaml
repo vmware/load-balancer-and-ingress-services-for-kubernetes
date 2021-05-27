@@ -185,7 +185,7 @@ spec:
                 the AKO controller
               properties:
                 bgpPeerLabels:
-                  description: BGPPeerLabels enables selection of BGP peers, for VsVip
+                  description: BGPPeerLabels enables selection of BGP peers, for selective VsVip
                     advertisement.
                   items:
                     type: string
