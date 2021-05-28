@@ -278,9 +278,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	} else {
 		// First boot sync
 		err = c.FullSyncK8s()
-		ctrlAuthtoken := os.Getenv("CTRL_AUTHTOKEN")
-		if ctrlAuthtoken != "" {
-			c.RefreshAuthtoken()
+		ctrlAuthToken := os.Getenv("CTRL_AUTHTOKEN")
+		if ctrlAuthToken != "" {
+			c.RefreshAuthToken()
 		}
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
@@ -297,9 +297,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
 		}
 
-		if ctrlAuthtoken != "" {
-			tokenWorker = utils.NewFullSyncThread(time.Duration(utils.RefreshAuthtokenInterval) * time.Hour)
-			tokenWorker.SyncFunction = c.RefreshAuthtoken
+		if ctrlAuthToken != "" {
+			tokenWorker = utils.NewFullSyncThread(time.Duration(utils.RefreshAuthTokenInterval) * time.Hour)
+			tokenWorker.SyncFunction = c.RefreshAuthToken
 			go tokenWorker.Run()
 		}
 	}
@@ -340,8 +340,8 @@ LABEL:
 	statusQueue.StopWorkers(stopCh)
 }
 
-func (c *AviController) RefreshAuthtoken() {
-	lib.RefreshAuthtoken(c.informers.KubeClientIntf.ClientSet)
+func (c *AviController) RefreshAuthToken() {
+	lib.RefreshAuthToken(c.informers.KubeClientIntf.ClientSet)
 }
 
 func (c *AviController) FullSync() {

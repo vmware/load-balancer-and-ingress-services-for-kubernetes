@@ -16,6 +16,7 @@ package utils
 
 import (
 	"encoding/json"
+	"errors"
 	"hash/fnv"
 	"math/rand"
 	"net"
@@ -414,24 +415,56 @@ func GetAKONamespace() string {
 	return AKO_DEFAULT_NS
 }
 
-func GetTokenFromRestObj(robj interface{}, ctrlAuthtoken string) (string, bool) {
-	for _, aviToken := range robj.(map[string]interface{})["results"].([]interface{}) {
-		if aviToken.(map[string]interface{})["token"].(string) == ctrlAuthtoken {
-			expiry := aviToken.(map[string]interface{})["expires_at"].(string)
+func GetTokenFromRestObj(robj interface{}, ctrlAuthToken string) (oldTokenID string, refresh bool, err error) {
+	oldTokenID = ""
+	refresh = false
+	err = nil
+	parseError := errors.New("Failed to parse token response obj")
+
+	if _, ok := robj.(map[string]interface{}); !ok {
+		err = parseError
+		return
+	}
+	tokenList, ok := robj.(map[string]interface{})["results"].([]interface{})
+	if !ok {
+		err = parseError
+		return
+	}
+	for _, aviToken := range tokenList {
+		if _, ok := aviToken.(map[string]interface{}); !ok {
+			err = parseError
+			return
+		}
+		token, ok := aviToken.(map[string]interface{})["token"].(string)
+		if !ok {
+			err = parseError
+			return
+		}
+		if token == ctrlAuthToken {
+			expiry, ok := aviToken.(map[string]interface{})["expires_at"].(string)
+			if !ok {
+				err = parseError
+				return
+			}
 			layout := "2006-01-02T15:04:05.000000+00:00"
-			expiryTime, err := time.Parse(layout, expiry)
+			expiryTime, err2 := time.Parse(layout, expiry)
 			if err != nil {
-				AviLog.Warnf("Unable to parse token expiry time, err: %+v", err)
-				return "", false
+				AviLog.Errorf("Unable to parse token expiry time, err: %+v", err2)
+				err = err2
+				return
 			}
 			AviLog.Infof("Expiry time for current token: %+v", expiryTime)
-			if expiryTime.Sub(time.Now()) > (RefreshAuthtokenPeriod*AuthtokenExpiry)*time.Hour {
-				return "", false
+			if expiryTime.Sub(time.Now()) > (RefreshAuthTokenPeriod*AuthTokenExpiry)*time.Hour {
+				return
 			}
-			tokenIDToDelete := aviToken.(map[string]interface{})["uuid"].(string)
-			return tokenIDToDelete, true
+			refresh = true
+			if tokenIDToDelete, ok := aviToken.(map[string]interface{})["uuid"].(string); ok {
+				oldTokenID = tokenIDToDelete
+			}
+			return
 		}
+
 	}
-	AviLog.Warnf("Unable to find token on controller")
-	return "", true
+	refresh = true
+	return
 }

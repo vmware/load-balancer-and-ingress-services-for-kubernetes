@@ -33,6 +33,7 @@ import (
 	"github.com/avinetworks/sdk/go/models"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+	v1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -981,58 +982,106 @@ func IsAviLBDefaultIngressClassWithClient(kc kubernetes.Interface) (string, bool
 	return "", false
 }
 
-func GetControllerPropertiesFromSecret(kc kubernetes.Interface) (string, string, string, error) {
+func GetControllerPropertiesFromSecret(kc kubernetes.Interface) (ctrlUsername, ctrlPassword, ctrlAuthToken string, err error) {
 	aviSecret, err := kc.CoreV1().Secrets("avi-system").Get(context.TODO(), "avi-secret", metav1.GetOptions{})
 	if err != nil {
-		return "", "", "", err
+		return
 	}
-	ctrlUsername := string(aviSecret.Data["username"])
+	ctrlUsername = string(aviSecret.Data["username"])
 	if aviSecret.Data["password"] != nil {
-		ctrlPassword := string(aviSecret.Data["password"])
-		return ctrlUsername, ctrlPassword, "", nil
+		ctrlPassword = string(aviSecret.Data["password"])
+		return
 	}
 	if aviSecret.Data["authtoken"] != nil {
-		ctrlAuthtoken := string(aviSecret.Data["authtoken"])
-		return ctrlUsername, "", ctrlAuthtoken, nil
+		ctrlAuthToken = string(aviSecret.Data["authtoken"])
+		return
 	}
-	return ctrlUsername, "", "", nil
+	return
 }
 
-func RefreshAuthtoken(kc kubernetes.Interface) {
-
-	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
-	ctrlUsername, _, ctrlAuthtoken, err := GetControllerPropertiesFromSecret(kc)
-	if err != nil {
-		utils.AviLog.Errorf("Filed to read from avi secret, err:", err)
-	}
-	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthtoken)
-	if aviClient != nil {
-		userTokensListResp, err := utils.AuthtokenGet(aviClient)
-		if err != nil {
-			return
+func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int) (*v1.Secret, error) {
+	var aviSecret *v1.Secret
+	var err error
+	for retry := 0; retry < retryCount; retry++ {
+		aviSecret, err = kc.CoreV1().Secrets(AviNS).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+		if err == nil {
+			return aviSecret, nil
 		}
-		if oldTokenID, ok := utils.GetTokenFromRestObj(userTokensListResp, ctrlAuthtoken); ok {
-			newTokenResp, err := utils.AuthtokenCreate(aviClient)
-			if err != nil {
-				return
-			}
-			token := fmt.Sprintf("%v", newTokenResp.(map[string]interface{})["token"])
-			utils.AviLog.Infof("new token: %+v", token)
-			aviSecret, err := kc.CoreV1().Secrets(AviNS).Get(context.TODO(), AviSecret, metav1.GetOptions{})
-			if err != nil {
-				utils.AviLog.Warnf("failed to get secret, err: %+v", err)
-				return
-			}
-			aviSecret.Data["authtoken"] = []byte(token)
-			_, err = kc.CoreV1().Secrets(AviNS).Update(context.TODO(), aviSecret, metav1.UpdateOptions{})
-			if err != nil {
-				utils.AviLog.Warnf("failed to update secret, err: %+v", err)
-				return
-			}
-			utils.AviLog.Infof("Successfully updated authtoken")
-			if oldTokenID != "" {
-				utils.AuthtokenDelete(aviClient, oldTokenID)
-			}
+		utils.AviLog.Warnf("Failed to get avi-secret, retry count:%d, err: %+v", retry, err)
+	}
+	return nil, err
+}
+
+func UpdateAviSecretWithRetry(kc kubernetes.Interface, aviSecret *v1.Secret, retryCount int) error {
+	var err error
+	for retry := 0; retry < retryCount; retry++ {
+		_, err = kc.CoreV1().Secrets(AviNS).Update(context.TODO(), aviSecret, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		utils.AviLog.Warnf("Failed to update avi-secret, retry count:%d, err: %+v", retry, err)
+	}
+	return err
+}
+
+func RefreshAuthToken(kc kubernetes.Interface) {
+
+	retryCount := 5
+	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
+	ctrlUsername, _, ctrlAuthToken, err := GetControllerPropertiesFromSecret(kc)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to read from avi secret, err:", err)
+	}
+	if ctrlUsername == "" || ctrlAuthToken == "" {
+		utils.AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret.")
+		return
+	}
+	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
+	if aviClient == nil {
+		utils.AviLog.Errorf("Failed to initialize AVI client")
+		return
+	}
+	userTokensListResp, err := utils.GetAuthTokenWithRetry(aviClient, retryCount)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to get existing tokens from controller, err: %+v", err)
+		return
+	}
+	oldTokenID, refresh, err := utils.GetTokenFromRestObj(userTokensListResp, ctrlAuthToken)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to find token on controller, err: %+v", err)
+		return
+	}
+	if !refresh {
+		utils.AviLog.Infof("Skipping AuthToken Refresh")
+	}
+	newTokenResp, err := utils.CreateAuthTokenWithRetry(aviClient, retryCount)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to post new token, err: %+v", err)
+		return
+	}
+	if _, ok := newTokenResp.(map[string]interface{}); !ok {
+		utils.AviLog.Errorf("Failed to parse new token, err: %+v", err)
+		return
+	}
+	token := newTokenResp.(map[string]interface{})["token"].(string)
+	//utils.AviLog.Debugf("new token: %+v", token)
+	aviSecret, err := GetAviSecretWithRetry(kc, retryCount)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to get secret, err: %+v", err)
+		return
+	}
+	aviSecret.Data["authtoken"] = []byte(token)
+
+	err = UpdateAviSecretWithRetry(kc, aviSecret, retryCount)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to update secret, err: %+v", err)
+		return
+	}
+	utils.AviLog.Infof("Successfully updated authtoken")
+	if oldTokenID != "" {
+		err = utils.DeleteAuthTokenWithRetry(aviClient, oldTokenID, retryCount)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to delete old token %s, err: %+v", oldTokenID, err)
 		}
 	}
 }
