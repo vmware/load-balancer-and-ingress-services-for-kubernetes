@@ -416,6 +416,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	})
 
 	var checksumStringSlice []string
+	var evhChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		checksumStringSlice = append(checksumStringSlice, "HTTPDS"+ds.Name)
@@ -435,6 +436,11 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	for _, vsvipref := range v.VSVIPRefs {
 		checksumStringSlice = append(checksumStringSlice, "VSVIP"+vsvipref.Name)
+	}
+
+	//Required to capture changes in evh child nodes.
+	for _, EVHNode := range v.EvhNodes {
+		evhChecksum += EVHNode.GetCheckSum()
 	}
 
 	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
@@ -459,12 +465,13 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	}
 
 	sort.Strings(checksumStringSlice)
-	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
-		v.ApplicationProfile +
-		v.ServiceEngineGroup +
-		v.NetworkProfile +
-		utils.Stringify(portproto) +
-		v.EvhHostName)
+	checksum := utils.Hash(strings.Join(checksumStringSlice, delim)+
+		v.ApplicationProfile+
+		v.ServiceEngineGroup+
+		v.NetworkProfile+
+		utils.Stringify(portproto)+
+		v.EvhHostName) +
+		evhChecksum
 
 	if vsRefs != "" {
 		checksum += utils.Hash(vsRefs)
@@ -633,7 +640,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			httpPGPath.Path = append(httpPGPath.Path, path.Path)
 		}
 
-		pgName := lib.GetEvhVsPoolNPgName(ingName, namespace, hosts[0], path.Path, infraSettingName)
+		pgName := lib.GetEvhPGName(ingName, namespace, hosts[0], path.Path, infraSettingName)
 		var pgNode *AviPoolGroupNode
 		// There can be multiple services for the same path in case of alternate backend.
 		// In that case, make sure we are creating only one PG per path
@@ -647,7 +654,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 
 		var poolName string
-		poolName = lib.GetEvhVsPoolNPgName(ingName, namespace, hosts[0], path.Path, infraSettingName, path.ServiceName)
+		poolName = lib.GetEvhPoolName(ingName, namespace, hosts[0], path.Path, infraSettingName, path.ServiceName)
 		poolNode := &AviPoolNode{
 			Name:       poolName,
 			PortName:   path.PortName,
@@ -1337,11 +1344,11 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 		}
 
 		for path, services := range pathSvc {
-			pgName := lib.GetEvhVsPoolNPgName(ingName, namespace, hostname, path, infraSettingName)
+			pgName := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName)
 			pgNode := modelEvhNode.GetPGForVSByName(pgName)
 			for _, svc := range services {
 				var evhPool string
-				evhPool = lib.GetEvhVsPoolNPgName(ingName, namespace, hostname, path, infraSettingName, svc)
+				evhPool = lib.GetEvhPoolName(ingName, namespace, hostname, path, infraSettingName, svc)
 				o.RemovePoolNodeRefsFromEvh(evhPool, modelEvhNode)
 				o.RemovePoolRefsFromPG(evhPool, pgNode)
 
@@ -1349,7 +1356,7 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 				if pgNode != nil {
 					if len(pgNode.Members) == 0 {
 						o.RemovePGNodeRefsForEvh(pgName, modelEvhNode)
-						httppolname := lib.GetEvhVsPoolNPgName(ingName, namespace, hostname, path, infraSettingName)
+						httppolname := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName)
 						o.RemoveHTTPRefsFromEvh(httppolname, modelEvhNode)
 					}
 				}

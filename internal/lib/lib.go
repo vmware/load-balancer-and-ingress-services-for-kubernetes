@@ -269,20 +269,11 @@ func GetSniPGName(ingName, namespace, host, path, infrasetting string) string {
 }
 
 // evh child
-func GetEvhVsPoolNPgName(ingName, namespace, host, path, infrasetting string, args ...string) string {
-	path = strings.ReplaceAll(path, "/", "_")
-	namePrefix := NamePrefix
-	if infrasetting != "" {
-		namePrefix += infrasetting + "-"
-	}
-	poolName := namePrefix + namespace + "-" + host + path + "-" + ingName
-	if len(args) > 0 {
-		svcName := args[0]
-		poolName = poolName + "-" + svcName
-	}
+func GetEvhPoolName(ingName, namespace, host, path, infrasetting, svcName string) string {
+	poolName := GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName)
 	return Encode(poolName)
 }
-func GetEvhPoolName(ingName, namespace, host, path, infrasetting, svcName string) string {
+func GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName string) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	namePrefix := NamePrefix
 	if infrasetting != "" {

@@ -89,6 +89,7 @@ func TestL7ModelForEvh(t *testing.T) {
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {

@@ -195,7 +195,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsE
 			var poolName string
 			//FOR EVH: Build poolname using marker fields.
 			if lib.IsEvhEnabled() && pool.Markers != nil {
-				poolName = lib.GetEvhPoolName(pool.Markers["ingName"], pool.Markers["namespace"], pool.Markers["host"],
+				poolName = lib.GetEvhPoolNameNoEncoding(pool.Markers["ingName"], pool.Markers["namespace"], pool.Markers["host"],
 					pool.Markers["path"], pool.Markers["infraSettingName"], pool.Markers["serviceName"])
 			} else {
 				poolName = pool.Name
