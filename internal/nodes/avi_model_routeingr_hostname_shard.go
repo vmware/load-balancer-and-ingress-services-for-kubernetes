@@ -17,6 +17,7 @@ package nodes
 import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -48,7 +49,11 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 
 	defer func(routeIgrObj RouteIngressModel) {
 		if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-			objects.InfraSettingL7Lister().UpdateIngRouteInfraSettingMappings(aviInfraSetting.Name, namespace+"/"+objname)
+			var shardSize string
+			if aviInfraSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+				shardSize = aviInfraSetting.Spec.L7Settings.ShardSize
+			}
+			objects.InfraSettingL7Lister().UpdateIngRouteInfraSettingMappings(namespace+"/"+objname, aviInfraSetting.Name, shardSize)
 		} else {
 			objects.InfraSettingL7Lister().RemoveIngRouteInfraSettingMappings(namespace + "/" + objname)
 		}

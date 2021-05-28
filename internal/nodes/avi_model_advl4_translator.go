@@ -79,6 +79,9 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
+		enableRhi := lib.GetEnableRHI()
+		avi_vs_meta.EnableRhi = &enableRhi
+
 		isTCP := false
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
@@ -111,6 +114,10 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 		}
 
+		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+			vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
+		}
+
 		if networkNames, err := lib.GetVipNetworkList(); err != nil {
 			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 		} else {
@@ -122,7 +129,6 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		}
 
 		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
-		utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 		return avi_vs_meta
 	}
 	return nil
@@ -159,6 +165,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			ServiceEngineGroup: lib.GetSEGName(),
 		}
 
+		enableRhi := lib.GetEnableRHI()
+		avi_vs_meta.EnableRhi = &enableRhi
+
 		isTCP := false
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
@@ -191,6 +200,10 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 		}
 
+		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+			vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
+		}
+
 		if networkNames, err := lib.GetVipNetworkList(); err != nil {
 			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %v", key, err.Error())
 		} else {
@@ -207,7 +220,6 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
-		utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 		return avi_vs_meta
 	}
 	return nil

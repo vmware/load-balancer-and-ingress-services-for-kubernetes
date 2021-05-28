@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package hostnameshardtests
+package ingresstests
 
 import (
 	"context"
@@ -100,25 +100,15 @@ func TestMain(m *testing.M) {
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
 
-	AddConfigMap()
+	integrationtest.AddConfigMap(KubeClient)
+	integrationtest.PollForSyncStart(ctrl, 10)
+
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
-}
-
-func AddConfigMap() {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-
-	integrationtest.PollForSyncStart(ctrl, 10)
 }
 
 func SetUpTestForIngress(t *testing.T, modelNames ...string) {
@@ -195,7 +185,7 @@ func TestL7Model(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(true))
+	}, 30*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1440,30 +1430,29 @@ func TestEditPathIngress(t *testing.T) {
 	}
 
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Eventually(func() []*avinodes.AviPoolNode {
-			return nodes[0].PoolRefs
-		}, 10*time.Second).Should(gomega.HaveLen(1))
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	g.Eventually(func() []*avinodes.AviPoolNode {
+		return nodes[0].PoolRefs
+	}, 10*time.Second).Should(gomega.HaveLen(1))
 
-		g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-ingress-edit"))
-		g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com/foo"))
-		g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-ingress-edit"))
+	g.Expect(nodes[0].PoolRefs[0].PriorityLabel).To(gomega.Equal("foo.com/foo"))
+	g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
 
-		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
 
-		pool := nodes[0].PoolGroupRefs[0].Members[0]
-		g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com_foo-default-ingress-edit"))
-		g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-
-	} else {
-		t.Fatalf("Could not find model: %s", modelName)
-	}
+	pool := nodes[0].PoolGroupRefs[0].Members[0]
+	g.Expect(*pool.PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com_foo-default-ingress-edit"))
+	g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
 	ingrFake = (integrationtest.FakeIngress{
 		Name:        "ingress-edit",
@@ -1478,7 +1467,7 @@ func TestEditPathIngress(t *testing.T) {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 10*time.Second).Should(gomega.Equal(1))

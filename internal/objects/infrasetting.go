@@ -24,7 +24,8 @@ var infraonce sync.Once
 func InfraSettingL7Lister() *AviInfraSettingL7Lister {
 	infraonce.Do(func() {
 		infral7lister = &AviInfraSettingL7Lister{
-			IngRouteInfraSettingStore: NewObjectMapStore(),
+			IngRouteInfraSettingStore:  NewObjectMapStore(),
+			InfraSettingShardSizeStore: NewObjectMapStore(),
 		}
 	})
 	return infral7lister
@@ -35,24 +36,39 @@ type AviInfraSettingL7Lister struct {
 
 	// namespaced ingress/route -> infrasetting
 	IngRouteInfraSettingStore *ObjectMapStore
+
+	// infrasetting -> shardSize
+	InfraSettingShardSizeStore *ObjectMapStore
 }
 
 func (v *AviInfraSettingL7Lister) GetIngRouteToInfraSetting(ingrouteNsName string) (bool, string) {
-	found, infraSetting := v.IngRouteInfraSettingStore.Get(ingrouteNsName)
+	found, infraSettingName := v.IngRouteInfraSettingStore.Get(ingrouteNsName)
 	if !found {
 		return false, ""
 	}
-	return true, infraSetting.(string)
+	return true, infraSettingName.(string)
 }
 
-func (v *AviInfraSettingL7Lister) UpdateIngRouteInfraSettingMappings(infraSetting, ingrouteNsName string) {
+func (v *AviInfraSettingL7Lister) UpdateIngRouteInfraSettingMappings(ingrouteNsName, infraSettingName, shardSize string) {
 	v.InfraSettingIngRouteLock.Lock()
 	defer v.InfraSettingIngRouteLock.Unlock()
-	v.IngRouteInfraSettingStore.AddOrUpdate(ingrouteNsName, infraSetting)
+	v.IngRouteInfraSettingStore.AddOrUpdate(ingrouteNsName, infraSettingName)
+	v.InfraSettingShardSizeStore.AddOrUpdate(infraSettingName, shardSize)
 }
 
 func (v *AviInfraSettingL7Lister) RemoveIngRouteInfraSettingMappings(ingrouteNsName string) bool {
 	v.InfraSettingIngRouteLock.Lock()
 	defer v.InfraSettingIngRouteLock.Unlock()
+	if found, infraSettingName := v.GetIngRouteToInfraSetting(ingrouteNsName); found {
+		v.InfraSettingShardSizeStore.Delete(infraSettingName)
+	}
 	return v.IngRouteInfraSettingStore.Delete(ingrouteNsName)
+}
+
+func (v *AviInfraSettingL7Lister) GetInfraSettingToShardSize(infraSettingName string) (bool, string) {
+	found, shardSize := v.InfraSettingShardSizeStore.Get(infraSettingName)
+	if !found {
+		return false, ""
+	}
+	return true, shardSize.(string)
 }

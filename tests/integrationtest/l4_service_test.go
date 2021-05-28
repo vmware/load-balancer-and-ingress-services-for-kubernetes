@@ -126,7 +126,9 @@ func TestMain(m *testing.M) {
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
 
-	AddConfigMap()
+	AddConfigMap(KubeClient)
+	PollForSyncStart(ctrl, 10)
+
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	AddDefaultIngressClass()
 
@@ -736,7 +738,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	netList, _ := lib.GetVipNetworkList()
 	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(netList[0]))
-	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
+	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(false))
 
 	settingUpdate := (FakeAviInfraSetting{
 		Name:        settingName,
@@ -793,7 +795,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(netList[0]))
-	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
+	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(false))
 
 	settingUpdate = (FakeAviInfraSetting{
 		Name:        settingName,
@@ -883,7 +885,7 @@ func TestInfraSettingDelete(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	netList, _ := lib.GetVipNetworkList()
 	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(netList[0]))
-	g.Expect(nodes[0].EnableRhi).Should(gomega.BeNil())
+	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(false))
 
 	TearDownTestForSvcLB(t, g)
 }

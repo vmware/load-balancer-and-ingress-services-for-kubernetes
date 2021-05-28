@@ -26,7 +26,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func DequeueIngestion(key string, fullsync bool) {
@@ -183,7 +182,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 	podKey := namespace + "/" + podName
 	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
-		if !k8serrors.IsNotFound(err) {
+		if !errors.IsNotFound(err) {
 			utils.AviLog.Infof("key: %s, got error while getting pod: %v", key, err)
 			return
 		}
@@ -502,37 +501,26 @@ func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) st
 	return vsName
 }
 
-func AviInfraSettingChange(routeIgrObj RouteIngressModel) (*akov1alpha1.AviInfraSetting, *akov1alpha1.AviInfraSetting) {
-	var oldAviInfraSetting *akov1alpha1.AviInfraSetting
-	var err error
-	if found, oldInfraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
-		oldAviInfraSetting, err = lib.GetCRDInformers().AviInfraSettingInformer.Lister().Get(oldInfraSettingName)
-		if err != nil {
-			utils.AviLog.Warnf("AviInfraSetting not found %s", err.Error())
-		}
-	}
-
-	aviInfraSetting := routeIgrObj.GetAviInfraSetting()
-	return oldAviInfraSetting, aviInfraSetting
-}
-
 // returns old and new models if changed, else just the current one.
 func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (string, string) {
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
+	var newInfraPrefix, oldInfraPrefix string
+	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
 
 	// get stored infrasetting from ingress/route
 	// figure out the current infrasetting via class/annotation
-	oldSetting, newSetting := AviInfraSettingChange(routeIgrObj)
-	var oldInfraPrefix, newInfraPrefix string
-
-	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
-	if oldSetting != nil {
-		if oldSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
-			oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
+	var oldSettingName string
+	var found bool
+	if found, oldSettingName = objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
+		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
+			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		oldInfraPrefix = oldSetting.Name
+		oldInfraPrefix = oldSettingName
+	} else {
+		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
 	}
 
+	newSetting := routeIgrObj.GetAviInfraSetting()
 	if !routeIgrObj.Exists() {
 		// get the old ones.
 		newShardSize = oldShardSize

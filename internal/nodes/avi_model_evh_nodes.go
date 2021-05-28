@@ -579,6 +579,10 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 	}
 
+	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
+	}
+
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: ", key, err)
 	} else {
@@ -1049,7 +1053,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 
 			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 
-			if tlssetting.redirect == true {
+			if tlssetting.redirect {
 				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVSForEvh(evhNode, hosts, namespace, ingName, key)
 			}
 			// Enable host rule
@@ -1210,20 +1214,23 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (string, string) {
 	// Read the value of the num_shards from the environment variable.
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
+	var newInfraPrefix, oldInfraPrefix string
+	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
 
 	// get stored infrasetting from ingress/route
 	// figure out the current infrasetting via class/annotation
-	oldSetting, newSetting := AviInfraSettingChange(routeIgrObj)
-	var oldInfraPrefix, newInfraPrefix string
-
-	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
-	if oldSetting != nil {
-		if oldSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
-			oldShardSize = lib.ShardSizeMap[oldSetting.Spec.L7Settings.ShardSize]
+	var oldSettingName string
+	var found bool
+	if found, oldSettingName = objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
+		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
+			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		oldInfraPrefix = oldSetting.Name
+		oldInfraPrefix = oldSettingName
+	} else {
+		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
 	}
 
+	newSetting := routeIgrObj.GetAviInfraSetting()
 	if !routeIgrObj.Exists() {
 		// get the old ones.
 		newShardSize = oldShardSize
@@ -1521,6 +1528,16 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		} else {
 			enableRhi := lib.GetEnableRHI()
 			vs.EnableRhi = &enableRhi
+		}
+
+		if vs.EnableRhi != nil && *vs.EnableRhi {
+			if infraSetting.Spec.Network.BgpPeerLabels != nil {
+				vsvip.BGPPeerLabels = infraSetting.Spec.Network.BgpPeerLabels
+			} else {
+				vsvip.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
+			}
+		} else {
+			vsvip.BGPPeerLabels = nil
 		}
 
 		if vsvip.NetworkNames != nil && len(vsvip.NetworkNames) > 0 {

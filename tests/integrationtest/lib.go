@@ -83,16 +83,14 @@ var AllModels = []string{
 	"admin/cluster--Shared-L7-EVH-7",
 }
 
-func AddConfigMap() {
+func AddConfigMap(client *k8sfake.Clientset) {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
+			Namespace: utils.GetAKONamespace(),
+			Name:      lib.AviConfigMap,
 		},
 	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-
-	PollForSyncStart(ctrl, 10)
+	client.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
 func AddDefaultIngressClass() {
@@ -645,14 +643,6 @@ func SetNodePortMode() {
 
 func SetClusterIPMode() {
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
-}
-
-func EnableEVH() {
-	os.Setenv("ENABLE_EVH", "true")
-}
-
-func DisableEVH() {
-	os.Setenv("ENABLE_EVH", "false")
 }
 
 func CreateNode(t *testing.T, nodeName string, nodeIP string) {
@@ -1317,11 +1307,12 @@ func VerifyMetadataHTTPRule(g *gomega.WithT, poolKey cache.NamespaceName, rrnsna
 }
 
 type FakeAviInfraSetting struct {
-	Name        string
-	SeGroupName string
-	Networks    []string
-	EnableRhi   bool
-	ShardSize   string
+	Name          string
+	SeGroupName   string
+	Networks      []string
+	EnableRhi     bool
+	ShardSize     string
+	BGPPeerLabels []string
 }
 
 func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
@@ -1334,8 +1325,9 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 				Name: infraSetting.SeGroupName,
 			},
 			Network: akov1alpha1.AviInfraSettingNetwork{
-				Names:     infraSetting.Networks,
-				EnableRhi: &infraSetting.EnableRhi,
+				Names:         infraSetting.Networks,
+				EnableRhi:     &infraSetting.EnableRhi,
+				BgpPeerLabels: infraSetting.BGPPeerLabels,
 			},
 		},
 	}
@@ -1349,11 +1341,12 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 
 func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 	setting := FakeAviInfraSetting{
-		Name:        infraSettingName,
-		SeGroupName: "thisisaviref-" + infraSettingName + "-seGroup",
-		Networks:    []string{"thisisaviref-" + infraSettingName + "-networkName"},
-		EnableRhi:   true,
-		ShardSize:   shardSize,
+		Name:          infraSettingName,
+		SeGroupName:   "thisisaviref-" + infraSettingName + "-seGroup",
+		Networks:      []string{"thisisaviref-" + infraSettingName + "-networkName"},
+		EnableRhi:     true,
+		BGPPeerLabels: []string{"peer1", "peer2"},
+		ShardSize:     shardSize,
 	}
 	settingCreate := setting.AviInfraSetting()
 	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {

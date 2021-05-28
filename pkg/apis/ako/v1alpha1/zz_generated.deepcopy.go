@@ -114,6 +114,11 @@ func (in *AviInfraSettingNetwork) DeepCopyInto(out *AviInfraSettingNetwork) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.BgpPeerLabels != nil {
+		in, out := &in.BgpPeerLabels, &out.BgpPeerLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

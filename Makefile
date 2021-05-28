@@ -86,10 +86,10 @@ integrationtest:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast
 
-.PHONY: hostnameshardtests
-hostnameshardtests:
+.PHONY: ingresstests
+ingresstests:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hostnameshardtests -failfast -timeout 0
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0
 
 .PHONY: oshiftroutetests
 oshiftroutetests:
@@ -131,9 +131,14 @@ npltests:
 	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/npltests -failfast
 
+.PHONY: evhtests 
+evhtests:
+	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast
+
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest hostnameshardtests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc
+	make -j 1 k8stest integrationtest ingresstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests evhtests misc
 
 .PHONY: scale_test
 scale_test:

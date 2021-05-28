@@ -40,6 +40,9 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 		ServiceEngineGroup: lib.GetSEGName(),
 	}
 
+	enableRhi := lib.GetEnableRHI()
+	avi_vs_meta.EnableRhi = &enableRhi
+
 	var portProtocols []AviPortHostProtocol
 	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP}
 	portProtocols = append(portProtocols, httpsPort)
@@ -68,6 +71,10 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	if lib.GetSubnetIP() != "" {
 		vsVipNode.SubnetIP = lib.GetSubnetIP()
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
+	}
+
+	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -125,10 +132,12 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		poolName := lib.GetClusterName() + "--" + hostname + "-" + obj.ServiceName
 		poolNode := o.GetAviPoolNodeByName(poolName)
 		if poolNode == nil {
-			poolNode = &AviPoolNode{Name: poolName,
+			poolNode = &AviPoolNode{
+				Name:       poolName,
 				Tenant:     lib.GetTenant(),
 				VrfContext: lib.GetVrf(),
 			}
+
 			o.AddModelNode(poolNode)
 		}
 		poolNode.IngressName = objName
@@ -192,16 +201,16 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 
 	if passChildVS == nil {
 		passChildVS = &AviVsNode{
-			Name:       secureSharedVS.Name + lib.PassthroughInsecure,
-			Tenant:     lib.GetTenant(),
-			EastWest:   false,
-			VrfContext: lib.GetVrf(),
+			Name:               secureSharedVS.Name + lib.PassthroughInsecure,
+			Tenant:             lib.GetTenant(),
+			EastWest:           false,
+			VrfContext:         lib.GetVrf(),
+			ServiceEngineGroup: lib.GetSEGName(),
+			ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
+			NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
+			PortProto:          []AviPortHostProtocol{{Port: 80, Protocol: utils.HTTP}},
 		}
-		passChildVS.ServiceEngineGroup = lib.GetSEGName()
-		passChildVS.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
-		passChildVS.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
-		httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
-		passChildVS.PortProto = []AviPortHostProtocol{httpPort}
+
 		passChildVS.VSVIPRefs = append(passChildVS.VSVIPRefs, secureSharedVS.VSVIPRefs...)
 		secureSharedVS.PassthroughChildNodes = append(secureSharedVS.PassthroughChildNodes, passChildVS)
 
@@ -212,13 +221,17 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 }
 
 func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
-	scriptStr := lib.PassthroughDatascript
-	evt := "VS_DATASCRIPT_EVT_L4_REQUEST"
-	dsName := lib.GetL7InsecureDSName(vsName)
-	script := &DataScript{Script: scriptStr, Evt: evt}
-	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: lib.GetTenant(), DataScript: script}
+	dsScriptNode := &AviHTTPDataScriptNode{
+		Name:   lib.GetL7InsecureDSName(vsName),
+		Tenant: lib.GetTenant(),
+		DataScript: &DataScript{
+			Script: lib.PassthroughDatascript,
+			Evt:    "VS_DATASCRIPT_EVT_L4_REQUEST",
+		},
+		ProtocolParsers: []string{"/api/protocolparser/?name=Default-TLS"},
+	}
+
 	dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "CLUSTER", lib.GetClusterName(), 1)
-	dsScriptNode.ProtocolParsers = []string{"/api/protocolparser/?name=Default-TLS"}
 
 	vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
 	o.AddModelNode(dsScriptNode)

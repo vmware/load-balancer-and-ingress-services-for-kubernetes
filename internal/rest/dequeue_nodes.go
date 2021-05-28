@@ -594,7 +594,7 @@ func checkVsVipUpdateErrors(key string, rest_op *utils.RestOp) bool {
 			rest_op.Model == "VsVip" &&
 			(strings.Contains(rest_op.Err.Error(), lib.AviControllerVSVipIDChangeError) ||
 				strings.Contains(rest_op.Err.Error(), lib.AviControllerRecreateVIPError)) {
-			utils.AviLog.Warnf("key: %s, msg: Unsupported call for vsvip %d: %v", key, aviError.HttpStatusCode, rest_op.Err)
+			utils.AviLog.Warnf("key: %s, msg: Unsupported call for vsvip %v", key, rest_op.Err.Error())
 			// this adds error as a message, useful for sending Avi errors to k8s object statuses, if required
 			rest_op.Message = *aviError.Message
 			return true
@@ -1333,7 +1333,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 							utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
 						} else {
 							// The checksums are different, so it should be a PUT call.
-							restOp, err := rest.AviVsVipBuild(vsvip, vsvip_cache_obj, key)
+							restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, vsvip_cache_obj, key)
 							if err == nil {
 								rest_ops = append(rest_ops, restOp)
 							} else {
@@ -1343,7 +1343,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 					}
 				} else {
 					// Not found - it should be a POST call.
-					restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
+					restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, nil, key)
 					if err == nil {
 						rest_ops = append(rest_ops, restOp)
 					} else {
@@ -1356,7 +1356,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 	} else {
 		// Everything is a POST call
 		for _, vsvip := range vsvip_nodes {
-			restOp, err := rest.AviVsVipBuild(vsvip, nil, key)
+			restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, nil, key)
 			if err == nil {
 				rest_ops = append(rest_ops, restOp)
 			} else {

@@ -91,22 +91,14 @@ func TestMain(m *testing.M) {
 	waitGroupMap["graph"] = wgGraph
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
-	addConfigMap()
+
+	integrationtest.AddConfigMap(KubeClient)
+	integrationtest.PollForSyncStart(ctrl, 10)
+
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	integrationtest.KubeClient = KubeClient
 	os.Exit(m.Run())
-}
-
-func addConfigMap() {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "vmware-system-ako",
-			Name:      "avi-k8s-config",
-		},
-	}
-	KubeClient.CoreV1().ConfigMaps("vmware-system-ako").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-	integrationtest.PollForSyncStart(ctrl, 10)
 }
 
 // Gateway/GatewayClass lib functions

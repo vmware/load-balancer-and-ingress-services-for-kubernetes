@@ -33,6 +33,7 @@ const (
 	SUBNET_PREFIX                              = "SUBNET_PREFIX"
 	NETWORK_NAME                               = "NETWORK_NAME"
 	VIP_NETWORK_LIST                           = "VIP_NETWORK_LIST"
+	BGP_PEER_LABELS                            = "BGP_PEER_LABELS"
 	SEG_NAME                                   = "SEG_NAME"
 	DEFAULT_SE_GROUP                           = "Default-Group"
 	NODE_NETWORK_LIST                          = "NODE_NETWORK_LIST"

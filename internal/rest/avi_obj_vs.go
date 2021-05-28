@@ -277,6 +277,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 	return rest_ops
 }
+
 func AviVsHttpPSAdd(vs_meta interface{}, isEVH bool) []*avimodels.HTTPPolicies {
 	var httpPolicyRef []*nodes.AviHttpPolicySetNode
 	var httpPSRef []string
@@ -437,6 +438,9 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
+				if val, ok := resp["enable_rhi"].(bool); ok {
+					vs_cache_obj.EnableRhi = val
+				}
 				if vhParentKey != nil {
 					vs_cache_obj.ParentVSRef = vhParentKey.(avicache.NamespaceName)
 				}
@@ -529,9 +533,16 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 			}
 		} else {
-			vs_cache_obj := avicache.AviVsCache{Name: name, Tenant: rest_op.Tenant,
-				Uuid: uuid, CloudConfigCksum: cksum, ServiceMetadataObj: svc_mdata_obj,
-				LastModified: lastModifiedStr,
+			vs_cache_obj := avicache.AviVsCache{
+				Name:               name,
+				Tenant:             rest_op.Tenant,
+				Uuid:               uuid,
+				CloudConfigCksum:   cksum,
+				ServiceMetadataObj: svc_mdata_obj,
+				LastModified:       lastModifiedStr,
+			}
+			if val, ok := resp["enable_rhi"].(bool); ok {
+				vs_cache_obj.EnableRhi = val
 			}
 			if lastModifiedStr == "" {
 				vs_cache_obj.InvalidData = true

@@ -101,6 +101,7 @@ type AviVsCache struct {
 	PassthroughChildRef  NamespaceName
 	ServiceMetadataObj   ServiceMetadataObj
 	LastModified         string
+	EnableRhi            bool
 	InvalidData          bool
 	VSCacheLock          sync.RWMutex
 }

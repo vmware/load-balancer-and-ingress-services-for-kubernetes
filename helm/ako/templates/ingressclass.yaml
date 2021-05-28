@@ -9,8 +9,4 @@ metadata:
   {{ end }}
 spec:
   controller: ako.vmware.com/avi-lb
-  parameters:
-    apiGroup: ako.vmware.com
-    kind: IngressParameters
-    name: external-lb
 {{ end }}

@@ -98,17 +98,8 @@ func setupQueue(stopCh <-chan struct{}) {
 	ingestionQueue.Run(stopCh, wgIngestion)
 }
 
-func AddConfigMap(t *testing.T) {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	_, err := kubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding configmap: %v", err)
-	}
+func addConfigMap(t *testing.T) {
+	integrationtest.AddConfigMap(kubeClient)
 	time.Sleep(10 * time.Second)
 }
 
@@ -274,7 +265,7 @@ func TestVcenterCloudNoIpamDuringBootup(t *testing.T) {
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
 	injectMWForCloud()
 
-	AddConfigMap(t)
+	addConfigMap(t)
 
 	if !ctrl.DisableSync {
 		t.Fatalf("Validation for vcenter Cloud for ipam_provider_ref failed")
@@ -290,7 +281,7 @@ func TestAWSCloudValidation(t *testing.T) {
 	os.Setenv("SERVICE_TYPE", "NodePort")
 	os.Setenv("VIP_NETWORK_LIST", `[]`)
 
-	AddConfigMap(t)
+	addConfigMap(t)
 
 	if !ctrl.DisableSync {
 		t.Fatalf("CLOUD_AWS should not be allowed if VIP_NETWORK_LIST is empty")
@@ -306,7 +297,7 @@ func TestAzureCloudValidation(t *testing.T) {
 	os.Setenv("SERVICE_TYPE", "NodePort")
 	os.Setenv("VIP_NETWORK_LIST", `[]`)
 
-	AddConfigMap(t)
+	addConfigMap(t)
 
 	if !ctrl.DisableSync {
 		t.Fatalf("CLOUD_AZURE should not be allowed if VIP_NETWORK_LIST is empty")
@@ -321,7 +312,7 @@ func TestAWSCloudInClusterIPMode(t *testing.T) {
 	utils.SetCloudName("CLOUD_AWS")
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
 
-	AddConfigMap(t)
+	addConfigMap(t)
 
 	if ctrl.DisableSync {
 		t.Fatalf("CLOUD_AWS should be allowed in ClusterIP mode")
@@ -335,7 +326,7 @@ func TestAzureCloudInClusterIPMode(t *testing.T) {
 	utils.SetCloudName("CLOUD_AZURE")
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
 
-	AddConfigMap(t)
+	addConfigMap(t)
 
 	if ctrl.DisableSync {
 		t.Fatalf("CLOUD_AZURE should be allowed in ClusterIP mode")
@@ -350,7 +341,7 @@ func TestGCPCloudInClusterIPMode(t *testing.T) {
 	utils.SetCloudName("CLOUD_GCP")
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
 
-	AddConfigMap(t)
+	addConfigMap(t)
 
 	if ctrl.DisableSync {
 		t.Fatalf("CLOUD_GCP should  be allowed in ClusterIP mode")
@@ -366,7 +357,7 @@ func TestAzureCloudInNodePortMode(t *testing.T) {
 	os.Setenv("SERVICE_TYPE", "NodePort")
 
 	// add the config and check if the sync is enabled
-	AddConfigMap(t)
+	addConfigMap(t)
 
 	if ctrl.DisableSync {
 		t.Fatalf("CLOUD_AZURE should be allowed in ClusterIP mode")
@@ -386,7 +377,7 @@ func TestAWSCloudInNodePortMode(t *testing.T) {
 	os.Setenv("SERVICE_TYPE", "NodePort")
 
 	// add the config and check if the sync is enabled
-	AddConfigMap(t)
+	addConfigMap(t)
 
 	if ctrl.DisableSync {
 		t.Fatalf("CLOUD_AWS should be allowed in ClusterIP mode")

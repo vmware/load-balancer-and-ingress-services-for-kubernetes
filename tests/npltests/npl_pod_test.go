@@ -55,18 +55,6 @@ const (
 	defaultL7Model  = "admin/cluster--Shared-L7-0"
 )
 
-func AddConfigMap() {
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-
-	integrationtest.PollForSyncStart(ctrl, 10)
-}
-
 func SetUpTestForIngress(t *testing.T, modelName string) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -220,7 +208,9 @@ func TestMain(m *testing.M) {
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
 
-	AddConfigMap()
+	integrationtest.AddConfigMap(KubeClient)
+	integrationtest.PollForSyncStart(ctrl, 10)
+
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()

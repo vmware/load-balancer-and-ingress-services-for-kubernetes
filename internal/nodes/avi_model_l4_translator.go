@@ -70,6 +70,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 		fqdns = append(fqdns, fqdn)
 	}
+
 	avi_vs_meta = &AviVsNode{
 		Name:     vsName,
 		Tenant:   lib.GetTenant(),
@@ -80,6 +81,9 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
 	}
+
+	enableRhi := lib.GetEnableRHI()
+	avi_vs_meta.EnableRhi = &enableRhi
 
 	vrfcontext := lib.GetVrf()
 	avi_vs_meta.VrfContext = vrfcontext
@@ -116,6 +120,10 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 	}
 
+	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
+	}
+
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 	} else {
@@ -132,7 +140,6 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
-	utils.AviLog.Infof("key: %s, msg: created vs object: %s", key, utils.Stringify(avi_vs_meta))
 	return avi_vs_meta
 }
 
@@ -141,8 +148,13 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 	var portPoolSet []AviHostPathPortPoolPG
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
-		poolNode := &AviPoolNode{Name: lib.GetL4PoolName(vsNode.Name, filterPort), Tenant: lib.GetTenant(), Protocol: portProto.Protocol, PortName: portProto.Name}
-		poolNode.VrfContext = lib.GetVrf()
+		poolNode := &AviPoolNode{
+			Name:       lib.GetL4PoolName(vsNode.Name, filterPort),
+			Tenant:     lib.GetTenant(),
+			Protocol:   portProto.Protocol,
+			PortName:   portProto.Name,
+			VrfContext: lib.GetVrf(),
+		}
 
 		serviceType := lib.GetServiceType()
 		if serviceType == lib.NodePortLocal {

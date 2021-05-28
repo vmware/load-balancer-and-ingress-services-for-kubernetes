@@ -893,6 +893,7 @@ type AviVSVIPNode struct {
 	SubnetIP                string
 	SubnetPrefix            int32
 	NetworkNames            []string
+	BGPPeerLabels           []string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 }
@@ -921,6 +922,10 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	}
 	if v.SubnetIP != "" {
 		checksum += utils.Hash(v.SubnetIP)
+	}
+	if len(v.BGPPeerLabels) > 0 {
+		sort.Strings(v.BGPPeerLabels)
+		checksum += utils.Hash(utils.Stringify(v.BGPPeerLabels))
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -1109,7 +1114,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	sort.Slice(servers, func(i, j int) bool {
 		return *servers[i].Ip.Addr < *servers[j].Ip.Addr
 	})
-	// nodeNetworkMap is the placement nw details for the pool which is constand for the AKO instance.
+	// nodeNetworkMap is the placement nw details for the pool which is constant for the AKO instance.
 	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 
 	// A sum of fields for this Pool.
@@ -1140,9 +1145,11 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	if v.ApplicationPersistence != "" {
 		checksum += utils.Hash(v.ApplicationPersistence)
 	}
+
 	if lib.GetGRBACSupport() {
 		checksum += lib.GetClusterLabelChecksum()
 	}
+
 	v.CloudConfigCksum = checksum
 }
 

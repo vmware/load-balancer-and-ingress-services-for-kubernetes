@@ -40,6 +40,8 @@ data:
   nodeValue: {{ .Values.nodePortSelector.value | quote }}
   {{ end }}
   serviceEngineGroupName:  {{ .Values.ControllerSettings.serviceEngineGroupName | quote }}
+  bgpPeerLabels: |-
+    {{ .Values.NetworkSettings.bgpPeerLabels | mustToJson }}
   nodeNetworkList: |-
     {{ .Values.NetworkSettings.nodeNetworkList | mustToJson }}
   vipNetworkList: |-

@@ -87,6 +87,9 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		ServiceEngineGroup: lib.GetSEGName(),
 	}
 
+	enableRhi := lib.GetEnableRHI()
+	avi_vs_meta.EnableRhi = &enableRhi
+
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
 	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
@@ -118,6 +121,10 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	if lib.GetSubnetIP() != "" {
 		vsVipNode.SubnetIP = lib.GetSubnetIP()
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
+	}
+
+	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
+		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
 	if networkNames, err := lib.GetVipNetworkList(); err != nil {
@@ -521,6 +528,16 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		} else {
 			enableRhi := lib.GetEnableRHI()
 			vs.EnableRhi = &enableRhi
+		}
+
+		if vs.EnableRhi != nil && *vs.EnableRhi {
+			if infraSetting.Spec.Network.BgpPeerLabels != nil {
+				vsvip.BGPPeerLabels = infraSetting.Spec.Network.BgpPeerLabels
+			} else {
+				vsvip.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
+			}
+		} else {
+			vsvip.BGPPeerLabels = nil
 		}
 
 		if len(infraSetting.Spec.Network.Names) > 0 {

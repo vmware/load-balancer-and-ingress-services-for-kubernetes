@@ -185,6 +185,12 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	}
 	cm.Data[VipNetworkList] = string(vipListBytes)
 
+	bgpPeerLabelsBytes, err := json.Marshal(ako.Spec.NetworkSettings.BGPPeerLabels)
+	if err != nil {
+		return cm, err
+	}
+	cm.Data[BgpPeerLabels] = string(bgpPeerLabelsBytes)
+
 	cm.Data[ServiceType] = string(ako.Spec.L7Settings.ServiceType)
 	cm.Data[NodeKey] = ako.Spec.NodePortSelector.Key
 	cm.Data[NodeValue] = ako.Spec.NodePortSelector.Value

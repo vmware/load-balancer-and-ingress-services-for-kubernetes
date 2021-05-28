@@ -1941,6 +1941,9 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					L4PolicyCollection:   l4Keys,
 					LastModified:         vs["_last_modified"].(string),
 				}
+				if val, ok := vs["enable_rhi"]; ok {
+					vsMetaObj.EnableRhi = val.(bool)
+				}
 				c.VsCacheLocal.AviCacheAdd(k, &vsMetaObj)
 				utils.AviLog.Debugf("Added VS cache key :%s", utils.Stringify(&vsMetaObj))
 
@@ -2175,6 +2178,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 					ParentVSRef:          parentVSKey,
 					L4PolicyCollection:   l4Keys,
 					ServiceMetadataObj:   svc_mdata_obj,
+				}
+				if val, ok := vs["enable_rhi"]; ok {
+					vsMetaObj.EnableRhi = val.(bool)
 				}
 				c.VsCacheMeta.AviCacheAdd(k, &vsMetaObj)
 				vs_cache, found := c.VsCacheMeta.AviCacheGet(parentVSKey)
@@ -2418,6 +2424,7 @@ func ValidateUserInput(client *clients.AviClient) bool {
 
 	isSegroupValid := isCloudValid && validateAndConfigureSeGroup(client)
 	isNodeNetworkValid := isCloudValid && checkNodeNetwork(client)
+	isBGPConfigurationValid := checkBGPParams()
 	isValid := isTenantValid &&
 		isCloudValid &&
 		isSegroupValid &&
@@ -2425,10 +2432,11 @@ func ValidateUserInput(client *clients.AviClient) bool {
 		checkPublicCloud(client) &&
 		isRequiredValuesValid &&
 		checkAndSetVRFFromNetwork(client) &&
-		lib.IsValidCni()
+		lib.IsValidCni() &&
+		isBGPConfigurationValid
 
 	if !isValid {
-		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid {
+		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid || !isBGPConfigurationValid {
 			utils.AviLog.Warn("Invalid input detected, AKO will be rebooted to retry")
 			lib.ShutdownApi()
 		}
@@ -2826,6 +2834,16 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 	vrfName := strings.Split(vrfRef, "#")[1]
 	utils.AviLog.Infof("Setting VRF %s found from network %s", vrfName, networkName)
 	lib.SetVrf(vrfName)
+	return true
+}
+
+func checkBGPParams() bool {
+	enableRhi := lib.GetEnableRHI()
+	bgpPeerLabels := lib.GetGlobalBgpPeerLabels()
+	if !enableRhi && len(bgpPeerLabels) > 0 {
+		utils.AviLog.Error("BGPPeerLabels %s cannot be set if EnableRhi is set to %v.", utils.Stringify(bgpPeerLabels), enableRhi)
+		return false
+	}
 	return true
 }
 
