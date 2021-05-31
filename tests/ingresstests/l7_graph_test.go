@@ -48,7 +48,6 @@ var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
 
 func TestMain(m *testing.M) {
-	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
@@ -1021,7 +1020,7 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 		g.Eventually(func() uint32 {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 			return nodes[0].SniNodes[0].CloudConfigCksum
-		}, 5*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SniNodes[0]"]))
+		}, 15*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SniNodes[0]"]))
 
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() uint32 {

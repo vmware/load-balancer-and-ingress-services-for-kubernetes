@@ -838,15 +838,13 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
-		return found
-	}, 15*time.Second).Should(gomega.Equal(true))
-
 	g.Eventually(func() string {
-		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
-		settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return settingNodes[0].ServiceEngineGroup
+		found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
+		if found {
+			settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return settingNodes[0].ServiceEngineGroup
+		}
+		return ""
 	}, 30*time.Second).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()

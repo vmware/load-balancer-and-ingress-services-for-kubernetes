@@ -151,7 +151,6 @@ func getTestPod(labels map[string]string) corev1.Pod {
 
 func TestMain(m *testing.M) {
 	os.Setenv("SERVICE_TYPE", "NodePortLocal")
-	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")

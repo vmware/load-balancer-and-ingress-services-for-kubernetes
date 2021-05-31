@@ -29,7 +29,6 @@ const mockFilePath = "bootupmock"
 const invalidFilePath = "invalidmock1"
 
 func TestMain(m *testing.M) {
-	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")

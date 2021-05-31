@@ -590,8 +590,8 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
 
 	g.Eventually(func() int {
-		_, aviModel = objects.SharedAviGraphLister().Get(defaultModelName)
-		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		_, aviModel := objects.SharedAviGraphLister().Get(defaultModelName)
+		sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return len(sniVS.PoolRefs)
 	}, 150*time.Second).Should(gomega.Equal(2))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))

@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -31,6 +32,49 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestBootupServiceLBStatusPersistence(t *testing.T) {
+	// create service of type LB, sync service and check for status, remove status
+	// call SyncObjectStatuses to check if status remains the same
+
+	g := gomega.NewGomegaWithT(t)
+
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	svcExample := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+	}).Service()
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	PollForCompletion(t, SINGLEPORTMODEL, 5)
+
+	svcExample.ResourceVersion = "2"
+	svcExample.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).UpdateStatus(context.TODO(), svcExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service Status: %v", err)
+	}
+
+	aviRestClientPool := cache.SharedAVIClients()
+	aviObjCache := cache.SharedAviObjCache()
+	restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
+	restlayer.SyncObjectStatuses()
+
+	g.Eventually(func() string {
+		svc, _ := KubeClient.CoreV1().Services(NAMESPACE).Get(context.TODO(), SINGLEPORTSVC, metav1.GetOptions{})
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			return svc.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 20*time.Second).Should(gomega.Equal("10.250.250.250"))
+
+	TearDownTestForSvcLB(t, g)
+}
 
 // TestNodeAddInNodePortMode tests if VRF creation is skipped in NodePort mode for node addition
 func TestNodeAddInNodePortMode(t *testing.T) {
