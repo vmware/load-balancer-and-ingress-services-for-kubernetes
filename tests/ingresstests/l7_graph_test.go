@@ -185,7 +185,7 @@ func TestL7Model(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 30*time.Second).Should(gomega.Equal(true))
+	}, 50*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))

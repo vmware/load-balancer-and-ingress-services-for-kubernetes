@@ -86,7 +86,7 @@ type NetworkSettings struct {
 	SubnetPrefix string `json:"subnetPrefix,omitempty"`
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
-	// BGPPeerLabels enables selection of BGP peers, for selective VsVip advertisement.
+	// BGPPeerLabels enable selection of BGP peers, for selective VsVip advertisement.
 	BGPPeerLabels []string `json:"bgpPeerLabels,omitempty"`
 	// VipNetworkList holds the names of networks as specified in Avi
 	VipNetworkList []VipNetwork `json:"vipNetworkList,omitempty"`

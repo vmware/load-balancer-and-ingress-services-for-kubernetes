@@ -178,7 +178,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: bgpPeerList
+                key: bgpPeerLabels
           - name: NODE_NETWORK_LIST
             valueFrom:
               configMapKeyRef:
