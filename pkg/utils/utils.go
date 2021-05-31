@@ -468,3 +468,11 @@ func GetTokenFromRestObj(robj interface{}, ctrlAuthToken string) (oldTokenID str
 	refresh = true
 	return
 }
+
+func GetAuthtokenFromEnv() (string, error) {
+	ctrlAuthToken := os.Getenv(ENV_CTRL_AUTHTOKEN)
+	if ctrlAuthToken == "" {
+		return "", errors.New("AVI controller authtoken information missing. Update them in kubernetes secret or via environment variables.")
+	}
+	return ctrlAuthToken, nil
+}

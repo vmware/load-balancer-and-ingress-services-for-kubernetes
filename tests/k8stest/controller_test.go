@@ -116,7 +116,7 @@ func TestMain(m *testing.M) {
 	k8s.NewCRDInformers(crdClient)
 	integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance()
+	integrationtest.NewAviFakeClientInstance(kubeClient)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()

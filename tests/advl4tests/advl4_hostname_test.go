@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 	integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance()
+	integrationtest.NewAviFakeClientInstance(KubeClient)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
@@ -413,7 +413,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 20*time.Second).Should(gomega.Equal("10.250.250.250"))
 
 	gwclassUpdate := FakeGWClass{
 		Name:       gwClassName,

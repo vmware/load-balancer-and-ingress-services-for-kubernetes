@@ -1,6 +1,7 @@
 package bootuptests
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
@@ -68,7 +71,7 @@ func TestMain(m *testing.M) {
 
 	integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance(true)
+	integrationtest.NewAviFakeClientInstance(KubeClient, true)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	os.Exit(m.Run())
@@ -137,6 +140,7 @@ func TestObjDeletion(t *testing.T) {
 
 	injectMWForObjDeletion()
 	integrationtest.AddConfigMap(KubeClient)
+	k8s.PopulateControllerProperties(KubeClient)
 	go k8s.PopulateCache()
 	// DeleteConfigMap(t)
 	integrationtest.ResetMiddleware()
@@ -145,6 +149,7 @@ func TestObjDeletion(t *testing.T) {
 // Injecting middleware to error out cloud properties cache update failure
 func TestNetworkIssueCacheValidationDuringBootup(t *testing.T) {
 	injectMWForCloud()
+	k8s.PopulateControllerProperties(KubeClient)
 	err := k8s.PopulateCache()
 	if err == nil {
 		t.Fatalf("Cache validation failed.")

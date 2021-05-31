@@ -27,6 +27,7 @@ import (
 
 	"github.com/Masterminds/semver"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -982,23 +983,6 @@ func IsAviLBDefaultIngressClassWithClient(kc kubernetes.Interface) (string, bool
 	return "", false
 }
 
-func GetControllerPropertiesFromSecret(kc kubernetes.Interface) (ctrlUsername, ctrlPassword, ctrlAuthToken string, err error) {
-	aviSecret, err := kc.CoreV1().Secrets("avi-system").Get(context.TODO(), "avi-secret", metav1.GetOptions{})
-	if err != nil {
-		return
-	}
-	ctrlUsername = string(aviSecret.Data["username"])
-	if aviSecret.Data["password"] != nil {
-		ctrlPassword = string(aviSecret.Data["password"])
-		return
-	}
-	if aviSecret.Data["authtoken"] != nil {
-		ctrlAuthToken = string(aviSecret.Data["authtoken"])
-		return
-	}
-	return
-}
-
 func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int) (*v1.Secret, error) {
 	var aviSecret *v1.Secret
 	var err error
@@ -1025,17 +1009,13 @@ func UpdateAviSecretWithRetry(kc kubernetes.Interface, aviSecret *v1.Secret, ret
 }
 
 func RefreshAuthToken(kc kubernetes.Interface) {
-
 	retryCount := 5
-	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
-	ctrlUsername, _, ctrlAuthToken, err := GetControllerPropertiesFromSecret(kc)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to read from avi secret, err:", err)
-	}
-	if ctrlUsername == "" || ctrlAuthToken == "" {
-		utils.AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret.")
-		return
-	}
+
+	ctrlProp := objects.SharedCtrlPropLister().CopyAllObjects()
+	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME].(string)
+	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN].(string)
+	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+
 	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
 	if aviClient == nil {
 		utils.AviLog.Errorf("Failed to initialize AVI client")
@@ -1064,7 +1044,6 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		return
 	}
 	token := newTokenResp.(map[string]interface{})["token"].(string)
-	//utils.AviLog.Debugf("new token: %+v", token)
 	aviSecret, err := GetAviSecretWithRetry(kc, retryCount)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to get secret, err: %+v", err)
@@ -1077,6 +1056,7 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		utils.AviLog.Errorf("Failed to update secret, err: %+v", err)
 		return
 	}
+	os.Setenv(utils.ENV_CTRL_AUTHTOKEN, token)
 	utils.AviLog.Infof("Successfully updated authtoken")
 	if oldTokenID != "" {
 		err = utils.DeleteAuthTokenWithRetry(aviClient, oldTokenID, retryCount)

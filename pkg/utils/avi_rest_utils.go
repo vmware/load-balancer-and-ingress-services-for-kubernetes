@@ -37,10 +37,10 @@ var clientonce sync.Once
 
 func SharedAVIClients() *AviRestClientPool {
 	// TODO: Propagate error
-	ctrlUsername := os.Getenv("CTRL_USERNAME")
-	ctrlPassword := os.Getenv("CTRL_PASSWORD")
-	ctrlAuthToken := os.Getenv("CTRL_AUTHTOKEN")
-	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
+	ctrlUsername := os.Getenv(ENV_CTRL_USERNAME)
+	ctrlPassword := os.Getenv(ENV_CTRL_PASSWORD)
+	ctrlAuthToken := os.Getenv(ENV_CTRL_AUTHTOKEN)
+	ctrlIpAddress := os.Getenv(ENV_CTRL_IPADDRESS)
 
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
 		AviLog.Fatal(`AVI controller information missing. Update them in kubernetes secret or via environment variables.`)
@@ -56,6 +56,13 @@ func NewAviRestClientWithToken(api_ep string, username string, authToken string)
 	var aviClient *clients.AviClient
 	var transport *http.Transport
 	var err error
+
+	ctrlUsername := os.Getenv(ENV_CTRL_USERNAME)
+	ctrlAuthToken := os.Getenv(ENV_CTRL_AUTHTOKEN)
+	ctrlIpAddress := os.Getenv(ENV_CTRL_IPADDRESS)
+	if ctrlUsername == "" || ctrlAuthToken == "" || ctrlIpAddress == "" {
+		AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
+	}
 
 	rootPEMCerts := os.Getenv("CTRL_CA_DATA")
 	if rootPEMCerts != "" {
@@ -110,12 +117,22 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 			var aviClient *clients.AviClient
 			var err error
 
-			if rootPEMCerts != "" {
-				aviClient, err = clients.NewAviClient(api_ep, username,
-					session.SetPassword(password), session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+			if authToken == "" {
+				if rootPEMCerts != "" {
+					aviClient, err = clients.NewAviClient(api_ep, username,
+						session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+				} else {
+					aviClient, err = clients.NewAviClient(api_ep, username,
+						session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+				}
 			} else {
-				aviClient, err = clients.NewAviClient(api_ep, username,
-					session.SetPassword(password), session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+				if rootPEMCerts != "" {
+					aviClient, err = clients.NewAviClient(api_ep, username,
+						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromEnv), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+				} else {
+					aviClient, err = clients.NewAviClient(api_ep, username,
+						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromEnv), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+				}
 			}
 			if err != nil {
 				AviLog.Warnf("NewAviClient returned err %v", err)

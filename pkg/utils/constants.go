@@ -75,6 +75,10 @@ const (
 	K8S_ETIMEDOUT                 = "timed out"
 	ADVANCED_L4                   = "ADVANCED_L4"
 	SERVICES_API                  = "SERVICES_API"
+	ENV_CTRL_USERNAME             = "CTRL_USERNAME"
+	ENV_CTRL_PASSWORD             = "CTRL_PASSWORD"
+	ENV_CTRL_AUTHTOKEN            = "CTRL_AUTHTOKEN"
+	ENV_CTRL_IPADDRESS            = "CTRL_IPADDRESS"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours

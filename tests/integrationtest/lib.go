@@ -875,8 +875,7 @@ func AddMiddleware(exec InjectFault) {
 func ResetMiddleware() {
 	FakeServerMiddleware = nil
 }
-
-func NewAviFakeClientInstance(skipCachePopulation ...bool) {
+func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation ...bool) {
 	if AviFakeClientInstance == nil {
 		AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -900,6 +899,7 @@ func NewAviFakeClientInstance(skipCachePopulation ...bool) {
 
 		// resets avi client pool instance, allows to connect with the new `ts` server
 		cache.AviClientInstance = nil
+		k8s.PopulateControllerProperties(kubeclient)
 		if len(skipCachePopulation) == 0 || skipCachePopulation[0] == false {
 			k8s.PopulateCache()
 		}

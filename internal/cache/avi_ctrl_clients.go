@@ -20,6 +20,7 @@ import (
 	"github.com/avinetworks/sdk/go/session"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -31,13 +32,20 @@ var AviClientInstance *utils.AviRestClientPool
 func SharedAVIClients() *utils.AviRestClientPool {
 	var err error
 	var connectionStatus string
+	ctrlProp := objects.SharedCtrlPropLister().CopyAllObjects()
+	var ctrlUsername, ctrlPassword, ctrlAuthToken string
 
-	kc := utils.GetInformers().ClientSet
-	ctrlUsername, ctrlPassword, ctrlAuthToken, err := lib.GetControllerPropertiesFromSecret(kc)
-	if err != nil {
-		utils.AviLog.Fatalf("Failed to read details from secret, err:", err)
+	utils.AviLog.Infof("%+v", ctrlProp)
+	if ctrlProp[utils.ENV_CTRL_USERNAME] != nil {
+		ctrlUsername = ctrlProp[utils.ENV_CTRL_USERNAME].(string)
 	}
-	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
+	if ctrlProp[utils.ENV_CTRL_PASSWORD] != nil {
+		ctrlPassword = ctrlProp[utils.ENV_CTRL_PASSWORD].(string)
+	}
+	if ctrlProp[utils.ENV_CTRL_AUTHTOKEN] != nil {
+		ctrlAuthToken = ctrlProp[utils.ENV_CTRL_AUTHTOKEN].(string)
+	}
+	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
 		utils.AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
 	}

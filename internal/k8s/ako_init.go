@@ -83,7 +83,14 @@ func PopulateNodeCache(cs *kubernetes.Clientset) {
 	nodeCache := objects.SharedNodeLister()
 	nodeCache.PopulateAllNodes(cs)
 }
-
+func PopulateControllerProperties(cs kubernetes.Interface) error {
+	ctrlPropCache := objects.SharedCtrlPropLister()
+	err := ctrlPropCache.PopulateCtrlProp(cs)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func delConfigFromData(data map[string]string) bool {
 	if val, ok := data[lib.DeleteConfig]; ok {
 		if val == "true" {
@@ -278,7 +285,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	} else {
 		// First boot sync
 		err = c.FullSyncK8s()
-		ctrlAuthToken := os.Getenv("CTRL_AUTHTOKEN")
+		ctrlAuthToken := os.Getenv(utils.ENV_CTRL_AUTHTOKEN)
 		if ctrlAuthToken != "" {
 			c.RefreshAuthToken()
 		}
