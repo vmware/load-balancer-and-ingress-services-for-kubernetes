@@ -478,7 +478,6 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		// to return all AKO ingestable Ingresses.
 		aviIngClasses := make(map[string]bool)
 		if utils.GetIngressClassEnabled() {
-			//It seems v1bet1/ingressclass deprecated in 1.19+. Should we use networking/v1 ingress class ?
 			ingClassList, err := mClient.NetworkingV1beta1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				utils.AviLog.Warnf("Could not get the IngressClass object for UpdateStatus: %s", err)
