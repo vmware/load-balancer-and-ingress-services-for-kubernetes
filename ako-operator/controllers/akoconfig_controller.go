@@ -134,13 +134,15 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *AKOConfigReconciler) UpdateAKOConfigStatus(ctx context.Context, state string,
 	akoConfig *akov1alpha1.AKOConfig, log logr.Logger) error {
 
-	log.V(0).Info("updating ako config status", "status message", state)
-	akoConfig.Status.State = state
 	patch := client.MergeFrom(akoConfig.DeepCopy())
-	err := r.Client.Patch(ctx, akoConfig, patch)
+	akoConfig.Status.State = state
+	log.V(0).Info("patch data", "patch", patch)
+	err := r.Status().Patch(ctx, akoConfig, patch)
 	if err != nil {
 		return err
 	}
+
+	log.V(1).Info("updated status of AKOConfig", "state", state)
 	return nil
 }
 
