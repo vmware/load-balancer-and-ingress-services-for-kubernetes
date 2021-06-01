@@ -83,6 +83,7 @@ var ConfigMapEnvVars = map[string]string{
 	"CLOUD_NAME":                 CloudName,
 	"CLUSTER_NAME":               ClusterName,
 	"ENABLE_RHI":                 EnableRHI,
+	"BGP_PEER_LABELS":            BgpPeerLabels,
 	"DEFAULT_DOMAIN":             DefaultDomain,
 	"DISABLE_STATIC_ROUTE_SYNC":  DisableStaticRouteSync,
 	"DEFAULT_ING_CONTROLLER":     DefaultIngController,
