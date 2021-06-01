@@ -137,8 +137,10 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 
 		for i := range gwList.Items {
 			if _, ok := aviGWClasses[gwList.Items[i].Spec.GatewayClassName]; ok {
-				ing := gwList.Items[i]
-				gwMap[ing.Namespace+"/"+ing.Name] = &ing
+				gw := gwList.Items[i]
+				if utils.CheckIfNamespaceAccepted(gw.Namespace) {
+					gwMap[gw.Namespace+"/"+gw.Name] = &gw
+				}
 			}
 		}
 
