@@ -149,7 +149,7 @@ var sfJson = `
                                 }
                             },
                             {
-                                "name": "AUTO_FQDN",
+                                "name": "AUTO_L4_FQDN",
                                 "valueFrom": {
                                     "configMapKeyRef": {
                                         "key": "autoFQDN",
