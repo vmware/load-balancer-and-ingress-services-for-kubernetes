@@ -27,7 +27,6 @@ import (
 
 	"github.com/Masterminds/semver"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -1010,10 +1009,9 @@ func UpdateAviSecretWithRetry(kc kubernetes.Interface, aviSecret *v1.Secret, ret
 
 func RefreshAuthToken(kc kubernetes.Interface) {
 	retryCount := 5
-
-	ctrlProp := objects.SharedCtrlPropLister().CopyAllObjects()
-	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME].(string)
-	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN].(string)
+	ctrlProp := utils.SharedCtrlProp().GetAllCtrlProp()
+	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME]
+	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
 	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
 
 	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
@@ -1033,6 +1031,7 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	}
 	if !refresh {
 		utils.AviLog.Infof("Skipping AuthToken Refresh")
+		return
 	}
 	newTokenResp, err := utils.CreateAuthTokenWithRetry(aviClient, retryCount)
 	if err != nil {
@@ -1056,7 +1055,6 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		utils.AviLog.Errorf("Failed to update secret, err: %+v", err)
 		return
 	}
-	os.Setenv(utils.ENV_CTRL_AUTHTOKEN, token)
 	utils.AviLog.Infof("Successfully updated authtoken")
 	if oldTokenID != "" {
 		err = utils.DeleteAuthTokenWithRetry(aviClient, oldTokenID, retryCount)
@@ -1064,4 +1062,24 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 			utils.AviLog.Warnf("Failed to delete old token %s, err: %+v", oldTokenID, err)
 		}
 	}
+}
+
+func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]string, error) {
+	ctrlProps := make(map[string]string)
+	aviSecret, err := cs.CoreV1().Secrets(AviNS).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+	if err != nil {
+		return ctrlProps, err
+	}
+	ctrlProps[utils.ENV_CTRL_USERNAME] = string(aviSecret.Data["username"])
+	if aviSecret.Data["password"] != nil {
+		ctrlProps[utils.ENV_CTRL_PASSWORD] = string(aviSecret.Data["password"])
+	} else {
+		ctrlProps[utils.ENV_CTRL_PASSWORD] = ""
+	}
+	if aviSecret.Data["authtoken"] != nil {
+		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = string(aviSecret.Data["authtoken"])
+	} else {
+		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = ""
+	}
+	return ctrlProps, nil
 }

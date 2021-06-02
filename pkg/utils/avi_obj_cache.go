@@ -25,6 +25,48 @@ import (
 	"github.com/avinetworks/sdk/go/session"
 )
 
+type CtrlPropCache struct {
+	*AviCache
+}
+
+var ctrlPropOnce sync.Once
+var ctrlPropCacheInstance *AviCache
+
+func SharedCtrlProp() *CtrlPropCache {
+	ctrlPropOnce.Do(func() {
+		ctrlPropCacheInstance = NewAviCache()
+	})
+	return &CtrlPropCache{ctrlPropCacheInstance}
+}
+
+func (o *CtrlPropCache) PopulateCtrlProp(cp map[string]string) {
+	for k := range cp {
+		o.AviCacheAdd(k, cp[k])
+	}
+}
+func (o *CtrlPropCache) GetAllCtrlProp() map[string]string {
+	ctrlProps := make(map[string]string)
+	ctrlUsername, ok := o.AviCacheGet(ENV_CTRL_USERNAME)
+	if !ok || ctrlUsername == nil {
+		ctrlProps[ENV_CTRL_USERNAME] = ""
+	} else {
+		ctrlProps[ENV_CTRL_USERNAME] = ctrlUsername.(string)
+	}
+	ctrlPassword, ok := o.AviCacheGet(ENV_CTRL_PASSWORD)
+	if !ok || ctrlPassword == nil {
+		ctrlProps[ENV_CTRL_PASSWORD] = ""
+	} else {
+		ctrlProps[ENV_CTRL_PASSWORD] = ctrlPassword.(string)
+	}
+	ctrlAuthToken, ok := o.AviCacheGet(ENV_CTRL_AUTHTOKEN)
+	if !ok || ctrlAuthToken == nil {
+		ctrlProps[ENV_CTRL_AUTHTOKEN] = ""
+	} else {
+		ctrlProps[ENV_CTRL_AUTHTOKEN] = ctrlAuthToken.(string)
+	}
+	return ctrlProps
+}
+
 type AviObjCache struct {
 	VsCache         *AviCache
 	PgCache         *AviCache

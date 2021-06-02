@@ -1034,9 +1034,6 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 
 func validateAviSecret(secret *corev1.Secret) bool {
 	if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.AviSecret {
-		// if the secret is updated or deleted we shutdown API server
-		//utils.AviLog.Warnf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
-		//lib.ShutdownApi()
 		return false
 	}
 	return true

@@ -33,34 +33,14 @@ type AviRestClientPool struct {
 }
 
 var AviClientInstance *AviRestClientPool
-var clientonce sync.Once
-
-func SharedAVIClients() *AviRestClientPool {
-	// TODO: Propagate error
-	ctrlUsername := os.Getenv(ENV_CTRL_USERNAME)
-	ctrlPassword := os.Getenv(ENV_CTRL_PASSWORD)
-	ctrlAuthToken := os.Getenv(ENV_CTRL_AUTHTOKEN)
-	ctrlIpAddress := os.Getenv(ENV_CTRL_IPADDRESS)
-
-	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
-		AviLog.Fatal(`AVI controller information missing. Update them in kubernetes secret or via environment variables.`)
-	}
-	clientonce.Do(func() {
-		AviClientInstance, _ = NewAviRestClientPool(NumWorkersGraph,
-			ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken)
-	})
-	return AviClientInstance
-}
 
 func NewAviRestClientWithToken(api_ep string, username string, authToken string) *clients.AviClient {
 	var aviClient *clients.AviClient
 	var transport *http.Transport
 	var err error
 
-	ctrlUsername := os.Getenv(ENV_CTRL_USERNAME)
-	ctrlAuthToken := os.Getenv(ENV_CTRL_AUTHTOKEN)
 	ctrlIpAddress := os.Getenv(ENV_CTRL_IPADDRESS)
-	if ctrlUsername == "" || ctrlAuthToken == "" || ctrlIpAddress == "" {
+	if username == "" || authToken == "" || ctrlIpAddress == "" {
 		AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
 	}
 
@@ -128,10 +108,10 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 			} else {
 				if rootPEMCerts != "" {
 					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromEnv), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache), session.SetNoControllerStatusCheck, session.SetTransport(transport))
 				} else {
 					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromEnv), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
 				}
 			}
 			if err != nil {

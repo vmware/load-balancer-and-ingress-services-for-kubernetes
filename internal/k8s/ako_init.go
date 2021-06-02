@@ -83,12 +83,14 @@ func PopulateNodeCache(cs *kubernetes.Clientset) {
 	nodeCache := objects.SharedNodeLister()
 	nodeCache.PopulateAllNodes(cs)
 }
+
 func PopulateControllerProperties(cs kubernetes.Interface) error {
-	ctrlPropCache := objects.SharedCtrlPropLister()
-	err := ctrlPropCache.PopulateCtrlProp(cs)
+	ctrlPropCache := utils.SharedCtrlProp()
+	ctrlProps, err := lib.GetControllerPropertiesFromSecret(cs)
 	if err != nil {
 		return err
 	}
+	ctrlPropCache.PopulateCtrlProp(ctrlProps)
 	return nil
 }
 func delConfigFromData(data map[string]string) bool {
@@ -285,8 +287,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	} else {
 		// First boot sync
 		err = c.FullSyncK8s()
-		ctrlAuthToken := os.Getenv(utils.ENV_CTRL_AUTHTOKEN)
-		if ctrlAuthToken != "" {
+		if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
 			c.RefreshAuthToken()
 		}
 		if err != nil {
@@ -304,7 +305,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
 		}
 
-		if ctrlAuthToken != "" {
+		if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
 			tokenWorker = utils.NewFullSyncThread(time.Duration(utils.RefreshAuthTokenInterval) * time.Hour)
 			tokenWorker.SyncFunction = c.RefreshAuthToken
 			go tokenWorker.Run()
