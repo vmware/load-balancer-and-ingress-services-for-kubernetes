@@ -670,6 +670,11 @@ func (v *AviVsNode) CalculateCheckSum() {
 		vsRefs += utils.Stringify(policies)
 	}
 
+	if len(v.ServiceMetadata.HostNames) > 0 {
+		sort.Strings(v.ServiceMetadata.HostNames)
+		vsRefs += utils.Stringify(v.ServiceMetadata.HostNames)
+	}
+
 	sort.Strings(checksumStringSlice)
 	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
 		v.ApplicationProfile +
@@ -906,15 +911,15 @@ func (v *AviVSVIPNode) GetCheckSum() uint32 {
 
 func (v *AviVSVIPNode) CalculateCheckSum() {
 	var checksum uint32
-	sort.Strings(v.FQDNs)
-	sort.Strings(v.NetworkNames)
 	if len(v.FQDNs) > 0 {
+		sort.Strings(v.FQDNs)
 		checksum = utils.Hash(utils.Stringify(v.FQDNs))
 	}
 	if v.IPAddress != "" {
 		checksum += utils.Hash(v.IPAddress)
 	}
 	if len(v.NetworkNames) > 0 {
+		sort.Strings(v.NetworkNames)
 		checksum += utils.Hash(utils.Stringify(v.NetworkNames))
 	}
 	if lib.GetGRBACSupport() {

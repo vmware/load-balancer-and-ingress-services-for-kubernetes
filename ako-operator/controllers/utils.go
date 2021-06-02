@@ -91,7 +91,7 @@ var ConfigMapEnvVars = map[string]string{
 	"SUBNET_PREFIX":              SubnetPrefix,
 	"VIP_NETWORK_LIST":           VipNetworkList,
 	"ADVANCED_L4":                AdvancedL4,
-	"AUTO_FQDN":                  AutoFQDN,
+	"AUTO_L4_FQDN":               AutoFQDN,
 	"SYNC_NAMESPACE":             SyncNamespace,
 	"SERVICE_TYPE":               ServiceType,
 	"NODE_KEY":                   NodeKey,

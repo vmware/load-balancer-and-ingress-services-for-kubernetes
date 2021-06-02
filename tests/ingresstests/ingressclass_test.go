@@ -24,6 +24,7 @@ import (
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -287,7 +288,8 @@ func TestAviInfraSettingNamingConvention(t *testing.T) {
 
 	g.Eventually(func() string {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
-			if settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS(); len(settingNodes) > 0 && len(settingNodes[0].SniNodes) > 0 {
+			if settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS(); len(settingNodes) > 0 &&
+				len(settingNodes[0].SniNodes) > 0 {
 				return settingNodes[0].SniNodes[0].Name
 			}
 		}
@@ -907,6 +909,8 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
 	SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: settingModelName}
 
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -959,14 +963,18 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 		return setting.Status.Status
 	}, 15*time.Second).Should(gomega.Equal("Rejected"))
 
+	integrationtest.TeardownAviInfraSetting(t, settingName)
+	TeardownIngressClass(t, ingClassName)
 	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
-	TeardownIngressClass(t, ingClassName)
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 50*time.Second).Should(gomega.Equal(false))
 }
 
 func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
@@ -976,6 +984,8 @@ func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 	secretName := "my-secret"
 	modelName := "admin/cluster--Shared-L7-1"
 	settingModelName := "admin/cluster--Shared-L7-my-infrasetting-1"
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: settingModelName}
 
 	SetUpTestForIngress(t, modelName, settingModelName)
 	integrationtest.RemoveDefaultIngressClass()
@@ -1022,12 +1032,16 @@ func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect((settingNodes[0].VSVIPRefs[0].BGPPeerLabels)[0]).Should(gomega.ContainSubstring("peerUPDATE"))
 
+	integrationtest.TeardownAviInfraSetting(t, settingName)
+	TeardownIngressClass(t, ingClassName)
 	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
-	TeardownIngressClass(t, ingClassName)
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 50*time.Second).Should(gomega.Equal(false))
 }
