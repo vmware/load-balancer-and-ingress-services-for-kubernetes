@@ -107,12 +107,14 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if !ako.GetDeletionTimestamp().IsZero() {
 		if finalizerInList(ako.GetFinalizers(), CleanupFinalizer) {
 			if err := r.CleanupArtifacts(ctx, log); err != nil {
+				r.UpdateAKOConfigStatus(ctx, CleanupErrMsg+err.Error(), &ako, log)
 				return ctrl.Result{}, err
 			}
 
 			patch := client.MergeFrom(ako.DeepCopy())
 			ako.Finalizers = removeFinalizer(ako.Finalizers, CleanupFinalizer)
 			if err := r.Patch(context.TODO(), &ako, patch); err != nil {
+				r.UpdateAKOConfigStatus(ctx, FinalizerRemoveErrMsg+err.Error(), &ako, log)
 				return ctrl.Result{}, err
 			}
 		}
@@ -123,10 +125,25 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// reconcile all objects
 	err = r.ReconcileAllArtifacts(ctx, ako, log)
 	if err != nil {
+		r.UpdateAKOConfigStatus(ctx, ArtifactsReconcileErrMsg+err.Error(), &ako, log)
 		return ctrl.Result{}, err
 	}
+	return ctrl.Result{}, r.UpdateAKOConfigStatus(ctx, SuccessfullyDeployedMsg, &ako, log)
+}
 
-	return ctrl.Result{}, nil
+func (r *AKOConfigReconciler) UpdateAKOConfigStatus(ctx context.Context, state string,
+	akoConfig *akov1alpha1.AKOConfig, log logr.Logger) error {
+
+	patch := client.MergeFrom(akoConfig.DeepCopy())
+	akoConfig.Status.State = state
+	log.V(0).Info("patch data", "patch", patch)
+	err := r.Status().Patch(ctx, akoConfig, patch)
+	if err != nil {
+		return err
+	}
+
+	log.V(1).Info("updated status of AKOConfig", "state", state)
+	return nil
 }
 
 func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger) error {
@@ -173,51 +190,57 @@ func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako ako
 
 func (r *AKOConfigReconciler) CleanupArtifacts(ctx context.Context, log logr.Logger) error {
 	log.V(0).Info("cleaning up all the artifacts")
-	objList := getObjectList()
-	if len(objList) == 0 {
-		// AKOConfig was deleted, but during the same time, the operator was restarted
-		var cm corev1.ConfigMap
-		if err := r.Get(ctx, getConfigMapName(), &cm); err != nil {
-			log.V(0).Info("error getting configmap", "error", err)
-		} else {
-			objList[getConfigMapName()] = &cm
-		}
-		var sf appsv1.StatefulSet
-		if err := r.Get(ctx, getSFNamespacedName(), &sf); err != nil {
-			log.V(0).Info("error getting statefulset", "error", err)
-		} else {
-			objList[getSFNamespacedName()] = &sf
-		}
-		var cr rbacv1.ClusterRole
-		if err := r.Get(ctx, getCRName(), &cr); err != nil {
-			log.V(0).Info("error getting clusterrole", "error", err)
-		} else {
-			objList[getCRName()] = &cr
-		}
-		var crb rbacv1.ClusterRoleBinding
-		if err := r.Get(ctx, getCRBName(), &crb); err != nil {
-			log.V(0).Info("error getting clusterrolebinding", "error", err)
-		} else {
-			objList[getCRBName()] = &crb
-		}
-		var sa v1.ServiceAccount
-		if err := r.Get(ctx, getSAName(), &sa); err != nil {
-			log.V(0).Info("error getting serviceaccount", "error", err)
-		} else {
-			objList[getSAName()] = &sa
-		}
-		var psp policyv1beta1.PodSecurityPolicy
-		if err := r.Get(ctx, getPSPName(), &psp); err != nil {
-			log.V(0).Info("error getting podsecuritypolicy", "error", err)
-		} else {
-			objList[getPSPName()] = &psp
-		}
+	objList := make(map[types.NamespacedName]runtime.Object)
+
+	// Fetch all artifacts and delete them
+	var cm corev1.ConfigMap
+	if err := r.Get(ctx, getConfigMapName(), &cm); err != nil {
+		log.V(0).Info("error getting configmap", "error", err)
+	} else {
+		log.V(0).Info("will cleanup configmap", "configmap", getConfigMapName())
+		objList[getConfigMapName()] = &cm
+	}
+	var sf appsv1.StatefulSet
+	if err := r.Get(ctx, getSFNamespacedName(), &sf); err != nil {
+		log.V(0).Info("error getting statefulset", "error", err)
+	} else {
+		log.V(0).Info("will cleanup statefulset", "statefulset", getSFNamespacedName())
+		objList[getSFNamespacedName()] = &sf
+	}
+	var cr rbacv1.ClusterRole
+	if err := r.Get(ctx, getCRName(), &cr); err != nil {
+		log.V(0).Info("error getting clusterrole", "error", err)
+	} else {
+		log.V(0).Info("will delete clusterrole", "clusterrole", getCRName())
+		objList[getCRName()] = &cr
+	}
+	var crb rbacv1.ClusterRoleBinding
+	if err := r.Get(ctx, getCRBName(), &crb); err != nil {
+		log.V(0).Info("error getting clusterrolebinding", "error", err)
+	} else {
+		log.V(0).Info("will delete clusterrolebinding", "clusterrolebinding", getCRBName())
+		objList[getCRBName()] = &crb
+	}
+	var sa v1.ServiceAccount
+	if err := r.Get(ctx, getSAName(), &sa); err != nil {
+		log.V(0).Info("error getting serviceaccount", "error", err)
+	} else {
+		log.V(0).Info("will delete serviceaccount", "serviceaccount", getSAName())
+		objList[getSAName()] = &sa
+	}
+	var psp policyv1beta1.PodSecurityPolicy
+	if err := r.Get(ctx, getPSPName(), &psp); err != nil {
+		log.V(0).Info("error getting podsecuritypolicy", "error", err)
+	} else {
+		log.V(0).Info("will delete pod security policy", "podsecuritypolicy", getPSPName())
+		objList[getPSPName()] = &psp
 	}
 	for objName, obj := range objList {
 		if err := r.deleteIfExists(ctx, objName, obj); err != nil {
 			log.Error(err, "error while deleting object")
 			return err
 		}
+		log.V(0).Info("deleted object", "object", objName)
 	}
 	return nil
 }

@@ -144,39 +144,11 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[CloudName] = ako.Spec.ControllerSettings.CloudName
 	cm.Data[ClusterName] = ako.Spec.AKOSettings.ClusterName
 	cm.Data[DefaultDomain] = ako.Spec.L4Settings.DefaultDomain
-	disableStaticRouteSync := "false"
-	if ako.Spec.AKOSettings.DisableStaticRouteSync {
-		disableStaticRouteSync = "true"
-	}
-	cm.Data[DisableStaticRouteSync] = disableStaticRouteSync
-
-	defaultIngController := "false"
-	if ako.Spec.L7Settings.DefaultIngController {
-		defaultIngController = "true"
-	}
-	cm.Data[DefaultIngController] = defaultIngController
-
+	cm.Data[DisableStaticRouteSync] = strconv.FormatBool(ako.Spec.AKOSettings.DisableStaticRouteSync)
+	cm.Data[DefaultIngController] = strconv.FormatBool(ako.Spec.L7Settings.DefaultIngController)
 	cm.Data[SubnetIP] = ako.Spec.NetworkSettings.SubnetIP
 	cm.Data[SubnetPrefix] = ako.Spec.NetworkSettings.SubnetPrefix
 	cm.Data[LogLevel] = string(ako.Spec.LogLevel)
-
-	deleteConfig := "false"
-	if ako.Spec.AKOSettings.DeleteConfig {
-		deleteConfig = "true"
-	}
-	cm.Data[DeleteConfig] = deleteConfig
-
-	advancedL4 := "false"
-	if ako.Spec.L4Settings.AdvancedL4 {
-		advancedL4 = "true"
-	}
-	cm.Data[AdvancedL4] = advancedL4
-
-	enableRHI := "false"
-	if ako.Spec.NetworkSettings.EnableRHI {
-		enableRHI = "true"
-	}
-	cm.Data[EnableRHI] = enableRHI
 
 	var err error
 	vipListBytes, err := json.Marshal(ako.Spec.NetworkSettings.VipNetworkList)
@@ -184,11 +156,14 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		return cm, err
 	}
 	cm.Data[VipNetworkList] = string(vipListBytes)
-
+	cm.Data[DeleteConfig] = strconv.FormatBool(ako.Spec.AKOSettings.DeleteConfig)
+	cm.Data[AdvancedL4] = strconv.FormatBool(ako.Spec.L4Settings.AdvancedL4)
+	cm.Data[EnableRHI] = strconv.FormatBool(ako.Spec.NetworkSettings.EnableRHI)
 	cm.Data[ServiceType] = string(ako.Spec.L7Settings.ServiceType)
 	cm.Data[NodeKey] = ako.Spec.NodePortSelector.Key
 	cm.Data[NodeValue] = ako.Spec.NodePortSelector.Value
 	cm.Data[ServiceEngineGroupName] = ako.Spec.ControllerSettings.ServiceEngineGroupName
+
 	apiServerPort := ako.Spec.AKOSettings.APIServerPort
 	if apiServerPort > 0 {
 		cm.Data[APIServerPort] = strconv.Itoa(apiServerPort)
@@ -227,13 +202,9 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[NSSyncLabelKey] = ako.Spec.AKOSettings.NSSelector.LabelKey
 	cm.Data[NSSyncLabelValue] = ako.Spec.AKOSettings.NSSelector.LabelValue
 
-	tenantsPerCluster := "false"
-	if ako.Spec.ControllerSettings.TenantsPerCluster {
-		tenantsPerCluster = "true"
-	}
-	cm.Data[TenantsPerCluster] = tenantsPerCluster
+	cm.Data[TenantsPerCluster] = strconv.FormatBool(ako.Spec.ControllerSettings.TenantsPerCluster)
 	cm.Data[TenantName] = ako.Spec.ControllerSettings.TenantName
 	cm.Data[AutoFQDN] = ako.Spec.L4Settings.AutoFQDN
-
+	cm.Data[Layer7Only] = strconv.FormatBool(ako.Spec.Layer7Only)
 	return cm, nil
 }

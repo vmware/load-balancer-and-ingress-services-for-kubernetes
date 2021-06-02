@@ -57,7 +57,7 @@ type AKOSettings struct {
 	NSSelector NamespaceSelector `json:"namespaceSelector,omitempty"`
 	// EnableEVH enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services
 	EnableEVH bool `json:"enableEVH,omitempty"`
-	// Layer7Only enables AKO to do Layer 7 loadbalancing only
+	// Layer7Only flag, if set to true, then AKO controller will only do layer 7 loadbalancing
 	Layer7Only bool `json:"layer7Only,omitempty"`
 	// ServicesAPI enables AKO to do Layer 4 loadbalancing using Services API
 	ServicesAPI bool `json:"servicesAPI,omitempty"`
