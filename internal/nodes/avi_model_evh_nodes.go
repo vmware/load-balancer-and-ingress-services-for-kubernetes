@@ -416,7 +416,6 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	})
 
 	var checksumStringSlice []string
-	var evhChecksum uint32
 
 	for _, ds := range v.HTTPDSrefs {
 		checksumStringSlice = append(checksumStringSlice, "HTTPDS"+ds.Name)
@@ -440,7 +439,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	//Required to capture changes in evh child nodes.
 	for _, EVHNode := range v.EvhNodes {
-		evhChecksum += EVHNode.GetCheckSum()
+		checksumStringSlice = append(checksumStringSlice, "EVHChildNode"+EVHNode.Name)
 	}
 
 	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
@@ -465,13 +464,12 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	}
 
 	sort.Strings(checksumStringSlice)
-	checksum := utils.Hash(strings.Join(checksumStringSlice, delim)+
-		v.ApplicationProfile+
-		v.ServiceEngineGroup+
-		v.NetworkProfile+
-		utils.Stringify(portproto)+
-		v.EvhHostName) +
-		evhChecksum
+	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
+		v.ApplicationProfile +
+		v.ServiceEngineGroup +
+		v.NetworkProfile +
+		utils.Stringify(portproto) +
+		v.EvhHostName)
 
 	if vsRefs != "" {
 		checksum += utils.Hash(vsRefs)
