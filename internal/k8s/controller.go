@@ -1112,25 +1112,33 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		go c.informers.NodeInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)
 
-		go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
-		go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
-		go lib.GetCRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
-		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().AviInfraSettingInformer.Informer().HasSynced) {
-			runtime.HandleError(fmt.Errorf("Timed out waiting for AviInfraSettingInformer caches to sync"))
+		if lib.GetAviInfraSettingEnabled() {
+			go lib.GetCRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
+			if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().AviInfraSettingInformer.Informer().HasSynced) {
+				runtime.HandleError(fmt.Errorf("timed out waiting for AviInfraSettingInformer caches to sync"))
+			}
 		}
+
 		// separate wait steps to try getting hostrules synced first,
 		// since httprule has a key relation to hostrules.
-		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {
-			runtime.HandleError(fmt.Errorf("Timed out waiting for HostRule caches to sync"))
+		if lib.GetHostRuleEnabled() {
+			go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
+			if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {
+				runtime.HandleError(fmt.Errorf("timed out waiting for HostRule caches to sync"))
+			}
 		}
-		if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced) {
-			runtime.HandleError(fmt.Errorf("Timed out waiting for HTTPRule caches to sync"))
+
+		if lib.GetHttpRuleEnabled() {
+			go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
+			if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced) {
+				runtime.HandleError(fmt.Errorf("timed out waiting for HTTPRule caches to sync"))
+			}
 		}
 		utils.AviLog.Info("CRD caches synced")
 	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced")
 	}
