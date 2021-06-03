@@ -989,93 +989,8 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 		}
 
-		certsBuilt := false
-		evhSecretName := tlssetting.SecretName
-		re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
-		if re.MatchString(evhSecretName) {
-			certsBuilt = true
-		}
-
-		evhNode := vsNode[0].GetEvhNodeForName(lib.GetEvhNodeName(ingName, namespace, host, infraSettingName))
-		if evhNode == nil {
-			evhNode = &AviEvhVsNode{
-				Name:         lib.GetEvhNodeName(ingName, namespace, host, infraSettingName),
-				VHParentName: vsNode[0].Name,
-				Tenant:       lib.GetTenant(),
-				EVHParent:    false,
-				EvhHostName:  host,
-				ServiceMetadata: avicache.ServiceMetadataObj{
-					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(host),
-					Namespace:            namespace,
-					HostNames:            hosts,
-				},
-			}
-		} else {
-			// The evh node exists, just update the svc metadata
-			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
-			evhNode.ServiceMetadata.Namespace = namespace
-			evhNode.ServiceMetadata.HostNames = hosts
-			if evhNode.SSLKeyCertAviRef != "" {
-				certsBuilt = true
-			}
-		}
-		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
-		evhNode.ServiceEngineGroup = lib.GetSEGName()
-		evhNode.VrfContext = lib.GetVrf()
-		var hostsToRemove []string
-		hostsToRemove = append(hostsToRemove, host)
-		found, gsFqdnCache := objects.SharedCRDLister().GetLocalFqdnToGSFQDNMapping(host)
-		if paths.gslbHostHeader == "" {
-			// If the gslbHostHeader is empty but it is present in the in memory cache, then add it as a candidate for removal and  remove the in memory cache relationship
-			if found {
-				hostsToRemove = append(hostsToRemove, gsFqdnCache)
-				objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(host)
-			}
-		} else {
-			if paths.gslbHostHeader != gsFqdnCache {
-				hostsToRemove = append(hostsToRemove, gsFqdnCache)
-			}
-			objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(host, paths.gslbHostHeader)
-		}
-		if !certsBuilt {
-			certsBuilt = aviModel.(*AviObjectGraph).BuildTlsCertNodeForEvh(routeIgrObj.GetSvcLister(), vsNode[0], namespace, tlssetting, key, infraSettingName, host)
-		}
-		if certsBuilt {
-			hosts := []string{host}
-			if paths.gslbHostHeader != "" {
-				hosts = append(hosts, paths.gslbHostHeader)
-			}
-			aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, paths.ingressHPSvc)
-			foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
-			if !foundEvhModel {
-				vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
-			}
-
-			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
-
-			if tlssetting.redirect {
-				aviModel.(*AviObjectGraph).BuildPolicyRedirectForVSForEvh(evhNode, hosts, namespace, ingName, key)
-			}
-			// Enable host rule
-			BuildL7HostRule(host, namespace, ingName, key, evhNode)
-			manipulateEvhNodeForSSL(vsNode[0], evhNode)
-
-		} else {
-			hostMapOk, ingressHostMap := SharedHostNameLister().Get(host)
-			if hostMapOk {
-				// Replace the ingress map for this host.
-				keyToRemove := namespace + "/" + ingName
-				delete(ingressHostMap.HostNameMap, keyToRemove)
-				SharedHostNameLister().Save(host, ingressHostMap)
-			}
-			// Since the cert couldn't be built, check if this EVH is affected by only in ingress if so remove the EVH node from the model
-			if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
-				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
-				RemoveEvhInModel(evhNode.Name, vsNode, key)
-				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
-			}
-
-		}
+		modelGraph := aviModel.(*AviObjectGraph)
+		modelGraph.BuildModelGraphForSecureEVH(routeIgrObj, ingressHostMap, hosts, tlssetting, ingName, namespace, infraSettingName, host, key, paths)
 		// Only add this node to the list of models if the checksum has changed.
 		utils.AviLog.Debugf("key: %s, Saving Model: %v", key, utils.Stringify(vsNode))
 		modelChanged := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
@@ -1086,6 +1001,100 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	}
 
 	return hostPathSvcMap
+}
+
+func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, hosts []string, tlssetting TlsSettings, ingName, namespace, infraSettingName, host, key string, paths HostMetada) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
+
+	vsNode := o.GetAviEvhVS()
+	certsBuilt := false
+	evhSecretName := tlssetting.SecretName
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
+	if re.MatchString(evhSecretName) {
+		certsBuilt = true
+	}
+
+	evhNode := vsNode[0].GetEvhNodeForName(lib.GetEvhNodeName(ingName, namespace, host, infraSettingName))
+	if evhNode == nil {
+		evhNode = &AviEvhVsNode{
+			Name:         lib.GetEvhNodeName(ingName, namespace, host, infraSettingName),
+			VHParentName: vsNode[0].Name,
+			Tenant:       lib.GetTenant(),
+			EVHParent:    false,
+			EvhHostName:  host,
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				NamespaceIngressName: ingressHostMap.GetIngressesForHostName(host),
+				Namespace:            namespace,
+				HostNames:            hosts,
+			},
+		}
+	} else {
+		// The evh node exists, just update the svc metadata
+		evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
+		evhNode.ServiceMetadata.Namespace = namespace
+		evhNode.ServiceMetadata.HostNames = hosts
+		if evhNode.SSLKeyCertAviRef != "" {
+			certsBuilt = true
+		}
+	}
+	evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
+	evhNode.ServiceEngineGroup = lib.GetSEGName()
+	evhNode.VrfContext = lib.GetVrf()
+	var hostsToRemove []string
+	hostsToRemove = append(hostsToRemove, host)
+	found, gsFqdnCache := objects.SharedCRDLister().GetLocalFqdnToGSFQDNMapping(host)
+	if paths.gslbHostHeader == "" {
+		// If the gslbHostHeader is empty but it is present in the in memory cache, then add it as a candidate for removal and  remove the in memory cache relationship
+		if found {
+			hostsToRemove = append(hostsToRemove, gsFqdnCache)
+			objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(host)
+		}
+	} else {
+		if paths.gslbHostHeader != gsFqdnCache {
+			hostsToRemove = append(hostsToRemove, gsFqdnCache)
+		}
+		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(host, paths.gslbHostHeader)
+	}
+	if !certsBuilt {
+		certsBuilt = o.BuildTlsCertNodeForEvh(routeIgrObj.GetSvcLister(), vsNode[0], namespace, tlssetting, key, infraSettingName, host)
+	}
+	if certsBuilt {
+		hosts := []string{host}
+		if paths.gslbHostHeader != "" {
+			hosts = append(hosts, paths.gslbHostHeader)
+		}
+		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, paths.ingressHPSvc)
+		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
+		if !foundEvhModel {
+			vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
+		}
+
+		RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
+
+		if tlssetting.redirect == true {
+			o.BuildPolicyRedirectForVSForEvh(evhNode, hosts, namespace, ingName, key)
+		}
+		// Enable host rule
+		BuildL7HostRule(host, namespace, ingName, key, evhNode)
+		manipulateEvhNodeForSSL(vsNode[0], evhNode)
+
+	} else {
+		hostMapOk, ingressHostMap := SharedHostNameLister().Get(host)
+		if hostMapOk {
+			// Replace the ingress map for this host.
+			keyToRemove := namespace + "/" + ingName
+			delete(ingressHostMap.HostNameMap, keyToRemove)
+			SharedHostNameLister().Save(host, ingressHostMap)
+		}
+		// Since the cert couldn't be built, check if this EVH is affected by only in ingress if so remove the EVH node from the model
+		if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
+			vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+			RemoveEvhInModel(evhNode.Name, vsNode, key)
+			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
+		}
+
+	}
 }
 
 // Util functions
