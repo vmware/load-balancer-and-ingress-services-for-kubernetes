@@ -20,10 +20,12 @@ FROM ${ubi_src_repo}
 
 LABEL name="ako-operator"
 LABEL summary="An AKO operator to deploy AKO controller"
+LABEL io.openshift.tags="ako,ako-operator,avi,ingress-controller,kubernetes,ingress,controller,openshift"
+LABEL maintainer="VMware <https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes>"
 LABEL version="v1.4.2"
 LABEL release="1"
 LABEL description="Manage configmap, statefulset and other artifacts for deploying AKO controller"
-LABEL vendor="VMware"
+LABEL vendor="VMware <https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes>"
 
 WORKDIR /
 COPY LICENSE /licenses/

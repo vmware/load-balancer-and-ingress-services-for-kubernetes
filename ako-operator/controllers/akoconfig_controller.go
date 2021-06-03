@@ -32,6 +32,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 )
@@ -89,6 +91,7 @@ func removeFinalizer(finalizers []string, key string) (result []string) {
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="policy",resources=podsecuritypolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -104,6 +107,7 @@ func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
+	r.UpdateAKOConfigStatus(ctx, ReconcilingArtifacts, &ako, log)
 	if !ako.GetDeletionTimestamp().IsZero() {
 		if finalizerInList(ako.GetFinalizers(), CleanupFinalizer) {
 			if err := r.CleanupArtifacts(ctx, log); err != nil {
@@ -136,7 +140,6 @@ func (r *AKOConfigReconciler) UpdateAKOConfigStatus(ctx context.Context, state s
 
 	patch := client.MergeFrom(akoConfig.DeepCopy())
 	akoConfig.Status.State = state
-	log.V(0).Info("patch data", "patch", patch)
 	err := r.Status().Patch(ctx, akoConfig, patch)
 	if err != nil {
 		return err
@@ -258,10 +261,29 @@ func (r *AKOConfigReconciler) deleteIfExists(ctx context.Context, objNsName type
 	return nil
 }
 
+func acceptGenerationChangePredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			// ignore updates to AKOConfig status
+			// returns true if the generations don't match
+			oldObj, ok := e.ObjectOld.(*akov1alpha1.AKOConfig)
+			if !ok {
+				return true
+			}
+			newObj, ok := e.ObjectNew.(*akov1alpha1.AKOConfig)
+			if !ok {
+				return true
+			}
+			return oldObj.GetGeneration() != newObj.GetGeneration()
+		},
+	}
+}
+
 func (r *AKOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&akov1alpha1.AKOConfig{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.StatefulSet{}).
+		WithEventFilter(acceptGenerationChangePredicate()).
 		Complete(r)
 }

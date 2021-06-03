@@ -3,9 +3,11 @@ layout: go.kubebuilder.io/v2
 projectName: ako-operator
 repo: github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator
 resources:
-- group: ako
+- domain: vmware.com
+  group: ako
   kind: AKOConfig
+  path: github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1
   version: v1alpha1
-version: 3-alpha
+version: "3"
 plugins:
   go.sdk.operatorframework.io/v2-alpha: {}
