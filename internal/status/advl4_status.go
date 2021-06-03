@@ -368,8 +368,10 @@ func getGateways(gwNSNames []string, bulk bool, retryNum ...int) map[string]*adv
 
 		for i := range gwList.Items {
 			if _, ok := aviGWClasses[gwList.Items[i].Spec.Class]; ok {
-				ing := gwList.Items[i]
-				gwMap[ing.Namespace+"/"+ing.Name] = &ing
+				gw := gwList.Items[i]
+				if utils.CheckIfNamespaceAccepted(gw.Namespace) {
+					gwMap[gw.Namespace+"/"+gw.Name] = &gw
+				}
 			}
 		}
 

@@ -525,7 +525,9 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 			}
 			if returnIng {
 				ing := ingressList.Items[i]
-				ingressMap[ing.Namespace+"/"+ing.Name] = &ing
+				if utils.CheckIfNamespaceAccepted(ing.Namespace) {
+					ingressMap[ing.Namespace+"/"+ing.Name] = &ing
+				}
 			}
 		}
 

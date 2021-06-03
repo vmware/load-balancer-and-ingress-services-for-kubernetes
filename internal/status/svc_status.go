@@ -210,8 +210,11 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 			}
 		}
 		for i := range serviceLBList.Items {
-			ing := serviceLBList.Items[i]
-			serviceMap[ing.Namespace+"/"+ing.Name] = &ing
+			svc := serviceLBList.Items[i]
+			//Do not perform status update on service if namespace is not accepted.
+			if utils.CheckIfNamespaceAccepted(svc.Namespace) {
+				serviceMap[svc.Namespace+"/"+svc.Name] = &svc
+			}
 		}
 
 		return serviceMap

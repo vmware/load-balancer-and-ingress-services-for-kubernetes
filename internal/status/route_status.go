@@ -142,7 +142,9 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 		}
 		for i := range routeList.Items {
 			route := routeList.Items[i]
-			routeMap[route.Namespace+"/"+route.Name] = &route
+			if utils.CheckIfNamespaceAccepted(route.Namespace) {
+				routeMap[route.Namespace+"/"+route.Name] = &route
+			}
 		}
 
 		return routeMap
