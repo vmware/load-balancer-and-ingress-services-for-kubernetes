@@ -16,6 +16,7 @@ package ingresstests
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ func TestCreateDeleteHostRule(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
@@ -256,9 +258,14 @@ func TestMultiIngressToSecureHostRule(t *testing.T) {
 		}
 		return 0
 	}, 50*time.Second).Should(gomega.Equal(2))
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs).To(gomega.HaveLen(2))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))

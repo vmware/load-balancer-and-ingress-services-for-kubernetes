@@ -118,7 +118,6 @@ func verifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, 
 }
 
 func TearDownTestForIngress(t *testing.T, modelName string) {
-	os.Setenv("SHARD_VS_SIZE", "")
 	os.Setenv("CLOUD_NAME", "")
 
 	objects.SharedAviGraphLister().Delete(modelName)
