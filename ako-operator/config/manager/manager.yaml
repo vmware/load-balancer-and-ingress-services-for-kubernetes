@@ -24,9 +24,7 @@ spec:
     spec:
       containers:
       - command:
-        - /manager
-        args:
-        - --enable-leader-election
+        - /ako-operator
         image: controller:latest
         name: manager
         resources:

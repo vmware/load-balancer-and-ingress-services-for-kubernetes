@@ -6,10 +6,10 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: "10.79.172.11:5000/avi-buildops/ako"
+  imageRepository: "projects.registry.vmware.com/ako/ako:1.4.2"
   imagePullPolicy: "IfNotPresent"
   akoSettings:
-    logLevel: "WARN"   #enum
+    logLevel: "INFO"   #enum
     fullSyncFrequency: "1800"
     apiServerPort: 8080
     deleteConfig: false
@@ -40,7 +40,7 @@ spec:
 
   controllerSettings:
     serviceEngineGroupName: "Default-Group"
-    controllerVersion: "20.1.1"
+    controllerVersion: "20.1.5"
     cloudName: "Default-Cloud"
     controllerIP: ""
 
@@ -67,3 +67,6 @@ spec:
 
   mountPath: "/log"
   logFile: "avi.log"
+
+status:
+  state: "Reconciled all artifacts"

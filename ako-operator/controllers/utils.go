@@ -18,6 +18,7 @@ const (
 	CleanupErrMsg            = "Error in cleaning up artifacts: "
 	FinalizerRemoveErrMsg    = "Error in removing finalizer: "
 	ArtifactsReconcileErrMsg = "Error in reconciling: "
+	ReconcilingArtifacts     = "Reconciling all artifacts"
 )
 
 // properties used for naming the dependent artifacts
