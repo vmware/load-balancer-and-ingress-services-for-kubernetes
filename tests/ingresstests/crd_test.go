@@ -16,6 +16,7 @@ package ingresstests
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ func TestCreateDeleteHostRule(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	hrname := "samplehr-foo"
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)

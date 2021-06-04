@@ -740,77 +740,81 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		}
 
 		// Create one evh child per host and associate http policies for each path.
-		ingName := routeIgrObj.GetName()
-		namespace := routeIgrObj.GetNamespace()
-		evhNodeName := lib.GetEvhNodeName(ingName, namespace, host, infraSettingName)
-		evhNode := vsNode[0].GetEvhNodeForName(evhNodeName)
-		hostSlice := []string{host}
+		modelGraph := aviModel.(*AviObjectGraph)
+		modelGraph.BuildModelGraphForInsecureEVH(routeIgrObj, host, infraSettingName, key, pathsvcmap)
 
-		// Populate the hostmap with empty secret for insecure ingress
-		hostMap := HostNamePathSecrets{paths: getPaths(pathsvcmap.ingressHPSvc), secretName: ""}
-		found, ingressHostMap := SharedHostNameLister().Get(host)
-		if found {
-			// Replace the ingress map for this host.
-			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
-			ingressHostMap.GetIngressesForHostName(host)
-		} else {
-			// Create the map
-			ingressHostMap = NewSecureHostNameMapProp()
-			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
-		}
-		SharedHostNameLister().Save(host, ingressHostMap)
-
-		if evhNode == nil {
-			evhNode = &AviEvhVsNode{
-				Name:         evhNodeName,
-				VHParentName: vsNode[0].Name,
-				Tenant:       lib.GetTenant(),
-				EVHParent:    false,
-				EvhHostName:  host,
-				ServiceMetadata: avicache.ServiceMetadataObj{
-					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(host),
-					Namespace:            namespace,
-					HostNames:            hostSlice,
-				},
-			}
-
-			foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
-			if !foundEvhModel {
-				vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
-			}
-		} else {
-			// The evh node exists, just update the svc metadata
-			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
-			evhNode.ServiceMetadata.Namespace = namespace
-			evhNode.ServiceMetadata.HostNames = hostSlice
-		}
-		evhNode.ServiceEngineGroup = lib.GetSEGName()
-		evhNode.VrfContext = lib.GetVrf()
-		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
-		// Remove the redirect for secure to insecure transition
-		hosts := []string{host}
-		if pathsvcmap.gslbHostHeader != "" {
-			hosts = append(hosts, pathsvcmap.gslbHostHeader)
-		}
-		RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
-
-		// build poolgroup and pool
-		aviModel.(*AviObjectGraph).BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, pathsvcmap.ingressHPSvc)
-		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
-		if !foundEvhModel {
-			vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
-		}
-		// build host rule for insecure ingress in evh
-		BuildL7HostRule(host, namespace, ingName, key, evhNode)
-		manipulateEvhNodeForSSL(vsNode[0], evhNode)
-		utils.AviLog.Debugf("key: %s, Saving Model in ProcessInsecureHostsForEVH : %v", key, utils.Stringify(vsNode))
-		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
+		changedModel := saveAviModel(modelName, modelGraph, key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
 			*modelList = append(*modelList, modelName)
 		}
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
+}
+
+func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host, infraSettingName, key string, pathsvcmap HostMetada) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
+	vsNode := o.GetAviEvhVS()
+	ingName := routeIgrObj.GetName()
+	namespace := routeIgrObj.GetNamespace()
+	evhNodeName := lib.GetEvhNodeName(ingName, namespace, host, infraSettingName)
+	evhNode := vsNode[0].GetEvhNodeForName(evhNodeName)
+	hostSlice := []string{host}
+
+	// Populate the hostmap with empty secret for insecure ingress
+	hostMap := HostNamePathSecrets{paths: getPaths(pathsvcmap.ingressHPSvc), secretName: ""}
+	found, ingressHostMap := SharedHostNameLister().Get(host)
+	if found {
+		// Replace the ingress map for this host.
+		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
+		ingressHostMap.GetIngressesForHostName(host)
+	} else {
+		// Create the map
+		ingressHostMap = NewSecureHostNameMapProp()
+		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
+	}
+	SharedHostNameLister().Save(host, ingressHostMap)
+
+	if evhNode == nil {
+		evhNode = &AviEvhVsNode{
+			Name:         evhNodeName,
+			VHParentName: vsNode[0].Name,
+			Tenant:       lib.GetTenant(),
+			EVHParent:    false,
+			EvhHostName:  host,
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				NamespaceIngressName: ingressHostMap.GetIngressesForHostName(host),
+				Namespace:            namespace,
+				HostNames:            hostSlice,
+			},
+		}
+
+	} else {
+		// The evh node exists, just update the svc metadata
+		evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
+		evhNode.ServiceMetadata.Namespace = namespace
+		evhNode.ServiceMetadata.HostNames = hostSlice
+	}
+	evhNode.ServiceEngineGroup = lib.GetSEGName()
+	evhNode.VrfContext = lib.GetVrf()
+	evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
+	// Remove the redirect for secure to insecure transition
+	hosts := []string{host}
+	if pathsvcmap.gslbHostHeader != "" {
+		hosts = append(hosts, pathsvcmap.gslbHostHeader)
+	}
+	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
+
+	// build poolgroup and pool
+	o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, pathsvcmap.ingressHPSvc)
+	foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
+	if !foundEvhModel {
+		vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
+	}
+	// build host rule for insecure ingress in evh
+	BuildL7HostRule(host, namespace, ingName, key, evhNode)
+	manipulateEvhNodeForSSL(vsNode[0], evhNode)
 }
 
 // secure ingress graph functions
@@ -993,7 +997,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		modelGraph.BuildModelGraphForSecureEVH(routeIgrObj, ingressHostMap, hosts, tlssetting, ingName, namespace, infraSettingName, host, key, paths)
 		// Only add this node to the list of models if the checksum has changed.
 		utils.AviLog.Debugf("key: %s, Saving Model: %v", key, utils.Stringify(vsNode))
-		modelChanged := saveAviModel(model_name, aviModel.(*AviObjectGraph), key)
+		modelChanged := saveAviModel(model_name, modelGraph, key)
 		if !utils.HasElem(*modelList, model_name) && modelChanged {
 			*modelList = append(*modelList, model_name)
 		}
