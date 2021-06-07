@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
@@ -386,7 +387,7 @@ func TestAddIngressDefaultCert(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret(lib.DefaultRouteCert, "avi-system", "tlsCert", "tlsKey")
+	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -435,7 +436,7 @@ func TestAddIngressDefaultCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't Delete the Ingress %v", err)
 	}
-	err = KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't Delete the secret %v", err)
 	}
@@ -447,7 +448,7 @@ func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret(lib.DefaultRouteCert, "avi-system", "tlsCert", "tlsKey")
+	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -508,7 +509,7 @@ func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't Delete the Ingress %v", err)
 	}
-	err = KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't Delete the secret %v", err)
 	}
@@ -520,7 +521,7 @@ func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret(lib.DefaultRouteCert, "avi-system", "tlsCert", "tlsKey")
+	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -574,7 +575,7 @@ func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't Delete the Ingress %v", err)
 	}
-	err = KubeClient.CoreV1().Secrets("avi-system").Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't Delete the secret %v", err)
 	}
