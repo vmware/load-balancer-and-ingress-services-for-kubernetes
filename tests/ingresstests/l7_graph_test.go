@@ -58,6 +58,13 @@ func TestMain(m *testing.M) {
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(CRDClient)
+	data := map[string][]byte{
+		"username": []byte("admin"),
+		"password": []byte("admin"),
+	}
+	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: "avi-system"}
+	secret := &corev1.Secret{Data: data, ObjectMeta: object}
+	KubeClient.CoreV1().Secrets("avi-system").Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -81,7 +88,7 @@ func TestMain(m *testing.M) {
 
 	akoApiServer = integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance()
+	integrationtest.NewAviFakeClientInstance(KubeClient)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
@@ -185,7 +192,7 @@ func TestL7Model(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 50*time.Second).Should(gomega.Equal(true))
+	}, 150*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))

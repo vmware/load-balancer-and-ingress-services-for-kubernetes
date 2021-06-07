@@ -124,6 +124,13 @@ func TestMain(m *testing.M) {
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(CRDClient)
+	data := map[string][]byte{
+		"username": []byte("admin"),
+		"password": []byte("admin"),
+	}
+	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: "avi-system"}
+	secret := &corev1.Secret{Data: data, ObjectMeta: object}
+	KubeClient.CoreV1().Secrets("avi-system").Create(context.TODO(), secret, metav1.CreateOptions{})
 	OshiftClient = oshiftfake.NewSimpleClientset()
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = OshiftClient
@@ -148,7 +155,7 @@ func TestMain(m *testing.M) {
 
 	integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance()
+	integrationtest.NewAviFakeClientInstance(KubeClient)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()

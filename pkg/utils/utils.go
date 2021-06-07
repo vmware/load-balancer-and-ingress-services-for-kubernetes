@@ -16,6 +16,7 @@ package utils
 
 import (
 	"encoding/json"
+	"errors"
 	"hash/fnv"
 	"math/rand"
 	"net"
@@ -412,4 +413,66 @@ func GetAKONamespace() string {
 		return VMWARE_SYSTEM_AKO
 	}
 	return AKO_DEFAULT_NS
+}
+
+func GetTokenFromRestObj(robj interface{}, ctrlAuthToken string) (oldTokenID string, refresh bool, err error) {
+	oldTokenID = ""
+	refresh = false
+	err = nil
+	parseError := errors.New("Failed to parse token response obj")
+
+	if _, ok := robj.(map[string]interface{}); !ok {
+		err = parseError
+		return
+	}
+	tokenList, ok := robj.(map[string]interface{})["results"].([]interface{})
+	if !ok {
+		err = parseError
+		return
+	}
+	for _, aviToken := range tokenList {
+		if _, ok := aviToken.(map[string]interface{}); !ok {
+			err = parseError
+			return
+		}
+		token, ok := aviToken.(map[string]interface{})["token"].(string)
+		if !ok {
+			err = parseError
+			return
+		}
+		if token == ctrlAuthToken {
+			expiry, ok := aviToken.(map[string]interface{})["expires_at"].(string)
+			if !ok {
+				err = parseError
+				return
+			}
+			layout := "2006-01-02T15:04:05.000000+00:00"
+			expiryTime, err2 := time.Parse(layout, expiry)
+			if err != nil {
+				AviLog.Errorf("Unable to parse token expiry time, err: %+v", err2)
+				err = err2
+				return
+			}
+			AviLog.Infof("Expiry time for current token: %+v", expiryTime)
+			if expiryTime.Sub(time.Now()) > (RefreshAuthTokenPeriod*AuthTokenExpiry)*time.Hour {
+				return
+			}
+			refresh = true
+			if tokenIDToDelete, ok := aviToken.(map[string]interface{})["uuid"].(string); ok {
+				oldTokenID = tokenIDToDelete
+			}
+			return
+		}
+
+	}
+	refresh = true
+	return
+}
+
+func GetAuthtokenFromCache() (string, error) {
+	ctrlAuthToken, ok := SharedCtrlProp().AviCacheGet(ENV_CTRL_AUTHTOKEN)
+	if !ok || ctrlAuthToken == nil {
+		return "", errors.New("authToken not updated in cache")
+	}
+	return ctrlAuthToken.(string), nil
 }

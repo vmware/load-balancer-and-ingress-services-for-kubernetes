@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 	akoApiServer = integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance()
+	integrationtest.NewAviFakeClientInstance(KubeClient)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()

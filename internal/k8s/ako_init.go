@@ -84,6 +84,15 @@ func PopulateNodeCache(cs *kubernetes.Clientset) {
 	nodeCache.PopulateAllNodes(cs)
 }
 
+func PopulateControllerProperties(cs kubernetes.Interface) error {
+	ctrlPropCache := utils.SharedCtrlProp()
+	ctrlProps, err := lib.GetControllerPropertiesFromSecret(cs)
+	if err != nil {
+		return err
+	}
+	ctrlPropCache.PopulateCtrlProp(ctrlProps)
+	return nil
+}
 func delConfigFromData(data map[string]string) bool {
 	if val, ok := data[lib.DeleteConfig]; ok {
 		if val == "true" {
@@ -204,6 +213,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
 	// set up signals so we handle the first shutdown signal gracefully
 	var worker *utils.FullSyncThread
+	var tokenWorker *utils.FullSyncThread
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = informers.OshiftClient
 	if lib.GetNamespaceToSync() != "" {
@@ -265,6 +275,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	graphQueue.Run(stopCh, graphwg)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
+
 	if lib.GetAdvancedL4() {
 		// Set the error to nil
 		err = nil
@@ -276,6 +287,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	} else {
 		// First boot sync
 		err = c.FullSyncK8s()
+		if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
+			c.RefreshAuthToken()
+		}
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
 			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
@@ -289,6 +303,12 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 			go worker.Run()
 		} else {
 			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
+		}
+
+		if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
+			tokenWorker = utils.NewFullSyncThread(time.Duration(utils.RefreshAuthTokenInterval) * time.Hour)
+			tokenWorker.SyncFunction = c.RefreshAuthToken
+			go tokenWorker.Run()
 		}
 	}
 
@@ -328,7 +348,12 @@ LABEL:
 	statusQueue.StopWorkers(stopCh)
 }
 
+func (c *AviController) RefreshAuthToken() {
+	lib.RefreshAuthToken(c.informers.KubeClientIntf.ClientSet)
+}
+
 func (c *AviController) FullSync() {
+
 	avi_rest_client_pool := avicache.SharedAVIClients()
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.

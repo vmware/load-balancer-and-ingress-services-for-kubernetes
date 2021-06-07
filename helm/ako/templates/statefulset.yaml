@@ -45,16 +45,6 @@ spec:
               exec:
                 command: ["/bin/sh","/var/pre_stop_hook.sh"]
           env:
-          - name: CTRL_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: avi-secret
-                key: username
-          - name: CTRL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: avi-secret
-                key: password
           {{ if .Values.avicredentials.certificateAuthorityData  }}
           - name: CTRL_CA_DATA
             valueFrom:

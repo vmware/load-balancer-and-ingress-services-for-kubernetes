@@ -91,6 +91,14 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
+	data := map[string][]byte{
+		"username": []byte("admin"),
+		"password": []byte("admin"),
+	}
+	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: "avi-system"}
+	secret := &corev1.Secret{Data: data, ObjectMeta: object}
+	kubeClient.CoreV1().Secrets("avi-system").Create(context.TODO(), secret, metav1.CreateOptions{})
+
 	crdClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(crdClient)
 
@@ -108,7 +116,7 @@ func TestMain(m *testing.M) {
 	k8s.NewCRDInformers(crdClient)
 	integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance()
+	integrationtest.NewAviFakeClientInstance(kubeClient)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
@@ -128,6 +136,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSvc(t *testing.T) {
+	waitAndverify(t, "Secret/avi-system/avi-secret")
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeLoadBalancer,

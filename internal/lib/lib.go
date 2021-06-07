@@ -33,6 +33,7 @@ import (
 	"github.com/avinetworks/sdk/go/models"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+	v1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -979,4 +980,106 @@ func IsAviLBDefaultIngressClassWithClient(kc kubernetes.Interface) (string, bool
 
 	utils.AviLog.Debugf("IngressClass with controller ako.vmware.com/avi-lb not found in the cluster")
 	return "", false
+}
+
+func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int) (*v1.Secret, error) {
+	var aviSecret *v1.Secret
+	var err error
+	for retry := 0; retry < retryCount; retry++ {
+		aviSecret, err = kc.CoreV1().Secrets(AviNS).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+		if err == nil {
+			return aviSecret, nil
+		}
+		utils.AviLog.Warnf("Failed to get avi-secret, retry count:%d, err: %+v", retry, err)
+	}
+	return nil, err
+}
+
+func UpdateAviSecretWithRetry(kc kubernetes.Interface, aviSecret *v1.Secret, retryCount int) error {
+	var err error
+	for retry := 0; retry < retryCount; retry++ {
+		_, err = kc.CoreV1().Secrets(AviNS).Update(context.TODO(), aviSecret, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		utils.AviLog.Warnf("Failed to update avi-secret, retry count:%d, err: %+v", retry, err)
+	}
+	return err
+}
+
+func RefreshAuthToken(kc kubernetes.Interface) {
+	retryCount := 5
+	ctrlProp := utils.SharedCtrlProp().GetAllCtrlProp()
+	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME]
+	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
+	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+
+	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
+	if aviClient == nil {
+		utils.AviLog.Errorf("Failed to initialize AVI client")
+		return
+	}
+	userTokensListResp, err := utils.GetAuthTokenWithRetry(aviClient, retryCount)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to get existing tokens from controller, err: %+v", err)
+		return
+	}
+	oldTokenID, refresh, err := utils.GetTokenFromRestObj(userTokensListResp, ctrlAuthToken)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to find token on controller, err: %+v", err)
+		return
+	}
+	if !refresh {
+		utils.AviLog.Infof("Skipping AuthToken Refresh")
+		return
+	}
+	newTokenResp, err := utils.CreateAuthTokenWithRetry(aviClient, retryCount)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to post new token, err: %+v", err)
+		return
+	}
+	if _, ok := newTokenResp.(map[string]interface{}); !ok {
+		utils.AviLog.Errorf("Failed to parse new token, err: %+v", err)
+		return
+	}
+	token := newTokenResp.(map[string]interface{})["token"].(string)
+	aviSecret, err := GetAviSecretWithRetry(kc, retryCount)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to get secret, err: %+v", err)
+		return
+	}
+	aviSecret.Data["authtoken"] = []byte(token)
+
+	err = UpdateAviSecretWithRetry(kc, aviSecret, retryCount)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to update secret, err: %+v", err)
+		return
+	}
+	utils.AviLog.Infof("Successfully updated authtoken")
+	if oldTokenID != "" {
+		err = utils.DeleteAuthTokenWithRetry(aviClient, oldTokenID, retryCount)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to delete old token %s, err: %+v", oldTokenID, err)
+		}
+	}
+}
+
+func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]string, error) {
+	ctrlProps := make(map[string]string)
+	aviSecret, err := cs.CoreV1().Secrets(AviNS).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+	if err != nil {
+		return ctrlProps, err
+	}
+	ctrlProps[utils.ENV_CTRL_USERNAME] = string(aviSecret.Data["username"])
+	if aviSecret.Data["password"] != nil {
+		ctrlProps[utils.ENV_CTRL_PASSWORD] = string(aviSecret.Data["password"])
+	} else {
+		ctrlProps[utils.ENV_CTRL_PASSWORD] = ""
+	}
+	if aviSecret.Data["authtoken"] != nil {
+		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = string(aviSecret.Data["authtoken"])
+	} else {
+		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = ""
+	}
+	return ctrlProps, nil
 }

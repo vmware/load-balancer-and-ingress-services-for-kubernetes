@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/avinetworks/sdk/go/clients"
@@ -32,26 +33,41 @@ type AviRestClientPool struct {
 }
 
 var AviClientInstance *AviRestClientPool
-var clientonce sync.Once
 
-func SharedAVIClients() *AviRestClientPool {
-	// TODO: Propagate error
-	ctrlUsername := os.Getenv("CTRL_USERNAME")
-	ctrlPassword := os.Getenv("CTRL_PASSWORD")
-	ctrlIpAddress := os.Getenv("CTRL_IPADDRESS")
+func NewAviRestClientWithToken(api_ep string, username string, authToken string) *clients.AviClient {
+	var aviClient *clients.AviClient
+	var transport *http.Transport
+	var err error
 
-	if ctrlUsername == "" || ctrlPassword == "" || ctrlIpAddress == "" {
-		AviLog.Fatal(`AVI controller information missing. Update them in kubernetes secret or via environment variables.`)
+	ctrlIpAddress := os.Getenv(ENV_CTRL_IPADDRESS)
+	if username == "" || authToken == "" || ctrlIpAddress == "" {
+		AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
 	}
-	clientonce.Do(func() {
-		AviClientInstance, _ = NewAviRestClientPool(NumWorkersGraph,
-			ctrlIpAddress, ctrlUsername, ctrlPassword)
-	})
-	return AviClientInstance
+
+	rootPEMCerts := os.Getenv("CTRL_CA_DATA")
+	if rootPEMCerts != "" {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
+
+		transport =
+			&http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: caCertPool,
+				},
+			}
+		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+	} else {
+		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+	}
+	if err != nil {
+		AviLog.Warnf("NewAviClient returned err %v", err)
+		return nil
+	}
+	return aviClient
 }
 
 func NewAviRestClientPool(num uint32, api_ep string, username string,
-	password string) (*AviRestClientPool, error) {
+	password string, authToken string) (*AviRestClientPool, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
@@ -81,12 +97,22 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 			var aviClient *clients.AviClient
 			var err error
 
-			if rootPEMCerts != "" {
-				aviClient, err = clients.NewAviClient(api_ep, username,
-					session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+			if authToken == "" {
+				if rootPEMCerts != "" {
+					aviClient, err = clients.NewAviClient(api_ep, username,
+						session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+				} else {
+					aviClient, err = clients.NewAviClient(api_ep, username,
+						session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+				}
 			} else {
-				aviClient, err = clients.NewAviClient(api_ep, username,
-					session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+				if rootPEMCerts != "" {
+					aviClient, err = clients.NewAviClient(api_ep, username,
+						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+				} else {
+					aviClient, err = clients.NewAviClient(api_ep, username,
+						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+				}
 			}
 			if err != nil {
 				AviLog.Warnf("NewAviClient returned err %v", err)
@@ -175,4 +201,47 @@ func AviModelToUrl(model string) string {
 		AviLog.Warnf("Unknown model %v", model)
 		return ""
 	}
+}
+
+func GetAuthTokenWithRetry(c *clients.AviClient, retryCount int) (interface{}, error) {
+	tokenPath := "api/user-token"
+	var robj interface{}
+	var err error
+	for retry := 0; retry < retryCount; retry++ {
+		err = c.AviSession.Get(tokenPath, &robj)
+		if err == nil {
+			return robj, nil
+		}
+		AviLog.Warnf("Failed to get authtoken, retry count:%d, err: %+v", retry, err)
+	}
+	return robj, err
+}
+
+func CreateAuthTokenWithRetry(c *clients.AviClient, retryCount int) (interface{}, error) {
+	tokenPath := "api/user-token"
+	var robj interface{}
+	var err error
+	data := make(map[string]string)
+	data["hours"] = strconv.Itoa(AuthTokenExpiry)
+	for retry := 0; retry < retryCount; retry++ {
+		err = c.AviSession.Post(tokenPath, data, &robj)
+		if err == nil {
+			return robj, nil
+		}
+		AviLog.Warnf("Failed to create authtoken, retry count:%d, err: %+v", retry, err)
+	}
+	return robj, err
+}
+
+func DeleteAuthTokenWithRetry(c *clients.AviClient, tokenID string, retryCount int) error {
+	tokenPath := "api/user-token"
+	var err error
+	for retry := 0; retry < retryCount; retry++ {
+		err = c.AviSession.Delete(tokenPath + "/" + tokenID)
+		if err == nil {
+			return nil
+		}
+		AviLog.Warnf("Failed to delete authtoken, retry count:%d, err: %+v", retry, err)
+	}
+	return err
 }

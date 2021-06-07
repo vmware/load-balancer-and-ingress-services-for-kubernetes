@@ -236,12 +236,19 @@ func TestMain(m *testing.M) {
 	kubeClient = k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	crdClient = crdfake.NewSimpleClientset()
+	data := map[string][]byte{
+		"username": []byte("admin"),
+		"password": []byte("admin"),
+	}
+	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: "avi-system"}
+	secret := &corev1.Secret{Data: data, ObjectMeta: object}
+	kubeClient.CoreV1().Secrets("avi-system").Create(context.TODO(), secret, metav1.CreateOptions{})
 	lib.SetCRDClientset(crdClient)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
 	k8s.NewCRDInformers(crdClient)
 
 	integrationtest.InitializeFakeAKOAPIServer()
-	integrationtest.NewAviFakeClientInstance()
+	integrationtest.NewAviFakeClientInstance(kubeClient)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
@@ -352,6 +359,7 @@ func TestGCPCloudInClusterIPMode(t *testing.T) {
 
 // TestAzureCloudInNodePortMode tests case where Azure cloud is configured in NodePort mode. Sync should be enabled.
 func TestAzureCloudInNodePortMode(t *testing.T) {
+	waitAndverify(t, "Secret/avi-system/avi-secret")
 	os.Setenv("CLOUD_NAME", "CLOUD_AZURE")
 	utils.SetCloudName("CLOUD_AZURE")
 	os.Setenv("SERVICE_TYPE", "NodePort")

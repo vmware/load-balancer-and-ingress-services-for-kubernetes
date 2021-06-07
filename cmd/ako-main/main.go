@@ -142,6 +142,11 @@ func InitializeAKC() {
 		}
 	}
 
+	err = k8s.PopulateControllerProperties(kubeClient)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to read details from secret, err:", err)
+		lib.ShutdownApi()
+	}
 	aviObjCache := avicache.SharedAviObjCache()
 	aviRestClientPool := avicache.SharedAVIClients()
 	if !aviObjCache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
