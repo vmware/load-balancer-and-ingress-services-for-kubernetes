@@ -215,10 +215,8 @@ func TestCreateIngressCacheSyncForEvh(t *testing.T) {
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.BeNil())
 	g.Expect(sniCacheObj.ParentVSRef).To(gomega.Equal(vsKey))
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.PoolKeyCollection[0].Name).To(gomega.ContainSubstring("ako-encoded"))
 	g.Expect(sniCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
-	g.Expect(sniCacheObj.PGKeyCollection[0].Name).To(gomega.ContainSubstring("ako-encoded"))
 
 	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)

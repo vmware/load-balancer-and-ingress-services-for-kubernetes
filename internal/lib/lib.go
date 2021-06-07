@@ -74,7 +74,7 @@ func Encode(s string) string {
 		return s
 	}
 	hash := sha1.Sum([]byte(s))
-	return GetNamePrefix() + hex.EncodeToString(hash[:]) + AKO_ENCODED
+	return GetNamePrefix() + hex.EncodeToString(hash[:])
 }
 
 var DisableSync bool

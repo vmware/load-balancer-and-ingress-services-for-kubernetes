@@ -112,7 +112,6 @@ const (
 	NPLService                                 = "NPLService"
 	SyncStatusKey                              = "syncstatus"
 	NoFreeIPError                              = "No available free IPs"
-	AKO_ENCODED                                = "--ako-encoded"
 
 	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
