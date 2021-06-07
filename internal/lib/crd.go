@@ -24,59 +24,50 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-var aviInfraSettingEnabled *bool
-var hostRuleEnabled *bool
-var httpRuleEnabled *bool
+var aviInfraSettingEnabled bool
+var hostRuleEnabled bool
+var httpRuleEnabled bool
 
 func SetCRDEnabledParams(cs akocrd.Interface) {
-	if aviInfraSettingEnabled != nil {
-		return
-	}
-
-	var isAviInfraSettingPresent, isHostRulePresent, isHttpRulePresent bool
 	timeout := int64(120)
 	_, aviInfraError := cs.AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
 	if aviInfraError != nil {
 		utils.AviLog.Infof("ako.vmware.com/v1alpha1/AviInfraSetting not found/enabled on cluster: %v", aviInfraError)
-		isAviInfraSettingPresent = false
+		aviInfraSettingEnabled = false
 	} else {
 		utils.AviLog.Infof("ako.vmware.com/v1alpha1/AviInfraSetting enabled on cluster")
-		isAviInfraSettingPresent = true
+		aviInfraSettingEnabled = true
 	}
 
 	_, hostRulesError := cs.AkoV1alpha1().HostRules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
 	if hostRulesError != nil {
 		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HostRule not found/enabled on cluster: %v", hostRulesError)
-		isHostRulePresent = false
+		hostRuleEnabled = false
 	} else {
 		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HostRule enabled on cluster")
-		isHostRulePresent = true
+		hostRuleEnabled = true
 	}
 
 	_, httpRulesError := cs.AkoV1alpha1().HTTPRules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
 	if httpRulesError != nil {
 		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HTTPRule not found/enabled on cluster: %v", httpRulesError)
-		isHttpRulePresent = false
+		httpRuleEnabled = false
 	} else {
 		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HTTPRule enabled on cluster")
-		isHttpRulePresent = true
+		httpRuleEnabled = true
 	}
-
-	aviInfraSettingEnabled = &isAviInfraSettingPresent
-	hostRuleEnabled = &isHostRulePresent
-	httpRuleEnabled = &isHttpRulePresent
 }
 
 func GetAviInfraSettingEnabled() bool {
-	return *aviInfraSettingEnabled
+	return aviInfraSettingEnabled
 }
 
 func GetHostRuleEnabled() bool {
-	return *hostRuleEnabled
+	return hostRuleEnabled
 }
 
 func GetHttpRuleEnabled() bool {
-	return *httpRuleEnabled
+	return httpRuleEnabled
 }
 
 var CRDClientset akocrd.Interface
