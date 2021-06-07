@@ -115,15 +115,15 @@ func AddConfigMap(t *testing.T) {
 func AddCMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
+			Namespace: utils.GetAKONamespace(),
 			Name:      "avi-k8s-config",
 		},
 	}
-	kubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
+	kubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
 func DeleteConfigMap(t *testing.T) {
-	err := kubeClient.CoreV1().ConfigMaps("avi-system").Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
+	err := kubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting configmap: %v", err)
 	}
@@ -242,6 +242,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "CLOUD_AWS")
 	utils.SetCloudName("CLOUD_AWS")
 	os.Setenv("SERVICE_TYPE", "NodePort")
+	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+
 	kubeClient = k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	crdClient = crdfake.NewSimpleClientset()
