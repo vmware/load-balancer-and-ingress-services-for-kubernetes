@@ -30,16 +30,16 @@ import (
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/onsi/gomega"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/scaletest/lib"
 )
 
 const (
-	SECURE       = "secure"
-	INSECURE     = "insecure"
-	MULTIHOST    = "multi-host"
-	CONTROLLER   = "Controller"
-	KUBENODE     = "Node"
-	AKONAMESPACE = "avi-system"
+	SECURE     = "secure"
+	INSECURE   = "insecure"
+	MULTIHOST  = "multi-host"
+	CONTROLLER = "Controller"
+	KUBENODE   = "Node"
 )
 
 var (
@@ -131,6 +131,8 @@ func Setup() {
 	os.Setenv("CTRL_USERNAME", testbedParams.Vm[0].UserName)
 	os.Setenv("CTRL_PASSWORD", testbedParams.Vm[0].Password)
 	os.Setenv("CTRL_IPADDRESS", testbedParams.Vm[0].IP)
+	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	lib.KubeInit(testbedParams.AkoParam.Clusters[0].KubeConfigFilePath)
 	AviClients, err = lib.SharedAVIClients(2)
 	if err != nil {
@@ -203,8 +205,8 @@ func Reboot(t *testing.T, wg *sync.WaitGroup, nodeType string, controllerIP stri
 
 /* Reboots AKO pod */
 func RebootAko(t *testing.T, wg *sync.WaitGroup) {
-	t.Logf("Rebooting AKO pod %s of namespace %s ...", akoPodName, AKONAMESPACE)
-	err := lib.DeletePod(akoPodName, AKONAMESPACE)
+	t.Logf("Rebooting AKO pod %s of namespace %s ...", akoPodName, utils.GetAKONamespace())
+	err := lib.DeletePod(akoPodName, utils.GetAKONamespace())
 	if err != nil {
 		ExitWithErrorf(t, "Cannot reboot Ako pod as : %v", err)
 	}

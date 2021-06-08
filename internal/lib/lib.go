@@ -986,7 +986,7 @@ func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int) (*v1.Secret,
 	var aviSecret *v1.Secret
 	var err error
 	for retry := 0; retry < retryCount; retry++ {
-		aviSecret, err = kc.CoreV1().Secrets(AviNS).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+		aviSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
 		if err == nil {
 			return aviSecret, nil
 		}
@@ -998,7 +998,7 @@ func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int) (*v1.Secret,
 func UpdateAviSecretWithRetry(kc kubernetes.Interface, aviSecret *v1.Secret, retryCount int) error {
 	var err error
 	for retry := 0; retry < retryCount; retry++ {
-		_, err = kc.CoreV1().Secrets(AviNS).Update(context.TODO(), aviSecret, metav1.UpdateOptions{})
+		_, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Update(context.TODO(), aviSecret, metav1.UpdateOptions{})
 		if err == nil {
 			return nil
 		}
@@ -1066,7 +1066,7 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 
 func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]string, error) {
 	ctrlProps := make(map[string]string)
-	aviSecret, err := cs.CoreV1().Secrets(AviNS).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
 	if err != nil {
 		return ctrlProps, err
 	}

@@ -15,6 +15,7 @@ package k8stest
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -106,15 +107,15 @@ func addConfigMap(t *testing.T) {
 func AddCMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
+			Namespace: utils.GetAKONamespace(),
 			Name:      "avi-k8s-config",
 		},
 	}
-	kubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
+	kubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
 func DeleteConfigMap(t *testing.T) {
-	err := kubeClient.CoreV1().ConfigMaps("avi-system").Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
+	err := kubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting configmap: %v", err)
 	}
@@ -233,6 +234,9 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "CLOUD_AWS")
 	utils.SetCloudName("CLOUD_AWS")
 	os.Setenv("SERVICE_TYPE", "NodePort")
+	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
+
 	kubeClient = k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	crdClient = crdfake.NewSimpleClientset()
@@ -240,9 +244,9 @@ func TestMain(m *testing.M) {
 		"username": []byte("admin"),
 		"password": []byte("admin"),
 	}
-	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: "avi-system"}
+	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()}
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	kubeClient.CoreV1().Secrets("avi-system").Create(context.TODO(), secret, metav1.CreateOptions{})
+	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 	lib.SetCRDClientset(crdClient)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
 	k8s.NewCRDInformers(crdClient)
@@ -359,7 +363,7 @@ func TestGCPCloudInClusterIPMode(t *testing.T) {
 
 // TestAzureCloudInNodePortMode tests case where Azure cloud is configured in NodePort mode. Sync should be enabled.
 func TestAzureCloudInNodePortMode(t *testing.T) {
-	waitAndverify(t, "Secret/avi-system/avi-secret")
+	waitAndverify(t, fmt.Sprintf("Secret/%s/avi-secret", utils.GetAKONamespace()))
 	os.Setenv("CLOUD_NAME", "CLOUD_AZURE")
 	utils.SetCloudName("CLOUD_AZURE")
 	os.Setenv("SERVICE_TYPE", "NodePort")

@@ -25,8 +25,6 @@ const (
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
 	AviSecret                 = "avi-secret"
-	AviNS                     = "avi-system"
-	VMwareNS                  = "vmware-system-ako"
 
 	AVI_INGRESS_CLASS                          = "avi"
 	SUBNET_IP                                  = "SUBNET_IP"

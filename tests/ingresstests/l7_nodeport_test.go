@@ -16,7 +16,6 @@ package ingresstests
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -31,13 +30,11 @@ import (
 )
 
 func SetUpTestForIngressInNodePortMode(t *testing.T, model_Name string) {
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	objects.SharedAviGraphLister().Delete(model_Name)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
 }
 
 func TearDownTestForIngressInNodePortMode(t *testing.T, model_Name string) {
-	os.Setenv("SHARD_VS_SIZE", "")
 	objects.SharedAviGraphLister().Delete(model_Name)
 	integrationtest.DelSVC(t, "default", "avisvc")
 }
@@ -99,8 +96,6 @@ func TestL7ModelInNodePort(t *testing.T) {
 // there will be no backend servers for all the pools created for this ingress
 func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
-
 	integrationtest.SetNodePortMode()
 	defer integrationtest.SetClusterIPMode()
 	nodeIP := "10.1.1.2"
@@ -277,8 +272,6 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 // nodeIP should be set in backed server, and pool's port is set to nodePort.
 func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
-
 	integrationtest.SetNodePortMode()
 	defer integrationtest.SetClusterIPMode()
 	nodeIP := "10.1.1.2"
