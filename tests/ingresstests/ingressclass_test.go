@@ -910,7 +910,7 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 	SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: settingModelName}
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-my-infrasetting-1"}
 
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -970,11 +970,16 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	TearDownTestForIngress(t, modelName, settingModelName)
+	// Shard VS remains, Pools are moved/removed
 	g.Eventually(func() bool {
-		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
-		return found
-	}, 50*time.Second).Should(gomega.Equal(false))
+		sniCache1, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
+		if found {
+			return len(sniCacheObj1.PoolKeyCollection) == 0
+		}
+		return false
+	}, 50*time.Second).Should(gomega.Equal(true))
+	TearDownTestForIngress(t, modelName, settingModelName)
 }
 
 func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
@@ -985,7 +990,7 @@ func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-1"
 	settingModelName := "admin/cluster--Shared-L7-my-infrasetting-1"
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: settingModelName}
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-my-infrasetting-1"}
 
 	SetUpTestForIngress(t, modelName, settingModelName)
 	integrationtest.RemoveDefaultIngressClass()
@@ -1039,9 +1044,14 @@ func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	TearDownTestForIngress(t, modelName, settingModelName)
+	// Shard VS remains, Pools are moved/removed
 	g.Eventually(func() bool {
-		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
-		return found
-	}, 50*time.Second).Should(gomega.Equal(false))
+		sniCache1, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
+		if found {
+			return len(sniCacheObj1.PoolKeyCollection) == 0
+		}
+		return false
+	}, 50*time.Second).Should(gomega.Equal(true))
+	TearDownTestForIngress(t, modelName, settingModelName)
 }

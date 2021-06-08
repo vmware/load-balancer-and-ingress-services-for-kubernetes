@@ -53,6 +53,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	CRDClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(CRDClient)

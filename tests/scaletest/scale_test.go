@@ -132,6 +132,7 @@ func Setup() {
 	os.Setenv("CTRL_PASSWORD", testbedParams.Vm[0].Password)
 	os.Setenv("CTRL_IPADDRESS", testbedParams.Vm[0].IP)
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	lib.KubeInit(testbedParams.AkoParam.Clusters[0].KubeConfigFilePath)
 	AviClients, err = lib.SharedAVIClients(2)
 	if err != nil {

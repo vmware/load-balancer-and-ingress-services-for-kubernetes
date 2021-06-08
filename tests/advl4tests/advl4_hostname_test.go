@@ -47,6 +47,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("ADVANCED_L4", "true")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	// CRDClient = crdfake.NewSimpleClientset()

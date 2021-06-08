@@ -16,7 +16,6 @@ package oshiftroutetests
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -30,16 +29,12 @@ import (
 )
 
 func SetUpTestForRouteInNodePort(t *testing.T, modelName string) {
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	AddLabelToNamespace(defaultKey, defaultValue, defaultNamespace, modelName, t)
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
 }
 
 func TearDownTestForRouteInNodePort(t *testing.T, modelName string) {
-	os.Setenv("SHARD_VS_SIZE", "")
-	os.Setenv("CLOUD_NAME", "")
-
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.DelSVC(t, "default", "avisvc")
 }

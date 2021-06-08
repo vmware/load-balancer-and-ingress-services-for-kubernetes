@@ -33,10 +33,8 @@ import (
 )
 
 func SetupRouteNamespaceSync(key, value, shardScheme string) {
-
 	os.Setenv("NAMESPACE_SYNC_LABEL_KEY", key)
 	os.Setenv("NAMESPACE_SYNC_LABEL_VALUE", value)
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	ctrl.InitializeNamespaceSync()
 }
 

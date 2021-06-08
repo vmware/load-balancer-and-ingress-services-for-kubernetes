@@ -235,6 +235,7 @@ func TestMain(m *testing.M) {
 	utils.SetCloudName("CLOUD_AWS")
 	os.Setenv("SERVICE_TYPE", "NodePort")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	kubeClient = k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())

@@ -55,6 +55,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
@@ -120,8 +121,6 @@ func TestMain(m *testing.M) {
 }
 
 func SetUpTestForIngress(t *testing.T, modelNames ...string) {
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
-
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
@@ -130,9 +129,6 @@ func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 }
 
 func TearDownTestForIngress(t *testing.T, modelNames ...string) {
-	os.Setenv("SHARD_VS_SIZE", "")
-	os.Setenv("CLOUD_NAME", "")
-
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
@@ -309,8 +305,6 @@ func TestNoBackendL7Model(t *testing.T) {
 
 func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
-
 	modelName := "admin/cluster--Shared-L7-0"
 	objects.SharedAviGraphLister().Delete(modelName)
 	svcExample := (integrationtest.FakeService{

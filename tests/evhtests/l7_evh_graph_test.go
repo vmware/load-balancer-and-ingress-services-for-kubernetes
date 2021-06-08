@@ -16,7 +16,6 @@ package evhtests
 
 import (
 	"context"
-	"os"
 	"sort"
 	"testing"
 	"time"
@@ -217,8 +216,6 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 
 func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	os.Setenv("SHARD_VS_SIZE", "LARGE")
-
 	modelName := "admin/cluster--Shared-L7-EVH-0"
 	objects.SharedAviGraphLister().Delete(modelName)
 	svcExample := (integrationtest.FakeService{
