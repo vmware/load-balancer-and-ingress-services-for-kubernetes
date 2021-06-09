@@ -198,19 +198,23 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				dns_info_arr = append(dns_info_arr, &dns_info)
 			}
 		}
-
-		vrfContextRef := "/api/vrfcontext?name=" + vsvip_meta.VrfContext
+		var vrfContextRef string
 		vsvip := avimodels.VsVip{
 			Name:                  &name,
 			TenantRef:             &tenant,
 			CloudRef:              &cloudRef,
 			EastWestPlacement:     &east_west,
-			VrfContextRef:         &vrfContextRef,
 			DNSInfo:               dns_info_arr,
 			Vip:                   vips,
 			VsvipCloudConfigCksum: &cksumstr,
 		}
-
+		if vsvip_meta.VrfContext != "" {
+			vrfContextRef = "/api/vrfcontext?name=" + vsvip_meta.VrfContext
+			vsvip.VrfContextRef = &vrfContextRef
+		}
+		if vsvip_meta.T1Lr != "" {
+			vsvip.Tier1Lr = &vsvip_meta.T1Lr
+		}
 		if len(vsvip_meta.BGPPeerLabels) > 0 {
 			vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
 		}

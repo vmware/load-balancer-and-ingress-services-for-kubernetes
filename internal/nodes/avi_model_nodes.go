@@ -901,6 +901,7 @@ type AviVSVIPNode struct {
 	BGPPeerLabels           []string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
+	T1Lr                    string
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {
@@ -931,6 +932,9 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	if len(v.BGPPeerLabels) > 0 {
 		sort.Strings(v.BGPPeerLabels)
 		checksum += utils.Hash(utils.Stringify(v.BGPPeerLabels))
+	}
+	if v.T1Lr != "" {
+		checksum += utils.Hash(v.T1Lr)
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -1106,6 +1110,7 @@ type AviPoolNode struct {
 	HealthMonitors         []string
 	ApplicationPersistence string
 	VrfContext             string
+	T1Lr                   string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1153,6 +1158,9 @@ func (v *AviPoolNode) CalculateCheckSum() {
 
 	if lib.GetGRBACSupport() {
 		checksum += lib.GetClusterLabelChecksum()
+	}
+	if v.T1Lr != "" {
+		checksum += utils.Hash(v.T1Lr)
 	}
 
 	v.CloudConfigCksum = checksum

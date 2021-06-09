@@ -92,6 +92,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 
 	// Hard coded ports for the shared VS
 	var portProtocols []AviPortHostProtocol
+	var vrfcontext string
 	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
 	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true}
 	portProtocols = append(portProtocols, httpPort)
@@ -101,9 +102,12 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 	avi_vs_meta.SNIParent = true
-
-	vrfcontext := lib.GetVrf()
-	avi_vs_meta.VrfContext = vrfcontext
+	if lib.GetT1LRPath() != "" {
+		vrfcontext = ""
+	} else {
+		vrfcontext = lib.GetVrf()
+		avi_vs_meta.VrfContext = vrfcontext
+	}
 
 	o.AddModelNode(avi_vs_meta)
 	o.ConstructShardVsPGNode(vsName, key, avi_vs_meta)
@@ -117,7 +121,9 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		EastWest:   false,
 		VrfContext: vrfcontext,
 	}
-
+	if lib.GetT1LRPath() != "" {
+		vsVipNode.T1Lr = lib.GetT1LRPath()
+	}
 	if lib.GetSubnetIP() != "" {
 		vsVipNode.SubnetIP = lib.GetSubnetIP()
 		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
@@ -343,7 +349,11 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 					HostNames:   hostSlice,
 				},
 			}
-
+			if lib.GetT1LRPath() != "" {
+				poolNode.T1Lr = lib.GetT1LRPath()
+				// Unset the poolnode's vrfcontext.
+				poolNode.VrfContext = ""
+			}
 			if hostpath.reencrypt == true {
 				o.BuildPoolSecurity(poolNode, hostpath, key)
 			}
