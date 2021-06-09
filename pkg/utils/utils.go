@@ -157,7 +157,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		AviLog.Infof("Initialized informer factory for namespace :%s", namespace)
 	}
 
-	// We listen to configmaps only in`avi-system or vmware-system-ako`
+	// We listen to configmaps only in the namespace in which AKO runs.
 	akoNS := GetAKONamespace()
 
 	SetIngressClassEnabled(cs)
@@ -226,7 +226,7 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 			case INFORMERS_ADVANCED_L4:
 				akoNSBoundInformer, ok = v.(bool)
 				if !ok {
-					AviLog.Infof("Running AKO in avi-system namespace")
+					AviLog.Infof("Running AKO in %s namespace", GetAKONamespace())
 				}
 			case INFORMERS_OPENSHIFT_CLIENT:
 				oshiftclient, ok = v.(oshiftclientset.Interface)
@@ -405,11 +405,13 @@ func GetAdvancedL4() bool {
 }
 
 // GetAKONamespace returns the namespace of AKO pod.
-// In Advance L4 Mode this is vmware-system-ako
-// In all other cases this is avi-system
+// In AdvancedL4 Mode this is vmware-system-ako
+// In all other cases this is the namespace in which the
+// statefulset runs.
 func GetAKONamespace() string {
+	akoNS := os.Getenv(POD_NAMESPACE)
 	if GetAdvancedL4() {
-		return VMWARE_SYSTEM_AKO
+		akoNS = VMWARE_SYSTEM_AKO
 	}
-	return AKO_DEFAULT_NS
+	return akoNS
 }

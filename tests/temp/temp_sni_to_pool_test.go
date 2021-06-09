@@ -53,6 +53,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
+	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
@@ -96,7 +97,8 @@ func TestMain(m *testing.M) {
 	waitGroupMap["slowretry"] = wgSlowRetry
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
-
+	wgStatus := &sync.WaitGroup{}
+	waitGroupMap["status"] = wgStatus
 	AddConfigMap()
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
@@ -212,17 +214,17 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 }
 
 func UpdateConfigMap(key, val string) {
-	KubeClient.CoreV1().ConfigMaps("avi-system").Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
+	KubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
+			Namespace: utils.GetAKONamespace(),
 			Name:      "avi-k8s-config",
 		},
 		Data: make(map[string]string),
 	}
 	aviCM.Data[key] = val
 	aviCM.ResourceVersion = "2"
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
+	KubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 	// Wait for the configmap changes to take effect
 	time.Sleep(3 * time.Second)
 }
@@ -230,11 +232,11 @@ func UpdateConfigMap(key, val string) {
 func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
+			Namespace: utils.GetAKONamespace(),
 			Name:      "avi-k8s-config",
 		},
 	}
-	KubeClient.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
+	KubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 
 	integrationtest.PollForSyncStart(ctrl, 10)
 }

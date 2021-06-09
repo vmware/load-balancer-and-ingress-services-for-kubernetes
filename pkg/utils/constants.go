@@ -75,6 +75,7 @@ const (
 	K8S_ETIMEDOUT                 = "timed out"
 	ADVANCED_L4                   = "ADVANCED_L4"
 	SERVICES_API                  = "SERVICES_API"
+	POD_NAMESPACE                 = "POD_NAMESPACE"
 
 	// container-lib/api constants
 	AVIAPI_INITIATING   = "INITIATING"

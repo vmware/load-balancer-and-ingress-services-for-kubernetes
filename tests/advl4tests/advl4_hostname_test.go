@@ -46,6 +46,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("ADVANCED_L4", "true")
+	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	// CRDClient = crdfake.NewSimpleClientset()
