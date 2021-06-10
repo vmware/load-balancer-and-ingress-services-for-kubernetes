@@ -149,7 +149,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: nsxt1LR
+                key: nsxtT1LR
           {{ end }}
           - name: NAMESPACE_SYNC_LABEL_KEY
             valueFrom:

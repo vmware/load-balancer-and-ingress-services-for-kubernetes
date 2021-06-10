@@ -459,10 +459,6 @@ func GetGlobalBgpPeerLabels() []string {
 
 func GetT1LRPath() string {
 	t1LrPath := os.Getenv("NSXT_T1_LR")
-	if t1LrPath == "" {
-		utils.AviLog.Error("Required param nsxt1LR, missing from the configuration")
-		return ""
-	}
 	return t1LrPath
 }
 
