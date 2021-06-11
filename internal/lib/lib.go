@@ -458,6 +458,11 @@ func GetGlobalBgpPeerLabels() []string {
 	return bgpPeerLabels
 }
 
+func GetT1LRPath() string {
+	t1LrPath := os.Getenv("NSXT_T1_LR")
+	return t1LrPath
+}
+
 func GetSEGName() string {
 	segName := os.Getenv(SEG_NAME)
 	if segName != "" {

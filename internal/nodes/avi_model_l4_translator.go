@@ -86,7 +86,11 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	avi_vs_meta.EnableRhi = &enableRhi
 
 	vrfcontext := lib.GetVrf()
-	avi_vs_meta.VrfContext = vrfcontext
+	if lib.GetT1LRPath() != "" {
+		vrfcontext = ""
+	} else {
+		avi_vs_meta.VrfContext = vrfcontext
+	}
 
 	isTCP := false
 	var portProtocols []AviPortHostProtocol
@@ -113,6 +117,9 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		FQDNs:      fqdns,
 		EastWest:   false,
 		VrfContext: vrfcontext,
+	}
+	if lib.GetT1LRPath() != "" {
+		vsVipNode.T1Lr = lib.GetT1LRPath()
 	}
 
 	if lib.GetSubnetIP() != "" {
@@ -155,7 +162,11 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			PortName:   portProto.Name,
 			VrfContext: lib.GetVrf(),
 		}
-
+		if lib.GetT1LRPath() != "" {
+			poolNode.T1Lr = lib.GetT1LRPath()
+			// Unset the poolnode's vrfcontext.
+			poolNode.VrfContext = ""
+		}
 		serviceType := lib.GetServiceType()
 		if serviceType == lib.NodePortLocal {
 			if svcObj.Spec.Type == "NodePort" {

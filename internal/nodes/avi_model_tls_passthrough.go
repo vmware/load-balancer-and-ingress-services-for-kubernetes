@@ -137,7 +137,11 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				Tenant:     lib.GetTenant(),
 				VrfContext: lib.GetVrf(),
 			}
-
+			if lib.GetT1LRPath() != "" {
+				poolNode.T1Lr = lib.GetT1LRPath()
+				// Unset the poolnode's vrfcontext.
+				poolNode.VrfContext = ""
+			}
 			o.AddModelNode(poolNode)
 		}
 		poolNode.IngressName = objName

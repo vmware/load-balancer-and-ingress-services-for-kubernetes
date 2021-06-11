@@ -2703,6 +2703,17 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 		utils.AviLog.Errorf("Cloud does not have a ipam_provider_ref configured")
 		return false
 	}
+	// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
+	if vType == "CLOUD_NSXT" {
+		if lib.GetT1LRPath() == "" {
+			utils.AviLog.Errorf("Cloud is configured as NSX-T but the T1 LR mapping is not provided")
+			return false
+		}
+	} else if lib.GetT1LRPath() != "" {
+		// If the cloud type is not NSX-T and yet the T1 LR is set then too disable sync
+		utils.AviLog.Errorf("Cloud is not configured as NSX-T but the T1 LR mapping is  provided")
+		return false
+	}
 
 	return true
 }

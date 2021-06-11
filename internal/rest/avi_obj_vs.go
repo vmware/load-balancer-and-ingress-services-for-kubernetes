@@ -62,7 +62,10 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			SeGroupRef:            &seGroupRef,
 			VrfContextRef:         &vrfContextRef,
 		}
-
+		if lib.GetT1LRPath() != "" {
+			// Clear the vrfContextRef
+			vs.VrfContextRef = nil
+		}
 		var enableRhi bool
 		if vs_meta.EnableRhi != nil {
 			enableRhi = *vs_meta.EnableRhi
@@ -218,7 +221,10 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 	}
-
+	if lib.GetT1LRPath() != "" {
+		// Clear the vrfContextRef
+		sniChild.VrfContextRef = nil
+	}
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
 	vh_type := utils.VS_TYPE_VH_CHILD
 	sniChild.Type = &vh_type

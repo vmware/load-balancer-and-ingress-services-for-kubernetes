@@ -134,6 +134,13 @@ spec:
                 name: avi-k8s-config
                 key: syncNamespace
           {{ end }}
+           {{ if .Values.NetworkSettings.nsxt1LR }}
+          - name: NSXT_T1_LR
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nsxtT1LR
+          {{ end }}
           - name: NAMESPACE_SYNC_LABEL_KEY
             valueFrom:
               configMapKeyRef:

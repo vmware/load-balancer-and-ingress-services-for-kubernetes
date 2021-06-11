@@ -41,7 +41,6 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
-	vrfContextRef := "/api/vrfcontext?name=" + pool_meta.VrfContext
 	placementNetworks := []*avimodels.PlacementNetwork{}
 	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 
@@ -85,10 +84,17 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		TenantRef:         &tenant,
 		CloudRef:          &cloudRef,
 		ServiceMetadata:   &svc_mdata,
-		VrfRef:            &vrfContextRef,
 		SniEnabled:        &pool_meta.SniEnabled,
 		SslProfileRef:     &pool_meta.SslProfileRef,
 		PlacementNetworks: placementNetworks,
+	}
+	var vrfContextRef string
+	if pool_meta.VrfContext != "" {
+		vrfContextRef = "/api/vrfcontext?name=" + pool_meta.VrfContext
+		pool.VrfRef = &vrfContextRef
+	}
+	if pool_meta.T1Lr != "" {
+		pool.Tier1Lr = &pool_meta.T1Lr
 	}
 	if lib.GetGRBACSupport() {
 		pool.Markers = lib.GetMarkers()

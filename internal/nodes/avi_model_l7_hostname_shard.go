@@ -106,7 +106,11 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 				},
 				VrfContext: lib.GetVrf(),
 			}
-
+			if lib.GetT1LRPath() != "" {
+				poolNode.T1Lr = lib.GetT1LRPath()
+				// Unset the poolnode's vrfcontext.
+				poolNode.VrfContext = ""
+			}
 			serviceType := lib.GetServiceType()
 			if serviceType == lib.NodePortLocal {
 				if servers := PopulateServersForNPL(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
