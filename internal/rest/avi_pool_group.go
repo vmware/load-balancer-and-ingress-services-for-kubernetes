@@ -29,6 +29,11 @@ import (
 )
 
 func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, cache_obj *avicache.AviPGCache, key string) *utils.RestOp {
+	if len(pg_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+		utils.AviLog.Warnf("key: %s, msg: length of pool group name %s exceeds max length limit for AVI Objects. Not processing object",
+			key, pg_meta.Name)
+		return nil
+	}
 	name := pg_meta.Name
 	cksum := pg_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
@@ -80,6 +85,10 @@ func (rest *RestOperations) SanitizePGMembers(Members []*avimodels.PoolGroupMemb
 			// Duplicate detected, remove it from the copy
 			pgmemberscopy = append(pgmemberscopy[:i], pgmemberscopy[i+1:]...)
 			utils.AviLog.Warnf("key: %s, msg: detected duplicate poolref :%s", key, member.PoolRef)
+		} else if member.PriorityLabel != nil && len(*member.PriorityLabel) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+			utils.AviLog.Warnf("key: %s, msg: length of priority label %s exceeds max length limit for AVI Objects. Not adding to pool ref to PG",
+				key, *member.PriorityLabel)
+			pgmemberscopy = append(pgmemberscopy[:i], pgmemberscopy[i+1:]...)
 		} else {
 			newList = append(newList, *member.PoolRef)
 		}

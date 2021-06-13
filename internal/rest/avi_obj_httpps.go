@@ -31,6 +31,12 @@ import (
 )
 
 func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode, cache_obj *avicache.AviHTTPPolicyCache, key string) *utils.RestOp {
+
+	if len(hps_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+		utils.AviLog.Warnf("key: %s, msg: length of HTTP PolicySet name %s exceeds max length limit for AVI Objects. Not processing object",
+			key, hps_meta.Name)
+		return nil
+	}
 	name := hps_meta.Name
 	cksum := hps_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
@@ -74,116 +80,133 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	for _, hppmap := range hps_meta.HppMap {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		match_target := avimodels.MatchTarget{}
-		if len(hppmap.Host) > 0 {
-			var host []string
-			host = hppmap.Host
-			match_crit := "HDR_EQUALS"
-			host_hdr_match := avimodels.HostHdrMatch{
-				MatchCriteria: &match_crit,
-				Value:         host,
+		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Request Rule: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
+				key, name)
+		} else {
+			match_target := avimodels.MatchTarget{}
+			if len(hppmap.Host) > 0 {
+				var host []string
+				host = hppmap.Host
+				match_crit := "HDR_EQUALS"
+				host_hdr_match := avimodels.HostHdrMatch{
+					MatchCriteria: &match_crit,
+					Value:         host,
+				}
+				match_target.HostHdr = &host_hdr_match
 			}
-			match_target.HostHdr = &host_hdr_match
-		}
 
-		if len(hppmap.Path) > 0 {
-			match_crit := hppmap.MatchCriteria
-			// always match case sensitive
-			match_case := "SENSITIVE"
-			path_match := avimodels.PathMatch{
-				MatchCriteria: &match_crit,
-				MatchCase:     &match_case,
-				MatchStr:      hppmap.Path,
+			if len(hppmap.Path) > 0 {
+				match_crit := hppmap.MatchCriteria
+				// always match case sensitive
+				match_case := "SENSITIVE"
+				path_match := avimodels.PathMatch{
+					MatchCriteria: &match_crit,
+					MatchCase:     &match_case,
+					MatchStr:      hppmap.Path,
+				}
+				match_target.Path = &path_match
 			}
-			match_target.Path = &path_match
-		}
 
-		if hppmap.Port != 0 {
-			match_crit := "IS_IN"
-			vsport_match := avimodels.PortMatch{
-				MatchCriteria: &match_crit,
-				Ports:         []int64{int64(hppmap.Port)},
+			if hppmap.Port != 0 {
+				match_crit := "IS_IN"
+				vsport_match := avimodels.PortMatch{
+					MatchCriteria: &match_crit,
+					Ports:         []int64{int64(hppmap.Port)},
+				}
+				match_target.VsPort = &vsport_match
 			}
-			match_target.VsPort = &vsport_match
-		}
 
-		sw_action := avimodels.HttpswitchingAction{}
-		if hppmap.Pool != "" {
-			action := "HTTP_SWITCHING_SELECT_POOL"
-			sw_action.Action = &action
-			pool_ref := fmt.Sprintf("/api/pool/?name=%s", hppmap.Pool)
-			sw_action.PoolRef = &pool_ref
-		} else if hppmap.PoolGroup != "" {
-			action := "HTTP_SWITCHING_SELECT_POOLGROUP"
-			sw_action.Action = &action
-			pg_ref := fmt.Sprintf("/api/poolgroup/?name=%s", hppmap.PoolGroup)
-			sw_action.PoolGroupRef = &pg_ref
-		}
+			sw_action := avimodels.HttpswitchingAction{}
+			if hppmap.Pool != "" {
+				action := "HTTP_SWITCHING_SELECT_POOL"
+				sw_action.Action = &action
+				pool_ref := fmt.Sprintf("/api/pool/?name=%s", hppmap.Pool)
+				sw_action.PoolRef = &pool_ref
+			} else if hppmap.PoolGroup != "" {
+				action := "HTTP_SWITCHING_SELECT_POOLGROUP"
+				sw_action.Action = &action
+				pg_ref := fmt.Sprintf("/api/poolgroup/?name=%s", hppmap.PoolGroup)
+				sw_action.PoolGroupRef = &pg_ref
+			}
 
-		var j int32
-		j = idx
-		rule := avimodels.HTTPRequestRule{
-			Index:           &j,
-			Enable:          &enable,
-			Name:            &name,
-			Match:           &match_target,
-			SwitchingAction: &sw_action,
+			var j int32
+			j = idx
+			rule := avimodels.HTTPRequestRule{
+				Index:           &j,
+				Enable:          &enable,
+				Name:            &name,
+				Match:           &match_target,
+				SwitchingAction: &sw_action,
+			}
+			http_req_pol.Rules = append(http_req_pol.Rules, &rule)
+			idx = idx + 1
 		}
-		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
-		idx = idx + 1
 	}
 
 	for _, hppmap := range hps_meta.RedirectPorts {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		match_target := avimodels.MatchTarget{}
-		if len(hppmap.Hosts) > 0 {
-			match_crit := "HDR_EQUALS"
-			host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
-				Value: hppmap.Hosts}
-			match_target.HostHdr = &host_hdr_match
-			port_match_crit := "IS_IN"
-			match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
+		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Redirect Rule: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
+				key, name)
+		} else {
+			match_target := avimodels.MatchTarget{}
+			if len(hppmap.Hosts) > 0 {
+				match_crit := "HDR_EQUALS"
+				host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
+					Value: hppmap.Hosts}
+				match_target.HostHdr = &host_hdr_match
+				port_match_crit := "IS_IN"
+				match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
+			}
+			redirect_action := avimodels.HTTPRedirectAction{}
+			protocol := "HTTPS"
+			redirect_action.StatusCode = &hppmap.StatusCode
+			redirect_action.Protocol = &protocol
+			redirect_action.Port = &hppmap.RedirectPort
+			var j int32
+			j = idx
+			rule := avimodels.HTTPRequestRule{Enable: &enable, Index: &j,
+				Name: &name, Match: &match_target, RedirectAction: &redirect_action}
+			http_req_pol.Rules = append(http_req_pol.Rules, &rule)
+			idx = idx + 1
 		}
-		redirect_action := avimodels.HTTPRedirectAction{}
-		protocol := "HTTPS"
-		redirect_action.StatusCode = &hppmap.StatusCode
-		redirect_action.Protocol = &protocol
-		redirect_action.Port = &hppmap.RedirectPort
-		var j int32
-		j = idx
-		rule := avimodels.HTTPRequestRule{Enable: &enable, Index: &j,
-			Name: &name, Match: &match_target, RedirectAction: &redirect_action}
-		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
-		idx = idx + 1
 	}
 	if hps_meta.HeaderReWrite != nil {
-		var hostHdrActionArr []*avimodels.HTTPHdrAction
-		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		match_crit := "HDR_EQUALS"
-		host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
-			Value: []string{hps_meta.HeaderReWrite.SourceHost}}
-		match_target := avimodels.MatchTarget{}
-		match_target.HostHdr = &host_hdr_match
-		replaceHeaderLiteral := "HTTP_REPLACE_HDR"
-		host := "Host"
-		headerVal := avimodels.HTTPHdrValue{Val: &hps_meta.HeaderReWrite.TargetHost}
-		headerData := avimodels.HTTPHdrData{Name: &host, Value: &headerVal}
-		rewriteHeader := avimodels.HTTPHdrAction{}
-		rewriteHeader.Action = &replaceHeaderLiteral
-		rewriteHeader.Hdr = &headerData
-		hostHdrActionArr = append(hostHdrActionArr, &rewriteHeader)
-		var j int32
-		j = idx
-		rule := avimodels.HTTPRequestRule{
-			Index:     &j,
-			Enable:    &enable,
-			Name:      &name,
-			Match:     &match_target,
-			HdrAction: hostHdrActionArr,
+		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Header Rewrite Rule: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
+				key, name)
+		} else {
+			var hostHdrActionArr []*avimodels.HTTPHdrAction
+			enable := true
+
+			match_crit := "HDR_EQUALS"
+			host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
+				Value: []string{hps_meta.HeaderReWrite.SourceHost}}
+			match_target := avimodels.MatchTarget{}
+			match_target.HostHdr = &host_hdr_match
+			replaceHeaderLiteral := "HTTP_REPLACE_HDR"
+			host := "Host"
+			headerVal := avimodels.HTTPHdrValue{Val: &hps_meta.HeaderReWrite.TargetHost}
+			headerData := avimodels.HTTPHdrData{Name: &host, Value: &headerVal}
+			rewriteHeader := avimodels.HTTPHdrAction{}
+			rewriteHeader.Action = &replaceHeaderLiteral
+			rewriteHeader.Hdr = &headerData
+			hostHdrActionArr = append(hostHdrActionArr, &rewriteHeader)
+			var j int32
+			j = idx
+			rule := avimodels.HTTPRequestRule{
+				Index:     &j,
+				Enable:    &enable,
+				Name:      &name,
+				Match:     &match_target,
+				HdrAction: hostHdrActionArr,
+			}
+			http_req_pol.Rules = append(http_req_pol.Rules, &rule)
 		}
-		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
+
 	}
 
 	var path string
@@ -226,7 +249,7 @@ func (rest *RestOperations) AviHttpPolicyDel(uuid string, tenant string, key str
 func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		utils.AviLog.Warnf("key: %s, rest_op has err or no response for httppolicyset, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
-		return errors.New("Errored rest_op")
+		return errors.New("errored rest_op")
 	}
 
 	resp_elems := RestRespArrToObjByType(rest_op, "httppolicyset", key)

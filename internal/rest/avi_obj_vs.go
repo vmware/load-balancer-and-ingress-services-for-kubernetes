@@ -35,6 +35,12 @@ import (
 const VSVIP_NOTFOUND = "VsVip object not found"
 
 func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
+
+	if len(vs_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+		utils.AviLog.Warnf("key: %s, msg: length of virtual service name %s exceeds max length limit for AVI Objects. Not processing object",
+			key, vs_meta.Name)
+		return nil
+	}
 	if vs_meta.IsSNIChild {
 		rest_ops := rest.AviVsSniBuild(vs_meta, rest_method, cache_obj, key)
 		return rest_ops

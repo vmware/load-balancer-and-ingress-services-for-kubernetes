@@ -30,6 +30,11 @@ import (
 )
 
 func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache_obj *avicache.AviSSLCache) *utils.RestOp {
+	if len(ssl_node.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+		utils.AviLog.Warnf("Length of SSLKeyAndCertificate name %s exceeds max length limit for AVI Objects. Not processing object",
+			ssl_node.Name)
+		return nil
+	}
 	name := ssl_node.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", ssl_node.Tenant)
 	certificate := string(ssl_node.Cert)
@@ -94,7 +99,7 @@ func (rest *RestOperations) AviSSLKeyCertDel(uuid string, tenant string) *utils.
 func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		utils.AviLog.Warnf("key: %s, rest_op has err or no response for sslkeycert, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
-		return errors.New("Errored rest_op")
+		return errors.New("errored rest_op")
 	}
 
 	resp_elems := RestRespArrToObjByType(rest_op, "sslkeyandcertificate", key)
@@ -189,6 +194,11 @@ func (rest *RestOperations) AviSSLCacheDel(rest_op *utils.RestOp, vsKey avicache
 }
 
 func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode, cache_obj *avicache.AviPkiProfileCache) *utils.RestOp {
+	if len(pki_node.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+		utils.AviLog.Warnf("Length of PKI profile name %s exceeds max length limit for AVI Objects. Not processing object",
+			pki_node.Name)
+		return nil
+	}
 	caCert := string(pki_node.CACert)
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pki_node.Tenant)
 	name := pki_node.Name

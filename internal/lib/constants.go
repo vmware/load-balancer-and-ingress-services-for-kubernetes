@@ -140,6 +140,7 @@ const (
 	NsFilterAdd                    = "ADD"
 	NsFilterDelete                 = "DELETE"
 	PoolNameSuffixForHttpPolToPool = "policy-to-pool"
+	AVI_OBJ_NAME_MAX_LENGTH        = 255
 )
 
 // Cache Indexer constants.

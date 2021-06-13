@@ -75,7 +75,9 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 			utils.AviLog.Debugf("key: %s, msg: the stored checksum for vs is %v, and the obtained checksum for VS is: %v", key, vs_cache_obj.CloudConfigCksum, strconv.Itoa(int(aviVsNode.GetCheckSum())))
 			// The checksums are different, so it should be a PUT call.
 			restOp := rest.AviVsBuildForEvh(aviVsNode, utils.RestPut, vs_cache_obj, key)
-			rest_ops = append(rest_ops, restOp...)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp...)
+			}
 
 		}
 		if success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
@@ -97,7 +99,9 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 
 		// The cache was not found - it's a POST call.
 		restOp := rest.AviVsBuildForEvh(aviVsNode, utils.RestPost, nil, key)
-		rest_ops = append(rest_ops, restOp...)
+		if restOp != nil {
+			rest_ops = append(rest_ops, restOp...)
+		}
 		utils.AviLog.Debugf("POST key: %s, vsKey: %s", key, vsKey)
 		utils.AviLog.Debugf("POST restops %s", utils.Stringify(rest_ops))
 		if success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
@@ -183,13 +187,15 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 				// The checksums are different, so it should be a PUT call.
 				if sni_cache_obj.CloudConfigCksum != strconv.Itoa(int(sni_node.GetCheckSum())) {
 					restOp := rest.AviVsBuildForEvh(sni_node, utils.RestPut, sni_cache_obj, key)
-					rest_ops = append(rest_ops, restOp...)
-					utils.AviLog.Infof("key: %s, msg: the checksums are different for sni child %s, operation: PUT", key, sni_node.Name)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp...)
+					}
+					utils.AviLog.Infof("key: %s, msg: the checksums are different for evh child %s, operation: PUT", key, sni_node.Name)
 
 				}
 			}
 		} else {
-			utils.AviLog.Debugf("key: %s, msg: sni child %s not found in cache, operation: POST", key, sni_node.Name)
+			utils.AviLog.Debugf("key: %s, msg: evh child %s not found in cache, operation: POST", key, sni_node.Name)
 			_, rest_ops = rest.CACertCU(sni_node.CACertRefs, []avicache.NamespaceName{}, namespace, rest_ops, key)
 			_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
@@ -198,15 +204,17 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 
 			// Not found - it should be a POST call.
 			restOp := rest.AviVsBuildForEvh(sni_node, utils.RestPost, nil, key)
-			rest_ops = append(rest_ops, restOp...)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp...)
+			}
 		}
 		rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(http_policies_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(sni_pgs_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, key)
-		utils.AviLog.Debugf("key: %s, msg: the SNI VSes to be deleted are: %s", key, cache_sni_nodes)
+		utils.AviLog.Debugf("key: %s, msg: the EVH VSes to be deleted are: %s", key, cache_sni_nodes)
 	} else {
-		utils.AviLog.Debugf("key: %s, msg: sni child %s not found in cache and SNI parent also does not exist in cache", key, sni_node.Name)
+		utils.AviLog.Debugf("key: %s, msg: EVH child %s not found in cache and EVH parent also does not exist in cache", key, sni_node.Name)
 		_, rest_ops = rest.CACertCU(sni_node.CACertRefs, []avicache.NamespaceName{}, namespace, rest_ops, key)
 		_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
@@ -215,12 +223,20 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 
 		// Not found - it should be a POST call.
 		restOp := rest.AviVsBuildForEvh(sni_node, utils.RestPost, nil, key)
-		rest_ops = append(rest_ops, restOp...)
+		if restOp != nil {
+			rest_ops = append(rest_ops, restOp...)
+		}
 	}
 	return cache_sni_nodes, rest_ops
 }
 
 func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
+
+	if len(vs_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+		utils.AviLog.Warnf("key: %s, msg: length of EVH VS name %s exceeds max length limit for AVI Object Name. Not Processing object",
+			key, vs_meta.Name)
+		return nil
+	}
 	if !vs_meta.EVHParent {
 		rest_ops := rest.AviVsChildEvhBuild(vs_meta, rest_method, cache_obj, key)
 		return rest_ops
