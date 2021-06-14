@@ -183,7 +183,6 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsE
 			pathSslProfile := pool.SslProfileRef
 			destinationCertNode := pool.PkiProfile
 			pathHMs := pool.HealthMonitors
-
 			// pathprefix match
 			// lets say path: / and available pools are cluster--namespace-host_foo-ingName, cluster--namespace-host_bar-ingName
 			// then cluster--namespace-host_-ingName should qualify for both pools
@@ -193,9 +192,16 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsE
 			secureRgx := regexp.MustCompile(fmt.Sprintf(`^%s%s-%s%s.*-%s`, lib.GetNamePrefix(), rrNamespace, host, pathPrefix, ingName))
 			// sharedvs poolname match regex
 			insecureRgx := regexp.MustCompile(fmt.Sprintf(`^%s%s.*-%s-%s`, lib.GetNamePrefix(), host+pathPrefix, rrNamespace, ingName))
-
-			if (secureRgx.MatchString(pool.Name) && isSNI) || (insecureRgx.MatchString(pool.Name) && !isSNI) {
-				utils.AviLog.Debugf("key: %s, msg: computing poolNode %s for httprule.paths.target %s", key, pool.Name, path)
+			var poolName string
+			//FOR EVH: Build poolname using marker fields.
+			if lib.IsEvhEnabled() && pool.Markers != nil {
+				poolName = lib.GetEvhPoolNameNoEncoding(pool.Markers["ingName"], pool.Markers["namespace"], pool.Markers["host"],
+					pool.Markers["path"], pool.Markers["infraSettingName"], pool.Markers["serviceName"])
+			} else {
+				poolName = pool.Name
+			}
+			if (secureRgx.MatchString(poolName) && isSNI) || (insecureRgx.MatchString(poolName) && !isSNI) {
+				utils.AviLog.Debugf("key: %s, msg: computing poolNode %s for httprule.paths.target %s", key, poolName, path)
 				// pool tls
 				if httpRulePath.TLS.Type != "" {
 					isPathSniEnabled = true
@@ -207,7 +213,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsE
 
 					if httpRulePath.TLS.DestinationCA != "" {
 						destinationCertNode = &AviPkiProfileNode{
-							Name:   lib.GetPoolPKIProfileName(pool.Name),
+							Name:   lib.GetPoolPKIProfileName(poolName),
 							Tenant: lib.GetTenant(),
 							CACert: httpRulePath.TLS.DestinationCA,
 						}

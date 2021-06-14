@@ -176,8 +176,8 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 }
 
 // BuildCACertNode : Build a new node to store CA cert, this would be referred by the corresponding keycert
-func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, keycertname, key string) string {
-	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(keycertname), Tenant: lib.GetTenant()}
+func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, infraSettingName, host, key string) string {
+	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(infraSettingName, host), Tenant: lib.GetTenant()}
 	cacertNode.Type = lib.CertTypeCA
 	cacertNode.Cert = []byte(cacert)
 
@@ -212,9 +212,9 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 			certNode.Cert = []byte(tlsData.cert)
 			certNode.Key = []byte(tlsData.key)
 			if tlsData.cacert != "" {
-				certNode.CACert = o.BuildCACertNode(tlsNode, tlsData.cacert, certNode.Name, key)
+				certNode.CACert = o.BuildCACertNode(tlsNode, tlsData.cacert, infraSettingName, sniHost, key)
 			} else {
-				tlsNode.DeleteCACertRefInSNINode(lib.GetCACertNodeName(certNode.Name), key)
+				tlsNode.DeleteCACertRefInSNINode(lib.GetCACertNodeName(infraSettingName, sniHost), key)
 			}
 		} else {
 			ok, _ := svcLister.IngressMappings(namespace).GetSecretToIng(secretName)
