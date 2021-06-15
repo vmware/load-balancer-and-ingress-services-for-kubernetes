@@ -437,11 +437,6 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		checksumStringSlice = append(checksumStringSlice, "VSVIP"+vsvipref.Name)
 	}
 
-	//Required to capture changes in evh child nodes.
-	for _, EVHNode := range v.EvhNodes {
-		checksumStringSlice = append(checksumStringSlice, "EVHChildNode"+EVHNode.Name)
-	}
-
 	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
 	// will change the eventual checksum Hash.
 
@@ -470,6 +465,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		v.NetworkProfile +
 		utils.Stringify(portproto) +
 		v.EvhHostName)
+
+	for _, evhnode := range v.EvhNodes {
+		checksum += evhnode.GetCheckSum()
+	}
 
 	if vsRefs != "" {
 		checksum += utils.Hash(vsRefs)

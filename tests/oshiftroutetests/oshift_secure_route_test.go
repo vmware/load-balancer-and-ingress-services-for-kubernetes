@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -341,6 +342,49 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
 	integrationtest.DelEP(t, "test", "avisvc")
+}
+
+func TestMultiSecureRouteSameNamespace(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, defaultModelName)
+	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	route2 := FakeRoute{Name: "route2", Namespace: defaultNamespace, Path: "/bar"}.SecureRoute()
+	_, err = OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), route2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, defaultModelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() int {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return len(sniVS.PoolRefs)
+	}, 20*time.Second).Should(gomega.Equal(2))
+
+	err = OshiftClient.RouteV1().Routes(defaultNamespace).Delete(context.TODO(), "route2", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the route %v", err)
+	}
+
+	mcache := cache.SharedAviObjCache()
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	g.Eventually(func() int {
+		vsCache, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if found && ok {
+			return len(vsCacheObj.PoolKeyCollection)
+		}
+		return 2
+	}, 60*time.Second).Should(gomega.Equal(1))
+
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
 }
 
 func TestSecureRouteAlternateBackend(t *testing.T) {

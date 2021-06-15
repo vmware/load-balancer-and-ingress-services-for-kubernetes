@@ -682,6 +682,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 		v.NetworkProfile +
 		utils.Stringify(portproto))
 
+	for _, sninode := range v.SniNodes {
+		checksum += sninode.GetCheckSum()
+	}
+
 	if vsRefs != "" {
 		checksum += utils.Hash(vsRefs)
 	}

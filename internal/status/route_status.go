@@ -357,7 +357,7 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 		}
 	}
 
-	// compare the VirtualService annotations for this ingress object
+	// compare the VirtualService annotations for this Route object
 	if req := isAnnotationsUpdateRequired(mRoute.Annotations, vsAnnotations); req {
 		if err := patchRouteAnnotations(mRoute, vsAnnotations); err != nil && k8serrors.IsNotFound(err) {
 			utils.AviLog.Errorf("key: %s, msg: error in updating the route annotations: %v", key, err)
@@ -466,7 +466,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 	mRoute, err := utils.GetInformers().RouteInformer.Lister().Routes(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName)
 
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus: %s", key, err)
+		utils.AviLog.Warnf("key: %s, msg: Could not get the Route object for DeleteStatus: %s", key, err)
 		return err
 	}
 
@@ -497,7 +497,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 	var updatedRoute *routev1.Route
 	sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	if sameStatus {
-		utils.AviLog.Debugf("key: %s, msg: No changes detected in ingress status. old: %+v new: %+v",
+		utils.AviLog.Debugf("key: %s, msg: No changes detected in Route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	} else {
 		patchPayload, _ := json.Marshal(map[string]interface{}{
@@ -510,7 +510,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 		}
 		updatedRoute, err = utils.GetInformers().OshiftClient.RouteV1().Routes(svc_mdata_obj.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 		if err != nil {
-			utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
+			utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the Route status: %v", key, err)
 			return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
 		}
 
