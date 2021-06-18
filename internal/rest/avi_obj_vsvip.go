@@ -306,7 +306,7 @@ func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVi
 	client := rest.aviRestPoolClient.AviClient[0]
 	uri := "/api/vsvip/" + uuid + "/?include_name"
 
-	rawData, err := client.AviSession.GetRaw(uri)
+	rawData, err := lib.AviGetRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("VsVip Get uri %v returned err %v", uri, err)
 		webSyncErr := &utils.WebSyncError{

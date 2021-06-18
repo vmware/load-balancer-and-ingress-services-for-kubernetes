@@ -38,6 +38,7 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	result, err := client.AviSession.GetCollectionRaw(uri)
 
 	if err != nil {
+		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		return AviGetCollectionRaw(client, uri, retry+1)
@@ -59,6 +60,7 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 
 	err := client.AviSession.Get(uri, &response)
 	if err != nil {
+		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		return AviGet(client, uri, response, retry+1)
@@ -66,6 +68,28 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 
 	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
 	return nil
+}
+
+func AviGetRaw(client *clients.AviClient, uri string, retryNum ...int) ([]byte, error) {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			err := errors.New("msg: AviGetRaw retried 3 times, aborting")
+			return nil, err
+		}
+	}
+
+	rawData, err := client.AviSession.GetRaw(uri)
+	if err != nil {
+		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
+		checkForInvalidCredentials(uri, err)
+		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		return AviGetRaw(client, uri, retry+1)
+	}
+
+	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
+	return rawData, nil
 }
 
 func AviPut(client *clients.AviClient, uri string, payload interface{}, response interface{}, retryNum ...int) error {
