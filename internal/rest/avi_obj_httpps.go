@@ -55,6 +55,11 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	idx = 0
 	for _, sec_rule := range hps_meta.SecurityRules {
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
+		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
+			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Security Rule name: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
+				key, name)
+			continue
+		}
 		action := avimodels.HttpsecurityAction{
 			Action: &sec_rule.Action,
 		}
@@ -81,102 +86,104 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
 		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Request Rule: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
+			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Request Rule name: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
 				key, name)
-		} else {
-			match_target := avimodels.MatchTarget{}
-			if len(hppmap.Host) > 0 {
-				var host []string
-				host = hppmap.Host
-				match_crit := "HDR_EQUALS"
-				host_hdr_match := avimodels.HostHdrMatch{
-					MatchCriteria: &match_crit,
-					Value:         host,
-				}
-				match_target.HostHdr = &host_hdr_match
-			}
-
-			if len(hppmap.Path) > 0 {
-				match_crit := hppmap.MatchCriteria
-				// always match case sensitive
-				match_case := "SENSITIVE"
-				path_match := avimodels.PathMatch{
-					MatchCriteria: &match_crit,
-					MatchCase:     &match_case,
-					MatchStr:      hppmap.Path,
-				}
-				match_target.Path = &path_match
-			}
-
-			if hppmap.Port != 0 {
-				match_crit := "IS_IN"
-				vsport_match := avimodels.PortMatch{
-					MatchCriteria: &match_crit,
-					Ports:         []int64{int64(hppmap.Port)},
-				}
-				match_target.VsPort = &vsport_match
-			}
-
-			sw_action := avimodels.HttpswitchingAction{}
-			if hppmap.Pool != "" {
-				action := "HTTP_SWITCHING_SELECT_POOL"
-				sw_action.Action = &action
-				pool_ref := fmt.Sprintf("/api/pool/?name=%s", hppmap.Pool)
-				sw_action.PoolRef = &pool_ref
-			} else if hppmap.PoolGroup != "" {
-				action := "HTTP_SWITCHING_SELECT_POOLGROUP"
-				sw_action.Action = &action
-				pg_ref := fmt.Sprintf("/api/poolgroup/?name=%s", hppmap.PoolGroup)
-				sw_action.PoolGroupRef = &pg_ref
-			}
-
-			var j int32
-			j = idx
-			rule := avimodels.HTTPRequestRule{
-				Index:           &j,
-				Enable:          &enable,
-				Name:            &name,
-				Match:           &match_target,
-				SwitchingAction: &sw_action,
-			}
-			http_req_pol.Rules = append(http_req_pol.Rules, &rule)
-			idx = idx + 1
+			continue
 		}
+		match_target := avimodels.MatchTarget{}
+		if len(hppmap.Host) > 0 {
+			var host []string
+			host = hppmap.Host
+			match_crit := "HDR_EQUALS"
+			host_hdr_match := avimodels.HostHdrMatch{
+				MatchCriteria: &match_crit,
+				Value:         host,
+			}
+			match_target.HostHdr = &host_hdr_match
+		}
+
+		if len(hppmap.Path) > 0 {
+			match_crit := hppmap.MatchCriteria
+			// always match case sensitive
+			match_case := "SENSITIVE"
+			path_match := avimodels.PathMatch{
+				MatchCriteria: &match_crit,
+				MatchCase:     &match_case,
+				MatchStr:      hppmap.Path,
+			}
+			match_target.Path = &path_match
+		}
+
+		if hppmap.Port != 0 {
+			match_crit := "IS_IN"
+			vsport_match := avimodels.PortMatch{
+				MatchCriteria: &match_crit,
+				Ports:         []int64{int64(hppmap.Port)},
+			}
+			match_target.VsPort = &vsport_match
+		}
+
+		sw_action := avimodels.HttpswitchingAction{}
+		if hppmap.Pool != "" {
+			action := "HTTP_SWITCHING_SELECT_POOL"
+			sw_action.Action = &action
+			pool_ref := fmt.Sprintf("/api/pool/?name=%s", hppmap.Pool)
+			sw_action.PoolRef = &pool_ref
+		} else if hppmap.PoolGroup != "" {
+			action := "HTTP_SWITCHING_SELECT_POOLGROUP"
+			sw_action.Action = &action
+			pg_ref := fmt.Sprintf("/api/poolgroup/?name=%s", hppmap.PoolGroup)
+			sw_action.PoolGroupRef = &pg_ref
+		}
+
+		var j int32
+		j = idx
+		rule := avimodels.HTTPRequestRule{
+			Index:           &j,
+			Enable:          &enable,
+			Name:            &name,
+			Match:           &match_target,
+			SwitchingAction: &sw_action,
+		}
+		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
+		idx = idx + 1
+
 	}
 
 	for _, hppmap := range hps_meta.RedirectPorts {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
 		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Redirect Rule: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
+			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Redirect Rule name: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
 				key, name)
-		} else {
-			match_target := avimodels.MatchTarget{}
-			if len(hppmap.Hosts) > 0 {
-				match_crit := "HDR_EQUALS"
-				host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
-					Value: hppmap.Hosts}
-				match_target.HostHdr = &host_hdr_match
-				port_match_crit := "IS_IN"
-				match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
-			}
-			redirect_action := avimodels.HTTPRedirectAction{}
-			protocol := "HTTPS"
-			redirect_action.StatusCode = &hppmap.StatusCode
-			redirect_action.Protocol = &protocol
-			redirect_action.Port = &hppmap.RedirectPort
-			var j int32
-			j = idx
-			rule := avimodels.HTTPRequestRule{Enable: &enable, Index: &j,
-				Name: &name, Match: &match_target, RedirectAction: &redirect_action}
-			http_req_pol.Rules = append(http_req_pol.Rules, &rule)
-			idx = idx + 1
+			continue
 		}
+		match_target := avimodels.MatchTarget{}
+		if len(hppmap.Hosts) > 0 {
+			match_crit := "HDR_EQUALS"
+			host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
+				Value: hppmap.Hosts}
+			match_target.HostHdr = &host_hdr_match
+			port_match_crit := "IS_IN"
+			match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
+		}
+		redirect_action := avimodels.HTTPRedirectAction{}
+		protocol := "HTTPS"
+		redirect_action.StatusCode = &hppmap.StatusCode
+		redirect_action.Protocol = &protocol
+		redirect_action.Port = &hppmap.RedirectPort
+		var j int32
+		j = idx
+		rule := avimodels.HTTPRequestRule{Enable: &enable, Index: &j,
+			Name: &name, Match: &match_target, RedirectAction: &redirect_action}
+		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
+		idx = idx + 1
+
 	}
 	if hps_meta.HeaderReWrite != nil {
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
 		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Header Rewrite Rule: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
+			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Header Rewrite Rule name: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
 				key, name)
 		} else {
 			var hostHdrActionArr []*avimodels.HTTPHdrAction

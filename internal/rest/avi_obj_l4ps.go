@@ -57,44 +57,45 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 			if len(ruleName) > lib.AVI_OBJ_NAME_MAX_LENGTH {
 				utils.AviLog.Warnf("key: %s, msg: length of L4 Policyrule name %s exceeds max length limit for AVI Objects. Not adding L4 PolicyRule to Policyset object",
 					key, ruleName)
-			} else {
-				var ports []int64
-				l4rule := &avimodels.L4Rule{}
-
-				l4rule.Name = &ruleName
-				ports = append(ports, int64(hppmap.Port))
-				l4action := &avimodels.L4RuleAction{}
-				actionSelect := &avimodels.L4RuleActionSelectPool{}
-				poolName := hppmap.Pool
-				actionSelect.PoolRef = &poolName
-				poolSelect := "L4_RULE_ACTION_SELECT_POOL"
-				actionSelect.ActionType = &poolSelect
-				l4action.SelectPool = actionSelect
-				l4rule.Action = l4action
-				j := idx
-				l4rule.Index = &j
-				portMatch := &avimodels.L4RulePortMatch{}
-				portMatch.Ports = ports
-				matchCriteria := "IS_IN"
-				portMatch.MatchCriteria = &matchCriteria
-				ruleMatchTarget := &avimodels.L4RuleMatchTarget{}
-
-				l4Protocol := &avimodels.L4RuleProtocolMatch{}
-				l4Protocol.MatchCriteria = &matchCriteria
-				if hppmap.Protocol == utils.TCP {
-					tcpString := "PROTOCOL_TCP"
-					l4Protocol.Protocol = &tcpString
-				} else if hppmap.Protocol == utils.UDP {
-					udpString := "PROTOCOL_UDP"
-					l4Protocol.Protocol = &udpString
-				}
-				ruleMatchTarget.Port = portMatch
-				ruleMatchTarget.Protocol = l4Protocol
-				l4rule.Match = ruleMatchTarget
-				l4rules = append(l4rules, l4rule)
-				l4Policy.Rules = l4rules
-				idx = idx + 1
+				continue
 			}
+			var ports []int64
+			l4rule := &avimodels.L4Rule{}
+
+			l4rule.Name = &ruleName
+			ports = append(ports, int64(hppmap.Port))
+			l4action := &avimodels.L4RuleAction{}
+			actionSelect := &avimodels.L4RuleActionSelectPool{}
+			poolName := hppmap.Pool
+			actionSelect.PoolRef = &poolName
+			poolSelect := "L4_RULE_ACTION_SELECT_POOL"
+			actionSelect.ActionType = &poolSelect
+			l4action.SelectPool = actionSelect
+			l4rule.Action = l4action
+			j := idx
+			l4rule.Index = &j
+			portMatch := &avimodels.L4RulePortMatch{}
+			portMatch.Ports = ports
+			matchCriteria := "IS_IN"
+			portMatch.MatchCriteria = &matchCriteria
+			ruleMatchTarget := &avimodels.L4RuleMatchTarget{}
+
+			l4Protocol := &avimodels.L4RuleProtocolMatch{}
+			l4Protocol.MatchCriteria = &matchCriteria
+			if hppmap.Protocol == utils.TCP {
+				tcpString := "PROTOCOL_TCP"
+				l4Protocol.Protocol = &tcpString
+			} else if hppmap.Protocol == utils.UDP {
+				udpString := "PROTOCOL_UDP"
+				l4Protocol.Protocol = &udpString
+			}
+			ruleMatchTarget.Port = portMatch
+			ruleMatchTarget.Protocol = l4Protocol
+			l4rule.Match = ruleMatchTarget
+			l4rules = append(l4rules, l4rule)
+			l4Policy.Rules = l4rules
+			idx = idx + 1
+
 		}
 	}
 	hps.L4ConnectionPolicy = &l4Policy
