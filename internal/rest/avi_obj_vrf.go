@@ -40,7 +40,7 @@ func (rest *RestOperations) AviVrfGet(key, uuid, name string) *avimodels.VrfCont
 	client := rest.aviRestPoolClient.AviClient[0]
 	uri := "/api/vrfcontext/" + uuid
 
-	rawData, err := client.AviSession.GetRaw(uri)
+	rawData, err := lib.AviGetRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Vrf Get uri %v returned err %v", uri, err)
 		return nil
