@@ -38,14 +38,39 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	cr := lib.AKOUser
 
 	http_req_pol := avimodels.HTTPRequestPolicy{}
+	http_sec_pol := avimodels.HttpsecurityPolicy{}
 	hps := avimodels.HTTPPolicySet{Name: &name, CloudConfigCksum: &cksumString,
-		CreatedBy: &cr, TenantRef: &tenant, HTTPRequestPolicy: &http_req_pol}
+		CreatedBy: &cr, TenantRef: &tenant, HTTPRequestPolicy: &http_req_pol, HTTPSecurityPolicy: &http_sec_pol}
 
 	if lib.GetGRBACSupport() {
 		hps.Markers = lib.GetMarkers()
 	}
 	var idx int32
 	idx = 0
+	for _, sec_rule := range hps_meta.SecurityRules {
+		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
+		action := avimodels.HttpsecurityAction{
+			Action: &sec_rule.Action,
+		}
+		portMatch := avimodels.PortMatch{
+			MatchCriteria: &sec_rule.MatchCriteria,
+			Ports:         []int64{sec_rule.Port},
+		}
+		match := avimodels.MatchTarget{
+			VsPort: &portMatch,
+		}
+		var j int32
+		j = idx
+		rule := avimodels.HttpsecurityRule{
+			Action: &action,
+			Enable: &sec_rule.Enable,
+			Index:  &j,
+			Match:  &match,
+			Name:   &name,
+		}
+		http_sec_pol.Rules = append(http_sec_pol.Rules, &rule)
+		idx = idx + 1
+	}
 	for _, hppmap := range hps_meta.HppMap {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)

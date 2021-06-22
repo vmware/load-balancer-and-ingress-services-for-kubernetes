@@ -104,7 +104,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	dsNode := datascriptList[0]
 
 	// Get Poolgroup Node, create if not present
-	pgName := lib.GetClusterName() + "--" + hostname
+	pgName := lib.Encode(lib.GetClusterName() + "--" + hostname)
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
 		pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
@@ -129,7 +129,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	// store the Pools in the a temoprary list to be used for populating PG members
 	tmpPoolList := []*AviPoolNode{}
 	for _, obj := range svclist {
-		poolName := lib.GetClusterName() + "--" + hostname + "-" + obj.ServiceName
+		poolName := lib.Encode(lib.GetClusterName() + "--" + hostname + "-" + obj.ServiceName)
 		poolNode := o.GetAviPoolNodeByName(poolName)
 		if poolNode == nil {
 			poolNode = &AviPoolNode{

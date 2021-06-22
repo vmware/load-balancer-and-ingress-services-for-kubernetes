@@ -425,6 +425,16 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		evhChild.PoolRef = &pool_ref
 	}
 
+	//DS from hostrule
+	var datascriptCollection []*avimodels.VSDataScripts
+	for i, script := range vs_meta.VsDatascriptRefs {
+		j := int32(i)
+		datascript := script
+		datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
+		datascriptCollection = append(datascriptCollection, datascripts)
+	}
+	evhChild.VsDatascripts = datascriptCollection
+
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
 		// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS

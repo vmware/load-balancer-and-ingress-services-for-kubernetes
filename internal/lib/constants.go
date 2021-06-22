@@ -53,6 +53,8 @@ const (
 	FAST_RETRY_LAYER                           = "FastRetryLayer"
 	NOT_FOUND                                  = "HTTP code: 404"
 	STATUS_REDIRECT                            = "HTTP_REDIRECT_STATUS_CODE_302"
+	CLOSE_CONNECTION                           = "HTTP_SECURITY_ACTION_CLOSE_CONN"
+	IS_IN                                      = "IS_IN"
 	SLOW_SYNC_TIME                             = 90 // seconds
 	LOG_LEVEL                                  = "logLevel"
 	LAYER7_ONLY                                = "layer7Only"
@@ -172,6 +174,7 @@ const (
 	AviSettingRouteIndex = "aviSettingRoute"
 )
 
+//Passthrough deployment same in EVH and SNI. Not changing log messages.
 const (
 	PassthroughDatascript = `local avi_tls = require "Default-TLS"
 	buffered = avi.l4.collect(20)

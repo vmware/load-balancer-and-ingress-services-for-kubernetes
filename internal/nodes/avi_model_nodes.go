@@ -645,10 +645,6 @@ func (v *AviVsNode) CalculateCheckSum() {
 		checksumStringSlice = append(checksumStringSlice, "L4Policy"+l4policy.Name)
 	}
 
-	for _, passthroughChild := range v.PassthroughChildNodes {
-		checksumStringSlice = append(checksumStringSlice, "Passthrough"+passthroughChild.Name)
-	}
-
 	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
 	// will change the eventual checksum Hash.
 
@@ -684,6 +680,9 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	for _, sninode := range v.SniNodes {
 		checksum += sninode.GetCheckSum()
+	}
+	for _, passthroughChild := range v.PassthroughChildNodes {
+		checksum += passthroughChild.GetCheckSum()
 	}
 
 	if vsRefs != "" {
@@ -769,6 +768,7 @@ type AviHttpPolicySetNode struct {
 	HppMap           []AviHostPathPortPoolPG
 	RedirectPorts    []AviRedirectPort
 	HeaderReWrite    *AviHostHeaderRewrite
+	SecurityRules    []AviHTTPSecurity
 }
 
 func (v *AviHttpPolicySetNode) GetCheckSum() uint32 {
@@ -789,6 +789,10 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	for _, redir := range v.RedirectPorts {
 		sort.Strings(redir.Hosts)
 		checksum = checksum + utils.Hash(utils.Stringify(redir.Hosts))
+	}
+	for _, sec_rule := range v.SecurityRules {
+		checksum = checksum + utils.Hash(sec_rule.Action) + utils.Hash(sec_rule.MatchCriteria)
+		checksum = checksum + uint32(sec_rule.Port)
 	}
 	if v.HeaderReWrite != nil {
 		checksum = checksum + utils.Hash(utils.Stringify(v.HeaderReWrite))
@@ -833,7 +837,12 @@ type AviRedirectPort struct {
 	StatusCode   string
 	VsPort       int32
 }
-
+type AviHTTPSecurity struct {
+	Action        string
+	MatchCriteria string
+	Enable        bool
+	Port          int64
+}
 type AviHostHeaderRewrite struct {
 	SourceHost string
 	TargetHost string
@@ -1252,15 +1261,16 @@ type HostMetada struct {
 }
 
 type TlsSettings struct {
-	Hosts      map[string]HostMetada
-	SecretName string
-	SecretNS   string
-	key        string
-	cert       string
-	cacert     string
-	destCA     string //for reencrypt
-	reencrypt  bool
-	redirect   bool
+	Hosts            map[string]HostMetada
+	SecretName       string
+	SecretNS         string
+	key              string
+	cert             string
+	cacert           string
+	destCA           string //for reencrypt
+	reencrypt        bool
+	redirect         bool
+	blockHTTPTraffic bool
 	//tlstype    string
 }
 
