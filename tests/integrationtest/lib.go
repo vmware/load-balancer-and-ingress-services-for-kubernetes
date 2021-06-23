@@ -153,9 +153,21 @@ func UpdateNamespace(nsName string, labels map[string]string) error {
 	_, err := KubeClient.CoreV1().Namespaces().Update(context.TODO(), nsMetaOptions, metav1.UpdateOptions{})
 	return err
 }
+func WaitTillNamespaceDelete(nsName string, retry_count int) {
+	_, err := KubeClient.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	if err == nil {
+		//NS still exists
+		if retry_count > 0 {
+			time.Sleep(time.Second * 1)
+			WaitTillNamespaceDelete(nsName, retry_count-1)
+		}
+	}
 
+}
 func DeleteNamespace(nsName string) {
 	KubeClient.CoreV1().Namespaces().Delete(context.TODO(), nsName, metav1.DeleteOptions{})
+	//create delay of max 10 sec
+	WaitTillNamespaceDelete(nsName, 10)
 }
 
 // Fake Secret
