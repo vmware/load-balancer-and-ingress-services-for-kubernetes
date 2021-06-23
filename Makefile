@@ -47,14 +47,21 @@ endif
 .PHONY: all
 all: build docker
 
+.PHONY: sync-crd-files
+sync-crd-files:
+		cp ./helm/ako/crds/* ./ako-operator/helm/ako-operator/crds/
+
+.PHONY: pre-build
+pre-build: sync-crd-files
+
 # builds
 .PHONY: build
-build: glob-vars
+build: pre-build glob-vars
 		sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) -o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor /go/src/$(REL_PATH_AKO)
 
 .PHONY: build-local
-build-local:
+build-local: pre-build
 		$(GOBUILD) -o bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor ./cmd/ako-main
 
 .PHONY: clean
