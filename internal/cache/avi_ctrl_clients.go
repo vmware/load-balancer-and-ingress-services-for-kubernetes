@@ -37,7 +37,6 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	ctrlPassword := ctrlProp[utils.ENV_CTRL_PASSWORD]
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
 	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
-
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
 		utils.AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
 	}
