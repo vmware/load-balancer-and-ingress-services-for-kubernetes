@@ -579,33 +579,7 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 
 	aviModel := ValidateSniModel(t, g, defaultModelName)
 
-	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
-	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
-	g.Eventually(func() string {
-		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
-		return sniVS.VHDomainNames[0]
-	}, 50*time.Second).Should(gomega.Equal(defaultHostname))
-
-	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
-	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
-
-	g.Eventually(func() int {
-		_, aviModel = objects.SharedAviGraphLister().Get(defaultModelName)
-		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
-		return len(sniVS.PoolRefs)
-	}, 150*time.Second).Should(gomega.Equal(2))
-	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))
-
-	for _, pool := range sniVS.PoolRefs {
-		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" && pool.Name != "cluster--test-foo.com_bar-foo-avisvc" {
-			t.Fatalf("Unexpected poolName found: %s", pool.Name)
-		}
-	}
-	for _, httpps := range sniVS.HttpPolicyRefs {
-		if httpps.Name != "cluster--default-foo.com_foo-foo" && httpps.Name != "cluster--test-foo.com_bar-foo" {
-			t.Fatalf("Unexpected http policyset found: %s", httpps.Name)
-		}
-	}
+	CheckMultiSNIMultiNS(t, g, aviModel)
 
 	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
 	if err != nil {

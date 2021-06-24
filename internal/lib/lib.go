@@ -105,7 +105,7 @@ func SetGRBACSupport(val string) {
 		gRBAC = boolVal
 	}
 	controllerVersion := utils.CtrlVersion
-	if gRBAC && CheckControllerVersionCompatibility(controllerVersion, "<", ControllerVersion2015) {
+	if gRBAC && CompareVersions(controllerVersion, "<", ControllerVersion2015) {
 		// GRBAC is supported from 20.1.5 and above
 		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is less than %s.", controllerVersion, ControllerVersion2015)
 		gRBAC = false
@@ -138,7 +138,7 @@ func GetAKOUser() string {
 var enableCtrl2014Features bool
 
 func SetEnableCtrl2014Features(controllerVersion string) {
-	enableCtrl2014Features = CheckControllerVersionCompatibility(controllerVersion, ">=", ControllerVersion2014)
+	enableCtrl2014Features = CompareVersions(controllerVersion, ">=", ControllerVersion2014)
 }
 
 func GetEnableCtrl2014Features() bool {
@@ -557,8 +557,8 @@ func UseServicesAPI() bool {
 	return false
 }
 
-//Here v1 is compared against v2
-func CheckControllerVersionCompatibility(v1, cmpSign, v2 string) bool {
+// CompareVersions compares version v1 against version v2.
+func CompareVersions(v1, cmpSign, v2 string) bool {
 	if c, err := semver.NewConstraint(cmpSign + v2); err == nil {
 		if currentVersion, err := semver.NewVersion(v1); err == nil && c.Check(currentVersion) {
 			return true
@@ -1104,4 +1104,27 @@ func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]stri
 		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = ""
 	}
 	return ctrlProps, nil
+}
+
+var (
+	aviMinVersion = ""
+	aviMaxVersion = ""
+	k8sMinVersion = ""
+	k8sMaxVersion = ""
+)
+
+func GetAviMinSupportedVersion() string {
+	return aviMinVersion
+}
+
+func GetAviMaxSupportedVersion() string {
+	return aviMaxVersion
+}
+
+func GetK8sMinSupportedVersion() string {
+	return k8sMinVersion
+}
+
+func GetK8sMaxSupportedVersion() string {
+	return k8sMaxVersion
 }

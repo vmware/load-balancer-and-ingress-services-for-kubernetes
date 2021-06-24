@@ -2795,12 +2795,12 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 
 	networkList, err := lib.GetVipNetworkList()
 	if err != nil {
-		utils.AviLog.Warnf("Error gettting Network name: %s, skipping fetching of the VRF setting from network", err.Error())
+		utils.AviLog.Warnf("Error getting Network name: %s, skipping fetching of the VRF setting from network", err.Error())
 		return true
 	}
 
 	if len(networkList) == 0 {
-		utils.AviLog.Warnf("Network name net specified, skipping fetching of the VRF setting from network")
+		utils.AviLog.Warnf("Network name not specified, skipping fetching of the VRF setting from network")
 		return true
 	}
 
