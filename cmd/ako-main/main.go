@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"os"
 	"sync"
@@ -112,6 +113,18 @@ func InitializeAKC() {
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	// Check for kubernetes apiserver version compatibility with AKO version.
+	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {
+		utils.AviLog.Warnf("Error while fetching kubernetes apiserver version")
+	} else {
+		serverVersion := fmt.Sprintf("%s.%s", serverVersionInfo.Major, serverVersionInfo.Minor)
+		utils.AviLog.Infof("Kubernetes cluster apiserver version %s", serverVersion)
+		if lib.CompareVersions(serverVersion, ">", lib.GetK8sMaxSupportedVersion()) ||
+			lib.CompareVersions(serverVersion, "<", lib.GetK8sMinSupportedVersion()) {
+			utils.AviLog.Fatalf("Unsupported kubernetes apiserver version detected. Please check the supportability guide.")
+		}
 	}
 
 	oshiftClient, err := oshiftclient.NewForConfig(cfg)

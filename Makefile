@@ -4,11 +4,24 @@ GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
-AKO_VERSION=v1.5.1
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 AKO_OPERATOR_IMAGE=ako-operator
 
+define GetSupportabilityMatrix
+$(shell node -p "require('./buildsettings.json').$(1)")
+endef
+
+AVI_MIN_VERSION:=$(call GetSupportabilityMatrix,avi.minVersion)
+AVI_MAX_VERSION:=$(call GetSupportabilityMatrix,avi.maxVersion)
+K8S_MIN_VERSION:=$(call GetSupportabilityMatrix,kubernetes.minVersion)
+K8S_MAX_VERSION:=$(call GetSupportabilityMatrix,kubernetes.maxVersion)
+AKO_VERSION:=v$(call GetSupportabilityMatrix,version)
+AKO_LDFLAGS:="-X 'main.version=$(AKO_VERSION)' \
+		-X '$(PACKAGE_PATH_AKO)/internal/lib.aviMinVersion=$(AVI_MIN_VERSION)' \
+		-X '$(PACKAGE_PATH_AKO)/internal/lib.aviMaxVersion=$(AVI_MAX_VERSION)' \
+		-X '$(PACKAGE_PATH_AKO)/internal/lib.k8sMinVersion=$(K8S_MIN_VERSION)' \
+		-X '$(PACKAGE_PATH_AKO)/internal/lib.k8sMaxVersion=$(K8S_MAX_VERSION)'"
 
 ifdef GOLANG_SRC_REPO
 	BUILD_GO_IMG=$(GOLANG_SRC_REPO)
@@ -18,6 +31,8 @@ endif
 
 .PHONY: glob-vars
 glob-vars:
+	$(eval BUILD_ARG_AKO_LDFLAGS=--build-arg AKO_LDFLAGS=$(AKO_LDFLAGS))
+
 ifndef BUILD_TAG
 	$(eval BUILD_TAG=$(shell ./hack/jenkins/get_build_version.sh "dummy" 0))
 endif
@@ -57,12 +72,22 @@ pre-build: sync-crd-files
 # builds
 .PHONY: build
 build: pre-build glob-vars
-		sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-		$(GOBUILD) -o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor /go/src/$(REL_PATH_AKO)
+		sudo docker run \
+		-w=/go/src/$(PACKAGE_PATH_AKO) \
+		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+		$(GOBUILD) \
+		-o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		/go/src/$(REL_PATH_AKO)
 
-.PHONY: build-local
-build-local: pre-build
-		$(GOBUILD) -o bin/$(BINARY_NAME_AKO) -ldflags="-X 'main.version=$(AKO_VERSION)'" -mod=vendor ./cmd/ako-main
+.PHONY: pre-build build-local
+build-local:
+		$(GOBUILD) \
+		-o bin/$(BINARY_NAME_AKO) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		./cmd/ako-main
 
 .PHONY: clean
 clean:
@@ -76,71 +101,105 @@ deps:
 # docker images
 .PHONY: docker
 docker: glob-vars
-	sudo docker build -t $(BINARY_NAME_AKO):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) -f Dockerfile.ako .
+	sudo docker build \
+	-t $(BINARY_NAME_AKO):latest \
+	--label "BUILD_TAG=$(BUILD_TAG)" \
+	--label "BUILD_TIME=$(BUILD_TIME)" \
+	$(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) $(BUILD_ARG_AKO_LDFLAGS) \
+	-f Dockerfile.ako .
 
 .PHONY: ako-operator-docker
 ako-operator-docker: glob-vars
-	sudo docker build -t $(AKO_OPERATOR_IMAGE):latest --label "BUILD_TAG=$(BUILD_TAG)" --label "BUILD_TIME=$(BUILD_TIME)" $(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI)  -f Dockerfile.ako-operator .
+	sudo docker build \
+	-t $(AKO_OPERATOR_IMAGE):latest \
+	--label "BUILD_TAG=$(BUILD_TAG)" \
+	--label "BUILD_TIME=$(BUILD_TIME)" \
+	$(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI) \
+	-f Dockerfile.ako-operator .
 
 # tests
 .PHONY: k8stest
 k8stest:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/k8stest -failfast
 
 .PHONY: integrationtest
 integrationtest:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast
 
 .PHONY: ingresstests
 ingresstests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0
 
 .PHONY: oshiftroutetests
 oshiftroutetests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast -timeout 0
 
 .PHONY: bootuptests
 bootuptests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast
 
 .PHONY: multicloudtests
 multicloudtests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast
 
 .PHONY: servicesapitests
 servicesapitests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/servicesapitests -failfast
 
 .PHONY: advl4tests
 advl4tests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast
 
 .PHONY: namespacesynctests 
 namespacesynctests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast
 
 .PHONY: misc 
 temp:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast
 
 .PHONY: npltests 
 npltests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/npltests -failfast
 
 .PHONY: evhtests 
 evhtests:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast
 
 .PHONY: int_test
@@ -149,7 +208,9 @@ int_test:
 
 .PHONY: scale_test
 scale_test:
-	sudo docker run -w=/go/src/$(PACKAGE_PATH_AKO) -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor ./tests/scaletest -failfast $(Timeout) $(TestbedFilePath) $(NumGoRoutines) $(NumOfLBSvc) $(NumOfIng)
 
 # linting and formatting

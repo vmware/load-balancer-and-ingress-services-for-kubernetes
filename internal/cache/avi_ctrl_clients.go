@@ -63,19 +63,24 @@ func SharedAVIClients() *utils.AviRestClientPool {
 				utils.AviLog.Error("AVI controller initilization failed")
 				return nil
 			}
+
+			controllerVersion := utils.CtrlVersion
+			// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
+			if lib.CompareVersions(controllerVersion, ">", lib.GetAviMaxSupportedVersion()) {
+				controllerVersion = lib.GetAviMaxSupportedVersion()
+			}
+			if lib.CompareVersions(controllerVersion, "<", lib.GetAviMinSupportedVersion()) {
+				utils.AviLog.Fatal("AKO is not supported for the following Avi version %s, Avi must be %s or more", controllerVersion, lib.GetAviMinSupportedVersion())
+			}
+			utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
+
 			// set the tenant and controller version in avisession obj
 			for _, client := range AviClientInstance.AviClient {
 				SetTenant := session.SetTenant(lib.GetTenant())
 				SetTenant(client.AviSession)
 
-				controllerVersion := utils.CtrlVersion
-				if lib.GetAdvancedL4() && lib.CheckControllerVersionCompatibility(controllerVersion, ">", lib.Advl4ControllerVersion) {
-					// for advancedL4 make sure the controller api version is set to a max version value of 20.1.2
-					controllerVersion = lib.Advl4ControllerVersion
-				}
-				//Set GRBAC Flag
+				// Set GRBAC Flag
 				lib.SetEnableCtrl2014Features(controllerVersion)
-				utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
 				SetVersion := session.SetVersion(controllerVersion)
 				SetVersion(client.AviSession)
 
