@@ -93,6 +93,7 @@ func PopulateControllerProperties(cs kubernetes.Interface) error {
 	ctrlPropCache.PopulateCtrlProp(ctrlProps)
 	return nil
 }
+
 func delConfigFromData(data map[string]string) bool {
 	if val, ok := data[lib.DeleteConfig]; ok {
 		if val == "true" {

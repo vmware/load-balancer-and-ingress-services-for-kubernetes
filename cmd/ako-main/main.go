@@ -157,12 +157,16 @@ func InitializeAKC() {
 
 	err = k8s.PopulateControllerProperties(kubeClient)
 	if err != nil {
-		utils.AviLog.Warnf("Failed to read details from secret, err:", err)
+		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
 		lib.ShutdownApi()
 	}
 	aviObjCache := avicache.SharedAviObjCache()
 	aviRestClientPool := avicache.SharedAVIClients()
-	if !aviObjCache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
+	if aviRestClientPool == nil {
+		utils.AviLog.Fatalf("Avi client not initialized")
+	}
+
+	if aviRestClientPool != nil && !aviObjCache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 

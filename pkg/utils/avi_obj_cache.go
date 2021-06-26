@@ -37,6 +37,7 @@ func (o *CtrlPropCache) PopulateCtrlProp(cp map[string]string) {
 		o.AviCacheAdd(k, cp[k])
 	}
 }
+
 func (o *CtrlPropCache) GetAllCtrlProp() map[string]string {
 	ctrlProps := make(map[string]string)
 	ctrlUsername, ok := o.AviCacheGet(ENV_CTRL_USERNAME)
