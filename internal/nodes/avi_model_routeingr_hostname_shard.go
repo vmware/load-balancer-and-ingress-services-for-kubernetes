@@ -59,10 +59,8 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		}
 	}(routeIgrObj)
 
-	isIngr := routeIgrObj.GetType() == utils.Ingress
-
 	// delete old Models in case the modelNames changes because of shardSize updates via AviInfraSetting
-	if isIngr && lib.IsEvhEnabled() {
+	if lib.IsEvhEnabled() {
 		DeleteStaleDataForModelChangeForEvh(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
 	} else {
 		DeleteStaleDataForModelChange(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
@@ -73,7 +71,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		// Detect a delete condition here.
 		if k8serrors.IsNotFound(err) || !processObj {
 			utils.AviLog.Infof("key: %s, Deleting Pool for ingress delete", key)
-			if isIngr && lib.IsEvhEnabled() {
+			if lib.IsEvhEnabled() {
 				RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
 			} else {
 				RouteIngrDeletePoolsByHostname(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
@@ -94,11 +92,12 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 
 	hostsMap := make(map[string]*objects.RouteIngrhost)
 
-	if isIngr && lib.IsEvhEnabled() {
+	if lib.IsEvhEnabled() {
 		// Process insecure hosts
 		ProcessInsecureHostsForEVH(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
 		// process secure hosts
 		ProcessSecureHostsForEVH(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap, fullsync, sharedQueue)
+		ProcessPassthroughHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
 		// delete stale data
 		DeleteStaleDataForEvh(routeIgrObj, key, &modelList, Storedhosts, hostsMap)
 		// hostNamePathStore cache operation

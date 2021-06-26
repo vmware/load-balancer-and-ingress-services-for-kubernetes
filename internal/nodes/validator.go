@@ -430,6 +430,8 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 				tls.cacert = routeSpec.TLS.CACertificate
 				if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
 					tls.redirect = true
+				} else if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyNone {
+					tls.blockHTTPTraffic = true
 				}
 			}
 
