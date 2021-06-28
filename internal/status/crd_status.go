@@ -45,7 +45,7 @@ func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus Upd
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": updateStatus,
+		"status": akov1alpha1.HostRuleStatus(updateStatus),
 	})
 
 	_, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Patch(context.TODO(), hr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
@@ -77,7 +77,7 @@ func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus Upd
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": updateStatus,
+		"status": akov1alpha1.HTTPRuleStatus(updateStatus),
 	})
 
 	_, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Patch(context.TODO(), rr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
@@ -109,7 +109,7 @@ func UpdateAviInfraSettingStatus(key string, infraSetting *akov1alpha1.AviInfraS
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": updateStatus,
+		"status": akov1alpha1.AviInfraSettingStatus(updateStatus),
 	})
 
 	_, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Patch(context.TODO(), infraSetting.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
