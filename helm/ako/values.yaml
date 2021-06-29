@@ -98,11 +98,6 @@ avicredentials:
   certificateAuthorityData:
 
 
-service:
-  type: ClusterIP
-  port: 80
-
-
 persistentVolumeClaim: ""
 mountPath: "/log"
 logFile: "avi.log"
