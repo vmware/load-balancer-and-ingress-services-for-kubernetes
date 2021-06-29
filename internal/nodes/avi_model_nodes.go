@@ -645,6 +645,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 		checksumStringSlice = append(checksumStringSlice, "L4Policy"+l4policy.Name)
 	}
 
+	for _, vhdomain := range v.VHDomainNames {
+		checksumStringSlice = append(checksumStringSlice, "VHDomain"+vhdomain)
+	}
+
 	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
 	// will change the eventual checksum Hash.
 
