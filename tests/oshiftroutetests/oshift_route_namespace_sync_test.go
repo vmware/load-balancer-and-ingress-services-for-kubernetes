@@ -32,7 +32,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
 
-func SetupRouteNamespaceSync(key, value, shardScheme string) {
+func SetupRouteNamespaceSync(key, value string) {
 	os.Setenv("NAMESPACE_SYNC_LABEL_KEY", key)
 	os.Setenv("NAMESPACE_SYNC_LABEL_VALUE", value)
 	ctrl.InitializeNamespaceSync()

@@ -581,7 +581,7 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 }
 
 //TestScaleUpAndDownServiceLBCacheSync tests the avi node graph and rest layer functionality when the
-//multiport serviceLB is increased from 1 to 30 and then decreased back to 1
+//multiport serviceLB is increased from 1 to 5 and then decreased back to 1
 func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var model, service string
@@ -595,8 +595,8 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 
 	SetUpTestForSvcLB(t)
 
-	// create 30 more multiport service of type loadbalancer
-	numScale := 20
+	// create numScale more multiport service of type loadbalancer
+	numScale := 5
 	for i := 0; i < numScale; i++ {
 		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
@@ -606,7 +606,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		CreateEP(t, NAMESPACE, service, true, true, "1.1.1")
 	}
 
-	// verify that 30 services are created on the graph and corresponding cache objects
+	// verify that numScale services are created on the graph and corresponding cache objects
 	var found bool
 	var vsKey cache.NamespaceName
 	var aviModel interface{}
@@ -628,7 +628,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		}, 15*time.Second).Should(gomega.Equal(true))
 	}
 
-	// delete the 30 services
+	// delete the numScale services
 	for i := 0; i < numScale; i++ {
 		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
@@ -637,7 +637,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		DelEP(t, NAMESPACE, service)
 	}
 
-	// verify that the graph nodes and corresponding cache are deleted for the 30 services
+	// verify that the graph nodes and corresponding cache are deleted for the numScale services
 	for i := 0; i < numScale; i++ {
 		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
