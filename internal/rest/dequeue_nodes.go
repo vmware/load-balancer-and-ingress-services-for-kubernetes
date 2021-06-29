@@ -631,7 +631,7 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
 		}
 
-	} else {
+	} else if rest_op.Err == nil && rest_op.Method == utils.RestDelete {
 		utils.AviLog.Infof("key: %s, msg: deleting %s cache", key, rest_op.Model)
 		if rest_op.Model == "PKIprofile" {
 			rest.AviPkiProfileCacheDel(rest_op, aviObjKey, key)
