@@ -261,7 +261,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 		if len(tlsNode.SSLKeyCertRefs) == 1 {
 			// Overwrite if the secrets are different.
 			tlsNode.SSLKeyCertRefs[0] = certNode
-			utils.AviLog.Warnf("key: %s, msg: Duplicate secrets detected for the same hostname, overwrote the secret for hostname %s, with contents of secret :%s in ns: %s", key, sniHost[0], secretName, namespace)
+			utils.AviLog.Warnf("key: %s, msg: Duplicate secrets detected for the same hostname, overwrote the secret for hostname %s, with contents of secret :%s in ns: %s", key, sniHost, secretName, namespace)
 		} else {
 			tlsNode.ReplaceSniSSLRefInSNINode(certNode, key)
 		}
@@ -406,7 +406,7 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 	poolNode.SniEnabled = true
 	poolNode.SslProfileRef = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
 
-	utils.AviLog.Infof("key: %s, Added ssl profile for pool %s", poolNode.Name)
+	utils.AviLog.Infof("key: %s, Added ssl profile for pool %s", key, poolNode.Name)
 	if tlsData.destCA == "" {
 		return
 	}
