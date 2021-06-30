@@ -185,7 +185,7 @@ func TestMain(m *testing.M) {
 	integrationtest.AddDefaultIngressClass()
 	defaultKey = "app"
 	defaultValue = "migrate"
-	SetupRouteNamespaceSync(defaultKey, defaultValue, "")
+	SetupRouteNamespaceSync(defaultKey, defaultValue)
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 
