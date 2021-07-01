@@ -32,9 +32,8 @@ import (
 
 func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode, cache_obj *avicache.AviHTTPPolicyCache, key string) *utils.RestOp {
 
-	if len(hps_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-		utils.AviLog.Warnf("key: %s, msg: length of HTTP PolicySet name %s exceeds max length limit for AVI Objects. Not processing object",
-			key, hps_meta.Name)
+	if lib.CheckObjectNameLength(hps_meta.Name, lib.HTTPPS) {
+		utils.AviLog.Warnf("key: %s not processing HTTPS object", key)
 		return nil
 	}
 	name := hps_meta.Name
@@ -55,9 +54,8 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	idx = 0
 	for _, sec_rule := range hps_meta.SecurityRules {
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Security Rule name: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
-				key, name)
+		if lib.CheckObjectNameLength(name, lib.HTTPSecurityRule) {
+			utils.AviLog.Warnf("key: %s not adding rule to HTTPS object", key)
 			continue
 		}
 		action := avimodels.HttpsecurityAction{
@@ -85,9 +83,8 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	for _, hppmap := range hps_meta.HppMap {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Request Rule name: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
-				key, name)
+		if lib.CheckObjectNameLength(name, lib.HTTPRequestRule) {
+			utils.AviLog.Warnf("key: %s not adding request rule to HTTPS object", key)
 			continue
 		}
 		match_target := avimodels.MatchTarget{}
@@ -153,9 +150,8 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	for _, hppmap := range hps_meta.RedirectPorts {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Redirect Rule name: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
-				key, name)
+		if lib.CheckObjectNameLength(name, lib.HTTPRedirectRule) {
+			utils.AviLog.Warnf("key: %s not adding rule to HTTPS object", key)
 			continue
 		}
 		match_target := avimodels.MatchTarget{}
@@ -182,9 +178,8 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	}
 	if hps_meta.HeaderReWrite != nil {
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		if len(name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-			utils.AviLog.Warnf("key: %s, msg: HTTPS: length of HTTP Header Rewrite Rule name: %s exceeds max length limit for AVI Objects. Not adding rule to HTTPS object",
-				key, name)
+		if lib.CheckObjectNameLength(name, lib.HTTPRewriteRule) {
+			utils.AviLog.Warnf("key: %s not adding rule to HTTPS object", key)
 		} else {
 			var hostHdrActionArr []*avimodels.HTTPHdrAction
 			enable := true

@@ -33,9 +33,8 @@ import (
 
 func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_obj *avicache.AviL4PolicyCache, key string) *utils.RestOp {
 
-	if len(hps_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-		utils.AviLog.Warnf("key: %s, msg: length of L4 Policyset name %s exceeds max length limit for AVI Objects. Not processing object",
-			key, hps_meta.Name)
+	if lib.CheckObjectNameLength(hps_meta.Name, lib.L4PS) {
+		utils.AviLog.Warnf("key: %s not processing L4 policyset object", key)
 		return nil
 	}
 	name := hps_meta.Name
@@ -54,9 +53,8 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	for _, hppmap := range hps_meta.PortPool {
 		if hppmap.Port != 0 {
 			ruleName := name + strconv.Itoa(int(hppmap.Port))
-			if len(ruleName) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-				utils.AviLog.Warnf("key: %s, msg: length of L4 Policyrule name %s exceeds max length limit for AVI Objects. Not adding L4 PolicyRule to Policyset object",
-					key, ruleName)
+			if lib.CheckObjectNameLength(ruleName, lib.L4PSRule) {
+				utils.AviLog.Warnf("key: %s not adding L4 PolicyRule to Policyset object", key)
 				continue
 			}
 			var ports []int64

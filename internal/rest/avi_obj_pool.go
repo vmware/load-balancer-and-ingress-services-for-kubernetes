@@ -33,10 +33,8 @@ import (
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
-
-	if len(pool_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-		utils.AviLog.Warnf("key: %s, msg: length of pool name %s exceeds max length limit for AVI Object. Not processing object",
-			key, pool_meta.Name)
+	if lib.CheckObjectNameLength(pool_meta.Name, lib.Pool) {
+		utils.AviLog.Warnf("key: %s not processing pool object", key)
 		return nil
 	}
 	name := pool_meta.Name

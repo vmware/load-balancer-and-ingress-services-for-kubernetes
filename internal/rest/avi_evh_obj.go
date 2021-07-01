@@ -232,9 +232,8 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 
 func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
 
-	if len(vs_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-		utils.AviLog.Warnf("key: %s, msg: length of EVH VS name %s exceeds max length limit for AVI Object Name. Not Processing object",
-			key, vs_meta.Name)
+	if lib.CheckObjectNameLength(vs_meta.Name, lib.EVHVS) {
+		utils.AviLog.Warnf("key: %s not Processing EVHVS object", key)
 		return nil
 	}
 	if !vs_meta.EVHParent {

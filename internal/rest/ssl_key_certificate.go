@@ -30,9 +30,8 @@ import (
 )
 
 func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache_obj *avicache.AviSSLCache) *utils.RestOp {
-	if len(ssl_node.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-		utils.AviLog.Warnf("Length of SSLKeyAndCertificate name %s exceeds max length limit for AVI Objects. Not processing object",
-			ssl_node.Name)
+	if lib.CheckObjectNameLength(ssl_node.Name, lib.SSLKeyCert) {
+		utils.AviLog.Warnf("Not processing sslkeycert object")
 		return nil
 	}
 	name := ssl_node.Name
@@ -194,9 +193,8 @@ func (rest *RestOperations) AviSSLCacheDel(rest_op *utils.RestOp, vsKey avicache
 }
 
 func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode, cache_obj *avicache.AviPkiProfileCache) *utils.RestOp {
-	if len(pki_node.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-		utils.AviLog.Warnf("Length of PKI profile name %s exceeds max length limit for AVI Objects. Not processing object",
-			pki_node.Name)
+	if lib.CheckObjectNameLength(pki_node.Name, lib.PKIProfile) {
+		utils.AviLog.Warnf("Not processing PKI profile")
 		return nil
 	}
 	caCert := string(pki_node.CACert)

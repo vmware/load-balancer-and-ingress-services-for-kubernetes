@@ -30,9 +30,8 @@ import (
 
 func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cache_obj *avicache.AviDSCache, key string) *utils.RestOp {
 
-	if len(ds_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-		utils.AviLog.Warnf("key: %s, msg: length of vsdatascript name %s exceeds max length limit for AVI Objects. Not processing object",
-			key, ds_meta.Name)
+	if lib.CheckObjectNameLength(ds_meta.Name, lib.DataScript) {
+		utils.AviLog.Warnf("key: %s not processing datascript object", key)
 		return nil
 	}
 	var datascriptlist []*avimodels.VSDataScript

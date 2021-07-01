@@ -35,9 +35,8 @@ import (
 )
 
 func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCache *avicache.AviVsCache, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
-	if len(vsvip_meta.Name) > lib.AVI_OBJ_NAME_MAX_LENGTH {
-		utils.AviLog.Warnf("key: %s, msg: length of vip name %s exceeds max length limit for AVI Objects. Not processing object",
-			key, vsvip_meta.Name)
+	if lib.CheckObjectNameLength(vsvip_meta.Name, lib.VIP) {
+		utils.AviLog.Warnf("key: %s not processing VSVIP object", key)
 		return nil, nil
 	}
 	name := vsvip_meta.Name
