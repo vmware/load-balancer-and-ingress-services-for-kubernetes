@@ -192,7 +192,7 @@ func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namesp
 
 }
 func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
-	// For Advancd L4 and service api , do not handle. services already been taken care
+	// For Advanced L4 and service api , do not handle. services already been taken care
 	// in service handler
 	if lib.GetAdvancedL4() {
 		return

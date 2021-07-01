@@ -438,6 +438,11 @@ func GetSubnetPrefixInt() int32 {
 
 func GetVipNetworkList() ([]string, error) {
 	var vipNetworkList []string
+	if GetAdvancedL4() {
+		// do not return error in case of advancedL4 (wcp)
+		return vipNetworkList, nil
+	}
+
 	type Row struct {
 		NetworkName string `json:"networkName"`
 	}
