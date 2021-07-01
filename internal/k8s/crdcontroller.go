@@ -345,13 +345,14 @@ var refModelMap = map[string]string{
 
 // checkRefOnController checks whether a provided ref on the controller
 func checkRefOnController(key, refKey, refValue string) error {
-
 	// assign the last avi client for ref checks
 	aviClientLen := lib.GetshardSize()
 	clients := avicache.SharedAVIClients()
+	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
-	if lib.GetCloudType() == lib.CLOUD_AWS {
-		if refModelMap[refKey] == "network" {
+	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
+	if lib.IsPublicCloud() && refModelMap[refKey] == "network" {
+		if lib.GetCloudType() == lib.CLOUD_AWS {
 			var rest_response interface{}
 			utils.AviLog.Infof("Cloud is AWS, checking network ref using uuid")
 			uri := fmt.Sprintf("/api/%s/%s", refModelMap[refKey], refValue)
@@ -361,16 +362,16 @@ func checkRefOnController(key, refKey, refValue string) error {
 				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 			} else if rest_response != nil {
 				utils.AviLog.Infof("Found %s %s on controller", refModelMap[refKey], refValue)
-				utils.AviLog.Infof("rest_response: %+v", rest_response)
 				return nil
 			} else {
 				utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
 				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 			}
+		} else if lib.GetCloudType() == lib.CLOUD_AZURE {
+			utils.AviLog.Infof("key: %s, msg: Skipping network name check for Azure Cloud", key)
+			return nil
 		}
 	}
-
-	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
 	if err != nil {
@@ -381,7 +382,6 @@ func checkRefOnController(key, refKey, refValue string) error {
 	if result.Count == 0 {
 		utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
 		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-
 	}
 
 	items := make([]json.RawMessage, result.Count)

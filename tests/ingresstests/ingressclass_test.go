@@ -86,11 +86,15 @@ func TeardownIngressClass(t *testing.T, ingClassName string) {
 	}
 }
 
-func VerifyVSNodeDeletion(g *gomega.WithT, modelName string) {
-	g.Eventually(func() interface{} {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		return aviModel
-	}, 50*time.Second).Should(gomega.BeNil())
+func VerifyPoolDeletionFromVsNode(g *gomega.WithT, modelName string) {
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs) == 0
+		} else {
+			return true
+		}
+	}, 50*time.Second).Should(gomega.Equal(true))
 }
 
 // Ingress - IngressClass mapping tests
@@ -183,7 +187,7 @@ func TestAdvL4WrongClassMappingInIngress(t *testing.T) {
 	}
 	TearDownTestForIngress(t, modelName)
 	TeardownIngressClass(t, ingClassName)
-	VerifyVSNodeDeletion(g, modelName)
+	VerifyPoolDeletionFromVsNode(g, modelName)
 }
 
 func TestDefaultIngressClassChange(t *testing.T) {
@@ -244,7 +248,7 @@ func TestDefaultIngressClassChange(t *testing.T) {
 	}
 	TearDownTestForIngress(t, modelName)
 	TeardownIngressClass(t, ingClassName)
-	VerifyVSNodeDeletion(g, modelName)
+	VerifyPoolDeletionFromVsNode(g, modelName)
 }
 
 // AviInfraSetting CRD
@@ -315,7 +319,7 @@ func TestAviInfraSettingNamingConvention(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	TeardownIngressClass(t, ingClassName)
-	VerifyVSNodeDeletion(g, modelName)
+	VerifyPoolDeletionFromVsNode(g, modelName)
 }
 
 // Updating IngressClass
@@ -416,7 +420,7 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	TeardownIngressClass(t, ingClassName)
-	VerifyVSNodeDeletion(g, modelName)
+	VerifyPoolDeletionFromVsNode(g, modelName)
 }
 
 func TestUpdateInfraSettingInIngressClass(t *testing.T) {
@@ -482,7 +486,7 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 			}
 		}
 		return 0
-	}, 25*time.Second).Should(gomega.Equal(1))
+	}, 35*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting2-bar.com_foo-default-foo-with-class"))
@@ -497,7 +501,7 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 	TearDownTestForIngress(t, modelName, settingModelName1)
 	TearDownTestForIngress(t, modelName, settingModelName2)
 	TeardownIngressClass(t, ingClassName)
-	VerifyVSNodeDeletion(g, modelName)
+	VerifyPoolDeletionFromVsNode(g, modelName)
 }
 
 // Updating Ingress
@@ -583,7 +587,7 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	TeardownIngressClass(t, ingClassName)
-	VerifyVSNodeDeletion(g, settingModelName)
+	VerifyPoolDeletionFromVsNode(g, settingModelName)
 }
 
 func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
@@ -673,7 +677,7 @@ func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
 	TearDownTestForIngress(t, modelName, settingModelName1, settingModelName2)
 	TeardownIngressClass(t, ingClassName1)
 	TeardownIngressClass(t, ingClassName2)
-	VerifyVSNodeDeletion(g, settingModelName2)
+	VerifyPoolDeletionFromVsNode(g, settingModelName2)
 }
 
 func TestUpdateWithInfraSetting(t *testing.T) {
@@ -891,7 +895,7 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	TearDownTestForIngress(t, modelName, settingModelName)
 	TeardownIngressClass(t, ingClassName1)
 	TeardownIngressClass(t, ingClassName2)
-	VerifyVSNodeDeletion(g, modelName)
+	VerifyPoolDeletionFromVsNode(g, modelName)
 }
 
 func TestBGPConfigurationWithInfraSetting(t *testing.T) {

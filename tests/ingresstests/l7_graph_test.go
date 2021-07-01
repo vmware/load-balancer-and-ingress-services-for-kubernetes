@@ -2371,45 +2371,46 @@ func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
-	} else {
-		t.Fatalf("Could not find Model: %v", err)
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(0))
 
 	// Now create the secret and verify the models.
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		// Check if the secret affected both the models.
-		g.Eventually(func() int {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].SniNodes)
-		}, 10*time.Second).Should(gomega.Equal(1))
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	// Check if the secret affected both the models.
+	g.Eventually(func() int {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes[0].SniNodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
-	} else {
-		t.Fatalf("Could not find model: %s", modelName)
-	}
+		return len(nodes[0].SniNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].SniNodes[0].VHDomainNames[0]).To(gomega.Equal("foo.com"))
+
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	VerifySNIIngressDeletion(t, g, aviModel, 0)
 	// Since we deleted the secret, both SNIs should get removed.
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		// Check if the secret affected both the models.
-		g.Eventually(func() int {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].SniNodes)
-		}, 10*time.Second).Should(gomega.Equal(0))
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	// Check if the secret affected both the models.
+	g.Eventually(func() int {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].SniNodes)
+	}, 10*time.Second).Should(gomega.Equal(0))
 
-	} else {
-		t.Fatalf("Could not find model: %s", modelName)
-	}
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-no-secret1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
