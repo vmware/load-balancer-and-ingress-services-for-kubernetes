@@ -183,19 +183,28 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key s
 		return false
 	}
 	if webSyncErr, ok := err.(*utils.WebSyncError); ok {
-		aviError, ok := webSyncErr.GetWebAPIError().(session.AviError)
-		if ok && aviError.HttpStatusCode == 401 {
-			if strings.Contains(*aviError.Message, "Invalid credentials") {
-				utils.AviLog.Errorf("key: %s, msg: Invalid credentials error, Shutting down API Server", key)
-				lib.ShutdownApi()
-			} else if avimodel != nil && avimodel.GetRetryCounter() != 0 {
-				utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to fast retry queue", key)
-				rest.PublishKeyToRetryLayer(publishKey, key)
-			} else {
-				utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to slow retry queue", key)
+		if aviError, ok := webSyncErr.GetWebAPIError().(session.AviError); ok {
+			if aviError.HttpStatusCode == 401 {
+				if strings.Contains(*aviError.Message, "Invalid credentials") {
+					utils.AviLog.Errorf("key: %s, msg: Invalid credentials error, Shutting down API Server", key)
+					lib.ShutdownApi()
+				} else if avimodel != nil && avimodel.GetRetryCounter() != 0 {
+					utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to fast retry queue", key)
+					rest.PublishKeyToRetryLayer(publishKey, key)
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: got 401 error while executing rest request, adding to slow retry queue", key)
+					rest.PublishKeyToSlowRetryLayer(publishKey, key)
+				}
+				return true
+			} else if aviError.HttpStatusCode == 400 && strings.Contains(*aviError.Message, lib.NoFreeIPError) {
+				utils.AviLog.Warnf("key: %s, msg: no Free IP available, adding to slow retry queue", key)
 				rest.PublishKeyToSlowRetryLayer(publishKey, key)
+				return true
+			} else if aviError.HttpStatusCode == 403 && strings.Contains(*aviError.Message, lib.ConfigDisallowedDuringUpgradeError) {
+				utils.AviLog.Warnf("key: %s, msg: controller upgrade in progress, adding to slow retry queue", key)
+				rest.PublishKeyToSlowRetryLayer(publishKey, key)
+				return true
 			}
-			return true
 		}
 	}
 	if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
@@ -962,6 +971,9 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 
 		} else if statuscode == 400 && strings.Contains(*aviError.Message, lib.NoFreeIPError) {
 			utils.AviLog.Infof("key: %s, msg:  msg: Got no free IP error, would be added to slow retry queue", key)
+			fastRetry = false
+		} else if statuscode == 403 && strings.Contains(*aviError.Message, lib.ConfigDisallowedDuringUpgradeError) {
+			utils.AviLog.Infof("key: %s, msg: Controller upgrade in progress, would be added to slow retry queue", key)
 			fastRetry = false
 		} else {
 

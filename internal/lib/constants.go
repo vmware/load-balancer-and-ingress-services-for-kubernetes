@@ -113,6 +113,7 @@ const (
 	NPLService                                 = "NPLService"
 	SyncStatusKey                              = "syncstatus"
 	NoFreeIPError                              = "No available free IPs"
+	ConfigDisallowedDuringUpgradeError         = "Configuration is disallowed during upgrade"
 
 	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
