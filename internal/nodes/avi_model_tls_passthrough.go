@@ -246,6 +246,9 @@ func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	pgName := lib.GetClusterName() + "--" + hostname
+	if lib.IsEvhEnabled() {
+		pgName = lib.Encode(pgName)
+	}
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
 		return

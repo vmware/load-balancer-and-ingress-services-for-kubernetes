@@ -1257,6 +1257,8 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		// Delete the pool corresponding to this host
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
 			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, true)
+		} else if hostData.SecurePolicy == lib.PolicyPass {
+			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName, host, routeIgrObj, hostData.PathSvc, key, removeFqdn, removeRedir, true)
 		}
 		if hostData.InsecurePolicy != lib.PolicyNone {
 			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, false)
