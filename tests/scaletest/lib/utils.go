@@ -214,42 +214,49 @@ func FetchPools(t *testing.T, AviClient *clients.AviClient) []models.Pool {
 	return pools
 }
 
-func FetchDnsVsFqdn(t *testing.T, dnsVsUuid string, AviClient *clients.AviClient) []models.DNSRecord {
-	uri := "api/virtualservice"
+func FetchDNSARecordsFQDN(t *testing.T, AviClient *clients.AviClient) []string {
+	FQDNList := []string{}
+	uri := "/api/virtualservice?page=1"
+	page_num := 1
 	result, err := AviClient.AviSession.GetCollectionRaw(uri)
 	if err != nil {
-		t.Fatalf("Get uri %v returned err for pool %v", uri, err)
+		t.Errorf("Get uri %v returned err for VS %v", uri, err)
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		t.Fatalf("Failed to unmarshal VS data, err: %v", err)
+		t.Errorf("Failed to unmarshal VS data, err: %v", err)
 	}
-	virtualservice := models.VirtualServiceRuntime{}
 	for _, elem := range elems {
-		vs := models.VirtualServiceRuntime{}
-		json.Unmarshal(elem, &vs)
-		if *vs.UUID == dnsVsUuid {
-			virtualservice = vs
-			break
+		vs := models.VirtualService{}
+		err = json.Unmarshal(elem, &vs)
+		if err != nil {
+			t.Errorf("Failed to unmarshal VS data, err: %v", err)
+		}
+		for _, dnsInfo := range vs.DNSInfo {
+			FQDNList = append(FQDNList, *dnsInfo.Fqdn)
 		}
 	}
-	ipamDNSRecords := []models.DNSRecord{}
-	for _, ipamRecord := range virtualservice.IPAMDNSRecords {
-		dnsRecord := models.DNSRecord{}
-		dnsRecord = *ipamRecord
-		ipamDNSRecords = append(ipamDNSRecords, dnsRecord)
-	}
-	return ipamDNSRecords
-}
-
-func FetchDNSARecordsFQDN(t *testing.T, dnsVsUuid string, AviClient *clients.AviClient) []string {
-	ipamDNSRecords := FetchDnsVsFqdn(t, dnsVsUuid, AviClient)
-	var FQDNList []string
-	for _, ipamRecord := range ipamDNSRecords {
-		if *ipamRecord.Type == "DNS_RECORD_A" {
-			for j := 0; j < len(ipamRecord.Fqdn); j++ {
-				FQDNList = append(FQDNList, ipamRecord.Fqdn[j])
+	for result.Next != "" {
+		page_num = page_num + 1
+		uri := "/api/virtualservice?page=" + strconv.Itoa(page_num)
+		result, err = AviClient.AviSession.GetCollectionRaw(uri)
+		if err != nil {
+			t.Errorf("Get uri %v returned err for VS %v", uri, err)
+		}
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			t.Errorf("Failed to unmarshal VS data, err: %v", err)
+		}
+		for _, elem := range elems {
+			vs := models.VirtualService{}
+			err = json.Unmarshal(elem, &vs)
+			if err != nil {
+				t.Errorf("Failed to unmarshal VS data, err: %v", err)
+			}
+			for _, dnsInfo := range vs.DNSInfo {
+				FQDNList = append(FQDNList, *dnsInfo.Fqdn)
 			}
 		}
 	}
