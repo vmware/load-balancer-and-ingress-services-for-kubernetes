@@ -26,6 +26,11 @@ import (
 	"github.com/avinetworks/sdk/go/session"
 )
 
+const (
+	OPER_DOWN = "OPER_DOWN"
+	OPER_UP   = "OPER_UP"
+)
+
 type AviRestClientPool struct {
 	AviClient []*clients.AviClient
 }
@@ -254,4 +259,70 @@ func FetchDNSARecordsFQDN(t *testing.T, dnsVsUuid string, AviClient *clients.Avi
 		}
 	}
 	return FQDNList
+}
+
+func FetchVirtualServiceOperStatus(t *testing.T, AviClient *clients.AviClient) []VirtualServiceInventoryRuntime {
+	OperStatus := []VirtualServiceInventoryRuntime{}
+	uri := "/api/virtualservice-inventory?page=1"
+	page_num := 1
+	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		t.Errorf("Get uri %v returned err for VS %v", uri, err)
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		t.Errorf("Failed to unmarshal VS data, err: %v", err)
+	}
+	for _, elem := range elems {
+		vs := VirtualServiceInventoryResult{}
+		err = json.Unmarshal(elem, &vs)
+		if err != nil {
+			t.Errorf("Failed to unmarshal VS data, err: %v", err)
+		}
+		operstate := VirtualServiceInventoryRuntime{
+			Name:  vs.Config.Name,
+			UUID:  vs.Config.UUID,
+			State: vs.Runtime.OperStatus.State,
+		}
+		OperStatus = append(OperStatus, operstate)
+	}
+	for result.Next != "" {
+		page_num = page_num + 1
+		uri := "/api/virtualservice-inventory??page=" + strconv.Itoa(page_num)
+		result, err = AviClient.AviSession.GetCollectionRaw(uri)
+		if err != nil {
+			t.Errorf("Get uri %v returned err for VS %v", uri, err)
+		}
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			t.Errorf("Failed to unmarshal VS data, err: %v", err)
+		}
+		for _, elem := range elems {
+			vs := VirtualServiceInventoryResult{}
+			err = json.Unmarshal(elem, &vs)
+			if err != nil {
+				t.Errorf("Failed to unmarshal VS data, err: %v", err)
+			}
+			operstate := VirtualServiceInventoryRuntime{
+				Name:  vs.Config.Name,
+				UUID:  vs.Config.UUID,
+				State: vs.Runtime.OperStatus.State,
+			}
+			OperStatus = append(OperStatus, operstate)
+		}
+	}
+	return OperStatus
+}
+
+func FetchOPERDownVirtualService(t *testing.T, AviClient *clients.AviClient) []VirtualServiceInventoryRuntime {
+	OperDownVS := []VirtualServiceInventoryRuntime{}
+	VSOperStatus := FetchVirtualServiceOperStatus(t, AviClient)
+	for _, vs := range VSOperStatus {
+		if vs.State != OPER_UP {
+			OperDownVS = append(OperDownVS, vs)
+		}
+	}
+	return OperDownVS
 }

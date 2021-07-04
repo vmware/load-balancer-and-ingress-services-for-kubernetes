@@ -44,7 +44,6 @@ const PORT = 8080
 const SUBDOMAIN = ".avi.internal"
 const SECRETNAME = "ingress-host-tls"
 const INGRESSAPIVERSION = "networking.k8s.io/v1"
-const UPDATEPATH = "new.host.internal"
 const PATHTYPE = "Prefix"
 
 func CreateApp(appName string, namespace string, replica int) error {
@@ -411,6 +410,7 @@ func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, 
 
 func UpdateIngress(namespace string, listOfIngressToUpdate []string) ([]string, error) {
 	for _, ing := range listOfIngressToUpdate {
+		UpdatedPath := "new-path-" + ing + SUBDOMAIN
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			result, getErr := kubeClient.Resource(ingressResource).Namespace(namespace).Get(ctx, ing, metaV1.GetOptions{})
 			if getErr != nil {
@@ -420,7 +420,7 @@ func UpdateIngress(namespace string, listOfIngressToUpdate []string) ([]string, 
 			if err != nil || !found || rules == nil {
 				return err
 			}
-			if err := unstructured.SetNestedField(rules[0].(map[string]interface{}), UPDATEPATH, "host"); err != nil {
+			if err := unstructured.SetNestedField(rules[0].(map[string]interface{}), UpdatedPath, "host"); err != nil {
 				return err
 			}
 			if err := unstructured.SetNestedField(result.Object, rules, "spec", "rules"); err != nil {
