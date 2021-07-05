@@ -184,7 +184,6 @@ func SetupForTesting(t *testing.T) {
 }
 
 func RemoteReboot(user string, addr string, password string, cmd string) (string, error) {
-	_, _ = ssh.ParsePrivateKey([]byte(password))
 	config := &ssh.ClientConfig{
 		User:            user,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),

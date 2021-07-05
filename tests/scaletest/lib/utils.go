@@ -78,10 +78,16 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	return &p, nil
 }
 
-func FetchVirtualServices(t *testing.T, AviClient *clients.AviClient) []models.VirtualService {
+func FetchVirtualServices(t *testing.T, AviClient *clients.AviClient, Nextpage ...int) []models.VirtualService {
 	virtualServices := []models.VirtualService{}
-	uri := "/api/virtualservice?page=1"
-	page_num := 1
+	var page_num int
+	if len(Nextpage) == 1 {
+		page_num = Nextpage[0]
+	} else {
+		page_num = 1
+	}
+
+	uri := "/api/virtualservice?page=" + strconv.Itoa(page_num)
 	result, err := AviClient.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		t.Errorf("Get uri %v returned err for VS %v", uri, err)
@@ -99,34 +105,22 @@ func FetchVirtualServices(t *testing.T, AviClient *clients.AviClient) []models.V
 		}
 		virtualServices = append(virtualServices, vs)
 	}
-	for result.Next != "" {
-		page_num = page_num + 1
-		uri := "/api/virtualservice?page=" + strconv.Itoa(page_num)
-		result, err = AviClient.AviSession.GetCollectionRaw(uri)
-		if err != nil {
-			t.Errorf("Get uri %v returned err for VS %v", uri, err)
-		}
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			t.Errorf("Failed to unmarshal VS data, err: %v", err)
-		}
-		for _, elem := range elems {
-			vs := models.VirtualService{}
-			err = json.Unmarshal(elem, &vs)
-			if err != nil {
-				t.Errorf("Failed to unmarshal VS data, err: %v", err)
-			}
-			virtualServices = append(virtualServices, vs)
-		}
+	if result.Next != "" {
+		virtualServices = append(virtualServices, FetchVirtualServices(t, AviClient, page_num+1)...)
 	}
 	return virtualServices
 }
 
-func FetchPoolGroup(t *testing.T, AviClient *clients.AviClient) []models.PoolGroup {
+func FetchPoolGroup(t *testing.T, AviClient *clients.AviClient, Nextpage ...int) []models.PoolGroup {
 	poolGroups := []models.PoolGroup{}
-	uri := "/api/poolgroup?page=1"
-	page_num := 1
+	var page_num int
+	if len(Nextpage) == 1 {
+		page_num = Nextpage[0]
+	} else {
+		page_num = 1
+	}
+
+	uri := "/api/poolgroup?page=" + strconv.Itoa(page_num)
 	result, err := AviClient.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		t.Errorf("Get uri %v returned err for pg %v", uri, err)
@@ -144,34 +138,22 @@ func FetchPoolGroup(t *testing.T, AviClient *clients.AviClient) []models.PoolGro
 		}
 		poolGroups = append(poolGroups, pg)
 	}
-	for result.Next != "" {
-		page_num = page_num + 1
-		uri := "/api/poolgroup?page=" + strconv.Itoa(page_num)
-		result, err = AviClient.AviSession.GetCollectionRaw(uri)
-		if err != nil {
-			t.Errorf("Get uri %v returned err for pg %v", uri, err)
-		}
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			t.Errorf("Failed to unmarshal pg data, err: %v", err)
-		}
-		for _, elem := range elems {
-			pg := models.PoolGroup{}
-			err = json.Unmarshal(elem, &pg)
-			if err != nil {
-				t.Errorf("Failed to unmarshal pg data, err: %v", err)
-			}
-			poolGroups = append(poolGroups, pg)
-		}
+	if result.Next != "" {
+		poolGroups = append(poolGroups, FetchPoolGroup(t, AviClient, page_num+1)...)
 	}
 	return poolGroups
 }
 
-func FetchPools(t *testing.T, AviClient *clients.AviClient) []models.Pool {
+func FetchPools(t *testing.T, AviClient *clients.AviClient, Nextpage ...int) []models.Pool {
 	pools := []models.Pool{}
-	uri := "/api/pool?page=1"
-	page_num := 1
+	var page_num int
+	if len(Nextpage) == 1 {
+		page_num = Nextpage[0]
+	} else {
+		page_num = 1
+	}
+	uri := "/api/pool?page=" + strconv.Itoa(page_num)
+
 	result, err := AviClient.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		t.Errorf("Get uri %v returned err for pool %v", uri, err)
@@ -189,35 +171,21 @@ func FetchPools(t *testing.T, AviClient *clients.AviClient) []models.Pool {
 		}
 		pools = append(pools, pool)
 	}
-	for result.Next != "" {
-		page_num = page_num + 1
-		uri = "/api/pool?page=" + strconv.Itoa(page_num)
-		result, err = AviClient.AviSession.GetCollectionRaw(uri)
-		if err != nil {
-			t.Errorf("Get uri %v returned err for pool %v", uri, err)
-		}
-		elems = make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			t.Errorf("Failed to unmarshal pool data, err: %v", err)
-		}
-
-		for _, elem := range elems {
-			pool := models.Pool{}
-			err = json.Unmarshal(elem, &pool)
-			if err != nil {
-				t.Errorf("Failed to unmarshal pool data, err: %v", err)
-			}
-			pools = append(pools, pool)
-		}
+	if result.Next != "" {
+		pools = append(pools, FetchPools(t, AviClient, page_num+1)...)
 	}
 	return pools
 }
 
-func FetchDNSARecordsFQDN(t *testing.T, AviClient *clients.AviClient) []string {
+func FetchDNSARecordsFQDN(t *testing.T, AviClient *clients.AviClient, Nextpage ...int) []string {
 	FQDNList := []string{}
-	uri := "/api/virtualservice?page=1"
-	page_num := 1
+	var page_num int
+	if len(Nextpage) == 1 {
+		page_num = Nextpage[0]
+	} else {
+		page_num = 1
+	}
+	uri := "/api/virtualservice?page=" + strconv.Itoa(page_num)
 	result, err := AviClient.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		t.Errorf("Get uri %v returned err for VS %v", uri, err)
@@ -237,28 +205,8 @@ func FetchDNSARecordsFQDN(t *testing.T, AviClient *clients.AviClient) []string {
 			FQDNList = append(FQDNList, *dnsInfo.Fqdn)
 		}
 	}
-	for result.Next != "" {
-		page_num = page_num + 1
-		uri := "/api/virtualservice?page=" + strconv.Itoa(page_num)
-		result, err = AviClient.AviSession.GetCollectionRaw(uri)
-		if err != nil {
-			t.Errorf("Get uri %v returned err for VS %v", uri, err)
-		}
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			t.Errorf("Failed to unmarshal VS data, err: %v", err)
-		}
-		for _, elem := range elems {
-			vs := models.VirtualService{}
-			err = json.Unmarshal(elem, &vs)
-			if err != nil {
-				t.Errorf("Failed to unmarshal VS data, err: %v", err)
-			}
-			for _, dnsInfo := range vs.DNSInfo {
-				FQDNList = append(FQDNList, *dnsInfo.Fqdn)
-			}
-		}
+	if result.Next != "" {
+		FQDNList = append(FQDNList, FetchDNSARecordsFQDN(t, AviClient, page_num+1)...)
 	}
 	return FQDNList
 }

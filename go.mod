@@ -22,7 +22,7 @@ require (
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
-	golang.org/x/crypto v0.0.0-20201112155050-0c6587e931a9 // indirect
+	golang.org/x/crypto v0.0.0-20201112155050-0c6587e931a9
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect
 	golang.org/x/sys v0.0.0-20201113233024-12cec1faf1ba // indirect
