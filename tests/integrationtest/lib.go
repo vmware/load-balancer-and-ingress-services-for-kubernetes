@@ -927,26 +927,28 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 	var resp map[string]interface{}
 	var finalResponse []byte
 	var vipAddress, shardVSNum string
+	var object string
 	addrPrefix := "10.250.250"
-	object := strings.Split(strings.Trim(url, "/"), "/")
+	urlSlice := strings.Split(strings.Trim(url, "/"), "/")
+	if len(urlSlice) > 1 {
+		object = urlSlice[1]
+	}
 
 	if r.Method == "POST" && !strings.Contains(url, "login") {
 		data, _ := ioutil.ReadAll(r.Body)
 		json.Unmarshal(data, &resp)
-		_, rModelName := resp, ""
 		rName := resp["name"].(string)
-		objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", rModelName, rModelName, rName, RANDOMUUID, rName)
+		objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
 
 		// adding additional 'uuid' and 'url' (read-only) fields in the response
 		resp["url"] = objURL
-		resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+		resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
 
 		if strings.Contains(url, "virtualservice") {
-			rModelName = "virtualservice"
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", rModelName, rModelName, rName, RANDOMUUID, rName)
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
 			// adding additional 'uuid' and 'url' (read-only) fields in the response
 			resp["url"] = objURL
-			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
 
 			// handle sni child, fill in vs parent ref
 			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
@@ -972,11 +974,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 			resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
 		} else if strings.Contains(url, "vsvip") {
-			rModelName = "vsvip"
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", rModelName, rModelName, rName, RANDOMUUID, rName)
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
 			// adding additional 'uuid' and 'url' (read-only) fields in the response
 			resp["url"] = objURL
-			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
 
 			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
 				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
@@ -1004,6 +1005,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		if vsType, ok := resp["type"]; ok && vsType == "VS_TYPE_VH_CHILD" {
 			parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
 			resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
+		}
+		if val, ok := resp["name"]; !ok || val == nil {
+			resp["name"] = object + "-sample-name"
 		}
 		finalResponse, _ = json.Marshal(resp)
 		w.WriteHeader(http.StatusOK)
@@ -1038,7 +1042,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
 
-	} else if r.Method == "GET" && inArray(FakeAviObjects, object[1]) {
+	} else if r.Method == "GET" && inArray(FakeAviObjects, object) {
 		FeedMockCollectionData(w, r, mockFilePath)
 
 	} else if strings.Contains(url, "login") {

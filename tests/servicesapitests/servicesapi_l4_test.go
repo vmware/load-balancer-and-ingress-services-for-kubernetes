@@ -432,7 +432,7 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 20*time.Second).Should(gomega.Equal("10.250.250.250"))
 
 	gwclassUpdate := FakeGWClass{
 		Name:       gwClassName,
@@ -446,9 +446,11 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 	g.Eventually(func() int {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
-	}, 10*time.Second).Should(gomega.Equal(0))
-	svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
-	g.Expect(svc.Status.LoadBalancer.Ingress).To(gomega.HaveLen(0))
+	}, 20*time.Second).Should(gomega.Equal(0))
+	g.Eventually(func() int {
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
+		return len(svc.Status.LoadBalancer.Ingress)
+	}, 20*time.Second).Should(gomega.Equal(0))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
