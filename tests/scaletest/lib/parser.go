@@ -32,18 +32,22 @@ type Nodes struct {
 	Password string `json:"password"`
 }
 
+type VipNetwork struct {
+	NetworkName string `json:"networkName,omitempty"`
+}
+
 type Cluster struct {
-	ClusterID              string   `json:"cluster_id"`
-	ClusterName            string   `json:"cluster_name"`
-	KubeConfigFilePath     string   `json:"kubeconfig_file"`
-	CniPlugin              string   `json:"cniPlugin"`
-	CloudName              string   `json:"cloudName"`
-	DisableStaticRouteSync string   `json:"disableStaticRouteSync"`
-	DefaultIngController   string   `json:"defaultIngController"`
-	NetworkName            string   `json:"NetworkName"`
-	VRFRefName             string   `json:"vrfRefName"`
-	Platform               Platform `json:"platform"`
-	KubeNodes              []Nodes  `json:"kubeNodes"`
+	ClusterID              string       `json:"cluster_id"`
+	ClusterName            string       `json:"cluster_name"`
+	KubeConfigFilePath     string       `json:"kubeconfig_file"`
+	CniPlugin              string       `json:"cniPlugin"`
+	CloudName              string       `json:"cloudName"`
+	DisableStaticRouteSync string       `json:"disableStaticRouteSync"`
+	DefaultIngController   string       `json:"defaultIngController"`
+	VipNetworkList         []VipNetwork `json:"NetworkName"`
+	VRFRefName             string       `json:"vrfRefName"`
+	Platform               Platform     `json:"platform"`
+	KubeNodes              []Nodes      `json:"kubeNodes"`
 }
 
 type AkoParams struct {
@@ -57,7 +61,7 @@ type TestParams struct {
 	AppName           string `json:"appName"`
 	ServiceNamePrefix string `json:"serviceNamePrefix"`
 	IngressNamePrefix string `json:"ingressNamePrefix"`
-	DnsVSUUID         string `json:"dnsVSUUID"`
+	DnsVSName         string `json:"dnsVSName"`
 }
 
 type Networks struct {

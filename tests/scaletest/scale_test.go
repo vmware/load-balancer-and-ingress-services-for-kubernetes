@@ -16,11 +16,13 @@
 package scaletest
 
 import (
+	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,6 +31,7 @@ import (
 
 	"github.com/avinetworks/sdk/go/clients"
 	"github.com/onsi/gomega"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/scaletest/lib"
@@ -44,6 +47,7 @@ const (
 
 var (
 	testbedFileName          string
+	kubeconfigFile           string
 	namespace                string
 	appName                  string
 	serviceNamePrefix        string
@@ -68,8 +72,6 @@ var (
 	numOfLBSvc               int
 	numOfPodsForLBSvc        = 100
 	clusterName              string
-	timeout                  string
-	dnsVSUUID                string
 	testCaseTimeOut          = 1800
 	testPollInterval         = "15s"
 	mutex                    sync.Mutex
@@ -84,30 +86,23 @@ Aviclients, Deployment and Services used by the test are created */
 func Setup() {
 	var testbedParams lib.TestbedFields
 	var err error
-	timeout = os.Args[4]
-	testbedFileName = os.Args[5]
-	numGoRoutines, err = strconv.Atoi(os.Args[6])
-	if err != nil {
-		fmt.Println("Setting default value for number of Go routines to 20")
-		numGoRoutines = 20
-	}
-	if numGoRoutines <= 0 {
-		fmt.Println("ERROR : Number of Go Routines cannot be zero or negative.")
+	flag.StringVar(&testbedFileName, "testbedFileName", "", "Testbed file path")
+	flag.StringVar(&kubeconfigFile, "kubeConfigFileName", "", "Kubeconfig file path")
+	flag.IntVar(&numGoRoutines, "numGoRoutines", 10, "Number of Go routines")
+	flag.IntVar(&numOfIng, "numOfIng", 500, "Number of Ingresses")
+	flag.IntVar(&numOfLBSvc, "numOfLBSvc", 10, "Number of Services of type Load Balancer")
+	flag.Parse()
+	if testbedFileName == "" {
+		fmt.Println("ERROR : TestbedFileName not provided")
 		os.Exit(0)
 	}
-	numOfLBSvc, err = strconv.Atoi(os.Args[7])
-	if err != nil {
-		fmt.Println("ERROR : Number of LB services not provided")
-		os.Exit(0)
-	}
-	numOfIng, err = strconv.Atoi(os.Args[8])
-	if err != nil {
-		fmt.Println("ERROR : Number of ingresses not provided")
+	if kubeconfigFile == "" {
+		fmt.Println("ERROR : kubeconfigFile not provided")
 		os.Exit(0)
 	}
 	testbed, er := os.Open(testbedFileName)
 	if er != nil {
-		fmt.Println("ERROR : Error opening testbed file ", testbedFileName, " with error : ", er)
+		fmt.Println("ERROR : Error opening testbed file", testbedFileName, " with error :", er)
 		os.Exit(0)
 	}
 	defer testbed.Close()
@@ -126,14 +121,13 @@ func Setup() {
 	serviceNamePrefix = testbedParams.TestParams.ServiceNamePrefix
 	ingressNamePrefix = testbedParams.TestParams.IngressNamePrefix
 	clusterName = testbedParams.AkoParam.Clusters[0].ClusterName
-	dnsVSUUID = testbedParams.TestParams.DnsVSUUID
 	akoPodName = testbedParams.TestParams.AkoPodName
 	os.Setenv("CTRL_USERNAME", testbedParams.Vm[0].UserName)
 	os.Setenv("CTRL_PASSWORD", testbedParams.Vm[0].Password)
 	os.Setenv("CTRL_IPADDRESS", testbedParams.Vm[0].IP)
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	lib.KubeInit(testbedParams.AkoParam.Clusters[0].KubeConfigFilePath)
+	lib.KubeInit(kubeconfigFile)
 	AviClients, err = lib.SharedAVIClients(2)
 	if err != nil {
 		fmt.Println("ERROR : Creating Avi Client : ", err)
@@ -179,7 +173,7 @@ func SetupForTesting(t *testing.T) {
 		initialVSesList = append(initialVSesList, *vs.Name)
 	}
 	initialNumOfVSes = len(initialVSesList)
-	initialFQDNList = lib.FetchDNSARecordsFQDN(t, dnsVSUUID, AviClients[0])
+	initialFQDNList = lib.FetchDNSARecordsFQDN(t, AviClients[0])
 	initialNumOfFQDN = len(initialFQDNList)
 	ingressHostNames = []string{}
 	ingressSecureHostNames = []string{}
@@ -189,18 +183,46 @@ func SetupForTesting(t *testing.T) {
 	ingressesUpdated = []string{}
 }
 
-/* Used for Controller and Node reboot */
-func Reboot(t *testing.T, wg *sync.WaitGroup, nodeType string, controllerIP string, username string, password string) {
-	t.Logf("Rebooting %s ... ", nodeType)
-	loginID := username + "@" + controllerIP
-	cmd := exec.Command("sshpass", "-p", password, "ssh", "-t", loginID, " `echo ", password, " |  sudo -S shutdown --reboot 0 && exit `")
-	_, err := cmd.Output()
-	if err != nil {
-		t.Errorf("Cannot reboot %s because : %v ", nodeType, err.Error())
-	} else {
-		t.Logf("%s Rebooted", nodeType)
+func RemoteReboot(user string, addr string, password string, cmd string) (string, error) {
+	config := &ssh.ClientConfig{
+		User:            user,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
 	}
-	defer wg.Done()
+	client, err := ssh.Dial("tcp", net.JoinHostPort(addr, "22"), config)
+	if err != nil {
+		return "", err
+	}
+	session, err := client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+	var b bytes.Buffer
+	session.Stdout = &b
+	err = session.Run(cmd)
+	return b.String(), err
+}
+
+/* Used for Controller and Node reboot */
+func Reboot(t *testing.T, wg *sync.WaitGroup, nodeType string, vmIP string, username string, password string, trynum int) {
+	if trynum < 5 {
+		t.Logf("Rebooting %s ... ", nodeType)
+		_, err := RemoteReboot(username, vmIP, password, "echo "+password+" | sudo -S shutdown --reboot 0 && exit")
+		if err != nil {
+			t.Logf("Cannot reboot %s because : %v", nodeType, err.Error())
+			time.Sleep(10 * time.Second)
+			Reboot(t, wg, KUBENODE, vmIP, username, password, trynum+1)
+		} else {
+			t.Logf("%s Rebooted", nodeType)
+			defer wg.Done()
+			return
+		}
+	} else {
+		defer wg.Done()
+	}
 }
 
 /* Reboots AKO pod */
@@ -222,7 +244,7 @@ func CheckReboot(t *testing.T, wg *sync.WaitGroup) {
 	}
 	if REBOOTCONTROLLER == true {
 		wg.Add(1)
-		go Reboot(t, wg, CONTROLLER, os.Getenv("CTRL_IPADDRESS"), os.Getenv("CTRL_USERNAME"), os.Getenv("CTRL_PASSWORD"))
+		go Reboot(t, wg, CONTROLLER, os.Getenv("CTRL_IPADDRESS"), os.Getenv("CTRL_USERNAME"), os.Getenv("CTRL_PASSWORD"), 0)
 	}
 	if REBOOTNODE == true {
 		wg.Add(1)
@@ -239,7 +261,7 @@ func CheckReboot(t *testing.T, wg *sync.WaitGroup) {
 			os.Exit(0)
 		}
 		json.Unmarshal(byteValue, &testbedParams)
-		go Reboot(t, wg, KUBENODE, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password)
+		go Reboot(t, wg, KUBENODE, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password, 0)
 	}
 }
 
@@ -320,7 +342,7 @@ func PoolVerification(t *testing.T) bool {
 /* Verifies if all requires DNS A records are created in the DNS VS or not */
 func DNSARecordsVerification(t *testing.T, hostNames []string) bool {
 	t.Logf("Verifying DNS A Records...")
-	FQDNList := lib.FetchDNSARecordsFQDN(t, dnsVSUUID, AviClients[0])
+	FQDNList := lib.FetchDNSARecordsFQDN(t, AviClients[0])
 	diffString := DiffOfLists(FQDNList, hostNames)
 	if len(diffString) == initialNumOfFQDN {
 		return true
@@ -328,7 +350,7 @@ func DNSARecordsVerification(t *testing.T, hostNames []string) bool {
 	newSharedVSFQDN := DiffOfLists(diffString, initialFQDNList)
 	var val int
 	for _, fqdn := range newSharedVSFQDN {
-		if strings.HasPrefix(fqdn, clusterName+"--shared") == true {
+		if strings.HasPrefix(fqdn, ingressNamePrefix) == true {
 			val++
 		}
 	}

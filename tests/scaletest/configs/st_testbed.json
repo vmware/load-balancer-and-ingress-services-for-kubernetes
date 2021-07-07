@@ -8,7 +8,9 @@
                 "cniPlugin": "",
                 "disableStaticRouteSync": "",
                 "defaultIngController": "",
-                "NetworkName": "",
+                "vipNetworkList": [
+                    {"networkName": ""}
+                ],
                 "vrfRefName": "",
                 "platform": {
                     "type": "",
@@ -35,7 +37,7 @@
         "appName" : "",
         "serviceNamePrefix" : "",
         "ingressNamePrefix" : "",
-        "dnsVSUUID" : ""
+        "dnsVSName" : ""
     },
     "Vm": [
         {
