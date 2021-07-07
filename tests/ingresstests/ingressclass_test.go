@@ -127,12 +127,12 @@ func TestAdvL4WrongClassMappingInIngress(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 20*time.Second).Should(gomega.Equal(1))
+	}, 40*time.Second).Should(gomega.Equal(1))
 
 	ingressUpdate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -155,7 +155,7 @@ func TestAdvL4WrongClassMappingInIngress(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 40*time.Second).Should(gomega.Equal(0))
 
 	ingressUpdate2 := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -179,7 +179,7 @@ func TestAdvL4WrongClassMappingInIngress(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 25*time.Second).Should(gomega.Equal(1))
+	}, 40*time.Second).Should(gomega.Equal(1))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
@@ -228,7 +228,7 @@ func TestDefaultIngressClassChange(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 25*time.Second).Should(gomega.Equal(1))
+	}, 40*time.Second).Should(gomega.Equal(1))
 
 	ingClass.Annotations = map[string]string{lib.DefaultIngressClassAnnotation: "false"}
 	ingClass.ResourceVersion = "2"
@@ -240,7 +240,7 @@ func TestDefaultIngressClassChange(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 35*time.Second).Should(gomega.Equal(0))
+	}, 40*time.Second).Should(gomega.Equal(0))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
@@ -360,7 +360,7 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 			}
 		}
 		return false
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	settingModelName := "admin/cluster--Shared-L7-my-infrasetting-0"
@@ -384,7 +384,7 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 			}
 		}
 		return false
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
@@ -393,13 +393,13 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 		settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(settingNodes[0].SniNodes)
-	}, 25*time.Second).Should(gomega.Equal(1))
+	}, 40*time.Second).Should(gomega.Equal(1))
 	g.Expect(settingNodes[0].SniNodes[0].Name).Should(gomega.Equal("cluster--my-infrasetting-baz.com"))
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes[0].PoolRefs)
-	}, 25*time.Second).Should(gomega.Equal(0))
+	}, 40*time.Second).Should(gomega.Equal(0))
 
 	ingClassUpdate = (FakeIngressClass{
 		Name:       ingClassName,
@@ -465,7 +465,7 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 			}
 		}
 		return ""
-	}, 25*time.Second).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
+	}, 40*time.Second).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
 
 	ingClassUpdate := (FakeIngressClass{
 		Name:            ingClassName,
@@ -486,7 +486,7 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 			}
 		}
 		return 0
-	}, 35*time.Second).Should(gomega.Equal(1))
+	}, 40*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting2-bar.com_foo-default-foo-with-class"))
@@ -553,7 +553,7 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() int {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -562,7 +562,7 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 			}
 		}
 		return 0
-	}, 25*time.Second).Should(gomega.Equal(1))
+	}, 40*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
@@ -579,7 +579,7 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 			return len(nodes[0].PoolRefs)
 		}
 		return -1
-	}, 35*time.Second).Should(gomega.Equal(0))
+	}, 40*time.Second).Should(gomega.Equal(0))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	g.Expect(aviModel).Should(gomega.BeNil())
 
@@ -631,7 +631,7 @@ func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName1)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 	_, aviSettingModel1 := objects.SharedAviGraphLister().Get(settingModelName1)
 	settingNodes1 := aviSettingModel1.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes1[0].PoolRefs).Should(gomega.HaveLen(1))
@@ -657,7 +657,7 @@ func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName2)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 	_, aviSettingModel2 := objects.SharedAviGraphLister().Get(settingModelName2)
 	settingNodes2 := aviSettingModel2.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes2[0].PoolRefs).Should(gomega.HaveLen(1))
@@ -729,13 +729,13 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 	g.Eventually(func() string {
 		setting, _ := CRDClient.AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
-	}, 15*time.Second).Should(gomega.Equal("Rejected"))
+	}, 40*time.Second).Should(gomega.Equal("Rejected"))
 	g.Eventually(func() bool {
 		if found, _ := objects.SharedAviGraphLister().Get(modelName); !found {
 			return true
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	settingUpdate := (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
@@ -751,7 +751,7 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 	g.Eventually(func() string {
 		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
-	}, 15*time.Second).Should(gomega.Equal("Accepted"))
+	}, 40*time.Second).Should(gomega.Equal("Accepted"))
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(settingModelName); found && aviModel != nil {
@@ -760,7 +760,7 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 			}
 		}
 		return ""
-	}, 35*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
+	}, 40*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
 	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-networkName"))
@@ -780,7 +780,7 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 	g.Eventually(func() string {
 		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
-	}, 15*time.Second).Should(gomega.Equal("Accepted"))
+	}, 40*time.Second).Should(gomega.Equal("Accepted"))
 
 	g.Eventually(func() int {
 		if found, aviModel := objects.SharedAviGraphLister().Get(settingModelName); found && aviModel != nil {
@@ -789,7 +789,7 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 			}
 		}
 		return 0
-	}, 35*time.Second).Should(gomega.Equal(3))
+	}, 40*time.Second).Should(gomega.Equal(3))
 	_, aviModel = objects.SharedAviGraphLister().Get(settingModelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("multivip-network1"))
@@ -845,13 +845,13 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
 		return found
-	}, 15*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() string {
 		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 		settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return settingNodes[0].ServiceEngineGroup
-	}, 30*time.Second).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	}, 40*time.Second).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
@@ -876,7 +876,7 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 15*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(1))
@@ -965,7 +965,7 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 	g.Eventually(func() string {
 		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
-	}, 15*time.Second).Should(gomega.Equal("Rejected"))
+	}, 40*time.Second).Should(gomega.Equal("Rejected"))
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TeardownIngressClass(t, ingClassName)

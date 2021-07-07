@@ -271,8 +271,9 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 			defaultTLS.redirect = true
 			tlsConfigs = append(tlsConfigs, defaultTLS)
 			if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
-				objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(ns, ingName, defaultTLS.SecretName)
-				objects.SharedSvcLister().IngressMappings(ns).AddSecretsToIngressMappings(ns, ingName, defaultTLS.SecretName)
+				akoNS := utils.GetAKONamespace()
+				objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(akoNS, ingName, defaultTLS.SecretName)
+				objects.SharedSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(ns, ingName, defaultTLS.SecretName)
 			}
 		} else {
 			hostMap[hostName] = hostPathMapSvcList
