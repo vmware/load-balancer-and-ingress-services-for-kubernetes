@@ -87,3 +87,44 @@ type TestbedFields struct {
 	TestParams TestParams `json:"TestParams"`
 	Vm         []Vm       `json:"Vm"`
 }
+
+type OperStatus struct {
+	State           string                 `json:"state"`
+	LastChangedTime map[string]interface{} `json:"last_changed_time"`
+}
+
+type Runtime struct {
+	OperStatus   OperStatus               `json:"oper_status"`
+	PercentSEUps int                      `json:"percent_ses_up"`
+	VIPSummary   []map[string]interface{} `json:"vip_summary"`
+}
+
+type Config struct {
+	Name string `json:"name"`
+	UUID string `json:"uuid"`
+}
+
+type VirtualServiceInventoryResult struct {
+	Config                  Config                 `json:"config"`
+	Runtime                 Runtime                `json:"runtime"`
+	UUID                    string                 `json:"uuid"`
+	HealthScore             map[string]interface{} `json:"health_score"`
+	Alert                   map[string]interface{} `json:"alert"`
+	Pools                   []string               `json:"pools"`
+	PoolGroups              []string               `json:"poolgroups"`
+	ApiProfileType          string                 `json:"app_profile_type"`
+	PoolWithRealTimeMetrics bool                   `json:"has_pool_with_realtime_metrics"`
+	Faults                  map[string]interface{} `json:"faults"`
+	Metrics                 map[string]interface{} `json:"metrics"`
+}
+
+type VirtualServiceInventory struct {
+	Count   int                             `json:"count"`
+	Results []VirtualServiceInventoryResult `json:"results"`
+}
+
+type VirtualServiceInventoryRuntime struct {
+	Name  string
+	UUID  string
+	State string
+}

@@ -263,7 +263,7 @@ func DiffOfLists(list1 []string, list2 []string) []string {
 	return diffString
 }
 
-/* list1 - list2 */
+/* list2 - list1 */
 func DiffOfListsOrderBased(list1 []string, list2 []string) []string {
 	diffMap := map[string]bool{}
 	var diffString []string
@@ -395,6 +395,29 @@ func Verify(t *testing.T) bool {
 	return false
 }
 
+//Check that no VS tracked by Scale Test is in OPER_DOWN state
+func CheckVSOperDown(t *testing.T, OPERDownVSes []lib.VirtualServiceInventoryRuntime) bool {
+	OperDownVSes := []string{}
+	for _, vs := range OPERDownVSes {
+		OperDownVSes = append(OperDownVSes, vs.Name)
+	}
+	// Find VSes from Initial VS list that are not created by scale test(excluding AKO created Shared VSes)
+	sharedVSList := []string{}
+	for _, vs := range initialVSesList {
+		if strings.HasPrefix(vs, clusterName+"--Shared") {
+			sharedVSList = append(sharedVSList, vs)
+		}
+	}
+	untrackedVSList := DiffOfListsOrderBased(sharedVSList, initialVSesList)
+	// Check if any of the VS in OPER_DOWN state belong to the untracked VSes
+	trackedOperDownVSList := DiffOfListsOrderBased(untrackedVSList, OperDownVSes)
+	if len(trackedOperDownVSList) == 0 {
+		// No Tracked VS is down
+		return true
+	}
+	return false
+}
+
 func parallelInsecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName string, namespace string, numOfIng int, startIndex int) {
 	defer wg.Done()
 	ingresses, hostNames, err := lib.CreateInsecureIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
@@ -499,15 +522,27 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	pollInterval, _ := time.ParseDuration(testPollInterval)
 	waitTimeIncr, _ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
 	// Verifies for Avi objects creation by checking every 'waitTime' seconds for 'testCaseTimeOut' seconds
+	verificationSuccessful := false
 	for waitTime := 0; waitTime < testCaseTimeOut; {
 		if Verify(t) == true {
 			t.Logf("Created %d Ingresses and associated Avi objects\n", numOfIng)
-			return
+			verificationSuccessful = true
+			break
 		}
 		time.Sleep(pollInterval)
 		waitTime = waitTime + waitTimeIncr
 	}
-	t.Fatalf("Error : Verification failed\n")
+	g.Eventually(func() bool {
+		OPERDownVSes := lib.FetchOPERDownVirtualService(t, AviClients[0])
+		operUP := CheckVSOperDown(t, OPERDownVSes)
+		if operUP == true {
+			verificationSuccessful = true
+		}
+		return operUP
+	}, testCaseTimeOut, testPollInterval).Should(gomega.BeTrue())
+	if !verificationSuccessful {
+		t.Fatalf("Error : Verification failed\n")
+	}
 }
 
 func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) {
@@ -530,7 +565,9 @@ func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		}
 	}
 	wg.Wait()
-	g.Expect(ingressesDeleted).To(gomega.HaveLen(numOfIng))
+	g.Eventually(func() int {
+		return len(ingressesDeleted)
+	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(numOfIng))
 	t.Logf("Deleted %d %s Ingresses", numOfIng, ingressType)
 	t.Logf("Verifiying Avi objects ...")
 	g.Eventually(func() int {
@@ -560,7 +597,15 @@ func UpdateIngressesParallel(t *testing.T, numOfIng int) {
 		}
 	}
 	wg.Wait()
-	g.Expect(ingressesUpdated).To(gomega.HaveLen(numOfIng))
+	g.Eventually(func() int {
+		return len(ingressesUpdated)
+	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(numOfIng))
+	time.Sleep(10 * time.Second)
+	g.Eventually(func() bool {
+		OPERDownVSes := lib.FetchOPERDownVirtualService(t, AviClients[0])
+		operUP := CheckVSOperDown(t, OPERDownVSes)
+		return operUP
+	}, testCaseTimeOut, testPollInterval).Should(gomega.BeTrue())
 	t.Logf("Updated %d Ingresses\n", numOfIng)
 }
 
@@ -593,14 +638,26 @@ func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
 	t.Logf("Verifiying Avi objects ...")
 	pollInterval, _ := time.ParseDuration(testPollInterval)
 	waitTimeIncr, _ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
+	verificationSuccessful := false
 	for waitTime := 0; waitTime < testCaseTimeOut; {
 		if Verify(t) == true {
-			return
+			verificationSuccessful = true
+			break
 		}
 		time.Sleep(pollInterval)
 		waitTime = waitTime + waitTimeIncr
 	}
-	t.Fatalf("Error : Verification failed\n")
+	g.Eventually(func() bool {
+		OPERDownVSes := lib.FetchOPERDownVirtualService(t, AviClients[0])
+		operUP := CheckVSOperDown(t, OPERDownVSes)
+		if operUP == true {
+			verificationSuccessful = true
+		}
+		return operUP
+	}, testCaseTimeOut, testPollInterval).Should(gomega.BeTrue())
+	if !verificationSuccessful {
+		t.Fatalf("Error : Verification failed\n")
+	}
 
 }
 
@@ -612,7 +669,9 @@ func DeleteIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int, Av
 	if err != nil {
 		t.Fatalf("Failed to delete ingresses as : %v", err)
 	}
-	g.Expect(ingressesDeleted).To(gomega.HaveLen(numOfIng))
+	g.Eventually(func() int {
+		return len(ingressesDeleted)
+	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(numOfIng))
 	t.Logf("Deleted %d %s Ingresses Serially", numOfIng, ingressType)
 	t.Logf("Verifiying Avi objects ...")
 	g.Eventually(func() int {
@@ -890,8 +949,8 @@ func LBService(t *testing.T) {
 	serviceList := CreateServiceTypeLBWithApp(t, numOfPodsForLBSvc, numOfLBSvc, appNameLB, serviceNamePrefixLB, aviObjPrefix)
 	DeleteLBDeployment(t, appNameLB, serviceNamePrefixLB, aviObjPrefix)
 	DeleteServiceTypeLB(t, serviceList)
-
 }
+
 func TestMain(t *testing.M) {
 	Setup()
 	defer Cleanup()
