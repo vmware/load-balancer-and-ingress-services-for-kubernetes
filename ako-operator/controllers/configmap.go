@@ -156,8 +156,6 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	}
 	cm.Data[DefaultIngController] = defaultIngController
 
-	cm.Data[SubnetIP] = ako.Spec.NetworkSettings.SubnetIP
-	cm.Data[SubnetPrefix] = ako.Spec.NetworkSettings.SubnetPrefix
 	cm.Data[LogLevel] = string(ako.Spec.LogLevel)
 
 	deleteConfig := "false"
@@ -179,9 +177,24 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[EnableRHI] = enableRHI
 
 	var err error
-	vipListBytes, err := json.Marshal(ako.Spec.NetworkSettings.VipNetworkList)
-	if err != nil {
-		return cm, err
+	type VipNetworkListRow struct {
+		Cidr        string `json:"cidr"`
+		NetworkName string `json:"networkName"`
+	}
+
+	vipListRows := []VipNetworkListRow{}
+	vipListBytes := []byte{}
+	for _, row := range ako.Spec.NetworkSettings.VipNetworkList {
+		vipListRows = append(vipListRows, VipNetworkListRow{
+			Cidr:        row.Cidr,
+			NetworkName: row.NetworkName,
+		})
+	}
+	if len(vipListRows) != 0 {
+		vipListBytes, err = json.Marshal(vipListRows)
+		if err != nil {
+			return cm, err
+		}
 	}
 	cm.Data[VipNetworkList] = string(vipListBytes)
 

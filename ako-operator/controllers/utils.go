@@ -43,8 +43,6 @@ const (
 	DefaultDomain          = "defaultDomain"
 	DisableStaticRouteSync = "disableStaticRouteSync"
 	DefaultIngController   = "defaultIngController"
-	SubnetIP               = "subnetIP"
-	SubnetPrefix           = "subnetPrefix"
 	VipNetworkList         = "vipNetworkList"
 	BgpPeerLabels          = "bgpPeerLabels"
 	LogLevel               = "logLevel"
@@ -87,8 +85,6 @@ var ConfigMapEnvVars = map[string]string{
 	"DEFAULT_DOMAIN":             DefaultDomain,
 	"DISABLE_STATIC_ROUTE_SYNC":  DisableStaticRouteSync,
 	"DEFAULT_ING_CONTROLLER":     DefaultIngController,
-	"SUBNET_IP":                  SubnetIP,
-	"SUBNET_PREFIX":              SubnetPrefix,
 	"VIP_NETWORK_LIST":           VipNetworkList,
 	"ADVANCED_L4":                AdvancedL4,
 	"AUTO_L4_FQDN":               AutoFQDN,

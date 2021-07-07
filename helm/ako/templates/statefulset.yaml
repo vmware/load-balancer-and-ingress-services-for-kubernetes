@@ -151,16 +151,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: nsSyncLabelValue
-          - name: SUBNET_IP
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: subnetIP
-          - name: SUBNET_PREFIX
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: subnetPrefix
           - name: DEFAULT_ING_CONTROLLER
             valueFrom:
               configMapKeyRef:

@@ -70,7 +70,6 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		avi_vs_meta := &AviVsNode{
 			Name:       vsName,
 			Tenant:     lib.GetTenant(),
-			EastWest:   false,
 			VrfContext: lib.GetVrf(),
 			ServiceMetadata: avicache.ServiceMetadataObj{
 				NamespaceServiceName: serviceNSNames,
@@ -105,23 +104,17 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		vsVipNode := &AviVSVIPNode{
 			Name:       lib.GetL4VSVipName(gatewayName, namespace),
 			Tenant:     lib.GetTenant(),
-			EastWest:   false,
 			VrfContext: lib.GetVrf(),
-		}
-
-		if lib.GetSubnetIP() != "" {
-			vsVipNode.SubnetIP = lib.GetSubnetIP()
-			vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 		}
 
 		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 			vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 		}
 
-		if networkNames, err := lib.GetVipNetworkList(); err != nil {
+		if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
 			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 		} else {
-			vsVipNode.NetworkNames = networkNames
+			vsVipNode.VipNetworks = vipNetworks
 		}
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == advl4v1alpha1pre1.IPAddressType {
@@ -156,7 +149,6 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		avi_vs_meta := &AviVsNode{
 			Name:       vsName,
 			Tenant:     lib.GetTenant(),
-			EastWest:   false,
 			VrfContext: lib.GetVrf(),
 			ServiceMetadata: avicache.ServiceMetadataObj{
 				NamespaceServiceName: serviceNSNames,
@@ -191,23 +183,17 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		vsVipNode := &AviVSVIPNode{
 			Name:       lib.GetL4VSVipName(gatewayName, namespace),
 			Tenant:     lib.GetTenant(),
-			EastWest:   false,
 			VrfContext: lib.GetVrf(),
-		}
-
-		if lib.GetSubnetIP() != "" {
-			vsVipNode.SubnetIP = lib.GetSubnetIP()
-			vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 		}
 
 		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 			vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 		}
 
-		if networkNames, err := lib.GetVipNetworkList(); err != nil {
-			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %v", key, err.Error())
+		if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 		} else {
-			vsVipNode.NetworkNames = networkNames
+			vsVipNode.VipNetworks = vipNetworks
 		}
 
 		// configures VS and VsVip nodes using infraSetting object (via CRD).

@@ -372,7 +372,6 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	checksumstr := strconv.Itoa(int(cksum))
 	cr := lib.AKOUser
 
-	east_west := false
 	var app_prof string
 	app_prof = "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
 	if vs_meta.AppProfileRef != "" {
@@ -392,7 +391,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		CreatedBy:             &cr,
 		NetworkProfileRef:     &network_prof,
 		ApplicationProfileRef: &app_prof,
-		EastWestPlacement:     &east_west,
+		EastWestPlacement:     proto.Bool(false),
 		CloudRef:              &cloudRef,
 		SeGroupRef:            &seGroupRef,
 		ServiceMetadata:       &svc_mdata,

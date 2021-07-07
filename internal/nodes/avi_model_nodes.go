@@ -24,6 +24,7 @@ import (
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
@@ -277,7 +278,6 @@ type AviVsNode struct {
 	EnableRhi             *bool
 	PortProto             []AviPortHostProtocol // for listeners
 	DefaultPool           string
-	EastWest              bool
 	CloudConfigCksum      uint32
 	DefaultPoolGroup      string
 	HTTPChecksum          uint32
@@ -909,12 +909,9 @@ type AviVSVIPNode struct {
 	Tenant                  string
 	CloudConfigCksum        uint32
 	FQDNs                   []string
-	EastWest                bool
 	VrfContext              string
 	IPAddress               string
-	SubnetIP                string
-	SubnetPrefix            int32
-	NetworkNames            []string
+	VipNetworks             []akov1alpha1.AviInfraSettingVipNetwork
 	BGPPeerLabels           []string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
@@ -933,26 +930,33 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 		sort.Strings(v.FQDNs)
 		checksum = utils.Hash(utils.Stringify(v.FQDNs))
 	}
+
 	if v.IPAddress != "" {
 		checksum += utils.Hash(v.IPAddress)
 	}
-	if len(v.NetworkNames) > 0 {
-		sort.Strings(v.NetworkNames)
-		checksum += utils.Hash(utils.Stringify(v.NetworkNames))
+
+	if len(v.VipNetworks) > 0 {
+		var vipNetworkStringList []string
+		for _, vipNetwork := range v.VipNetworks {
+			vipNetworkStringList = append(vipNetworkStringList, vipNetwork.NetworkName+":"+vipNetwork.Cidr)
+		}
+		sort.Strings(vipNetworkStringList)
+		checksum += utils.Hash(utils.Stringify(vipNetworkStringList))
 	}
+
 	if lib.GetGRBACSupport() {
 		checksum += lib.GetClusterLabelChecksum()
 	}
-	if v.SubnetIP != "" {
-		checksum += utils.Hash(v.SubnetIP)
-	}
+
 	if len(v.BGPPeerLabels) > 0 {
 		sort.Strings(v.BGPPeerLabels)
 		checksum += utils.Hash(utils.Stringify(v.BGPPeerLabels))
 	}
+
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)
 	}
+
 	v.CloudConfigCksum = checksum
 }
 

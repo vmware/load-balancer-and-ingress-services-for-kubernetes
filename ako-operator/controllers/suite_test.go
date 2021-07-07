@@ -56,9 +56,7 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 					Cidrs:       []string{"10.10.10.0/24"},
 				},
 			},
-			SubnetIP:     "10.10.10.1",
-			SubnetPrefix: "24",
-			EnableRHI:    false,
+			EnableRHI: false,
 		},
 
 		L7Settings: akov1alpha1.L7Settings{

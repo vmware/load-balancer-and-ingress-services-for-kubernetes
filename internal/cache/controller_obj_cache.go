@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/avinetworks/sdk/go/clients"
@@ -2787,7 +2788,6 @@ func checkNodeNetwork(client *clients.AviClient) bool {
 }
 
 func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
-
 	if lib.IsPublicCloud() {
 		// Need not set VRFContext for public clouds.
 		return true
@@ -2809,7 +2809,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		return false
 	}
 
-	networkName := networkList[0]
+	networkName := networkList[0].NetworkName
 
 	uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
@@ -2858,9 +2858,17 @@ func checkBGPParams() bool {
 	return true
 }
 
-func validateNetworkNames(client *clients.AviClient, networkList []string) bool {
-	for _, networkName := range networkList {
-		uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
+func validateNetworkNames(client *clients.AviClient, vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork) bool {
+	for _, vipNetwork := range vipNetworkList {
+		if vipNetwork.Cidr != "" {
+			re := regexp.MustCompile(lib.IPCIDRRegex)
+			if !re.MatchString(vipNetwork.Cidr) {
+				utils.AviLog.Errorf("invalid CIDR configuration %s detected for networkName %s in vipNetworkList", vipNetwork.Cidr, vipNetwork.NetworkName)
+				return false
+			}
+		}
+
+		uri := "/api/network/?include_name&name=" + vipNetwork.NetworkName + "&cloud_ref.name=" + utils.CloudName
 		result, err := lib.AviGetCollectionRaw(client, uri)
 		if err != nil {
 			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
@@ -2874,7 +2882,7 @@ func validateNetworkNames(client *clients.AviClient, networkList []string) bool 
 		}
 
 		if result.Count == 0 {
-			utils.AviLog.Warnf("No networks found for networkName: %s", networkName)
+			utils.AviLog.Warnf("No networks found for vipNetwork: %s", vipNetwork.NetworkName)
 			return false
 		}
 	}

@@ -63,8 +63,6 @@ var cmJson = `
 		"serviceType": "ClusterIP",
 		"shardVSSize": "LARGE",
 		"noPGForSni": "false",
-		"subnetIP": "10.10.10.1",
-		"subnetPrefix": "24"
 	}
 }
 `

@@ -191,12 +191,16 @@ spec:
                     type: string
                   type: array
                 vipNetworkList:
-                  description: VipNetworkList holds the names of networks as specified
-                    in Avi
+                  description: VipNetworkList holds the names and subnet information of networks 
+                    as specified in Avi
                   items:
                     properties:
                       networkName:
                         type: string
+                      cidr:
+                        type: string
+                    required:
+                      - networkName
                     type: object
                   type: array
                 layer7Only:
@@ -218,15 +222,7 @@ spec:
                         - cidrs
                         type: object
                       type: array
-                    subnetIP:
-                      description: SubnetIP is the Network IP for the subnet to be used
-                      type: string
-                    subnetPrefix:
-                      description: SubnetPrefix is the netmask for the subnet
-                      type: string
                   type: object
-                  required:
-                  - subnetIP
             nodePortSelector:
               description: NodePortSelector defines the node port settings, to be
                 used only if the serviceTYpe is selected NodePort

@@ -43,16 +43,15 @@ NetworkSettings:
   #     cidrs:
   #       - 10.0.0.1/24
   #       - 11.0.0.1/24
-  subnetIP: "" # Subnet IP of the vip network
-  subnetPrefix: "" # Subnet Prefix of the vip network
   enableRHI: false # This is a cluster wide setting for BGP peering.
   bgpPeerLabels: [] # Select BGP peers using bgpPeerLabels, for selective VsVip advertisement.
   # bgpPeerLabels:
   #   - peer1
   #   - peer2
-  vipNetworkList: [] # Network Name of the VIP network, multiple networks allowed only for AWS Cloud.
+  vipNetworkList: [] # Network information of the VIP network. multiple networks allowed only for AWS Cloud.
   # vipNetworkList:
   #   - networkName: net1
+  #     cidr: 100.1.1.0/24
 
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.

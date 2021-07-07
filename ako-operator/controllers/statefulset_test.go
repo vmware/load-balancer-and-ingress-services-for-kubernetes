@@ -158,15 +158,6 @@ var sfJson = `
                                 }
                             },
                             {
-                                "name": "SUBNET_IP",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "subnetIP",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
                                 "name": "CNI_PLUGIN",
                                 "valueFrom": {
                                     "configMapKeyRef": {
@@ -216,15 +207,6 @@ var sfJson = `
                                 "valueFrom": {
                                     "configMapKeyRef": {
                                         "key": "defaultIngController",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "SUBNET_PREFIX",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "subnetPrefix",
                                         "name": "avi-k8s-config"
                                     }
                                 }

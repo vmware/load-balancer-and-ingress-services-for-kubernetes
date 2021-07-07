@@ -22,9 +22,16 @@ spec:
             properties:
               network:
                 properties:
-                  names:
+                  vipNetworks:
+                    properties:
+                      networkName:
+                        type: string
+                      cidr:
+                        type: string
+                    required:
+                      - networkName
                     items:
-                      type: string
+                      type: object
                     type: array
                   enableRhi:
                     type: boolean

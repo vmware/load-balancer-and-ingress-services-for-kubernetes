@@ -142,6 +142,7 @@ const (
 	EVHNode                                    = "EVH Node"
 	TLSKeyCert                                 = "TLS KeyCert"
 	CACert                                     = "CA Cert"
+	IPCIDRRegex                                = `^(\b([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5])\.){3}([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5])\/(([0-9]|[1-2][0-9]|3[0-2]))?$`
 
 	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"

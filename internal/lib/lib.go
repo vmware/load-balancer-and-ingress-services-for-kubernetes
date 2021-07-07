@@ -27,11 +27,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Masterminds/semver"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	"github.com/Masterminds/semver"
 	"github.com/avinetworks/sdk/go/models"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
@@ -437,64 +437,28 @@ func GetAkoApiServerPort() string {
 	return "8080"
 }
 
-func GetSubnetIP() string {
-	subnetIP := os.Getenv(SUBNET_IP)
-	if subnetIP != "" {
-		return subnetIP
-	}
-	return ""
-}
-
-func GetSubnetPrefix() string {
-	subnetPrefix := os.Getenv(SUBNET_PREFIX)
-	if subnetPrefix != "" {
-		return subnetPrefix
-	}
-	return ""
-}
-
-func GetSubnetPrefixInt() int32 {
-	// check if subnetPrefix value is a valid integer value
-	defaultCidr := int32(24)
-	intCidr, err := strconv.ParseInt(GetSubnetPrefix(), 10, 32)
-	if err != nil {
-		utils.AviLog.Warnf("The value of subnetPrefix couldn't be converted to int32, defaulting to /24, %v", err)
-		return defaultCidr
-	}
-	return int32(intCidr)
-}
-
-func GetVipNetworkList() ([]string, error) {
-	var vipNetworkList []string
+func GetVipNetworkList() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
+	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
 	if GetAdvancedL4() {
 		// do not return error in case of advancedL4 (wcp)
 		return vipNetworkList, nil
 	}
 
-	type Row struct {
-		NetworkName string `json:"networkName"`
-	}
-	type vipNetworkListRow []Row
-
 	vipNetworkListStr := os.Getenv(VIP_NETWORK_LIST)
 	if vipNetworkListStr == "" || vipNetworkListStr == "null" {
-		return vipNetworkList, fmt.Errorf("vipNetworkList not set in values yaml")
+		return vipNetworkList, fmt.Errorf("vipNetworkList not set in values.yaml")
 	}
 
-	var vipNetworkListObj vipNetworkListRow
-	err := json.Unmarshal([]byte(vipNetworkListStr), &vipNetworkListObj)
+	err := json.Unmarshal([]byte(vipNetworkListStr), &vipNetworkList)
 	if err != nil {
-		return vipNetworkList, fmt.Errorf("Unable to unmarshall json for vipNetworkListMap")
+		return vipNetworkList, fmt.Errorf("unable to unmarshall json for vipNetworkList")
 	}
-	for _, subnet := range vipNetworkListObj {
-		vipNetworkList = append(vipNetworkList, subnet.NetworkName)
+
+	// Only AWS cloud supports multiple VIP networks
+	if GetCloudType() != CLOUD_AWS && len(vipNetworkList) > 1 {
+		return nil, fmt.Errorf("more than one network specified in VIP Network List and Cloud type is not AWS")
 	}
-	if len(vipNetworkList) > 1 {
-		// Only AWS cloud supports multiple VIP networks
-		if GetCloudType() != CLOUD_AWS {
-			return nil, fmt.Errorf("More than one network specified in VIP Network List and Cloud type is not AWS")
-		}
-	}
+
 	return vipNetworkList, nil
 }
 
@@ -648,7 +612,7 @@ func GetClusterID() string {
 
 func IsClusterNameValid() bool {
 	clusterName := GetClusterName()
-	re := regexp.MustCompile("^[a-zA-Z0-9-_]*$")
+	re := regexp.MustCompile(`^[a-zA-Z0-9-_]*$`)
 	if clusterName == "" {
 		utils.AviLog.Error("Required param clusterName not specified, syncing will be disabled")
 		return false

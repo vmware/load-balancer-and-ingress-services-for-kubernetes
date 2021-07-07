@@ -1341,11 +1341,16 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 				Name: infraSetting.SeGroupName,
 			},
 			Network: akov1alpha1.AviInfraSettingNetwork{
-				Names:         infraSetting.Networks,
 				EnableRhi:     &infraSetting.EnableRhi,
 				BgpPeerLabels: infraSetting.BGPPeerLabels,
 			},
 		},
+	}
+
+	for _, networkName := range infraSetting.Networks {
+		setting.Spec.Network.VipNetworks = append(setting.Spec.Network.VipNetworks, akov1alpha1.AviInfraSettingVipNetwork{
+			NetworkName: networkName,
+		})
 	}
 
 	if infraSetting.ShardSize != "" {

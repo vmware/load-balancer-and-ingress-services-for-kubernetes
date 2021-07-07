@@ -208,19 +208,17 @@ spec:
                         type: string
                     type: object
                   type: array
-                subnetIP:
-                  description: SubnetIP is the Network IP for the subnet to be used
-                  type: string
-                subnetPrefix:
-                  description: SubnetPrefix is the netmask for the subnet
-                  type: string
                 vipNetworkList:
-                  description: VipNetworkList holds the names of networks as specified
-                    in Avi
+                  description: VipNetworkList holds the names and subnet information of networks 
+                    as specified in Avi
                   items:
                     properties:
                       networkName:
                         type: string
+                      cidr:
+                        type: string
+                    required:
+                      - networkName
                     type: object
                   type: array
               type: object

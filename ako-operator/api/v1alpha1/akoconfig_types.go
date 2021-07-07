@@ -70,6 +70,7 @@ type NodeNetwork struct {
 
 type VipNetwork struct {
 	NetworkName string `json:"networkName,omitempty"`
+	Cidr        string `json:"cidr,omitempty"`
 }
 
 // NetworkSettings defines the network details required for the AKO controller
@@ -80,15 +81,11 @@ type NetworkSettings struct {
 	// 2. static routes are disabled
 	// 3. non vcenter clouds
 	NodeNetworkList []NodeNetwork `json:"nodeNetworkList,omitempty"`
-	// SubnetIP is the Network IP for the subnet to be used
-	SubnetIP string `json:"subnetIP,omitempty"`
-	// SubnetPrefix is the netmask for the subnet
-	SubnetPrefix string `json:"subnetPrefix,omitempty"`
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
 	// BGPPeerLabels enable selection of BGP peers, for selective VsVip advertisement.
 	BGPPeerLabels []string `json:"bgpPeerLabels,omitempty"`
-	// VipNetworkList holds the names of networks as specified in Avi
+	// VipNetworkList holds the names and subnet information of networks as specified in Avi
 	VipNetworkList []VipNetwork `json:"vipNetworkList,omitempty"`
 }
 
