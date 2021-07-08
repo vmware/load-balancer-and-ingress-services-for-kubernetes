@@ -35,6 +35,8 @@ spec:
                     type: array
                   enableRhi:
                     type: boolean
+                  enablePublicIP:
+                    type: boolean
                   bgpPeerLabels:
                     items:
                       type: string
