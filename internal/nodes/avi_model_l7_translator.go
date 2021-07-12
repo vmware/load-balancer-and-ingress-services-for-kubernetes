@@ -556,7 +556,7 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 			}
 		}
 		enablePublicIP := false
-		if infraSetting.Spec.Network.EnablePublicIP != nil {
+		if infraSetting.Spec.Network.EnablePublicIP != nil && lib.IsPublicCloud() {
 			enablePublicIP = *infraSetting.Spec.Network.EnablePublicIP
 		}
 		vsvip.EnablePublicIP = enablePublicIP

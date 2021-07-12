@@ -744,7 +744,6 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 		}
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
-
 	settingUpdate := (FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
