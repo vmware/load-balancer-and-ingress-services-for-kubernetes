@@ -736,7 +736,6 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 		}
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
-
 	settingUpdate := (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
@@ -752,7 +751,6 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 40*time.Second).Should(gomega.Equal("Accepted"))
-
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(settingModelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
@@ -764,7 +762,6 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 		}
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
-
 	settingUpdate = (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
