@@ -33,6 +33,10 @@ import (
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
+	if lib.CheckObjectNameLength(pool_meta.Name, lib.Pool) {
+		utils.AviLog.Warnf("key: %s not processing pool object", key)
+		return nil
+	}
 	name := pool_meta.Name
 	cksum := pool_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))

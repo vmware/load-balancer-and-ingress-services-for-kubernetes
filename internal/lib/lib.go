@@ -61,6 +61,13 @@ var fqdnEnum = map[string]int32{
 
 var NamePrefix string
 
+func CheckObjectNameLength(objName, objType string) bool {
+	if len(objName) > AVI_OBJ_NAME_MAX_LENGTH {
+		utils.AviLog.Warnf("%s name %s exceeds maximum length limit of %d characters for AVI Object", objType, objName, AVI_OBJ_NAME_MAX_LENGTH)
+		return true
+	}
+	return false
+}
 func SetNamePrefix() {
 	NamePrefix = GetClusterName() + "--"
 }
@@ -69,12 +76,16 @@ func GetNamePrefix() string {
 	return NamePrefix
 }
 
-func Encode(s string) string {
+func Encode(s, objType string) string {
 	if !IsEvhEnabled() {
+		CheckObjectNameLength(s, objType)
 		return s
 	}
 	hash := sha1.Sum([]byte(s))
-	return GetNamePrefix() + hex.EncodeToString(hash[:])
+	encodedStr := GetNamePrefix() + hex.EncodeToString(hash[:])
+	//Added this check to be safe side if encoded name becomes greater than limit set
+	CheckObjectNameLength(encodedStr, objType)
+	return encodedStr
 }
 
 var DisableSync bool
@@ -176,34 +187,40 @@ func GetModelName(namespace, objectName string) string {
 
 // All L4 object names.
 func GetL4VSName(svcName, namespace string) string {
-	return Encode(NamePrefix + namespace + "-" + svcName)
+	return Encode(NamePrefix+namespace+"-"+svcName, L4VS)
 }
 
 func GetL4VSVipName(svcName, namespace string) string {
-	return Encode(NamePrefix + namespace + "-" + svcName)
+	return Encode(NamePrefix+namespace+"-"+svcName, L4VIP)
 }
 
 func GetL4PoolName(svcName, namespace string, port int32) string {
 	poolName := NamePrefix + namespace + "-" + svcName + "--" + strconv.Itoa(int(port))
-	return Encode(poolName)
+	return Encode(poolName, L4Pool)
 }
 
 func GetAdvL4PoolName(svcName, namespace, gwName string, port int32) string {
 	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "--" + strconv.Itoa(int(port))
-	return Encode(poolName)
+	return Encode(poolName, L4AdvPool)
 }
 
 // All L7 object names.
 func GetVsVipName(vsName string) string {
+	vsVipName := vsName
+	CheckObjectNameLength(vsVipName, VIP)
 	return vsName
 }
 
 func GetL7InsecureDSName(vsName string) string {
-	return vsName
+	l7DSName := vsName
+	CheckObjectNameLength(l7DSName, DataScript)
+	return l7DSName
 }
 
 func GetL7SharedPGName(vsName string) string {
-	return vsName
+	l7PGName := vsName
+	CheckObjectNameLength(l7PGName, PG)
+	return l7PGName
 }
 
 func GetL7PoolName(priorityLabel, namespace, ingName, infrasetting string, args ...string) string {
@@ -218,15 +235,19 @@ func GetL7PoolName(priorityLabel, namespace, ingName, infrasetting string, args 
 		svcName := args[0]
 		poolName = poolName + "-" + svcName
 	}
-	return Encode(poolName)
+	return Encode(poolName, Pool)
 }
 
 func GetL7HttpRedirPolicy(vsName string) string {
-	return vsName
+	httpRedirectPolicy := vsName
+	CheckObjectNameLength(httpRedirectPolicy, HTTPRedirectPolicy)
+	return httpRedirectPolicy
 }
 
 func GetHeaderRewritePolicy(vsName, localHost string) string {
-	return vsName + "--host-hdr-re-write" + "--" + localHost
+	headerWriterPolicy := vsName + "--host-hdr-re-write" + "--" + localHost
+	CheckObjectNameLength(headerWriterPolicy, HeaderRewritePolicy)
+	return headerWriterPolicy
 }
 
 func GetSniNodeName(ingName, infrasetting, sniHostName string) string {
@@ -234,7 +255,7 @@ func GetSniNodeName(ingName, infrasetting, sniHostName string) string {
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
 	}
-	return Encode(namePrefix + sniHostName)
+	return Encode(namePrefix+sniHostName, SNIVS)
 }
 
 func GetSniPoolName(ingName, namespace, host, path, infrasetting string, args ...string) string {
@@ -249,29 +270,34 @@ func GetSniPoolName(ingName, namespace, host, path, infrasetting string, args ..
 		svcName := args[0]
 		poolName = poolName + "-" + svcName
 	}
+	CheckObjectNameLength(poolName, Pool)
 	return poolName
 }
 
 func GetSniHttpPolName(ingName, namespace, host, path, infrasetting string) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	if infrasetting != "" {
-		return Encode(NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName)
+		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host+path+"-"+ingName, HTTPPS)
 	}
-	return Encode(NamePrefix + namespace + "-" + host + path + "-" + ingName)
+	return Encode(NamePrefix+namespace+"-"+host+path+"-"+ingName, HTTPPS)
 }
 
 func GetSniPGName(ingName, namespace, host, path, infrasetting string) string {
 	path = strings.ReplaceAll(path, "/", "_")
+	var sniPGName string
 	if infrasetting != "" {
-		return NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
+		sniPGName = NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
+	} else {
+		sniPGName = NamePrefix + namespace + "-" + host + path + "-" + ingName
 	}
-	return NamePrefix + namespace + "-" + host + path + "-" + ingName
+	CheckObjectNameLength(sniPGName, PG)
+	return sniPGName
 }
 
 // evh child
 func GetEvhPoolName(ingName, namespace, host, path, infrasetting, svcName string) string {
 	poolName := GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName)
-	return Encode(poolName)
+	return Encode(poolName, Pool)
 }
 func GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName string) string {
 	path = strings.ReplaceAll(path, "/", "_")
@@ -284,18 +310,20 @@ func GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcN
 }
 
 func GetEvhNodeName(ingName, namespace, host, infrasetting string) string {
+
 	if infrasetting != "" {
-		return Encode(NamePrefix + infrasetting + "-" + namespace + "-" + host)
+		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host, EVHVS)
 	}
-	return Encode(NamePrefix + namespace + "-" + host)
+	return Encode(NamePrefix+namespace+"-"+host, EVHVS)
 }
 
 func GetEvhPGName(ingName, namespace, host, path, infrasetting string) string {
 	path = strings.ReplaceAll(path, "/", "_")
+
 	if infrasetting != "" {
-		return Encode(NamePrefix + infrasetting + "-" + namespace + "-" + host + path + "-" + ingName)
+		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host+path+"-"+ingName, PG)
 	}
-	return Encode(NamePrefix + namespace + "-" + host + path + "-" + ingName)
+	return Encode(NamePrefix+namespace+"-"+host+path+"-"+ingName, PG)
 }
 
 func GetTLSKeyCertNodeName(infrasetting, sniHostName string) string {
@@ -303,7 +331,7 @@ func GetTLSKeyCertNodeName(infrasetting, sniHostName string) string {
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
 	}
-	return Encode(namePrefix + sniHostName)
+	return Encode(namePrefix+sniHostName, TLSKeyCert)
 }
 
 func GetCACertNodeName(infrasetting, sniHostName string) string {
@@ -312,11 +340,11 @@ func GetCACertNodeName(infrasetting, sniHostName string) string {
 		namePrefix += infrasetting + "-"
 	}
 	keycertname := namePrefix + sniHostName
-	return Encode(keycertname + "-cacert")
+	return Encode(keycertname+"-cacert", CACert)
 }
 
 func GetPoolPKIProfileName(poolName string) string {
-	return Encode(poolName + "-pkiprofile")
+	return Encode(poolName+"-pkiprofile", PKIProfile)
 }
 
 var VRFContext string
@@ -515,7 +543,7 @@ func GetNodeNetworkMap() (map[string][]string, error) {
 	}
 
 	if len(nodeNetworkListObj) > NODE_NETWORK_MAX_ENTRIES {
-		return nodeNetworkMap, fmt.Errorf("Maximum of %v entries are allowed for nodeNetworkMap", string(NODE_NETWORK_MAX_ENTRIES))
+		return nodeNetworkMap, fmt.Errorf("Maximum of %v entries are allowed for nodeNetworkMap", strconv.Itoa(NODE_NETWORK_MAX_ENTRIES))
 	}
 
 	for _, nodeNetwork := range nodeNetworkListObj {
@@ -851,7 +879,7 @@ func GetPassthroughShardVSName(s string, key string) string {
 	vsNum = utils.Bkt(s, shardSize)
 	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
 	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
-	return Encode(vsName)
+	return Encode(vsName, PassthroughVS)
 }
 
 // GetLabels returns the key value pair used for tagging the segroups and routes in vrfcontext

@@ -29,6 +29,11 @@ import (
 )
 
 func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cache_obj *avicache.AviDSCache, key string) *utils.RestOp {
+
+	if lib.CheckObjectNameLength(ds_meta.Name, lib.DataScript) {
+		utils.AviLog.Warnf("key: %s not processing datascript object", key)
+		return nil
+	}
 	var datascriptlist []*avimodels.VSDataScript
 	var poolgroupref []string
 	for _, pgname := range ds_meta.PoolGroupRefs {
@@ -93,7 +98,7 @@ func (rest *RestOperations) AviDSDel(uuid string, tenant string, key string) *ut
 func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		utils.AviLog.Warnf("key: %s, rest_op has err or no response for datascriptset err: %v, response: %v", key, rest_op.Err, rest_op.Response)
-		return errors.New("Errored rest_op")
+		return errors.New("errored rest_op")
 	}
 
 	resp_elems := RestRespArrToObjByType(rest_op, "vsdatascriptset", key)

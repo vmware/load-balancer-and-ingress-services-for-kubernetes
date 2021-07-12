@@ -35,6 +35,10 @@ import (
 const VSVIP_NOTFOUND = "VsVip object not found"
 
 func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
+	if lib.CheckObjectNameLength(vs_meta.Name, lib.SNIVS) {
+		utils.AviLog.Warnf("key: %s not processing VS object", key)
+		return nil
+	}
 	if vs_meta.IsSNIChild {
 		rest_ops := rest.AviVsSniBuild(vs_meta, rest_method, cache_obj, key)
 		return rest_ops

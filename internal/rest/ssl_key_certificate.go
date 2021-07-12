@@ -30,6 +30,10 @@ import (
 )
 
 func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache_obj *avicache.AviSSLCache) *utils.RestOp {
+	if lib.CheckObjectNameLength(ssl_node.Name, lib.SSLKeyCert) {
+		utils.AviLog.Warnf("Not processing sslkeycert object")
+		return nil
+	}
 	name := ssl_node.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", ssl_node.Tenant)
 	certificate := string(ssl_node.Cert)
@@ -94,7 +98,7 @@ func (rest *RestOperations) AviSSLKeyCertDel(uuid string, tenant string) *utils.
 func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		utils.AviLog.Warnf("key: %s, rest_op has err or no response for sslkeycert, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
-		return errors.New("Errored rest_op")
+		return errors.New("errored rest_op")
 	}
 
 	resp_elems := RestRespArrToObjByType(rest_op, "sslkeyandcertificate", key)
@@ -189,6 +193,10 @@ func (rest *RestOperations) AviSSLCacheDel(rest_op *utils.RestOp, vsKey avicache
 }
 
 func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode, cache_obj *avicache.AviPkiProfileCache) *utils.RestOp {
+	if lib.CheckObjectNameLength(pki_node.Name, lib.PKIProfile) {
+		utils.AviLog.Warnf("Not processing PKI profile")
+		return nil
+	}
 	caCert := string(pki_node.CACert)
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pki_node.Tenant)
 	name := pki_node.Name

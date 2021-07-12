@@ -264,7 +264,9 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 			utils.AviLog.Debugf("key: %s, msg: the stored checksum for vs is %v, and the obtained checksum for VS is: %v", key, vs_cache_obj.CloudConfigCksum, strconv.Itoa(int(aviVsNode.GetCheckSum())))
 			// The checksums are different, so it should be a PUT call.
 			restOp := rest.AviVsBuild(aviVsNode, utils.RestPut, vs_cache_obj, key)
-			rest_ops = append(rest_ops, restOp...)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp...)
+			}
 
 		}
 		if success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false); !success {
@@ -287,7 +289,9 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 
 		// The cache was not found - it's a POST call.
 		restOp := rest.AviVsBuild(aviVsNode, utils.RestPost, nil, key)
-		rest_ops = append(rest_ops, restOp...)
+		if restOp != nil {
+			rest_ops = append(rest_ops, restOp...)
+		}
 		utils.AviLog.Debugf("POST key: %s, vsKey: %s", key, vsKey)
 		utils.AviLog.Debugf("POST restops %s", utils.Stringify(rest_ops))
 		if success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false); !success {
@@ -369,7 +373,9 @@ func (rest *RestOperations) PassthroughChildCU(passChildNode *nodes.AviVsNode, v
 		// The checksums are different, so it should be a PUT call.
 		if vsCacheObj.CloudConfigCksum != strconv.Itoa(int(passChildNode.GetCheckSum())) {
 			restOp := rest.AviVsBuild(passChildNode, utils.RestPut, vsCacheObj, key)
-			restOps = append(restOps, restOp...)
+			if restOp != nil {
+				restOps = append(restOps, restOp...)
+			}
 			utils.AviLog.Debugf("key: %s, msg: the checksums are different for passthrough child %s, operation: PUT", key, passChildNode.Name)
 		}
 		restOps = rest.HTTPPolicyDelete(httpPoliciesToDelete, namespace, restOps, key)
@@ -380,7 +386,9 @@ func (rest *RestOperations) PassthroughChildCU(passChildNode *nodes.AviVsNode, v
 
 		// Not found - it should be a POST call.
 		restOp := rest.AviVsBuild(passChildNode, utils.RestPost, nil, key)
-		restOps = append(restOps, restOp...)
+		if restOp != nil {
+			restOps = append(restOps, restOp...)
+		}
 	}
 	return restOps
 }
@@ -1101,7 +1109,9 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 							utils.AviLog.Debugf("key: %s, msg: the checksums are different for pool %s, operation: PUT", key, pool.Name)
 							// The checksums are different, so it should be a PUT call.
 							restOp := rest.AviPoolBuild(pool, pool_cache_obj, key)
-							rest_ops = append(rest_ops, restOp)
+							if restOp != nil {
+								rest_ops = append(rest_ops, restOp)
+							}
 						}
 					}
 				} else {
@@ -1109,7 +1119,9 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 					_, rest_ops = rest.PkiProfileCU(pool.PkiProfile, nil, namespace, rest_ops, key)
 					// Not found - it should be a POST call.
 					restOp := rest.AviPoolBuild(pool, nil, key)
-					rest_ops = append(rest_ops, restOp)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp)
+					}
 				}
 				if len(pool_pkiprofile_delete) > 0 {
 					rest_ops = rest.PkiProfileDelete(pool_pkiprofile_delete, namespace, rest_ops, key)
@@ -1123,7 +1135,9 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 
 			utils.AviLog.Debugf("key: %s, msg: pool cache does not exist %s, operation: POST", key, pool.Name)
 			restOp := rest.AviPoolBuild(pool, nil, key)
-			rest_ops = append(rest_ops, restOp)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
 		}
 
 	}
@@ -1200,7 +1214,9 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 				// The checksums are different, so it should be a PUT call.
 				if sni_cache_obj.CloudConfigCksum != strconv.Itoa(int(sni_node.GetCheckSum())) {
 					restOp := rest.AviVsBuild(sni_node, utils.RestPut, sni_cache_obj, key)
-					rest_ops = append(rest_ops, restOp...)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp...)
+					}
 					utils.AviLog.Infof("key: %s, msg: the checksums are different for sni child %s, operation: PUT", key, sni_node.Name)
 
 				}
@@ -1215,7 +1231,9 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 
 			// Not found - it should be a POST call.
 			restOp := rest.AviVsBuild(sni_node, utils.RestPost, nil, key)
-			rest_ops = append(rest_ops, restOp...)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp...)
+			}
 		}
 		rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(http_policies_to_delete, namespace, rest_ops, key)
@@ -1232,7 +1250,9 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 
 		// Not found - it should be a POST call.
 		restOp := rest.AviVsBuild(sni_node, utils.RestPost, nil, key)
-		rest_ops = append(rest_ops, restOp...)
+		if restOp != nil {
+			rest_ops = append(rest_ops, restOp...)
+		}
 	}
 	return cache_sni_nodes, rest_ops
 }
@@ -1259,13 +1279,17 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 						} else {
 							// The checksums are different, so it should be a PUT call.
 							restOp := rest.AviPoolGroupBuild(pg, pg_cache_obj, key)
-							rest_ops = append(rest_ops, restOp)
+							if restOp != nil {
+								rest_ops = append(rest_ops, restOp)
+							}
 						}
 					}
 				} else {
 					// Not found - it should be a POST call.
 					restOp := rest.AviPoolGroupBuild(pg, nil, key)
-					rest_ops = append(rest_ops, restOp)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp)
+					}
 				}
 
 			}
@@ -1274,7 +1298,9 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 		// Everything is a POST call
 		for _, pg := range pg_nodes {
 			restOp := rest.AviPoolGroupBuild(pg, nil, key)
-			rest_ops = append(rest_ops, restOp)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
 		}
 
 	}
@@ -1302,13 +1328,17 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 					if !ok {
 						// If the DS Is not found - let's do a POST call.
 						restOp := rest.AviDSBuild(ds, nil, key)
-						rest_ops = append(rest_ops, restOp)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
+						}
 					} else {
 						dsCacheObj := ds_cache.(*avicache.AviDSCache)
 						if dsCacheObj.CloudConfigCksum != ds.GetCheckSum() {
 							utils.AviLog.Debugf("key: %s, msg: datascript checksum changed, updating - %s", key, ds.Name)
 							restOp := rest.AviDSBuild(ds, dsCacheObj, key)
-							rest_ops = append(rest_ops, restOp)
+							if restOp != nil {
+								rest_ops = append(rest_ops, restOp)
+							}
 						}
 					}
 				}
@@ -1318,7 +1348,9 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 		// Everything is a POST call
 		for _, ds := range ds_nodes {
 			restOp := rest.AviDSBuild(ds, nil, key)
-			rest_ops = append(rest_ops, restOp)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
 		}
 
 	}
@@ -1351,7 +1383,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 						} else {
 							// The checksums are different, so it should be a PUT call.
 							restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, vsvip_cache_obj, key)
-							if err == nil {
+							if err == nil && restOp != nil {
 								rest_ops = append(rest_ops, restOp)
 							} else {
 								return cache_vsvip_nodes, rest_ops, err
@@ -1361,7 +1393,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 				} else {
 					// Not found - it should be a POST call.
 					restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, nil, key)
-					if err == nil {
+					if err == nil && restOp != nil {
 						rest_ops = append(rest_ops, restOp)
 					} else {
 						return cache_vsvip_nodes, rest_ops, err
@@ -1374,7 +1406,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 		// Everything is a POST call
 		for _, vsvip := range vsvip_nodes {
 			restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, nil, key)
-			if err == nil {
+			if err == nil && restOp != nil {
 				rest_ops = append(rest_ops, restOp)
 			} else {
 				return cache_vsvip_nodes, rest_ops, err
@@ -1407,13 +1439,17 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 					} else {
 						// The checksums are different, so it should be a PUT call.
 						restOp := rest.AviHttpPSBuild(http, http_cache_obj, key)
-						rest_ops = append(rest_ops, restOp)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
+						}
 					}
 				}
 			} else {
 				// Not found - it should be a POST call.
 				restOp := rest.AviHttpPSBuild(http, nil, key)
-				rest_ops = append(rest_ops, restOp)
+				if restOp != nil {
+					rest_ops = append(rest_ops, restOp)
+				}
 			}
 
 		}
@@ -1421,7 +1457,9 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 		// Everything is a POST call
 		for _, http := range http_nodes {
 			restOp := rest.AviHttpPSBuild(http, nil, key)
-			rest_ops = append(rest_ops, restOp)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
 		}
 
 	}
@@ -1450,13 +1488,17 @@ func (rest *RestOperations) L4PolicyCU(l4_nodes []*nodes.AviL4PolicyNode, vs_cac
 					} else {
 						// The checksums are different, so it should be a PUT call.
 						restOp := rest.AviL4PSBuild(l4, l4_cache_obj, key)
-						rest_ops = append(rest_ops, restOp)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
+						}
 					}
 				}
 			} else {
 				// Not found - it should be a POST call.
 				restOp := rest.AviL4PSBuild(l4, nil, key)
-				rest_ops = append(rest_ops, restOp)
+				if restOp != nil {
+					rest_ops = append(rest_ops, restOp)
+				}
 			}
 
 		}
@@ -1464,7 +1506,9 @@ func (rest *RestOperations) L4PolicyCU(l4_nodes []*nodes.AviL4PolicyNode, vs_cac
 		// Everything is a POST call
 		for _, l4 := range l4_nodes {
 			restOp := rest.AviL4PSBuild(l4, nil, key)
-			rest_ops = append(rest_ops, restOp)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
 		}
 
 	}
@@ -1531,13 +1575,17 @@ func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, c
 					} else {
 						// The checksums are different, so it should be a PUT call.
 						restOp := rest.AviSSLBuild(ssl, ssl_cache_obj)
-						rest_ops = append(rest_ops, restOp)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
+						}
 					}
 				}
 			} else {
 				// Not found - it should be a POST call.
 				restOp := rest.AviSSLBuild(ssl, nil)
-				rest_ops = append(rest_ops, restOp)
+				if restOp != nil {
+					rest_ops = append(rest_ops, restOp)
+				}
 			}
 
 		}
@@ -1545,7 +1593,9 @@ func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, c
 		// Everything is a POST call
 		for _, ssl := range sslkey_nodes {
 			restOp := rest.AviSSLBuild(ssl, nil)
-			rest_ops = append(rest_ops, restOp)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
 		}
 
 	}
@@ -1594,19 +1644,25 @@ func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviPkiProfileNode, pool
 					} else {
 						// The checksums are different, so it should be a PUT call.
 						restOp := rest.AviPkiProfileBuild(pki_node, pki_cache_obj)
-						rest_ops = append(rest_ops, restOp)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
+						}
 					}
 				}
 			} else {
 				restOp := rest.AviPkiProfileBuild(pki_node, nil)
-				rest_ops = append(rest_ops, restOp)
+				if restOp != nil {
+					rest_ops = append(rest_ops, restOp)
+				}
 			}
 		}
 	} else {
 		if pki_node != nil {
 			// Everything is a POST call
 			restOp := rest.AviPkiProfileBuild(pki_node, nil)
-			rest_ops = append(rest_ops, restOp)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
 		}
 
 	}

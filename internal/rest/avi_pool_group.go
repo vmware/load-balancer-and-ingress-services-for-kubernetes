@@ -29,6 +29,10 @@ import (
 )
 
 func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, cache_obj *avicache.AviPGCache, key string) *utils.RestOp {
+	if lib.CheckObjectNameLength(pg_meta.Name, lib.PG) {
+		utils.AviLog.Warnf("key: %s not processing poolgroup object", key)
+		return nil
+	}
 	name := pg_meta.Name
 	cksum := pg_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
@@ -80,6 +84,9 @@ func (rest *RestOperations) SanitizePGMembers(Members []*avimodels.PoolGroupMemb
 			// Duplicate detected, remove it from the copy
 			pgmemberscopy = append(pgmemberscopy[:i], pgmemberscopy[i+1:]...)
 			utils.AviLog.Warnf("key: %s, msg: detected duplicate poolref :%s", key, member.PoolRef)
+		} else if member.PriorityLabel != nil && lib.CheckObjectNameLength(*member.PriorityLabel, lib.PriorityLabel) {
+			utils.AviLog.Warnf("key: %s not adding priority label to pool ref to PG", key)
+			pgmemberscopy = append(pgmemberscopy[:i], pgmemberscopy[i+1:]...)
 		} else {
 			newList = append(newList, *member.PoolRef)
 		}

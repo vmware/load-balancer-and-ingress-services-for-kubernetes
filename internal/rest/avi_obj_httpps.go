@@ -31,6 +31,11 @@ import (
 )
 
 func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode, cache_obj *avicache.AviHTTPPolicyCache, key string) *utils.RestOp {
+
+	if lib.CheckObjectNameLength(hps_meta.Name, lib.HTTPPS) {
+		utils.AviLog.Warnf("key: %s not processing HTTPS object", key)
+		return nil
+	}
 	name := hps_meta.Name
 	cksum := hps_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
@@ -49,6 +54,10 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	idx = 0
 	for _, sec_rule := range hps_meta.SecurityRules {
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
+		if lib.CheckObjectNameLength(name, lib.HTTPSecurityRule) {
+			utils.AviLog.Warnf("key: %s not adding rule to HTTPS object", key)
+			continue
+		}
 		action := avimodels.HttpsecurityAction{
 			Action: &sec_rule.Action,
 		}
@@ -74,6 +83,10 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	for _, hppmap := range hps_meta.HppMap {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
+		if lib.CheckObjectNameLength(name, lib.HTTPRequestRule) {
+			utils.AviLog.Warnf("key: %s not adding request rule to HTTPS object", key)
+			continue
+		}
 		match_target := avimodels.MatchTarget{}
 		if len(hppmap.Host) > 0 {
 			var host []string
@@ -131,11 +144,16 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		}
 		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
 		idx = idx + 1
+
 	}
 
 	for _, hppmap := range hps_meta.RedirectPorts {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
+		if lib.CheckObjectNameLength(name, lib.HTTPRedirectRule) {
+			utils.AviLog.Warnf("key: %s not adding rule to HTTPS object", key)
+			continue
+		}
 		match_target := avimodels.MatchTarget{}
 		if len(hppmap.Hosts) > 0 {
 			match_crit := "HDR_EQUALS"
@@ -156,34 +174,41 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			Name: &name, Match: &match_target, RedirectAction: &redirect_action}
 		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
 		idx = idx + 1
+
 	}
 	if hps_meta.HeaderReWrite != nil {
-		var hostHdrActionArr []*avimodels.HTTPHdrAction
-		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
-		match_crit := "HDR_EQUALS"
-		host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
-			Value: []string{hps_meta.HeaderReWrite.SourceHost}}
-		match_target := avimodels.MatchTarget{}
-		match_target.HostHdr = &host_hdr_match
-		replaceHeaderLiteral := "HTTP_REPLACE_HDR"
-		host := "Host"
-		headerVal := avimodels.HTTPHdrValue{Val: &hps_meta.HeaderReWrite.TargetHost}
-		headerData := avimodels.HTTPHdrData{Name: &host, Value: &headerVal}
-		rewriteHeader := avimodels.HTTPHdrAction{}
-		rewriteHeader.Action = &replaceHeaderLiteral
-		rewriteHeader.Hdr = &headerData
-		hostHdrActionArr = append(hostHdrActionArr, &rewriteHeader)
-		var j int32
-		j = idx
-		rule := avimodels.HTTPRequestRule{
-			Index:     &j,
-			Enable:    &enable,
-			Name:      &name,
-			Match:     &match_target,
-			HdrAction: hostHdrActionArr,
+		if lib.CheckObjectNameLength(name, lib.HTTPRewriteRule) {
+			utils.AviLog.Warnf("key: %s not adding rule to HTTPS object", key)
+		} else {
+			var hostHdrActionArr []*avimodels.HTTPHdrAction
+			enable := true
+
+			match_crit := "HDR_EQUALS"
+			host_hdr_match := avimodels.HostHdrMatch{MatchCriteria: &match_crit,
+				Value: []string{hps_meta.HeaderReWrite.SourceHost}}
+			match_target := avimodels.MatchTarget{}
+			match_target.HostHdr = &host_hdr_match
+			replaceHeaderLiteral := "HTTP_REPLACE_HDR"
+			host := "Host"
+			headerVal := avimodels.HTTPHdrValue{Val: &hps_meta.HeaderReWrite.TargetHost}
+			headerData := avimodels.HTTPHdrData{Name: &host, Value: &headerVal}
+			rewriteHeader := avimodels.HTTPHdrAction{}
+			rewriteHeader.Action = &replaceHeaderLiteral
+			rewriteHeader.Hdr = &headerData
+			hostHdrActionArr = append(hostHdrActionArr, &rewriteHeader)
+			var j int32
+			j = idx
+			rule := avimodels.HTTPRequestRule{
+				Index:     &j,
+				Enable:    &enable,
+				Name:      &name,
+				Match:     &match_target,
+				HdrAction: hostHdrActionArr,
+			}
+			http_req_pol.Rules = append(http_req_pol.Rules, &rule)
 		}
-		http_req_pol.Rules = append(http_req_pol.Rules, &rule)
+
 	}
 
 	var path string
@@ -226,7 +251,7 @@ func (rest *RestOperations) AviHttpPolicyDel(uuid string, tenant string, key str
 func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		utils.AviLog.Warnf("key: %s, rest_op has err or no response for httppolicyset, err: %s, response: %s", key, rest_op.Err, rest_op.Response)
-		return errors.New("Errored rest_op")
+		return errors.New("errored rest_op")
 	}
 
 	resp_elems := RestRespArrToObjByType(rest_op, "httppolicyset", key)

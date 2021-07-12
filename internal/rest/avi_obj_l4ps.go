@@ -32,6 +32,11 @@ import (
 )
 
 func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_obj *avicache.AviL4PolicyCache, key string) *utils.RestOp {
+
+	if lib.CheckObjectNameLength(hps_meta.Name, lib.L4PS) {
+		utils.AviLog.Warnf("key: %s not processing L4 policyset object", key)
+		return nil
+	}
 	name := hps_meta.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
 	cr := lib.AKOUser
@@ -47,9 +52,14 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	var l4rules []*avimodels.L4Rule
 	for _, hppmap := range hps_meta.PortPool {
 		if hppmap.Port != 0 {
+			ruleName := name + strconv.Itoa(int(hppmap.Port))
+			if lib.CheckObjectNameLength(ruleName, lib.L4PSRule) {
+				utils.AviLog.Warnf("key: %s not adding L4 PolicyRule to Policyset object", key)
+				continue
+			}
 			var ports []int64
 			l4rule := &avimodels.L4Rule{}
-			ruleName := name + strconv.Itoa(int(hppmap.Port))
+
 			l4rule.Name = &ruleName
 			ports = append(ports, int64(hppmap.Port))
 			l4action := &avimodels.L4RuleAction{}
@@ -83,6 +93,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 			l4rules = append(l4rules, l4rule)
 			l4Policy.Rules = l4rules
 			idx = idx + 1
+
 		}
 	}
 	hps.L4ConnectionPolicy = &l4Policy

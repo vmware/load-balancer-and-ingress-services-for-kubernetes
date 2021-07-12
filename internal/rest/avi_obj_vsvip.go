@@ -35,6 +35,10 @@ import (
 )
 
 func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCache *avicache.AviVsCache, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
+	if lib.CheckObjectNameLength(vsvip_meta.Name, lib.VIP) {
+		utils.AviLog.Warnf("key: %s not processing VSVIP object", key)
+		return nil, nil
+	}
 	name := vsvip_meta.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
