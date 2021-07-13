@@ -67,7 +67,6 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
-	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	// Check for the pools
@@ -132,7 +131,6 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
-	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	// Check for the pools
@@ -253,7 +251,6 @@ func TestMultiPortL4SvcNodePort(t *testing.T) {
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
-	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	// Check for the pools

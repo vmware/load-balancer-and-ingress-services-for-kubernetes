@@ -604,7 +604,6 @@ func TestNPLLBSvc(t *testing.T) {
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
-	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
@@ -681,7 +680,6 @@ func TestNPLLBSvcDelPod(t *testing.T) {
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
-	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
@@ -727,7 +725,6 @@ func TestNPLLBSvcNoLabel(t *testing.T) {
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
-	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Eventually(func() int {
@@ -765,7 +762,6 @@ func TestNPLUpdateLBSvcCorrectSelector(t *testing.T) {
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
-	g.Expect(nodes[0].EastWest).To(gomega.Equal(false))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))

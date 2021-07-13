@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"time"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -471,8 +472,19 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 	}
 
 	refData := make(map[string]string)
-	for _, networkName := range infraSetting.Spec.Network.Names {
-		refData[networkName] = "Network"
+	for _, vipNetwork := range infraSetting.Spec.Network.VipNetworks {
+		if vipNetwork.Cidr != "" {
+			re := regexp.MustCompile(lib.IPCIDRRegex)
+			if !re.MatchString(vipNetwork.Cidr) {
+				err := fmt.Errorf("invalid CIDR configuration %s detected for networkName %s in vipNetworkList", vipNetwork.Cidr, vipNetwork.NetworkName)
+				status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+					Status: lib.StatusRejected,
+					Error:  err.Error(),
+				})
+				return err
+			}
+		}
+		refData[vipNetwork.NetworkName] = "Network"
 	}
 
 	if infraSetting.Spec.SeGroup.Name != "" {

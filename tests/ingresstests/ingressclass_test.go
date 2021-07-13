@@ -753,18 +753,17 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 		return setting.Status.Status
 	}, 40*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() string {
+	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(settingModelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup
+				return nodes[0].ServiceEngineGroup == "thisisaviref-seGroup" &&
+					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-networkName" &&
+					*nodes[0].EnableRhi
 			}
 		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
-	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-networkName"))
-	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
+		return false
+	}, 45*time.Second).Should(gomega.Equal(true))
 
 	settingUpdate = (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
@@ -785,16 +784,16 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 	g.Eventually(func() int {
 		if found, aviModel := objects.SharedAviGraphLister().Get(settingModelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return len(nodes[0].VSVIPRefs[0].NetworkNames)
+				return len(nodes[0].VSVIPRefs[0].VipNetworks)
 			}
 		}
 		return 0
 	}, 40*time.Second).Should(gomega.Equal(3))
-	_, aviModel = objects.SharedAviGraphLister().Get(settingModelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("multivip-network1"))
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[1]).Should(gomega.Equal("multivip-network2"))
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[2]).Should(gomega.Equal("multivip-network3"))
+	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName).Should(gomega.Equal("multivip-network1"))
+	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[1].NetworkName).Should(gomega.Equal("multivip-network2"))
+	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[2].NetworkName).Should(gomega.Equal("multivip-network3"))
 	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})

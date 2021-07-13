@@ -40,9 +40,14 @@ type AviInfraSettingSpec struct {
 }
 
 type AviInfraSettingNetwork struct {
-	Names         []string `json:"names,omitempty"`
-	EnableRhi     *bool    `json:"enableRhi,omitempty"`
-	BgpPeerLabels []string `json:"bgpPeerLabels,omitempty"`
+	VipNetworks   []AviInfraSettingVipNetwork `json:"vipNetworks,omitempty"`
+	EnableRhi     *bool                       `json:"enableRhi,omitempty"`
+	BgpPeerLabels []string                    `json:"bgpPeerLabels,omitempty"`
+}
+
+type AviInfraSettingVipNetwork struct {
+	NetworkName string `json:"networkName,omitempty"`
+	Cidr        string `json:"cidr,omitempty"`
 }
 
 type AviInfraSettingSeGroup struct {

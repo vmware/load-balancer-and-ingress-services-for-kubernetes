@@ -322,7 +322,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 	g.Eventually(func() int {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 40*time.Second).Should(gomega.Equal(0))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -432,7 +432,7 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 20*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
 
 	gwclassUpdate := FakeGWClass{
 		Name:       gwClassName,
@@ -446,11 +446,11 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 	g.Eventually(func() int {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 40*time.Second).Should(gomega.Equal(0))
 	g.Eventually(func() int {
 		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
 		return len(svc.Status.LoadBalancer.Ingress)
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 40*time.Second).Should(gomega.Equal(0))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -575,7 +575,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -629,7 +629,7 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -682,7 +682,7 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -735,7 +735,7 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 			return false
 		}
 		return true
-	}, 20*time.Second).Should(gomega.Equal(false))
+	}, 40*time.Second).Should(gomega.Equal(false))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -795,7 +795,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	// match service to chaged gateway port: 8080
 	svcUpdate := integrationtest.FakeService{
@@ -883,7 +883,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	// match service to chaged gateway protocol: UDP
 	svcUpdate := integrationtest.FakeService{
@@ -972,7 +972,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName2); found && aviModel != nil {
@@ -982,7 +982,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 			}
 		}
 		return false
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gateway1Name, ns)
@@ -1076,19 +1076,18 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
 	// defaults to global seGroup and networkName.
-	g.Eventually(func() string {
+	netList, _ := lib.GetVipNetworkList()
+	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup
+				return nodes[0].ServiceEngineGroup == lib.GetSEGName() &&
+					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == netList[0].NetworkName &&
+					!*nodes[0].EnableRhi
 			}
 		}
-		return ""
-	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	netList, _ := lib.GetVipNetworkList()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(netList[0]))
-	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(false))
+		return false
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	settingUpdate := (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
@@ -1106,18 +1105,17 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		return setting.Status.Status
 	}, 45*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() string {
+	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup
+				return nodes[0].ServiceEngineGroup == "thisisaviref-seGroup" &&
+					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-networkName" &&
+					*nodes[0].EnableRhi
 			}
 		}
-		return ""
-	}, 35*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-networkName"))
-	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
+		return false
+	}, 45*time.Second).Should(gomega.Equal(true))
 
 	settingUpdate = (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
@@ -1142,7 +1140,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 }
 
-func TestServicesAPIInfraSettingDelete(t *testing.T) {
+func TestServicesAPInfraSettingDelete(t *testing.T) {
 	// create infraSetting, gwclass, gw
 	// delete infraSetting, fallback to defaults
 
@@ -1156,35 +1154,33 @@ func TestServicesAPIInfraSettingDelete(t *testing.T) {
 	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
 	integrationtest.SetupAviInfraSetting(t, settingName, "")
 
-	g.Eventually(func() string {
+	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup
+				return nodes[0].ServiceEngineGroup == "thisisaviref-"+settingName+"-seGroup" &&
+					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-"+settingName+"-networkName" &&
+					*nodes[0].EnableRhi
 			}
 		}
-		return ""
-	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-" + settingName + "-networkName"))
-	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
+		return false
+	}, 45*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 
 	// defaults to global seGroup and networkName.
-	g.Eventually(func() string {
+	netList, _ := lib.GetVipNetworkList()
+	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup
+				return nodes[0].ServiceEngineGroup == lib.GetSEGName() &&
+					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == netList[0].NetworkName &&
+					!*nodes[0].EnableRhi
 			}
 		}
-		return ""
-	}, 20*time.Second).Should(gomega.Equal(lib.GetSEGName()))
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	netList, _ := lib.GetVipNetworkList()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal(netList[0]))
-	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(false))
+		return false
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
@@ -1208,17 +1204,16 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 	integrationtest.SetupAviInfraSetting(t, settingName1, "")
 	integrationtest.SetupAviInfraSetting(t, settingName2, "")
 
-	g.Eventually(func() string {
+	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup
+				return nodes[0].ServiceEngineGroup == "thisisaviref-"+settingName1+"-seGroup" &&
+					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-"+settingName1+"-networkName"
 			}
 		}
-		return ""
-	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName1 + "-seGroup"))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-" + settingName1 + "-networkName"))
+		return false
+	}, 45*time.Second).Should(gomega.Equal(true))
 
 	// Change gatewayclass to have infraSettting2
 	gwClassUpdate := (FakeGWClass{
@@ -1231,17 +1226,16 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 		t.Fatalf("error in updating GatewayClass: %v", err)
 	}
 
-	g.Eventually(func() string {
+	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup
+				return nodes[0].ServiceEngineGroup == "thisisaviref-"+settingName2+"-seGroup" &&
+					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-"+settingName2+"-networkName"
 			}
 		}
-		return ""
-	}, 35*time.Second).Should(gomega.Equal("thisisaviref-" + settingName2 + "-seGroup"))
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].VSVIPRefs[0].NetworkNames[0]).Should(gomega.Equal("thisisaviref-" + settingName2 + "-networkName"))
+		return false
+	}, 45*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)

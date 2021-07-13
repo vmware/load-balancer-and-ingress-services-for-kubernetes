@@ -35,7 +35,6 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	avi_vs_meta = &AviVsNode{
 		Name:               vsName,
 		Tenant:             lib.GetTenant(),
-		EastWest:           false,
 		SharedVS:           true,
 		ServiceEngineGroup: lib.GetSEGName(),
 	}
@@ -64,23 +63,17 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 		Name:       lib.GetVsVipName(vsName),
 		Tenant:     lib.GetTenant(),
 		FQDNs:      fqdns,
-		EastWest:   false,
 		VrfContext: vrfcontext,
-	}
-
-	if lib.GetSubnetIP() != "" {
-		vsVipNode.SubnetIP = lib.GetSubnetIP()
-		vsVipNode.SubnetPrefix = lib.GetSubnetPrefixInt()
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
-	if networkNames, err := lib.GetVipNetworkList(); err != nil {
+	if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
 	} else {
-		vsVipNode.NetworkNames = networkNames
+		vsVipNode.VipNetworks = vipNetworks
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -207,7 +200,6 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		passChildVS = &AviVsNode{
 			Name:               secureSharedVS.Name + lib.PassthroughInsecure,
 			Tenant:             lib.GetTenant(),
-			EastWest:           false,
 			VrfContext:         lib.GetVrf(),
 			ServiceEngineGroup: lib.GetSEGName(),
 			ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,

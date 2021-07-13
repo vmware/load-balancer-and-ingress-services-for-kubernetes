@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/avinetworks/sdk/go/models"
@@ -84,17 +85,18 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		if vsvip_meta.IPAddress != "" {
 			vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
 		}
+
 		if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
-			vips := networkNamesToVips(vsvip_meta.NetworkNames)
+			vips := networkNamesToVips(vsvip_meta.VipNetworks)
 			vsvip.Vip = []*avimodels.Vip{}
 			vsvip.Vip = append(vsvip.Vip, vips...)
 		} else {
 			// Set the IPAM network subnet for all clouds except AWS and Azure
-			if len(vsvip_meta.NetworkNames) != 0 {
+			if len(vsvip_meta.VipNetworks) != 0 {
 				if vip.IPAMNetworkSubnet == nil {
 					vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
 				}
-				networkRef := "/api/network/?name=" + vsvip_meta.NetworkNames[0]
+				networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
 				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
 				vsvip.Vip = []*avimodels.Vip{vip}
 			}
@@ -132,26 +134,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			AutoAllocateIP: &autoAllocate,
 		}
 
-		// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
-		if vsvip_meta.SubnetIP == "" {
-			utils.AviLog.Warnf("Incomplete values provided for subnetIP, will not use IPAMNetworkSubnet in vsvip")
-		} else if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP {
-			// add the IPAMNetworkSubnet
-			vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
-				Subnet: &avimodels.IPAddrPrefix{
-					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.SubnetIP},
-					Mask:   &vsvip_meta.SubnetPrefix,
-				},
-			}
-		} else if !lib.GetAdvancedL4() {
-			vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
-				Subnet: &avimodels.IPAddrPrefix{
-					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.SubnetIP},
-					Mask:   &vsvip_meta.SubnetPrefix,
-				},
-			}
-		}
-
 		// configuring static IP, from gateway.Addresses (advl4, svcapi) and service.loadBalancerIP (l4)
 		if vsvip_meta.IPAddress != "" {
 			vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
@@ -160,33 +142,44 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		// selecting network with user input, in case user input is not provided AKO relies on
 		// usable network configuration in ipamdnsproviderprofile
 		if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
-			vips = networkNamesToVips(vsvip_meta.NetworkNames)
+			vips = networkNamesToVips(vsvip_meta.VipNetworks)
 		} else {
 			// Set the IPAM network subnet for all clouds except AWS and Azure
-			if len(vsvip_meta.NetworkNames) != 0 {
+			if len(vsvip_meta.VipNetworks) != 0 {
+				vipNetwork := vsvip_meta.VipNetworks[0]
 				if vip.IPAMNetworkSubnet == nil {
 					vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
 				}
-				networkRef := "/api/network/?name=" + vsvip_meta.NetworkNames[0]
+				networkRef := "/api/network/?name=" + vipNetwork.NetworkName
 				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
+
+				// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
+				if vipNetwork.Cidr == "" {
+					utils.AviLog.Warnf("Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip")
+				} else {
+					ipPrefixSlice := strings.Split(vipNetwork.Cidr, "/")
+					mask, _ := strconv.Atoi(ipPrefixSlice[1])
+					if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP {
+						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
+							Subnet: &avimodels.IPAddrPrefix{
+								IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &ipPrefixSlice[0]},
+								Mask:   proto.Int32(int32(mask)),
+							},
+						}
+					} else if !lib.GetAdvancedL4() {
+						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
+							Subnet: &avimodels.IPAddrPrefix{
+								IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &ipPrefixSlice[0]},
+								Mask:   proto.Int32(int32(mask)),
+							},
+						}
+					}
+				}
 			}
 		}
 
 		if len(vips) == 0 {
 			vips = append(vips, &vip)
-		}
-		addr := "172.18.0.0"
-		ew_subnet := avimodels.IPAddrPrefix{
-			IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &addr},
-			Mask:   &vsvip_meta.SubnetPrefix,
-		}
-
-		var east_west bool
-		if vsvip_meta.EastWest == true {
-			vip.Subnet = &ew_subnet
-			east_west = true
-		} else {
-			east_west = false
 		}
 
 		for i, fqdn := range vsvip_meta.FQDNs {
@@ -207,7 +200,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			Name:                  &name,
 			TenantRef:             &tenant,
 			CloudRef:              &cloudRef,
-			EastWestPlacement:     &east_west,
+			EastWestPlacement:     proto.Bool(false),
 			DNSInfo:               dns_info_arr,
 			Vip:                   vips,
 			VsvipCloudConfigCksum: &cksumstr,
@@ -530,16 +523,16 @@ func (rest *RestOperations) AviVsVipCacheDel(rest_op *utils.RestOp, vsKey avicac
 	return nil
 }
 
-func networkNamesToVips(networkNames []string) []*avimodels.Vip {
+func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) []*avimodels.Vip {
 	var vipList []*avimodels.Vip
 	autoAllocate := true
-	for vipIDInt, networkName := range networkNames {
+	for vipIDInt, vipNetwork := range vipNetworks {
 		vipID := strconv.Itoa(vipIDInt + 1)
 		newVip := &avimodels.Vip{
 			VipID:          &vipID,
 			AutoAllocateIP: &autoAllocate,
 		}
-		newVip.SubnetUUID = proto.String(networkName)
+		newVip.SubnetUUID = proto.String(vipNetwork.NetworkName)
 		vipList = append(vipList, newVip)
 	}
 	return vipList

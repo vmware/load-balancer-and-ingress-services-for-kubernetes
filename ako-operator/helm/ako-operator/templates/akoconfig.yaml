@@ -24,8 +24,6 @@ spec:
       labelValue: {{ .Values.AKOSettings.namespaceSelector.labelValue | quote }}
 
   networkSettings:
-    subnetIP: {{ .Values.NetworkSettings.subnetIP | quote }}
-    subnetPrefix: {{ .Values.NetworkSettings.subnetPrefix | quote }}
     enableRHI: {{ .Values.NetworkSettings.enableRHI }}
 {{- with .Values.NetworkSettings.bgpPeerLabels }}
     bgpPeerLabels:

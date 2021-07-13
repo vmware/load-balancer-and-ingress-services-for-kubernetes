@@ -30,6 +30,7 @@ import (
 
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
+	"google.golang.org/protobuf/proto"
 )
 
 const VSVIP_NOTFOUND = "VsVip object not found"
@@ -194,7 +195,6 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	checksumstr := strconv.Itoa(int(cksum))
 	cr := lib.AKOUser
 
-	east_west := false
 	var app_prof string
 	app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE
 	if vs_meta.AppProfileRef != "" {
@@ -214,7 +214,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		CreatedBy:             &cr,
 		NetworkProfileRef:     &network_prof,
 		ApplicationProfileRef: &app_prof,
-		EastWestPlacement:     &east_west,
+		EastWestPlacement:     proto.Bool(false),
 		CloudRef:              &cloudRef,
 		VrfContextRef:         &vrfContextRef,
 		SeGroupRef:            &seGroupRef,

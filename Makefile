@@ -81,8 +81,8 @@ build: pre-build glob-vars
 		-mod=vendor \
 		/go/src/$(REL_PATH_AKO)
 
-.PHONY: pre-build build-local
-build-local:
+.PHONY: build-local
+build-local: pre-build
 		$(GOBUILD) \
 		-o bin/$(BINARY_NAME_AKO) \
 		-ldflags $(AKO_LDFLAGS) \
