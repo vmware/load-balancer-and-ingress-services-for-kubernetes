@@ -36,7 +36,6 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	}
 
 	result, err := client.AviSession.GetCollectionRaw(uri)
-
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
@@ -104,6 +103,7 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 
 	err := client.AviSession.Put(uri, payload, &response)
 	if err != nil {
+		utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		return AviPut(client, uri, payload, response, retry+1)

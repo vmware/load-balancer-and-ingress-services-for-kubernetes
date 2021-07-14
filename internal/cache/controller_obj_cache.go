@@ -2511,13 +2511,15 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 		return false
 	}
 
-	infraSettings, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utils.AviLog.Warnf("Unable to list AviInfraSettings %s", err.Error())
-	}
 	seGroupSet := make(map[string]bool)
-	for _, setting := range infraSettings.Items {
-		seGroupSet[setting.Spec.SeGroup.Name] = true
+	if lib.GetAviInfraSettingEnabled() {
+		infraSettingList, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Unable to list AviInfraSettings %s", err.Error())
+		}
+		for _, setting := range infraSettingList.Items {
+			seGroupSet[setting.Spec.SeGroup.Name] = true
+		}
 	}
 	seGroupSet[lib.GetSEGName()] = true
 
