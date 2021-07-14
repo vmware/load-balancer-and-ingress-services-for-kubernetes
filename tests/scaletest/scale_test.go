@@ -277,6 +277,13 @@ func CheckReboot(t *testing.T, wg *sync.WaitGroup) {
 		}
 		json.Unmarshal(byteValue, &testbedParams)
 		go Reboot(t, wg, KUBENODE, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password, 0)
+		// Disable swap on the rebooted node
+		g := gomega.NewGomegaWithT(t)
+		time.Sleep(20 * time.Second)
+		g.Eventually(func() error {
+			_, err := RemoteExecute(testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password, "swapoff -a")
+			return err
+		}, 100, "20s").Should(gomega.BeNil())
 	}
 }
 
