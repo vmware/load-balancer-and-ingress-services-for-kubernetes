@@ -188,7 +188,7 @@ func TestCreateIngressCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 	if !found {
 		t.Fatalf("Cache not found for VS: %v", vsKey)
@@ -335,7 +335,7 @@ func TestCreateCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
@@ -371,7 +371,7 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	mcache := cache.SharedAviObjCache()
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		return found
@@ -451,8 +451,8 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
-	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-bar.com", lib.EVHVS)}
+	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
+	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--bar.com", lib.EVHVS)}
 	g.Eventually(func() bool {
 		sniCache1, found1 := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
 		sniCache2, found2 := mcache.VsCacheMeta.AviCacheGet(sniVSKey2)
@@ -510,7 +510,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 	if _, err := KubeClient.NetworkingV1beta1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
-	sniVSKey3 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--red-foo.com", lib.EVHVS)}
+	sniVSKey3 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	g.Eventually(func() bool {
 		_, found1 := mcache.VsCacheMeta.AviCacheGet(sniVSKey3)
 		return found1
@@ -551,8 +551,8 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
-	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-bar.com", lib.EVHVS)}
+	sniVSKey1 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
+	sniVSKey2 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--bar.com", lib.EVHVS)}
 	xyzParentKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-3"}
 	barParentKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"}
 
@@ -669,7 +669,7 @@ func TestDeleteCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 
 	ingressUpdate := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -709,8 +709,8 @@ func TestCUDSecretCacheSyncForEvh(t *testing.T) {
 
 	mcache := cache.SharedAviObjCache()
 	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
-	sslKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
+	sslKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.SSLKeyCert)}
 
 	// no ssl key cache would be found since the secret is not yet added
 	g.Eventually(func() bool {

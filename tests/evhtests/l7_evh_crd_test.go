@@ -187,7 +187,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -308,7 +308,7 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 		return ""
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref-sslkey"))
 
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 
 	g.Eventually(func() string {
@@ -331,7 +331,7 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 
 	// update hostrule with bad ref
@@ -381,7 +381,7 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return len(nodes[0].EvhNodes)
 	}, 10*time.Second).Should(gomega.Equal(1))
-	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com", lib.EVHVS)}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
