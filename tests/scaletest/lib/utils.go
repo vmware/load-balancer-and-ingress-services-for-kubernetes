@@ -17,7 +17,9 @@ package lib
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -244,7 +246,7 @@ func FetchVirtualServiceOperStatus(t *testing.T, AviClient *clients.AviClient) [
 	}
 	for result.Next != "" {
 		page_num = page_num + 1
-		uri := "/api/virtualservice-inventory??page=" + strconv.Itoa(page_num)
+		uri := "/api/virtualservice-inventory?page=" + strconv.Itoa(page_num)
 		result, err = AviClient.AviSession.GetCollectionRaw(uri)
 		if err != nil {
 			t.Errorf("Get uri %v returned err for VS %v", uri, err)
@@ -280,4 +282,188 @@ func FetchOPERDownVirtualService(t *testing.T, AviClient *clients.AviClient) []V
 		}
 	}
 	return OperDownVS
+}
+
+func CleanResourceData(data string) string {
+	data = strings.Replace(data, "\\", "", -1)
+	data = strings.Replace(data, " ", "", -1)
+	return data
+}
+
+func CompareVirtualServiceResources(t *testing.T, eventLog models.EventLog) bool {
+	var new, old models.VirtualService
+	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
+	if err != nil {
+		t.Logf("Error unmarshalling data into VS. Error : %v", err)
+	}
+	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
+	if err != nil {
+		t.Logf("Error unmarshalling data into VS. Error : %v", err)
+	}
+	if *new.LastModified == *old.LastModified {
+		return true
+	}
+	// Check if all fields other than LastModified are equal
+	// Set the LastModified field of Old VS to LastModified of New VS to Mask the difference from DeepEqual
+	old.LastModified = new.LastModified
+	if reflect.DeepEqual(new, old) {
+		// Old and New VS are same. Only the LastModified field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Check if all fields other than LastModified and CloudConfigCksum are equal
+	// Set the CloudConfigCksum field of Old VS to CloudConfigCksum of New VS to Mask the difference from DeepEqual
+	old.CloudConfigCksum = new.CloudConfigCksum
+	if reflect.DeepEqual(new, old) {
+		// Old and New VS are same. Only the LastModified and CloudConfigCksum field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Genuine update of VS object
+	return true
+}
+
+func ComparePoolResources(t *testing.T, eventLog models.EventLog) bool {
+	var new, old models.Pool
+	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
+	if err != nil {
+		t.Logf("Error unmarshalling data into Pool. Error : %v", err)
+	}
+	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
+	if err != nil {
+		t.Logf("Error unmarshalling data into Pool. Error : %v", err)
+	}
+	if *new.LastModified == *old.LastModified {
+		return true
+	}
+	// Check if all fields other than LastModified are equal
+	// Set the LastModified field of Old Pool to LastModified of New Pool to Mask the difference from DeepEqual
+	old.LastModified = new.LastModified
+	if reflect.DeepEqual(new, old) {
+		// Old and New Pool are same. Only the LastModified field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Check if all fields other than LastModified and CloudConfigCksum are equal
+	// Set the CloudConfigCksum field of Old Pool to CloudConfigCksum of New Pool to Mask the difference from DeepEqual
+	old.CloudConfigCksum = new.CloudConfigCksum
+	if reflect.DeepEqual(new, old) {
+		// Old and New Pool are same. Only the LastModified and CloudConfigCksum field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Genuine update of Pool object
+	return true
+}
+
+func ComparePoolGroupResources(t *testing.T, eventLog models.EventLog) bool {
+	var new, old models.PoolGroup
+	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
+	if err != nil {
+		t.Logf("Error unmarshalling data into PoolGroup. Error : %v", err)
+	}
+	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
+	if err != nil {
+		t.Logf("Error unmarshalling data into PoolGroup. Error : %v", err)
+	}
+
+	if *new.LastModified == *old.LastModified {
+		return true
+	}
+	// Check if all fields other than LastModified are equal
+	// Set the LastModified field of Old PoolGroup to LastModified of New PoolGroup to Mask the difference from DeepEqual
+	old.LastModified = new.LastModified
+	if reflect.DeepEqual(new, old) {
+		// Old and New PoolGroup are same. Only the LastModified field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Check if all fields other than LastModified and CloudConfigCksum are equal
+	// Set the CloudConfigCksum field of Old PoolGroup to CloudConfigCksum of New PoolGroup to Mask the difference from DeepEqual
+	old.CloudConfigCksum = new.CloudConfigCksum
+	if reflect.DeepEqual(new, old) {
+		// Old and New PoolGroup are same. Only the LastModified and CloudConfigCksum field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Genuine update of PoolGroup object
+	return true
+}
+
+func CompareVsVipResources(t *testing.T, eventLog models.EventLog) bool {
+	var new, old models.VsVip
+	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
+	if err != nil {
+		t.Logf("Error unmarshalling data into VsVip. Error : %v", err)
+	}
+	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
+	if err != nil {
+		t.Logf("Error unmarshalling data into VsVip. Error : %v", err)
+	}
+	if *new.LastModified == *old.LastModified {
+		return true
+	}
+	// Check if all fields other than LastModified are equal
+	// Set the LastModified field of Old VsVip to LastModified of New VsVip to Mask the difference from DeepEqual
+	old.LastModified = new.LastModified
+	if reflect.DeepEqual(new, old) {
+		// Old and New VsVip are same. Only the LastModified field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Genuine update of VsVip object
+	return true
+}
+
+func CheckForUnwantedAPICallsToController(t *testing.T, AviClient *clients.AviClient, start string, end string, Nextpage ...int) bool {
+	var page_num int
+	if len(Nextpage) == 1 {
+		page_num = Nextpage[0]
+	} else {
+		page_num = 1
+	}
+	uri := "/api/analytics/logs/" +
+		"?type=2" +
+		"&filter=ne(internal,EVENT_INTERNAL)" +
+		"&filter=co(event_id,CONFIG_UPDATE)" +
+		"&orderby=-report_timestamp" +
+		"&start=" + start +
+		"&end=" + end +
+		"&page=" + strconv.Itoa(page_num)
+
+	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	if err != nil {
+		t.Errorf("Get uri %v returned err for Event log %v", uri, err)
+	}
+	elems := make([]json.RawMessage, result.Count)
+	t.Logf("Found %d config updates", result.Count)
+
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		t.Errorf("Failed to unmarshal Event log data, err: %v", err)
+	}
+	for _, elem := range elems {
+		eventLog := models.EventLog{}
+		err = json.Unmarshal(elem, &eventLog)
+		if err != nil {
+			t.Logf("Failed to unmarshal Event log data, err: %v", err)
+		}
+		objectType := eventLog.ObjType
+
+		if *objectType == "VIRTUALSERVICE" {
+			if !CompareVirtualServiceResources(t, eventLog) {
+				return false
+			}
+		} else if *objectType == "POOL" {
+			if !ComparePoolResources(t, eventLog) {
+				return false
+			}
+		} else if *objectType == "POOLGROUP" {
+			if !ComparePoolGroupResources(t, eventLog) {
+				return false
+			}
+		} else if *objectType == "VSVIP" {
+			if !CompareVsVipResources(t, eventLog) {
+				return false
+			}
+		}
+	}
+	if result.Next != "" {
+		return CheckForUnwantedAPICallsToController(t, AviClient, start, end, page_num+1)
+	}
+	return true
+
 }

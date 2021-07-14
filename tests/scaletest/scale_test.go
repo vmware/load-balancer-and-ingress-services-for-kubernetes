@@ -183,7 +183,7 @@ func SetupForTesting(t *testing.T) {
 	ingressesUpdated = []string{}
 }
 
-func RemoteReboot(user string, addr string, password string, cmd string) (string, error) {
+func RemoteExecute(user string, addr string, password string, cmd string) (string, error) {
 	config := &ssh.ClientConfig{
 		User:            user,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
@@ -206,11 +206,26 @@ func RemoteReboot(user string, addr string, password string, cmd string) (string
 	return b.String(), err
 }
 
+func FetchControllerTime(t *testing.T) string {
+	controllerTime, err := RemoteExecute(os.Getenv("CTRL_USERNAME"), os.Getenv("CTRL_IPADDRESS"), os.Getenv("CTRL_PASSWORD"), "date --iso-8601=seconds")
+	if err != nil {
+		t.Logf("Error fetching the controller time")
+	}
+	// Convert time to the format required for API calls
+	controllerTime = controllerTime[0:19] + "Z"
+	layout := "2006-01-02T15:04:05Z"
+	convertedDate, err := time.Parse(layout, controllerTime)
+	if err != nil {
+		t.Logf("Error parsing controller time : %v\n\n", err)
+	}
+	return convertedDate.Format(time.RFC3339Nano)
+}
+
 /* Used for Controller and Node reboot */
 func Reboot(t *testing.T, wg *sync.WaitGroup, nodeType string, vmIP string, username string, password string, trynum int) {
 	if trynum < 5 {
 		t.Logf("Rebooting %s ... ", nodeType)
-		_, err := RemoteReboot(username, vmIP, password, "echo "+password+" | sudo -S shutdown --reboot 0 && exit")
+		_, err := RemoteExecute(username, vmIP, password, "echo "+password+" | sudo -S shutdown --reboot 0 && exit")
 		if err != nil {
 			t.Logf("Cannot reboot %s because : %v", nodeType, err.Error())
 			time.Sleep(10 * time.Second)
@@ -1096,4 +1111,22 @@ func TestMultiHostHybridExecution(t *testing.T) {
 func TestServiceTypeLB(t *testing.T) {
 	SetupForTesting(t)
 	LBService(t)
+}
+
+func TestUnwantedConfigUpdatesOnAkoReboot(t *testing.T) {
+	SetupForTesting(t)
+	g := gomega.NewGomegaWithT(t)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	// Fetch the controller time before AKO reboot
+	// Use this time as sometimes the time on the controller and test client might be out of sync
+	startTime := FetchControllerTime(t)
+	RebootAko(t, &wg)
+	lib.WaitForAKOPodReboot(t, akoPodName)
+	// Wait for 2 min for AKO to sync
+	time.Sleep(2 * time.Minute)
+	endTime := FetchControllerTime(t)
+	res := lib.CheckForUnwantedAPICallsToController(t, AviClients[0], startTime, endTime)
+	g.Expect(res).To(gomega.BeTrue())
+	t.Logf("No redundant/unwanted API calls found on AKO reboot")
 }
