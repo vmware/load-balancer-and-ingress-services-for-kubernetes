@@ -31,6 +31,7 @@ import (
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const VSVIP_NOTFOUND = "VsVip object not found"
@@ -106,11 +107,19 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vh_parent := utils.VS_TYPE_VH_PARENT
 			vs.Type = &vh_parent
 		}
-		// TODO other fields like cloud_ref, mix of TCP & UDP protocols, etc.
 
 		for i, pp := range vs_meta.PortProto {
 			port := pp.Port
-			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL}
+			svc := avimodels.Service{
+				Port:         &port,
+				EnableSsl:    &vs_meta.PortProto[i].EnableSSL,
+				PortRangeEnd: &port,
+			}
+			if pp.Protocol == "" || pp.Protocol == utils.TCP {
+				svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.TCP_NW_FAST_PATH)
+			} else {
+				svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_UDP_FAST_PATH)
+			}
 			vs.Services = append(vs.Services, &svc)
 		}
 
@@ -413,8 +422,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			}
 		}
 
-		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
-		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(k)
 		var svc_mdata_obj avicache.ServiceMetadataObj
 		if resp["service_metadata"] != nil {
 			utils.AviLog.Infof("key:%s, msg: Service Metadata: %s", key, resp["service_metadata"])
@@ -424,8 +431,13 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			}
 		}
 
+		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
+		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(k)
+		var vs_cache_obj *avicache.AviVsCache
+		var found bool
+		var staleServiceNSNames []string
 		if ok {
-			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
+			vs_cache_obj, found = vs_cache.(*avicache.AviVsCache)
 			if found {
 				if _, ok := resp["vsvip_ref"].(string); ok {
 					vsVipUuid := avicache.ExtractUuid(resp["vsvip_ref"].(string), "vsvip-.*.#")
@@ -447,6 +459,18 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
+
+				// We must delete status for services that are no longer part of the gateway VS.
+				// before: [svc1, svc2, svc3] after: [svc1 svc2 svc4], stale: [svc3], delete status for svc3.
+				if vs_cache_obj.ServiceMetadataObj.Gateway != "" {
+					old := sets.NewString(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName...)
+					new := sets.NewString(svc_mdata_obj.NamespaceServiceName...)
+					staleServiceNSNameSet := old.Difference(new)
+					for svcNsName := range staleServiceNSNameSet {
+						staleServiceNSNames = append(staleServiceNSNames, svcNsName)
+					}
+				}
+
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
 				if val, ok := resp["enable_rhi"].(bool); ok {
 					vs_cache_obj.EnableRhi = val
@@ -463,53 +487,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 				utils.AviLog.Debug(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
 					utils.Stringify(vs_cache_obj)))
-				if svc_mdata_obj.Gateway != "" {
-					updateOptions := status.UpdateOptions{
-						Vip:             vs_cache_obj.Vip,
-						ServiceMetadata: svc_mdata_obj,
-						Key:             key,
-					}
-					statusOption := status.StatusOptions{
-						ObjType: lib.Gateway,
-						Op:      lib.UpdateStatus,
-						Options: &updateOptions,
-					}
-					if lib.UseServicesAPI() {
-						statusOption.ObjType = lib.SERVICES_API
-					}
-					status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 
-				} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
-					// This service needs an update of the status
-					updateOptions := status.UpdateOptions{
-						Vip:                vs_cache_obj.Vip,
-						ServiceMetadata:    svc_mdata_obj,
-						Key:                key,
-						VirtualServiceUUID: vs_cache_obj.Uuid,
-					}
-					statusOption := status.StatusOptions{
-						ObjType: utils.L4LBService,
-						Op:      lib.UpdateStatus,
-						Options: &updateOptions,
-					}
-					status.PublishToStatusQueue(svc_mdata_obj.NamespaceServiceName[0], statusOption)
-				} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
-					updateOptions := status.UpdateOptions{
-						Vip:                parentVsObj.Vip,
-						ServiceMetadata:    svc_mdata_obj,
-						Key:                key,
-						VirtualServiceUUID: vs_cache_obj.Uuid,
-					}
-					statusOption := status.StatusOptions{
-						ObjType: utils.Ingress,
-						Op:      lib.UpdateStatus,
-						Options: &updateOptions,
-					}
-					if utils.GetInformers().RouteInformer != nil {
-						statusOption.ObjType = utils.OshiftRoute
-					}
-					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
-				}
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
 				// But before this a pool may have got created as a part of the macro operation, so update the ingress status here.
 				if rest_op.Method == utils.RestPost || rest_op.Method == utils.RestDelete {
@@ -543,7 +521,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 			}
 		} else {
-			vs_cache_obj := avicache.AviVsCache{
+			vs_cache_obj = &avicache.AviVsCache{
 				Name:               name,
 				Tenant:             rest_op.Tenant,
 				Uuid:               uuid,
@@ -576,20 +554,71 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 			}
 
-			if len(svc_mdata_obj.NamespaceServiceName) > 0 {
+			rest.cache.VsCacheMeta.AviCacheAdd(k, &vs_cache_obj)
+			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(&vs_cache_obj))
+		}
+
+		if svc_mdata_obj.Gateway != "" {
+			if len(staleServiceNSNames) > 0 {
+				utils.AviLog.Infof("key: %s, msg: Services %v no longer part of the gateway VS %s", key, staleServiceNSNames, svc_mdata_obj.Gateway)
 				updateOptions := status.UpdateOptions{
-					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
-					Key:             key,
+					ServiceMetadata:    avicache.ServiceMetadataObj{NamespaceServiceName: staleServiceNSNames},
+					Key:                key,
+					VirtualServiceUUID: vs_cache_obj.Uuid,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
 					Op:      lib.DeleteStatus,
 					Options: &updateOptions,
 				}
-				status.PublishToStatusQueue(svc_mdata_obj.NamespaceServiceName[0], statusOption)
+				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 			}
-			rest.cache.VsCacheMeta.AviCacheAdd(k, &vs_cache_obj)
-			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(&vs_cache_obj))
+
+			updateOptions := status.UpdateOptions{
+				Vip:             vs_cache_obj.Vip,
+				ServiceMetadata: svc_mdata_obj,
+				Key:             key,
+			}
+			statusOption := status.StatusOptions{
+				ObjType: lib.Gateway,
+				Op:      lib.UpdateStatus,
+				Options: &updateOptions,
+			}
+			if lib.UseServicesAPI() {
+				statusOption.ObjType = lib.SERVICES_API
+			}
+			status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
+
+		} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
+			// This service needs an update of the status
+			updateOptions := status.UpdateOptions{
+				Vip:                vs_cache_obj.Vip,
+				ServiceMetadata:    svc_mdata_obj,
+				Key:                key,
+				VirtualServiceUUID: vs_cache_obj.Uuid,
+			}
+			statusOption := status.StatusOptions{
+				ObjType: utils.L4LBService,
+				Op:      lib.UpdateStatus,
+				Options: &updateOptions,
+			}
+			status.PublishToStatusQueue(svc_mdata_obj.NamespaceServiceName[0], statusOption)
+		} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
+			updateOptions := status.UpdateOptions{
+				Vip:                parentVsObj.Vip,
+				ServiceMetadata:    svc_mdata_obj,
+				Key:                key,
+				VirtualServiceUUID: vs_cache_obj.Uuid,
+			}
+			statusOption := status.StatusOptions{
+				ObjType: utils.Ingress,
+				Op:      lib.UpdateStatus,
+				Options: &updateOptions,
+			}
+			if utils.GetInformers().RouteInformer != nil {
+				statusOption.ObjType = utils.OshiftRoute
+			}
+			status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 		}
 
 	}
@@ -650,7 +679,17 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOptionLBSvc)
 
 			} else if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
-				status.DeleteL4LBStatus(vs_cache_obj.ServiceMetadataObj, key)
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata:    vs_cache_obj.ServiceMetadataObj,
+					Key:                key,
+					VirtualServiceUUID: vs_cache_obj.Uuid,
+				}
+				statusOption := status.StatusOptions{
+					ObjType: utils.L4LBService,
+					Op:      lib.DeleteStatus,
+					Options: &updateOptions,
+				}
+				status.PublishToStatusQueue(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
 			}
 
 			if (vs_cache_obj.ServiceMetadataObj.IngressName != "" || len(vs_cache_obj.ServiceMetadataObj.NamespaceIngressName) > 0) && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
