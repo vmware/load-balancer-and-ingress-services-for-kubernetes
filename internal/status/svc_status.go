@@ -145,11 +145,17 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 }
 
 func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
+	serviceMap := getServices(svc_mdata_obj.NamespaceServiceName, false)
 	for _, service := range svc_mdata_obj.NamespaceServiceName {
 		serviceNSName := strings.Split(service, "/")
 		patchPayload, _ := json.Marshal(map[string]interface{}{
 			"status": nil,
 		})
+
+		if serviceObj := serviceMap[service]; serviceObj != nil && (serviceObj.Status.LoadBalancer.Ingress == nil ||
+			(serviceObj.Status.LoadBalancer.Ingress != nil && len(serviceObj.Status.LoadBalancer.Ingress) == 0)) {
+			continue
+		}
 
 		updatedSvc, err := utils.GetInformers().ClientSet.CoreV1().Services(serviceNSName[0]).Patch(context.TODO(), serviceNSName[1], types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 		if err != nil {
