@@ -84,187 +84,203 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up AKO CRD Event handlers")
 	informer := lib.GetCRDInformers()
 
-	hostRuleEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			hostrule := obj.(*akov1alpha1.HostRule)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
-			key := lib.HostRule + "/" + utils.ObjKey(hostrule)
-			if err := validateHostRuleObj(key, hostrule); err != nil {
-				utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
-			}
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
-		UpdateFunc: func(old, new interface{}) {
-			oldObj := old.(*akov1alpha1.HostRule)
-			hostrule := new.(*akov1alpha1.HostRule)
-			if !reflect.DeepEqual(oldObj.Spec, hostrule.Spec) {
+	if lib.GetHostRuleEnabled() {
+		hostRuleEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				hostrule := obj.(*akov1alpha1.HostRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 				if err := validateHostRuleObj(key, hostrule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
 				}
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			hostrule, ok := obj.(*akov1alpha1.HostRule)
-			if !ok {
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
 					return
 				}
-				hostrule, ok = tombstone.Obj.(*akov1alpha1.HostRule)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an HostRule: %#v", obj)
+				oldObj := old.(*akov1alpha1.HostRule)
+				hostrule := new.(*akov1alpha1.HostRule)
+				if !reflect.DeepEqual(oldObj.Spec, hostrule.Spec) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
+					key := lib.HostRule + "/" + utils.ObjKey(hostrule)
+					if err := validateHostRuleObj(key, hostrule); err != nil {
+						utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
+					}
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
 					return
 				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
-			key := lib.HostRule + "/" + utils.ObjKey(hostrule)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
+				hostrule, ok := obj.(*akov1alpha1.HostRule)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					hostrule, ok = tombstone.Obj.(*akov1alpha1.HostRule)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an HostRule: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
+				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
+
+		informer.HostRuleInformer.Informer().AddEventHandler(hostRuleEventHandler)
 	}
 
-	httpRuleEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			httprule := obj.(*akov1alpha1.HTTPRule)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
-			key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
-			if err := validateHTTPRuleObj(key, httprule); err != nil {
-				utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
-			}
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
-		UpdateFunc: func(old, new interface{}) {
-			oldObj := old.(*akov1alpha1.HTTPRule)
-			httprule := new.(*akov1alpha1.HTTPRule)
-			// reflect.DeepEqual does not work on type []byte,
-			// unable to capture edits in destinationCA
-			if isHTTPRuleUpdated(oldObj, httprule) {
+	if lib.GetHttpRuleEnabled() {
+		httpRuleEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				httprule := obj.(*akov1alpha1.HTTPRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 				if err := validateHTTPRuleObj(key, httprule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
 				}
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			httprule, ok := obj.(*akov1alpha1.HTTPRule)
-			if !ok {
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
 					return
 				}
-				httprule, ok = tombstone.Obj.(*akov1alpha1.HTTPRule)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an HTTPRule: %#v", obj)
+				oldObj := old.(*akov1alpha1.HTTPRule)
+				httprule := new.(*akov1alpha1.HTTPRule)
+				// reflect.DeepEqual does not work on type []byte,
+				// unable to capture edits in destinationCA
+				if isHTTPRuleUpdated(oldObj, httprule) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
+					key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
+					if err := validateHTTPRuleObj(key, httprule); err != nil {
+						utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+					}
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
 					return
 				}
-			}
-			key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			// no need to validate for delete handler
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
+				httprule, ok := obj.(*akov1alpha1.HTTPRule)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					httprule, ok = tombstone.Obj.(*akov1alpha1.HTTPRule)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an HTTPRule: %#v", obj)
+						return
+					}
+				}
+				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				// no need to validate for delete handler
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
+
+		informer.HTTPRuleInformer.Informer().AddEventHandler(httpRuleEventHandler)
 	}
 
-	aviInfraEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			aviinfra := obj.(*akov1alpha1.AviInfraSetting)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
-			key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
-			if err := validateAviInfraSetting(key, aviinfra); err != nil {
-				utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
-			}
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
-		UpdateFunc: func(old, new interface{}) {
-			oldObj := old.(*akov1alpha1.AviInfraSetting)
-			aviInfra := new.(*akov1alpha1.AviInfraSetting)
-			if isAviInfraUpdated(oldObj, aviInfra) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
-				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
-				if err := validateAviInfraSetting(key, aviInfra); err != nil {
+	if lib.GetAviInfraSettingEnabled() {
+		aviInfraEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				aviinfra := obj.(*akov1alpha1.AviInfraSetting)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
+				if err := validateAviInfraSetting(key, aviinfra); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
 				}
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			aviinfra, ok := obj.(*akov1alpha1.AviInfraSetting)
-			if !ok {
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-					return
-				}
-				aviinfra, ok = tombstone.Obj.(*akov1alpha1.AviInfraSetting)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an AviInfraSetting: %#v", obj)
-					return
-				}
-			}
-			key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			// no need to validate for delete handler
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
-	}
-
-	informer.HostRuleInformer.Informer().AddEventHandler(hostRuleEventHandler)
-	informer.HTTPRuleInformer.Informer().AddEventHandler(httpRuleEventHandler)
-
-	informer.AviInfraSettingInformer.Informer().AddEventHandler(aviInfraEventHandler)
-	informer.AviInfraSettingInformer.Informer().AddIndexers(
-		cache.Indexers{
-			lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
-				infraSetting, ok := obj.(*akov1alpha1.AviInfraSetting)
-				if !ok {
-					return []string{}, nil
-				}
-				return []string{infraSetting.Spec.SeGroup.Name}, nil
 			},
-		},
-	)
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldObj := old.(*akov1alpha1.AviInfraSetting)
+				aviInfra := new.(*akov1alpha1.AviInfraSetting)
+				if isAviInfraUpdated(oldObj, aviInfra) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
+					key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
+					if err := validateAviInfraSetting(key, aviInfra); err != nil {
+						utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+					}
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				aviinfra, ok := obj.(*akov1alpha1.AviInfraSetting)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					aviinfra, ok = tombstone.Obj.(*akov1alpha1.AviInfraSetting)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an AviInfraSetting: %#v", obj)
+						return
+					}
+				}
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				// no need to validate for delete handler
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
+
+		informer.AviInfraSettingInformer.Informer().AddEventHandler(aviInfraEventHandler)
+		informer.AviInfraSettingInformer.Informer().AddIndexers(
+			cache.Indexers{
+				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
+					infraSetting, ok := obj.(*akov1alpha1.AviInfraSetting)
+					if !ok {
+						return []string{}, nil
+					}
+					return []string{infraSetting.Spec.SeGroup.Name}, nil
+				},
+			},
+		)
+	}
 
 	return
 }
