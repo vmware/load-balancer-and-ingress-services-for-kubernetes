@@ -395,4 +395,4 @@ To use NodePortLocal in standalone mode in Antrea without AKO, users have to ann
 - All services of type LoadBalancer.
 - For all ingresses, the backend ClusterIP Services would be obtained by AKO, and they would be annotated for enabling NPL. In case Ingress Class is being used, only the the ingresses for which Avi is the Ingress Class would be used for enabling NodePortLocal. 
 
-For the Openshift objects: [Openshift](https://github.com/avinetworks/avi-helm-charts/tree/master/docs/AKO/openshift/objects.md)
+For the Openshift objects: [Openshift](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/objects.md)

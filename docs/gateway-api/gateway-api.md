@@ -2,7 +2,7 @@ AKO, from v1.4.1, claims support for Layer 4 Service integration with Gateway AP
 
 ### Installation
 
-AKO primarily uses GatewayClass and Gateway CRDs for it's Gateway API implementation and integration with Layer 4 Services. These GatewayClass and Gateway CRDs must be installed on the cluster running AKO. The CRDs can be installed on the cluster, post AKO release v1.4.1, the same way as any other AKO CRDs, via helm. More details around CRD installation can be found in the [installation guide](https://github.com/avinetworks/avi-helm-charts/docs/AKO/install/helm.md).
+AKO primarily uses GatewayClass and Gateway CRDs for it's Gateway API implementation and integration with Layer 4 Services. These GatewayClass and Gateway CRDs must be installed on the cluster running AKO. The CRDs can be installed on the cluster, post AKO release v1.4.1, the same way as any other AKO CRDs, via helm. More details around CRD installation can be found in the [installation guide](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/install/helm.md).
 
 ### Gateway APIs and Service objects
 Starting v1.4.1, AKO allows users to expose Kubernetes/Opennshift Services, outside the cluster, using Gateway and GatewayClass constructs. AKO creates one Layer-4 Avi virtualservice per Gateway object, and configures the backend Services as distinct Avi Pools. In this case the type of Services, to be exposed via the Gateway object, is not limited to Service of Type `LoadBalancer`.
@@ -28,7 +28,7 @@ spec:
 
 It is important that the `.spec.controller` value specified MUST match `ako.vmware.com/avi-lb` for AKO to honour the GatewayClass and corresponding Gateway objects.
 
-The `.spec.parametersRef` allows users to point to AKO's AviInfraSetting Custom Resource (cluster-scoped), to fine tune Avi specific load balancing parameters like the VIP network, Service Engine Group etc. More information on AviInfraSetting CRD can be found [here](https://github.com/avinetworks/avi-helm-charts/blob/master/docs/AKO/crds/avinfrasetting.md)
+The `.spec.parametersRef` allows users to point to AKO's AviInfraSetting Custom Resource (cluster-scoped), to fine tune Avi specific load balancing parameters like the VIP network, Service Engine Group etc. More information on AviInfraSetting CRD can be found [here](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/avinfrasetting.md)
 
 
 #### Gateway

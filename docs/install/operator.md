@@ -23,7 +23,7 @@ This is one of the ways to install the AKO controller. So, all the [pre-requisit
 
   Step 2: Add this repository to your helm CLI
 
-    helm repo add ako https://avinetworks.github.io/avi-helm-charts/charts/stable/ako
+    helm repo add ako https://projects.registry.vmware.com/chartrepo/ako
 
 Use the `values.yaml` from this repository to edit values related to Avi configuration. Values and their corresponding index can be found [here](#parameters).
 

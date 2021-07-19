@@ -1,7 +1,7 @@
 
 #### Pre-requisites for running AKO in Openshift Cluster
 
-Follow the steps 1 to 2, given in section [Pre-requisites](https://github.com/avinetworks/avi-helm-charts/tree/master/docs/AKO#pre-requisites). Additionally, the following points have to be noted for openshift environment.
+Follow the steps 1 to 2, given in section [Pre-requisites](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs#pre-requisites). Additionally, the following points have to be noted for openshift environment.
 1. Make Sure Openshift version is >= 4.4
 2. Openshift routes and services of type load balancer are supported in AKO
 3. Ingresses, if created in the openshift cluster won't be handled by AKO.
