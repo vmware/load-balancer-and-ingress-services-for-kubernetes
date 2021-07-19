@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -266,7 +267,7 @@ func GetHeaderRewritePolicy(vsName, localHost string) string {
 	return headerWriterPolicy
 }
 
-func GetSniNodeName(ingName, infrasetting, sniHostName string) string {
+func GetSniNodeName(infrasetting, sniHostName string) string {
 	namePrefix := NamePrefix
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
@@ -325,8 +326,7 @@ func GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcN
 	return poolName
 }
 
-func GetEvhNodeName(ingName, host, infrasetting string) string {
-
+func GetEvhNodeName(host, infrasetting string) string {
 	if infrasetting != "" {
 		return Encode(NamePrefix+infrasetting+"-"+host, EVHVS)
 	}
@@ -697,19 +697,58 @@ func SetClusterLabelChecksum() {
 		clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
 	}
 }
-
 func GetClusterLabelChecksum() uint32 {
 	return clusterLabelChecksum
+}
+func GetMarkersChecksum(markers utils.AviObjectMarkers) uint32 {
+	vals := reflect.ValueOf(markers)
+	var j int
+	var cksum uint32
+	var combinedString string
+	numMarkerFields := vals.NumField()
+	markersStr := make([]string, numMarkerFields)
+	for i := 0; i < numMarkerFields; i++ {
+		if vals.Field(i).Interface() != "" {
+			value := vals.Field(i).Interface().(string)
+			markersStr[j] = value
+			j = j + 1
+		}
+	}
+	sort.Strings(markersStr)
+	for _, ele := range markersStr {
+		combinedString += ele
+	}
+	if len(combinedString) != 0 {
+		cksum = utils.Hash(combinedString)
+	}
+	cksum += clusterLabelChecksum
+	return cksum
 }
 
 func ObjectLabelChecksum(objectLabels []*models.RoleFilterMatchLabel) uint32 {
 	var objChecksum uint32
-
+	//Assumption here is User is not adding additional marker fields from UI/CLI
+	//other than internal structure defined.
+	markersStr := make([]string, len(objectLabels))
+	var j int
+	var combinedString string
+	//Add all markers values to form cksum except for clusternamelabel for bkward compatibility
 	for _, label := range objectLabels {
-		if *label.Key == clusterKey && label.Values != nil && len(label.Values) > 0 && label.Values[0] == clusterValue {
-			objChecksum = clusterLabelChecksum
-			break
+		if *label.Key == clusterKey {
+			if label.Values != nil && len(label.Values) > 0 && label.Values[0] == clusterValue {
+				objChecksum += clusterLabelChecksum
+			}
+		} else {
+			markersStr[j] = label.Values[0]
+			j = j + 1
 		}
+	}
+	sort.Strings(markersStr)
+	for _, ele := range markersStr {
+		combinedString += ele
+	}
+	if len(combinedString) != 0 {
+		objChecksum += utils.Hash(combinedString)
 	}
 	return objChecksum
 }
@@ -740,6 +779,74 @@ func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populat
 	return checksum
 }
 
+func PopulatePoolNodeMarkers(namespace, host, path, ingName, infraSettingName, serviceName string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.Host = host
+	markers.Path = path
+	markers.IngressName = ingName
+	markers.InfrasettingName = infraSettingName
+	markers.ServiceName = serviceName
+	return markers
+}
+func PopulateVSNodeMarkers(namespace, host, infraSettingName string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.Host = host
+	markers.InfrasettingName = infraSettingName
+	return markers
+}
+func PopulateHTTPPolicysetNodeMarkers(namespace, host, ingName, path, infraSettingName string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.Host = host
+	markers.IngressName = ingName
+	markers.Path = path
+	markers.InfrasettingName = infraSettingName
+	return markers
+}
+func PopulateL4VSNodeMarkers(namespace, serviceName string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.ServiceName = serviceName
+	return markers
+}
+func PopulateAdvL4VSNodeMarkers(namespace, gatewayName string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.GatewayName = gatewayName
+	return markers
+}
+func PopulateAdvL4PoolNodeMarkers(namespace, svcName, gatewayName string, port int) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.GatewayName = gatewayName
+	markers.ServiceName = svcName
+	markers.Port = strconv.Itoa(port)
+	return markers
+}
+func PopulatePGNodeMarkers(namespace, host, ingName, path, infraSettingName string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.Host = host
+	markers.Path = path
+	markers.IngressName = ingName
+	markers.InfrasettingName = infraSettingName
+	return markers
+}
+func PopulateTLSKeyCertNode(host, infraSettingName string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Host = host
+	markers.InfrasettingName = infraSettingName
+	return markers
+}
+func PopulateL4PoolNodeMarkers(namespace, svcName, port string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.ServiceName = svcName
+	markers.Port = port
+	return markers
+}
 func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Clientset) ([]string, error) {
 	allInformers := []string{
 		utils.ServiceInformer,
@@ -775,7 +882,7 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 	return allInformers, nil
 }
 
-func SSLKeyCertChecksum(sslName, certificate, cacert string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+func SSLKeyCertChecksum(sslName, certificate, cacert string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	checksum := utils.Hash(sslName + certificate + cacert)
 	if GetGRBACSupport() {
 		if populateCache {
@@ -784,12 +891,12 @@ func SSLKeyCertChecksum(sslName, certificate, cacert string, markers []*models.R
 			}
 			return checksum
 		}
-		checksum += GetClusterLabelChecksum()
+		checksum += GetMarkersChecksum(ingestionMarkers)
 	}
 	return checksum
 }
 
-func L4PolicyChecksum(ports []int64, protocol string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+func L4PolicyChecksum(ports []int64, protocol string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	var portsInt []int
 	for _, port := range ports {
 		portsInt = append(portsInt, int(port))
@@ -803,7 +910,7 @@ func L4PolicyChecksum(ports []int64, protocol string, markers []*models.RoleFilt
 			}
 			return checksum
 		}
-		checksum += GetClusterLabelChecksum()
+		checksum += GetMarkersChecksum(ingestionMarkers)
 	}
 	return checksum
 }
@@ -902,6 +1009,33 @@ func GetLabels() []*models.KeyValue {
 }
 
 // GetMarkers returns the key values pair used for tagging the segroups and routes in vrfcontext
+func GetAllMarkers(markers utils.AviObjectMarkers) []*models.RoleFilterMatchLabel {
+	clusterName := GetClusterName()
+	labelKey := SeGroupLabelKey
+	rfml := &models.RoleFilterMatchLabel{
+		Key:    &labelKey,
+		Values: []string{clusterName},
+	}
+	rfmls := []*models.RoleFilterMatchLabel{}
+	rfmls = append(rfmls, rfml)
+
+	vals := reflect.ValueOf(markers)
+
+	typeOfVals := vals.Type()
+
+	for i := 0; i < vals.NumField(); i++ {
+		if vals.Field(i).Interface() != "" {
+			field := typeOfVals.Field(i).Name
+			value := vals.Field(i).Interface()
+			rfml = &models.RoleFilterMatchLabel{
+				Key:    &field,
+				Values: []string{value.(string)},
+			}
+			rfmls = append(rfmls, rfml)
+		}
+	}
+	return rfmls
+}
 func GetMarkers() []*models.RoleFilterMatchLabel {
 	clusterName := GetClusterName()
 	labelKey := ClusterNameLabelKey

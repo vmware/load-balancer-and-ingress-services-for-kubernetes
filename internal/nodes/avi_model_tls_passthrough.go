@@ -104,6 +104,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 
 	// only add the pg node if not presesnt in the VS
 	if !utils.HasElem(secureSharedVS.PoolGroupRefs, pgNode) {
+		pgNode.AttachedToSharedVS = secureSharedVS.SharedVS
 		secureSharedVS.PoolGroupRefs = append(secureSharedVS.PoolGroupRefs, pgNode)
 	}
 	if !utils.HasElem(dsNode.PoolGroupRefs, pgName) {
@@ -155,6 +156,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				poolNode.Servers = servers
 			}
 		}
+		poolNode.AttachedWithSharedVS = true
 		poolNode.CalculateCheckSum()
 		tmpPoolList = append(tmpPoolList, poolNode)
 	}
@@ -173,7 +175,6 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		ratio := poolNode.ServiceMetadata.PoolRatio
 		poolRef := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &poolRef, Ratio: &ratio})
-
 	}
 
 	// Check and create insecure shared VS for passthrough
@@ -199,6 +200,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 			ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
 			NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
 			PortProto:          []AviPortHostProtocol{{Port: 80, Protocol: utils.HTTP}},
+			SharedVS:           true,
 		}
 
 		passChildVS.VSVIPRefs = append(passChildVS.VSVIPRefs, secureSharedVS.VSVIPRefs...)
@@ -231,7 +233,7 @@ func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode
 func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key string, removeFqdn, removeRedir, secure bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
-	pgName := lib.GetClusterName() + "--" + hostname
+	pgName := lib.Encode(lib.GetClusterName()+"--"+hostname, lib.PassthroughPG)
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
 		return

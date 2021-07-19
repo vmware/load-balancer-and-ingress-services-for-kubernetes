@@ -44,7 +44,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	hps := avimodels.L4PolicySet{Name: &name,
 		CreatedBy: &cr, TenantRef: &tenant}
 	if lib.GetGRBACSupport() {
-		hps.Markers = lib.GetMarkers()
+		hps.Markers = lib.GetAllMarkers(hps_meta.AviMarkers)
 	}
 	var idx int32
 	idx = 0
@@ -187,12 +187,14 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 			pool := strings.TrimPrefix(*rule.Action.SelectPool.PoolRef, "/api/pool?name=")
 			pools = append(pools, pool)
 		}
-
+		emptyIngestionMarkers := utils.AviObjectMarkers{}
+		//This is fetching data from response send at avi controller.
+		cksum := lib.L4PolicyChecksum(ports, protocol, emptyIngestionMarkers, l4policyset.Markers, true)
 		l4_cache_obj := avicache.AviL4PolicyCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			LastModified:     lastModifiedStr,
 			Pools:            pools,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, nil, false),
+			CloudConfigCksum: cksum,
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}

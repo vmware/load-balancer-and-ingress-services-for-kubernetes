@@ -381,6 +381,7 @@ type AviVsNode struct {
 	SSLProfileRef         string
 	VsDatascriptRefs      []string
 	SSLKeyCertAviRef      string
+	AviMarkers            utils.AviObjectMarkers
 }
 
 // Implementing AviVsEvhSniModel
@@ -771,7 +772,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 	}
 
 	if lib.GetGRBACSupport() {
-		checksum += lib.GetClusterLabelChecksum()
+		checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	}
 
 	if v.EnableRhi != nil {
@@ -799,6 +800,7 @@ type AviL4PolicyNode struct {
 	Tenant           string
 	CloudConfigCksum uint32
 	PortPool         []AviHostPathPortPoolPG
+	AviMarkers       utils.AviObjectMarkers
 }
 
 func (v *AviL4PolicyNode) GetCheckSum() uint32 {
@@ -815,7 +817,7 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 		ports = append(ports, int64(hpp.Port))
 	}
 	if len(v.PortPool) > 0 {
-		checksum = lib.L4PolicyChecksum(ports, v.PortPool[0].Protocol, nil, false)
+		checksum = lib.L4PolicyChecksum(ports, v.PortPool[0].Protocol, v.AviMarkers, nil, false)
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -839,13 +841,15 @@ func (v *AviL4PolicyNode) CopyNode() AviModelNode {
 }
 
 type AviHttpPolicySetNode struct {
-	Name             string
-	Tenant           string
-	CloudConfigCksum uint32
-	HppMap           []AviHostPathPortPoolPG
-	RedirectPorts    []AviRedirectPort
-	HeaderReWrite    *AviHostHeaderRewrite
-	SecurityRules    []AviHTTPSecurity
+	Name               string
+	Tenant             string
+	CloudConfigCksum   uint32
+	HppMap             []AviHostPathPortPoolPG
+	RedirectPorts      []AviRedirectPort
+	HeaderReWrite      *AviHostHeaderRewrite
+	SecurityRules      []AviHTTPSecurity
+	AviMarkers         utils.AviObjectMarkers
+	AttachedToSharedVS bool
 }
 
 func (v *AviHttpPolicySetNode) GetCheckSum() uint32 {
@@ -874,8 +878,8 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	if v.HeaderReWrite != nil {
 		checksum = checksum + utils.Hash(utils.Stringify(v.HeaderReWrite))
 	}
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() && !v.AttachedToSharedVS {
+		checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -934,11 +938,12 @@ type AviTLSKeyCertNode struct {
 	CACert           string
 	Port             int32
 	Type             string
+	AviMarkers       utils.AviObjectMarkers
 }
 
 func (v *AviTLSKeyCertNode) CalculateCheckSum() {
 	// A sum of fields for this SSL cert.
-	checksum := lib.SSLKeyCertChecksum(v.Name, string(v.Cert), v.CACert, nil, false)
+	checksum := lib.SSLKeyCertChecksum(v.Name, string(v.Cert), v.CACert, v.AviMarkers, nil, false)
 	v.CloudConfigCksum = checksum
 }
 
@@ -1017,10 +1022,6 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 		checksum += utils.Hash(utils.Stringify(vipNetworkStringList))
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetClusterLabelChecksum()
-	}
-
 	if len(v.BGPPeerLabels) > 0 {
 		sort.Strings(v.BGPPeerLabels)
 		checksum += utils.Hash(utils.Stringify(v.BGPPeerLabels))
@@ -1057,6 +1058,8 @@ type AviPoolGroupNode struct {
 	Members               []*avimodels.PoolGroupMember
 	Port                  string
 	ImplicitPriorityLabel bool
+	AviMarkers            utils.AviObjectMarkers
+	AttachedToSharedVS    bool
 }
 
 func (v *AviPoolGroupNode) GetCheckSum() uint32 {
@@ -1072,8 +1075,8 @@ func (v *AviPoolGroupNode) CalculateCheckSum() {
 		return *pgMembers[i].PoolRef < *pgMembers[j].PoolRef
 	})
 	checksum := utils.Hash(utils.Stringify(pgMembers))
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() && !v.AttachedToSharedVS {
+		checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -1170,6 +1173,7 @@ type AviPkiProfileNode struct {
 	Tenant           string
 	CloudConfigCksum uint32
 	CACert           string
+	AviMarkers       utils.AviObjectMarkers
 }
 
 func (v *AviPkiProfileNode) GetCheckSum() uint32 {
@@ -1179,7 +1183,7 @@ func (v *AviPkiProfileNode) GetCheckSum() uint32 {
 }
 
 func (v *AviPkiProfileNode) CalculateCheckSum() {
-	checksum := lib.SSLKeyCertChecksum(v.Name, "", v.CACert, nil, false)
+	checksum := lib.SSLKeyCertChecksum(v.Name, "", v.CACert, v.AviMarkers, nil, false)
 	v.CloudConfigCksum = checksum
 }
 
@@ -1205,7 +1209,8 @@ type AviPoolNode struct {
 	ApplicationPersistence string
 	VrfContext             string
 	T1Lr                   string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
-	Markers                map[string]string
+	AviMarkers             utils.AviObjectMarkers
+	AttachedWithSharedVS   bool
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1263,8 +1268,8 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksum += utils.Hash(v.ApplicationPersistence)
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetClusterLabelChecksum()
+	if lib.GetGRBACSupport() && !v.AttachedWithSharedVS {
+		checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	}
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)

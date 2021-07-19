@@ -44,8 +44,8 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	pg := avimodels.PoolGroup{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &pg_meta.ImplicitPriorityLabel}
 
-	if lib.GetGRBACSupport() {
-		pg.Markers = lib.GetMarkers()
+	if lib.GetGRBACSupport() && !pg_meta.AttachedToSharedVS {
+		pg.Markers = lib.GetAllMarkers(pg_meta.AviMarkers)
 	}
 
 	var path string

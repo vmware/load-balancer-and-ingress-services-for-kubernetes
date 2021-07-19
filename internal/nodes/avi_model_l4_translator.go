@@ -17,6 +17,7 @@ package nodes
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -69,7 +70,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	} else {
 		avi_vs_meta.VrfContext = vrfcontext
 	}
-
+	avi_vs_meta.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
 	isTCP := false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
@@ -157,7 +158,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 				poolNode.Servers = servers
 			}
 		}
-
+		poolNode.AviMarkers = lib.PopulateL4PoolNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, strconv.Itoa(int(filterPort)))
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		portPool := AviHostPathPortPoolPG{Port: uint32(filterPort), Pool: pool_ref, Protocol: portProto.Protocol}
 		portPoolSet = append(portPoolSet, portPool)
@@ -166,6 +167,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 	}
 	l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: lib.GetTenant(), PortPool: portPoolSet}
+	l4policyNode.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
 	l4Policies = append(l4Policies, l4policyNode)
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))

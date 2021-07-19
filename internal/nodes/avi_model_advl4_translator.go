@@ -76,6 +76,10 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 		}
 
+		enableRhi := lib.GetEnableRHI()
+		avi_vs_meta.EnableRhi = &enableRhi
+		avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gatewayName)
+
 		isTCP, isUDP := false, false
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
@@ -185,6 +189,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		isTCP, isUDP := false, false
+		enableRhi := lib.GetEnableRHI()
+		avi_vs_meta.EnableRhi = &enableRhi
+		avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gatewayName)
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
 			portProto := strings.Split(listener, "/") // format: protocol/port
@@ -320,7 +327,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 				poolNode.Servers = servers
 			}
 		}
-
+		poolNode.AviMarkers = lib.PopulateAdvL4PoolNodeMarkers(namespace, svcNSName[1], gwName, port)
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		portPool := AviHostPathPortPoolPG{
 			Port:     uint32(port),
@@ -336,6 +343,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		Tenant:   lib.GetTenant(),
 		PortPool: portPoolSet,
 	}
+	l4policyNode.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gwName)
 	l4Policies = append(l4Policies, l4policyNode)
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
