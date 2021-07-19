@@ -1002,7 +1002,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		)
 	}
 
-	// Add CRD handlers HostRule/HTTPRule
+	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings
 	c.SetupAKOCRDEventHandlers(numWorkers)
 
 	//Add namespace event handler if migration is enabled and informer not nil
