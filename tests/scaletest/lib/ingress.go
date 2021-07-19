@@ -19,7 +19,6 @@ import (
 	"flag"
 	"strconv"
 	"testing"
-	"time"
 
 	appsV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
@@ -458,13 +457,13 @@ func DeletePod(podName string, namespace string) error {
 	return nil
 }
 
-func WaitForAKOPodReboot(t *testing.T, akoPodName string) {
+func WaitForAKOPodReboot(t *testing.T, akoPodName string) bool {
 	t.Logf("Waiting for AKO pod...")
 	pod, _ := coreV1Client.Pods(AVISYSTEM).Get(ctx, akoPodName, metaV1.GetOptions{})
 	if pod.Status.Phase != coreV1.PodRunning {
-		time.Sleep(5 * time.Second)
-		WaitForAKOPodReboot(t, akoPodName)
+		return false
 	}
+	return true
 }
 
 func KubeInit(kubeconfig string) {

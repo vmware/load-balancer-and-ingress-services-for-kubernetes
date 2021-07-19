@@ -294,11 +294,11 @@ func CompareVirtualServiceResources(t *testing.T, eventLog models.EventLog) bool
 	var new, old models.VirtualService
 	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
 	if err != nil {
-		t.Logf("Error unmarshalling data into VS. Error : %v", err)
+		t.Fatalf("Error unmarshalling data into VS. Error : %v", err)
 	}
 	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
 	if err != nil {
-		t.Logf("Error unmarshalling data into VS. Error : %v", err)
+		t.Fatalf("Error unmarshalling data into VS. Error : %v", err)
 	}
 	if *new.LastModified == *old.LastModified {
 		return true
@@ -325,11 +325,11 @@ func ComparePoolResources(t *testing.T, eventLog models.EventLog) bool {
 	var new, old models.Pool
 	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
 	if err != nil {
-		t.Logf("Error unmarshalling data into Pool. Error : %v", err)
+		t.Fatalf("Error unmarshalling data into Pool. Error : %v", err)
 	}
 	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
 	if err != nil {
-		t.Logf("Error unmarshalling data into Pool. Error : %v", err)
+		t.Fatalf("Error unmarshalling data into Pool. Error : %v", err)
 	}
 	if *new.LastModified == *old.LastModified {
 		return true
@@ -356,11 +356,11 @@ func ComparePoolGroupResources(t *testing.T, eventLog models.EventLog) bool {
 	var new, old models.PoolGroup
 	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
 	if err != nil {
-		t.Logf("Error unmarshalling data into PoolGroup. Error : %v", err)
+		t.Fatalf("Error unmarshalling data into PoolGroup. Error : %v", err)
 	}
 	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
 	if err != nil {
-		t.Logf("Error unmarshalling data into PoolGroup. Error : %v", err)
+		t.Fatalf("Error unmarshalling data into PoolGroup. Error : %v", err)
 	}
 
 	if *new.LastModified == *old.LastModified {
@@ -388,11 +388,11 @@ func CompareVsVipResources(t *testing.T, eventLog models.EventLog) bool {
 	var new, old models.VsVip
 	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
 	if err != nil {
-		t.Logf("Error unmarshalling data into VsVip. Error : %v", err)
+		t.Fatalf("Error unmarshalling data into VsVip. Error : %v", err)
 	}
 	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
 	if err != nil {
-		t.Logf("Error unmarshalling data into VsVip. Error : %v", err)
+		t.Fatalf("Error unmarshalling data into VsVip. Error : %v", err)
 	}
 	if *new.LastModified == *old.LastModified {
 		return true
@@ -405,6 +405,61 @@ func CompareVsVipResources(t *testing.T, eventLog models.EventLog) bool {
 		return false
 	}
 	// Genuine update of VsVip object
+	return true
+}
+
+func CompareHTTPPolicySet(t *testing.T, eventLog models.EventLog) bool {
+	var new, old models.HTTPPolicySet
+	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
+	if err != nil {
+		t.Fatalf("Error unmarshalling data into HttpPolicySet. Error : %v", err)
+	}
+	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
+	if err != nil {
+		t.Fatalf("Error unmarshalling data into HttpPolicySet. Error : %v", err)
+	}
+	if *new.LastModified == *old.LastModified {
+		return true
+	}
+	// Check if all fields other than LastModified are equal
+	// Set the LastModified field of Old HttpPolicySet to LastModified of New HttpPolicySet to Mask the difference from DeepEqual
+	old.LastModified = new.LastModified
+	if reflect.DeepEqual(new, old) {
+		// Old and New HttpPolicySet are same. Only the LastModified field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Check if all fields other than LastModified and CloudConfigCksum are equal
+	// Set the CloudConfigCksum field of Old HttpPolicySet to CloudConfigCksum of New HttpPolicySet to Mask the difference from DeepEqual
+	old.CloudConfigCksum = new.CloudConfigCksum
+	if reflect.DeepEqual(new, old) {
+		// Old and New HttpPolicySet are same. Only the LastModified and CloudConfigCksum field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Genuine update of HttpPolicySet object
+	return true
+}
+
+func CompareSSLKeyCertificate(t *testing.T, eventLog models.EventLog) bool {
+	var new, old models.SSLKeyAndCertificate
+	err := json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.NewResourceData)), &new)
+	if err != nil {
+		t.Fatalf("Error unmarshalling data into SSLKeyCertificate. Error : %v", err)
+	}
+	err = json.Unmarshal([]byte(CleanResourceData(*eventLog.EventDetails.ConfigUpdateDetails.OldResourceData)), &old)
+	if err != nil {
+		t.Fatalf("Error unmarshalling data into SSLKeyCertificate. Error : %v", err)
+	}
+	if *new.LastModified == *old.LastModified {
+		return true
+	}
+	// Check if all fields other than LastModified are equal
+	// Set the LastModified field of Old SSLKeyCertificate to LastModified of New SSLKeyCertificate to Mask the difference from DeepEqual
+	old.LastModified = new.LastModified
+	if reflect.DeepEqual(new, old) {
+		// Old and New SSLKeyCertificate are same. Only the LastModified field has been updated -> Unnecessary API call by AKO
+		return false
+	}
+	// Genuine update of SSLKeyCertificate object
 	return true
 }
 
@@ -429,11 +484,11 @@ func CheckForUnwantedAPICallsToController(t *testing.T, AviClient *clients.AviCl
 		t.Errorf("Get uri %v returned err for Event log %v", uri, err)
 	}
 	elems := make([]json.RawMessage, result.Count)
-	t.Logf("Found %d config updates", result.Count)
+	t.Logf("Found %d config updates between %s and %s", result.Count, start, end)
 
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		t.Errorf("Failed to unmarshal Event log data, err: %v", err)
+		t.Fatalf("Failed to unmarshal Event log data, err: %v", err)
 	}
 	for _, elem := range elems {
 		eventLog := models.EventLog{}
@@ -457,6 +512,14 @@ func CheckForUnwantedAPICallsToController(t *testing.T, AviClient *clients.AviCl
 			}
 		} else if *objectType == "VSVIP" {
 			if !CompareVsVipResources(t, eventLog) {
+				return false
+			}
+		} else if *objectType == "HTTPPOLICYSET" {
+			if !CompareHTTPPolicySet(t, eventLog) {
+				return false
+			}
+		} else if *objectType == "SSLKEYANDCERTIFICATE" {
+			if !CompareSSLKeyCertificate(t, eventLog) {
 				return false
 			}
 		}

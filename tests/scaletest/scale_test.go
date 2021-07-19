@@ -222,47 +222,40 @@ func FetchControllerTime(t *testing.T) string {
 }
 
 /* Used for Controller and Node reboot */
-func Reboot(t *testing.T, wg *sync.WaitGroup, nodeType string, vmIP string, username string, password string, trynum int) {
+func Reboot(t *testing.T, nodeType string, vmIP string, username string, password string, trynum int) {
 	if trynum < 5 {
 		t.Logf("Rebooting %s ... ", nodeType)
-		_, err := RemoteExecute(username, vmIP, password, "echo "+password+" | sudo -S shutdown --reboot 0 && exit")
+		_, err := RemoteExecute(username, vmIP, password, "echo "+password+" | sudo -S shutdown --reboot 0")
 		if err != nil {
 			t.Logf("Cannot reboot %s because : %v", nodeType, err.Error())
 			time.Sleep(10 * time.Second)
-			Reboot(t, wg, KUBENODE, vmIP, username, password, trynum+1)
+			Reboot(t, KUBENODE, vmIP, username, password, trynum+1)
 		} else {
 			t.Logf("%s Rebooted", nodeType)
-			defer wg.Done()
 			return
 		}
-	} else {
-		defer wg.Done()
 	}
 }
 
 /* Reboots AKO pod */
-func RebootAko(t *testing.T, wg *sync.WaitGroup) {
+func RebootAko(t *testing.T) {
 	t.Logf("Rebooting AKO pod %s of namespace %s ...", akoPodName, utils.GetAKONamespace())
 	err := lib.DeletePod(akoPodName, utils.GetAKONamespace())
 	if err != nil {
 		ExitWithErrorf(t, "Cannot reboot Ako pod as : %v", err)
 	}
-	t.Logf("Ako rebooted.")
-	defer wg.Done()
+	t.Logf("Ako rebooted")
 }
 
 /* Reboots Controller/Node/Ako if Reboot is set to true */
-func CheckReboot(t *testing.T, wg *sync.WaitGroup) {
+func CheckReboot(t *testing.T) {
 	if REBOOTAKO == true {
-		wg.Add(1)
-		go RebootAko(t, wg)
+		RebootAko(t)
 	}
 	if REBOOTCONTROLLER == true {
-		wg.Add(1)
-		go Reboot(t, wg, CONTROLLER, os.Getenv("CTRL_IPADDRESS"), os.Getenv("CTRL_USERNAME"), os.Getenv("CTRL_PASSWORD"), 0)
+		Reboot(t, CONTROLLER, os.Getenv("CTRL_IPADDRESS"), os.Getenv("CTRL_USERNAME"), os.Getenv("CTRL_PASSWORD"), 0)
 	}
 	if REBOOTNODE == true {
-		wg.Add(1)
 		var testbedParams lib.TestbedFields
 		testbed, err := os.Open(testbedFileName)
 		if err != nil {
@@ -276,10 +269,10 @@ func CheckReboot(t *testing.T, wg *sync.WaitGroup) {
 			os.Exit(0)
 		}
 		json.Unmarshal(byteValue, &testbedParams)
-		go Reboot(t, wg, KUBENODE, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password, 0)
+		Reboot(t, KUBENODE, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password, 0)
 		// Disable swap on the rebooted node
 		g := gomega.NewGomegaWithT(t)
-		time.Sleep(20 * time.Second)
+		t.Logf("Disable swap on the rebooted node")
 		g.Eventually(func() error {
 			_, err := RemoteExecute(testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password, "swapoff -a")
 			return err
@@ -521,7 +514,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	switch {
 	case ingressType == INSECURE:
 		t.Logf("Creating %d %s Ingresses Parallelly...", numOfIng, ingressType)
-		CheckReboot(t, &wg)
+		CheckReboot(t)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
 			if i+1 <= remIng {
@@ -534,7 +527,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		}
 	case ingressType == SECURE:
 		t.Logf("Creating %d %s Ingresses Parallelly...", numOfIng, ingressType)
-		CheckReboot(t, &wg)
+		CheckReboot(t)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
 			if i+1 <= remIng {
@@ -547,7 +540,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		}
 	case ingressType == MULTIHOST:
 		t.Logf("Creating %d %s Ingresses Parallelly...", numOfIng, ingressType)
-		CheckReboot(t, &wg)
+		CheckReboot(t)
 		for i := 0; i < numGoRoutines; i++ {
 			wg.Add(1)
 			if (i + 1) <= remIng {
@@ -597,7 +590,7 @@ func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	ingressesDeleted = []string{}
 	t.Logf("Deleting %d %s Ingresses...", numOfIng, ingressType)
 	nextStartInd := 0
-	CheckReboot(t, &wg)
+	CheckReboot(t)
 	for i := 0; i < numGoRoutines; i++ {
 		wg.Add(1)
 		if (i + 1) <= remIng {
@@ -629,7 +622,7 @@ func UpdateIngressesParallel(t *testing.T, numOfIng int) {
 	ingressesUpdated = []string{}
 	t.Logf("Updating %d %s Ingresses...", numOfIng, ingressType)
 	nextStartInd := 0
-	CheckReboot(t, &wg)
+	CheckReboot(t)
 	for i := 0; i < numGoRoutines; i++ {
 		wg.Add(1)
 		if (i + 1) <= remIng {
@@ -1123,17 +1116,21 @@ func TestServiceTypeLB(t *testing.T) {
 func TestUnwantedConfigUpdatesOnAkoReboot(t *testing.T) {
 	SetupForTesting(t)
 	g := gomega.NewGomegaWithT(t)
-	var wg sync.WaitGroup
-	wg.Add(1)
 	// Fetch the controller time before AKO reboot
 	// Use this time as sometimes the time on the controller and test client might be out of sync
 	startTime := FetchControllerTime(t)
-	RebootAko(t, &wg)
-	lib.WaitForAKOPodReboot(t, akoPodName)
-	// Wait for 2 min for AKO to sync
-	time.Sleep(2 * time.Minute)
-	endTime := FetchControllerTime(t)
-	res := lib.CheckForUnwantedAPICallsToController(t, AviClients[0], startTime, endTime)
-	g.Expect(res).To(gomega.BeTrue())
+	RebootAko(t)
+	g.Eventually(func() bool {
+		time.Sleep(10 * time.Second)
+		podRunning := lib.WaitForAKOPodReboot(t, akoPodName)
+		return podRunning
+	}, 100).Should(gomega.BeTrue())
+	t.Logf("AKO pod is running")
+	g.Consistently(func() bool {
+		endTime := FetchControllerTime(t)
+		res := lib.CheckForUnwantedAPICallsToController(t, AviClients[0], startTime, endTime)
+		startTime = endTime
+		return res
+	}, 2*time.Minute, "30s").Should(gomega.BeTrue())
 	t.Logf("No redundant/unwanted API calls found on AKO reboot")
 }
