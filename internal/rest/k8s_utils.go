@@ -115,8 +115,9 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		status.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
 	} else {
 		status.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
-		status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+		if !lib.GetLayer7Only() {
+			status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+		}
 	}
 	utils.AviLog.Infof("Status syncing completed")
-	return
 }
