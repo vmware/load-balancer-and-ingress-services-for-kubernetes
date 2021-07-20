@@ -31,7 +31,6 @@ import (
 	avimodels "github.com/avinetworks/sdk/go/models"
 	"github.com/davecgh/go-spew/spew"
 	"google.golang.org/protobuf/proto"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const VSVIP_NOTFOUND = "VsVip object not found"
@@ -435,7 +434,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(k)
 		var vs_cache_obj *avicache.AviVsCache
 		var found bool
-		var staleServiceNSNames []string
 		if ok {
 			vs_cache_obj, found = vs_cache.(*avicache.AviVsCache)
 			if found {
@@ -459,17 +457,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
-
-				// We must delete status for services that are no longer part of the gateway VS.
-				// before: [svc1, svc2, svc3] after: [svc1 svc2 svc4], stale: [svc3], delete status for svc3.
-				if vs_cache_obj.ServiceMetadataObj.Gateway != "" {
-					old := sets.NewString(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName...)
-					new := sets.NewString(svc_mdata_obj.NamespaceServiceName...)
-					staleServiceNSNameSet := old.Difference(new)
-					for svcNsName := range staleServiceNSNameSet {
-						staleServiceNSNames = append(staleServiceNSNames, svcNsName)
-					}
-				}
 
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
 				if val, ok := resp["enable_rhi"].(bool); ok {
@@ -559,21 +546,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		}
 
 		if svc_mdata_obj.Gateway != "" {
-			if len(staleServiceNSNames) > 0 {
-				utils.AviLog.Infof("key: %s, msg: Services %v no longer part of the gateway VS %s", key, staleServiceNSNames, svc_mdata_obj.Gateway)
-				updateOptions := status.UpdateOptions{
-					ServiceMetadata:    avicache.ServiceMetadataObj{NamespaceServiceName: staleServiceNSNames},
-					Key:                key,
-					VirtualServiceUUID: vs_cache_obj.Uuid,
-				}
-				statusOption := status.StatusOptions{
-					ObjType: utils.L4LBService,
-					Op:      lib.DeleteStatus,
-					Options: &updateOptions,
-				}
-				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
-			}
-
 			updateOptions := status.UpdateOptions{
 				Vip:             vs_cache_obj.Vip,
 				ServiceMetadata: svc_mdata_obj,
