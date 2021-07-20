@@ -77,7 +77,7 @@ func GetNamePrefix() string {
 }
 
 func Encode(s, objType string) string {
-	if !IsEvhEnabled() {
+	if !IsEvhEnabled() || GetAdvancedL4() {
 		CheckObjectNameLength(s, objType)
 		return s
 	}
