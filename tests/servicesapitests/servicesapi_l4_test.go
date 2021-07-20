@@ -478,7 +478,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 20*time.Second).Should(gomega.Equal("10.250.250.250"))
 
 	gwUpdate := FakeGateway{
 		Name: gatewayName, Namespace: ns, GWClass: gwClassName,

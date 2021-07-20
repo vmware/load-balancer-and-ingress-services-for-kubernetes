@@ -229,10 +229,13 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		port, _ := utilsnet.ParsePort(portProto[1], true)
 
 		poolNode := &AviPoolNode{
-			Name:       lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, int32(port)),
-			Tenant:     lib.GetTenant(),
-			Protocol:   portProto[0],
-			PortName:   "",
+			Name:     lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, int32(port)),
+			Tenant:   lib.GetTenant(),
+			Protocol: portProto[0],
+			PortName: "",
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				NamespaceServiceName: []string{svc[0]},
+			},
 			VrfContext: lib.GetVrf(),
 		}
 

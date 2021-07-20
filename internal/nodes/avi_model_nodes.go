@@ -1149,6 +1149,11 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	// nodeNetworkMap is the placement nw details for the pool which is constant for the AKO instance.
 	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 
+	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {
+		sort.Strings(v.ServiceMetadata.NamespaceServiceName)
+		utils.Stringify(v.ServiceMetadata.NamespaceServiceName)
+	}
+
 	// A sum of fields for this Pool.
 	chksumStr := fmt.Sprint(strings.Join([]string{
 		v.Protocol,
@@ -1162,6 +1167,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.SslProfileRef,
 		v.PriorityLabel,
 		utils.Stringify(nodeNetworkMap),
+		utils.Stringify(v.ServiceMetadata.NamespaceServiceName),
 	}[:], delim))
 
 	checksum := utils.Hash(chksumStr)
