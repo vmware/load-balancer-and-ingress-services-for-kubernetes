@@ -777,6 +777,9 @@ func (v *AviVsNode) CalculateCheckSum() {
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
 	}
+	for _, vsvipref := range v.VSVIPRefs {
+		checksum += utils.Hash(utils.Stringify(vsvipref.EnablePublicIP))
+	}
 
 	v.CloudConfigCksum = checksum
 }
