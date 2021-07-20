@@ -1066,27 +1066,15 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	// Disable all informers if we are in advancedL4 mode. We expect to only provide L4 load balancing capability for this feature.
 	if lib.GetAdvancedL4() {
 		go lib.GetAdvL4Informers().GatewayClassInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.GetAdvL4Informers().GatewayClassInformer.Informer().HasSynced)
 		go lib.GetAdvL4Informers().GatewayInformer.Informer().Run(stopCh)
-
-		if !cache.WaitForCacheSync(stopCh, lib.GetAdvL4Informers().GatewayClassInformer.Informer().HasSynced) {
-			runtime.HandleError(fmt.Errorf("Timed out waiting for GatewayClass caches to sync"))
-		}
-		if !cache.WaitForCacheSync(stopCh, lib.GetAdvL4Informers().GatewayInformer.Informer().HasSynced) {
-			runtime.HandleError(fmt.Errorf("Timed out waiting for Gateway caches to sync"))
-		}
-		utils.AviLog.Info("Service APIs v1alphapre1 caches synced")
+		informersList = append(informersList, lib.GetAdvL4Informers().GatewayInformer.Informer().HasSynced)
 	} else {
 		if lib.UseServicesAPI() {
 			go lib.GetSvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.GetSvcAPIInformers().GatewayClassInformer.Informer().HasSynced)
 			go lib.GetSvcAPIInformers().GatewayInformer.Informer().Run(stopCh)
-
-			if !cache.WaitForCacheSync(stopCh, lib.GetSvcAPIInformers().GatewayClassInformer.Informer().HasSynced) {
-				runtime.HandleError(fmt.Errorf("Timed out waiting for GatewayClass caches to sync"))
-			}
-			if !cache.WaitForCacheSync(stopCh, lib.GetSvcAPIInformers().GatewayInformer.Informer().HasSynced) {
-				runtime.HandleError(fmt.Errorf("Timed out waiting for Gateway caches to sync"))
-			}
-			utils.AviLog.Info("Service APIs caches synced")
+			informersList = append(informersList, lib.GetSvcAPIInformers().GatewayInformer.Informer().HasSynced)
 		}
 		if c.informers.IngressInformer != nil {
 			go c.informers.IngressInformer.Informer().Run(stopCh)
@@ -1111,27 +1099,20 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 
 		if lib.GetAviInfraSettingEnabled() {
 			go lib.GetCRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
-			if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().AviInfraSettingInformer.Informer().HasSynced) {
-				runtime.HandleError(fmt.Errorf("timed out waiting for AviInfraSettingInformer caches to sync"))
-			}
+			informersList = append(informersList, lib.GetCRDInformers().AviInfraSettingInformer.Informer().HasSynced)
 		}
 
 		// separate wait steps to try getting hostrules synced first,
 		// since httprule has a key relation to hostrules.
 		if lib.GetHostRuleEnabled() {
 			go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
-			if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced) {
-				runtime.HandleError(fmt.Errorf("timed out waiting for HostRule caches to sync"))
-			}
+			informersList = append(informersList, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced)
 		}
 
 		if lib.GetHttpRuleEnabled() {
 			go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
-			if !cache.WaitForCacheSync(stopCh, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced) {
-				runtime.HandleError(fmt.Errorf("timed out waiting for HTTPRule caches to sync"))
-			}
+			informersList = append(informersList, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced)
 		}
-		utils.AviLog.Info("CRD caches synced")
 	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {

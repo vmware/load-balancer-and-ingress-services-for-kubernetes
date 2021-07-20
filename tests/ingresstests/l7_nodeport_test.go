@@ -269,7 +269,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 }
 
 // TestMultiIngressToSameNodePortSvcInNodePort tests if multiple ingresses referring to same nodeport service
-// nodeIP should be set in backed server, and pool's port is set to nodePort.
+// nodeIP should be set in backend server, and pool's port is set to nodePort.
 func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.SetNodePortMode()
@@ -425,7 +425,7 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 }
 
 // TestMultiVSIngressInNodePort tests multiple ingresses creation
-// nodeIP should be set in backed server, and pool's port is set to nodePort.
+// nodeIP should be set in backend server, and pool's port is set to nodePort.
 func TestMultiVSIngressInNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 

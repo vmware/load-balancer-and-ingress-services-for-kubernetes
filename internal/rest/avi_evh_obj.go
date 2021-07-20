@@ -171,7 +171,7 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 		found := utils.HasElem(cache_sni_nodes, sni_key)
 		utils.AviLog.Debugf("key: %s, msg: processing node key: %v", key, sni_key)
 		if found && cache_sni_nodes != nil {
-			cache_sni_nodes = Remove(cache_sni_nodes, sni_key)
+			cache_sni_nodes = avicache.RemoveNamespaceName(cache_sni_nodes, sni_key)
 			utils.AviLog.Debugf("key: %s, msg: the cache evh nodes are: %v", key, cache_sni_nodes)
 			sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 			if sni_cache_obj != nil {

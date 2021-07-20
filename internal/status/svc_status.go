@@ -162,7 +162,7 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 			utils.AviLog.Warnf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 			return err
 		}
-		utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s", key, svc_mdata_obj.NamespaceServiceName[0])
+		utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s", key, service)
 
 		err = deleteSvcAnnotation(updatedSvc)
 		if err != nil {

@@ -235,7 +235,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 	}
 }
 
-func isGatewayDelete(gatewayKey string, key string) bool {
+func isGatewayDelete(gatewayKey, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
 	if lib.GetAdvancedL4() {
@@ -256,16 +256,17 @@ func isGatewayDelete(gatewayKey string, key string) bool {
 			return true
 		}
 	} else if lib.UseServicesAPI() {
-		//If namespace is not accepted, return true to delete model
+		// If namespace is not accepted, return true to delete model
 		if !utils.CheckIfNamespaceAccepted(namespace) {
 			return true
 		}
+
 		gateway, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && errors.IsNotFound(err) {
 			return true
 		}
 
-		// check if deletiontimesttamp is present to see intended delete
+		// check if deletiontimestamp is present to see intended delete
 		if gateway.GetDeletionTimestamp() != nil {
 			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
 			return true
@@ -439,10 +440,10 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 
 }
 
-func PublishKeyToRestLayer(model_name string, key string, sharedQueue *utils.WorkerQueue) {
-	bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
-	sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
-	utils.AviLog.Infof("key: %s, msg: Published key with model_name: %s", key, model_name)
+func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.WorkerQueue) {
+	bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
+	sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
+	utils.AviLog.Infof("key: %s, msg: Published key with modelName: %s", key, modelName)
 
 }
 

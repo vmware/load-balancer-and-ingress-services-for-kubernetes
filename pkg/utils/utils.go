@@ -312,6 +312,15 @@ func Remove(arr []string, item string) []string {
 	return arr
 }
 
+func RemoveNamespaceName(s []NamespaceName, r NamespaceName) []NamespaceName {
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
+		}
+	}
+	return s
+}
+
 var globalNSFilterObj *K8ValidNamespaces = &K8ValidNamespaces{}
 
 func GetGlobalNSFilter() *K8ValidNamespaces {
