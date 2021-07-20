@@ -154,7 +154,7 @@ func TestShardObjectsForEvh(t *testing.T) {
 	g.Expect(nodes[0].SSLKeyCertRefs).Should(gomega.HaveLen(1))
 	// There will be 2 evh node one for each host
 	g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(2))
-	g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-noo.com", lib.EVHNode)))
+	g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--noo.com", lib.EVHNode)))
 	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-noo.com_foo_bar-foo-with-targets", lib.PG)))
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-noo.com_foo_bar-foo-with-targets-avisvc", lib.Pool)))
 	// Shared VS in EVH will not have any certificates and httppolicy
@@ -162,14 +162,14 @@ func TestShardObjectsForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-noo.com_foo_bar-foo-with-targets", lib.HTTPPS)))
 
-	g.Expect(nodes[0].EvhNodes[1].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
+	g.Expect(nodes[0].EvhNodes[1].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
 	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo_bar-foo-with-targets", lib.PG)))
 	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo_bar-foo-with-targets-avisvc", lib.Pool)))
 	// since foo is bound with cert this node will have the cert bound to it
 	g.Expect(nodes[0].EvhNodes[1].SSLKeyCertRefs).Should(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs).Should(gomega.HaveLen(2))
 	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo_bar-foo-with-targets", lib.HTTPPS)))
-	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs[1].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.HTTPPS)))
+	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs[1].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.HTTPPS)))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
@@ -385,88 +385,6 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	}
 }
 
-func TestMultiVSIngressForEvh(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	modelName := "admin/cluster--Shared-L7-EVH-0"
-	SetUpTestForIngress(t, modelName)
-
-	ingrFake := (integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
-		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
-	}).Ingress()
-
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
-	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
-		g.Expect(len(dsNodes)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
-		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-foo-with-targets", lib.PG)))
-		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-foo-with-targets-avisvc", lib.Pool)))
-		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
-		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-foo-with-targets", lib.HTTPPS)))
-
-	} else {
-		t.Fatalf("Could not find model: %v", err)
-	}
-	randoming := (integrationtest.FakeIngress{
-		Name:        "randomNamespacethatyeildsdiff",
-		Namespace:   "randomNamespacethatyeildsdiff",
-		DnsNames:    []string{"foo.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
-	}).Ingress()
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("randomNamespacethatyeildsdiff").Create(context.TODO(), randoming, metav1.CreateOptions{})
-	integrationtest.PollForCompletion(t, modelName, 10)
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
-		g.Expect(len(dsNodes)).To(gomega.Equal(0))
-		g.Eventually(func() int {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-			return len(nodes[0].EvhNodes)
-		}, 10*time.Second).Should(gomega.Equal(2))
-
-	} else {
-		t.Fatalf("Could not find model: %v", err)
-	}
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("randomNamespacethatyeildsdiff").Delete(context.TODO(), "randomNamespacethatyeildsdiff", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
-	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
-	TearDownTestForIngress(t, modelName)
-}
-
 // TestMultiPathIngressForEvh in evh mode will validate if 2 evh nodes with host + path are created
 func TestMultiPathIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
@@ -498,7 +416,7 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(0))
 
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
@@ -565,7 +483,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
@@ -642,7 +560,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
@@ -974,7 +892,7 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
 		// Since there are two paths there will be single evh child with multiple http policies
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(2))
 
@@ -1020,7 +938,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-ingress-edit", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-ingress-edit-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
@@ -1056,7 +974,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_bar-ingress-edit", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_bar-ingress-edit-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
@@ -1326,7 +1244,7 @@ func TestNoHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--ingress-nohost.default.com", lib.EVHNode)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com_foo-ingress-nohost", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com_foo-ingress-nohost-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("ingress-nohost.default.com"))
@@ -1373,7 +1291,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--ingress-nohost.default.com", lib.EVHNode)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com_foo-ingress-nohost", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com_foo-ingress-nohost-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("ingress-nohost.default.com"))
@@ -1427,7 +1345,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-ingress-nohost", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-ingress-nohost-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))

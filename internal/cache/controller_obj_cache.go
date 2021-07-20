@@ -133,11 +133,37 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version str
 	return vsCacheCopy, allVsKeys, nil
 }
 
+//This function list EVH VS to be deleted which contain namespace in its name
+func (c *AviObjCache) listEVHChildrenToDelete(vs_cache_obj *AviVsCache, childUuids []string) (map[NamespaceName]bool, []string) {
+	childNSNameToDelete := make(map[NamespaceName]bool)
+	var childUuidToDelete []string
+	for _, childUuid := range childUuids {
+		childKey, childFound := c.VsCacheLocal.AviCacheGetKeyByUuid(childUuid)
+		if childFound {
+			childVSKey := childKey.(NamespaceName)
+			childObj, _ := c.VsCacheLocal.AviCacheGet(childVSKey)
+			child_cache_obj, vs_found := childObj.(*AviVsCache)
+			if vs_found && !lib.IsNameEncoded(child_cache_obj.Name) {
+				//In EVH: Encoding of object names done in 2nd release of EVH
+				childNSNameToDelete[childVSKey] = true
+				vs_cache_obj.RemoveFromSNIChildCollection(childUuid)
+				childUuidToDelete = append(childUuidToDelete, childUuid)
+			}
+		}
+	}
+	return childNSNameToDelete, childUuidToDelete
+}
+
 func (c *AviObjCache) PopulateVsMetaCache() {
 	// The vh_child_uuids field is used to populate the SNI children during cache population. However, due to the datastore to PG delay - that field may
 	// not always be accurate. We would reduce the problem with accuracy by refreshing the SNI cache through reverse mapping sni's to parent
 	// Go over the entire VS cache.
 	parentVsKeys := c.VsCacheLocal.AviCacheGetAllParentVSKeys()
+
+	isEVHEnabled := lib.IsEvhEnabled()
+	var childNSNameToDelete map[NamespaceName]bool
+	var childUuidToDelete []string
+
 	for _, pvsKey := range parentVsKeys {
 		// For each parentVs get the SNI children
 		sniChildUuids := c.VsCacheLocal.AviCacheGetAllChildVSForParent(pvsKey)
@@ -148,17 +174,25 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 			vs_cache_obj, foundvs := vsObj.(*AviVsCache)
 			if foundvs {
 				vs_cache_obj.ReplaceSNIChildCollection(sniChildUuids)
+
+				if isEVHEnabled {
+					childNSNameToDelete, childUuidToDelete = c.listEVHChildrenToDelete(vs_cache_obj, sniChildUuids)
+				}
+
 			}
 		}
 	}
 	// Now write lock and copy over all VsCacheMeta and copy the right cache from local
 	allVsKeys := c.VsCacheLocal.AviGetAllKeys()
 	for _, vsKey := range allVsKeys {
+		deleteVS := childNSNameToDelete[vsKey]
 		vsObj, vsFound := c.VsCacheLocal.AviCacheGet(vsKey)
 		if vsFound {
 			vs_cache_obj, foundvs := vsObj.(*AviVsCache)
 			if foundvs {
-				c.MarkReference(vs_cache_obj)
+				if !deleteVS {
+					c.MarkReference(vs_cache_obj)
+				}
 				vsCopy, done := vs_cache_obj.GetVSCopy()
 				if done {
 					c.VsCacheMeta.AviCacheAdd(vsKey, vsCopy)
@@ -167,7 +201,7 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 			}
 		}
 	}
-	c.DeleteUnmarked()
+	c.DeleteUnmarked(childUuidToDelete)
 }
 
 // MarkReference : check objects referred by a VS and mark they they have reference
@@ -233,7 +267,7 @@ func (c *AviObjCache) MarkReference(vsCacheObj *AviVsCache) {
 
 // DeleteUnmarked : Adds non referenced cached objects to a Dummy VS, which
 // would be used later to delete these objects from AVI Controller
-func (c *AviObjCache) DeleteUnmarked() {
+func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 
 	var dsKeys, vsVipKeys, httpKeys, sslKeys []NamespaceName
 	var pgKeys, poolKeys, l4Keys []NamespaceName
@@ -318,6 +352,7 @@ func (c *AviObjCache) DeleteUnmarked() {
 		PGKeyCollection:      pgKeys,
 		PoolKeyCollection:    poolKeys,
 		L4PolicyCollection:   l4Keys,
+		SNIChildCollection:   childCollection,
 	}
 	vsKey := NamespaceName{
 		Namespace: lib.GetTenant(),

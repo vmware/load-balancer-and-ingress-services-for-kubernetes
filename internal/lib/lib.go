@@ -87,6 +87,16 @@ func Encode(s, objType string) string {
 	CheckObjectNameLength(encodedStr, objType)
 	return encodedStr
 }
+func IsNameEncoded(name string) bool {
+	split := strings.Split(name, "--")
+	if len(split) == 2 {
+		_, err := hex.DecodeString(split[1])
+		if err == nil {
+			return true
+		}
+	}
+	return false
+}
 
 var DisableSync bool
 var layer7Only bool
@@ -309,12 +319,12 @@ func GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcN
 	return poolName
 }
 
-func GetEvhNodeName(ingName, namespace, host, infrasetting string) string {
+func GetEvhNodeName(ingName, host, infrasetting string) string {
 
 	if infrasetting != "" {
-		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host, EVHVS)
+		return Encode(NamePrefix+infrasetting+"-"+host, EVHVS)
 	}
-	return Encode(NamePrefix+namespace+"-"+host, EVHVS)
+	return Encode(NamePrefix+host, EVHVS)
 }
 
 func GetEvhPGName(ingName, namespace, host, path, infrasetting string) string {
