@@ -1,0 +1,250 @@
+{
+    "name": "ako-admin",
+    "privileges": [
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_VIRTUALSERVICE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_POOL"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_POOLGROUP"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_HTTPPOLICYSET"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_NETWORKSECURITYPOLICY"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_AUTOSCALE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_DNSPOLICY"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_NETWORKPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_APPLICATIONPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_APPLICATIONPERSISTENCEPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_HEALTHMONITOR"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ANALYTICSPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_IPAMDNSPROVIDERPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_CUSTOMIPAMDNSPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_TRAFFICCLONEPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_IPADDRGROUP"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_STRINGGROUP"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_VSDATASCRIPTSET"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_PROTOCOLPARSER"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_SSLPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_AUTHPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_PINGACCESSAGENT"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_PKIPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_SSLKEYANDCERTIFICATE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_CERTIFICATEMANAGEMENTPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_HARDWARESECURITYMODULEGROUP"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_SSOPOLICY"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_NATPOLICY"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_WAFPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_WAFPOLICY"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_WAFPOLICYPSMGROUP"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ERRORPAGEPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ERRORPAGEBODY"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ALERTCONFIG"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ALERT"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ACTIONGROUPCONFIG"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ALERTSYSLOGCONFIG"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ALERTEMAILCONFIG"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_SNMPTRAPPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_TRAFFIC_CAPTURE"
+      },
+      {
+        "type": "READ_ACCESS",
+        "resource": "PERMISSION_CLOUD"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_SERVICEENGINE"
+      },
+      {
+        "type": "WRITE_ACCESS",
+        "resource": "PERMISSION_SERVICEENGINEGROUP"
+      },
+      {
+        "type": "READ_ACCESS",
+        "resource": "PERMISSION_NETWORK"
+      },
+      {
+        "type": "WRITE_ACCESS",
+        "resource": "PERMISSION_VRFCONTEXT"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_USER_CREDENTIAL"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_SYSTEMCONFIGURATION"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_CONTROLLER"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_REBOOT"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_UPGRADE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_TECHSUPPORT"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_INTERNAL"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_CONTROLLERSITE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_IMAGE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_USER"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_ROLE"
+      },
+      {
+        "type": "READ_ACCESS",
+        "resource": "PERMISSION_TENANT"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_GSLB"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_GSLBSERVICE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_GSLBGEODBPROFILE"
+      },
+      {
+        "type": "NO_ACCESS",
+        "resource": "PERMISSION_L4POLICYSET"
+      }
+    ]
+  }
+

@@ -1,0 +1,44 @@
+{
+    "Name": "Avi Controller",
+    "IsCustom": true,
+    "Description": "Custom Role for Avi Controller.",
+    "Actions": [
+      "Microsoft.Network/virtualNetworks/read",
+      "Microsoft.Network/virtualNetworks/checkIpAddressAvailability/read",
+      "Microsoft.Network/virtualNetworks/virtualNetworkPeerings/read",
+      "Microsoft.Network/virtualNetworks/subnets/read",
+      "Microsoft.Network/virtualNetworks/subnets/join/action",
+      "Microsoft.Network/virtualNetworks/subnets/virtualMachines/read",
+      "Microsoft.Network/virtualNetworks/virtualMachines/read",
+  
+      "Microsoft.Network/networkInterfaces/join/action",
+      "Microsoft.Network/networkInterfaces/read",
+      "Microsoft.Network/networkInterfaces/ipconfigurations/read",
+  
+      "Microsoft.Network/dnsZones/read",
+      "Microsoft.Network/dnsZones/A/*",
+      "Microsoft.Network/dnsZones/CNAME/*",
+  
+      "Microsoft.Compute/virtualMachines/read",
+      "Microsoft.Compute/virtualMachines/instanceView/read",
+  
+      "Microsoft.Compute/virtualMachineScaleSets/read",
+      "microsoft.Compute/virtualMachineScaleSets/*/read",
+  
+      "Microsoft.Resources/resources/read",
+      "Microsoft.Resources/subscriptions/resourcegroups/read",
+      "Microsoft.Resources/subscriptions/resourcegroups/resources/read",
+
+      "Microsoft.Network/routeTables/read",
+      "Microsoft.Network/routeTables/routes/read",
+      "Microsoft.Network/routeTables/routes/write",
+      "Microsoft.Network/routeTables/routes/delete"
+
+    ],
+    "NotActions": [
+  
+    ],
+    "AssignableScopes": [
+      "/subscriptions/<fill subscription-id>/"
+    ]
+  }
