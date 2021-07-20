@@ -45,6 +45,7 @@ const SUBDOMAIN = ".avi.internal"
 const SECRETNAME = "ingress-host-tls"
 const INGRESSAPIVERSION = "networking.k8s.io/v1"
 const PATHTYPE = "Prefix"
+const AVISYSTEM = "avi-system"
 
 func CreateApp(appName string, namespace string, replica int) error {
 	deploymentSpec := &appsV1.Deployment{
@@ -454,6 +455,15 @@ func DeletePod(podName string, namespace string) error {
 		return err
 	}
 	return nil
+}
+
+func WaitForAKOPodReboot(t *testing.T, akoPodName string) bool {
+	t.Logf("Waiting for AKO pod...")
+	pod, _ := coreV1Client.Pods(AVISYSTEM).Get(ctx, akoPodName, metaV1.GetOptions{})
+	if pod.Status.Phase != coreV1.PodRunning {
+		return false
+	}
+	return true
 }
 
 func KubeInit(kubeconfig string) {
