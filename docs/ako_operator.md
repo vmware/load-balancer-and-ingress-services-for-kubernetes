@@ -111,7 +111,7 @@ The following table lists the configurable parameters of the AKO chart and their
 
 ### AKOConfig Custom Resource
 
-AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](AKOConfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
+AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
 
 #### Deploying the AKO Controller
 
