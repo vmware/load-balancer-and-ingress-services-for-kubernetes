@@ -1615,7 +1615,7 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 			vsvip.BGPPeerLabels = nil
 		}
 
-		if vsvip.VipNetworks != nil && len(vsvip.VipNetworks) > 0 {
+		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
 			vsvip.VipNetworks = infraSetting.Spec.Network.VipNetworks
 		} else {
 			if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
@@ -1624,8 +1624,13 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 				vsvip.VipNetworks = vipNetworks
 			}
 		}
+		enablePublicIP := false
+		if infraSetting.Spec.Network.EnablePublicIP != nil && lib.IsPublicCloud() {
+			enablePublicIP = *infraSetting.Spec.Network.EnablePublicIP
+		}
+		vsvip.EnablePublicIP = enablePublicIP
+		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
-	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 }
 
 func manipulateEvhNodeForSSL(vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {

@@ -120,7 +120,6 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == advl4v1alpha1pre1.IPAddressType {
 			vsVipNode.IPAddress = gw.Spec.Addresses[0].Value
 		}
-
 		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 		return avi_vs_meta
 	}
