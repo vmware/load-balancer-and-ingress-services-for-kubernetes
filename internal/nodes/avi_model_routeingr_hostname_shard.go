@@ -93,13 +93,13 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 	hostsMap := make(map[string]*objects.RouteIngrhost)
 
 	if lib.IsEvhEnabled() {
+		// delete stale data
+		DeleteStaleDataForEvh(routeIgrObj, key, &modelList, Storedhosts, hostsMap)
 		// Process insecure hosts
 		ProcessInsecureHostsForEVH(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
 		// process secure hosts
 		ProcessSecureHostsForEVH(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap, fullsync, sharedQueue)
 		ProcessPassthroughHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
-		// delete stale data
-		DeleteStaleDataForEvh(routeIgrObj, key, &modelList, Storedhosts, hostsMap)
 		// hostNamePathStore cache operation
 		_, oldHostMap := routeIgrObj.GetSvcLister().IngressMappings(namespace).GetRouteIngToHost(objname)
 		updateHostPathCache(namespace, objname, oldHostMap, hostsMap)
