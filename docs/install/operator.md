@@ -71,7 +71,7 @@ To uninstall the AKO operator and the AKO controller, use the following steps:
 
 ## Parameters
 
-The following table lists the configurable parameters of the AKO chart and their default values. Please refer to this link for more details on [each parameter](values.md).
+The following table lists the configurable parameters of the AKO chart and their default values. Please refer to this link for more details on [each parameter](../values.md).
 
 | **Parameter** | **Description** | **Default** |
 | --- | --- | --- |
@@ -105,7 +105,7 @@ The following table lists the configurable parameters of the AKO chart and their
 
 ### AKOConfig Custom Resource
 
-AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](AKOConfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
+AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
 
 #### Deploying the AKO Controller
 

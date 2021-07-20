@@ -67,7 +67,7 @@ Please refer to this [page](ako_tenancy.md) for support in AKO to map each kuber
 
 ### Networking/v1 Ingress Support
 
-Please refer to this [page](ingress/README.md) for details on how AKO supports and implements networking/v1 Ingress and IngressClass.
+Please refer to this [page](ingress/ingress.md) for details on how AKO supports and implements networking/v1 Ingress and IngressClass.
 
 ### AKO objects
 

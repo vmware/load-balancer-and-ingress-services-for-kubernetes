@@ -39,4 +39,6 @@ AKO categorizes the CRDs in the following buckets:
   
 2. __Layer 4__: These CRD objects are used to express layer 4 trafffic routing rules. (Unreleased)
 
-3. __Infrastructure__: These CRD objects are used to control Avi's infrastructure components like Ingress Class, SE group properties etc. (Unreleased)
+3. __Infrastructure__: These CRD objects are used to control Avi's infrastructure components like Ingress Class, SE group properties etc. 
+
+    * [AviInfraSetting](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/avinfrasetting.md)
