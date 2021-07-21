@@ -97,9 +97,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
 		vs.TenantRef = &tenant
-		if lib.GetGRBACSupport() {
-			vs.Markers = lib.GetMarkers()
-		}
 		if vs_meta.SNIParent {
 			// This is a SNI parent
 			utils.AviLog.Debugf("key: %s, msg: vs %s is a SNI Parent", key, vs_meta.Name)
@@ -149,6 +146,9 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			// This is a passthrough secure VS, we want the VS to be down if all the pools are down.
 			vsDownOnPoolDown := true
 			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
+		}
+		if lib.GetGRBACSupport() && !vs_meta.SharedVS {
+			vs.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
 		}
 		if len(vs_meta.L4PolicyRefs) > 0 {
 			vsDownOnPoolDown := true
@@ -238,7 +238,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	ignPool := false
 	sniChild.IgnPoolNetReach = &ignPool
 	if lib.GetGRBACSupport() {
-		sniChild.Markers = lib.GetMarkers()
+		sniChild.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
 	}
 	if vs_meta.DefaultPool != "" {
 		pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool

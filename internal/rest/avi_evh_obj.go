@@ -277,9 +277,6 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		if enableRhi {
 			vs.EnableRhi = &enableRhi
 		}
-		if lib.GetGRBACSupport() {
-			vs.Markers = lib.GetMarkers()
-		}
 		if vs_meta.DefaultPoolGroup != "" {
 			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
 			vs.PoolGroupRef = &pool_ref
@@ -432,7 +429,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	evhChild.VhMatches = vhMatches
 	if lib.GetGRBACSupport() {
-		evhChild.Markers = lib.GetMarkers()
+		evhChild.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
 	}
 	if vs_meta.DefaultPool != "" {
 		pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool

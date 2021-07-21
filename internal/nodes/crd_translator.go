@@ -194,9 +194,9 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsE
 			insecureRgx := regexp.MustCompile(fmt.Sprintf(`^%s%s.*-%s-%s`, lib.GetNamePrefix(), host+pathPrefix, rrNamespace, ingName))
 			var poolName string
 			//FOR EVH: Build poolname using marker fields.
-			if lib.IsEvhEnabled() && pool.Markers != nil {
-				poolName = lib.GetEvhPoolNameNoEncoding(pool.Markers["ingName"], pool.Markers["namespace"], pool.Markers["host"],
-					pool.Markers["path"], pool.Markers["infraSettingName"], pool.Markers["serviceName"])
+			if lib.IsEvhEnabled() && pool.AviMarkers.Namespace != "" {
+				poolName = lib.GetEvhPoolNameNoEncoding(pool.AviMarkers.IngressName, pool.AviMarkers.Namespace, pool.AviMarkers.Host,
+					pool.AviMarkers.Path, pool.AviMarkers.InfrasettingName, pool.AviMarkers.ServiceName)
 			} else {
 				poolName = pool.Name
 			}
@@ -217,6 +217,7 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, key string, vsNode AviVsE
 							Tenant: lib.GetTenant(),
 							CACert: httpRulePath.TLS.DestinationCA,
 						}
+						destinationCertNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, host, path, ingName, "", pool.AviMarkers.ServiceName)
 					} else {
 						destinationCertNode = nil
 					}

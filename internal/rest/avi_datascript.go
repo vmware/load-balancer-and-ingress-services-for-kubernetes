@@ -52,9 +52,7 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 		TenantRef:     &tenant_ref,
 		PoolGroupRefs: poolgroupref,
 	}
-	if lib.GetGRBACSupport() {
-		vsdatascriptset.Markers = lib.GetMarkers()
-	}
+
 	if len(ds_meta.ProtocolParsers) > 0 {
 		vsdatascriptset.ProtocolParserRefs = ds_meta.ProtocolParsers
 	}
