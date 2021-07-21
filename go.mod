@@ -2,7 +2,6 @@ module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/avinetworks/sdk v0.0.0-20210406040904-9e523c129aa1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-logr/logr v0.3.0
 	github.com/go-logr/zapr v0.3.0 // indirect
@@ -20,6 +19,7 @@ require (
 	github.com/prometheus/client_golang v1.8.0 // indirect
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
+	github.com/vmware/alb-sdk v0.0.0-20210721142023-8e96475b833b
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201112155050-0c6587e931a9

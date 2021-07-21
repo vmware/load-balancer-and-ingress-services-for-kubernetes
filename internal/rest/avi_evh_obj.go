@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	avimodels "github.com/avinetworks/sdk/go/models"
+	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"

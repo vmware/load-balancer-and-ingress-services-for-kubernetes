@@ -1,0 +1,40 @@
+// Copyright 2021 VMware, Inc.
+// SPDX-License-Identifier: Apache License 2.0
+package models
+
+// This file is auto-generated.
+
+// MetricsMgrDebugFilter metrics mgr debug filter
+// swagger:model MetricsMgrDebugFilter
+type MetricsMgrDebugFilter struct {
+
+	// Set to ignore skip_eval_period field in metrics_anomaly_option. Field introduced in 20.1.4.
+	DebugSkipEvalPeriod *string `json:"debug_skip_eval_period,omitempty"`
+
+	// disable_hw_training of MetricsMgrDebugFilter.
+	DisableHwTraining *string `json:"disable_hw_training,omitempty"`
+
+	// entity of MetricsMgrDebugFilter.
+	Entity *string `json:"entity,omitempty"`
+
+	// setting to reduce the grace period for license expiry in hours.
+	LicenseGracePeriod *string `json:"license_grace_period,omitempty"`
+
+	// log_first_n of MetricsMgrDebugFilter.
+	LogFirstN *string `json:"log_first_n,omitempty"`
+
+	// logging_freq of MetricsMgrDebugFilter.
+	LoggingFreq *string `json:"logging_freq,omitempty"`
+
+	// metric_instance_id of MetricsMgrDebugFilter.
+	MetricInstanceID *string `json:"metric_instance_id,omitempty"`
+
+	// obj of MetricsMgrDebugFilter.
+	Obj *string `json:"obj,omitempty"`
+
+	// skip_cluster_map_check of MetricsMgrDebugFilter.
+	SkipClusterMapCheck *string `json:"skip_cluster_map_check,omitempty"`
+
+	// skip_metrics_db_writes of MetricsMgrDebugFilter.
+	SkipMetricsDbWrites *string `json:"skip_metrics_db_writes,omitempty"`
+}

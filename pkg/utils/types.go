@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
-	avimodels "github.com/avinetworks/sdk/go/models"
 	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
+	avimodels "github.com/vmware/alb-sdk/go/models"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	netinformers "k8s.io/client-go/informers/networking/v1beta1"
 	"k8s.io/client-go/kubernetes"

@@ -1,0 +1,31 @@
+// Copyright 2021 VMware, Inc.
+// SPDX-License-Identifier: Apache License 2.0
+package models
+
+// This file is auto-generated.
+
+// StaticRoute static route
+// swagger:model StaticRoute
+type StaticRoute struct {
+
+	// Disable the gateway monitor for default gateway. They are monitored by default. Field introduced in 17.1.1.
+	DisableGatewayMonitor *bool `json:"disable_gateway_monitor,omitempty"`
+
+	// if_name of StaticRoute.
+	IfName *string `json:"if_name,omitempty"`
+
+	// Labels associated with this route. Field introduced in 20.1.1. Maximum of 1 items allowed.
+	Labels []*KeyValue `json:"labels,omitempty"`
+
+	// Placeholder for description of property next_hop of obj type StaticRoute field type str  type object
+	// Required: true
+	NextHop *IPAddr `json:"next_hop"`
+
+	// Placeholder for description of property prefix of obj type StaticRoute field type str  type object
+	// Required: true
+	Prefix *IPAddrPrefix `json:"prefix"`
+
+	// route_id of StaticRoute.
+	// Required: true
+	RouteID *string `json:"route_id"`
+}
