@@ -133,9 +133,10 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version str
 	return vsCacheCopy, allVsKeys, nil
 }
 
-//This function list EVH VS to be deleted which contain namespace in its name
-func (c *AviObjCache) listEVHChildrenToDelete(vs_cache_obj *AviVsCache, childUuids []string) (map[NamespaceName]bool, []string) {
-	childNSNameToDelete := make(map[NamespaceName]bool)
+//TODO: Deperecate this function in future release.
+//This function list EVH child VS to be deleted which contain namespace in its un-encoded name.
+func (c *AviObjCache) listEVHChildrenToDelete(vs_cache_obj *AviVsCache, childUuids []string) ([]NamespaceName, []string) {
+	var childNSNameToDelete []NamespaceName
 	var childUuidToDelete []string
 	for _, childUuid := range childUuids {
 		childKey, childFound := c.VsCacheLocal.AviCacheGetKeyByUuid(childUuid)
@@ -145,7 +146,7 @@ func (c *AviObjCache) listEVHChildrenToDelete(vs_cache_obj *AviVsCache, childUui
 			child_cache_obj, vs_found := childObj.(*AviVsCache)
 			if vs_found && !lib.IsNameEncoded(child_cache_obj.Name) {
 				//In EVH: Encoding of object names done in 2nd release of EVH
-				childNSNameToDelete[childVSKey] = true
+				childNSNameToDelete = append(childNSNameToDelete, childVSKey)
 				vs_cache_obj.RemoveFromSNIChildCollection(childUuid)
 				childUuidToDelete = append(childUuidToDelete, childUuid)
 			}
@@ -161,7 +162,7 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 	parentVsKeys := c.VsCacheLocal.AviCacheGetAllParentVSKeys()
 
 	isEVHEnabled := lib.IsEvhEnabled()
-	var childNSNameToDelete map[NamespaceName]bool
+	var nsNameToDelete []NamespaceName
 	var childUuidToDelete []string
 
 	for _, pvsKey := range parentVsKeys {
@@ -176,11 +177,17 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 				vs_cache_obj.ReplaceSNIChildCollection(sniChildUuids)
 
 				if isEVHEnabled {
-					childNSNameToDelete, childUuidToDelete = c.listEVHChildrenToDelete(vs_cache_obj, sniChildUuids)
+					curChildNSNameToDelete, curChildUuidToDelete := c.listEVHChildrenToDelete(vs_cache_obj, sniChildUuids)
+					childUuidToDelete = append(childUuidToDelete, curChildUuidToDelete...)
+					nsNameToDelete = append(nsNameToDelete, curChildNSNameToDelete...)
 				}
 
 			}
 		}
+	}
+	childNSNameToDelete := make(map[NamespaceName]bool, len(nsNameToDelete))
+	for _, ns := range nsNameToDelete {
+		childNSNameToDelete[ns] = true
 	}
 	// Now write lock and copy over all VsCacheMeta and copy the right cache from local
 	allVsKeys := c.VsCacheLocal.AviGetAllKeys()
