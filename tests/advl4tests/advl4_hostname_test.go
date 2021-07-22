@@ -44,7 +44,6 @@ var ctrl *k8s.AviController
 func TestMain(m *testing.M) {
 	os.Setenv("CLUSTER_ID", "abc:cluster")
 	os.Setenv("CLOUD_NAME", "Default-Cloud")
-	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("ADVANCED_L4", "true")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")

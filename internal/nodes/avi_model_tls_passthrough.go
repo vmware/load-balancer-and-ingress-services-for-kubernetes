@@ -60,20 +60,15 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 
 	// VSvip node to be shared by the secure and insecure VS
 	vsVipNode := &AviVSVIPNode{
-		Name:       lib.GetVsVipName(vsName),
-		Tenant:     lib.GetTenant(),
-		FQDNs:      fqdns,
-		VrfContext: vrfcontext,
+		Name:        lib.GetVsVipName(vsName),
+		Tenant:      lib.GetTenant(),
+		FQDNs:       fqdns,
+		VrfContext:  vrfcontext,
+		VipNetworks: lib.GetVipNetworkList(),
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
-	}
-
-	if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
-		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
-	} else {
-		vsVipNode.VipNetworks = vipNetworks
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)

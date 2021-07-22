@@ -180,7 +180,7 @@ func InitializeAKC() {
 		return
 	}
 
-	if _, err := lib.GetVipNetworkList(); err != nil {
+	if _, err := lib.GetVipNetworkListEnv(); err != nil {
 		utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
 	}
 

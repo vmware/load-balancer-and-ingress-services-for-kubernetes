@@ -199,11 +199,10 @@ func TestMain(m *testing.M) {
 }
 
 func AddLabelToNamespace(key, value, namespace, modelName string, t *testing.T) {
-
 	nsLabel := map[string]string{
 		key: value,
 	}
-	integrationtest.AddNamespace(namespace, nsLabel)
+	integrationtest.AddNamespace(t, namespace, nsLabel)
 }
 
 func SetUpTestForRoute(t *testing.T, modelName string, models ...string) {

@@ -205,6 +205,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			Vip:                   vips,
 			VsvipCloudConfigCksum: &cksumstr,
 		}
+
 		if vsvip_meta.VrfContext != "" {
 			vrfContextRef = "/api/vrfcontext?name=" + vsvip_meta.VrfContext
 			vsvip.VrfContextRef = &vrfContextRef

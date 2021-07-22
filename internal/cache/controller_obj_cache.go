@@ -2460,12 +2460,16 @@ func ValidateUserInput(client *clients.AviClient) bool {
 	isTenantValid := checkTenant(client)
 	isCloudValid := checkAndSetCloudType(client)
 	isRequiredValuesValid := checkRequiredValuesYaml()
-	if lib.GetAdvancedL4() && isTenantValid && isCloudValid && isRequiredValuesValid {
+	isSegroupValid := isCloudValid && validateAndConfigureSeGroup(client)
+	if lib.GetAdvancedL4() &&
+		isTenantValid &&
+		isCloudValid &&
+		isSegroupValid &&
+		isRequiredValuesValid {
 		utils.AviLog.Info("All values verified for advanced L4, proceeding with bootup")
 		return true
 	}
 
-	isSegroupValid := isCloudValid && validateAndConfigureSeGroup(client)
 	isNodeNetworkValid := isCloudValid && checkNodeNetwork(client)
 	isBGPConfigurationValid := checkBGPParams()
 	isValid := isTenantValid &&
@@ -2523,37 +2527,66 @@ func checkRequiredValuesYaml() bool {
 // validateAndConfigureSeGroup validates SeGroup configuration provided during installation
 // and configures labels on the SeGroup if not present already
 func validateAndConfigureSeGroup(client *clients.AviClient) bool {
-	// Not applicable for NodePort mode / disable route is set as True
+	// Indulge in Marker based SEGroup searching only when user input is empty.
+	// SE Group selection priority
+	// 1. User input
+	seGroupToUse := lib.GetSEGNameEnv()
+
+	// TODO: pagination
+	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
+	elems := []json.RawMessage{}
+
+	// 2. Marker based (only advancedL4)
+	if seGroupToUse == "" && lib.GetAdvancedL4() {
+		result, err := lib.AviGetCollectionRaw(client, uri)
+		if err != nil {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return false
+		}
+
+		elems = make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+			return false
+		}
+
+		// Using clusterID for advl4.
+		clusterName := lib.GetClusterID()
+		for _, elem := range elems {
+			seg := models.ServiceEngineGroup{}
+			err = json.Unmarshal(elem, &seg)
+			if err != nil {
+				utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+				continue
+			}
+
+			if len(seg.Markers) == 1 &&
+				*seg.Markers[0].Key == lib.ClusterNameLabelKey &&
+				len(seg.Markers[0].Values) == 1 &&
+				seg.Markers[0].Values[0] == clusterName {
+				seGroupToUse = *seg.Name
+				break
+			}
+		}
+	}
+
+	// 3. Default-SEGroup
+	if seGroupToUse == "" {
+		seGroupToUse = lib.DEFAULT_SE_GROUP
+	}
+	lib.SetSEGName(seGroupToUse)
+
+	// Not applicable for NodePort mode / disable route is set as True.
 	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Infof("Skipping the check for SE group labels ")
 		return true
-	}
-
-	// validate SE Group labels
-	segName := lib.GetSEGName()
-	if segName == "" {
-		utils.AviLog.Warnf("Service Engine Group: serviceEngineGroupName not set in values.yaml, skipping sync.")
-		return false
 	}
 
 	// List all service engine groups, for every SEG check for AviInfraSettings,
 	// if AviInfraSetting NOT found, remove label if exists,
 	// if AviInfraSetting found, configure label if doesn't exist.
 	// This takes care of syncing SeGroup label settings during reboots.
-	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
-	result, err := lib.AviGetCollectionRaw(client, uri)
-	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return false
-	}
-
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-		return false
-	}
-
 	seGroupSet := make(map[string]bool)
 	if lib.GetAviInfraSettingEnabled() {
 		infraSettingList, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
@@ -2568,8 +2601,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 
 	for _, elem := range elems {
 		seg := models.ServiceEngineGroup{}
-		err = json.Unmarshal(elem, &seg)
-		if err != nil {
+		if err := json.Unmarshal(elem, &seg); err != nil {
 			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
 			continue
 		}
@@ -2710,7 +2742,6 @@ func checkTenant(client *clients.AviClient) bool {
 }
 
 func checkAndSetCloudType(client *clients.AviClient) bool {
-
 	uri := "/api/cloud/?include_name&name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -2748,6 +2779,14 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 		utils.AviLog.Errorf("Cloud does not have a ipam_provider_ref configured")
 		return false
 	}
+
+	// if the cloud's ipamprovider profile is set, check in the ipam
+	// whether any of the usable networks have a label set. The marker based approach is not valid
+	// for public clouds.
+	if ipamCheck := checkIPAMForUsableNetworkLabels(client, cloud.IPAMProviderRef); !ipamCheck {
+		return false
+	}
+
 	// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
 	if vType == lib.CLOUD_NSXT {
 		if lib.GetT1LRPath() == "" {
@@ -2763,14 +2802,98 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 	return true
 }
 
+func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *string) bool {
+	// Donot check for labels in usable networks if a vipNetwork is provided by the user.
+	// In this case, the vipNetwork provided by the user will be used.
+	// 1. Prioritize user input vipetworkList, skip marker based selection if provided.
+	// 2. If not provided, check for markers in ipam's usable networks.
+	// 3. If marker based usable network is not available, keep vipNetworkList empty.
+	// 4. vipNetworkList can be empty only in WCP usecases, for all others, mark invalid configuration.
+
+	// 1. User input
+	if vipList, _ := lib.GetVipNetworkListEnv(); len(vipList) > 0 {
+		lib.SetVipNetworkList(vipList)
+		return true
+	}
+
+	// 2. Marker based (only advancedL4)
+	markerNetworkFound := ""
+	if lib.GetAdvancedL4() && ipamRefUri != nil {
+		// Using clusterID for advl4.
+		clusterName := lib.GetClusterID()
+		ipam := models.IPAMDNSProviderProfile{}
+		ipamRef := strings.SplitAfter(*ipamRefUri, "/api/")
+		if err := lib.AviGet(client, "/api/"+ipamRef[1], &ipam); err != nil {
+			utils.AviLog.Errorf("Get uri %v returned err %v", ipamRef, err)
+			return false
+		}
+
+		usableNetworkNames := []string{}
+		for _, usableNetwork := range ipam.InternalProfile.UsableNetworks {
+			networkRefName := strings.Split(*usableNetwork.NwRef, "#")
+			usableNetworkNames = append(usableNetworkNames, networkRefName[1])
+		}
+
+		if len(usableNetworkNames) == 0 {
+			utils.AviLog.Errorf("No usable network configured in configured cloud's ipam profile.")
+			return false
+		}
+
+		// TODO: pagination
+		uri := "/api/network/?include_name&page_size=100&name.in=" + strings.Join(usableNetworkNames, ",")
+		result, err := lib.AviGetCollectionRaw(client, uri)
+		if err != nil {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return false
+		}
+
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+			return false
+		}
+
+		for _, elem := range elems {
+			network := models.Network{}
+			err = json.Unmarshal(elem, &network)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return false
+			}
+
+			if len(network.Markers) == 1 &&
+				*network.Markers[0].Key == lib.ClusterNameLabelKey &&
+				len(network.Markers[0].Values) == 1 &&
+				network.Markers[0].Values[0] == clusterName {
+				markerNetworkFound = *network.Name
+				utils.AviLog.Infof("Marker configuration found in usable network. Using %s as vipNetworkList.", markerNetworkFound)
+				break
+			}
+		}
+
+		if markerNetworkFound != "" {
+			lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{{
+				NetworkName: markerNetworkFound,
+			}})
+			return true
+		}
+
+	}
+
+	// 3. Empty VipNetworkList (only valid for WCP)
+	if markerNetworkFound == "" {
+		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
+	}
+
+	return true
+}
+
 func checkPublicCloud(client *clients.AviClient) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
-		vipNetworkList, err := lib.GetVipNetworkList()
-		if err != nil {
-			utils.AviLog.Errorf("Got error while fetching VIP network list: %s", err.Error())
-			return false
-		} else if len(vipNetworkList) == 0 {
+		vipNetworkList := lib.GetVipNetworkList()
+		if len(vipNetworkList) == 0 {
 			utils.AviLog.Errorf("vipNetworkList not specified, syncing will be disabled.")
 			return false
 		}
@@ -2837,12 +2960,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		return true
 	}
 
-	networkList, err := lib.GetVipNetworkList()
-	if err != nil {
-		utils.AviLog.Warnf("Error getting Network name: %s, skipping fetching of the VRF setting from network", err.Error())
-		return true
-	}
-
+	networkList := lib.GetVipNetworkList()
 	if len(networkList) == 0 {
 		utils.AviLog.Warnf("Network name not specified, skipping fetching of the VRF setting from network")
 		return true
@@ -2888,6 +3006,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		// Here we need to determine the right VRF for this T1LR
 		// The logic is: Get all the VRF context objects from the controller, figure out the VRF that matches the T1LR
 		// Current pagination size is set to 100, this may have to increased if we have more than 100 T1 routers.
+		// TODO: pagination
 		uri := "/api/vrfcontext?" + "&include_name=true&cloud_ref.name=" + utils.CloudName + "&page_size=100"
 		result, err := lib.AviGetCollectionRaw(client, uri)
 		if err != nil {

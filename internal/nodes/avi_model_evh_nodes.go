@@ -578,10 +578,11 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 
 	vsVipNode := &AviVSVIPNode{
-		Name:       lib.GetVsVipName(vsName),
-		Tenant:     lib.GetTenant(),
-		FQDNs:      fqdns,
-		VrfContext: vrfcontext,
+		Name:        lib.GetVsVipName(vsName),
+		Tenant:      lib.GetTenant(),
+		FQDNs:       fqdns,
+		VrfContext:  vrfcontext,
+		VipNetworks: lib.GetVipNetworkList(),
 	}
 
 	if lib.GetT1LRPath() != "" {
@@ -590,12 +591,6 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
-	}
-
-	if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
-		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
-	} else {
-		vsVipNode.VipNetworks = vipNetworks
 	}
 
 	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
@@ -1601,14 +1596,10 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 			vsvip.BGPPeerLabels = nil
 		}
 
-		if vsvip.VipNetworks != nil && len(vsvip.VipNetworks) > 0 {
+		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
 			vsvip.VipNetworks = infraSetting.Spec.Network.VipNetworks
 		} else {
-			if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
-				utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
-			} else {
-				vsvip.VipNetworks = vipNetworks
-			}
+			vsvip.VipNetworks = lib.GetVipNetworkList()
 		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)

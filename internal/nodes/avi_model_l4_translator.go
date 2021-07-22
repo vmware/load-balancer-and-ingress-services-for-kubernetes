@@ -90,10 +90,11 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	vsVipNode := &AviVSVIPNode{
-		Name:       vsVipName,
-		Tenant:     lib.GetTenant(),
-		FQDNs:      fqdns,
-		VrfContext: vrfcontext,
+		Name:        vsVipName,
+		Tenant:      lib.GetTenant(),
+		FQDNs:       fqdns,
+		VrfContext:  vrfcontext,
+		VipNetworks: lib.GetVipNetworkList(),
 	}
 	if lib.GetT1LRPath() != "" {
 		vsVipNode.T1Lr = lib.GetT1LRPath()
@@ -101,12 +102,6 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
-	}
-
-	if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
-		utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
-	} else {
-		vsVipNode.VipNetworks = vipNetworks
 	}
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).

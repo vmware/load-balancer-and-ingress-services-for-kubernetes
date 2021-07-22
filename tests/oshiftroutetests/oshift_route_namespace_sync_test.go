@@ -100,7 +100,7 @@ func TestNSSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 	var found bool
 	//Valid Namespace
 	namespace1 := "routens"
-	err := integrationtest.AddNamespace(namespace1, nsLabel)
+	err := integrationtest.AddNamespace(t, namespace1, nsLabel)
 
 	if err != nil {
 		t.Fatal("Error while adding namespace")
@@ -148,7 +148,7 @@ func TestNSSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 		"app": "migrate1",
 	}
 
-	err = integrationtest.AddNamespace(namespace, nsLabel)
+	err = integrationtest.AddNamespace(t, namespace, nsLabel)
 	modelName := "admin/cluster--Shared-L7-0"
 	if err != nil {
 		t.Fatal("Error while adding namespace")
@@ -169,7 +169,7 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 	g := gomega.NewGomegaWithT(t)
 	var found bool
 
-	err := integrationtest.AddNamespace(namespace, oldLabels)
+	err := integrationtest.AddNamespace(t, namespace, oldLabels)
 	if err != nil {
 		t.Fatal("Error while adding namespace")
 	}
@@ -193,7 +193,7 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 		}, 30*time.Second).Should(gomega.Equal(oldFlag))
 	}
 
-	err = integrationtest.UpdateNamespace(namespace, newLabels)
+	err = integrationtest.UpdateNamespace(t, namespace, newLabels)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	if err != nil {
 		t.Fatal("Error occurred while updating namespace")
