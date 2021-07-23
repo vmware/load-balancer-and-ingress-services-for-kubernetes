@@ -44,7 +44,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		rest_ops := rest.AviVsSniBuild(vs_meta, rest_method, cache_obj, key)
 		return rest_ops
 	} else {
-		network_prof := "/api/networkprofile/?name=" + vs_meta.NetworkProfile
 		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
 		// TODO use PoolGroup and use policies if there are > 1 pool, etc.
 		name := vs_meta.Name
@@ -58,7 +57,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		seGroupRef := "/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup
 		vs := avimodels.VirtualService{
 			Name:                  &name,
-			NetworkProfileRef:     &network_prof,
 			ApplicationProfileRef: &app_prof,
 			CloudConfigCksum:      &checksumstr,
 			CreatedBy:             &cr,
@@ -114,13 +112,19 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 				EnableSsl:    &vs_meta.PortProto[i].EnableSSL,
 				PortRangeEnd: &port,
 			}
-			if pp.Protocol == "" || pp.Protocol == utils.TCP {
-				svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.TCP_NW_FAST_PATH)
-			} else {
+			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE && pp.Protocol == utils.UDP {
 				svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_UDP_FAST_PATH)
 			}
 			vs.Services = append(vs.Services, &svc)
 		}
+
+		// In case the VS has services that are a mix of TCP and UDP sockets,
+		// we create the VS with global network profile TCP Fast Path,
+		// and override required services with UDP Fast Path.
+		if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
+			vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		}
+		vs.NetworkProfileRef = proto.String("/api/networkprofile/?name=" + vs_meta.NetworkProfile)
 
 		if vs_meta.SharedVS {
 			// This is a shared VS - which should have a datascript
