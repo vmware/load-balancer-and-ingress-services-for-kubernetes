@@ -928,7 +928,15 @@ func ValidateIngressForClass(key string, ingress *networkingv1beta1.Ingress) boo
 		}
 	}
 
-	ingClassObj, err := utils.GetInformers().IngressClassInformer.Lister().Get(*ingress.Spec.IngressClassName)
+	// If the key is "syncstatus" then use a clientset, else using the lister cache. This is because
+	// the status sync happens before the informers are run and caches are synced.
+	var ingClassObj *networkingv1beta1.IngressClass
+	var err error
+	if key == SyncStatusKey {
+		ingClassObj, err = utils.GetInformers().ClientSet.NetworkingV1beta1().IngressClasses().Get(context.TODO(), *ingress.Spec.IngressClassName, metav1.GetOptions{})
+	} else {
+		ingClassObj, err = utils.GetInformers().IngressClassInformer.Lister().Get(*ingress.Spec.IngressClassName)
+	}
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to fetch corresponding networking.k8s.io/ingressclass %s %v",
 			key, *ingress.Spec.IngressClassName, err)
