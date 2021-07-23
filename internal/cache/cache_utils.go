@@ -142,16 +142,7 @@ func (v *AviVsCache) SetPGKeyCollection(keyCollection []NamespaceName) {
 	v.PGKeyCollection = keyCollection
 }
 
-func Remove(s []NamespaceName, r NamespaceName) []NamespaceName {
-	for i, v := range s {
-		if v == r {
-			return append(s[:i], s[i+1:]...)
-		}
-	}
-	return s
-}
-
-func RemoveString(s []string, r string) []string {
+func RemoveNamespaceName(s []NamespaceName, r NamespaceName) []NamespaceName {
 	for i, v := range s {
 		if v == r {
 			return append(s[:i], s[i+1:]...)
@@ -173,7 +164,7 @@ func (v *AviVsCache) RemoveFromPGKeyCollection(k NamespaceName) {
 	if v.PGKeyCollection == nil {
 		return
 	}
-	v.PGKeyCollection = Remove(v.PGKeyCollection, k)
+	v.PGKeyCollection = RemoveNamespaceName(v.PGKeyCollection, k)
 }
 
 func (v *AviVsCache) AddToVSVipKeyCollection(k NamespaceName) {
@@ -189,7 +180,7 @@ func (v *AviVsCache) RemoveFromVSVipKeyCollection(k NamespaceName) {
 	if v.VSVipKeyCollection == nil {
 		return
 	}
-	v.VSVipKeyCollection = Remove(v.VSVipKeyCollection, k)
+	v.VSVipKeyCollection = RemoveNamespaceName(v.VSVipKeyCollection, k)
 }
 
 func (v *AviVsCache) AddToPoolKeyCollection(k NamespaceName) {
@@ -206,7 +197,7 @@ func (v *AviVsCache) RemoveFromPoolKeyCollection(k NamespaceName) {
 	if v.PoolKeyCollection == nil {
 		return
 	}
-	v.PoolKeyCollection = Remove(v.PoolKeyCollection, k)
+	v.PoolKeyCollection = RemoveNamespaceName(v.PoolKeyCollection, k)
 }
 
 func (v *AviVsCache) AddToDSKeyCollection(k NamespaceName) {
@@ -222,7 +213,7 @@ func (v *AviVsCache) RemoveFromDSKeyCollection(k NamespaceName) {
 	if v.DSKeyCollection == nil {
 		return
 	}
-	v.DSKeyCollection = Remove(v.DSKeyCollection, k)
+	v.DSKeyCollection = RemoveNamespaceName(v.DSKeyCollection, k)
 }
 
 func (v *AviVsCache) AddToHTTPKeyCollection(k NamespaceName) {
@@ -238,7 +229,7 @@ func (v *AviVsCache) RemoveFromHTTPKeyCollection(k NamespaceName) {
 	if v.HTTPKeyCollection == nil {
 		return
 	}
-	v.HTTPKeyCollection = Remove(v.HTTPKeyCollection, k)
+	v.HTTPKeyCollection = RemoveNamespaceName(v.HTTPKeyCollection, k)
 }
 
 func (v *AviVsCache) AddToSSLKeyCertCollection(k NamespaceName) {
@@ -254,7 +245,7 @@ func (v *AviVsCache) RemoveFromSSLKeyCertCollection(k NamespaceName) {
 	if v.SSLKeyCertCollection == nil {
 		return
 	}
-	v.SSLKeyCertCollection = Remove(v.SSLKeyCertCollection, k)
+	v.SSLKeyCertCollection = RemoveNamespaceName(v.SSLKeyCertCollection, k)
 }
 
 func (v *AviVsCache) AddToL4PolicyCollection(k NamespaceName) {
@@ -270,7 +261,7 @@ func (v *AviVsCache) RemoveFromL4PolicyCollection(k NamespaceName) {
 	if v.L4PolicyCollection == nil {
 		return
 	}
-	v.L4PolicyCollection = Remove(v.L4PolicyCollection, k)
+	v.L4PolicyCollection = RemoveNamespaceName(v.L4PolicyCollection, k)
 }
 
 func (v *AviVsCache) AddToSNIChildCollection(k string) {
@@ -290,7 +281,7 @@ func (v *AviVsCache) RemoveFromSNIChildCollection(k string) {
 	if v.SNIChildCollection == nil {
 		return
 	}
-	v.SNIChildCollection = RemoveString(v.SNIChildCollection, k)
+	v.SNIChildCollection = utils.Remove(v.SNIChildCollection, k)
 }
 
 type AviSSLCache struct {

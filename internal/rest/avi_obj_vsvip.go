@@ -102,7 +102,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			}
 		}
 
-		if !vsCache.EnableRhi && len(vsvip_meta.BGPPeerLabels) > 0 {
+		if vsCache != nil && !vsCache.EnableRhi && len(vsvip_meta.BGPPeerLabels) > 0 {
 			err = fmt.Errorf("to use selective vip advertisement, %s VS must advertise vips via BGP. Please recreate the VS", vsCache.Name)
 			utils.AviLog.Error(err)
 			return nil, err

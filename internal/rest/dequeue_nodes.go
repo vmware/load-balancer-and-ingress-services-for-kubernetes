@@ -1094,7 +1094,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 				found := utils.HasElem(cache_pool_nodes, pool_key)
 				utils.AviLog.Debugf("key: %s, msg: processing pool key: %v", key, pool_key)
 				if found {
-					cache_pool_nodes = Remove(cache_pool_nodes, pool_key)
+					cache_pool_nodes = avicache.RemoveNamespaceName(cache_pool_nodes, pool_key)
 					utils.AviLog.Debugf("key: %s, key: the cache pool nodes are: %v", key, cache_pool_nodes)
 					pool_cache, ok := rest.cache.PoolCache.AviCacheGet(pool_key)
 					if ok {
@@ -1199,7 +1199,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 		found := utils.HasElem(cache_sni_nodes, sni_key)
 		utils.AviLog.Debugf("key: %s, msg: processing node key: %v", key, sni_key)
 		if found && cache_sni_nodes != nil {
-			cache_sni_nodes = Remove(cache_sni_nodes, sni_key)
+			cache_sni_nodes = avicache.RemoveNamespaceName(cache_sni_nodes, sni_key)
 			utils.AviLog.Debugf("key: %s, msg: the cache sni nodes are: %v", key, cache_sni_nodes)
 			sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 			if sni_cache_obj != nil {
@@ -1269,7 +1269,7 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 				pg_key := avicache.NamespaceName{Namespace: namespace, Name: pg.Name}
 				found := utils.HasElem(cache_pg_nodes, pg_key)
 				if found {
-					cache_pg_nodes = Remove(cache_pg_nodes, pg_key)
+					cache_pg_nodes = avicache.RemoveNamespaceName(cache_pg_nodes, pg_key)
 					pg_cache, ok := rest.cache.PgCache.AviCacheGet(pg_key)
 					if ok {
 						pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
@@ -1323,7 +1323,7 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 				ds_key := avicache.NamespaceName{Namespace: namespace, Name: ds.Name}
 				found := utils.HasElem(cache_ds_nodes, ds_key)
 				if found {
-					cache_ds_nodes = Remove(cache_ds_nodes, ds_key)
+					cache_ds_nodes = avicache.RemoveNamespaceName(cache_ds_nodes, ds_key)
 					ds_cache, ok := rest.cache.DSCache.AviCacheGet(ds_key)
 					if !ok {
 						// If the DS Is not found - let's do a POST call.
@@ -1370,7 +1370,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 				vsvip_key := avicache.NamespaceName{Namespace: namespace, Name: vsvip.Name}
 				found := utils.HasElem(cache_vsvip_nodes, vsvip_key)
 				if found {
-					cache_vsvip_nodes = Remove(cache_vsvip_nodes, vsvip_key)
+					cache_vsvip_nodes = avicache.RemoveNamespaceName(cache_vsvip_nodes, vsvip_key)
 					vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 					if ok {
 						vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
@@ -1431,7 +1431,7 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 			if found {
 				http_cache, ok := rest.cache.HTTPPolicyCache.AviCacheGet(http_key)
 				if ok {
-					cache_http_nodes = Remove(cache_http_nodes, http_key)
+					cache_http_nodes = avicache.RemoveNamespaceName(cache_http_nodes, http_key)
 					http_cache_obj, _ := http_cache.(*avicache.AviHTTPPolicyCache)
 					// Cache found. Let's compare the checksums
 					if http_cache_obj.CloudConfigCksum == strconv.Itoa(int(http.GetCheckSum())) {
@@ -1480,7 +1480,7 @@ func (rest *RestOperations) L4PolicyCU(l4_nodes []*nodes.AviL4PolicyNode, vs_cac
 			if found {
 				l4_cache, ok := rest.cache.L4PolicyCache.AviCacheGet(l4_key)
 				if ok {
-					cache_l4_nodes = Remove(cache_l4_nodes, l4_key)
+					cache_l4_nodes = avicache.RemoveNamespaceName(cache_l4_nodes, l4_key)
 					l4_cache_obj, _ := l4_cache.(*avicache.AviL4PolicyCache)
 					// Cache found. Let's compare the checksums
 					if l4_cache_obj.CloudConfigCksum == l4.GetCheckSum() {
@@ -1568,7 +1568,7 @@ func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, c
 			if found {
 				ssl_cache, ok := rest.cache.SSLKeyCache.AviCacheGet(ssl_key)
 				if ok {
-					cache_ssl_nodes = Remove(cache_ssl_nodes, ssl_key)
+					cache_ssl_nodes = avicache.RemoveNamespaceName(cache_ssl_nodes, ssl_key)
 					ssl_cache_obj, _ := ssl_cache.(*avicache.AviSSLCache)
 					if ssl_cache_obj.CloudConfigCksum == ssl.GetCheckSum() {
 						utils.AviLog.Debugf("The checksums are same for SSL cache obj %s, not doing anything", ssl_cache_obj.Name)
@@ -1637,7 +1637,7 @@ func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviPkiProfileNode, pool
 			if found {
 				pki_cache, ok := rest.cache.PKIProfileCache.AviCacheGet(pki_key)
 				if ok {
-					cache_pki_nodes = Remove(cache_pki_nodes, pki_key)
+					cache_pki_nodes = avicache.RemoveNamespaceName(cache_pki_nodes, pki_key)
 					pki_cache_obj, _ := pki_cache.(*avicache.AviPkiProfileCache)
 					if pki_cache_obj.CloudConfigCksum == pki_node.GetCheckSum() {
 						utils.AviLog.Debugf("The checksums are same for Pki cache obj %s, not doing anything", pki_cache_obj.Name)
@@ -1683,13 +1683,4 @@ func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.Namespa
 		}
 	}
 	return rest_ops
-}
-
-func Remove(s []avicache.NamespaceName, r avicache.NamespaceName) []avicache.NamespaceName {
-	for i, v := range s {
-		if v == r {
-			return append(s[:i], s[i+1:]...)
-		}
-	}
-	return s
 }

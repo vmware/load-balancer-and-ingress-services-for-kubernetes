@@ -122,7 +122,7 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version str
 	for _, key := range allVsKeys {
 		utils.AviLog.Debugf("Removing vs key from cache: %s", key)
 		// We want to synthesize these keys to layer 3.
-		vsCacheCopy = Remove(vsCacheCopy, key)
+		vsCacheCopy = RemoveNamespaceName(vsCacheCopy, key)
 		c.VsCacheMeta.AviCacheDelete(key)
 	}
 	err = c.AviCloudPropertiesPopulate(client, cloud)
@@ -1775,7 +1775,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 			}
 			if vs["cloud_config_cksum"] != nil {
 				k := NamespaceName{Namespace: lib.GetTenant(), Name: vs["name"].(string)}
-				*vsCacheCopy = Remove(*vsCacheCopy, k)
+				*vsCacheCopy = RemoveNamespaceName(*vsCacheCopy, k)
 				var vip string
 				var vsVipKey []NamespaceName
 				var sslKeys []NamespaceName

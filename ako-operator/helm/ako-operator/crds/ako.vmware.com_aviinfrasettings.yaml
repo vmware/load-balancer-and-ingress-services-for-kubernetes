@@ -23,14 +23,14 @@ spec:
               network:
                 properties:
                   vipNetworks:
-                    properties:
-                      networkName:
-                        type: string
-                      cidr:
-                        type: string
-                    required:
-                      - networkName
                     items:
+                      properties:
+                        networkName:
+                          type: string
+                        cidr:
+                          type: string
+                      required:
+                      - networkName
                       type: object
                     type: array
                   enableRhi:

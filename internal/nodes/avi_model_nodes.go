@@ -1150,7 +1150,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 
 	// A sum of fields for this Pool.
-	chksumStr := fmt.Sprint(strings.Join([]string{
+	checksumStringSlice := []string{
 		v.Protocol,
 		strconv.Itoa(int(v.Port)),
 		v.PortName,
@@ -1162,7 +1162,15 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.SslProfileRef,
 		v.PriorityLabel,
 		utils.Stringify(nodeNetworkMap),
-	}[:], delim))
+		utils.Stringify(v.ServiceMetadata.NamespaceServiceName),
+	}
+
+	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {
+		sort.Strings(v.ServiceMetadata.NamespaceServiceName)
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.ServiceMetadata.NamespaceServiceName))
+	}
+
+	chksumStr := fmt.Sprint(strings.Join(checksumStringSlice, delim))
 
 	checksum := utils.Hash(chksumStr)
 

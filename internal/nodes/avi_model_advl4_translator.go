@@ -81,7 +81,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		enableRhi := lib.GetEnableRHI()
 		avi_vs_meta.EnableRhi = &enableRhi
 
-		isTCP := false
+		isTCP, isUDP := false, false
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
 			portProto := strings.Split(listener, "/") // format: protocol/port
@@ -90,15 +90,25 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			portProtocols = append(portProtocols, pp)
 			if portProto[0] == "" || portProto[0] == utils.TCP {
 				isTCP = true
+			} else if portProto[0] == utils.UDP {
+				isUDP = true
 			}
 		}
+
 		avi_vs_meta.PortProto = portProtocols
-		// Default case.
 		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
-		if !isTCP {
+
+		// In case the VS has services that are a mix of TCP and UDP sockets,
+		// we create the VS with global network profile TCP Fast Path,
+		// and override required services with UDP Fast Path. Having a separate
+		// internally used network profile (MIXED_NET_PROFILE) helpss ensure PUT calls
+		// on existing VSes.
+		if isTCP && !isUDP {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		} else if isUDP && !isTCP {
 			avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 		} else {
-			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+			avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
 		}
 
 		vsVipNode := &AviVSVIPNode{
@@ -229,10 +239,13 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		port, _ := utilsnet.ParsePort(portProto[1], true)
 
 		poolNode := &AviPoolNode{
-			Name:       lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, int32(port)),
-			Tenant:     lib.GetTenant(),
-			Protocol:   portProto[0],
-			PortName:   "",
+			Name:     lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, int32(port)),
+			Tenant:   lib.GetTenant(),
+			Protocol: portProto[0],
+			PortName: "",
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				NamespaceServiceName: []string{svc[0]},
+			},
 			VrfContext: lib.GetVrf(),
 		}
 

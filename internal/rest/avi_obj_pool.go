@@ -264,7 +264,20 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			if found {
 				vs_cache_obj.AddToPoolKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
-				if svc_mdata_obj.Namespace != "" {
+				if len(svc_mdata_obj.NamespaceServiceName) > 0 {
+					updateOptions := status.UpdateOptions{
+						Vip:                vs_cache_obj.Vip,
+						ServiceMetadata:    svc_mdata_obj,
+						Key:                key,
+						VirtualServiceUUID: vs_cache_obj.Uuid,
+					}
+					statusOption := status.StatusOptions{
+						ObjType: utils.L4LBService,
+						Op:      lib.UpdateStatus,
+						Options: &updateOptions,
+					}
+					status.PublishToStatusQueue(svc_mdata_obj.NamespaceServiceName[0], statusOption)
+				} else if svc_mdata_obj.Namespace != "" {
 					updateOptions := status.UpdateOptions{
 						Vip:                vs_cache_obj.Vip,
 						ServiceMetadata:    svc_mdata_obj,
@@ -321,7 +334,18 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 	if found {
 		pool_cache_obj, success := pool_cache.(*avicache.AviPoolCache)
 		if success {
-			if pool_cache_obj.ServiceMetadataObj.IngressName != "" {
+			if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
+					Key:             key,
+				}
+				statusOption := status.StatusOptions{
+					ObjType: utils.L4LBService,
+					Op:      lib.DeleteStatus,
+					Options: &updateOptions,
+				}
+				status.PublishToStatusQueue(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
+			} else if pool_cache_obj.ServiceMetadataObj.IngressName != "" {
 				// SNI VSes use the VS object metadata, delete ingress status for others
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,

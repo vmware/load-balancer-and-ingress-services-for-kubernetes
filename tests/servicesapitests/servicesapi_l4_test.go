@@ -478,7 +478,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 20*time.Second).Should(gomega.Equal("10.250.250.250"))
 
 	gwUpdate := FakeGateway{
 		Name: gatewayName, Namespace: ns, GWClass: gwClassName,
@@ -745,7 +745,7 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 
 func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 	// svc/tcp/8081
-	// change gateway listener port to 8080, VS deletes
+	// change gateway listener port to 8080, Pools delete
 	// change svc port to 8080, VS creates, with 8080 exposed port
 	g := gomega.NewGomegaWithT(t)
 
@@ -833,7 +833,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 
 func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 	// svc/tcp/8080
-	// change gateway listener protocol to UDP, VS deletes
+	// change gateway listener protocol to UDP, Pools delete
 	// change svc protocol to UDP, VS creates, with UDP protocol
 	g := gomega.NewGomegaWithT(t)
 
@@ -921,7 +921,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 
 func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 	// svc/tcp/8081, gw1/tcp/8081, gw2/tcp/8081
-	// change gateway from gw1 to gw2, gw1 VS deletes, gw2 VS is created
+	// change gateway from gw1 to gw2, gw1 Pools delete, gw2 VS is created
 	g := gomega.NewGomegaWithT(t)
 
 	gwClassName, gateway1Name, gateway2Name, ns := "avi-lb", "my-gateway1", "my-gateway2", "default"
@@ -993,7 +993,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 
 func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	// svc/tcp/8081, gw1/tcp/8081
-	// scale deployment to
+	// delete/create endpoints
 	g := gomega.NewGomegaWithT(t)
 
 	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
@@ -1037,6 +1037,102 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).Should(gomega.ContainSubstring(newIP))
 
 	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
+	// svc1/tcp/8081, svc2/udp/8082, gw1/tcp/8081 - gw1/udp/8082
+	// creates services with network profile overrides (can't check).
+	// remove udp listener from gateway, check for status delete on svc2.
+
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	svcName1, svcName2 := "svc1", "svc2"
+	modelName := "admin/cluster--default-my-gateway"
+	labels := map[string]string{lib.SvcApiGatewayNameLabelKey: gatewayName, lib.SvcApiGatewayNamespaceLabelKey: ns}
+
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
+
+	gateway := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{
+			{Port: 8081, Protocol: "TCP", Labels: labels},
+			{Port: 8082, Protocol: "UDP", Labels: labels},
+		},
+	}
+	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gateway.Gateway(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Gateway: %v", err)
+	}
+
+	svc1 := integrationtest.FakeService{
+		Name:         svcName1,
+		Namespace:    ns,
+		Labels:       labels,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
+	}
+	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEP(t, ns, svcName1, false, true, "1.1.1")
+
+	svc2 := integrationtest.FakeService{
+		Name:         svcName2,
+		Namespace:    ns,
+		Labels:       labels,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "fooudp", Protocol: "UDP", PortNumber: 8082, TargetPort: 80}},
+	}
+
+	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
+
+	g.Eventually(func() string {
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+
+	g.Eventually(func() string {
+		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
+		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
+			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
+			svc1.Status.LoadBalancer.Ingress[0].IP == svc2.Status.LoadBalancer.Ingress[0].IP {
+			return svc1.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.250"))
+
+	gatewayUpdate := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{
+			{Port: 8081, Protocol: "TCP", Labels: labels},
+		},
+	}.Gateway()
+	gatewayUpdate.ResourceVersion = "2"
+	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating Gateway: %v", err)
+	}
+
+	g.Eventually(func() int {
+		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		return len(svc2.Status.LoadBalancer.Ingress)
+	}, 30*time.Second).Should(gomega.Equal(0))
+
+	TeardownAdvLBService(t, svcName1, ns)
+	TeardownAdvLBService(t, svcName2, ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
