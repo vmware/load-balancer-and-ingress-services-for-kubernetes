@@ -25,7 +25,7 @@ import (
 
 // HostNameShardAndPublish: Create model from supported objects - route/ingress, and publish to rest layer
 func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue) {
-	utils.AviLog.Infof("key: %s, starting RouteHostNameShardAndPublish", key)
+	utils.AviLog.Infof("key: %s, starting HostNameShardAndPublish", key)
 	var routeIgrObj RouteIngressModel
 	var err error
 	var processObj bool

@@ -32,13 +32,12 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 )
 
-func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []UpdateOptions) {
-	var objectsToUpdate []string
-	var updateIngressOptions []UpdateOptions
+func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map[string]UpdateOptions) {
+	updateIngressOptions := make(map[string]UpdateOptions)
 
 	for _, option := range options {
 		if len(option.ServiceMetadata.NamespaceIngressName) > 0 {
-			// This is SNI with hostname sharding.
+			// secure VSes, service metadata comes from SNI VS.
 			for _, ingressns := range option.ServiceMetadata.NamespaceIngressName {
 				ingressArr := strings.Split(ingressns, "/")
 				if len(ingressArr) != 2 {
@@ -48,17 +47,41 @@ func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []U
 
 				ingress := ingressArr[0] + "/" + ingressArr[1]
 				option.IngSvc = ingress
-				objectsToUpdate = append(objectsToUpdate, ingress)
-				updateIngressOptions = append(updateIngressOptions, option)
+				if opt, ok := updateIngressOptions[ingress]; ok {
+					for _, hostname := range option.ServiceMetadata.HostNames {
+						if !utils.HasElem(opt.ServiceMetadata.HostNames, hostname) {
+							opt.ServiceMetadata.HostNames = append(opt.ServiceMetadata.HostNames, option.ServiceMetadata.HostNames...)
+							updateIngressOptions[ingress] = opt
+						}
+					}
+				} else {
+					updateIngressOptions[ingress] = option
+				}
 			}
 		} else {
+			// insecure VSes, servicemetadata comes from Pools.
 			ingress := option.ServiceMetadata.Namespace + "/" + option.ServiceMetadata.IngressName
 			option.IngSvc = ingress
-			objectsToUpdate = append(objectsToUpdate, ingress)
-			updateIngressOptions = append(updateIngressOptions, option)
+			if opt, ok := updateIngressOptions[ingress]; ok {
+				for _, hostname := range option.ServiceMetadata.HostNames {
+					if !utils.HasElem(opt.ServiceMetadata.HostNames, hostname) {
+						opt.ServiceMetadata.HostNames = append(opt.ServiceMetadata.HostNames, option.ServiceMetadata.HostNames...)
+						updateIngressOptions[ingress] = opt
+					}
+				}
+			} else {
+				updateIngressOptions[ingress] = option
+			}
 		}
 	}
-	return objectsToUpdate, updateIngressOptions
+
+	ingressesToUpdate := make([]string, len(updateIngressOptions))
+	i := 0
+	for k := range updateIngressOptions {
+		ingressesToUpdate[i] = k
+		i++
+	}
+	return ingressesToUpdate, updateIngressOptions
 }
 
 // To Do: Check if it is possible to do update operations under same functions for both
