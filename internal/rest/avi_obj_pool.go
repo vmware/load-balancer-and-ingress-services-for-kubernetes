@@ -276,7 +276,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 						Op:      lib.UpdateStatus,
 						Options: &updateOptions,
 					}
-					status.PublishToStatusQueue(svc_mdata_obj.NamespaceServiceName[0], statusOption)
+					status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 				} else if svc_mdata_obj.Namespace != "" {
 					updateOptions := status.UpdateOptions{
 						Vip:                vs_cache_obj.Vip,

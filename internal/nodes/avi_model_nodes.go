@@ -1162,12 +1162,16 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.SslProfileRef,
 		v.PriorityLabel,
 		utils.Stringify(nodeNetworkMap),
-		utils.Stringify(v.ServiceMetadata.NamespaceServiceName),
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {
 		sort.Strings(v.ServiceMetadata.NamespaceServiceName)
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.ServiceMetadata.NamespaceServiceName))
+	}
+
+	if len(v.ServiceMetadata.HostNames) > 0 {
+		sort.Strings(v.ServiceMetadata.HostNames)
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.ServiceMetadata.HostNames))
 	}
 
 	chksumStr := fmt.Sprint(strings.Join(checksumStringSlice, delim))

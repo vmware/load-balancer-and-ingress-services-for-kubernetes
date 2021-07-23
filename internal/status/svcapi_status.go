@@ -40,7 +40,6 @@ type UpdateSvcApiGWStatusConditionOptions struct {
 
 func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	gatewaysToUpdate, updateGWOptions := parseOptionsFromMetadata(options, bulk)
-	var updateServiceOptions []UpdateOptions
 
 	// gatewayMap: {ns/gateway: gatewayObj}
 	// this pre-fetches all gateways to be candidates for status update
@@ -48,14 +47,6 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	// in which case gateway will be fetched again in updateObject, as part of a retry
 	gatewayMap := getSvcApiGateways(gatewaysToUpdate, bulk)
 	for _, option := range updateGWOptions {
-		updateServiceOptions = append(updateServiceOptions, UpdateOptions{
-			Vip: option.Vip,
-			Key: option.Key,
-			ServiceMetadata: avicache.ServiceMetadataObj{
-				NamespaceServiceName: option.ServiceMetadata.NamespaceServiceName,
-			},
-		})
-
 		if gw := gatewayMap[option.IngSvc]; gw != nil {
 			// assuming 1 IP per gateway
 			gwStatus := gw.Status.DeepCopy()
@@ -83,9 +74,6 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 			})
 		}
 	}
-
-	UpdateL4LBStatus(updateServiceOptions, bulk)
-	return
 }
 
 // getGateways fetches all ingresses and returns a map: {"namespace/name": ingressObj...}

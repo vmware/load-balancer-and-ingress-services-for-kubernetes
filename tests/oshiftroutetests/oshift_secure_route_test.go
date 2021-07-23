@@ -137,7 +137,7 @@ func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interfac
 	g.Eventually(func() string {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return sniVS.VHDomainNames[0]
-	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
+	}, 40*time.Second).Should(gomega.Equal(defaultHostname))
 
 	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
 	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
@@ -145,7 +145,7 @@ func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interfac
 	g.Eventually(func() int {
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return len(sniVS.PoolRefs)
-	}, 20*time.Second).Should(gomega.Equal(2))
+	}, 40*time.Second).Should(gomega.Equal(2))
 	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(2))
 

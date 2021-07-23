@@ -179,7 +179,7 @@ func TestAdvL4WrongClassMappingInIngress(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 40*time.Second).Should(gomega.Equal(1))
+	}, 50*time.Second).Should(gomega.Equal(1))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {

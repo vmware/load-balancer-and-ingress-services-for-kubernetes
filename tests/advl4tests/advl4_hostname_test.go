@@ -415,7 +415,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 50*time.Second).Should(gomega.Equal("10.250.250.250"))
 
 	gwclassUpdate := FakeGWClass{
 		Name:       gwClassName,
