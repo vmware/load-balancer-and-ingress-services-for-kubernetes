@@ -164,7 +164,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 
 		var fqdns []string
 		for _, listener := range gw.Spec.Listeners {
-			autoFQDN := false
+			autoFQDN := true
 			// Honour the hostname if specified corresponding to the listener.
 			if listener.Hostname != nil && string(*listener.Hostname) != "" {
 				fqdns = append(fqdns, string(*listener.Hostname))
@@ -172,8 +172,8 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			}
 
 			subDomains := GetDefaultSubDomain()
-			services := listenerSvcMapping[fmt.Sprintf("%s/%d", listener.Protocol, listener.Port)]
 			if subDomains != nil && autoFQDN {
+				services := listenerSvcMapping[fmt.Sprintf("%s/%d", listener.Protocol, listener.Port)]
 				for _, service := range services {
 					svcNsName := strings.Split(service, "/")
 					fqdn := getAutoFQDNForService(svcNsName[0], svcNsName[1])
