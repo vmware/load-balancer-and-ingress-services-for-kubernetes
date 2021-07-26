@@ -574,7 +574,8 @@ func IsValidCni() bool {
 }
 
 func GetDisableStaticRoute() bool {
-	if GetAdvancedL4() {
+	// We don't need the static routes for NSX-T cloud
+	if GetAdvancedL4() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
 		return true
 	}
 	if ok, _ := strconv.ParseBool(os.Getenv(DISABLE_STATIC_ROUTE_SYNC)); ok {
