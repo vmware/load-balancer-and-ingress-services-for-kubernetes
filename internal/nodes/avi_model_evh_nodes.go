@@ -784,7 +784,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	vsNode := o.GetAviEvhVS()
 	ingName := routeIgrObj.GetName()
 	namespace := routeIgrObj.GetNamespace()
-	evhNodeName := lib.GetEvhNodeName(ingName, namespace, host, infraSettingName)
+	evhNodeName := lib.GetEvhNodeName(ingName, host, infraSettingName)
 	evhNode := vsNode[0].GetEvhNodeForName(evhNodeName)
 	hostSlice := []string{host}
 
@@ -1045,10 +1045,11 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		certsBuilt = true
 	}
 
-	evhNode := vsNode[0].GetEvhNodeForName(lib.GetEvhNodeName(ingName, namespace, host, infraSettingName))
+	childVSName := lib.GetEvhNodeName(ingName, host, infraSettingName)
+	evhNode := vsNode[0].GetEvhNodeForName(childVSName)
 	if evhNode == nil {
 		evhNode = &AviEvhVsNode{
-			Name:         lib.GetEvhNodeName(ingName, namespace, host, infraSettingName),
+			Name:         childVSName,
 			VHParentName: vsNode[0].Name,
 			Tenant:       lib.GetTenant(),
 			EVHParent:    false,
@@ -1358,8 +1359,7 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 			pgName := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName)
 			pgNode := modelEvhNode.GetPGForVSByName(pgName)
 			for _, svc := range services {
-				var evhPool string
-				evhPool = lib.GetEvhPoolName(ingName, namespace, hostname, path, infraSettingName, svc)
+				evhPool := lib.GetEvhPoolName(ingName, namespace, hostname, path, infraSettingName, svc)
 				o.RemovePoolNodeRefsFromEvh(evhPool, modelEvhNode)
 				o.RemovePoolRefsFromPG(evhPool, pgNode)
 
@@ -1416,7 +1416,7 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 		SharedHostNameLister().Save(hostname, ingressHostMap)
 	}
 
-	evhNodeName := lib.GetEvhNodeName(ingName, namespace, hostname, infraSettingName)
+	evhNodeName := lib.GetEvhNodeName(ingName, hostname, infraSettingName)
 	utils.AviLog.Infof("key: %s, msg: EVH node to delete: %s", key, evhNodeName)
 	keepEvh = o.ManipulateEvhNode(evhNodeName, ingName, namespace, hostname, pathSvc, vsNode, infraSettingName, key)
 	if !keepEvh {
@@ -1439,20 +1439,6 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 		RemoveRedirectHTTPPolicyInModelForEvh(vsNode[0], hostnames, key)
 	}
 
-}
-
-func (o *AviObjectGraph) RemoveEvhVsNode(evhVsName string, vsNode []*AviEvhVsNode, key string, hostname string) bool {
-	utils.AviLog.Debugf("Removing EVH vs: %s", evhVsName)
-	for _, modelEvhNode := range vsNode[0].EvhNodes {
-		if evhVsName != modelEvhNode.Name {
-			continue
-		}
-		RemoveEvhInModel(evhVsName, vsNode, key)
-		SharedHostNameLister().Delete(hostname)
-		return false
-	}
-
-	return true
 }
 
 func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode *AviEvhVsNode, hostnames []string, namespace, ingName, key string) {
