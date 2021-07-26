@@ -271,6 +271,10 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 	if updateOption.Vip == "" {
 		return nil
 	}
+	if updateOption.ServiceMetadata.InsecureEdgeTermAllow {
+		utils.AviLog.Infof("Skipping update of parent VS annotation since the route :%v has InsecureEdgeTerminationAllow set to true", mRoute.Name)
+		return nil
+	}
 
 	retry := 0
 	if len(retryNum) > 0 {

@@ -28,7 +28,7 @@ import (
 	avimodels "github.com/avinetworks/sdk/go/models"
 )
 
-func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, routeIgrObj RouteIngressModel, pathsvc []IngressHostPathSvc, gslbHostHeader, key string) {
+func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, routeIgrObj RouteIngressModel, pathsvc []IngressHostPathSvc, gslbHostHeader string, insecureEdgeTermAllow bool, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
@@ -99,10 +99,11 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 				Port:          obj.Port,
 				TargetPort:    obj.TargetPort,
 				ServiceMetadata: avicache.ServiceMetadataObj{
-					IngressName: ingName,
-					Namespace:   namespace,
-					HostNames:   storedHosts,
-					PoolRatio:   obj.weight,
+					IngressName:           ingName,
+					Namespace:             namespace,
+					HostNames:             storedHosts,
+					PoolRatio:             obj.weight,
+					InsecureEdgeTermAllow: insecureEdgeTermAllow,
 				},
 			}
 			poolNode.VrfContext = lib.GetVrf()
