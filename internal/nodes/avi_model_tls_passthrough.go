@@ -135,7 +135,6 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				// Unset the poolnode's vrfcontext.
 				poolNode.VrfContext = ""
 			}
-			o.AddModelNode(poolNode)
 		}
 		poolNode.IngressName = objName
 		poolNode.PortName = obj.PortName

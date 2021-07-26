@@ -41,10 +41,7 @@ func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName stri
 	if vsNode != nil {
 		o.ConstructAdvL4PolPoolNodes(vsNode, gatewayName, namespace, key)
 		o.AddModelNode(vsNode)
-		vsNode.CalculateCheckSum()
-		o.GraphChecksum = o.GraphChecksum + vsNode.GetCheckSum()
 		utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, vsNode.GetCheckSum())
-		utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 	}
 }
 
@@ -286,9 +283,6 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		portPoolSet = append(portPoolSet, portPool)
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
-		poolNode.CalculateCheckSum()
-		o.AddModelNode(poolNode)
-		o.GraphChecksum = o.GraphChecksum + poolNode.GetCheckSum()
 	}
 	l4policyNode := &AviL4PolicyNode{
 		Name:     vsNode.Name,
@@ -296,8 +290,6 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		PortPool: portPoolSet,
 	}
 	l4Policies = append(l4Policies, l4policyNode)
-	l4policyNode.CalculateCheckSum()
-	o.GraphChecksum = o.GraphChecksum + l4policyNode.GetCheckSum()
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
 }

@@ -700,7 +700,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			// Replace the poolNode.
 			childNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
-		o.AddModelNode(poolNode)
 		if !pgfound {
 			httppolname := lib.GetSniHttpPolName(ingName, namespace, hosts[0], path.Path, infraSettingName)
 			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}

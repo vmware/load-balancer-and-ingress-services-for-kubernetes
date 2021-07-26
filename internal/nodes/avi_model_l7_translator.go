@@ -380,7 +380,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				// Replace the poolNode.
 				tlsNode.ReplaceSniPoolInSNINode(poolNode, key)
 			}
-			o.AddModelNode(poolNode)
 			if !pgfound {
 				httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path, infraSettingName)
 				policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}

@@ -803,42 +803,43 @@ func TestDeleteBackendService(t *testing.T) {
 	}
 
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
-		for _, pool := range nodes[0].PoolRefs {
-			if pool.Name == "cluster--foo.com_foo-default-ingress-multi1" {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else if pool.Name == "cluster--foo.com_bar-default-ingress-multi2" {
-				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
-				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
-			} else {
-				t.Fatalf("unexpected pool: %s", pool.Name)
-			}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 15*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
+	for _, pool := range nodes[0].PoolRefs {
+		if pool.Name == "cluster--foo.com_foo-default-ingress-multi1" {
+			g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+		} else if pool.Name == "cluster--foo.com_bar-default-ingress-multi2" {
+			g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+		} else {
+			t.Fatalf("unexpected pool: %s", pool.Name)
 		}
-		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
-		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
-			if *pool.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-ingress-multi1" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			} else if *pool.PoolRef == "/api/pool?name=cluster--foo.com_bar-default-ingress-multi2" {
-				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
-			} else {
-				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
-			}
-		}
-	} else {
-		t.Fatalf("Could not find model: %s", modelName)
 	}
+	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
+	for _, pool := range nodes[0].PoolGroupRefs[0].Members {
+		if *pool.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-ingress-multi1" {
+			g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+		} else if *pool.PoolRef == "/api/pool?name=cluster--foo.com_bar-default-ingress-multi2" {
+			g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+		} else {
+			t.Fatalf("unexpected pool: %s", *pool.PoolRef)
+		}
+	}
+
 	// Delete the service
 	integrationtest.DelSVC(t, "default", "avisvc")
 	integrationtest.DelEP(t, "default", "avisvc")
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -869,7 +870,7 @@ func TestDeleteBackendService(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 1)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_bar-default-ingress-multi2"))
 
