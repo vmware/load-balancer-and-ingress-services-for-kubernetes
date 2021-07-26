@@ -778,7 +778,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
 }
 
-func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host, infraSettingName, key string, pathsvcmap HostMetada) {
+func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host, infraSettingName, key string, pathsvcmap HostMetadata) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	vsNode := o.GetAviEvhVS()
@@ -1033,7 +1033,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	return hostPathSvcMap
 }
 
-func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, hosts []string, tlssetting TlsSettings, ingName, namespace, infraSettingName, host, key string, paths HostMetada) {
+func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, hosts []string, tlssetting TlsSettings, ingName, namespace, infraSettingName, host, key string, paths HostMetadata) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 

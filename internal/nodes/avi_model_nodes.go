@@ -1269,15 +1269,15 @@ type IngressHostPathSvc struct {
 	TargetPort  int32
 }
 
-type IngressHostMap map[string]HostMetada
+type IngressHostMap map[string]HostMetadata
 
-type HostMetada struct {
+type HostMetadata struct {
 	ingressHPSvc   []IngressHostPathSvc
 	gslbHostHeader string
 }
 
 type TlsSettings struct {
-	Hosts            map[string]HostMetada
+	Hosts            map[string]HostMetadata
 	SecretName       string
 	SecretNS         string
 	key              string
@@ -1301,6 +1301,7 @@ type IngressConfig struct {
 	PassthroughCollection map[string]PassthroughSettings
 	TlsCollection         []TlsSettings
 	IngressHostMap
+	InsecureEdgeTermAllow bool
 }
 
 type SecureHostNameMapProp struct {
