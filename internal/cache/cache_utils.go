@@ -42,16 +42,17 @@ type AviPoolCache struct {
 }
 
 type ServiceMetadataObj struct {
-	NamespaceIngressName []string    `json:"namespace_ingress_name"`
-	IngressName          string      `json:"ingress_name"`
-	Namespace            string      `json:"namespace"`
-	HostNames            []string    `json:"hostnames"`
-	NamespaceServiceName []string    `json:"namespace_svc_name"` // []string{ns/name}
-	CRDStatus            CRDMetadata `json:"crd_status"`
-	PoolRatio            int32       `json:"pool_ratio"`
-	PassthroughParentRef string      `json:"passthrough_parent_ref"`
-	PassthroughChildRef  string      `json:"passthrough_child_ref"`
-	Gateway              string      `json:"gateway"` // ns/name
+	NamespaceIngressName  []string    `json:"namespace_ingress_name"`
+	IngressName           string      `json:"ingress_name"`
+	Namespace             string      `json:"namespace"`
+	HostNames             []string    `json:"hostnames"`
+	NamespaceServiceName  []string    `json:"namespace_svc_name"` // []string{ns/name}
+	CRDStatus             CRDMetadata `json:"crd_status"`
+	PoolRatio             int32       `json:"pool_ratio"`
+	PassthroughParentRef  string      `json:"passthrough_parent_ref"`
+	PassthroughChildRef   string      `json:"passthrough_child_ref"`
+	Gateway               string      `json:"gateway"` // ns/name
+	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
 }
 
 type CRDMetadata struct {

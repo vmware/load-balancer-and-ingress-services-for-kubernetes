@@ -176,7 +176,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 
 	var tlsConfigs []TlsSettings
 	for _, rule := range ingSpec.Rules {
-		var hostPathMapSvcList HostMetada
+		var hostPathMapSvcList HostMetadata
 		var hostName string
 		if rule.Host == "" {
 			if subDomains == nil {
@@ -328,7 +328,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 		return ingressConfig
 	}
 	defaultWeight := int32(100)
-	var hostPathMapSvcList HostMetada
+	var hostPathMapSvcList HostMetadata
 
 	hostPathMapSvc := IngressHostPathSvc{}
 	hostPathMapSvc.Path = routeSpec.Path
@@ -441,6 +441,9 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 
 	if secretName == "" || (routeSpec.TLS != nil && routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow) {
 		ingressConfig.IngressHostMap = hostMap
+		if routeSpec.TLS != nil && routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow {
+			ingressConfig.InsecureEdgeTermAllow = true
+		}
 	}
 
 	utils.AviLog.Infof("key: %s, msg: host path config from routes: %+v", key, utils.Stringify(ingressConfig))
