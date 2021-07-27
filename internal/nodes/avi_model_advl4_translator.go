@@ -147,11 +147,37 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		gw, _ := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
 
 		var serviceNSNames []string
+		listenerSvcMapping := make(map[string][]string)
 		if found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName); found {
 			for svcListener, service := range services {
 				// assume it to have only a single backend service, the check is in isGatewayDelete
 				if utils.HasElem(listeners, svcListener) && len(service) == 1 && !utils.HasElem(serviceNSNames, service[0]) {
 					serviceNSNames = append(serviceNSNames, service[0])
+					if val, ok := listenerSvcMapping[svcListener]; ok {
+						listenerSvcMapping[svcListener] = append(val, service[0])
+					} else {
+						listenerSvcMapping[svcListener] = []string{service[0]}
+					}
+				}
+			}
+		}
+
+		var fqdns []string
+		for _, listener := range gw.Spec.Listeners {
+			autoFQDN := true
+			// Honour the hostname if specified corresponding to the listener.
+			if listener.Hostname != nil && string(*listener.Hostname) != "" {
+				fqdns = append(fqdns, string(*listener.Hostname))
+				autoFQDN = false
+			}
+
+			subDomains := GetDefaultSubDomain()
+			if subDomains != nil && autoFQDN {
+				services := listenerSvcMapping[fmt.Sprintf("%s/%d", listener.Protocol, listener.Port)]
+				for _, service := range services {
+					svcNsName := strings.Split(service, "/")
+					fqdn := getAutoFQDNForService(svcNsName[0], svcNsName[1])
+					fqdns = append(fqdns, fqdn)
 				}
 			}
 		}
@@ -161,8 +187,8 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
 			ServiceMetadata: avicache.ServiceMetadataObj{
-				NamespaceServiceName: serviceNSNames,
-				Gateway:              namespace + "/" + gatewayName,
+				Gateway:   namespace + "/" + gatewayName,
+				HostNames: fqdns,
 			},
 			ServiceEngineGroup: lib.GetSEGName(),
 		}
@@ -194,6 +220,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			Name:       lib.GetL4VSVipName(gatewayName, namespace),
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
+			FQDNs:      fqdns,
 		}
 
 		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -228,6 +255,19 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	if !found || !foundGW {
 		return
 	}
+
+	// create a mapping of portProto to hostname
+	gwListenerHostNameMapping := make(map[string]string)
+	if lib.UseServicesAPI() {
+		// enable fqdn for gateway services only for non-advancedl4 usecases.
+		gw, _ := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		for _, gwlistener := range gw.Spec.Listeners {
+			if gwlistener.Hostname != nil && string(*gwlistener.Hostname) != "" {
+				gwListenerHostNameMapping[fmt.Sprintf("%s/%d", gwlistener.Protocol, gwlistener.Port)] = string(*gwlistener.Hostname)
+			}
+		}
+	}
+
 	var portPoolSet []AviHostPathPortPoolPG
 	for listener, svc := range svcListeners {
 		if !utils.HasElem(gwListeners, listener) || len(svc) != 1 {
@@ -238,6 +278,14 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		svcNSName := strings.Split(svc[0], "/")
 		port, _ := utilsnet.ParsePort(portProto[1], true)
 
+		var svcFQDN string
+		if fqdn, ok := gwListenerHostNameMapping[listener]; ok {
+			svcFQDN = fqdn
+		}
+		if lib.GetL4FqdnFormat() != 3 && svcFQDN == "" {
+			svcFQDN = getAutoFQDNForService(svcNSName[0], svcNSName[1])
+		}
+
 		poolNode := &AviPoolNode{
 			Name:     lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, int32(port)),
 			Tenant:   lib.GetTenant(),
@@ -247,6 +295,10 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 				NamespaceServiceName: []string{svc[0]},
 			},
 			VrfContext: lib.GetVrf(),
+		}
+
+		if svcFQDN != "" {
+			poolNode.ServiceMetadata.HostNames = []string{svcFQDN}
 		}
 
 		// If the service has multiple ports but the gateway specifies one of them as listeners then we pick the portname from the service and populate it in pool portname.

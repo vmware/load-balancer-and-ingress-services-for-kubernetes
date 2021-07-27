@@ -489,7 +489,20 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 							utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
 							pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 							if found {
-								if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
+								if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+									updateOptions := status.UpdateOptions{
+										Vip:                vs_cache_obj.Vip,
+										ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
+										Key:                key,
+										VirtualServiceUUID: vs_cache_obj.Uuid,
+									}
+									statusOption := status.StatusOptions{
+										ObjType: utils.L4LBService,
+										Op:      lib.UpdateStatus,
+										Options: &updateOptions,
+									}
+									status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
+								} else if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
 									updateOptions := status.UpdateOptions{
 										Vip:                vs_cache_obj.Vip,
 										ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
@@ -578,7 +591,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				Op:      lib.UpdateStatus,
 				Options: &updateOptions,
 			}
-			status.PublishToStatusQueue(svc_mdata_obj.NamespaceServiceName[0], statusOption)
+			status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 		} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
 			updateOptions := status.UpdateOptions{
 				Vip:                parentVsObj.Vip,
@@ -637,7 +650,6 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				}
 			}
 
-			// Reset the LB status field as well.
 			if vs_cache_obj.ServiceMetadataObj.Gateway != "" {
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
@@ -649,11 +661,6 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					Options: &updateOptions,
 				}
 				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
-
-				statusOptionLBSvc := statusOption
-				statusOptionLBSvc.ObjType = utils.L4LBService
-				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOptionLBSvc)
-
 			} else if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata:    vs_cache_obj.ServiceMetadataObj,

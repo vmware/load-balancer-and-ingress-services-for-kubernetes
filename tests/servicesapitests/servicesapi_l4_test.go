@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	svcapifake "sigs.k8s.io/service-apis/pkg/client/clientset/versioned/fake"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -54,6 +55,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
+	os.Setenv("AUTO_L4_FQDN", "default")
 
 	CRDClient = crdfake.NewSimpleClientset()
 	lib.SetCRDClientset(CRDClient)
@@ -133,6 +135,7 @@ type FakeGWListener struct {
 	Port     servicesapi.PortNumber
 	Protocol string
 	Labels   map[string]string
+	HostName *string
 }
 
 func (gw FakeGateway) Gateway() *servicesapi.Gateway {
@@ -141,6 +144,7 @@ func (gw FakeGateway) Gateway() *servicesapi.Gateway {
 		fakeListeners = append(fakeListeners, servicesapi.Listener{
 			Port:     listener.Port,
 			Protocol: servicesapi.ProtocolType(listener.Protocol),
+			Hostname: (*servicesapi.Hostname)(listener.HostName),
 			Routes: servicesapi.RouteBindingSelector{
 				Kind: "services",
 				Selector: metav1.LabelSelector{
@@ -314,7 +318,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
 	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
-	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
+	g.Expect(nodes[0].PoolRefs[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
 	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
 
@@ -1130,6 +1134,102 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
 		return len(svc2.Status.LoadBalancer.Ingress)
 	}, 30*time.Second).Should(gomega.Equal(0))
+
+	TeardownAdvLBService(t, svcName1, ns)
+	TeardownAdvLBService(t, svcName2, ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
+	// create gw, svc1, svc2 on separate listeners
+	// assign hostname to svc1, autofqdn for svc2, check model, check status
+	// assign hostname to svc2 via listener, check model, check status
+
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	svcName1, svcName2 := "svc1", "svc2"
+	modelName := "admin/cluster--default-my-gateway"
+	labels := map[string]string{lib.SvcApiGatewayNameLabelKey: gatewayName, lib.SvcApiGatewayNamespaceLabelKey: ns}
+
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
+
+	gateway := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{
+			{Port: 8081, Protocol: "TCP", Labels: labels, HostName: proto.String("foo.avi.internal")},
+			{Port: 8082, Protocol: "TCP", Labels: labels},
+		},
+	}
+	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gateway.Gateway(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Gateway: %v", err)
+	}
+
+	svc1 := integrationtest.FakeService{
+		Name:         svcName1,
+		Namespace:    ns,
+		Labels:       labels,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
+	}
+	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	svc2 := integrationtest.FakeService{
+		Name:         svcName2,
+		Namespace:    ns,
+		Labels:       labels,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8082, TargetPort: 80}},
+	}
+	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	integrationtest.CreateEP(t, ns, svcName1, false, true, "1.1.1")
+	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
+
+	g.Eventually(func() bool {
+		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
+		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
+			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
+			svc1.Status.LoadBalancer.Ingress[0].Hostname == "foo.avi.internal" &&
+			svc2.Status.LoadBalancer.Ingress[0].Hostname == "svc2.default.com" {
+			return true
+		}
+		return false
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	gatewayUpdate := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{
+			{Port: 8081, Protocol: "TCP", Labels: labels},
+			{Port: 8082, Protocol: "TCP", Labels: labels, HostName: proto.String("bar.avi.internal")},
+		},
+	}
+	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate.Gateway(), metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating Gateway: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
+		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
+			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
+			svc1.Status.LoadBalancer.Ingress[0].Hostname == "svc1.default.com" &&
+			svc2.Status.LoadBalancer.Ingress[0].Hostname == "bar.avi.internal" {
+			return true
+		}
+		return false
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, svcName1, ns)
 	TeardownAdvLBService(t, svcName2, ns)

@@ -181,6 +181,11 @@ func GetshardSize() uint32 {
 }
 
 func GetL4FqdnFormat() int32 {
+	if GetAdvancedL4() {
+		// disable for advancedL4
+		return 3
+	}
+
 	fqdnFormat := os.Getenv("AUTO_L4_FQDN")
 	enumVal, ok := fqdnEnum[fqdnFormat]
 	if ok {
