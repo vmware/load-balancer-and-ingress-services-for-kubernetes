@@ -2749,7 +2749,7 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 		return false
 	}
 	// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
-	if vType == "CLOUD_NSXT" {
+	if vType == lib.CLOUD_NSXT {
 		if lib.GetT1LRPath() == "" {
 			utils.AviLog.Errorf("Cloud is configured as NSX-T but the T1 LR mapping is not provided")
 			return false
@@ -2884,11 +2884,61 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		utils.AviLog.Infof("Using global VRF for NodePort mode")
 		return true
 	}
+	if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetServiceType() == "ClusterIP" && lib.GetCNIPlugin() != lib.NCP_CNI {
+		// Here we need to determine the right VRF for this T1LR
+		// The logic is: Get all the VRF context objects from the controller, figure out the VRF that matches the T1LR
+		// Current pagination size is set to 100, this may have to increased if we have more than 100 T1 routers.
+		uri := "/api/vrfcontext?" + "&include_name=true&cloud_ref.name=" + utils.CloudName + "&page_size=100"
+		result, err := lib.AviGetCollectionRaw(client, uri)
+		if err != nil {
+			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+			return false
+		}
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			return false
+		}
+		var foundVrf bool
+		for i := 0; i < result.Count; i++ {
+			vrf := models.VrfContext{}
+			err = json.Unmarshal(elems[i], &vrf)
+			if err != nil {
+				utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+				continue
+			}
 
-	vrfRef := *network.VrfContextRef
-	vrfName := strings.Split(vrfRef, "#")[1]
-	utils.AviLog.Infof("Setting VRF %s found from network %s", vrfName, networkName)
-	lib.SetVrf(vrfName)
+			vrfName := *vrf.Name
+			if vrf.Attrs != nil {
+				for _, v := range vrf.Attrs {
+					if *v.Key == "tier1path" && *v.Value == lib.GetT1LRPath() {
+						lib.SetVrf(vrfName)
+						utils.AviLog.Infof("Setting VRF %s found that matches the T1Lr %s", vrfName, lib.GetT1LRPath())
+						foundVrf = true
+						break
+					}
+				}
+			}
+			if foundVrf {
+				// We have already found the VRF, we need not iterate through all elements of the result.
+				break
+			}
+		}
+		if !foundVrf {
+			// Fall back on the `global` VRF if there are no attrs are present.
+			vrfRef := *network.VrfContextRef
+			vrfName := strings.Split(vrfRef, "#")[1]
+			utils.AviLog.Infof("Setting VRF %s from the network because no match found for T1Lr: %s", vrfName, lib.GetT1LRPath())
+			lib.SetVrf(vrfName)
+		}
+
+	} else {
+		vrfRef := *network.VrfContextRef
+		vrfName := strings.Split(vrfRef, "#")[1]
+		utils.AviLog.Infof("Setting VRF %s found from network %s", vrfName, networkName)
+		lib.SetVrf(vrfName)
+	}
 	return true
 }
 
