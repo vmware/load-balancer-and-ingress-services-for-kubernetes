@@ -33,6 +33,9 @@ import (
 )
 
 func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map[string]UpdateOptions) {
+	// updateIngressOptions holds as its key ingressNS/ingressName/vsIP and tries aggregating multiiple hostnames
+	// from various service metadatas. This ensures that a particular ingress hosting a particular IP,
+	// can possibly hold multiple hostnames.
 	updateIngressOptions := make(map[string]UpdateOptions)
 
 	for _, option := range options {
@@ -45,32 +48,33 @@ func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map
 					continue
 				}
 
-				ingress := ingressArr[0] + "/" + ingressArr[1]
-				option.IngSvc = ingress
-				if opt, ok := updateIngressOptions[ingress]; ok {
+				ingressIPKey := ingressns + "/" + option.Vip
+				option.IngSvc = ingressns
+				if opt, ok := updateIngressOptions[ingressIPKey]; ok {
 					for _, hostname := range option.ServiceMetadata.HostNames {
 						if !utils.HasElem(opt.ServiceMetadata.HostNames, hostname) {
 							opt.ServiceMetadata.HostNames = append(opt.ServiceMetadata.HostNames, option.ServiceMetadata.HostNames...)
-							updateIngressOptions[ingress] = opt
+							updateIngressOptions[ingressIPKey] = opt
 						}
 					}
 				} else {
-					updateIngressOptions[ingress] = option
+					updateIngressOptions[ingressIPKey] = option
 				}
 			}
 		} else {
 			// insecure VSes, servicemetadata comes from Pools.
 			ingress := option.ServiceMetadata.Namespace + "/" + option.ServiceMetadata.IngressName
+			ingressIPKey := ingress + "/" + option.Vip
 			option.IngSvc = ingress
-			if opt, ok := updateIngressOptions[ingress]; ok {
+			if opt, ok := updateIngressOptions[ingressIPKey]; ok {
 				for _, hostname := range option.ServiceMetadata.HostNames {
 					if !utils.HasElem(opt.ServiceMetadata.HostNames, hostname) {
 						opt.ServiceMetadata.HostNames = append(opt.ServiceMetadata.HostNames, option.ServiceMetadata.HostNames...)
-						updateIngressOptions[ingress] = opt
+						updateIngressOptions[ingressIPKey] = opt
 					}
 				}
 			} else {
-				updateIngressOptions[ingress] = option
+				updateIngressOptions[ingressIPKey] = option
 			}
 		}
 	}
@@ -78,7 +82,8 @@ func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map
 	ingressesToUpdate := make([]string, len(updateIngressOptions))
 	i := 0
 	for k := range updateIngressOptions {
-		ingressesToUpdate[i] = k
+		kSlice := strings.Split(k, "/")
+		ingressesToUpdate[i] = kSlice[0] + "/" + kSlice[1]
 		i++
 	}
 	return ingressesToUpdate, updateIngressOptions
