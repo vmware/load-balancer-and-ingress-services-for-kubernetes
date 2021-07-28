@@ -76,8 +76,6 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 		}
 
-		enableRhi := lib.GetEnableRHI()
-		avi_vs_meta.EnableRhi = &enableRhi
 		avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gatewayName)
 
 		isTCP, isUDP := false, false
@@ -189,8 +187,6 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		isTCP, isUDP := false, false
-		enableRhi := lib.GetEnableRHI()
-		avi_vs_meta.EnableRhi = &enableRhi
 		avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gatewayName)
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {

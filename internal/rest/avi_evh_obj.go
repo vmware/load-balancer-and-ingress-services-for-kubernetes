@@ -277,6 +277,9 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		if enableRhi {
 			vs.EnableRhi = &enableRhi
 		}
+		if lib.GetGRBACSupport() {
+			vs.Markers = lib.GetMarkers()
+		}
 		if vs_meta.DefaultPoolGroup != "" {
 			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
 			vs.PoolGroupRef = &pool_ref

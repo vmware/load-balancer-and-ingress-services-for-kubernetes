@@ -159,8 +159,12 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vsDownOnPoolDown := true
 			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
 		}
-		if lib.GetGRBACSupport() && !vs_meta.SharedVS {
-			vs.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
+		if lib.GetGRBACSupport() {
+			if vs_meta.SharedVS {
+				vs.Markers = lib.GetMarkers()
+			} else {
+				vs.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
+			}
 		}
 		if len(vs_meta.L4PolicyRefs) > 0 {
 			vsDownOnPoolDown := true

@@ -732,7 +732,7 @@ func ObjectLabelChecksum(objectLabels []*models.RoleFilterMatchLabel) uint32 {
 	markersStr := make([]string, len(objectLabels))
 	var j int
 	var combinedString string
-	//Add all markers values to form cksum except for clusternamelabel for bkward compatibility
+	//For shared objects, checksum will be of only cluster label
 	for _, label := range objectLabels {
 		if *label.Key == clusterKey {
 			if label.Values != nil && len(label.Values) > 0 && label.Values[0] == clusterValue {
@@ -1011,7 +1011,7 @@ func GetLabels() []*models.KeyValue {
 // GetMarkers returns the key values pair used for tagging the segroups and routes in vrfcontext
 func GetAllMarkers(markers utils.AviObjectMarkers) []*models.RoleFilterMatchLabel {
 	clusterName := GetClusterName()
-	labelKey := SeGroupLabelKey
+	labelKey := ClusterNameLabelKey
 	rfml := &models.RoleFilterMatchLabel{
 		Key:    &labelKey,
 		Values: []string{clusterName},

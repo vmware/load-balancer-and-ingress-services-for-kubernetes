@@ -878,7 +878,7 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	if v.HeaderReWrite != nil {
 		checksum = checksum + utils.Hash(utils.Stringify(v.HeaderReWrite))
 	}
-	if lib.GetGRBACSupport() && !v.AttachedToSharedVS {
+	if lib.GetGRBACSupport() {
 		checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	}
 	v.CloudConfigCksum = checksum
@@ -1030,6 +1030,9 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)
 	}
+	if lib.GetGRBACSupport() {
+		checksum += lib.GetClusterLabelChecksum()
+	}
 
 	v.CloudConfigCksum = checksum
 }
@@ -1075,7 +1078,7 @@ func (v *AviPoolGroupNode) CalculateCheckSum() {
 		return *pgMembers[i].PoolRef < *pgMembers[j].PoolRef
 	})
 	checksum := utils.Hash(utils.Stringify(pgMembers))
-	if lib.GetGRBACSupport() && !v.AttachedToSharedVS {
+	if lib.GetGRBACSupport() {
 		checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	}
 	v.CloudConfigCksum = checksum
@@ -1268,7 +1271,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksum += utils.Hash(v.ApplicationPersistence)
 	}
 
-	if lib.GetGRBACSupport() && !v.AttachedWithSharedVS {
+	if lib.GetGRBACSupport() {
 		checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	}
 	if v.T1Lr != "" {

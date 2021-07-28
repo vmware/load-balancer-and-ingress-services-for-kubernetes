@@ -100,8 +100,12 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	if pool_meta.T1Lr != "" {
 		pool.Tier1Lr = &pool_meta.T1Lr
 	}
-	if lib.GetGRBACSupport() && !pool_meta.AttachedWithSharedVS {
-		pool.Markers = lib.GetAllMarkers(pool_meta.AviMarkers)
+	if lib.GetGRBACSupport() {
+		if !pool_meta.AttachedWithSharedVS {
+			pool.Markers = lib.GetAllMarkers(pool_meta.AviMarkers)
+		} else {
+			pool.Markers = lib.GetMarkers()
+		}
 	}
 	if pool_meta.PkiProfile != nil {
 		pkiProfileName := "/api/pkiprofile?name=" + pool_meta.PkiProfile.Name
