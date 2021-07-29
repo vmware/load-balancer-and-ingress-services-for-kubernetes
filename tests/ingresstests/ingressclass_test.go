@@ -99,7 +99,7 @@ func VerifyPoolDeletionFromVsNode(g *gomega.WithT, modelName string) {
 
 // Ingress - IngressClass mapping tests
 
-func TestAdvL4WrongClassMappingInIngress(t *testing.T) {
+func TestWrongClassMappingInIngress(t *testing.T) {
 	// create ingclass, ingress
 	// update wrong mapping of class in ingress, VS deleted
 	// fix class in ingress, VS created

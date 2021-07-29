@@ -440,6 +440,7 @@ func TestAddIngressDefaultCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't Delete the secret %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -513,6 +514,7 @@ func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't Delete the secret %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -579,6 +581,7 @@ func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't Delete the secret %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -641,5 +644,6 @@ func TestIngressAnnotationAddDefaultCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't Delete the secret %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, modelName)
 }

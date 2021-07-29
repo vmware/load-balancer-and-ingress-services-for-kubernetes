@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+	"google.golang.org/protobuf/proto"
 	utilsnet "k8s.io/utils/net"
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
@@ -99,7 +99,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		// In case the VS has services that are a mix of TCP and UDP sockets,
 		// we create the VS with global network profile TCP Fast Path,
 		// and override required services with UDP Fast Path. Having a separate
-		// internally used network profile (MIXED_NET_PROFILE) helpss ensure PUT calls
+		// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
 		// on existing VSes.
 		if isTCP && !isUDP {
 			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
@@ -212,7 +212,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		// In case the VS has services that are a mix of TCP and UDP sockets,
 		// we create the VS with global network profile TCP Fast Path,
 		// and override required services with UDP Fast Path. Having a separate
-		// internally used network profile (MIXED_NET_PROFILE) helpss ensure PUT calls
+		// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
 		// on existing VSes.
 		if isTCP && !isUDP {
 			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
