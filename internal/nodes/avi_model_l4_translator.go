@@ -35,7 +35,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	var avi_vs_meta *AviVsNode
 	var fqdns []string
 	autoFQDN := true
-	if lib.GetL4FqdnFormat() == 3 {
+	if lib.GetL4FqdnFormat() == lib.AutoFQDNDisabled {
 		autoFQDN = false
 	}
 
@@ -405,10 +405,10 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 		subdomain = strings.Replace(subDomains[0], ".", "", -1)
 	}
 
-	if lib.GetL4FqdnFormat() == 1 {
+	if lib.GetL4FqdnFormat() == lib.AutoFQDNDefault {
 		// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
 		fqdn = svcName + "." + svcNamespace + "." + subdomain
-	} else if lib.GetL4FqdnFormat() == 2 {
+	} else if lib.GetL4FqdnFormat() == lib.AutoFQDNFlat {
 		// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
 		fqdn = svcName + "-" + svcNamespace + "." + subdomain
 	}

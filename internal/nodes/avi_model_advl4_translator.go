@@ -282,7 +282,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		if fqdn, ok := gwListenerHostNameMapping[listener]; ok {
 			svcFQDN = fqdn
 		}
-		if lib.GetL4FqdnFormat() != 3 && svcFQDN == "" {
+		if lib.GetL4FqdnFormat() != lib.AutoFQDNDisabled && svcFQDN == "" {
 			svcFQDN = getAutoFQDNForService(svcNSName[0], svcNSName[1])
 		}
 
