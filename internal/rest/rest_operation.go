@@ -277,6 +277,9 @@ func AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp) error {
 				utils.AviLog.Warnf("Error in rest operation is not of type AviError, err: %v, %T", op.Err, op.Err)
 			} else if op.Model == "VsVip" && op.Method == utils.RestPut {
 				utils.AviLog.Debugf("Error in rest operation for VsVip Put request.")
+			} else if aviErr.HttpStatusCode == 404 && op.Method == utils.RestDelete {
+				utils.AviLog.Warnf("Error during rest operation: %v, object of type %s not found in the controller. Ignoring err: %v", op.Method, op.Model, op.Err)
+				continue
 			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
 					continue
