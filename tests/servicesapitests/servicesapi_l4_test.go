@@ -579,7 +579,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 			}
 		}
 		return false
-	}, 40*time.Second).Should(gomega.Equal(true))
+	}, 50*time.Second).Should(gomega.Equal(true))
 
 	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)

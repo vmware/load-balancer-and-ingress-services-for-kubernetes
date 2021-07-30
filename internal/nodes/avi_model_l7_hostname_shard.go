@@ -126,8 +126,6 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 					poolNode.Servers = servers
 				}
 			}
-			poolNode.CalculateCheckSum()
-			o.AddModelNode(poolNode)
 			vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
 			utils.AviLog.Debugf("key: %s, msg: the pools after append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
 		}

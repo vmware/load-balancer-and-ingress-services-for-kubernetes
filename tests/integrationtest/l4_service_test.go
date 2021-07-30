@@ -371,8 +371,8 @@ func TestAviSvcUpdateEndpoint(t *testing.T) {
 	var aviModel interface{}
 	g.Eventually(func() []avinodes.AviPoolMetaServer {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-		pools := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-		return pools[0].Servers
+		node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+		return node.PoolRefs[0].Servers
 	}, 5*time.Second).Should(gomega.HaveLen(2))
 
 	g.Eventually(func() bool {
@@ -380,8 +380,8 @@ func TestAviSvcUpdateEndpoint(t *testing.T) {
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	pools := aviModel.(*avinodes.AviObjectGraph).GetAviPoolNodes()
-	for _, pool := range pools {
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	for _, pool := range nodes[0].PoolRefs {
 		if pool.Port == 8080 {
 			address := "1.2.3.24"
 			g.Expect(pool.Servers).To(gomega.HaveLen(2))

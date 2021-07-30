@@ -129,13 +129,87 @@ func (v *AviObjectGraph) DecrementRetryCounter() {
 func (v *AviObjectGraph) CalculateCheckSum() {
 	v.Lock.Lock()
 	defer v.Lock.Unlock()
-	// A sum of fields for this model.
 	v.GraphChecksum = 0
 	for _, model := range v.modelNodes {
-		//chksumStr += strconv.Itoa(int(model.GetCheckSum())) + delim
+		if lib.IsEvhEnabled() {
+			if modelVsNode, ok := model.(*AviEvhVsNode); ok {
+				v.GraphChecksum = v.GraphChecksum + modelVsNode.CalculateForGraphChecksum()
+				continue
+			}
+		} else {
+			if modelVsNode, ok := model.(*AviVsNode); ok {
+				v.GraphChecksum = v.GraphChecksum + modelVsNode.CalculateForGraphChecksum()
+				continue
+			}
+		}
 		v.GraphChecksum = v.GraphChecksum + model.GetCheckSum()
-
 	}
+}
+
+func (v *AviVsNode) CalculateForGraphChecksum() uint32 {
+	checksumStringSlice := []string{fmt.Sprint(v.GetCheckSum())}
+	for _, pool := range v.PoolRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(pool.GetCheckSum()))
+	}
+	for _, pg := range v.PoolGroupRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(pg.GetCheckSum()))
+	}
+	for _, ds := range v.HTTPDSrefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(ds.GetCheckSum()))
+	}
+	for _, sni := range v.SniNodes {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(sni.CalculateForGraphChecksum()))
+	}
+	for _, passthrough := range v.PassthroughChildNodes {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(passthrough.CalculateForGraphChecksum()))
+	}
+	for _, cacert := range v.CACertRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(cacert.GetCheckSum()))
+	}
+	for _, sslkey := range v.SSLKeyCertRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(sslkey.GetCheckSum()))
+	}
+	for _, httppol := range v.HttpPolicyRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(httppol.GetCheckSum()))
+	}
+	for _, vsvip := range v.VSVIPRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(vsvip.GetCheckSum()))
+	}
+	for _, l4pol := range v.L4PolicyRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(l4pol.GetCheckSum()))
+	}
+
+	return utils.Hash(strings.Join(checksumStringSlice, ":"))
+}
+
+func (v *AviEvhVsNode) CalculateForGraphChecksum() uint32 {
+	checksumStringSlice := []string{fmt.Sprint(v.GetCheckSum())}
+	for _, pool := range v.PoolRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(pool.GetCheckSum()))
+	}
+	for _, pg := range v.PoolGroupRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(pg.GetCheckSum()))
+	}
+	for _, ds := range v.HTTPDSrefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(ds.GetCheckSum()))
+	}
+	for _, evh := range v.EvhNodes {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(evh.CalculateForGraphChecksum()))
+	}
+	for _, cacert := range v.CACertRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(cacert.GetCheckSum()))
+	}
+	for _, sslkey := range v.SSLKeyCertRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(sslkey.GetCheckSum()))
+	}
+	for _, httppol := range v.HttpPolicyRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(httppol.GetCheckSum()))
+	}
+	for _, vsvip := range v.VSVIPRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(vsvip.GetCheckSum()))
+	}
+
+	return utils.Hash(strings.Join(checksumStringSlice, ":"))
 }
 
 func NewAviObjectGraph() *AviObjectGraph {
@@ -284,7 +358,6 @@ type AviVsNode struct {
 	SNIParent             bool
 	PoolGroupRefs         []*AviPoolGroupNode
 	PoolRefs              []*AviPoolNode
-	TCPPoolGroupRefs      []*AviPoolGroupNode
 	HTTPDSrefs            []*AviHTTPDataScriptNode
 	SniNodes              []*AviVsNode
 	PassthroughChildNodes []*AviVsNode
@@ -1215,17 +1288,6 @@ func (v *AviPoolNode) CopyNode() AviModelNode {
 		utils.AviLog.Warnf("Unable to unmarshal AviPoolNode: %s", err)
 	}
 	return &newNode
-}
-
-func (o *AviObjectGraph) GetAviPoolNodes() []*AviPoolNode {
-	var aviPool []*AviPoolNode
-	for _, model := range o.modelNodes {
-		pool, ok := model.(*AviPoolNode)
-		if ok {
-			aviPool = append(aviPool, pool)
-		}
-	}
-	return aviPool
 }
 
 func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string) []*AviPoolNode {

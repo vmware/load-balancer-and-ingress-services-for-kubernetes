@@ -164,15 +164,9 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
-
-		poolNode.CalculateCheckSum()
-		o.AddModelNode(poolNode)
-		o.GraphChecksum = o.GraphChecksum + poolNode.GetCheckSum()
 	}
 	l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: lib.GetTenant(), PortPool: portPoolSet}
 	l4Policies = append(l4Policies, l4policyNode)
-	l4policyNode.CalculateCheckSum()
-	o.GraphChecksum = o.GraphChecksum + l4policyNode.GetCheckSum()
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
 
@@ -377,8 +371,6 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 	VsNode = o.ConstructAviL4VsNode(svcObj, key)
 	o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
 	o.AddModelNode(VsNode)
-	VsNode.CalculateCheckSum()
-	o.GraphChecksum = o.GraphChecksum + VsNode.GetCheckSum()
 	utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
 	utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 }
