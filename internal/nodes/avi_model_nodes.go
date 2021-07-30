@@ -777,9 +777,6 @@ func (v *AviVsNode) CalculateCheckSum() {
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
 	}
-	for _, vsvipref := range v.VSVIPRefs {
-		checksum += utils.Hash(utils.Stringify(vsvipref.EnablePublicIP))
-	}
 
 	v.CloudConfigCksum = checksum
 }
@@ -988,7 +985,7 @@ type AviVSVIPNode struct {
 	VrfContext              string
 	IPAddress               string
 	VipNetworks             []akov1alpha1.AviInfraSettingVipNetwork
-	EnablePublicIP          bool
+	EnablePublicIP          *bool
 	BGPPeerLabels           []string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
@@ -1020,7 +1017,9 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 		sort.Strings(vipNetworkStringList)
 		checksum += utils.Hash(utils.Stringify(vipNetworkStringList))
 	}
-	checksum += utils.Hash(strconv.FormatBool(v.EnablePublicIP))
+	if v.EnablePublicIP != nil {
+		checksum += utils.Hash(utils.Stringify(*v.EnablePublicIP))
+	}
 
 	if lib.GetGRBACSupport() {
 		checksum += lib.GetClusterLabelChecksum()

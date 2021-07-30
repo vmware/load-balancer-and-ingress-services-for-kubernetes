@@ -79,7 +79,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		vip := &avimodels.Vip{
 			VipID:                  &vipId,
 			AutoAllocateIP:         &autoAllocate,
-			AutoAllocateFloatingIP: &vsvip_meta.EnablePublicIP,
+			AutoAllocateFloatingIP: vsvip_meta.EnablePublicIP,
 		}
 
 		// This would throw an error for advl4 the error is propagated to the gateway status.
@@ -133,7 +133,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		vip := avimodels.Vip{
 			VipID:                  &vipId,
 			AutoAllocateIP:         &autoAllocate,
-			AutoAllocateFloatingIP: &vsvip_meta.EnablePublicIP,
+			AutoAllocateFloatingIP: vsvip_meta.EnablePublicIP,
 		}
 
 		// configuring static IP, from gateway.Addresses (advl4, svcapi) and service.loadBalancerIP (l4)
@@ -526,7 +526,7 @@ func (rest *RestOperations) AviVsVipCacheDel(rest_op *utils.RestOp, vsKey avicac
 	return nil
 }
 
-func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, enablePublicIP bool) []*avimodels.Vip {
+func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, enablePublicIP *bool) []*avimodels.Vip {
 	var vipList []*avimodels.Vip
 	autoAllocate := true
 	for vipIDInt, vipNetwork := range vipNetworks {
@@ -534,7 +534,7 @@ func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, ena
 		newVip := &avimodels.Vip{
 			VipID:                  &vipID,
 			AutoAllocateIP:         &autoAllocate,
-			AutoAllocateFloatingIP: &enablePublicIP,
+			AutoAllocateFloatingIP: enablePublicIP,
 		}
 		newVip.SubnetUUID = proto.String(vipNetwork.NetworkName)
 		vipList = append(vipList, newVip)

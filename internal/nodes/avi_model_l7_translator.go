@@ -545,11 +545,9 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		} else {
 			vsvip.VipNetworks = lib.GetVipNetworkList()
 		}
-		enablePublicIP := false
 		if infraSetting.Spec.Network.EnablePublicIP != nil && lib.IsPublicCloud() {
-			enablePublicIP = *infraSetting.Spec.Network.EnablePublicIP
+			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
-		vsvip.EnablePublicIP = enablePublicIP
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
 
