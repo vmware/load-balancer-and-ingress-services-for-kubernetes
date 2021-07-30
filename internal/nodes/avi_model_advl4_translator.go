@@ -16,7 +16,6 @@ package nodes
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -25,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+	"google.golang.org/protobuf/proto"
 	utilsnet "k8s.io/utils/net"
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
@@ -73,10 +73,8 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 				Gateway:              namespace + "/" + gatewayName,
 			},
 			ServiceEngineGroup: lib.GetSEGName(),
+			EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 		}
-
-		enableRhi := lib.GetEnableRHI()
-		avi_vs_meta.EnableRhi = &enableRhi
 
 		isTCP, isUDP := false, false
 		var portProtocols []AviPortHostProtocol
@@ -98,7 +96,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		// In case the VS has services that are a mix of TCP and UDP sockets,
 		// we create the VS with global network profile TCP Fast Path,
 		// and override required services with UDP Fast Path. Having a separate
-		// internally used network profile (MIXED_NET_PROFILE) helpss ensure PUT calls
+		// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
 		// on existing VSes.
 		if isTCP && !isUDP {
 			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
@@ -183,29 +181,37 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 				HostNames: fqdns,
 			},
 			ServiceEngineGroup: lib.GetSEGName(),
+			EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 		}
 
-		enableRhi := lib.GetEnableRHI()
-		avi_vs_meta.EnableRhi = &enableRhi
-
-		isTCP := false
+		isTCP, isUDP := false, false
 		var portProtocols []AviPortHostProtocol
 		for _, listener := range listeners {
 			portProto := strings.Split(listener, "/") // format: protocol/port
-			port, _ := strconv.Atoi(portProto[1])
+			port, _ := utilsnet.ParsePort(portProto[1], true)
 			pp := AviPortHostProtocol{Port: int32(port), Protocol: portProto[0]}
 			portProtocols = append(portProtocols, pp)
 			if portProto[0] == "" || portProto[0] == utils.TCP {
 				isTCP = true
+			} else if portProto[0] == utils.UDP {
+				isUDP = true
 			}
 		}
+
 		avi_vs_meta.PortProto = portProtocols
-		// Default case.
 		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
-		if !isTCP {
+
+		// In case the VS has services that are a mix of TCP and UDP sockets,
+		// we create the VS with global network profile TCP Fast Path,
+		// and override required services with UDP Fast Path. Having a separate
+		// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
+		// on existing VSes.
+		if isTCP && !isUDP {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		} else if isUDP && !isTCP {
 			avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 		} else {
-			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+			avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
 		}
 
 		vsVipNode := &AviVSVIPNode{
@@ -268,7 +274,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		if fqdn, ok := gwListenerHostNameMapping[listener]; ok {
 			svcFQDN = fqdn
 		}
-		if lib.GetL4FqdnFormat() != 3 && svcFQDN == "" {
+		if lib.GetL4FqdnFormat() != lib.AutoFQDNDisabled && svcFQDN == "" {
 			svcFQDN = getAutoFQDNForService(svcNSName[0], svcNSName[1])
 		}
 

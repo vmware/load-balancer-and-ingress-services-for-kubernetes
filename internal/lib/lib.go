@@ -54,9 +54,9 @@ var ShardSizeMap = map[string]uint32{
 	"DEDICATED": 0,
 }
 
-var fqdnEnum = map[string]int32{
-	"default": 1,
-	"flat":    2,
+var fqdnMap = map[string]string{
+	"default": AutoFQDNDefault,
+	"flat":    AutoFQDNFlat,
 }
 
 var NamePrefix string
@@ -180,20 +180,21 @@ func GetshardSize() uint32 {
 	}
 }
 
-func GetL4FqdnFormat() int32 {
+func GetL4FqdnFormat() string {
 	if GetAdvancedL4() {
 		// disable for advancedL4
-		return 3
+		return AutoFQDNDisabled
 	}
 
 	fqdnFormat := os.Getenv("AUTO_L4_FQDN")
-	enumVal, ok := fqdnEnum[fqdnFormat]
+	val, ok := fqdnMap[fqdnFormat]
 	if ok {
-		return enumVal
-	} else {
-		// If no match then disable FQDNs for L4.
-		return 3
+		return val
 	}
+
+	// If no match then disable FQDNs for L4.
+	utils.AviLog.Infof("No valid value provided for autoFQDN, disabling feature.")
+	return AutoFQDNDisabled
 }
 
 func GetModelName(namespace, objectName string) string {

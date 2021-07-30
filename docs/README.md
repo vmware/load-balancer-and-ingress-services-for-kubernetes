@@ -8,7 +8,7 @@ AKO runs as a POD inside the Kubernetes cluster.
 
 To Run AKO you need the following pre-requisites:
 
-* <i>**Step 1**</i>: Configure an Avi Controller with a vCenter [cloud](https://avinetworks.com/docs/18.2/installing-avi-vantage-for-vmware-vcenter/). The Avi Controller should be versioned 18.2.10 / 20.1.2 or later.
+* <i>**Step 1**</i>: Configure an Avi Controller with a [vCenter cloud](https://avinetworks.com/docs/18.2/installing-avi-vantage-for-vmware-vcenter/). The Avi Controller should be versioned 18.2.10 / 20.1.2 or later.
 * <i>**Step 2**</i>:
   * Make sure a PG network is part of the NS IPAM configured in the vCenter
 * <i>**Step 3**</i>: If your POD CIDRs are not routable:

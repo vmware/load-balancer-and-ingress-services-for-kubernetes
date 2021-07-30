@@ -14,7 +14,7 @@ the datapath using appropriate APIs to enable traffic routing for requested appl
 
 ## Documentation
 
-Take a look at the following documentation for instructions on installing [AKO - Avi Kubernetes Operator](docs/AKO/README.md)
+Take a look at the following documentation for instructions on installing [AKO - Avi Kubernetes Operator](docs/README.md)
 
 
 ## Contributing
