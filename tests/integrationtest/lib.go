@@ -1395,12 +1395,13 @@ func VerifyMetadataHTTPRule(g *gomega.WithT, poolKey cache.NamespaceName, rrnsna
 }
 
 type FakeAviInfraSetting struct {
-	Name          string
-	SeGroupName   string
-	Networks      []string
-	EnableRhi     bool
-	ShardSize     string
-	BGPPeerLabels []string
+	Name           string
+	SeGroupName    string
+	Networks       []string
+	EnableRhi      bool
+	EnablePublicIP bool
+	ShardSize      string
+	BGPPeerLabels  []string
 }
 
 func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
@@ -1413,8 +1414,9 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 				Name: infraSetting.SeGroupName,
 			},
 			Network: akov1alpha1.AviInfraSettingNetwork{
-				EnableRhi:     &infraSetting.EnableRhi,
-				BgpPeerLabels: infraSetting.BGPPeerLabels,
+				EnableRhi:      &infraSetting.EnableRhi,
+				BgpPeerLabels:  infraSetting.BGPPeerLabels,
+				EnablePublicIP: &infraSetting.EnablePublicIP,
 			},
 		},
 	}

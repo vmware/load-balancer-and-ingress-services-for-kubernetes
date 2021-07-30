@@ -40,9 +40,10 @@ type AviInfraSettingSpec struct {
 }
 
 type AviInfraSettingNetwork struct {
-	VipNetworks   []AviInfraSettingVipNetwork `json:"vipNetworks,omitempty"`
-	EnableRhi     *bool                       `json:"enableRhi,omitempty"`
-	BgpPeerLabels []string                    `json:"bgpPeerLabels,omitempty"`
+	VipNetworks    []AviInfraSettingVipNetwork `json:"vipNetworks,omitempty"`
+	EnableRhi      *bool                       `json:"enableRhi,omitempty"`
+	EnablePublicIP *bool                       `json:"enablePublicIP,omitempty"`
+	BgpPeerLabels  []string                    `json:"bgpPeerLabels,omitempty"`
 }
 
 type AviInfraSettingVipNetwork struct {

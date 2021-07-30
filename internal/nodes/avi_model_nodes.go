@@ -985,6 +985,7 @@ type AviVSVIPNode struct {
 	VrfContext              string
 	IPAddress               string
 	VipNetworks             []akov1alpha1.AviInfraSettingVipNetwork
+	EnablePublicIP          *bool
 	BGPPeerLabels           []string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
@@ -1015,6 +1016,9 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 		}
 		sort.Strings(vipNetworkStringList)
 		checksum += utils.Hash(utils.Stringify(vipNetworkStringList))
+	}
+	if v.EnablePublicIP != nil {
+		checksum += utils.Hash(utils.Stringify(*v.EnablePublicIP))
 	}
 
 	if lib.GetGRBACSupport() {
