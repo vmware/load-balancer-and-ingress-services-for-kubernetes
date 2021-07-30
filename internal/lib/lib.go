@@ -32,9 +32,9 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/Masterminds/semver"
-	"github.com/avinetworks/sdk/go/models"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+	"github.com/vmware/alb-sdk/go/models"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -452,7 +452,17 @@ func GetAkoApiServerPort() string {
 	return "8080"
 }
 
-func GetVipNetworkList() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
+var VipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
+
+func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
+	VipNetworkList = vipNetworks
+}
+
+func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
+	return VipNetworkList
+}
+
+func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
 	if GetAdvancedL4() {
 		// do not return error in case of advancedL4 (wcp)
@@ -492,15 +502,22 @@ func GetT1LRPath() string {
 	return t1LrPath
 }
 
+var SEGroupName string
+
+func SetSEGName(seg string) {
+	SEGroupName = seg
+}
+
 func GetSEGName() string {
+	return SEGroupName
+}
+
+func GetSEGNameEnv() string {
 	segName := os.Getenv(SEG_NAME)
 	if segName != "" {
 		return segName
 	}
-	if GetAdvancedL4() {
-		return DEFAULT_SE_GROUP
-	}
-	return DEFAULT_SE_GROUP
+	return ""
 }
 
 func GetNodeNetworkMap() (map[string][]string, error) {
@@ -604,7 +621,7 @@ func GetDisableStaticRoute() bool {
 
 func GetClusterName() string {
 	if GetAdvancedL4() {
-		return GetClusterID()
+		return GetClusterIDSplit()
 	}
 	clusterName := os.Getenv(CLUSTER_NAME)
 	if clusterName != "" {
@@ -617,6 +634,14 @@ func GetClusterID() string {
 	clusterID := os.Getenv(CLUSTER_ID)
 	// The clusterID is an internal field only in the advanced L4 mode and we expect the format to be: domain-c8:3fb16b38-55f0-49fb-997d-c117487cd98d
 	// We want to truncate this string to just have the uuid.
+	if clusterID != "" {
+		return clusterID
+	}
+	return ""
+}
+
+func GetClusterIDSplit() string {
+	clusterID := GetClusterID()
 	if clusterID != "" {
 		clusterName := strings.Split(clusterID, ":")
 		if len(clusterName) > 1 {
@@ -865,7 +890,7 @@ func GetPassthroughShardVSName(s string, key string) string {
 // GetLabels returns the key value pair used for tagging the segroups and routes in vrfcontext
 func GetLabels() []*models.KeyValue {
 	clusterName := GetClusterName()
-	labelKey := SeGroupLabelKey
+	labelKey := ClusterNameLabelKey
 	kv := &models.KeyValue{
 		Key:   &labelKey,
 		Value: &clusterName,
@@ -878,7 +903,7 @@ func GetLabels() []*models.KeyValue {
 // GetMarkers returns the key values pair used for tagging the segroups and routes in vrfcontext
 func GetMarkers() []*models.RoleFilterMatchLabel {
 	clusterName := GetClusterName()
-	labelKey := SeGroupLabelKey
+	labelKey := ClusterNameLabelKey
 	rfml := &models.RoleFilterMatchLabel{
 		Key:    &labelKey,
 		Values: []string{clusterName},

@@ -29,8 +29,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avinetworks/sdk/go/clients"
 	"github.com/onsi/gomega"
+	"github.com/vmware/alb-sdk/go/clients"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"

@@ -3,11 +3,6 @@ cloud.google.com/go/compute/metadata
 # github.com/Masterminds/semver v1.5.0
 ## explicit
 github.com/Masterminds/semver
-# github.com/avinetworks/sdk v0.0.0-20210406040904-9e523c129aa1
-## explicit
-github.com/avinetworks/sdk/go/clients
-github.com/avinetworks/sdk/go/models
-github.com/avinetworks/sdk/go/session
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.1
@@ -131,6 +126,11 @@ github.com/spf13/pflag
 # github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 ## explicit
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
+# github.com/vmware/alb-sdk v0.0.0-20210721142023-8e96475b833b
+## explicit
+github.com/vmware/alb-sdk/go/clients
+github.com/vmware/alb-sdk/go/models
+github.com/vmware/alb-sdk/go/session
 # go.uber.org/atomic v1.7.0
 go.uber.org/atomic
 # go.uber.org/multierr v1.6.0

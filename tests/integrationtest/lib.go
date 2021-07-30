@@ -37,8 +37,8 @@ import (
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	"github.com/avinetworks/sdk/go/models"
 	"github.com/onsi/gomega"
+	"github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -128,7 +128,7 @@ func (namespace FakeNamespace) Namespace() *corev1.Namespace {
 	}
 	return FakeNamespace
 }
-func AddNamespace(nsName string, labels map[string]string) error {
+func AddNamespace(t *testing.T, nsName string, labels map[string]string) error {
 	nsMetaOptions := (FakeNamespace{
 		Name:   nsName,
 		Labels: labels,
@@ -138,24 +138,27 @@ func AddNamespace(nsName string, labels map[string]string) error {
 	if err != nil {
 		_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
 		if err != nil {
-			utils.AviLog.Errorf("Error occurred while Adding namespace : %v", err)
+			t.Fatalf("Error occurred while Adding namespace: %v", err)
 		}
 	} else {
 		nsLabels := ns.GetLabels()
 		if len(nsLabels) == 0 {
-			err = UpdateNamespace(nsName, labels)
+			err = UpdateNamespace(t, nsName, labels)
 		}
 	}
 	return err
 }
 
-func UpdateNamespace(nsName string, labels map[string]string) error {
+func UpdateNamespace(t *testing.T, nsName string, labels map[string]string) error {
 	nsMetaOptions := (FakeNamespace{
 		Name:   nsName,
 		Labels: labels,
 	}).Namespace()
 	nsMetaOptions.ResourceVersion = "2"
 	_, err := KubeClient.CoreV1().Namespaces().Update(context.TODO(), nsMetaOptions, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Error occurred while Updating namespace: %v", err)
+	}
 	return err
 }
 func WaitTillNamespaceDelete(nsName string, retry_count int) {

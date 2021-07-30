@@ -109,7 +109,7 @@ const (
 	ObjectDeletionTimeoutStatus                = "Timeout"
 	DefaultRouteCert                           = "router-certs-default"
 	autoAnnotateService                        = "AUTO_ANNOTATE_SERVICE"
-	SeGroupLabelKey                            = "clustername"
+	ClusterNameLabelKey                        = "clustername"
 	UpdateStatus                               = "UpdateStatus"
 	DeleteStatus                               = "DeleteStatus"
 	NPLService                                 = "NPLService"

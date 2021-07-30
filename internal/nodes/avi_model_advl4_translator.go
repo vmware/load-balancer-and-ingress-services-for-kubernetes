@@ -112,19 +112,14 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		}
 
 		vsVipNode := &AviVSVIPNode{
-			Name:       lib.GetL4VSVipName(gatewayName, namespace),
-			Tenant:     lib.GetTenant(),
-			VrfContext: lib.GetVrf(),
+			Name:        lib.GetL4VSVipName(gatewayName, namespace),
+			Tenant:      lib.GetTenant(),
+			VrfContext:  lib.GetVrf(),
+			VipNetworks: lib.GetVipNetworkList(),
 		}
 
 		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 			vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
-		}
-
-		if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
-			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
-		} else {
-			vsVipNode.VipNetworks = vipNetworks
 		}
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == advl4v1alpha1pre1.IPAddressType {
@@ -217,20 +212,14 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		vsVipNode := &AviVSVIPNode{
-			Name:       lib.GetL4VSVipName(gatewayName, namespace),
-			Tenant:     lib.GetTenant(),
-			VrfContext: lib.GetVrf(),
-			FQDNs:      fqdns,
+			Name:        lib.GetL4VSVipName(gatewayName, namespace),
+			Tenant:      lib.GetTenant(),
+			VrfContext:  lib.GetVrf(),
+			VipNetworks: lib.GetVipNetworkList(),
 		}
 
 		if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 			vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
-		}
-
-		if vipNetworks, err := lib.GetVipNetworkList(); err != nil {
-			utils.AviLog.Warnf("key: %s, msg: error when getting vipNetworkList: %s", key, err.Error())
-		} else {
-			vsVipNode.VipNetworks = vipNetworks
 		}
 
 		// configures VS and VsVip nodes using infraSetting object (via CRD).

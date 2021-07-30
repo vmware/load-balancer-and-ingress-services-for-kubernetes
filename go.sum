@@ -79,8 +79,6 @@ github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj
 github.com/aryann/difflib v0.0.0-20170710044230-e206f873d14a/go.mod h1:DAHtR1m6lCRdSC2Tm3DSWRPvIPr6xNKyeHdqDQSQT+A=
 github.com/asaskevich/govalidator v0.0.0-20180720115003-f9ffefc3facf/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
-github.com/avinetworks/sdk v0.0.0-20210406040904-9e523c129aa1 h1:ET14OzNjPwiEDO9ITQRKkd8hyX72RI6CM7NNKR0I/0k=
-github.com/avinetworks/sdk v0.0.0-20210406040904-9e523c129aa1/go.mod h1:BcllDeAFx8PtaMrPxvvuCUo7NRS2x6w+3W17WFDu0sk=
 github.com/aws/aws-lambda-go v1.13.3/go.mod h1:4UKl9IzQMoD+QF79YdCuzCwp8VbmG4VAQwij/eHl5CU=
 github.com/aws/aws-sdk-go v1.27.0/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/aws/aws-sdk-go-v2 v0.18.0/go.mod h1:JWVYvqSMppoMJC0x5wdwiImzgXTI9FuZwxzkQq9wy+g=
@@ -590,6 +588,8 @@ github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtX
 github.com/vektah/gqlparser v1.1.2/go.mod h1:1ycwN7Ij5njmMkPPAOaRFY4rET2Enx7IkVv3vaXspKw=
 github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618 h1:ZLkxMxSr/YrYENjUJ8g6uB4rUQpZKBR3Olqf2DvuMFk=
 github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618/go.mod h1:afqpDk9He9v+/qWix0RRotm3RNyni4Lmc1y9geDCPuo=
+github.com/vmware/alb-sdk v0.0.0-20210721142023-8e96475b833b h1:xSos8K/8ONRdH1taJwnI/lFWpmy2BG7VuiVHPSVxtU4=
+github.com/vmware/alb-sdk v0.0.0-20210721142023-8e96475b833b/go.mod h1:GuFjFl3UCYMUyEnbwPjpu+9wlkGs/10xuJuqE/1rqKI=
 github.com/xiang90/probing v0.0.0-20160813154853-07dd2e8dfe18/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
