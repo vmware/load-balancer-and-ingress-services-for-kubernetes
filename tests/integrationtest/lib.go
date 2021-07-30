@@ -314,6 +314,75 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 	return ingress
 }
 
+func (ing FakeIngress) IngressMultiPort() *networking.Ingress {
+	ingress := &networking.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   ing.Namespace,
+			Name:        ing.Name,
+			Annotations: ing.annotations,
+		},
+		Spec: networking.IngressSpec{
+			Rules: []networking.IngressRule{},
+		},
+		Status: networking.IngressStatus{
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
+			},
+		},
+	}
+	for _, dnsName := range ing.DnsNames {
+		ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+			Host: dnsName,
+			IngressRuleValue: networking.IngressRuleValue{
+				HTTP: &networking.HTTPIngressRuleValue{
+					Paths: []networking.HTTPIngressPath{{
+						Path: "/foo",
+						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: 8080,
+						}},
+					},
+					}},
+			},
+		})
+		ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+			Host: dnsName,
+			IngressRuleValue: networking.IngressRuleValue{
+				HTTP: &networking.HTTPIngressRuleValue{
+					Paths: []networking.HTTPIngressPath{{
+						Path: "/bar",
+						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
+							Type:   intstr.String,
+							StrVal: "foo1",
+						}},
+					},
+					}},
+			},
+		})
+
+	}
+	for secret, hosts := range ing.TlsSecretDNS {
+		ingress.Spec.TLS = append(ingress.Spec.TLS, networking.IngressTLS{
+			Hosts:      hosts,
+			SecretName: secret,
+		})
+	}
+	for i := range ing.Ips {
+		hostname := ""
+		if len(ing.HostNames) >= i+1 {
+			hostname = ing.HostNames[i]
+		}
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+			IP:       ing.Ips[i],
+			Hostname: hostname,
+		})
+	}
+	if ing.ClassName != "" {
+		ingress.Spec.IngressClassName = &ing.ClassName
+	}
+	return ingress
+}
+
 func (ing FakeIngress) SecureIngress() *networking.Ingress {
 	ingress := &networking.Ingress{
 		ObjectMeta: metav1.ObjectMeta{

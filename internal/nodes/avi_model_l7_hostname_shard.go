@@ -84,12 +84,10 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 		storedHosts = append(storedHosts, hostname)
 		RemoveFQDNsFromModel(vsNode[0], storedHosts, key)
 		if pgNode != nil {
-			//utils.AviLog.Infof("key: %s, msg: hostpathsvc list: %s", key, utils.Stringify(parsedIng))
 			// Processsing insecure ingress
 			if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hostname) {
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
 			}
-
 			poolNode := &AviPoolNode{
 				Name:          poolName,
 				IngressName:   ingName,
