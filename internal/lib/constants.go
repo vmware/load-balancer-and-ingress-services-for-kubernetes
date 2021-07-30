@@ -26,6 +26,8 @@ const (
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
 	AviSecret                 = "avi-secret"
+	VLAN_TRANSPORT_ZONE       = "VLAN"
+	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
 
 	AVI_INGRESS_CLASS                          = "avi"
 	SUBNET_IP                                  = "SUBNET_IP"
