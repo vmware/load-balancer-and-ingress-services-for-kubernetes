@@ -200,6 +200,17 @@ type K8ValidNamespaces struct {
 	validNSList     K8NamespaceList
 }
 
+type AviObjectMarkers struct {
+	Namespace        string
+	Host             string
+	InfrasettingName string
+	ServiceName      string
+	Path             string
+	Port             string
+	IngressName      string
+	GatewayName      string
+}
+
 /*
 * Obj cache
  */

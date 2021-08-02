@@ -114,8 +114,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		} else {
 			vsvip.BgpPeerLabels = nil
 		}
-
-		// Override the Vip in VsVip to bring in updates, keeping everything else as is.
 		if lib.GetGRBACSupport() {
 			vsvip.Markers = lib.GetMarkers()
 		}
@@ -218,11 +216,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		if len(vsvip_meta.BGPPeerLabels) > 0 {
 			vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
 		}
-
 		if lib.GetGRBACSupport() {
 			vsvip.Markers = lib.GetMarkers()
 		}
-
 		path = "/api/vsvip"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
@@ -265,7 +261,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				vsvip_avi.BgpPeerLabels = nil
 			}
 			if lib.GetGRBACSupport() {
-				vsvip_avi.Markers = lib.GetMarkers()
+				vsvip.Markers = lib.GetMarkers()
 			}
 			vsvip_avi.VsvipCloudConfigCksum = &cksumstr
 			path = "/api/vsvip/" + vsvip_cache_obj.Uuid

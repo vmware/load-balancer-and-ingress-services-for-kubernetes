@@ -141,6 +141,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNode *AviVsNode) *AviPoolGroupNode {
 	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant(), ImplicitPriorityLabel: true}
+	pgNode.AttachedToSharedVS = vsNode.SharedVS
 	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
 	o.AddModelNode(pgNode)
 	return pgNode
@@ -171,7 +172,7 @@ func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, infraSettin
 	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(infraSettingName, host), Tenant: lib.GetTenant()}
 	cacertNode.Type = lib.CertTypeCA
 	cacertNode.Cert = []byte(cacert)
-
+	cacertNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
 	if tlsNode.CheckCACertNodeNameNChecksum(cacertNode.Name, cacertNode.GetCheckSum()) {
 		if len(tlsNode.CACertRefs) == 1 {
 			tlsNode.CACertRefs[0] = cacertNode
@@ -196,7 +197,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 		Tenant: lib.GetTenant(),
 		Type:   lib.CertTypeVS,
 	}
-
+	certNode.AviMarkers = lib.PopulateTLSKeyCertNode(sniHost, infraSettingName)
 	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route
 	if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
 		if tlsData.cert != "" && tlsData.key != "" {
@@ -326,6 +327,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				}
 				localPGList[pgName] = pgNode
 				httpPGPath.PoolGroup = pgNode.Name
+				pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, host, ingName, path.Path, infraSettingName)
 			}
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 			hostSlice := []string{host}
@@ -345,8 +347,10 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				// Unset the poolnode's vrfcontext.
 				poolNode.VrfContext = ""
 			}
+			poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, host, path.Path, ingName, infraSettingName,
+				path.ServiceName)
 			if hostpath.reencrypt == true {
-				o.BuildPoolSecurity(poolNode, hostpath, key)
+				o.BuildPoolSecurity(poolNode, hostpath, key, poolNode.AviMarkers)
 			}
 			serviceType := lib.GetServiceType()
 			if serviceType == lib.NodePortLocal {
@@ -378,6 +382,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			if !pgfound {
 				httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path, infraSettingName)
 				policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
+				policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, host, ingName, path.Path, infraSettingName)
 				if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
 					tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
 				}
@@ -392,7 +397,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 }
 
-func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSettings, key string) {
+func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSettings, key string, aviMarkers utils.AviObjectMarkers) {
 	poolNode.SniEnabled = true
 	poolNode.SslProfileRef = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
 
@@ -405,6 +410,8 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 		Tenant: lib.GetTenant(),
 		CACert: tlsData.destCA,
 	}
+	pkiProfile.AviMarkers = lib.PopulatePoolNodeMarkers(aviMarkers.Namespace, aviMarkers.Host, aviMarkers.Path,
+		aviMarkers.IngressName, aviMarkers.InfrasettingName, aviMarkers.ServiceName)
 	utils.AviLog.Infof("key: %s, Added pki profile %s for pool %s", pkiProfile.Name, poolNode.Name)
 	poolNode.PkiProfile = &pkiProfile
 }
@@ -423,7 +430,7 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostnames
 		Name:          policyname,
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}
-
+	redirectPolicy.AttachedToSharedVS = vsNode[0].SharedVS
 	if policyFound := FindAndReplaceRedirectHTTPPolicyInModel(vsNode[0], redirectPolicy, hostnames, key); !policyFound {
 		redirectPolicy.CalculateCheckSum()
 		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, redirectPolicy)
@@ -443,6 +450,7 @@ func (o *AviObjectGraph) BuildHeaderRewrite(vsNode []*AviVsNode, gslbHost, local
 		Name:          policyname,
 		HeaderReWrite: &rewriteRule,
 	}
+	rewritePolicy.AttachedToSharedVS = vsNode[0].SharedVS
 	if policyFound := FindAndReplaceHeaderRewriteHTTPPolicyInModel(vsNode[0], rewritePolicy, gslbHost, key); !policyFound && gslbHost != "" {
 		rewritePolicy.CalculateCheckSum()
 		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, rewritePolicy)

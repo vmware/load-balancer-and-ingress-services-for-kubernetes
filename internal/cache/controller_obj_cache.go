@@ -504,12 +504,12 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 			utils.AviLog.Warnf("Incomplete pki data unmarshalled, %s", utils.Stringify(pki))
 			continue
 		}
-
+		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		pkiCacheObj := AviPkiProfileCache{
 			Name:             *pki.Name,
 			Uuid:             *pki.UUID,
 			Tenant:           lib.GetTenant(),
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), "", pki.Markers, true),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), "", emptyIngestionMarkers, pki.Markers, true),
 		}
 		*pkiData = append(*pkiData, pkiCacheObj)
 
@@ -926,14 +926,14 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 				}
 			}
 		}
-
+		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
 			Cert:             *sslkey.Certificate.Certificate,
 			HasCARef:         hasCA,
 			CACertUUID:       cacertUUID,
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, sslkey.Markers, true),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, emptyIngestionMarkers, sslkey.Markers, true),
 		}
 		*SslData = append(*SslData, sslCacheObj)
 	}
@@ -999,11 +999,11 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 				}
 			}
 		}
-
+		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
 			Uuid:             *sslkey.UUID,
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, sslkey.Markers, true),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, emptyIngestionMarkers, sslkey.Markers, true),
 			HasCARef:         hasCA,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *sslkey.Name}
@@ -1046,11 +1046,11 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 		if !strings.HasPrefix(*pkikey.Name, lib.GetNamePrefix()) {
 			continue
 		}
-
+		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		sslCacheObj := AviSSLCache{
 			Name:             *pkikey.Name,
 			Uuid:             *pkikey.UUID,
-			CloudConfigCksum: lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "", pkikey.Markers, true),
+			CloudConfigCksum: lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "", emptyIngestionMarkers, pkikey.Markers, true),
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pkikey.Name}
 		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
@@ -1442,13 +1442,14 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 				}
 			}
 		}
-
+		emptyIngestionMarkers := utils.AviObjectMarkers{}
+		cksum := lib.L4PolicyChecksum(ports, protocol, emptyIngestionMarkers, l4pol.Markers, true)
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, l4pol.Markers, true),
+			CloudConfigCksum: cksum,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *l4pol.Name}
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
@@ -1658,13 +1659,14 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		} else {
 			protocol = utils.UDP
 		}
-
+		emptyIngestionMarkers := utils.AviObjectMarkers{}
+		cksum := lib.L4PolicyChecksum(ports, protocol, emptyIngestionMarkers, l4pol.Markers, true)
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
-			CloudConfigCksum: lib.L4PolicyChecksum(ports, protocol, l4pol.Markers, true),
+			CloudConfigCksum: cksum,
 		}
 
 		*l4PolicyData = append(*l4PolicyData, l4PolCacheObj)

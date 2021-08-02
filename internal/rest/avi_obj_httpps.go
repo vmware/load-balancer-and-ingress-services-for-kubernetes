@@ -48,7 +48,11 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		CreatedBy: &cr, TenantRef: &tenant, HTTPRequestPolicy: &http_req_pol, HTTPSecurityPolicy: &http_sec_pol}
 
 	if lib.GetGRBACSupport() {
-		hps.Markers = lib.GetMarkers()
+		if !hps_meta.AttachedToSharedVS {
+			hps.Markers = lib.GetAllMarkers(hps_meta.AviMarkers)
+		} else {
+			hps.Markers = lib.GetMarkers()
+		}
 	}
 	var idx int32
 	idx = 0
