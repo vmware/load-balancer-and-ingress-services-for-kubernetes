@@ -102,6 +102,16 @@ func IsNameEncoded(name string) bool {
 var DisableSync bool
 var layer7Only bool
 var noPGForSNI, gRBAC bool
+var NsxTTzType string
+
+func SetNSXTTransportZone(tzType string) {
+	NsxTTzType = tzType
+	utils.AviLog.Infof("Setting NSX-T transport zone to: %v", tzType)
+}
+
+func GetNSXTTransportZone() string {
+	return NsxTTzType
+}
 
 func SetDisableSync(state bool) {
 	DisableSync = state

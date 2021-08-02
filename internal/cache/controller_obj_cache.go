@@ -2381,6 +2381,16 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	}
 
 	vtype := *cloud.Vtype
+	if vtype == lib.CLOUD_NSXT {
+		// Check the transport zone type.
+		if cloud.NsxtConfiguration != nil {
+			if cloud.NsxtConfiguration.DataNetworkConfig != nil {
+				tz := *cloud.NsxtConfiguration.DataNetworkConfig.TzType
+				lib.SetNSXTTransportZone(tz)
+			}
+		}
+
+	}
 	cloud_obj := &AviCloudPropertyCache{Name: cloudName, VType: vtype}
 
 	subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
@@ -2790,14 +2800,17 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 	}
 
 	// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
-	if vType == lib.CLOUD_NSXT {
+	if vType == lib.CLOUD_NSXT && lib.GetNSXTTransportZone() == lib.OVERLAY_TRANSPORT_ZONE {
 		if lib.GetT1LRPath() == "" {
-			utils.AviLog.Errorf("Cloud is configured as NSX-T but the T1 LR mapping is not provided")
+			utils.AviLog.Errorf("Cloud is configured as NSX-T with overlay transport zone but the T1 LR mapping is not provided")
 			return false
 		}
-	} else if lib.GetT1LRPath() != "" {
+	} else if lib.GetT1LRPath() != "" && vType != lib.CLOUD_NSXT {
 		// If the cloud type is not NSX-T and yet the T1 LR is set then too disable sync
 		utils.AviLog.Errorf("Cloud is not configured as NSX-T but the T1 LR mapping is  provided")
+		return false
+	} else if lib.GetT1LRPath() != "" && vType == lib.CLOUD_NSXT && lib.GetNSXTTransportZone() == lib.VLAN_TRANSPORT_ZONE {
+		utils.AviLog.Errorf("Cloud configured as NSX-T with VLAN transport zone but the T1 LR mapping is  provided")
 		return false
 	}
 
@@ -3004,7 +3017,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		utils.AviLog.Infof("Using global VRF for NodePort mode")
 		return true
 	}
-	if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetServiceType() == "ClusterIP" && lib.GetCNIPlugin() != lib.NCP_CNI {
+	if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetServiceType() == "ClusterIP" && lib.GetCNIPlugin() != lib.NCP_CNI && lib.GetNSXTTransportZone() != lib.VLAN_TRANSPORT_ZONE {
 		// Here we need to determine the right VRF for this T1LR
 		// The logic is: Get all the VRF context objects from the controller, figure out the VRF that matches the T1LR
 		// Current pagination size is set to 100, this may have to increased if we have more than 100 T1 routers.
