@@ -743,7 +743,6 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 			aviModel = NewAviObjectGraph()
 			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName, key, routeIgrObj)
 		}
-
 		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
@@ -788,6 +787,9 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 	}
 	SharedHostNameLister().Save(host, ingressHostMap)
+	if lib.IsVCFCluster() {
+		SharedHostNameLister().SaveNamespace(host, routeIgrObj.GetNamespace())
+	}
 
 	if evhNode == nil {
 		evhNode = &AviEvhVsNode{
@@ -983,6 +985,9 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 		}
 		SharedHostNameLister().Save(host, ingressHostMap)
+		if lib.IsVCFCluster() {
+			SharedHostNameLister().SaveNamespace(host, routeIgrObj.GetNamespace())
+		}
 		hosts = append(hosts, host)
 		_, shardVsName := DeriveShardVSForEvh(host, key, routeIgrObj)
 		// For each host, create a EVH node with the secret giving us the key and cert.
@@ -1292,8 +1297,14 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (s
 	if newInfraPrefix != "" {
 		newVsName += "-" + newInfraPrefix + "-"
 	}
-	oldVsName += strconv.Itoa(int(utils.Bkt(hostname, oldShardSize)))
-	newVsName += strconv.Itoa(int(utils.Bkt(hostname, newShardSize)))
+
+	if lib.IsVCFCluster() {
+		oldVsName += "NS-" + routeIgrObj.GetNamespace()
+		newVsName += "NS-" + routeIgrObj.GetNamespace()
+	} else {
+		oldVsName += strconv.Itoa(int(utils.Bkt(hostname, oldShardSize)))
+		newVsName += strconv.Itoa(int(utils.Bkt(hostname, newShardSize)))
+	}
 
 	utils.AviLog.Infof("key: %s, msg: ShardVSNames: %s %s", key, oldVsName, newVsName)
 	return oldVsName, newVsName

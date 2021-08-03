@@ -45,11 +45,11 @@ func CheckNPLSvcAnnotation(key, namespace, name string) bool {
 func UpdateNPLAnnotation(key, namespace, name string) {
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 	if err != nil {
-		utils.AviLog.Infof("key: %s, returning without updating NPL annotation, err %v", err)
+		utils.AviLog.Infof("key: %s, returning without updating NPL annotation, err %v", key, err)
 		return
 	}
 	if service.Spec.Type == corev1.ServiceTypeNodePort {
-		utils.AviLog.Infof("key: %s, returning without updating NPL annotation for Service type NodePort")
+		utils.AviLog.Infof("key: %s, returning without updating NPL annotation for Service type NodePort", key)
 		return
 	}
 	ann := service.GetAnnotations()

@@ -68,6 +68,14 @@ func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec networkingv1
 					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 				}
 			}
+			// In VCF, we use VIP per Namespace, hence same hostname can should not be present across multiple namespaces
+			if lib.IsVCFCluster() {
+				if ok, oldNS := SharedHostNameLister().GetNamespace(rule.Host); ok {
+					if oldNS != ns {
+						utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostname %s in multiple namespaces: %s and %s", key, rule.Host, oldNS, ns)
+					}
+				}
+			}
 		} else {
 			utils.AviLog.Warnf("key: %s, msg: Found Ingress: %s without service backends. Not going to process.", key, ingName)
 			return false
