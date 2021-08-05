@@ -136,6 +136,9 @@ func SetGRBACSupport(val string) {
 	if boolVal, err := strconv.ParseBool(val); err == nil {
 		gRBAC = boolVal
 	}
+	if IsEvhEnabled() {
+		gRBAC = true
+	}
 	controllerVersion := utils.CtrlVersion
 	if gRBAC && CompareVersions(controllerVersion, "<", ControllerVersion2015) {
 		// GRBAC is supported from 20.1.5 and above
