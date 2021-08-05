@@ -111,7 +111,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if !ingressFound && !lib.GetAdvancedL4() && !lib.UseServicesAPI() {
+	if !ingressFound && !lib.GetAdvancedL4() {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
