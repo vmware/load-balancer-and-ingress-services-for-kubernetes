@@ -749,19 +749,20 @@ func (v *AviVsNode) CalculateCheckSum() {
 		vsRefs += utils.Stringify(v.ServiceMetadata.HostNames)
 	}
 
+	for _, sninode := range v.SniNodes {
+		checksumStringSlice = append(checksumStringSlice, "SNINode"+sninode.Name)
+	}
+
+	for _, passthroughChild := range v.PassthroughChildNodes {
+		checksumStringSlice = append(checksumStringSlice, "PassthroughChild"+passthroughChild.Name)
+	}
+
 	sort.Strings(checksumStringSlice)
 	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
 		v.ApplicationProfile +
 		v.ServiceEngineGroup +
 		v.NetworkProfile +
 		utils.Stringify(portproto))
-
-	for _, sninode := range v.SniNodes {
-		checksum += sninode.GetCheckSum()
-	}
-	for _, passthroughChild := range v.PassthroughChildNodes {
-		checksum += passthroughChild.GetCheckSum()
-	}
 
 	if vsRefs != "" {
 		checksum += utils.Hash(vsRefs)
