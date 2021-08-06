@@ -29,6 +29,7 @@ func SharedHostNameLister() *HostNameLister {
 	hsonce.Do(func() {
 		hostNameListerInstance = &HostNameLister{
 			secureHostNameStore: objects.NewObjectMapStore(),
+			namespaceStore:      objects.NewObjectMapStore(),
 			HostNamePathStore: HostNamePathStore{
 				hostNamePathStore: objects.NewObjectMapStore(),
 			},
@@ -39,6 +40,7 @@ func SharedHostNameLister() *HostNameLister {
 
 type HostNameLister struct {
 	secureHostNameStore *objects.ObjectMapStore
+	namespaceStore      *objects.ObjectMapStore
 	HostNamePathStore
 }
 
@@ -57,6 +59,28 @@ func (a *HostNameLister) Get(hostname string) (bool, SecureHostNameMapProp) {
 
 func (a *HostNameLister) Delete(hostname string) {
 	a.secureHostNameStore.Delete(hostname)
+}
+
+func (a *HostNameLister) SaveNamespace(hostname string, namespace string) {
+	a.namespaceStore.AddOrUpdate(hostname, namespace)
+}
+
+func (a *HostNameLister) GetNamespace(hostname string) (bool, string) {
+	found, obj := a.namespaceStore.Get(hostname)
+	if !found {
+		return false, ""
+	}
+
+	ns, ok := obj.(string)
+	if !ok {
+		utils.AviLog.Warnf("Wrong object type for namespace for the hostname %s: T", hostname, obj)
+		return false, ""
+	}
+	return true, ns
+}
+
+func (a *HostNameLister) DeleteNamespace(hostname string) {
+	a.namespaceStore.Delete(hostname)
 }
 
 // thread safe for namespace based sharding in case of same hostname in different namespaces

@@ -150,6 +150,7 @@ const (
 	AutoFQDNDefault                            = "Default"
 	AutoFQDNFlat                               = "Flat"
 	AutoFQDNDisabled                           = "Disabled"
+	VCF_CLUSTER                                = "VCF_CLUSTER"
 
 	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
