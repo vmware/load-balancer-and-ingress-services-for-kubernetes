@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type AviObjCache struct {
@@ -370,12 +371,12 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 
 }
 
-func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string, pgData *[]AviPGCache, override_uri ...NextPage) (*[]AviPGCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string, pgData *[]AviPGCache, overrideUri ...NextPage) (*[]AviPGCache, int, error) {
 	var uri string
 	akoUser := lib.AKOUser
 
-	if len(override_uri) == 1 {
-		uri = override_uri[0].Next_uri
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
 	} else {
 		uri = "/api/poolgroup/?" + "include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -428,8 +429,8 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/poolgroup")
 		if len(next_uri) > 1 {
-			override_uri := "/api/poolgroup" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
+			overrideUri := "/api/poolgroup" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
 			_, _, err := c.AviPopulateAllPGs(client, cloud, pgData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -472,12 +473,12 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud str
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, override_uri ...NextPage) (*[]AviPkiProfileCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, overrideUri ...NextPage) (*[]AviPkiProfileCache, int, error) {
 	var uri string
 	akoUser := lib.AKOUser
 
-	if len(override_uri) == 1 {
-		uri = override_uri[0].Next_uri
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
 	} else {
 		uri = "/api/pkiprofile/?" + "&include_name=true&" + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -518,8 +519,8 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/pkiprofile")
 		if len(next_uri) > 1 {
-			override_uri := "/api/pkiprofile" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
+			overrideUri := "/api/pkiprofile" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
 			_, _, err := c.AviPopulateAllPkiPRofiles(client, pkiData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -530,12 +531,12 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 	return pkiData, result.Count, nil
 }
 
-func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud string, poolData *[]AviPoolCache, override_uri ...NextPage) (*[]AviPoolCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud string, poolData *[]AviPoolCache, overrideUri ...NextPage) (*[]AviPoolCache, int, error) {
 	var uri string
 	akoUser := lib.AKOUser
 
-	if len(override_uri) == 1 {
-		uri = override_uri[0].Next_uri
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
 	} else {
 		uri = "/api/pool/?" + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -592,8 +593,8 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/pool")
 		if len(next_uri) > 1 {
-			override_uri := "/api/pool" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
+			overrideUri := "/api/pool" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
 			_, _, err := c.AviPopulateAllPools(client, cloud, poolData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -604,7 +605,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 	return poolData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, override_uri ...NextPage) {
+func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, overrideUri ...NextPage) {
 	var pkiProfData []AviPkiProfileCache
 	c.AviPopulateAllPkiPRofiles(client, &pkiProfData)
 
@@ -634,7 +635,7 @@ func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, over
 	}
 }
 
-func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
 	var poolsData []AviPoolCache
 	c.AviPopulateAllPools(client, cloud, &poolsData)
 
@@ -738,8 +739,8 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/vsvip")
 		if len(next_uri) > 1 {
-			override_uri := "/api/vsvip" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
+			overrideUri := "/api/vsvip" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
 			_, err := c.AviPopulateAllVSVips(client, cloud, vsVipData, nextPage)
 			if err != nil {
 				return nil, err
@@ -839,8 +840,8 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/vsdatascriptset")
 		if len(next_uri) > 1 {
-			override_uri := "/api/vsdatascriptset" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
+			overrideUri := "/api/vsdatascriptset" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
 			_, _, err := c.AviPopulateAllDSs(client, cloud, DsData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -850,7 +851,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 	return DsData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
 	var DsData []AviDSCache
 	c.AviPopulateAllDSs(client, cloud, &DsData)
 	dsCacheData := c.DSCache.ShallowCopy()
@@ -941,8 +942,8 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/sslkeyandcertificate")
 		if len(next_uri) > 1 {
-			override_uri := "/api/sslkeyandcertificate" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
+			overrideUri := "/api/sslkeyandcertificate" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
 			_, _, err := c.AviPopulateAllSSLKeys(client, cloud, SslData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -1458,7 +1459,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 	return nil
 }
 
-func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
 	var SslKeyData []AviSSLCache
 	c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
 	sslCacheData := c.SSLKeyCache.ShallowCopy()
@@ -1558,8 +1559,8 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/httppolicyset")
 		if len(next_uri) > 1 {
-			override_uri := "/api/httppolicyset" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
+			overrideUri := "/api/httppolicyset" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
 			_, _, err := c.AviPopulateAllHttpPolicySets(client, cloud, httpPolicyData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -1569,7 +1570,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 	return httpPolicyData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
 	var HttPolData []AviHTTPPolicyCache
 	_, count, err := c.AviPopulateAllHttpPolicySets(client, cloud, &HttPolData)
 	if err != nil || len(HttPolData) != count {
@@ -1676,8 +1677,8 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		// It has a next page, let's recursively call the same method.
 		next_uri := strings.Split(result.Next, "/api/l4policyset")
 		if len(next_uri) > 1 {
-			override_uri := "/api/l4policyset" + next_uri[1]
-			nextPage := NextPage{Next_uri: override_uri}
+			overrideUri := "/api/l4policyset" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
 			_, _, err := c.AviPopulateAllL4PolicySets(client, cloud, l4PolicyData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -1687,7 +1688,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 	return l4PolicyData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, cloud string, override_uri ...NextPage) {
+func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
 	var l4PolData []AviL4PolicyCache
 	_, count, err := c.AviPopulateAllL4PolicySets(client, cloud, &l4PolData)
 	if err != nil || len(l4PolData) != count {
@@ -1753,13 +1754,13 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 	return nil
 }
 
-func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud string, vsCacheCopy *[]NamespaceName, override_uri ...NextPage) error {
+func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud string, vsCacheCopy *[]NamespaceName, overrideUri ...NextPage) error {
 	var rest_response interface{}
 	akoUser := lib.AKOUser
 	var uri string
 	httpCacheRefreshCount := 1 // Refresh count for http cache is attempted once per page
-	if len(override_uri) == 1 {
-		uri = override_uri[0].Next_uri
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
 	} else {
 		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -1999,9 +2000,9 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 			next_uri := strings.Split(resp["next"].(string), "/api/virtualservice")
 			utils.AviLog.Debugf("Found next page for vs, uri: %s", next_uri)
 			if len(next_uri) > 1 {
-				override_uri := "/api/virtualservice" + next_uri[1]
-				utils.AviLog.Debugf("Next page uri for vs: %s", override_uri)
-				nextPage := NextPage{Next_uri: override_uri}
+				overrideUri := "/api/virtualservice" + next_uri[1]
+				utils.AviLog.Debugf("Next page uri for vs: %s", overrideUri)
+				nextPage := NextPage{Next_uri: overrideUri}
 				c.AviObjVSCachePopulate(client, cloud, vsCacheCopy, nextPage)
 			}
 		}
@@ -2544,42 +2545,12 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	// 1. User input
 	seGroupToUse := lib.GetSEGNameEnv()
 
-	// TODO: pagination
-	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
-	elems := []json.RawMessage{}
-
+	var err error
 	// 2. Marker based (only advancedL4)
 	if seGroupToUse == "" && lib.GetAdvancedL4() {
-		result, err := lib.AviGetCollectionRaw(client, uri)
+		err, seGroupToUse = fetchSEGroupWithMarkerSet(client)
 		if err != nil {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 			return false
-		}
-
-		elems = make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-			return false
-		}
-
-		// Using clusterID for advl4.
-		clusterName := lib.GetClusterID()
-		for _, elem := range elems {
-			seg := models.ServiceEngineGroup{}
-			err = json.Unmarshal(elem, &seg)
-			if err != nil {
-				utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-				continue
-			}
-
-			if len(seg.Markers) == 1 &&
-				*seg.Markers[0].Key == lib.ClusterNameLabelKey &&
-				len(seg.Markers[0].Values) == 1 &&
-				seg.Markers[0].Values[0] == clusterName {
-				seGroupToUse = *seg.Name
-				break
-			}
 		}
 	}
 
@@ -2599,17 +2570,32 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	// if AviInfraSetting NOT found, remove label if exists,
 	// if AviInfraSetting found, configure label if doesn't exist.
 	// This takes care of syncing SeGroup label settings during reboots.
-	seGroupSet := make(map[string]bool)
+	seGroupSet := sets.NewString()
 	if lib.GetAviInfraSettingEnabled() {
 		infraSettingList, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Unable to list AviInfraSettings %s", err.Error())
 		}
 		for _, setting := range infraSettingList.Items {
-			seGroupSet[setting.Spec.SeGroup.Name] = true
+			seGroupSet.Insert(setting.Spec.SeGroup.Name)
 		}
 	}
-	seGroupSet[lib.GetSEGName()] = true
+	seGroupSet.Insert(lib.GetSEGName())
+
+	// This assumes that a single cluster won't use more than 100 distinct SEGroups.
+	uri := "/api/serviceenginegroup/?include_name&page_size=100&name.in=" + strings.Join(seGroupSet.List(), ",")
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return false
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
 
 	for _, elem := range elems {
 		seg := models.ServiceEngineGroup{}
@@ -2624,6 +2610,59 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	}
 
 	return true
+}
+
+func fetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPage) (error, string) {
+	var uri string
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
+	} else {
+		uri = "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
+	}
+
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, ""
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return err, ""
+	}
+
+	// Using clusterID for advl4.
+	clusterName := lib.GetClusterID()
+	for _, elem := range elems {
+		seg := models.ServiceEngineGroup{}
+		err = json.Unmarshal(elem, &seg)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
+
+		if len(seg.Markers) == 1 &&
+			*seg.Markers[0].Key == lib.ClusterNameLabelKey &&
+			len(seg.Markers[0].Values) == 1 &&
+			seg.Markers[0].Values[0] == clusterName {
+			utils.AviLog.Infof("Marker configuration found in Service Engine Group %s.", *seg.Name)
+			return nil, *seg.Name
+		}
+	}
+
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/serviceenginegroup")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/serviceenginegroup" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
+			return fetchSEGroupWithMarkerSet(client, nextPage)
+		}
+	}
+
+	return nil, ""
 }
 
 // ConfigureSeGroupLabels configures labels on the SeGroup if not present already
@@ -2832,10 +2871,10 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	}
 
 	// 2. Marker based (only advancedL4)
+	var err error
 	markerNetworkFound := ""
 	if lib.GetAdvancedL4() && ipamRefUri != nil {
 		// Using clusterID for advl4.
-		clusterName := lib.GetClusterID()
 		ipam := models.IPAMDNSProviderProfile{}
 		ipamRef := strings.SplitAfter(*ipamRefUri, "/api/")
 		if err := lib.AviGet(client, "/api/"+ipamRef[1], &ipam); err != nil {
@@ -2854,37 +2893,9 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 			return false
 		}
 
-		// TODO: pagination
-		uri := "/api/network/?include_name&page_size=100&name.in=" + strings.Join(usableNetworkNames, ",")
-		result, err := lib.AviGetCollectionRaw(client, uri)
+		err, markerNetworkFound = fetchNetworkWithMarkerSet(client, usableNetworkNames)
 		if err != nil {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 			return false
-		}
-
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-			return false
-		}
-
-		for _, elem := range elems {
-			network := models.Network{}
-			err = json.Unmarshal(elem, &network)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return false
-			}
-
-			if len(network.Markers) == 1 &&
-				*network.Markers[0].Key == lib.ClusterNameLabelKey &&
-				len(network.Markers[0].Values) == 1 &&
-				network.Markers[0].Values[0] == clusterName {
-				markerNetworkFound = *network.Name
-				utils.AviLog.Infof("Marker configuration found in usable network. Using %s as vipNetworkList.", markerNetworkFound)
-				break
-			}
 		}
 
 		if markerNetworkFound != "" {
@@ -2896,12 +2907,65 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 	}
 
-	// 3. Empty VipNetworkList (only valid for WCP)
-	if markerNetworkFound == "" {
+	// 3. Empty VipNetworkList
+	if lib.GetAdvancedL4() && markerNetworkFound == "" {
 		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
+		return true
 	}
 
-	return true
+	return false
+}
+
+func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []string, overrideUri ...NextPage) (error, string) {
+	clusterName := lib.GetClusterID()
+	var uri string
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
+	} else {
+		uri = "/api/network/?include_name&page_size=100&name.in=" + strings.Join(usableNetworkNames, ",")
+	}
+
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, ""
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return err, ""
+	}
+
+	for _, elem := range elems {
+		network := models.Network{}
+		err = json.Unmarshal(elem, &network)
+		if err != nil {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return err, ""
+		}
+
+		if len(network.Markers) == 1 &&
+			*network.Markers[0].Key == lib.ClusterNameLabelKey &&
+			len(network.Markers[0].Values) == 1 &&
+			network.Markers[0].Values[0] == clusterName {
+			utils.AviLog.Infof("Marker configuration found in usable network. Using %s as vipNetworkList.", *network.Name)
+			return nil, *network.Name
+		}
+	}
+
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/network")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/network" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
+			return fetchNetworkWithMarkerSet(client, usableNetworkNames, nextPage)
+		}
+	}
+
+	return nil, ""
 }
 
 func checkPublicCloud(client *clients.AviClient) bool {
@@ -3017,48 +3081,18 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		utils.AviLog.Infof("Using global VRF for NodePort mode")
 		return true
 	}
-	if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetServiceType() == "ClusterIP" && lib.GetCNIPlugin() != lib.NCP_CNI && lib.GetNSXTTransportZone() != lib.VLAN_TRANSPORT_ZONE {
+	if lib.GetCloudType() == lib.CLOUD_NSXT &&
+		lib.GetServiceType() == "ClusterIP" &&
+		lib.GetCNIPlugin() != lib.NCP_CNI &&
+		lib.GetNSXTTransportZone() != lib.VLAN_TRANSPORT_ZONE {
 		// Here we need to determine the right VRF for this T1LR
 		// The logic is: Get all the VRF context objects from the controller, figure out the VRF that matches the T1LR
 		// Current pagination size is set to 100, this may have to increased if we have more than 100 T1 routers.
-		// TODO: pagination
-		uri := "/api/vrfcontext?" + "&include_name=true&cloud_ref.name=" + utils.CloudName + "&page_size=100"
-		result, err := lib.AviGetCollectionRaw(client, uri)
+		err, foundVrf := fetchAndSetVrf(client)
 		if err != nil {
-			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
 			return false
 		}
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			return false
-		}
-		var foundVrf bool
-		for i := 0; i < result.Count; i++ {
-			vrf := models.VrfContext{}
-			err = json.Unmarshal(elems[i], &vrf)
-			if err != nil {
-				utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-				continue
-			}
 
-			vrfName := *vrf.Name
-			if vrf.Attrs != nil {
-				for _, v := range vrf.Attrs {
-					if *v.Key == "tier1path" && *v.Value == lib.GetT1LRPath() {
-						lib.SetVrf(vrfName)
-						utils.AviLog.Infof("Setting VRF %s found that matches the T1Lr %s", vrfName, lib.GetT1LRPath())
-						foundVrf = true
-						break
-					}
-				}
-			}
-			if foundVrf {
-				// We have already found the VRF, we need not iterate through all elements of the result.
-				break
-			}
-		}
 		if !foundVrf {
 			// Fall back on the `global` VRF if there are no attrs are present.
 			vrfRef := *network.VrfContextRef
@@ -3074,6 +3108,59 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		lib.SetVrf(vrfName)
 	}
 	return true
+}
+
+func fetchAndSetVrf(client *clients.AviClient, overrideUri ...NextPage) (error, bool) {
+	var uri string
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
+	} else {
+		uri = "/api/vrfcontext?" + "&include_name=true&cloud_ref.name=" + utils.CloudName + "&page_size=100"
+	}
+
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+		return err, false
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return err, false
+	}
+
+	for i := 0; i < result.Count; i++ {
+		vrf := models.VrfContext{}
+		err = json.Unmarshal(elems[i], &vrf)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
+
+		vrfName := *vrf.Name
+		if vrf.Attrs != nil {
+			for _, v := range vrf.Attrs {
+				if *v.Key == "tier1path" && *v.Value == lib.GetT1LRPath() {
+					lib.SetVrf(vrfName)
+					utils.AviLog.Infof("Setting VRF %s found that matches the T1Lr %s", vrfName, lib.GetT1LRPath())
+					return nil, true
+				}
+			}
+		}
+	}
+
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/vrfcontext")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/vrfcontext" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
+			return fetchAndSetVrf(client, nextPage)
+		}
+	}
+
+	return nil, false
 }
 
 func checkBGPParams() bool {
