@@ -16,7 +16,9 @@ package evhtests
 
 import (
 	"context"
+	"flag"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -42,7 +44,28 @@ var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
 
+var isVCF = flag.String("isVCF", "false", "is vcf enabled")
+
+func setVCF(isvcf string) {
+	if isvcf == "true" {
+		os.Setenv("VCF_CLUSTER", "true")
+	}
+}
+
+func GetModelName(hostname, namespace string) (string, string) {
+	vsName := "cluster--Shared-L7-EVH-"
+	if !lib.IsVCFCluster() {
+		vsName += strconv.Itoa(int(utils.Bkt(hostname, 8)))
+		return "admin/" + vsName, vsName
+	}
+	vsName += "NS-" + namespace
+	return "admin/" + vsName, vsName
+}
+
 func TestMain(m *testing.M) {
+	flag.Parse()
+	setVCF(*isVCF)
+
 	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 	os.Setenv("CLUSTER_NAME", "cluster")
@@ -176,7 +199,7 @@ func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string) {
 func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	hrname := "samplehr-foo"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
@@ -288,7 +311,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	hrname := "samplehr-foo"
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
@@ -326,7 +349,7 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	// create insecure ingress, apply good secure hostrule, transition to bad
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	hrname := "samplehr-foo"
 	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
@@ -371,7 +394,7 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 	// create insecure ingress, insecure hostrule, hostrule should be applied in case of EVH
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	hrname := "samplehr-foo"
 	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
@@ -438,7 +461,7 @@ func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {
 	// delete hostrule, httprule gets detached
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	rrname := "samplerr-foo"
 
 	SetupDomain()

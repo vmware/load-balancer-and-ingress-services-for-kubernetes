@@ -202,9 +202,16 @@ evhtests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast
 
+.PHONY: vcftests
+vcftests:
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -isVCF=true
+
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests evhtests misc
+	make -j 1 k8stest integrationtest ingresstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests evhtests misc vcftests
 
 .PHONY: scale_test
 scale_test:
