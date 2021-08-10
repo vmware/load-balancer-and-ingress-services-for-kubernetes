@@ -99,7 +99,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		o.AddModelNode(pgNode)
 
 		utils.AviLog.Infof("key: %s, msg: adding PG %s for the passthrough VS: %s", key, pgName, secureSharedVS.Name)
-		utils.AviLog.Debugf("key: %s, Number of PGs %d, Added PG node %s", len(dsNode.PoolGroupRefs), utils.Stringify(pgNode.Members))
+		utils.AviLog.Debugf("key: %s, Number of PGs %d, Added PG node %s", key, len(dsNode.PoolGroupRefs), utils.Stringify(pgNode.Members))
 	}
 
 	// only add the pg node if not presesnt in the VS

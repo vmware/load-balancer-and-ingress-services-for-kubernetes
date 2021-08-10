@@ -132,15 +132,10 @@ func SetNoPGForSNI(val string) {
 	utils.AviLog.Infof("Setting the value for the noPGForSNI flag %v", noPGForSNI)
 }
 
-func SetGRBACSupport(val string) {
-	if boolVal, err := strconv.ParseBool(val); err == nil {
-		gRBAC = boolVal
-	}
-	if IsEvhEnabled() {
-		gRBAC = true
-	}
+func SetGRBACSupport() {
 	controllerVersion := utils.CtrlVersion
-	if gRBAC && CompareVersions(controllerVersion, "<", ControllerVersion2015) {
+	gRBAC = true
+	if CompareVersions(controllerVersion, "<", ControllerVersion2015) {
 		// GRBAC is supported from 20.1.5 and above
 		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is less than %s.", controllerVersion, ControllerVersion2015)
 		gRBAC = false
