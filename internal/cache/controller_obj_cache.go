@@ -2583,7 +2583,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	seGroupSet.Insert(lib.GetSEGName())
 
 	// This assumes that a single cluster won't use more than 100 distinct SEGroups.
-	uri := "/api/serviceenginegroup/?include_name&page_size=100&name.in=" + strings.Join(seGroupSet.List(), ",")
+	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName + "&name.in=" + strings.Join(seGroupSet.List(), ",")
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
