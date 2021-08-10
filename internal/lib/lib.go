@@ -1004,8 +1004,8 @@ func GetPassthroughShardVSName(s string, key string) string {
 	shardVsPrefix := GetClusterName() + "--" + PassthroughPrefix
 	vsNum = utils.Bkt(s, shardSize)
 	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
-	utils.AviLog.Infof("key: %s, msg: ShardVSName: %s", key, vsName)
-	return Encode(vsName, PassthroughVS)
+	utils.AviLog.Infof("key: %s, msg: Passthrough ShardVSName: %s", key, vsName)
+	return vsName
 }
 
 // GetLabels returns the key value pair used for tagging the segroups and routes in vrfcontext
