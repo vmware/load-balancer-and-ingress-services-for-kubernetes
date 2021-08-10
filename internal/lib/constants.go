@@ -63,7 +63,6 @@ const (
 	LOG_LEVEL                                  = "logLevel"
 	LAYER7_ONLY                                = "layer7Only"
 	NO_PG_FOR_SNI                              = "noPGForSNI"
-	GRBAC                                      = "GRBAC"
 	SERVICE_TYPE                               = "SERVICE_TYPE"
 	NODE_PORT                                  = "NodePort"
 	NODE_KEY                                   = "NODE_KEY"
