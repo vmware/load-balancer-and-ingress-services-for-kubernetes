@@ -387,7 +387,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 					tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
 				}
 			}
-			BuildPoolHTTPRule(host, path.Path, ingName, namespace, key, tlsNode, true)
+			BuildPoolHTTPRule(host, path.Path, ingName, namespace, infraSettingName, key, tlsNode, true)
 		}
 		sniFQDNs = append(sniFQDNs, pathFQDNs...)
 	}
