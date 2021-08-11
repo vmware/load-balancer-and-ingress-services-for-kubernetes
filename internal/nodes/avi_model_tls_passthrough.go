@@ -97,14 +97,13 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	if pgNode == nil {
 		pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 		o.AddModelNode(pgNode)
-
+		pgNode.AviMarkers = lib.PopulatePassthroughPGMarkers(hostname)
 		utils.AviLog.Infof("key: %s, msg: adding PG %s for the passthrough VS: %s", key, pgName, secureSharedVS.Name)
 		utils.AviLog.Debugf("key: %s, Number of PGs %d, Added PG node %s", key, len(dsNode.PoolGroupRefs), utils.Stringify(pgNode.Members))
 	}
 
 	// only add the pg node if not presesnt in the VS
 	if !utils.HasElem(secureSharedVS.PoolGroupRefs, pgNode) {
-		pgNode.AttachedToSharedVS = secureSharedVS.SharedVS
 		secureSharedVS.PoolGroupRefs = append(secureSharedVS.PoolGroupRefs, pgNode)
 	}
 	if !utils.HasElem(dsNode.PoolGroupRefs, pgName) {
@@ -131,6 +130,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				// Unset the poolnode's vrfcontext.
 				poolNode.VrfContext = ""
 			}
+			poolNode.AviMarkers = lib.PopulatePassthroughPoolMarkers(hostname, obj.ServiceName)
 		}
 		poolNode.IngressName = objName
 		poolNode.PortName = obj.PortName
@@ -156,7 +156,6 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				poolNode.Servers = servers
 			}
 		}
-		poolNode.AttachedWithSharedVS = true
 		poolNode.CalculateCheckSum()
 		tmpPoolList = append(tmpPoolList, poolNode)
 	}
