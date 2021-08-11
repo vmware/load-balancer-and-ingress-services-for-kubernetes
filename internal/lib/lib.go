@@ -855,6 +855,17 @@ func PopulateL4PoolNodeMarkers(namespace, svcName, port string) utils.AviObjectM
 	markers.Port = port
 	return markers
 }
+func PopulatePassthroughPGMarkers(host string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Host = host
+	return markers
+}
+func PopulatePassthroughPoolMarkers(host, svcName string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Host = host
+	markers.ServiceName = svcName
+	return markers
+}
 func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Clientset) ([]string, error) {
 	allInformers := []string{
 		utils.ServiceInformer,
