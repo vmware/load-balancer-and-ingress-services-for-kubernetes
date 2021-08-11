@@ -1055,3 +1055,84 @@ func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 	}, 50*time.Second).Should(gomega.Equal(true))
 	TearDownTestForIngress(t, modelName, settingModelName)
 }
+
+func TestCRDWithAviInfraSetting(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	secretName := "my-secret"
+	modelName := "admin/cluster--Shared-L7-1"
+	settingModelName := "admin/cluster--Shared-L7-my-infrasetting-1"
+	hrname, rrname := "samplehr-baz", "samplerr-baz"
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-my-infrasetting-1"}
+	sniKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--my-infrasetting-baz.com"}
+	poolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--my-infrasetting-default-baz.com_foo-foo-with-class"}
+
+	SetUpTestForIngress(t, modelName, settingModelName)
+	integrationtest.RemoveDefaultIngressClass()
+	defer integrationtest.AddDefaultIngressClass()
+
+	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
+	SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
+
+	integrationtest.SetupHostRule(t, hrname, "baz.com", true)
+	integrationtest.SetupHTTPRule(t, rrname, "baz.com", "/")
+
+	ingressCreate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		ClassName:   ingClassName,
+		DnsNames:    []string{"baz.com"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			secretName: {"baz.com"},
+		},
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+	g.Eventually(func() string {
+		httprule, _ := CRDClient.AkoV1alpha1().HTTPRules("default").Get(context.TODO(), rrname, metav1.GetOptions{})
+		return httprule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// check for values set in graph layer.
+	integrationtest.VerifyMetadataHostRule(g, sniKey, "default/"+hrname, true)
+	integrationtest.VerifyMetadataHTTPRule(g, poolKey, "default/"+rrname, true)
+	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprofile"))
+
+	integrationtest.TeardownHostRule(t, g, sniKey, hrname)
+	integrationtest.TeardownHTTPRule(t, rrname)
+	integrationtest.TeardownAviInfraSetting(t, settingName)
+	TeardownIngressClass(t, ingClassName)
+	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DeleteSecret(secretName, ns)
+	// Shard VS remains, Pools are moved/removed
+	g.Eventually(func() bool {
+		sniCache1, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
+		if found {
+			return len(sniCacheObj1.PoolKeyCollection) == 0
+		}
+		return false
+	}, 50*time.Second).Should(gomega.Equal(true))
+	TearDownTestForIngress(t, modelName, settingModelName)
+}
