@@ -570,12 +570,10 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 								retryable, fastRetryable := rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
 								fastRetry = fastRetry || fastRetryable
 								retry = retry || retryable
-							} else if aviError.HttpStatusCode == 400 && strings.Contains(*aviError.Message, lib.NoFreeIPError) {
+							} else {
 								fastRetry = false
 								retry = true
-								utils.AviLog.Warnf("key: %s, msg: Got no free IP error, would be added to slow retry queue", key)
-							} else {
-								utils.AviLog.Warnf("key: %s, msg: retry count exhausted, skipping", key)
+								utils.AviLog.Warnf("key: %s, msg: retry count exhausted, would be added to slow retry queue", key)
 							}
 						} else {
 							utils.AviLog.Warnf("key: %s, msg: Avi model not set, possibly a DELETE call", key)
