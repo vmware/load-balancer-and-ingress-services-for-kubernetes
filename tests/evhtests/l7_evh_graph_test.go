@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -50,7 +51,18 @@ func VerifyEvhIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return nodes[0].EvhNodes
 	}, 10*time.Second).Should(gomega.HaveLen(evhCount))
+}
 
+func VerifyEvhVsCacheChildDeletion(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName) {
+	mcache := cache.SharedAviObjCache()
+	g.Eventually(func() bool {
+		evhCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		evhCacheObj, _ := evhCache.(*cache.AviVsCache)
+		if found {
+			return len(evhCacheObj.SNIChildCollection) == 0
+		}
+		return false
+	}, 50*time.Second).Should(gomega.Equal(true))
 }
 
 func TestL7ModelForEvh(t *testing.T) {
@@ -96,7 +108,7 @@ func TestL7ModelForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -154,7 +166,7 @@ func TestShardObjectsForEvh(t *testing.T) {
 	g.Expect(nodes[0].SSLKeyCertRefs).Should(gomega.HaveLen(1))
 	// There will be 2 evh node one for each host
 	g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(2))
-	g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--noo.com", lib.EVHNode)))
+	g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--noo.com", lib.EVHVS)))
 	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-noo.com_foo_bar-foo-with-targets", lib.PG)))
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-noo.com_foo_bar-foo-with-targets-avisvc", lib.Pool)))
 	// Shared VS in EVH will not have any certificates and httppolicy
@@ -162,7 +174,7 @@ func TestShardObjectsForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-noo.com_foo_bar-foo-with-targets", lib.HTTPPS)))
 
-	g.Expect(nodes[0].EvhNodes[1].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
+	g.Expect(nodes[0].EvhNodes[1].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
 	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo_bar-foo-with-targets", lib.PG)))
 	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo_bar-foo-with-targets-avisvc", lib.Pool)))
 	// since foo is bound with cert this node will have the cert bound to it
@@ -175,6 +187,7 @@ func TestShardObjectsForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -212,7 +225,7 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -416,7 +429,7 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(0))
 
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
@@ -449,7 +462,7 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -483,7 +496,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
@@ -514,8 +527,9 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	time.Sleep(15 * time.Second)
 	TearDownTestForIngress(t, modelName)
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 }
 
 func TestMultiIngressSameHostForEvh(t *testing.T) {
@@ -560,7 +574,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
 		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(2))
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs), gomega.Equal(2))
@@ -601,7 +615,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -684,7 +698,8 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestUpdateBackendServiceForEvh(t *testing.T) {
@@ -746,7 +761,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 	integrationtest.DelSVC(t, "default", "avisvc2")
 	integrationtest.DelEP(t, "default", "avisvc2")
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -860,7 +875,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret-new", metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -892,7 +907,7 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
 		// Since there are two paths there will be single evh child with multiple http policies
 		g.Expect(len(nodes[0].EvhNodes[0].HttpPolicyRefs)).To(gomega.Equal(2))
 
@@ -905,7 +920,7 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -938,7 +953,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-ingress-edit", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-ingress-edit-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
@@ -974,7 +989,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_bar-ingress-edit", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_bar-ingress-edit-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
@@ -991,7 +1006,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1114,7 +1129,7 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1160,7 +1175,6 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	// time.Sleep(10 * time.Second)
 
 	integrationtest.PollForCompletion(t, model_name, 5)
 	integrationtest.DetectModelChecksumChange(t, model_name, 15)
@@ -1213,7 +1227,7 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 	}
 	integrationtest.DetectModelChecksumChange(t, model_name, 5)
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, model_name)
 }
 
@@ -1244,7 +1258,7 @@ func TestNoHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--ingress-nohost.default.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--ingress-nohost.default.com", lib.EVHVS)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com_foo-ingress-nohost", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com_foo-ingress-nohost-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("ingress-nohost.default.com"))
@@ -1260,7 +1274,7 @@ func TestNoHostIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-2"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1291,7 +1305,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--ingress-nohost.default.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--ingress-nohost.default.com", lib.EVHVS)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com_foo-ingress-nohost", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-ingress-nohost.default.com_foo-ingress-nohost-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("ingress-nohost.default.com"))
@@ -1345,7 +1359,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHNode)))
+		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
 		g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-ingress-nohost", lib.PG)))
 		g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo-ingress-nohost-avisvc", lib.Pool)))
 		g.Expect(nodes[0].EvhNodes[0].EvhHostName).To(gomega.Equal("foo.com"))
@@ -1362,7 +1376,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 	}
 
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1399,54 +1413,56 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 	}
 
 	integrationtest.PollForCompletion(t, modelName, 5)
-	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[1].Servers)).To(gomega.Equal(1))
-	} else {
-		t.Fatalf("Could not find model: %s", modelName)
-	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[1].Servers)).To(gomega.Equal(1))
 
 	integrationtest.ScaleCreateEP(t, "default", "avisvc")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	integrationtest.DetectModelChecksumChange(t, modelName, 5)
 
-	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	if found {
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		g.Expect(len(nodes)).To(gomega.Equal(1))
-		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
-		// Count should be 2 for both the backend pool members of the pool after the scaleout
-		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(2))
-		g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[1].Servers)).To(gomega.Equal(2))
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS(); found && len(nodes) > 0 {
+			return len(nodes[0].EvhNodes[0].PoolRefs[0].Servers) == 2
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(1))
+	// Count should be 2 for both the backend pool members of the pool after the scaleout
+	g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)).To(gomega.Equal(2))
+	g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[1].Servers)).To(gomega.Equal(2))
 
-		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
-	} else {
-		t.Fatalf("Could not find model: %s", modelName)
-	}
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 1)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
@@ -1454,8 +1470,8 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
-
 }
 
 // Additional SNI test cases follow:
@@ -1519,7 +1535,7 @@ func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 	}
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1621,6 +1637,7 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1669,7 +1686,7 @@ func TestL7ModelMultiSNIForEvh(t *testing.T) {
 	}
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1771,8 +1788,9 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret2", metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"})
 	TearDownTestForIngress(t, modelName)
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
 }
 
 func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
@@ -1840,6 +1858,6 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 	}
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
-
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"})
 	TearDownTestForIngress(t, modelName)
 }
