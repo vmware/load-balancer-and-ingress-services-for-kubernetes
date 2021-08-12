@@ -728,8 +728,10 @@ func TestNPLLBSvcNoLabel(t *testing.T) {
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Eventually(func() int {
-		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].PoolRefs)
+		if nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+			return len(nodes[0].PoolRefs)
+		}
+		return 0
 	}, 40*time.Second).Should(gomega.Equal(1))
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))

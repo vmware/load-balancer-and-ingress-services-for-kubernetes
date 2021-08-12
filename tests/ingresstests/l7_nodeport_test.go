@@ -492,8 +492,10 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 		dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
 		g.Eventually(func() int {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs)
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return len(nodes[0].PoolRefs)
+			}
+			return 0
 		}, 10*time.Second).Should(gomega.Equal(2))
 
 	} else {

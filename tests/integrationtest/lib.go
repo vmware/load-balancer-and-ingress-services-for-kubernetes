@@ -1394,6 +1394,61 @@ func VerifyMetadataHTTPRule(g *gomega.WithT, poolKey cache.NamespaceName, rrnsna
 	}, 50*time.Second).Should(gomega.Equal(true))
 }
 
+type FakeIngressClass struct {
+	Name            string
+	Controller      string
+	AviInfraSetting string
+	Default         bool
+}
+
+func (ingclass FakeIngressClass) IngressClass() *networking.IngressClass {
+	ingressclass := &networking.IngressClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ingclass.Name,
+		},
+		Spec: networking.IngressClassSpec{
+			Controller: ingclass.Controller,
+		},
+	}
+
+	if ingclass.Default {
+		ingressclass.Annotations = map[string]string{lib.DefaultIngressClassAnnotation: "true"}
+	} else {
+		ingressclass.Annotations = map[string]string{lib.DefaultIngressClassAnnotation: "false"}
+	}
+
+	if ingclass.AviInfraSetting != "" {
+		akoGroup := lib.AkoGroup
+		ingressclass.Spec.Parameters = &corev1.TypedLocalObjectReference{
+			APIGroup: &akoGroup,
+			Kind:     lib.AviInfraSetting,
+			Name:     ingclass.AviInfraSetting,
+		}
+	}
+
+	return ingressclass
+}
+
+func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting string) {
+	ingclass := FakeIngressClass{
+		Name:            ingclassName,
+		Controller:      controller,
+		Default:         false,
+		AviInfraSetting: infraSetting,
+	}
+
+	ingClassCreate := ingclass.IngressClass()
+	if _, err := KubeClient.NetworkingV1beta1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding IngressClass: %v", err)
+	}
+}
+
+func TeardownIngressClass(t *testing.T, ingClassName string) {
+	if err := KubeClient.NetworkingV1beta1().IngressClasses().Delete(context.TODO(), ingClassName, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("error in deleting IngressClass: %v", err)
+	}
+}
+
 type FakeAviInfraSetting struct {
 	Name           string
 	SeGroupName    string
