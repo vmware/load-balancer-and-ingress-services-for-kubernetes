@@ -131,16 +131,12 @@ func (v *AviObjectGraph) CalculateCheckSum() {
 	defer v.Lock.Unlock()
 	v.GraphChecksum = 0
 	for _, model := range v.modelNodes {
-		if lib.IsEvhEnabled() {
-			if modelVsNode, ok := model.(*AviEvhVsNode); ok {
-				v.GraphChecksum = v.GraphChecksum + modelVsNode.CalculateForGraphChecksum()
-				continue
-			}
-		} else {
-			if modelVsNode, ok := model.(*AviVsNode); ok {
-				v.GraphChecksum = v.GraphChecksum + modelVsNode.CalculateForGraphChecksum()
-				continue
-			}
+		if modelVsNode, ok := model.(*AviEvhVsNode); ok {
+			v.GraphChecksum = v.GraphChecksum + modelVsNode.CalculateForGraphChecksum()
+			continue
+		} else if modelVsNode, ok := model.(*AviVsNode); ok {
+			v.GraphChecksum = v.GraphChecksum + modelVsNode.CalculateForGraphChecksum()
+			continue
 		}
 		v.GraphChecksum = v.GraphChecksum + model.GetCheckSum()
 	}
