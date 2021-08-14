@@ -819,7 +819,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		hosts = append(hosts, pathsvcmap.gslbHostHeader)
 	}
 	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
-
+	vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
 	// build poolgroup and pool
 	o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, pathsvcmap.ingressHPSvc, nil)
 	foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
@@ -1231,6 +1231,7 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		// By default remove both redirect and fqdn. So if the host isn't transitioning, then we will remove both.
 		removeFqdn := true
 		removeRedir := true
+		removeRouteIngData := true
 		currentData, ok := hostsMap[host]
 		utils.AviLog.Debugf("key: %s, hostsMap: %s", key, utils.Stringify(hostsMap))
 		// if route is transitioning from/to passthrough route, then always remove fqdn
@@ -1240,15 +1241,21 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 			}
 			utils.AviLog.Infof("key: %s, host: %s, currentData: %v", key, host, currentData)
 			removeFqdn = false
+			if routeIgrObj.GetType() == utils.OshiftRoute {
+				diff := lib.GetDiffPath(hostData.PathSvc, currentData.PathSvc)
+				if len(diff) == 0 {
+					removeRouteIngData = false
+				}
+			}
 		}
 		// Delete the pool corresponding to this host
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, true)
+			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, true)
 		} else if hostData.SecurePolicy == lib.PolicyPass {
 			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName, host, routeIgrObj, hostData.PathSvc, key, true, true, true)
 		}
 		if hostData.InsecurePolicy != lib.PolicyNone {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, false)
+			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, false)
 		}
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -1393,7 +1400,7 @@ func (o *AviObjectGraph) GetAviPoolNodesByIngressForEvh(tenant string, ingName s
 	return aviPool
 }
 
-func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key, infraSettingName string, removeFqdn, removeRedir, secure bool) {
+func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key, infraSettingName string, removeFqdn, removeRedir, removeRouteIngData, secure bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
@@ -1411,7 +1418,9 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 
 	evhNodeName := lib.GetEvhNodeName(hostname, infraSettingName)
 	utils.AviLog.Infof("key: %s, msg: EVH node to delete: %s", key, evhNodeName)
-	keepEvh = o.ManipulateEvhNode(evhNodeName, ingName, namespace, hostname, pathSvc, vsNode, infraSettingName, key)
+	if removeRouteIngData {
+		keepEvh = o.ManipulateEvhNode(evhNodeName, ingName, namespace, hostname, pathSvc, vsNode, infraSettingName, key)
+	}
 	if !keepEvh {
 		// Delete the cert ref for the host
 		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, hostname), key)
@@ -1508,12 +1517,12 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 
 		// Delete the pool corresponding to this host
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true)
+			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, true)
 		} else if hostData.SecurePolicy == lib.PolicyPass {
 			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName, host, routeIgrObj, hostData.PathSvc, key, true, true, true)
 		}
 		if hostData.InsecurePolicy == lib.PolicyAllow {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
+			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, false)
 		}
 		ok := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
@@ -1555,10 +1564,10 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 
 		// Delete the pool corresponding to this host
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true)
+			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, true)
 		}
 		if hostData.InsecurePolicy != lib.PolicyNone {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
+			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, false)
 		}
 
 		ok := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
