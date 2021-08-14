@@ -510,7 +510,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 		}
 	}
 
-	utils.AviLog.Infof("key: %s, deleting hostnames %v from Route status %s/%s", svc_mdata_obj.HostNames, svc_mdata_obj.Namespace, svc_mdata_obj.IngressName)
+	utils.AviLog.Infof("key: %s, deleting hostnames %v from Route status %s/%s", key, svc_mdata_obj.HostNames, svc_mdata_obj.Namespace, svc_mdata_obj.IngressName)
 	for _, host := range svc_mdata_obj.HostNames {
 		for i := 0; i < len(mRoute.Status.Ingress); i++ {
 			if mRoute.Status.Ingress[i].Host != host {
