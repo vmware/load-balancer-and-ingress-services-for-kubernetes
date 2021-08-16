@@ -828,7 +828,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	}
 	// build host rule for insecure ingress in evh
 	BuildL7HostRule(host, namespace, ingName, key, evhNode)
-	manipulateEvhNodeForSSL(vsNode[0], evhNode)
+	manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 }
 
 // secure ingress graph functions
@@ -1100,7 +1100,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		}
 		// Enable host rule
 		BuildL7HostRule(host, namespace, ingName, key, evhNode)
-		manipulateEvhNodeForSSL(vsNode[0], evhNode)
+		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(host)
@@ -1615,9 +1615,14 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 	}
 }
 
-func manipulateEvhNodeForSSL(vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {
+func manipulateEvhNodeForSSL(key string, vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {
 	vsNode.SetSSLKeyCertAviRef(evhNode.GetSSLKeyCertAviRef())
 	evhNode.SetSSLKeyCertAviRef("")
-	vsNode.SetSSLProfileRef(evhNode.GetSSLProfileRef())
+	oldSSLProfile := vsNode.GetSSLProfileRef()
+	newSSLProfile := evhNode.GetSSLProfileRef()
+	if oldSSLProfile != "" && oldSSLProfile != newSSLProfile {
+		utils.AviLog.Warnf("key: %s msg: overwriting old ssl profile %s with new ssl profile %s", key, oldSSLProfile, newSSLProfile)
+	}
+	vsNode.SetSSLProfileRef(newSSLProfile)
 	evhNode.SetSSLProfileRef("")
 }
