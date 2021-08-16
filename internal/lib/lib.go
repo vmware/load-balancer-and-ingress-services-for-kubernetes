@@ -902,6 +902,24 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 	}
 	return allInformers, nil
 }
+func GetDiffPath(storedPathSvc map[string][]string, currentPathSvc map[string][]string) map[string][]string {
+	pathSvcCopy := make(map[string][]string)
+	for k, v := range storedPathSvc {
+		pathSvcCopy[k] = v
+	}
+
+	for path, services := range currentPathSvc {
+		// for OshiftRouteModel service diff is always checked
+		storedServices, ok := pathSvcCopy[path]
+		if ok {
+			pathSvcCopy[path] = Difference(storedServices, services)
+			if len(pathSvcCopy[path]) == 0 {
+				delete(pathSvcCopy, path)
+			}
+		}
+	}
+	return pathSvcCopy
+}
 
 func SSLKeyCertChecksum(sslName, certificate, cacert string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	checksum := utils.Hash(sslName + certificate + cacert)
