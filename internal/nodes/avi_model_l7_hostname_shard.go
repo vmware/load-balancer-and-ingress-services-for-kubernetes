@@ -134,7 +134,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 
 	}
 	for _, obj := range pathsvc {
-		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, key, vsNode[0], false)
+		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], false)
 	}
 
 	// Reset the PG Node members and rebuild them

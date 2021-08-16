@@ -256,11 +256,7 @@ func TestMultiIngressToSecureHostRule(t *testing.T) {
 		}
 		return 0
 	}, 50*time.Second).Should(gomega.Equal(2))
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].PoolRefs)
-	}, 40*time.Second).Should(gomega.Equal(0))
+	VerifyPoolDeletionFromVsNode(g, modelName)
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -416,8 +412,10 @@ func TestInsecureHostAndHostrule(t *testing.T) {
 
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].PoolRefs)
+		if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+			return len(nodes[0].PoolRefs)
+		}
+		return 0
 	}, 10*time.Second).Should(gomega.Equal(1))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -456,7 +454,10 @@ func TestValidToInvalidHostSwitch(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].PoolRefs)
+		if len(nodes) > 0 {
+			return len(nodes[0].PoolRefs)
+		}
+		return 0
 	}, 10*time.Second).Should(gomega.Equal(1))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -474,11 +475,7 @@ func TestValidToInvalidHostSwitch(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].PoolRefs)
-	}, 10*time.Second).Should(gomega.Equal(0))
+	VerifyPoolDeletionFromVsNode(g, modelName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))

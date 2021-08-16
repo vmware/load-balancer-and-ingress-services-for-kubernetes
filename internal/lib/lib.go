@@ -88,6 +88,7 @@ func Encode(s, objType string) string {
 	CheckObjectNameLength(encodedStr, objType)
 	return encodedStr
 }
+
 func IsNameEncoded(name string) bool {
 	split := strings.Split(name, "--")
 	if len(split) == 2 {
@@ -324,6 +325,7 @@ func GetEvhPoolName(ingName, namespace, host, path, infrasetting, svcName string
 	poolName := GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName)
 	return Encode(poolName, Pool)
 }
+
 func GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName string) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	namePrefix := NamePrefix

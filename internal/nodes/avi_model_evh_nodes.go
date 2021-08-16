@@ -697,7 +697,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 	}
 	for _, path := range paths {
-		BuildPoolHTTPRule(hosts[0], path.Path, ingName, namespace, key, childNode, true)
+		BuildPoolHTTPRule(hosts[0], path.Path, ingName, namespace, infraSettingName, key, childNode, true)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. childNodeChecksum for childNode :%s is :%v", key, childNode.Name, childNode.GetCheckSum())
@@ -1291,10 +1291,10 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (s
 	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-EVH-"
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
 	if oldInfraPrefix != "" {
-		oldVsName += "-" + oldInfraPrefix + "-"
+		oldVsName += oldInfraPrefix + "-"
 	}
 	if newInfraPrefix != "" {
-		newVsName += "-" + newInfraPrefix + "-"
+		newVsName += newInfraPrefix + "-"
 	}
 	oldVsName += strconv.Itoa(int(utils.Bkt(hostname, oldShardSize)))
 	newVsName += strconv.Itoa(int(utils.Bkt(hostname, newShardSize)))
