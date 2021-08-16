@@ -1296,10 +1296,10 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (s
 	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-EVH-"
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
 	if oldInfraPrefix != "" {
-		oldVsName += "-" + oldInfraPrefix + "-"
+		oldVsName += oldInfraPrefix + "-"
 	}
 	if newInfraPrefix != "" {
-		newVsName += "-" + newInfraPrefix + "-"
+		newVsName += newInfraPrefix + "-"
 	}
 
 	if lib.IsVCFCluster() {

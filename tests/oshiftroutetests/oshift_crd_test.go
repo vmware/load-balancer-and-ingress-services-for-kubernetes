@@ -402,8 +402,9 @@ func TestOshiftInsecureHostAndHostrule(t *testing.T) {
 
 	g.Eventually(func() int {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs)
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return len(nodes[0].PoolRefs)
+			}
 		}
 		return 0
 	}, 10*time.Second).Should(gomega.Equal(1))
@@ -448,8 +449,9 @@ func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 
 	g.Eventually(func() int {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs)
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return len(nodes[0].PoolRefs)
+			}
 		}
 		return 0
 	}, 10*time.Second).Should(gomega.Equal(1))
@@ -471,8 +473,9 @@ func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 
 	g.Eventually(func() int {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].PoolRefs)
+			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
+				return len(nodes[0].PoolRefs)
+			}
 		}
 		return -1
 	}, 10*time.Second).Should(gomega.Equal(0))
