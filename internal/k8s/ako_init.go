@@ -780,5 +780,22 @@ func (c *AviController) InitializeNamespaceSync() {
 		utils.AviLog.Info("Namespace Sync is disabled.")
 		return
 	}
+	populateNamespaceList()
 	utils.AviLog.Info("Namespace Sync is enabled")
+}
+
+// Add namespaces with correct labels to list of valid Namespaces. This is used while populating status of k8s objects.
+func populateNamespaceList() {
+	k8sclient := utils.GetInformers().ClientSet
+	allNamespaces, err := k8sclient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error en getting all namespaces: %v", err.Error())
+		return
+	}
+	for _, ns := range allNamespaces.Items {
+		if utils.CheckIfNamespaceAccepted(ns.GetName(), ns.GetLabels(), false) {
+			utils.AddNamespaceToFilter(ns.GetName())
+			utils.AviLog.Debugf("Namespace passed filter, added to valid Namespace list: %s", ns.GetName())
+		}
+	}
 }
