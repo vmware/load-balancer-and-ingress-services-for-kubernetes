@@ -114,3 +114,36 @@ spec:
 ```
 
 It has to be noted that if any Host Rule specifies a AVI SSL Key Cert for the same host, then default Secret won't be used. Similarly if a Secret is specified in the TLS section of the Ingress Spec, then the default Secret won't be used.
+
+
+### Passthrough Ingress:
+
+In passthrough mode, an Ingress can be used to send secure traffic to the backend pods without TLS termination in AVI. To use this, the Ingress has to be annotated with the annotation `passthrough.ako.vmware.com/enabled: true`.
+
+Like passthrough Routes in Openshift environment, a set of shared L4 Virtual Services are created by AKO to handle all tls passthrough hosts. These Virtual Services would listen on port 443 and have one L4 ssl datascript each. Name of the VS would be of the format clustername--'Shared-Passthrough'-shardnumner. Number of shards can be configured using the flag `passthroughShardSize` while installation using helm.
+
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress1
+  annotations:
+    passthrough.ako.vmware.com/enabled: "true"
+spec:
+  ingressClassName: avi-lb
+  rules:
+  - host: "pass.avi.internal"
+    http:
+      paths:
+      - path: /foo
+        backend:
+          service:
+            name: avisvc1
+            port:
+              number: 80
+```
+
+For each passthrough host, one unique Poolgroup is created and the Poolgroup is attached to the datascript of the VS derived by the sharding logic. One pool is also attached to the corresponding PoolGroup.
+
+For passthrough hosts in Ingress, another Virtual Service is created for each shared L4 VS, to handle insecure traffic on port 80. HTTP Request polices would be added in this VS for each passthrough hosts to send a HTTP redirect response for insecure traffic. Both the Virtual Services listening on port 443 and 80 have a common VSVip. This allows DNS VS to resolve the hostname to one IP address consistently. The name of the insecure shared VS would be of the format clustername--'Shared-Passthrough'-shard-number-'insecure'.

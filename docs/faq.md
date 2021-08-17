@@ -151,9 +151,9 @@ AKO would stop processing kubernetes objects and no update would be made to the 
 
 AKO does not process ingress objects in openshift environment. If any route corresponding to the ingress object is found, AKO would process that route.
 
-#### What are the virtual services for passthrough routes ?
+#### What are the virtual services for passthrough routes or ingresses?
 
-A set of shared Virtual Services are created for passthrough routes only in openshift environment to listen on port 443 to handle secure traffic using L4 datascript. These virtual services have names of the format 'cluster-name'-`Shared-Passthrough`-'shard-number'. Number of shards can be configured using the flag `passthroughShardSize` while installation using helm.
+A set of shared Virtual Services are created for passthrough hosts to listen on port 443 to handle secure traffic using L4 datascript. These virtual services have names of the format 'cluster-name'-`Shared-Passthrough`-'shard-number'. Number of shards can be configured using the flag `passthroughShardSize` while installation using helm.
 
 #### What happens if insecureEdgeTerminationPolicy is set to `redirect` for a passthrough route?
 
