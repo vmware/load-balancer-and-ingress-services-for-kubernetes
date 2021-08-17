@@ -124,8 +124,7 @@ If this flag is set to `true` then AKO would program http policy set rules to sw
 
 ### L7Settings.passthroughShardSize
 
-This is applicable only in openshift environment.
-AKO uses a sharding logic for passthrough routes, these are distinct from the shared Virtual Services used for Layer 7 ingress or route objects. For all passthrough routes, a set of shared Virtual Services are created. The number of such Virtual Services is controlled by this flag.
+AKO uses a sharding logic for passthrough hosts in routes or ingresses. These are distinct from the shared Virtual Services used for Layer 7 ingress or route objects. For all passthrough routes or ingresses, a set of shared Virtual Services are created. The number of such Virtual Services is controlled by this flag.
 
 ### L7Settings.defaultIngController
 
