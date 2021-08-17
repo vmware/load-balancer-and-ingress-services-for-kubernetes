@@ -68,7 +68,7 @@ func VerifyEvhVsCacheChildDeletion(t *testing.T, g *gomega.WithT, vsKey cache.Na
 func TestL7ModelForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -118,7 +118,7 @@ func TestShardObjectsForEvh(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, vsName := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 
@@ -156,12 +156,12 @@ func TestShardObjectsForEvh(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	g.Expect(nodes[0].Name).To(gomega.Equal("cluster--Shared-L7-EVH-0"))
+	g.Expect(nodes[0].Name).To(gomega.Equal(vsName))
 	// Shared VS in EVH will not have any pool or pool group unlike the normal VS
 	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 	g.Expect(nodes[0].HTTPDSrefs).Should(gomega.HaveLen(0))
-	g.Expect(nodes[0].VSVIPRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-EVH-0"))
+	g.Expect(nodes[0].VSVIPRefs[0].Name).To(gomega.Equal(vsName))
 	// the certs will be associated to parent evh vs
 	g.Expect(nodes[0].SSLKeyCertRefs).Should(gomega.HaveLen(1))
 	// There will be 2 evh node one for each host
@@ -194,7 +194,7 @@ func TestShardObjectsForEvh(t *testing.T) {
 func TestNoBackendL7ModelForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -231,7 +231,7 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 
 func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	objects.SharedAviGraphLister().Delete(modelName)
 	svcExample := (integrationtest.FakeService{
 		Name:         "avisvc",
@@ -355,7 +355,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	modelName = "admin/cluster--Shared-L7-EVH-1"
+	modelName, _ = GetModelName("bar.com", "default")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	// We should be able to get one model now in the queue
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -403,7 +403,7 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -470,7 +470,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, true)
 	integrationtest.CreateEP(t, "default", "avisvc", true, true, "1.1.1")
@@ -535,7 +535,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 func TestMultiIngressSameHostForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -622,7 +622,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 func TestDeleteBackendServiceForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -704,7 +704,7 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 
 func TestUpdateBackendServiceForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-backend-svc",
@@ -768,7 +768,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	//create ingress with tls secret
@@ -881,7 +881,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 
 func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -926,7 +926,7 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 
 func TestEditPathIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1012,7 +1012,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 
 func TestEditMultiPathIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1136,7 +1136,7 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_name := "admin/cluster--Shared-L7-EVH-0"
+	model_name, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, model_name)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1233,7 +1233,7 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 
 func TestNoHostIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-2"
+	modelName, _ := GetModelName("ingress-nohost.default.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1280,7 +1280,7 @@ func TestNoHostIngressForEvh(t *testing.T) {
 
 func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-2"
+	modelName, _ := GetModelName("ingress-nohost.default.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1340,13 +1340,15 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(0))
+		if !lib.IsVCFCluster() {
+			g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(0))
+		}
 
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	modelName = "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ = GetModelName("foo.com", "default")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	integrationtest.DetectModelChecksumChange(t, modelName, 5)
 
@@ -1383,7 +1385,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 func TestScaleEndpointsForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1478,7 +1480,7 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 
 func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -1541,7 +1543,7 @@ func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 
 func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -1644,7 +1646,7 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 func TestL7ModelMultiSNIForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	modelName := "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1697,9 +1699,9 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
 	// Clean up any earlier models.
-	modelName := "admin/cluster--Shared-L7-EVH-1"
+	modelName, _ := GetModelName("foo.com", "default")
 	objects.SharedAviGraphLister().Delete(modelName)
-	modelName = "admin/cluster--Shared-L7-EVH-0"
+	modelName, _ = GetModelName("foo.com", "default")
 	objects.SharedAviGraphLister().Delete(modelName)
 	SetUpTestForIngress(t, modelName)
 
@@ -1761,22 +1763,26 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 
 	// Because of change of the hostnames, the SNI nodes should now get distributed to two shared VSes.
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	evhNodesLen := 1
+	if lib.IsVCFCluster() {
+		evhNodesLen = 2
+	}
 	if found {
 		// Check if the secret affected both the models.
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			return len(nodes[0].EvhNodes)
-		}, 10*time.Second).Should(gomega.Equal(1))
+		}, 20*time.Second).Should(gomega.Equal(evhNodesLen))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	modelName = "admin/cluster--Shared-L7-EVH-1"
+	modelName, _ = GetModelName("foo.com", "default")
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			return len(nodes[0].EvhNodes)
-		}, 10*time.Second).Should(gomega.Equal(1))
+		}, 10*time.Second).Should(gomega.Equal(evhNodesLen))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
@@ -1797,7 +1803,7 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
-	modelName := "admin/cluster--Shared-L7-EVH-1"
+	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1835,6 +1841,10 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
 	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't update the Ingress %v", err)
+	}
+	modelName, _ = GetModelName("bar.com", "default")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
@@ -1850,7 +1860,7 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].EvhNodes[0].SSLKeyCertRefs)).To(gomega.Equal(0))
 		g.Expect(nodes[0].EvhNodes[0].VHDomainNames).To(gomega.HaveLen(1))
 	} else {
-		t.Fatalf("Could not find Model: %v", err)
+		t.Fatalf("Could not find Model: %v", modelName)
 	}
 	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {

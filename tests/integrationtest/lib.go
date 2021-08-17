@@ -1032,6 +1032,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 
 			} else if strings.Contains(rName, "Shared-L7-EVH-") {
 				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
+				if strings.Contains(shardVSNum, "NS-") {
+					shardVSNum = "0"
+				}
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else if strings.Contains(rName, "Shared-L7") {
 				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
@@ -1057,6 +1060,9 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else if strings.Contains(rName, "Shared-L7-EVH-") {
 				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
+				if strings.Contains(shardVSNum, "NS-") {
+					shardVSNum = "0"
+				}
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else if strings.Contains(rName, "Shared-L7") {
 				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
