@@ -32,6 +32,11 @@
         ]
     },
     "TestParams": {
+        "akoRepoPath" : "",
+        "testTimeout" : "",
+        "numGoRoutines" : 0,
+        "numOfLBSvc": 0,
+        "numOfIng" : 0,
         "akoPodName" : "",
         "namespace" : "",
         "appName" : "",
