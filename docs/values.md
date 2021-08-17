@@ -107,6 +107,11 @@ This feature allows configuring BGP Peer labels for BGP virtualservices. AKO con
       - peer1
       - peer2
 
+#### NetworkSettings.nsxtT1LR 
+
+This knob is used to specify the T1 logical router's name in the format of `/infra/tier-1s/<name-of-t1>`.
+This T1 router with a logical segment must be pre-configured in the NSX-T cloud as a `data network segment`. AKO uses this information to populate the virtualservice's and pool's T1Lr attribute.
+
 ### L7Settings.shardVSSize
 
 AKO uses a sharding logic for Layer 7 ingress objects. A sharded VS involves hosting multiple insecure or secure ingresses hosted by
