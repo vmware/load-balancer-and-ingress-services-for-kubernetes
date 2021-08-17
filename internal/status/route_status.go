@@ -33,7 +33,7 @@ import (
 )
 
 func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map[string]UpdateOptions) {
-	// updateIngressOptions holds as its key ingressNS/ingressName/vsIP and tries aggregating multiiple hostnames
+	// updateIngressOptions holds as its key ingressNS/ingressName/vsIP and tries aggregating multiple hostnames
 	// from various service metadatas. This ensures that a particular ingress hosting a particular IP,
 	// can possibly hold multiple hostnames.
 	updateIngressOptions := make(map[string]UpdateOptions)
@@ -124,17 +124,21 @@ func UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 	// after pre-fetching, if a status update comes for that route, then the pre-fetched route would be stale
 	// in which case route will be fetched again in updateObject, as part of a retry
 	routeMap := getRoutes(routesToUpdate, bulk)
+	skipDelete := map[string]bool{}
 	for _, option := range updateRouteOptions {
 		if route := routeMap[option.IngSvc]; route != nil {
 			if err = updateRouteObject(route, option); err != nil {
 				utils.AviLog.Errorf("key: %s, msg: updating rorute object failed: %v", option.Key, err)
 			}
-			delete(routeMap, option.IngSvc)
+			skipDelete[option.IngSvc] = true
 		}
 	}
 
 	if bulk {
 		for routeNSName, route := range routeMap {
+			if val, ok := skipDelete[routeNSName]; ok && val {
+				continue
+			}
 			DeleteRouteStatus([]UpdateOptions{{
 				ServiceMetadata: avicache.ServiceMetadataObj{
 					NamespaceIngressName: []string{routeNSName},
