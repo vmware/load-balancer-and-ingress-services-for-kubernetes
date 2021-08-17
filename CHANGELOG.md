@@ -136,5 +136,15 @@ All notable changes to this project will be documented in this file. The format 
  - Skip status updates on Service of type LoadBalancer during bootup when `layer7Only` flag is set to `true`.
  - Fix multi-host Ingress status updates during bootup.
  - Unblock AKO run if CRDs are not installed in cluster.
- - Fixed incorrect virtual service uuid annotation update for openshift secure routes with InsecureEdgeTermination set to Allow
+ - Fixed incorrect virtual service uuid annotation update for openshift secure routes with InsecureEdgeTermination set to Allow.
 
+## AKO-1.5.1
+
+### Added:
+ - Add support for programming FQDN for L4 services via Gateway object when `servicesAPI` is set to `true`.
+ - Multi-Protocol (TCP/UDP) support in gateway VS (shared VIP).
+ - Make Service of type LoadBalancer work together with Gateways when using `serviceAPI` is set to `true`.
+
+### Changed:
+ - Deprecate `subnetIP` and `subnetPrefix` in values.yaml, in favor of `cidr` field within `vipNetworkList`.
+ - Update `spec.network` to include `networkName` and `cidr` information in AviInfraSetting CRD.

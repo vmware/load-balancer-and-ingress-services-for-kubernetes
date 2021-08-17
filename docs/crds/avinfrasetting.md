@@ -14,8 +14,9 @@ spec:
   seGroup:
     name: compact-se-group
   network:
-    names:
-      - vip-network-10-10-10-0-24
+    vipNetworks:
+      - networkName: vip-network-10-10-10-0-24
+        cidr: 10.10.10.0/24
     enableRhi: true
     bgpPeerLabels:
       - peer1
@@ -101,13 +102,16 @@ Please make sure that the SEGs have no member Service Engines deployed, before s
 
 #### Configure VIP Networks
 
+**Note**: AKO 1.5.1 updates the schema to provide VIP network information in AviInfraSetting CRD. See [Upgrade Notes](./upgrade/upgrade.md) for more details.
+
 AviInfraSetting CRD can be used to configure VIP networks for virtualservices created corresponding to Services/Ingresses/Openshift Routes. The Networks must be present in the Avi Controller prior to this CRD creation.
 
         network:
-          names:
-            - vip-network-10-10-10-0-24
+          vipNetworks:
+            - networkName: vip-network-10-10-10-0-24
+              cidr: 10.10.10.0/24
 
-Note that multiple networks names can be added to the CRD. The Avi virtualservices will acquire a VIP from each of these specified networks. If Avi fails to allocate a VIP due to IP exhaustion, then theAKO, from v1.4.1 request is not honoured.
+Note that multiple networks names can be added to the CRD (only in case of AWS cloud). The Avi virtualservices will acquire a VIP from each of these specified networks. Failure in allocating even a single vip (for example, in case of IP exhaustion) **will** result in complete failure of entire request. *This is same as vip allocation failures in single vip.*
 
 #### Enable/Disable Route Health Injection
 
