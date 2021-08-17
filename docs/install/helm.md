@@ -6,6 +6,8 @@ Step 1: Create the `avi-system` namespace:
 kubectl create ns avi-system
 ```
 
+> **Note**: Starting AKO-1.4.3, AKO can run in namespaces other than `avi-system`. The namespace in which AKO is deployed, is governed by the `--namespace` flag value provided during `helm install` (Step 4). There are no updates in any setup steps whatsoever. `avi-system` has been kept as is in the entire documentation, and should be replaced by the namespace provided during AKO installation.
+
 Step 2: Add this repository to your helm CLI
 
 
@@ -13,7 +15,7 @@ Step 2: Add this repository to your helm CLI
 helm repo add ako https://projects.registry.vmware.com/chartrepo/ako
 
 ```
-Note: The helm charts are present in VMWare's public harbor repository
+> **Note**: The helm charts are present in VMWare's public harbor repository
 
 Step 3: Search the available charts for AKO
 
@@ -59,7 +61,7 @@ Simply run:
 helm delete <ako-release-name> -n avi-system
 ```
 
-Note: the ako-release-name is obtained by doing helm list as shown in the previous step,
+> **Note**: the ako-release-name is obtained by doing helm list as shown in the previous step,
 
 *Step 2:*
 
@@ -105,7 +107,7 @@ helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/
 "ako" has been added to your repositories
 
 ```
-Note: From AKO 1.3.3, we are migrating our charts repo to VMWare's harbor repository and hence a force update of the repo URL is required for a successful upgrade process from 1.3.3
+> **Note**: From AKO 1.3.3, we are migrating our charts repo to VMWare's harbor repository and hence a force update of the repo URL is required for a successful upgrade process from 1.3.3
 
 *Step4*
 
@@ -162,7 +164,3 @@ The following table lists the configurable parameters of the AKO chart and their
 > `vipNetworkList`, `subnetIP` and `subnetPrefix` are required fields which are used for allocating VirtualService IP by IPAM Provider module
 
 > Each AKO instance mapped to a given Avi cloud should have a unique clusterName parameter. This would maintain the uniqueness of object naming across Kubernetes clusters.
-
-
-
-

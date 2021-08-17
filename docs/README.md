@@ -25,7 +25,8 @@ The markers in the drawing are described below:
 * <i>**Step 3.1**</i>: If your POD CIDRs are routable then you can skip step 2. Ensure that you skip static route syncing in this case using the `disableStaticRouteSync` flag in the `values.yaml` of your helm chart.
 * <i>**Step 4:**</i> Kubernetes 1.16+.
 * <i>**Step 5:**</i> `helm` cli pointing to your kubernetes cluster.
-NOTE: We only support `helm 3`
+
+> **NOTE**: We only support `helm 3`
 
 ### Install using *helm*
 
