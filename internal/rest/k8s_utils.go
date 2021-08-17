@@ -112,10 +112,11 @@ func (rest *RestOperations) SyncObjectStatuses() {
 	if lib.GetAdvancedL4() {
 		status.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
 		status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
-	} else if lib.UseServicesAPI() {
-		status.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
-		status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 	} else {
+		if lib.UseServicesAPI() {
+			status.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
+			status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+		}
 		status.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
 		if !lib.GetLayer7Only() {
 			status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
