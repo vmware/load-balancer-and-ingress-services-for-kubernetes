@@ -333,6 +333,9 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 					vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 				}
 			}
+			if vs_meta.SSLProfileRef != "" {
+				vs.SslProfileRef = &vs_meta.SSLProfileRef
+			}
 
 		}
 
