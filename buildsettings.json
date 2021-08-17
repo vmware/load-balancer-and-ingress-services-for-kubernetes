@@ -2,7 +2,7 @@
     "version": "1.6.1",
     "avi": {
         "maxVersion": "20.1.6",
-        "minVersion": "20.1.1"
+        "minVersion": "20.1.3"
     },
     "kubernetes": {
         "maxVersion": "1.21",

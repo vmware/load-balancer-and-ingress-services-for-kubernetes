@@ -1,11 +1,11 @@
-AKO, from v1.4.1, claims support for Layer 4 Service integration with Gateway APIs v1alpha1. In order to enable the feature, and allow AKO to watch for Gateway API objects - GatewayClass and Gateway - the `servicesAPI` flag in the `values.yaml` must be set to `true`.
+AKO, from 1.4.1, claims support for Layer 4 Service integration with Gateway APIs v1alpha1. In order to enable the feature, and allow AKO to watch for Gateway API objects - GatewayClass and Gateway - the `servicesAPI` flag in the `values.yaml` must be set to `true`.
 
 ### Installation
 
-AKO primarily uses GatewayClass and Gateway CRDs for it's Gateway API implementation and integration with Layer 4 Services. These GatewayClass and Gateway CRDs must be installed on the cluster running AKO. The CRDs can be installed on the cluster, post AKO release v1.4.1, the same way as any other AKO CRDs, via helm. More details around CRD installation can be found in the [installation guide](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/install/helm.md).
+AKO primarily uses GatewayClass and Gateway CRDs for it's Gateway API implementation and integration with Layer 4 Services. These GatewayClass and Gateway CRDs must be installed on the cluster running AKO. The CRDs can be installed on the cluster, post AKO release 1.4.1, the same way as any other AKO CRDs, via helm. More details around CRD installation can be found in the [installation guide](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/install/helm.md).
 
 ### Gateway APIs and Service objects
-Starting v1.4.1, AKO allows users to expose Kubernetes/Opennshift Services, outside the cluster, using Gateway and GatewayClass constructs. AKO creates one Layer-4 Avi virtualservice per Gateway object, and configures the backend Services as distinct Avi Pools. In this case the type of Services, to be exposed via the Gateway object, is not limited to Service of Type `LoadBalancer`.
+Starting 1.4.1, AKO allows users to expose Kubernetes/Opennshift Services, outside the cluster, using Gateway and GatewayClass constructs. AKO creates one Layer-4 Avi virtualservice per Gateway object, and configures the backend Services as distinct Avi Pools. In this case the type of Services, to be exposed via the Gateway object, is not limited to Service of Type `LoadBalancer`.
 
 #### GatewayClass
 
@@ -134,3 +134,31 @@ spec:
 
 Each Service with the appropriate labels, corresponds to a single Avi Pool.
 Note that the Service namespace is not required to be in the same namespace as that of the parent Gateway.
+
+
+#### Configuring FQDN for Gateway listeners/Backend Services
+
+While using the Service APIs, Fully Qualified Domain Names (FQDN) can be configured for Services that are exposed via the Gateway object in the following two ways (mentioned in order of precedence):
+1. Using the `hostname` field in `Gateway`
+A hostname can be configured on individual Gateway listeners as shown below.
+
+```
+spec:
+  gatewayClassName: avi-lb
+  listeners:
+  - protocol: TCP
+    port: 80
+    hostname: svc.example.com
+    routes:
+      selector:
+        matchLabels:
+          ako.vmware.com/gateway-namespace: blue
+          ako.vmware.com/gateway-name: my-gateway
+      group: v1
+      kind: Service
+```
+
+As shown in the example, this allows you to specify a FQDN `svc.example.com` for all `TCP` Services running on Port `80` that are programmed with the appropriate labels. This helps in collectively identifying Services via a single FQDN exposed by the Gateway.
+
+2. Using `autoFQDN`
+In case a `hostname` is not provided for a Gateway listener, AKO relies on the value provided by the `autoFQDN` field during installation. This can be set to either, `default`, `flat` or `disabled`. For more information on how to provide the `autoFQDN` functionality, refer to the [values.yaml](../values.md#l4settingsautofqdn) documenation.
