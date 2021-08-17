@@ -46,6 +46,7 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 	}
 
 	serviceMap := getServices(servicesToUpdate, bulk)
+	skipDelete := map[string]bool{}
 	for _, option := range updateServiceOptions {
 		key, svcMetadata := option.Key, option.ServiceMetadata
 		if service := serviceMap[option.IngSvc]; service != nil {
@@ -90,11 +91,14 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
 			}
 		}
-		delete(serviceMap, option.IngSvc)
+		skipDelete[option.IngSvc] = true
 	}
 
 	if bulk {
 		for svcNSName := range serviceMap {
+			if val, ok := skipDelete[svcNSName]; ok && val {
+				continue
+			}
 			DeleteL4LBStatus(avicache.ServiceMetadataObj{
 				NamespaceServiceName: []string{svcNSName},
 			}, lib.SyncStatusKey)

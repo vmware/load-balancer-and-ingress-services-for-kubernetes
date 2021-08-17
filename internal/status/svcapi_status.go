@@ -46,6 +46,7 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	// after pre-fetching, if a status update comes for that gateway, then the pre-fetched gateway would be stale
 	// in which case gateway will be fetched again in updateObject, as part of a retry
 	gatewayMap := getSvcApiGateways(gatewaysToUpdate, bulk)
+	skipDelete := map[string]bool{}
 	for _, option := range updateGWOptions {
 		if gw := gatewayMap[option.IngSvc]; gw != nil {
 			// assuming 1 IP per gateway
@@ -62,13 +63,16 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 				Status: metav1.ConditionTrue,
 			})
 			UpdateSvcApiGatewayStatusObject(option.Key, gw, gwStatus)
-			delete(gatewayMap, option.IngSvc)
+			skipDelete[option.IngSvc] = true
 		}
 	}
 
 	// reset IPAddress and finalizer from Gateways that do not have a corresponding VS in cache
 	if bulk {
 		for gwNSName := range gatewayMap {
+			if val, ok := skipDelete[gwNSName]; ok && val {
+				continue
+			}
 			DeleteSvcApiGatewayStatusAddress("", avicache.ServiceMetadataObj{
 				Gateway: gwNSName,
 			})
