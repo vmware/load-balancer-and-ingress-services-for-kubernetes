@@ -228,7 +228,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 					svcLister.IngressMappings(namespace).DeleteSecretToIngMapping(secretName)
 				}
 			}
-			utils.AviLog.Infof("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
+			utils.AviLog.Warnf("key: %s, msg: secret: %s has been deleted, err: %s", key, secretName, err)
 			return false
 		}
 		keycertMap := secretObj.Data
