@@ -63,7 +63,7 @@ To uninstall the AKO operator and the AKO controller, use the following steps:
 
     helm delete <ako-operator-release-name> -n avi-system
 
- Note: the `ako-operator-release-name` is obtained by doing helm list as shown in the previous step
+> **Note**: the `ako-operator-release-name` is obtained by doing helm list as shown in the previous step
 
 *Step 3:* Delete the `avi-system` namespace.
 
