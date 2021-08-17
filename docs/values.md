@@ -48,6 +48,7 @@ Once enabled, for `calico` this flag is used to read the `blockaffinity` CRD to 
 on an older version of calico where `blockaffinity` is not present, then leave this field as blank. For `openshift` hostsubnet CRD is used to to determine the POD CIDR to Node IP mappings.
 
 AKO will then determine the static routes based on the Kubernetes Nodes object as done with other CNIs.
+In case of `ncp` CNI, AKO automatically disables the configuration of static routes.
 
 ### AKOSettings.layer7Only
 
