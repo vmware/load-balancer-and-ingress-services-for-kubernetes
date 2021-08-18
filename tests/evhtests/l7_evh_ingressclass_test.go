@@ -49,7 +49,7 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName, ingressName, ns := "avi-lb", "foo-with-class", "default"
-	modelName := "admin/cluster--Shared-L7-EVH-1"
+	modelName, _ := GetModelName("bar.com", "default")
 
 	SetUpTestForIngress(t, modelName)
 	integrationtest.RemoveDefaultIngressClass()
@@ -139,7 +139,7 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName, ingressName, ns := "avi-lb", "foo-with-class2", "default"
-	modelName := "admin/cluster--Shared-L7-EVH-1"
+	modelName, _ := GetModelName("bar.com", "default")
 
 	SetUpTestForIngress(t, modelName)
 	integrationtest.RemoveDefaultIngressClass()
@@ -194,6 +194,9 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 
 // AviInfraSetting CRD
 func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	// create secure and insecure host ingress, connect with infrasetting
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
@@ -273,6 +276,9 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 
 // Updating IngressClass
 func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	// create ingressclass/ingress, add infrasetting ref, model changes
 	// remove infrasetting ref, model changes again
 	g := gomega.NewGomegaWithT(t)
@@ -359,6 +365,9 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 }
 
 func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	// create ingressclass/ingress/infrasetting
 	// update infrasetting ref in ingressclass, model changes
 	g := gomega.NewGomegaWithT(t)
@@ -438,6 +447,9 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 
 // Updating Ingress
 func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	// add ingress, ingressclass with valid infrasetting,
 	// add ingressclass in ingress, delete ingress
 	g := gomega.NewGomegaWithT(t)
@@ -523,6 +535,9 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	// update from ingressclass with infrasetting to another
 	// ingressclass with infrasetting in ingress
 
@@ -611,6 +626,9 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHUpdateWithInfraSetting(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	// update from ingressclass with infrasetting to another
 	// ingressclass with infrasetting in ingress
 
@@ -734,6 +752,9 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	// update ingressclass (without infrasetting) in ingress
 	g := gomega.NewGomegaWithT(t)
 
@@ -823,6 +844,9 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 }
 
 func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
@@ -904,6 +928,9 @@ func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
@@ -977,6 +1004,9 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHCRDWithAviInfraSetting(t *testing.T) {
+	if lib.IsVCFCluster() {
+		t.Skip()
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
