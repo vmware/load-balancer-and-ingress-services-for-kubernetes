@@ -41,6 +41,12 @@ Read more about AKO [CRDs](crds/overview.md)
 
 AKO can be used in openshift cluster to configure Routes and Services of type Loadbalancer. For details about how to use AKO in an openshift cluster and features specific to openshift refer [here](openshift/openshift.md).
 
+### AKO in NSX-T deployments
+
+Starting release 1.5.1, AKO supports the NSX-T write access cloud for both NCP and non-NCP CNIs. In case of NCP CNI, the pods are assumed to be routable from the SE's backend data network segments. Due to this, AKO disables the static route configuration when the CNI is specified as `ncp` in the values.yaml. However, if non-ncp CNIs are used, AKO assumes that static routes can be configured on the the SEs to reach the pod networks. In order for this scenario to be valid, the SEs backend data network must be configured on the same logical segment on which the Kubernetes/OpenShift cluster is run. 
+
+In addition to this, AKO supports both overlay as well as VLAN backed NSX-T cloud configurations. AKO automatically figures out if a cloud is configured with overlay segments or is used with VLAN networks. The VLAN backed NSX-T setup behaves the same as vCenter write access cloud, thus requiring no inputs from the user. However the overlay based NSX-T setups require the user to configure a logical segment as the backend data network and correspondingly configure the T1 router's info during bootup of AKO via a helm values parameter.
+
 ### Using NodePort mode
 
 Service of type `NodePort` can be used to send traffic to the pods exposed through Service of type `NodePort`.
