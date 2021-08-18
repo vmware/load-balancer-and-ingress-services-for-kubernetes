@@ -75,9 +75,7 @@ If two Kubernetes clusters have overlapping POD CIDRs, the service engine needs 
 
 ### NetworkSettings.subnetIP and NetworkSettings.subnetPrefix
 
-AKO supports dual arm deployment where the Virtual IP network can be on a different subnet than the actual Port Groups on which the kubernetes nodes are deployed.
-
-These fields are used to specify the Virtual IP network details on which the user wants to place the Avi virtual services on.
+AKO 1.5.1 deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](./upgrade/upgrade.md) for more details.
 
 ### NetworkSettings.vipNetworkList
 
@@ -85,6 +83,12 @@ List of VIP Networks can be specified through vipNetworkList with key as network
 
     vipNetworkList:
       - networkName: net1
+
+In addition to the networkName, we can also provide CIDR information that allows us to specify the Virtual IP network details on which the user wants to place the Avi virtual services on.
+
+    vipNetworkLists:
+      - networkName: net1
+        cidr: 10.1.1.0/24
 
 For all Public clouds, vipNetworkList must be have at least one networkName. For other cloud types too, it is suggested that networkName should be specified in vipNetworkList. With AVI IPAM, if networkName is not specified in vipNetworkList, an IP can be allocated from the IPAM of the cloud.
 
@@ -186,9 +190,9 @@ then specify the `name` of the cloud name with this field. This helps AKO determ
 
 #### AWS and Azure Cloud in NodePort mode of AKO
 
-If the IaaS cloud is Azure then subnet name is specified in `networkName` within vipNetworkList. Azure IaaS cloud is supported only in `NodePort` mode of AKO.
-If the IaaS cloud is AWS then subnet uuid is specified in `networkName` within vipNetworkList. AWS IaaS cloud is supported only in `NodePort` mode of AKO.
-The `subnetIP` and `subnetPrefix` are not required for AWS and Azure Cloud.
+If the IaaS cloud is Azure then subnet name is specified in `networkName` within `vipNetworkList`. Azure IaaS cloud is supported only in `NodePort` mode of AKO.
+If the IaaS cloud is AWS then subnet uuid is specified in `networkName` within `vipNetworkList`. AWS IaaS cloud is supported only in `NodePort` mode of AKO.
+The `cidr` within `vipNetworkList` is not required for AWS and Azure Cloud.
 
 ### avicredentials.username and avicredentials.password
 

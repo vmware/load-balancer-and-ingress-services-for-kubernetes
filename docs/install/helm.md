@@ -6,6 +6,8 @@ Step 1: Create the `avi-system` namespace:
 kubectl create ns avi-system
 ```
 
+> **Note**: Starting AKO-1.4.3, AKO can run in namespaces other than `avi-system`. The namespace in which AKO is deployed, is governed by the `--namespace` flag value provided during `helm install` (Step 4). There are no updates in any setup steps whatsoever. `avi-system` has been kept as is in the entire documentation, and should be replaced by the namespace provided during AKO installation.
+
 Step 2: Add this repository to your helm CLI
 
 
@@ -13,7 +15,7 @@ Step 2: Add this repository to your helm CLI
 helm repo add ako https://projects.registry.vmware.com/chartrepo/ako
 
 ```
-Note: The helm charts are present in VMWare's public harbor repository
+> **Note**: The helm charts are present in VMWare's public harbor repository
 
 Step 3: Search the available charts for AKO
 
@@ -59,7 +61,7 @@ Simply run:
 helm delete <ako-release-name> -n avi-system
 ```
 
-Note: the ako-release-name is obtained by doing helm list as shown in the previous step,
+> **Note**: the ako-release-name is obtained by doing helm list as shown in the previous step,
 
 *Step 2:*
 
@@ -79,8 +81,8 @@ Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a re
 helm template ako/ako --version 1.4.2 --include-crds --output-dir <output_dir>
 ```
 
-This will save the helm files to an output directory which will contain the CRDS corresponding to the AKO version.
-To install the CRDS:
+This will save the helm files to an output directory which will contain the CRDs corresponding to the AKO version.
+To install the CRDs:
 
 ```
 kubectl apply -f <output_dir>/ako/crds/
@@ -105,7 +107,7 @@ helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/
 "ako" has been added to your repositories
 
 ```
-Note: From AKO 1.3.3, we are migrating our charts repo to VMWare's harbor repository and hence a force update of the repo URL is required for a successful upgrade process from 1.3.3
+> **Note**: From AKO 1.3.3, we are migrating our charts repo to VMWare's harbor repository and hence a force update of the repo URL is required for a successful upgrade process from 1.3.3
 
 *Step4*
 
@@ -140,9 +142,9 @@ The following table lists the configurable parameters of the AKO chart and their
 | `ControllerSettings.serviceEngineGroupName` | Name of the Service Engine Group | Default-Group |
 | `NetworkSettings.nodeNetworkList` | List of Networks and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
-| `NetworkSettings.subnetIP` | Subnet IP of the data network | **required** |
-| `NetworkSettings.subnetPrefix` | Subnet Prefix of the data network | **required** |
-| `NetworkSettings.vipNetworkList` | List of Network Names for VIP network, multiple networks allowed only for AWS Cloud | **required** |
+| `NetworkSettings.subnetIP` | Subnet IP of the data network | **DEPRECATED** |
+| `NetworkSettings.subnetPrefix` | Subnet Prefix of the data network | **DEPRECATED** |
+| `NetworkSettings.vipNetworkList` | List of Network Names and Subnet information for VIP network, multiple networks allowed only for AWS Cloud | **required** |
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services | First domainname found in cloud's dnsprofile |
@@ -159,10 +161,8 @@ The following table lists the configurable parameters of the AKO chart and their
 | `avicredentials.password` | Avi controller password | empty |
 | `image.repository` | Specify docker-registry that has the AKO image | avinetworks/ako |
 
-> `vipNetworkList`, `subnetIP` and `subnetPrefix` are required fields which are used for allocating VirtualService IP by IPAM Provider module
+> AKO 1.5.1 deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](./upgrade/upgrade.md) for more details.
+
+> `vipNetworkList` is a required field which is used for allocating  VirtualService IP by IPAM Provider module
 
 > Each AKO instance mapped to a given Avi cloud should have a unique clusterName parameter. This would maintain the uniqueness of object naming across Kubernetes clusters.
-
-
-
-

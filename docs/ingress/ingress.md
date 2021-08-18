@@ -1,4 +1,4 @@
-AKO, from v1.3.1 claims partial support for networking/v1 Ingress, released for general availability starting kubernetes 1.19. 
+AKO, from 1.3.1 claims partial support for networking/v1 Ingress, released for general availability starting kubernetes 1.19. 
 
 
 #### networking/v1 Ingress specific features supported in AKO
@@ -9,7 +9,7 @@ AKO, from v1.3.1 claims partial support for networking/v1 Ingress, released for 
 AKO automatically detects whether ingress-class api is enabled/available in the cluster it is operating in. If the ingress-class api is enabled, AKO switches to use the IngressClass objects, instead of the previously available alternative of using `kubernetes.io/ingress.class` annotations in Ingress objects. 
 
 #### Avi IngressClass object
-IngressClass corresponding to AKO as the ingress controller gets deployed as part of helm install/upgrade (AKO v1.3.1+). Helm autodetects the presence  of IngressClass api enabled on the cluster, and if it does, creates the IngressClass object. The IngressClass object should look something like this:
+IngressClass corresponding to AKO as the ingress controller gets deployed as part of helm install/upgrade (AKO 1.3.1+). Helm autodetects the presence  of IngressClass api enabled on the cluster, and if it does, creates the IngressClass object. The IngressClass object should look something like this:
 
 ```
 apiVersion: networking.k8s.io/v1

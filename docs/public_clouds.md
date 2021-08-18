@@ -166,9 +166,9 @@ Below points list down the EKS deployment options as well as the AKO deployment 
         namespace: multivip-namespace 
     spec:
         network:
-            names:
-                - subnet-1
-                - subnet-2
+            vipNetworks:
+                - networkName: subnet-1
+                - networkName: subnet-2
     ```
     * **NOTE**: When configuring MultiVIP, make sure that **ALL** subnets are capable of vip allocation. Failure in allocating even a single vip (for example, in case of IP exhaustion) **will** result in complete failure of entire request. *This is same as vip allocation failures in single vip.*
 
