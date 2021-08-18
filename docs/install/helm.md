@@ -162,7 +162,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `avicredentials.password` | Avi controller password | empty |
 | `image.repository` | Specify docker-registry that has the AKO image | avinetworks/ako |
 
-> AKO 1.5.1 deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](./upgrade/upgrade.md) for more details.
+> AKO 1.5.1 deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
 
 > `vipNetworkList` is a required field which is used for allocating  VirtualService IP by IPAM Provider module
 
