@@ -58,18 +58,22 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 	// after pre-fetching, if a status update comes for that ingress, then the pre-fetched ingress would be stale
 	// in which case ingress will be fetched again in updateObject, as part of a retry
 	ingressMap := getIngresses(ingressesToUpdate, bulk)
+	skipDelete := map[string]bool{}
 	for _, option := range updateIngressOptions {
 		if ingress := ingressMap[option.IngSvc]; ingress != nil {
 			if err = updateObject(ingress, option); err != nil {
 				utils.AviLog.Error("key: %s, msg: updating Ingress object failed: %v", option.Key, err)
 			}
-			delete(ingressMap, option.IngSvc)
+			skipDelete[option.IngSvc] = true
 		}
 	}
 
 	// reset IPAddress and annotations from Ingresses that do not have a corresponding VS in cache
 	if bulk {
 		for ingNSName, ing := range ingressMap {
+			if val, ok := skipDelete[ingNSName]; ok && val {
+				continue
+			}
 			var hostnames []string
 			for _, rule := range ing.Spec.Rules {
 				hostnames = append(hostnames, rule.Host)
@@ -82,8 +86,6 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 			}}, true, lib.SyncStatusKey)
 		}
 	}
-
-	return
 }
 
 func updateObject(mIngress *networkingv1beta1.Ingress, updateOption UpdateOptions, retryNum ...int) error {

@@ -50,6 +50,7 @@ func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	// after pre-fetching, if a status update comes for that gateway, then the pre-fetched gateway would be stale
 	// in which case gateway will be fetched again in updateObject, as part of a retry
 	gatewayMap := getGateways(gatewaysToUpdate, bulk)
+	skipDelete := map[string]bool{}
 	for _, option := range updateGWOptions {
 		updateServiceOptions = append(updateServiceOptions, UpdateOptions{
 			Vip: option.Vip,
@@ -74,13 +75,16 @@ func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 				Status: corev1.ConditionTrue,
 			})
 			UpdateGatewayStatusObject(option.Key, gw, gwStatus)
-			delete(gatewayMap, option.IngSvc)
+			skipDelete[option.IngSvc] = true
 		}
 	}
 
 	// reset IPAddress and finalizer from Gateways that do not have a corresponding VS in cache
 	if bulk {
 		for gwNSName := range gatewayMap {
+			if val, ok := skipDelete[gwNSName]; ok && val {
+				continue
+			}
 			DeleteGatewayStatusAddress(avicache.ServiceMetadataObj{
 				Gateway: gwNSName,
 			}, lib.SyncStatusKey)
@@ -88,7 +92,6 @@ func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	}
 
 	UpdateL4LBStatus(updateServiceOptions, bulk)
-	return
 }
 
 func parseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []UpdateOptions) {
