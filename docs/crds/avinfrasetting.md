@@ -118,6 +118,13 @@ AviInfraSetting CRD can be used to enable/disable Route Health Injection (RHI) o
 
 This overrides the global `enableRHI` flag for the virtualservices corresponding to the AviInfraSetting.
 
+#### Enable/Disable Public IP
+
+AviInfraSetting CRD can be used to enable/disable Public IP on the virtualservices created by AKO. 
+
+        network:
+          enablePublicIP: true
+
 #### Configure BGP Peer Labels for BGP VSes 
 
 AviInfraSetting CRD can be used to configure BGP Peer labels for BGP virtualservices. AKO configures the VSes with the appropriate peer labels, only when `enableRHI` is enabled, either during AKO installation via helm chart's `values.yaml` or via the AviInfraSetting CRD itself. If not set to `true`, the AviInfraSetting resource will be marked `Rejected`, 
