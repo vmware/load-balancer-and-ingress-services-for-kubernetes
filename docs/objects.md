@@ -180,7 +180,9 @@ In order to use this service across 2 paths, with each routing to a different po
 ```
 
 As you may note that the service ports in case of multi-port `Service` inside the ingress file are `strings` that match the port names of
-the `Service`. This is mandatory for this feature to work.
+the `Service`. 
+
+**NOTE**: Starting AKO 1.5.1, `servicePort` with port numbers is also supported.
 
 ### Namespace Sync in AKO
 
