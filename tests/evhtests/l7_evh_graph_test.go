@@ -61,7 +61,7 @@ func VerifyEvhVsCacheChildDeletion(t *testing.T, g *gomega.WithT, vsKey cache.Na
 		if found {
 			return len(evhCacheObj.SNIChildCollection) == 0
 		}
-		return false
+		return true
 	}, 50*time.Second).Should(gomega.Equal(true))
 }
 
@@ -108,7 +108,7 @@ func TestL7ModelForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -187,7 +187,7 @@ func TestShardObjectsForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -225,7 +225,7 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -462,7 +462,7 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -529,7 +529,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
 	time.Sleep(15 * time.Second)
 	TearDownTestForIngress(t, modelName)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 }
 
 func TestMultiIngressSameHostForEvh(t *testing.T) {
@@ -615,7 +615,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -698,7 +698,7 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -761,7 +761,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 	integrationtest.DelSVC(t, "default", "avisvc2")
 	integrationtest.DelEP(t, "default", "avisvc2")
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -875,7 +875,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret-new", metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -920,7 +920,7 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1006,7 +1006,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1129,15 +1129,15 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
 func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	model_name, _ := GetModelName("foo.com", "default")
-	SetUpTestForIngress(t, model_name)
+	modelName, _ := GetModelName("foo.com", "default")
+	SetUpTestForIngress(t, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
@@ -1176,9 +1176,9 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, model_name, 5)
-	integrationtest.DetectModelChecksumChange(t, model_name, 15)
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	integrationtest.PollForCompletion(t, modelName, 5)
+	integrationtest.DetectModelChecksumChange(t, modelName, 15)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1210,13 +1210,13 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 
 	} else {
-		t.Fatalf("Could not find model: %s", model_name)
+		t.Fatalf("Could not find model: %s", modelName)
 	}
 	err = integrationtest.KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	integrationtest.DetectModelChecksumChange(t, model_name, 5)
+	integrationtest.DetectModelChecksumChange(t, modelName, 5)
 	VerifyEvhIngressDeletion(t, g, aviModel, 1)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
@@ -1225,10 +1225,10 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	integrationtest.DetectModelChecksumChange(t, model_name, 5)
+	integrationtest.DetectModelChecksumChange(t, modelName, 5)
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
-	TearDownTestForIngress(t, model_name)
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
+	TearDownTestForIngress(t, modelName)
 }
 
 func TestNoHostIngressForEvh(t *testing.T) {
@@ -1274,7 +1274,7 @@ func TestNoHostIngressForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-2"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1378,7 +1378,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 	}
 
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1472,7 +1472,7 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1537,7 +1537,7 @@ func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 	}
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	VerifyIngressDeletionForEvh(t, g, aviModel, 0, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1639,7 +1639,7 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1688,7 +1688,7 @@ func TestL7ModelMultiSNIForEvh(t *testing.T) {
 	}
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
 
@@ -1797,6 +1797,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"})
 	TearDownTestForIngress(t, modelName)
 	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 }
 
 func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
@@ -1868,6 +1869,6 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 	}
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
-	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"})
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, modelName)
 }
