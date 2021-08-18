@@ -48,6 +48,7 @@ Once enabled, for `calico` this flag is used to read the `blockaffinity` CRD to 
 on an older version of calico where `blockaffinity` is not present, then leave this field as blank. For `openshift` hostsubnet CRD is used to to determine the POD CIDR to Node IP mappings.
 
 AKO will then determine the static routes based on the Kubernetes Nodes object as done with other CNIs.
+In case of `ncp` CNI, AKO automatically disables the configuration of static routes.
 
 ### AKOSettings.layer7Only
 
@@ -110,6 +111,11 @@ This feature allows configuring BGP Peer labels for BGP virtualservices. AKO con
     bgpPeerLabels:
       - peer1
       - peer2
+
+#### NetworkSettings.nsxtT1LR 
+
+This knob is used to specify the T1 logical router's name in the format of `/infra/tier-1s/<name-of-t1>`.
+This T1 router with a logical segment must be pre-configured in the NSX-T cloud as a `data network segment`. AKO uses this information to populate the virtualservice's and pool's T1Lr attribute.
 
 ### L7Settings.shardVSSize
 
