@@ -220,3 +220,64 @@ Check the following conditions:
 - The default secret (router-certs-default) is present in avi-system Namespace.
 
  If both of these conditions are false, AKO can't process a secure route correctly. Either the default secret has to be created in avi-system Namesapce, or key and cert have to be specified in the route spec.
+
+
+## Troubleshooting for NodePortLocal(NPL)
+
+#### 1. The service is annotated with "nodeportlocal.antrea.io/enabled": "true", but the backend Pod(s) is not getting annotated with nodeportlocal.antrea.io.
+
+Check the version of antrea being used in the cluster. If the antrea version is less than 1.2.0, then in the Pod definition, container port(s) must be mentioned which matches with target port of the Service. For example, if we have the following Service, 
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    svc: avisvc1
+  name: avisvc1
+spec:
+  ports:
+  - name: 8080-tcp
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: dep1
+```
+
+The following Pod won't be annotated with NPL annotation:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: dep1
+  name: pod1
+  namespace: default
+spec:
+  containers:
+  - image: avinetworks/server-os
+    name: dep1
+```
+
+Instead, the following Pod definition can be used:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: dep1
+  name: pod1
+  namespace: default
+spec:
+  containers:
+  - image: avinetworks/server-os
+    name: dep1
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+```
+
+This restriction is removed in Antrea v1.2.0.
