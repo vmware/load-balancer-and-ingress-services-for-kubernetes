@@ -92,7 +92,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	dsNode := datascriptList[0]
 
 	// Get Poolgroup Node, create if not present
-	pgName := lib.Encode(lib.GetClusterName()+"--"+hostname, lib.PassthroughPG)
+	pgName := lib.GetClusterName() + "--" + hostname
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
 		pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
@@ -117,7 +117,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	// store the Pools in the a temoprary list to be used for populating PG members
 	tmpPoolList := []*AviPoolNode{}
 	for _, obj := range svclist {
-		poolName := lib.Encode(lib.GetClusterName()+"--"+hostname+"-"+obj.ServiceName, lib.Passthroughpool)
+		poolName := lib.GetClusterName() + "--" + hostname + "-" + obj.ServiceName
 		poolNode := o.GetAviPoolNodeByName(poolName)
 		if poolNode == nil {
 			poolNode = &AviPoolNode{
@@ -232,7 +232,7 @@ func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode
 func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key string, removeFqdn, removeRedir, secure bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
-	pgName := lib.Encode(lib.GetClusterName()+"--"+hostname, lib.PassthroughPG)
+	pgName := lib.GetClusterName() + "--" + hostname
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
 		return
