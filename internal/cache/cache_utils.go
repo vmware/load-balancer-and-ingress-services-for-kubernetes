@@ -15,6 +15,7 @@ package cache
 
 import (
 	"encoding/json"
+	"reflect"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -447,11 +448,15 @@ func (c *AviCache) AviCacheGetKeyByUuid(uuid string) (interface{}, bool) {
 	for key, value := range c.cache {
 		switch value.(type) {
 		case *AviVsCache:
-			if value.(*AviVsCache).Uuid == uuid {
+			if value.(*AviVsCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for vs key %v", reflect.ValueOf(key))
+			} else if value.(*AviVsCache).Uuid == uuid {
 				return key, true
 			}
 		case *AviVSVIPCache:
-			if value.(*AviVSVIPCache).Uuid == uuid {
+			if value.(*AviVSVIPCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for vsvip key %v", reflect.ValueOf(key))
+			} else if value.(*AviVSVIPCache).Uuid == uuid {
 				return key, true
 			}
 		}
@@ -462,38 +467,54 @@ func (c *AviCache) AviCacheGetKeyByUuid(uuid string) (interface{}, bool) {
 func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 	c.cache_lock.RLock()
 	defer c.cache_lock.RUnlock()
-	for _, value := range c.cache {
+	for key, value := range c.cache {
 		switch value.(type) {
 		case *AviPoolCache:
-			if value.(*AviPoolCache).Uuid == uuid {
+			if value.(*AviPoolCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for pool key %v", reflect.ValueOf(key))
+			} else if value.(*AviPoolCache).Uuid == uuid {
 				return value.(*AviPoolCache).Name, true
 			}
 		case *AviVSVIPCache:
-			if value.(*AviVSVIPCache).Uuid == uuid {
+			if value.(*AviVSVIPCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for vsvip key %v", reflect.ValueOf(key))
+			} else if value.(*AviVSVIPCache).Uuid == uuid {
 				return value.(*AviVSVIPCache).Name, true
 			}
 		case *AviSSLCache:
-			if value.(*AviSSLCache).Uuid == uuid {
+			if value.(*AviSSLCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for ssl key %v", reflect.ValueOf(key))
+			} else if value.(*AviSSLCache).Uuid == uuid {
 				return value.(*AviSSLCache).Name, true
 			}
 		case *AviDSCache:
-			if value.(*AviDSCache).Uuid == uuid {
+			if value.(*AviDSCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for DS key %v", reflect.ValueOf(key))
+			} else if value.(*AviDSCache).Uuid == uuid {
 				return value.(*AviDSCache).Name, true
 			}
 		case *AviL4PolicyCache:
-			if value.(*AviL4PolicyCache).Uuid == uuid {
+			if value.(*AviL4PolicyCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for l4 policy key %v", reflect.ValueOf(key))
+			} else if value.(*AviL4PolicyCache).Uuid == uuid {
 				return value.(*AviL4PolicyCache).Name, true
 			}
 		case *AviHTTPPolicyCache:
-			if value.(*AviHTTPPolicyCache).Uuid == uuid {
+			if value.(*AviHTTPPolicyCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for http policy key %v", reflect.ValueOf(key))
+			} else if value.(*AviHTTPPolicyCache).Uuid == uuid {
 				return value.(*AviHTTPPolicyCache).Name, true
 			}
 		case *AviPGCache:
-			if value.(*AviPGCache).Uuid == uuid {
+			if value.(*AviPGCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for PG key %v", reflect.ValueOf(key))
+			} else if value.(*AviPGCache).Uuid == uuid {
 				return value.(*AviPGCache).Name, true
 			}
 		case *AviPkiProfileCache:
-			if value.(*AviPkiProfileCache).Uuid == uuid {
+			if value.(*AviPkiProfileCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for pki profile key %v", reflect.ValueOf(key))
+			} else if value.(*AviPkiProfileCache).Uuid == uuid {
 				return value.(*AviPkiProfileCache).Name, true
 			}
 		}

@@ -562,8 +562,8 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				}
 			}
 
-			rest.cache.VsCacheMeta.AviCacheAdd(k, &vs_cache_obj)
-			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(&vs_cache_obj))
+			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
+			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(vs_cache_obj))
 		}
 
 		if svc_mdata_obj.Gateway != "" {
