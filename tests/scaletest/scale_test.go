@@ -17,6 +17,8 @@ package scaletest
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -43,6 +45,7 @@ const (
 	MULTIHOST  = "multi-host"
 	CONTROLLER = "Controller"
 	KUBENODE   = "Node"
+	Shared     = "Shared"
 )
 
 var (
@@ -72,6 +75,7 @@ var (
 	numOfLBSvc               int
 	numOfPodsForLBSvc        = 100
 	clusterName              string
+	evhEnabled               bool
 	testCaseTimeOut          = 1800
 	testPollInterval         = "15s"
 	mutex                    sync.Mutex
@@ -122,6 +126,7 @@ func Setup() {
 	ingressNamePrefix = testbedParams.TestParams.IngressNamePrefix
 	clusterName = testbedParams.AkoParam.Clusters[0].ClusterName
 	akoPodName = testbedParams.TestParams.AkoPodName
+	evhEnabled = testbedParams.AkoParam.Clusters[0].EVHEnabled
 	os.Setenv("CTRL_USERNAME", testbedParams.Vm[0].UserName)
 	os.Setenv("CTRL_PASSWORD", testbedParams.Vm[0].Password)
 	os.Setenv("CTRL_IPADDRESS", testbedParams.Vm[0].IP)
@@ -146,15 +151,17 @@ func Setup() {
 }
 
 /* Cleanup of Services and Deployment created for the test */
-func Cleanup() {
+func Cleanup(t *testing.T) {
 	err := lib.DeleteService(listOfServicesCreated, namespace)
 	if err != nil {
-		fmt.Println("ERROR : Cleanup of Services ", listOfServicesCreated, " failed due to the error : ", err)
+		ExitWithErrorf(t, "Cleanup of Services %v failed due to the error : %v", listOfServicesCreated, err)
 	}
+	t.Logf("Services %s deleted", listOfServicesCreated)
 	err = lib.DeleteApp(appName, namespace)
 	if err != nil {
-		fmt.Println("ERROR : Cleanup of Deployment "+appName+" failed due to the error : ", err)
+		ExitWithErrorf(t, "Cleanup of Deployment %s failed due to the error : %v", appName, err)
 	}
+	t.Logf("Deployment %s deleted", appName)
 }
 
 func ExitWithErrorf(t *testing.T, template string, args ...interface{}) {
@@ -315,6 +322,74 @@ func DiffOfListsOrderBased(list1 []string, list2 []string) []string {
 	return diffString
 }
 
+func GetNamePrefix() string {
+	return clusterName + "--"
+}
+
+func GetSecureIngressPoolName() []string {
+	var poolnames []string
+	for i := 0; i < len(ingressHostNames); i++ {
+		poolnames = append(poolnames, GetNamePrefix()+namespace+"-"+ingressHostNames[i]+"_-"+ingressesCreated[i])
+	}
+	return poolnames
+}
+
+func GetInsecureIngressPoolName() []string {
+	var poolnames []string
+	for i := 0; i < len(ingressHostNames); i++ {
+		poolnames = append(poolnames, GetNamePrefix()+ingressHostNames[i]+"_-"+namespace+"-"+ingressesCreated[i])
+	}
+	return poolnames
+}
+
+func GetMultiHostIngressPoolName() []string {
+	var poolnames []string
+	for i := 0; i < len(ingressSecureHostNames); i++ {
+		poolnames = append(poolnames, GetNamePrefix()+namespace+"-"+ingressSecureHostNames[i]+"_-"+ingressesCreated[i])
+		poolnames = append(poolnames, GetNamePrefix()+ingressInsecureHostNames[i]+"_-"+namespace+"-"+ingressesCreated[i])
+	}
+	return poolnames
+}
+
+func EncodeNamesForEVH(name string) string {
+	hash := sha1.Sum([]byte(name))
+	return hex.EncodeToString(hash[:])
+}
+
+func GetEVHPoolName() []string {
+	var poolnames []string
+	for i := 0; i < len(ingressHostNames); i++ {
+		poolnames = append(poolnames, GetNamePrefix()+EncodeNamesForEVH(GetNamePrefix()+namespace+"-"+ingressHostNames[i]+"_-"+ingressesCreated[i]+"-"+listOfServicesCreated[0]))
+	}
+	return poolnames
+}
+
+func GetEVHMultiHostPoolName() []string {
+	var poolnames []string
+	for i := 0; i < len(ingressSecureHostNames); i++ {
+		poolnames = append(poolnames, GetNamePrefix()+EncodeNamesForEVH(GetNamePrefix()+namespace+"-"+ingressSecureHostNames[i]+"_-"+ingressesCreated[i]+"-"+listOfServicesCreated[0]))
+		poolnames = append(poolnames, GetNamePrefix()+EncodeNamesForEVH(GetNamePrefix()+namespace+"-"+ingressInsecureHostNames[i]+"_-"+ingressesCreated[i]+"-"+listOfServicesCreated[1]))
+	}
+	return poolnames
+}
+
+func GetEVHVsName() []string {
+	var vsnames []string
+	for i := 0; i < len(ingressHostNames); i++ {
+		vsnames = append(vsnames, GetNamePrefix()+EncodeNamesForEVH(GetNamePrefix()+ingressHostNames[i]))
+	}
+	return vsnames
+}
+
+func GetEVHMultiHostVsName() []string {
+	var vsnames []string
+	for i := 0; i < len(ingressSecureHostNames); i++ {
+		vsnames = append(vsnames, GetNamePrefix()+EncodeNamesForEVH(GetNamePrefix()+ingressSecureHostNames[i]))
+		vsnames = append(vsnames, GetNamePrefix()+EncodeNamesForEVH(GetNamePrefix()+ingressInsecureHostNames[i]))
+	}
+	return vsnames
+}
+
 /* Verifies if all requires pools are created or not */
 func PoolVerification(t *testing.T) bool {
 	t.Logf("Verifying pools...")
@@ -326,22 +401,19 @@ func PoolVerification(t *testing.T) bool {
 	}
 	var ingressPoolList []string
 	var poolList []string
-	if ingressType == INSECURE {
-		for i := 0; i < len(ingressHostNames); i++ {
-			ingressPoolName := clusterName + "--" + ingressHostNames[i] + "_-" + namespace + "-" + ingressesCreated[i]
-			ingressPoolList = append(ingressPoolList, ingressPoolName)
+	if evhEnabled == false {
+		if ingressType == INSECURE {
+			ingressPoolList = GetInsecureIngressPoolName()
+		} else if ingressType == SECURE {
+			ingressPoolList = GetSecureIngressPoolName()
+		} else if ingressType == MULTIHOST {
+			ingressPoolList = GetMultiHostIngressPoolName()
 		}
-	} else if ingressType == SECURE {
-		for i := 0; i < len(ingressHostNames); i++ {
-			ingressPoolName := clusterName + "--" + namespace + "-" + ingressHostNames[i] + "_-" + ingressesCreated[i]
-			ingressPoolList = append(ingressPoolList, ingressPoolName)
-		}
-	} else if ingressType == MULTIHOST {
-		for i := 0; i < len(ingressSecureHostNames); i++ {
-			ingressPoolName := clusterName + "--" + namespace + "-" + ingressSecureHostNames[i] + "_-" + ingressesCreated[i]
-			ingressPoolList = append(ingressPoolList, ingressPoolName)
-			ingressPoolName = clusterName + "--" + ingressInsecureHostNames[i] + "_-" + namespace + "-" + ingressesCreated[i]
-			ingressPoolList = append(ingressPoolList, ingressPoolName)
+	} else {
+		if ingressType != MULTIHOST {
+			ingressPoolList = GetEVHPoolName()
+		} else {
+			ingressPoolList = GetEVHMultiHostPoolName()
 		}
 	}
 	for _, pool := range pools {
@@ -381,26 +453,40 @@ func VSVerification(t *testing.T) bool {
 	VSes := lib.FetchVirtualServices(t, AviClients[0])
 	var ingressVSList []string
 	var VSList []string
-	for _, ing := range ingressesCreated {
+	// list of expected VSes based on the ingresses/services created
+	if evhEnabled == false {
+		for _, ing := range ingressesCreated {
+			if ingressType != MULTIHOST {
+				ingressVSName := clusterName + "--" + ing + lib.SUBDOMAIN
+				ingressVSList = append(ingressVSList, ingressVSName)
+			} else {
+				ingressVSName := clusterName + "--" + ing + "-secure" + lib.SUBDOMAIN
+				ingressVSList = append(ingressVSList, ingressVSName)
+			}
+		}
+	} else {
 		if ingressType != MULTIHOST {
-			ingressVSName := clusterName + "--" + ing + ".avi.internal"
-			ingressVSList = append(ingressVSList, ingressVSName)
+			ingressVSList = GetEVHVsName()
 		} else {
-			ingressVSName := clusterName + "--" + ing + "-secure.avi.internal"
-			ingressVSList = append(ingressVSList, ingressVSName)
+			ingressVSList = GetEVHMultiHostVsName()
 		}
 	}
+	// list of VSes on the controller
 	for _, vs := range VSes {
 		VSList = append(VSList, *vs.Name)
 	}
+	// fetch list of VSes on the controller that are not a part of the expected list.
+	// Number of these VSes should be equal to the number of VSes that existed before scale test created any ingresses/services
 	diffString := DiffOfLists(ingressVSList, VSList)
 	if len(diffString) == initialNumOfVSes {
 		return true
 	}
+	// fetch the list of VSes present on the controller that was neither expected nor existsed before scale test
+	// these VSes in a ideal case should be the Shared VSes created by AKO
 	newSharedVSesCreated := DiffOfLists(diffString, initialVSesList)
 	var val int = 0
 	for _, vs := range newSharedVSesCreated {
-		if strings.HasPrefix(vs, clusterName+"--Shared") == true {
+		if strings.HasPrefix(vs, GetNamePrefix()+Shared) == true {
 			val++
 		}
 	}
@@ -412,7 +498,7 @@ func VSVerification(t *testing.T) bool {
 
 /* Calls Pool, VS and DNS A records verification based on the ingress type */
 func Verify(t *testing.T) bool {
-	if ingressType == SECURE {
+	if ingressType == SECURE || (ingressType == INSECURE && evhEnabled == true) {
 		if PoolVerification(t) == true && VSVerification(t) == true && DNSARecordsVerification(t, ingressHostNames) == true {
 			t.Logf("Pools, VSes and DNS A Records verified")
 			return true
@@ -441,7 +527,7 @@ func CheckVSOperDown(t *testing.T, OPERDownVSes []lib.VirtualServiceInventoryRun
 	// Find VSes from Initial VS list that are not created by scale test(excluding AKO created Shared VSes)
 	sharedVSList := []string{}
 	for _, vs := range initialVSesList {
-		if strings.HasPrefix(vs, clusterName+"--Shared") {
+		if strings.HasPrefix(vs, GetNamePrefix()+Shared) {
 			sharedVSList = append(sharedVSList, vs)
 		}
 	}
@@ -569,6 +655,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		time.Sleep(pollInterval)
 		waitTime = waitTime + waitTimeIncr
 	}
+	t.Logf("Waiting for virtual servies to be OPER_UP")
 	g.Eventually(func() bool {
 		OPERDownVSes := lib.FetchOPERDownVirtualService(t, AviClients[0])
 		operUP := CheckVSOperDown(t, OPERDownVSes)
@@ -638,6 +725,7 @@ func UpdateIngressesParallel(t *testing.T, numOfIng int) {
 		return len(ingressesUpdated)
 	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(numOfIng))
 	time.Sleep(10 * time.Second)
+	t.Logf("Waiting for virtual servies to be OPER_UP")
 	g.Eventually(func() bool {
 		OPERDownVSes := lib.FetchOPERDownVirtualService(t, AviClients[0])
 		operUP := CheckVSOperDown(t, OPERDownVSes)
@@ -684,6 +772,7 @@ func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
 		time.Sleep(pollInterval)
 		waitTime = waitTime + waitTimeIncr
 	}
+	t.Logf("Waiting for virtual servies to be OPER_UP")
 	g.Eventually(func() bool {
 		OPERDownVSes := lib.FetchOPERDownVirtualService(t, AviClients[0])
 		operUP := CheckVSOperDown(t, OPERDownVSes)
@@ -990,7 +1079,6 @@ func LBService(t *testing.T) {
 
 func TestMain(t *testing.M) {
 	Setup()
-	defer Cleanup()
 	os.Exit(t.Run())
 }
 
@@ -1133,4 +1221,8 @@ func TestUnwantedConfigUpdatesOnAkoReboot(t *testing.T) {
 		return res
 	}, 2*time.Minute, "30s").Should(gomega.BeTrue())
 	t.Logf("No redundant/unwanted API calls found on AKO reboot")
+}
+
+func TestCleanup(t *testing.T) {
+	Cleanup(t)
 }

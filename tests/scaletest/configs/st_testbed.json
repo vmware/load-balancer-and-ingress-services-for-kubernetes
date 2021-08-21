@@ -6,6 +6,7 @@
                 "cluster_name" : "",
                 "kubeconfig_file": "",
                 "cniPlugin": "",
+                "evhEnabled": false,
                 "disableStaticRouteSync": "",
                 "defaultIngController": "",
                 "vipNetworkList": [
