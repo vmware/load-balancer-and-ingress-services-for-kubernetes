@@ -6,6 +6,7 @@
                 "cluster_name" : "",
                 "kubeconfig_file": "",
                 "cniPlugin": "",
+                "evhEnabled": false,
                 "disableStaticRouteSync": "",
                 "defaultIngController": "",
                 "vipNetworkList": [
@@ -32,6 +33,11 @@
         ]
     },
     "TestParams": {
+        "akoRepoPath" : "",
+        "testTimeout" : "",
+        "numGoRoutines" : 0,
+        "numOfLBSvc": 0,
+        "numOfIng" : 0,
         "akoPodName" : "",
         "namespace" : "",
         "appName" : "",

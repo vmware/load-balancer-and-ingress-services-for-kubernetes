@@ -41,6 +41,7 @@ type Cluster struct {
 	ClusterName            string       `json:"cluster_name"`
 	KubeConfigFilePath     string       `json:"kubeconfig_file"`
 	CniPlugin              string       `json:"cniPlugin"`
+	EVHEnabled             bool         `json:"evhEnabled"`
 	CloudName              string       `json:"cloudName"`
 	DisableStaticRouteSync string       `json:"disableStaticRouteSync"`
 	DefaultIngController   string       `json:"defaultIngController"`
