@@ -130,7 +130,7 @@ All notable changes to this project will be documented in this file. The format 
 ## AKO-1.4.3
 
 ### Added:
- - Support for allowing AKO to get installed in user-provided namespace (other than avi-system). 
+ - Support for allowing AKO to get installed in user-provided namespace (other than avi-system).
 
 ### Bugs fixed:
  - Skip status updates on Service of type LoadBalancer during bootup when `layer7Only` flag is set to `true`.
@@ -144,7 +144,20 @@ All notable changes to this project will be documented in this file. The format 
  - Add support for programming FQDN for L4 services via Gateway object when `servicesAPI` is set to `true`.
  - Multi-Protocol (TCP/UDP) support in gateway VS (shared VIP).
  - Make Service of type LoadBalancer work together with Gateways when using `serviceAPI` is set to `true`.
+ - Public IP support for AKO on public clouds.
+ - Support for passthrough hosts in Ingress.
+ - Support for SAML based authentication for AKO using AuthToken as an alternative to usernme and password based authentication.
+ - EVH support for Openshift.
+ - NSX-T cloud support for VLAN and overlay based segments.
+ - Support label based BGP peering for VSes.
+ - Add markers to AVI objects.
+ - Add length restriction on Avi object name upto 255 characters in SNI deployment.
 
 ### Changed:
  - Deprecate `subnetIP` and `subnetPrefix` in values.yaml, in favor of `cidr` field within `vipNetworkList`.
  - Update `spec.network` to include `networkName` and `cidr` information in AviInfraSetting CRD.
+ - Encode Avi object names in EVH deployment.
+
+### Known Issues
+ - AKO update ingress status with VIP instead of public IP when public IP is enabled in public cloud deployments.
+

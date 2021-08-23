@@ -326,6 +326,199 @@ The formula to derive the pool's PKIprofile is as follows:
 ```
 pkiprofilenam = poolName + "-pkiprofile"
 ```
+### Markers for Avi Objects
+
+With Avi controller version 20.1.5, Avi objects can be labelled with markers. Each marker is a pair of `key` : `<value1>`, `<value2>`. Each object can have multiple markers. Markers are used to group/filter objects on the Avi Controller and can be utilised to provide user access permissions using the GRBAC feature on the Avi Controller.
+
+Avi controller support markers to all license types from 20.1.6.
+
+From AKO 1.5.1, markers would be added to all the AKO created Avi Objects.
+
+Each object will be marked with fields such as OpenShift/Kubernetes namespaces to which the object belongs, fqdn present in the ingress/route objects, service names present in the ingress/route objects. This will help in identifying object associate with specific ingress/route at controller side. Markers will be added to objects in SNI and EVH deployment modes.
+
+#### L4 Virtual Service
+
+L4 VS will be marked as follows:
+
+```
+clustername : <clustername>
+Namespace   : <namespace>
+ServiceName : <servicename>
+```
+
+#### L4 Pool
+
+L4 pool will be marked as follows:
+
+```
+clustername : <clustername>
+Namespace   : <namespace>
+ServiceName : <servicename>
+Port        : <port>
+```
+
+#### Shared Virtual service
+
+Shared objects will be marked with only clustername.
+
+```
+clustername : <clustername>
+```
+
+### Shared Pool group
+
+Shared poolgroup will be marked as follows:
+
+```
+clustername : <clustername>
+```
+
+#### Shared Pool
+
+Shared pool will be marked as follows:
+
+```
+clustername : <clustername>
+```
+
+#### Passthrough Virtual Service
+
+Passthrough virtual service will be marked as follows:
+
+```
+clustername : <clustername>
+```
+
+#### Passthrough Pool Group
+
+Passthrough pool group will be marked as follows:
+
+```
+clustername : <clustername>
+Host        : <fqdn>
+```
+
+#### Passthrough Pool
+
+Passthrough pool will be marked as follows:
+
+```
+clustername : <clustername>
+Host        : <fqdn>
+ServiceName : <servicename>
+```
+
+#### L4 Gateway VS
+
+L4 Gateway VS will be marked as follows:
+
+```
+clustername      : <clustername>
+Namespace        : <namespace>
+GatewayName      : <gatewayname>
+```
+
+#### L4 Gateway Pool
+
+L4 Gateway pool will be marked as follows:
+
+```
+clustername      : <clustername>
+Namespace        : <namespace>
+GatewayName      : <gatewayname>
+ServiceName      : <servicename>
+Port             : <port>
+```
+
+#### SNI/EVH Pool
+
+Pool will be marked as follows:
+
+```
+clustername      : <clustername>
+Namespace        : <namespace>
+Host             : <fqdn>
+Path             : <path>
+IngressName      : <ingressname>
+InfrasettingName : <infrasettingname>
+ServiceName      : <servicename>
+```
+
+#### SNI/EVH Pool Group
+
+PG will be marked as follows:
+
+```
+clustername      : <clustername>
+Namespace        : <namespace>
+Host             : <fqdn>
+Path             : <path>
+IngressName      : <ingressname>
+InfrasettingName : <infrasettingname>
+```
+
+#### SNI/EVH VS:
+
+Child VS will be marked as follows:
+
+```
+clustername      : <clustername>
+Namespace        : <namespace>
+Host             : <fqdn>
+InfrasettingName : <infrasettingname>
+```
+
+#### HTTP Policyset
+
+HTTP Policysets will be marked as follows:
+
+```
+clustername      : <clustername>
+Namespace        : <namespace>
+Host             : <fqdn>
+InfrasettingName : <infrasettingname>
+IngressName      : <ingressname>
+Path             : <path>
+```
+
+#### SSLKeyandCertificate
+
+SSLKeyandCertificate will be marked as follows:
+
+```
+clustername      : <clustername>
+Host             : <fqdn>
+```
+
+#### Datascript
+
+Datascript will be marked as follows:
+
+```
+clustername      : <clustername>
+```
+
+#### VIP
+
+VIP will be marked as follows:
+
+```
+clustername      : <clustername>
+```
+
+#### PKI profile
+
+PKI profile will be marked as follows:
+
+```
+clustername      : <clustername>
+Namespace        : <namespace>
+Host             : <fqdn>
+Path             : <path>
+IngressName      : <ingressname>
+InfrasettingName : <infrasettingname>
+ServiceName      : <servicename>
+```
 
 ### NodePort Mode
 

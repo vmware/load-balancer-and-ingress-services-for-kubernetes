@@ -181,6 +181,11 @@ Sample Output with PVC :
 
 It's recommended we collect the controller tech support logs as well. Please follow this [link](https://avinetworks.com/docs/18.2/collecting-tech-support-logs/)  for the controller tech support.
 
+## Troubleshooting for AKO EVH mode
+### How do I debug an issue in AKO in EVH mode as Avi object names are encoded?
+
+Even though the EVH objects are encoded, AKO labels each EVH object on the controller with a set of key/values that act as metadata for the object. These markers can be used to know, the corresponding kubernetes/openshift identifiers for the object. List of markers, associated with each Avi object, can be found out [here](objects.md#markers-for-avi-objects)
+
 ## Troubleshooting for AKO CRDs
 
 ### Policy defined in the crd policy was not applied to the corresponding ingress/route objects
