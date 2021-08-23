@@ -220,6 +220,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			Name:        lib.GetL4VSVipName(gatewayName, namespace),
 			Tenant:      lib.GetTenant(),
 			VrfContext:  lib.GetVrf(),
+			FQDNs:       fqdns,
 			VipNetworks: lib.GetVipNetworkList(),
 		}
 
