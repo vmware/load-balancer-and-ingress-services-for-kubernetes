@@ -25,10 +25,9 @@ spec:
       labelValue: ""
 
   networkSettings:
-    subnetIP: "10.10.0.0"
-    subnetPrefix: "16"
     vipNetworkList:
-       - networkName: "vcd-ns"
+      - networkName: "vcd-ns"
+        cidr: "10.10.0.0/16"
 
   l7Settings:
     defaultIngController: true
@@ -88,9 +87,7 @@ spec:
     * `namespaceSelector.labelKey`: Set the key of a namespace's label, if the requirement is to sync k8s objects from that namespace.
     * `namespaceSelector.labelValue`: Set the value of a namespace's label, if the requirement is to sync k8s objects from that namespace.
   - `networkSettings`: Data network settings
-    * `subnetIP`: Subnet IP of the data network. It is the network from which the VIP allocation (for the virtual services) takes place.
-    * `subnetPrefix`: Subnet prefix for the data network specified in `networkSettings.subnetIP`.
-    * `vipNetworkList`: List of Network Names for VIP network, multiple networks allowed only for AWS Cloud.
+    * `vipNetworkList`: List of Network Names and Subnet Information for VIP network, multiple networks allowed only for AWS Cloud.
   - `l7Settings`: Settings for L7 Virtual Services
     * `defaultIngController`: Set to `true` if AKO controller is the default Ingress controller on the cluster.
     * `serviceType`: Type of services that we want to configure: Valid values: `ClusterIP` and `NodePort`.

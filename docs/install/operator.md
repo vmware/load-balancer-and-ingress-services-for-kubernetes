@@ -63,7 +63,7 @@ To uninstall the AKO operator and the AKO controller, use the following steps:
 
     helm delete <ako-operator-release-name> -n avi-system
 
- Note: the `ako-operator-release-name` is obtained by doing helm list as shown in the previous step
+> **Note**: the `ako-operator-release-name` is obtained by doing helm list as shown in the previous step
 
 *Step 3:* Delete the `avi-system` namespace.
 
@@ -86,9 +86,9 @@ The following table lists the configurable parameters of the AKO chart and their
 | `ControllerSettings.serviceEngineGroupName` | Name of the Service Engine Group | Default-Group |
 | `NetworkSettings.nodeNetworkList` | List of Networks and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
-| `NetworkSettings.subnetIP` | Subnet IP of the data network | **required** |
-| `NetworkSettings.subnetPrefix` | Subnet Prefix of the data network | **required** |
-| `NetworkSettings.vipNetworkList` | List of Network Names for VIP network, multiple networks allowed only for AWS Cloud | **required** |
+| `NetworkSettings.subnetIP` | Subnet IP of the data network | **DEPRECATED** |
+| `NetworkSettings.subnetPrefix` | Subnet Prefix of the data network | **DEPRECATED** |
+| `NetworkSettings.vipNetworkList` | List of Network Names and Subnet information for VIP network, multiple networks allowed only for AWS Cloud | **required** |
 | `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services | First domainname found in cloud's dnsprofile |
 | `L7Settings.l7ShardingScheme` | Sharding scheme enum values: hostname, namespace | hostname |
 | `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel | **required** for calico setups |
@@ -99,7 +99,9 @@ The following table lists the configurable parameters of the AKO chart and their
 | `avicredentials.password` | Avi controller password | empty |
 | `image.repository` | Specify docker-registry that has the AKO image | avinetworks/ako |
 
-> `vipNetworkList`, `subnetIP` and `subnetPrefix` are required fields which are used for allocating VirtualService IP by IPAM Provider module
+> AKO 1.5.1 deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
+
+> `vipNetworkList` is a required field which is used for allocating VirtualService IP by IPAM Provider module
 
 > Each AKO instance mapped to a given Avi cloud should have a unique clusterName parameter. This would maintain the uniqueness of object naming across Kubernetes clusters.
 

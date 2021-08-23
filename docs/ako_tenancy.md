@@ -21,6 +21,4 @@ This feature allows AKO to map each kubernetes / OpenShift cluster uniquely to a
 
 With the above settings AKO will map the `billing` cluster to the `billing` tenant and all the objects will be created in that tenant.
 
-Note:
-
-* In `NodePort` mode of AKO (when `L7Settings.serviceType` is set to `NodePort`), VRFContext permissions are not required in `admin` tenant in AVI Controller.
+> **Note**: In `NodePort` mode of AKO (when `L7Settings.serviceType` is set to `NodePort`), VRFContext permissions are not required in `admin` tenant in AVI Controller.
