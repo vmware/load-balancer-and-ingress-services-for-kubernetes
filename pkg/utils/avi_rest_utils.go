@@ -86,9 +86,10 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 			}
 	}
 
+	clientPool.AviClient = make([]*clients.AviClient, num)
 	for i := uint32(0); i < num; i++ {
 		wg.Add(1)
-		go func() {
+		go func(i uint32) {
 			defer wg.Done()
 			if globalErr != nil {
 				return
@@ -128,8 +129,8 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 				}
 			}
 
-			clientPool.AviClient = append(clientPool.AviClient, aviClient)
-		}()
+			clientPool.AviClient[i] = aviClient
+		}(i)
 	}
 
 	wg.Wait()
