@@ -213,3 +213,28 @@ No. After changing the serviceType, AKO has to be rebooted and all objects which
 #### If serviceType is changed from NodePortLocal, would AKO remove NPL annotation from the Services automatically ?
 
 No. After changing the serviceType, the users have to remove NPL annotation from the Services themselves.
+
+#### Where can I see markers associated with Avi object?
+
+Markers, associated with an Avi object, are visible on the Avi Vantage UI and the Avi shell.
+
+1. Avi Vantage UI: 
+
+Markers will be visible on UI for avi controller version >= 20.1.6
+
+- Edit an object.
+- Navigate to the `Advanced` tab.
+- Section `Role-Based Access Control (RBAC)` should show markers associated with the object.
+
+![Alt-text](./images/Markers-on-UI.png)
+
+
+2. Avi Shell
+
+Markers can be viewed for an object with the command.
+
+  `[avi-shell] show <object type> <object name>`
+
+Sample command:
+
+  `[avi-shell] show virtualservice kubernetes--Shared-L7-EVH-0`
