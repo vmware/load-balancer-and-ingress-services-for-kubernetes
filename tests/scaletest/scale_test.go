@@ -84,6 +84,11 @@ var (
 	REBOOTNODE               = false
 )
 
+func ExitWithError(message string, err ...interface{}) {
+	fmt.Println(message, err)
+	os.Exit(1)
+}
+
 /* Basic Setup including parsing of parameters from command line
 And assignment of global variables fetched from the testbed
 Aviclients, Deployment and Services used by the test are created */
@@ -97,28 +102,23 @@ func Setup() {
 	flag.IntVar(&numOfLBSvc, "numOfLBSvc", 10, "Number of Services of type Load Balancer")
 	flag.Parse()
 	if testbedFileName == "" {
-		fmt.Println("ERROR : TestbedFileName not provided")
-		os.Exit(0)
+		ExitWithError("ERROR : TestbedFileName not provided")
 	}
 	if kubeconfigFile == "" {
-		fmt.Println("ERROR : kubeconfigFile not provided")
-		os.Exit(0)
+		ExitWithError("ERROR : kubeconfigFile not provided")
 	}
 	testbed, er := os.Open(testbedFileName)
 	if er != nil {
-		fmt.Println("ERROR : Error opening testbed file", testbedFileName, " with error :", er)
-		os.Exit(0)
+		ExitWithError("ERROR : Error opening testbed file "+testbedFileName+" with error : ", er)
 	}
 	defer testbed.Close()
 	byteValue, err := ioutil.ReadAll(testbed)
 	if err != nil {
-		fmt.Println("ERROR : Failed to read the testbed file with error : ", err)
-		os.Exit(0)
+		ExitWithError("ERROR : Failed to read the testbed file with error : ", err)
 	}
 	err = json.Unmarshal(byteValue, &testbedParams)
 	if err != nil {
-		fmt.Println("ERROR : Failed to unmarshal testbed file as : ", err)
-		os.Exit(0)
+		ExitWithError("ERROR : Failed to unmarshal testbed file as : ", err)
 	}
 	namespace = testbedParams.TestParams.Namespace
 	appName = testbedParams.TestParams.AppName
@@ -135,18 +135,15 @@ func Setup() {
 	lib.KubeInit(kubeconfigFile)
 	AviClients, err = lib.SharedAVIClients(2)
 	if err != nil {
-		fmt.Println("ERROR : Creating Avi Client : ", err)
-		os.Exit(0)
+		ExitWithError("ERROR : Creating Avi Client : ", err)
 	}
 	err = lib.CreateApp(appName, namespace, 1)
 	if err != nil {
-		fmt.Println("ERROR : Creation of Deployment "+appName+" failed due to the error : ", err)
-		os.Exit(0)
+		ExitWithError("ERROR : Creation of Deployment "+appName+" failed due to the error : ", err)
 	}
 	listOfServicesCreated, err = lib.CreateService(serviceNamePrefix, appName, namespace, 2)
 	if err != nil {
-		fmt.Println("ERROR : Creation of Services failed due to the error : ", err)
-		os.Exit(0)
+		ExitWithError("ERROR : Creation of Services failed due to the error : ", err)
 	}
 }
 
@@ -266,14 +263,12 @@ func CheckReboot(t *testing.T) {
 		var testbedParams lib.TestbedFields
 		testbed, err := os.Open(testbedFileName)
 		if err != nil {
-			t.Fatalf("ERROR : Error opening testbed file %s with error : %s", testbedFileName, err)
-			os.Exit(0)
+			ExitWithErrorf(t, "ERROR : Error opening testbed file %s with error : %s", testbedFileName, err)
 		}
 		defer testbed.Close()
 		byteValue, err := ioutil.ReadAll(testbed)
 		if err != nil {
-			t.Fatalf("ERROR : Failed to read the testbed file with error : %s", err)
-			os.Exit(0)
+			ExitWithErrorf(t, "ERROR : Failed to read the testbed file with error : %s", err)
 		}
 		json.Unmarshal(byteValue, &testbedParams)
 		Reboot(t, KUBENODE, testbedParams.AkoParam.Clusters[0].KubeNodes[0].IP, testbedParams.AkoParam.Clusters[0].KubeNodes[0].UserName, testbedParams.AkoParam.Clusters[0].KubeNodes[0].Password, 0)
