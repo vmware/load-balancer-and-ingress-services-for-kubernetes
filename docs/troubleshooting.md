@@ -184,7 +184,7 @@ It's recommended we collect the controller tech support logs as well. Please fol
 ## Troubleshooting for AKO EVH mode
 ### How do I debug an issue in AKO in EVH mode as Avi object names are encoded?
 
-With AKO version 1.5.1 and controller version 20.1.5, AKO marks each Avi object, created by it, with the set of markers. These markers help in identifying objects belong to specific kubernetes or opeshift object. List of markers, associated with each Avi object, can be found out [here](objects.md#markers-for-avi-objects)
+Even though the EVH objects are encoded, AKO labels each EVH object on the controller with a set of key/values that act as metadata for the object. These markers can be used to know, the corresponding kubernetes/openshift identifiers for the object. List of markers, associated with each Avi object, can be found out [here](objects.md#markers-for-avi-objects)
 
 ## Troubleshooting for AKO CRDs
 

@@ -214,17 +214,18 @@ No. After changing the serviceType, AKO has to be rebooted and all objects which
 
 No. After changing the serviceType, the users have to remove NPL annotation from the Services themselves.
 
-#### Where can I see markers associated with Avi object?
+#### How can I see the marker labels associated with an object on the Avi Controller?
 
 Markers, associated with an Avi object, are visible on the Avi Vantage UI and the Avi shell.
 
 1. Avi Vantage UI: 
 
-Markers will be visible on UI for avi controller version >= 20.1.6
+Markers are visible on UI for avi controller version >= 20.1.6.
+In order to view marker labels for an object, do the following:
 
 - Edit an object.
 - Navigate to the `Advanced` tab.
-- Section `Role-Based Access Control (RBAC)` should show markers associated with the object.
+- The Role-Based Access Control (RBAC) shows the markers associated with the object.
 
 ![Alt-text](./images/Markers-on-UI.png)
 
@@ -235,6 +236,26 @@ Markers can be viewed for an object with the command.
 
   `[avi-shell] show <object type> <object name>`
 
-Sample command:
+Sample command with output:
 
   `[avi-shell] show virtualservice kubernetes--Shared-L7-EVH-0`
+
+    +------------------------------------+----------------------------------------------------------------------------------+
+    | Field                              | Value                                                                            |
+    +------------------------------------+----------------------------------------------------------------------------------+
+    | uuid                               | virtualservice-bc4e964a-af79-4b8f-91b2-de0e7ee9388d                              |
+    | name                               | kubernetes--Shared-L7-EVH-0                                                      |
+    | enabled                            | True                                                                             |
+    | vsvip_ref                          | kubernetes--Shared-L7-EVH-0                                                      |
+    | use_vip_as_snat                    | False                                                                            |
+    |        .                           | .                                                                                |
+    |        .                           | .                                                                                |
+    |        .                           | .                                                                                |
+    |        .                           | .                                                                                |
+    |        .                           | .                                                                                |
+    | markers[1]                         |                                                                                  |
+    |   key                              | clustername                                                                      |
+    |   values[1]                        | kubernetes                                                                       |
+    | allow_invalid_client_cert          | False                                                                            |
+    | vh_type                            | VS_TYPE_VH_ENHANCED                                                              |
+    +------------------------------------+----------------------------------------------------------------------------------+
