@@ -566,13 +566,12 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 								utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
 								continue
 							}
+							retryable, fastRetryable := rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
+							retry = retry || retryable
 							if avimodel.GetRetryCounter() != 0 {
-								retryable, fastRetryable := rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
 								fastRetry = fastRetry || fastRetryable
-								retry = retry || retryable
 							} else {
 								fastRetry = false
-								retry = true
 								utils.AviLog.Warnf("key: %s, msg: retry count exhausted, would be added to slow retry queue", key)
 							}
 						} else {
