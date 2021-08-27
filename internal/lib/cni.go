@@ -69,7 +69,7 @@ func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 
 // GetDynamicClientSet returns dynamic client set instance
 func GetDynamicClientSet() dynamic.Interface {
-	if dynamicClientSet == nil {
+	if (GetCNIPlugin() == CALICO_CNI || GetCNIPlugin() == OPENSHIFT_CNI) && dynamicClientSet == nil {
 		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
 		return nil
 	}

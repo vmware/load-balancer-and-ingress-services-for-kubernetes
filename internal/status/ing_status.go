@@ -523,6 +523,8 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 			} else {
 				if ingClass, ok := ingressList.Items[i].Annotations[lib.INGRESS_CLASS_ANNOT]; ok && ingClass == lib.AVI_INGRESS_CLASS {
 					returnIng = true
+				} else if lib.GetDefaultIngController() {
+					returnIng = true
 				}
 			}
 			if returnIng {
