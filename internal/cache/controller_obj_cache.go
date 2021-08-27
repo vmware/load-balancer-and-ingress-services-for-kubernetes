@@ -2572,8 +2572,8 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	// if AviInfraSetting found, configure label if doesn't exist.
 	// This takes care of syncing SeGroup label settings during reboots.
 	seGroupSet := sets.NewString()
-	if lib.GetAviInfraSettingEnabled() {
-		infraSettingList, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
+	if lib.AKOControlConfig().AviInfraSettingEnabled() {
+		infraSettingList, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Unable to list AviInfraSettings %s", err.Error())
 		}

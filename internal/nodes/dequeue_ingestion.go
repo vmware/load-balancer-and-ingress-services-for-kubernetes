@@ -239,7 +239,7 @@ func isGatewayDelete(gatewayKey, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
 	if lib.GetAdvancedL4() {
-		gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && errors.IsNotFound(err) {
 			return true
 		}
@@ -261,7 +261,7 @@ func isGatewayDelete(gatewayKey, key string) bool {
 			return true
 		}
 
-		gateway, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		gateway, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && errors.IsNotFound(err) {
 			return true
 		}

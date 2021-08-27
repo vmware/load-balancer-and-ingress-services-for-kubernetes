@@ -47,7 +47,7 @@ func NewCRDInformers(cs akocrd.Interface) {
 	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
 	aviSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
 
-	lib.SetCRDInformers(&lib.AKOCrdInformers{
+	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
 		HostRuleInformer:        hostRuleInformer,
 		HTTPRuleInformer:        httpRuleInformer,
 		AviInfraSettingInformer: aviSettingsInformer,
@@ -62,7 +62,7 @@ func NewIstioCRDInformers(cs istiocrd.Interface) {
 	drInformer := istioInformerFactory.Networking().V1alpha3().DestinationRules()
 	gatewayInformer := istioInformerFactory.Networking().V1alpha3().Gateways()
 
-	lib.SetIstioCRDInformers(&lib.IstioCRDInformers{
+	lib.AKOControlConfig().SetIstioCRDInformers(&lib.IstioCRDInformers{
 		VirtualServiceInformer:  vsInformer,
 		DestinationRuleInformer: drInformer,
 		GatewayInformer:         gatewayInformer,
@@ -102,9 +102,9 @@ func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1alpha1.AviInfraSetting) bo
 // SetupAKOCRDEventHandlers handles setting up of AKO CRD event handlers
 func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up AKO CRD Event handlers")
-	informer := lib.GetCRDInformers()
+	informer := lib.AKOControlConfig().CRDInformers()
 
-	if lib.GetHostRuleEnabled() {
+	if lib.AKOControlConfig().HostRuleEnabled() {
 		hostRuleEventHandler := cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if c.DisableSync {
@@ -171,7 +171,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		informer.HostRuleInformer.Informer().AddEventHandler(hostRuleEventHandler)
 	}
 
-	if lib.GetHttpRuleEnabled() {
+	if lib.AKOControlConfig().HttpRuleEnabled() {
 		httpRuleEventHandler := cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if c.DisableSync {
@@ -241,7 +241,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		informer.HTTPRuleInformer.Informer().AddEventHandler(httpRuleEventHandler)
 	}
 
-	if lib.GetAviInfraSettingEnabled() {
+	if lib.AKOControlConfig().AviInfraSettingEnabled() {
 		aviInfraEventHandler := cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if c.DisableSync {
@@ -312,8 +312,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 }
 
 func (c *AviController) AddCrdIndexer() {
-	informer := lib.GetCRDInformers()
-	if lib.GetAviInfraSettingEnabled() {
+	informer := lib.AKOControlConfig().CRDInformers()
+	if lib.AKOControlConfig().AviInfraSettingEnabled() {
 		informer.AviInfraSettingInformer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
@@ -331,7 +331,7 @@ func (c *AviController) AddCrdIndexer() {
 // SetupIstioCRDEventHandlers handles setting up of Istio CRD event handlers
 func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up AKO Istio CRD Event handlers")
-	informer := lib.GetIstioCRDInformers()
+	informer := lib.AKOControlConfig().IstioCRDInformers()
 
 	virtualServiceEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {

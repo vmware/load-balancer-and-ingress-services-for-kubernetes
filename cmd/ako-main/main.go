@@ -17,7 +17,6 @@ package main
 import (
 	"flag"
 	"fmt"
-
 	"os"
 	"sync"
 	"time"
@@ -25,21 +24,19 @@ import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
-
-	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
-
-	istiocrd "istio.io/client-go/pkg/clientset/versioned"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
+	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	advl4 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+	istiocrd "istio.io/client-go/pkg/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
 )
 
 var (
@@ -82,6 +79,9 @@ func InitializeAKC() {
 		}
 	}
 
+	// Initialize akoControlConfig
+	akoControlConfig := lib.AKOControlConfig()
+
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
@@ -91,29 +91,32 @@ func InitializeAKC() {
 		if err != nil {
 			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
 		}
-		lib.SetAdvL4Clientset(advl4Client)
+		akoControlConfig.SetAdvL4Clientset(advl4Client)
 	} else {
 		if lib.UseServicesAPI() {
 			svcAPIClient, err = svcapi.NewForConfig(cfg)
+			if err != nil {
+				utils.AviLog.Fatalf("Error building service-api clientset: %s", err.Error())
+			}
+			akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 		}
-		if err != nil {
-			utils.AviLog.Fatalf("Error building service-api clientset: %s", err.Error())
-		}
-		lib.SetServicesAPIClientset(svcAPIClient)
+
 		crdClient, err = crd.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 		}
-		lib.SetCRDClientset(crdClient)
+		akoControlConfig.SetCRDClientset(crdClient)
+
 		// Handle Istio code.
 		if lib.IsIstioEnabled() {
 			istioClient, err = istiocrd.NewForConfig(cfg)
 			if err != nil {
 				utils.AviLog.Fatalf("Error building Istio CRD clientset: %s", err.Error())
 			}
-			lib.SetIstioClientset(istioClient)
+			akoControlConfig.SetIstioClientset(istioClient)
 		}
 	}
+
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
 	if err != nil {
 		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
@@ -123,6 +126,8 @@ func InitializeAKC() {
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
+
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient)
 
 	// Check for kubernetes apiserver version compatibility with AKO version.
 	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {

@@ -69,6 +69,7 @@ func CheckObjectNameLength(objName, objType string) bool {
 	}
 	return false
 }
+
 func SetNamePrefix() {
 	NamePrefix = GetClusterName() + "--"
 }

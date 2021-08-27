@@ -48,11 +48,10 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
+	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
-	// CRDClient = crdfake.NewSimpleClientset()
 	AdvL4Client = advl4fake.NewSimpleClientset()
-	// lib.SetCRDClientset(CRDClient)
-	lib.SetAdvL4Clientset(AdvL4Client)
+	akoControlConfig.SetAdvL4Clientset(AdvL4Client)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
@@ -177,13 +176,13 @@ func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
 	}
 
 	gwCreate := gateway.Gateway()
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 }
 
 func TeardownGateway(t *testing.T, gwname, namespace string) {
-	if err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Delete(context.TODO(), gwname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Delete(context.TODO(), gwname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting Gateway: %v", err)
 	}
 }
@@ -213,13 +212,13 @@ func SetupGatewayClass(t *testing.T, gwclassName, controller string) {
 	}
 
 	gwClassCreate := gatewayclass.GatewayClass()
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Create(context.TODO(), gwClassCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Create(context.TODO(), gwClassCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding GatewayClass: %v", err)
 	}
 }
 
 func TeardownGatewayClass(t *testing.T, gwClassName string) {
-	if err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Delete(context.TODO(), gwClassName, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Delete(context.TODO(), gwClassName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting GatewayClass: %v", err)
 	}
 }
@@ -370,7 +369,7 @@ func TestAdvL4WithStaticIP(t *testing.T) {
 		}},
 	}
 	gwCreate := gateway.Gateway()
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
@@ -421,7 +420,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 		Controller: "xyz",
 	}.GatewayClass()
 	gwclassUpdate.ResourceVersion = "2"
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Update(context.TODO(), gwclassUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Update(context.TODO(), gwclassUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating GatewayClass: %v", err)
 	}
 
@@ -474,7 +473,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -497,7 +496,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "3"
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -713,7 +712,7 @@ func TestAdvL4LabelUpdatesInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -771,7 +770,7 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -861,7 +860,7 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 

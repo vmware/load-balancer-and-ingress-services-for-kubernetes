@@ -33,9 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -223,7 +221,7 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 }
 func AddGatewaysFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
 	//TODO: Add code for gateway
-	gatewayObjs, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
+	gatewayObjs, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the gateways during namespace sync: %s", err)
 		return
@@ -468,11 +466,6 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 }
 
 func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
-	cs := k8sinfo.Cs
-	utils.AviLog.Debugf("Creating event broadcaster")
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(utils.AviLog.Debugf)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 	mcpQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	c.workqueue = mcpQueue.Workqueue
 	numWorkers := mcpQueue.NumWorkers
@@ -1067,16 +1060,16 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 
 	// Disable all informers if we are in advancedL4 mode. We expect to only provide L4 load balancing capability for this feature.
 	if lib.GetAdvancedL4() {
-		go lib.GetAdvL4Informers().GatewayClassInformer.Informer().Run(stopCh)
-		informersList = append(informersList, lib.GetAdvL4Informers().GatewayClassInformer.Informer().HasSynced)
-		go lib.GetAdvL4Informers().GatewayInformer.Informer().Run(stopCh)
-		informersList = append(informersList, lib.GetAdvL4Informers().GatewayInformer.Informer().HasSynced)
+		go lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().HasSynced)
+		go lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().HasSynced)
 	} else {
 		if lib.UseServicesAPI() {
-			go lib.GetSvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.GetSvcAPIInformers().GatewayClassInformer.Informer().HasSynced)
-			go lib.GetSvcAPIInformers().GatewayInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.GetSvcAPIInformers().GatewayInformer.Informer().HasSynced)
+			go lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().HasSynced)
+			go lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().HasSynced)
 		}
 		if c.informers.IngressInformer != nil {
 			go c.informers.IngressInformer.Informer().Run(stopCh)
@@ -1099,29 +1092,29 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		go c.informers.NodeInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)
 
-		if lib.GetAviInfraSettingEnabled() {
-			go lib.GetCRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.GetCRDInformers().AviInfraSettingInformer.Informer().HasSynced)
+		if lib.AKOControlConfig().AviInfraSettingEnabled() {
+			go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
 		}
 
 		// separate wait steps to try getting hostrules synced first,
 		// since httprule has a key relation to hostrules.
-		if lib.GetHostRuleEnabled() {
-			go lib.GetCRDInformers().HostRuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.GetCRDInformers().HostRuleInformer.Informer().HasSynced)
+		if lib.AKOControlConfig().HostRuleEnabled() {
+			go lib.AKOControlConfig().CRDInformers().HostRuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HostRuleInformer.Informer().HasSynced)
 		}
 
-		if lib.GetHttpRuleEnabled() {
-			go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced)
+		if lib.AKOControlConfig().HttpRuleEnabled() {
+			go lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().HasSynced)
 		}
 		if lib.IsIstioEnabled() {
-			go lib.GetIstioCRDInformers().VirtualServiceInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.GetIstioCRDInformers().VirtualServiceInformer.Informer().HasSynced)
-			go lib.GetIstioCRDInformers().DestinationRuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.GetIstioCRDInformers().DestinationRuleInformer.Informer().HasSynced)
-			go lib.GetIstioCRDInformers().GatewayInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.GetIstioCRDInformers().GatewayInformer.Informer().HasSynced)
+			go lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Informer().HasSynced)
+			go lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().HasSynced)
+			go lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().HasSynced)
 		}
 	}
 

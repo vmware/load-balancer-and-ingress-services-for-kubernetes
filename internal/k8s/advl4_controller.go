@@ -42,7 +42,7 @@ func NewAdvL4Informers(cs advl4crd.Interface) {
 	gatewayInformer := advl4InformerFactory.Networking().V1alpha1pre1().Gateways()
 	gatewayClassInformer := advl4InformerFactory.Networking().V1alpha1pre1().GatewayClasses()
 
-	lib.SetAdvL4Informers(&lib.AdvL4Informers{
+	lib.AKOControlConfig().SetAdvL4Informers(&lib.AdvL4Informers{
 		GatewayInformer:      gatewayInformer,
 		GatewayClassInformer: gatewayClassInformer,
 	})
@@ -51,7 +51,7 @@ func NewAdvL4Informers(cs advl4crd.Interface) {
 // SetupAdvL4EventHandlers handles setting up of AdvL4 event handlers
 func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up AdvL4 Event handlers")
-	informer := lib.GetAdvL4Informers()
+	informer := lib.AKOControlConfig().AdvL4Informers()
 
 	gatewayEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -175,7 +175,7 @@ func InformerStatusUpdatesForGateway(key string, gateway *advl4v1alpha1pre1.Gate
 	defer status.UpdateGatewayStatusObject(key, gateway, gwStatus)
 
 	status.InitializeGatewayConditions(gwStatus, &gateway.Spec, false)
-	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
+	gwClassObj, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
 	if err != nil {
 		status.UpdateGatewayStatusGWCondition(key, gwStatus, &status.UpdateGWStatusConditionOptions{
 			Type:    "Pending",
@@ -229,7 +229,7 @@ func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 	}
 
 	gwNSName := strings.Split(gateway, "/")
-	gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
+	gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to find gateway: %v", key, err)
 		return

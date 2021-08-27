@@ -21,35 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
-	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
-	svcInformer "sigs.k8s.io/service-apis/pkg/client/informers/externalversions/apis/v1alpha1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
-
-var svcAPICS svcapi.Interface
-var svcAPIInformers *ServicesAPIInformers
-
-func SetServicesAPIClientset(cs svcapi.Interface) {
-	svcAPICS = cs
-}
-
-func GetServicesAPIClientset() svcapi.Interface {
-	return svcAPICS
-}
-
-type ServicesAPIInformers struct {
-	GatewayInformer      svcInformer.GatewayInformer
-	GatewayClassInformer svcInformer.GatewayClassInformer
-}
-
-func SetSvcAPIsInformers(c *ServicesAPIInformers) {
-	svcAPIInformers = c
-}
-
-func GetSvcAPIInformers() *ServicesAPIInformers {
-	return svcAPIInformers
-}
 
 func RemoveSvcApiGatewayFinalizer(gw *svcapiv1alpha1.Gateway) {
 	finalizers := utils.Remove(gw.GetFinalizers(), GatewayFinalizer)
@@ -72,7 +46,7 @@ func UpdateSvcApiGatewayFinalizer(gw *svcapiv1alpha1.Gateway) {
 		},
 	})
 
-	_, err := GetServicesAPIClientset().NetworkingV1alpha1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{})
+	_, err := AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("error while patching the gateway with updated finalizers, %v", err)
 		return

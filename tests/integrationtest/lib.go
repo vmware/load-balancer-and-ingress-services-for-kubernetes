@@ -1241,7 +1241,7 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 		hostrule.GslbFqdn = gslbHost[0]
 		hrUpdate := hostrule.HostRule()
 		hrUpdate.ResourceVersion = "2"
-		if _, err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 			t.Fatalf("error in updating HostRule: %v", err)
 		}
 		return
@@ -1252,20 +1252,20 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 	}
 
 	hrCreate := hostrule.HostRule()
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 }
 
 func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, hrname string) {
-	if err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 	VerifyMetadataHostRule(g, vskey, "default/"+hrname, false)
 }
 
 func TearDownHostRuleWithNoVerif(t *testing.T, g *gomega.WithT, hrname string) {
-	if err := lib.GetCRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 }
@@ -1331,13 +1331,13 @@ func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 	}
 
 	rrCreate := httprule.HTTPRule()
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HTTPRule: %v", err)
 	}
 }
 
 func TeardownHTTPRule(t *testing.T, rrname string) {
-	if err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HTTPRule: %v", err)
 	}
 }
@@ -1484,13 +1484,13 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		ShardSize:     shardSize,
 	}
 	settingCreate := setting.AviInfraSetting()
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
 	}
 }
 
 func TeardownAviInfraSetting(t *testing.T, infraSettingName string) {
-	if err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AviInfraSetting: %v", err)
 	}
 }

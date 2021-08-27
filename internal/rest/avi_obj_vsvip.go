@@ -338,7 +338,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			if found && vs_cache_obj.ServiceMetadataObj.Gateway != "" {
 				gwNSName := strings.Split(vs_cache_obj.ServiceMetadataObj.Gateway, "/")
 				if lib.GetAdvancedL4() {
-					gw, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
+					gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 					if err != nil {
 						utils.AviLog.Warnf("key: %s, msg: Gateway object not found, skippig status update %v", key, err)
 						return err
@@ -354,7 +354,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 					status.UpdateGatewayStatusObject(key, gw, gwStatus)
 
 				} else if lib.UseServicesAPI() {
-					gw, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
+					gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 					if err != nil {
 						utils.AviLog.Warnf("key: %s, msg: Gateway object not found, skippig status update %v", key, err)
 						return err

@@ -42,7 +42,7 @@ func NewSvcApiInformers(cs svccrd.Interface) {
 	svcApiInfomerFactory := svcapiinformers.NewSharedInformerFactory(cs, time.Second*30)
 	gwClassInformer := svcApiInfomerFactory.Networking().V1alpha1().GatewayClasses()
 	gwInformer := svcApiInfomerFactory.Networking().V1alpha1().Gateways()
-	lib.SetSvcAPIsInformers(&lib.ServicesAPIInformers{
+	lib.AKOControlConfig().SetSvcAPIsInformers(&lib.ServicesAPIInformers{
 		GatewayInformer:      gwInformer,
 		GatewayClassInformer: gwClassInformer,
 	})
@@ -52,7 +52,7 @@ func InformerStatusUpdatesForSvcApiGateway(key string, gateway *servicesapi.Gate
 	gwStatus := gateway.Status.DeepCopy()
 	defer status.UpdateSvcApiGatewayStatusObject(key, gateway, gwStatus)
 	status.InitializeSvcApiGatewayConditions(gwStatus, &gateway.Spec, false)
-	gwClassObj, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gateway.Spec.GatewayClassName)
+	gwClassObj, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Lister().Get(gateway.Spec.GatewayClassName)
 	if err != nil {
 		status.UpdateSvcApiGatewayStatusGWCondition(key, gwStatus, &status.UpdateSvcApiGWStatusConditionOptions{
 			Type:    string(servicesapi.GatewayConditionScheduled),
@@ -148,7 +148,7 @@ func checkSvcForSvcApiGatewayPortConflict(svc *corev1.Service, key string) {
 	}
 
 	gwNSName := strings.Split(gateway, "/")
-	gw, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
+	gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to find gateway: %v", key, err)
 		return
@@ -183,7 +183,7 @@ func checkSvcForSvcApiGatewayPortConflict(svc *corev1.Service, key string) {
 // SetupServicesApi handles setting up of ServicesAPI event handlers
 func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up ServicesAPI Event handlers")
-	informer := lib.GetSvcAPIInformers()
+	informer := lib.AKOControlConfig().SvcAPIInformers()
 
 	gatewayEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
