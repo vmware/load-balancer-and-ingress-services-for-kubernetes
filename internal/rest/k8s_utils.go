@@ -75,9 +75,14 @@ func (rest *RestOperations) SyncObjectStatuses() {
 			}
 		} else if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
 			// serviceLB
+			IPAddr := vsCacheObj.Vip
+			if vsCacheObj.Fip != "" {
+				IPAddr = vsCacheObj.Fip
+			}
 			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
+
 				status.UpdateOptions{
-					Vip:                vsCacheObj.Vip,
+					Vip:                IPAddr,
 					ServiceMetadata:    vsSvcMetadataObj,
 					Key:                lib.SyncStatusKey,
 					VirtualServiceUUID: vsCacheObj.Uuid,
@@ -97,9 +102,13 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 				// insecure pools
 				if poolCacheObj.ServiceMetadataObj.Namespace != "" {
+					IPAddr := vsCacheObj.Vip
+					if vsCacheObj.Fip != "" {
+						IPAddr = vsCacheObj.Fip
+					}
 					allIngressUpdateOptions = append(allIngressUpdateOptions,
 						status.UpdateOptions{
-							Vip:                vsCacheObj.Vip,
+							Vip:                IPAddr,
 							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
 							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,

@@ -89,6 +89,7 @@ type AviVsCache struct {
 	Tenant               string
 	Uuid                 string
 	Vip                  string
+	Fip                  string
 	CloudConfigCksum     string
 	PGKeyCollection      []NamespaceName
 	VSVipKeyCollection   []NamespaceName
@@ -334,6 +335,7 @@ type AviVSVIPCache struct {
 	LastModified     string
 	InvalidData      bool
 	Vips             []string
+	Fips             []string
 	NetworkNames     []string
 	HasReference     bool
 }
