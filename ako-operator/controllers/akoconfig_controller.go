@@ -51,13 +51,20 @@ type AKOConfigReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-var objectList map[types.NamespacedName]runtime.Object
+var objectList map[types.NamespacedName]client.Object
 
 var objListOnce sync.Once
 
-func getObjectList() map[types.NamespacedName]runtime.Object {
+// func getObjectList() map[types.NamespacedName]runtime.Object {
+// 	objListOnce.Do(func() {
+// 		objectList = make(map[types.NamespacedName]runtime.Object)
+// 	})
+// 	return objectList
+// }
+
+func getObjectList() map[types.NamespacedName]client.Object {
 	objListOnce.Do(func() {
-		objectList = make(map[types.NamespacedName]runtime.Object)
+		objectList = make(map[types.NamespacedName]client.Object)
 	})
 	return objectList
 }
@@ -90,8 +97,8 @@ func removeFinalizer(finalizers []string, key string) (result []string) {
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="policy",resources=podsecuritypolicies,verbs=get;list;watch;create;update;patch;delete
 
-func (r *AKOConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *AKOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// ctx := context.Background()
 	log := r.Log.WithValues("ako-operator", req.NamespacedName)
 
 	var ako akov1alpha1.AKOConfig
@@ -222,7 +229,7 @@ func (r *AKOConfigReconciler) CleanupArtifacts(ctx context.Context, log logr.Log
 	return nil
 }
 
-func (r *AKOConfigReconciler) deleteIfExists(ctx context.Context, objNsName types.NamespacedName, object runtime.Object) error {
+func (r *AKOConfigReconciler) deleteIfExists(ctx context.Context, objNsName types.NamespacedName, object client.Object) error {
 	err := r.Client.Get(ctx, objNsName, object)
 	if err != nil && !errors.IsNotFound(err) {
 		return err

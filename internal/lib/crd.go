@@ -19,6 +19,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	istioInformer "istio.io/client-go/pkg/informers/externalversions/networking/v1alpha3"
+
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -82,6 +84,7 @@ func GetCRDClientset() akocrd.Interface {
 }
 
 var CRDInformers *AKOCrdInformers
+var IstioInformers *IstioCRDInformers
 
 type AKOCrdInformers struct {
 	HostRuleInformer        akoinformer.HostRuleInformer
@@ -95,4 +98,18 @@ func SetCRDInformers(c *AKOCrdInformers) {
 
 func GetCRDInformers() *AKOCrdInformers {
 	return CRDInformers
+}
+
+type IstioCRDInformers struct {
+	VirtualServiceInformer  istioInformer.VirtualServiceInformer
+	DestinationRuleInformer istioInformer.DestinationRuleInformer
+	GatewayInformer         istioInformer.GatewayInformer
+}
+
+func SetIstioCRDInformers(c *IstioCRDInformers) {
+	IstioInformers = c
+}
+
+func GetIstioCRDInformers() *IstioCRDInformers {
+	return IstioInformers
 }

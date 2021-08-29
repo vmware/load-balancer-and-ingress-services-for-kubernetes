@@ -418,6 +418,15 @@ func GetTenantsPerCluster() bool {
 	return false
 }
 
+func IsIstioEnabled() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv("ISTIO_ENABLED")); ok {
+		utils.AviLog.Debugf("Istio is enabled")
+		return true
+	}
+	utils.AviLog.Debugf("Istio is not enabled")
+	return false
+}
+
 func GetDefaultIngController() bool {
 	defaultIngCtrl := os.Getenv("DEFAULT_ING_CONTROLLER")
 	if defaultIngCtrl != "false" {

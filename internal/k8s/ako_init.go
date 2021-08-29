@@ -463,6 +463,38 @@ func (c *AviController) FullSyncK8s() error {
 		}
 	}
 
+	// Section for Istio
+	if lib.IsIstioEnabled() {
+		// If Istio is enabled, we need to listen to few of the Istio CRDs.
+		virtualServiceObjs, err := lib.GetIstioCRDInformers().VirtualServiceInformer.Lister().VirtualServices(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the Istio virtualservices during full sync: %s", err)
+		} else {
+			for _, vsObj := range virtualServiceObjs {
+				key := lib.IstioVirtualService + "/" + utils.ObjKey(vsObj)
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+		destinationRuleObjs, err := lib.GetIstioCRDInformers().DestinationRuleInformer.Lister().DestinationRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the Istio DestinationRules during full sync: %s", err)
+		} else {
+			for _, drObj := range destinationRuleObjs {
+				key := lib.IstioDestinationRule + "/" + utils.ObjKey(drObj)
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+		gatewayObjs, err := lib.GetIstioCRDInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the Istio Gateways during full sync: %s", err)
+		} else {
+			for _, gwObj := range gatewayObjs {
+				key := lib.IstioGateway + "/" + utils.ObjKey(gwObj)
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
+	}
 	if !lib.GetAdvancedL4() {
 		hostRuleObjs, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
