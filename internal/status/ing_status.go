@@ -479,25 +479,23 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		// Get IngressClasses with Avi set as the controller, get corresponding Ingresses,
 		// to return all AKO ingestable Ingresses.
 		aviIngClasses := make(map[string]bool)
-		if utils.GetIngressClassEnabled() {
-			ingClassList, err := mClient.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
-			if err != nil {
-				utils.AviLog.Warnf("Could not get the IngressClass object for UpdateStatus: %s", err)
-				// retry get if request timeout
-				if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
-					return getIngresses(ingressNSNames, bulk, retry+1)
-				}
-				return ingressMap
+		ingClassList, err := mClient.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Could not get the IngressClass object for UpdateStatus: %s", err)
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
+			return ingressMap
+		}
 
-			if len(ingClassList.Items) == 0 {
-				return ingressMap
-			}
+		if len(ingClassList.Items) == 0 {
+			return ingressMap
+		}
 
-			for i := range ingClassList.Items {
-				if ingClassList.Items[i].Spec.Controller == lib.SvcApiAviGatewayController {
-					aviIngClasses[ingClassList.Items[i].Name] = true
-				}
+		for i := range ingClassList.Items {
+			if ingClassList.Items[i].Spec.Controller == lib.SvcApiAviGatewayController {
+				aviIngClasses[ingClassList.Items[i].Name] = true
 			}
 		}
 
@@ -512,19 +510,14 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 
 		for i := range ingressList.Items {
 			var returnIng bool
-			if utils.GetIngressClassEnabled() {
-				if ingressList.Items[i].Spec.IngressClassName != nil {
-					if _, ok := aviIngClasses[*ingressList.Items[i].Spec.IngressClassName]; ok {
-						returnIng = true
-					}
-				} else if _, ok := lib.IsAviLBDefaultIngressClassWithClient(mClient); ok {
+			if ingressList.Items[i].Spec.IngressClassName != nil {
+				if _, ok := aviIngClasses[*ingressList.Items[i].Spec.IngressClassName]; ok {
 					returnIng = true
 				}
-			} else {
-				if ingClass, ok := ingressList.Items[i].Annotations[lib.INGRESS_CLASS_ANNOT]; ok && ingClass == lib.AVI_INGRESS_CLASS {
-					returnIng = true
-				}
+			} else if _, ok := lib.IsAviLBDefaultIngressClassWithClient(mClient); ok {
+				returnIng = true
 			}
+
 			if returnIng {
 				ing := ingressList.Items[i]
 				if utils.CheckIfNamespaceAccepted(ing.Namespace) {

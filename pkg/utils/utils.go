@@ -161,8 +161,6 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 	// We listen to configmaps only in the namespace in which AKO runs.
 	akoNS := GetAKONamespace()
 
-	SetIngressClassEnabled(cs)
-
 	akoNSInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(akoNS))
 	AviLog.Infof("Initializing configmap informer in %v", akoNS)
 
@@ -191,9 +189,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case IngressInformer:
 			informers.IngressInformer = kubeInformerFactory.Networking().V1().Ingresses()
 		case IngressClassInformer:
-			if GetIngressClassEnabled() {
-				informers.IngressClassInformer = kubeInformerFactory.Networking().V1().IngressClasses()
-			}
+			informers.IngressClassInformer = kubeInformerFactory.Networking().V1().IngressClasses()
 		case RouteInformer:
 			if ocs != nil {
 				oshiftInformerFactory := oshiftinformers.NewSharedInformerFactory(ocs, time.Second*30)

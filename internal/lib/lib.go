@@ -1128,10 +1128,6 @@ func GetDefaultSecretForRoutes() string {
 
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {
 	// see whether ingress class resources are present or not
-	if !utils.GetIngressClassEnabled() {
-		return filterIngressOnClassAnnotation(key, ingress)
-	}
-
 	if ingress.Spec.IngressClassName == nil {
 		// check whether avi-lb ingress class is set as the default ingress class
 		if _, found := IsAviLBDefaultIngressClass(); found {
@@ -1166,30 +1162,6 @@ func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {
 	}
 
 	return true
-}
-
-func filterIngressOnClassAnnotation(key string, ingress *networkingv1.Ingress) bool {
-	// If Avi is not the default ingress, then filter on ingress class.
-	if !GetDefaultIngController() {
-		annotations := ingress.GetAnnotations()
-		ingClass, ok := annotations[INGRESS_CLASS_ANNOT]
-		if ok && ingClass == AVI_INGRESS_CLASS {
-			return true
-		} else {
-			utils.AviLog.Infof("key: %s, msg: AKO is not running as the default ingress controller. Not processing the ingress: %s. Please annotate the ingress class as 'avi'", key, ingress.Name)
-			return false
-		}
-	} else {
-		// If Avi is the default ingress controller, sync everything than the ones that are annotated with ingress class other than 'avi'
-		annotations := ingress.GetAnnotations()
-		ingClass, ok := annotations[INGRESS_CLASS_ANNOT]
-		if ok && ingClass != AVI_INGRESS_CLASS {
-			utils.AviLog.Infof("key: %s, msg: AKO is the default ingress controller but not processing the ingress: %s since ingress class is set to : %s", key, ingress.Name, ingClass)
-			return false
-		} else {
-			return true
-		}
-	}
 }
 
 func IsAviLBDefaultIngressClass() (string, bool) {

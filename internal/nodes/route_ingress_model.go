@@ -238,9 +238,7 @@ func (m *K8sIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
 func getL7IngressInfraSetting(key string, ingClassName string) (*akov1alpha1.AviInfraSetting, error) {
 	var infraSetting *akov1alpha1.AviInfraSetting
 
-	if !utils.GetIngressClassEnabled() {
-		return nil, nil
-	} else if ingClassName == "" {
+	if ingClassName == "" {
 		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
 			return nil, nil
 		} else {

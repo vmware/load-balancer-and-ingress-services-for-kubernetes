@@ -150,7 +150,6 @@ const (
 	AutoFQDNDisabled                           = "Disabled"
 	VCF_CLUSTER                                = "VCF_CLUSTER"
 
-	INGRESS_CLASS_ANNOT            = "kubernetes.io/ingress.class"
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation          = "external-dns.alpha.kubernetes.io/hostname"
 	GatewayFinalizer               = "gateway.ako.vmware.com"

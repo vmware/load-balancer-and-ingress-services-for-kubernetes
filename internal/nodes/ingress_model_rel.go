@@ -304,9 +304,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 					status.PublishToStatusQueue(svc, statusOption)
 				}
 			}
-			if utils.GetIngressClassEnabled() {
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
-			}
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 	} else {
 		// simple validator check for duplicate hostpaths, logs Warning if duplicates found
@@ -315,20 +313,18 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			return ingresses, false
 		}
 
-		if utils.GetIngressClassEnabled() {
-			var ingClassName string
-			if ingObj.Spec.IngressClassName != nil {
-				ingClassName = *ingObj.Spec.IngressClassName
-			} else if aviIngClassName, found := lib.IsAviLBDefaultIngressClass(); found {
-				// check if default IngressClass is present, and it is Avi's IngressClass, in which case add mapping for that.
-				ingClassName = aviIngClassName
-			}
+		var ingClassName string
+		if ingObj.Spec.IngressClassName != nil {
+			ingClassName = *ingObj.Spec.IngressClassName
+		} else if aviIngClassName, found := lib.IsAviLBDefaultIngressClass(); found {
+			// check if default IngressClass is present, and it is Avi's IngressClass, in which case add mapping for that.
+			ingClassName = aviIngClassName
+		}
 
-			if ingClassName != "" {
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, ingClassName)
-			} else {
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
-			}
+		if ingClassName != "" {
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, ingClassName)
+		} else {
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 
 		// If the Ingress Class is not found or is not valid, then return.
@@ -695,11 +691,6 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 
 func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 	allIngresses := make([]string, 0)
-
-	if !utils.GetIngressClassEnabled() {
-		utils.AviLog.Infof("key: %s, msg: AviInfraSetting cannot be applied to Ingresses when IngressClass is not enabled in the cluster.", key)
-		return allIngresses, false
-	}
 
 	// Get all IngressClasses from AviInfraSetting.
 	ingClasses, err := utils.GetInformers().IngressClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingIngClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
