@@ -136,7 +136,7 @@ func UpdateIngress(t *testing.T, modelName, namespace string) {
 	})
 	ingrFake := ingressObject.Ingress()
 	ingrFake.ResourceVersion = "22"
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses(namespace).Update(context.TODO(), ingrFake, metav1.UpdateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses(namespace).Update(context.TODO(), ingrFake, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -166,7 +166,7 @@ func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngr
 	}
 
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses(namespace).Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses(namespace).Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -174,11 +174,11 @@ func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngr
 
 func TearDownTestForIngressNamespace(t *testing.T, modelName, namespace string, g *gomega.GomegaWithT) {
 
-	if err := KubeClient.NetworkingV1beta1().Ingresses(namespace).Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses(namespace).Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't Delete Ingress: %v", err)
 	}
 	g.Eventually(func() error {
-		_, err := KubeClient.NetworkingV1beta1().Ingresses(namespace).Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+		_, err := KubeClient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return err
 	}, 30*time.Second).Should(gomega.Not(gomega.BeNil()))
 

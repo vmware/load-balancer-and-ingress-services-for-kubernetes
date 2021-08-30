@@ -40,7 +40,7 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
-	networking "k8s.io/api/networking/v1beta1"
+	networking "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -106,11 +106,11 @@ func AddDefaultIngressClass() {
 		},
 	}
 
-	KubeClient.NetworkingV1beta1().IngressClasses().Create(context.TODO(), aviIngressClass, metav1.CreateOptions{})
+	KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), aviIngressClass, metav1.CreateOptions{})
 }
 
 func RemoveDefaultIngressClass() {
-	KubeClient.NetworkingV1beta1().IngressClasses().Delete(context.TODO(), DefaultIngressClass, metav1.DeleteOptions{})
+	KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), DefaultIngressClass, metav1.DeleteOptions{})
 }
 
 //Fake Namespace
@@ -256,28 +256,22 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 					HTTP: &networking.HTTPIngressRuleValue{
 						Paths: []networking.HTTPIngressPath{{
 							Path: "/foo",
-							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-								Type:   intstr.String,
-								StrVal: "foo0",
-							}},
-						},
-						}},
-				},
-			})
+							Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+								Name: ing.ServiceName,
+								Port: networking.ServiceBackendPort{Name: "foo0"},
+							}}}}}}},
+			)
 			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 				Host: dnsName,
 				IngressRuleValue: networking.IngressRuleValue{
 					HTTP: &networking.HTTPIngressRuleValue{
 						Paths: []networking.HTTPIngressPath{{
 							Path: "/bar",
-							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-								Type:   intstr.String,
-								StrVal: "foo1",
-							}},
-						},
-						}},
-				},
-			})
+							Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+								Name: ing.ServiceName,
+								Port: networking.ServiceBackendPort{Name: "foo1"},
+							}}}}}}},
+			)
 		} else {
 			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 				Host: dnsName,
@@ -285,14 +279,11 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 					HTTP: &networking.HTTPIngressRuleValue{
 						Paths: []networking.HTTPIngressPath{{
 							Path: path,
-							Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-								Type:   intstr.Int,
-								IntVal: 8080,
-							}},
-						},
-						}},
-				},
-			})
+							Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+								Name: ing.ServiceName,
+								Port: networking.ServiceBackendPort{Number: 8080},
+							}}}}}}},
+			)
 		}
 	}
 	for secret, hosts := range ing.TlsSecretDNS {
@@ -340,28 +331,22 @@ func (ing FakeIngress) IngressMultiPort() *networking.Ingress {
 				HTTP: &networking.HTTPIngressRuleValue{
 					Paths: []networking.HTTPIngressPath{{
 						Path: "/foo",
-						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-							Type:   intstr.Int,
-							IntVal: 8080,
-						}},
-					},
-					}},
-			},
-		})
+						Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+							Name: ing.ServiceName,
+							Port: networking.ServiceBackendPort{Number: 8080},
+						}}}}}}},
+		)
 		ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
 			Host: dnsName,
 			IngressRuleValue: networking.IngressRuleValue{
 				HTTP: &networking.HTTPIngressRuleValue{
 					Paths: []networking.HTTPIngressPath{{
 						Path: "/bar",
-						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-							Type:   intstr.String,
-							StrVal: "foo1",
-						}},
-					},
-					}},
-			},
-		})
+						Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+							Name: ing.ServiceName,
+							Port: networking.ServiceBackendPort{Name: "foo1"},
+						}}}}}}},
+		)
 
 	}
 	for secret, hosts := range ing.TlsSecretDNS {
@@ -413,14 +398,11 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 				HTTP: &networking.HTTPIngressRuleValue{
 					Paths: []networking.HTTPIngressPath{{
 						Path: path,
-						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-							Type:   intstr.Int,
-							IntVal: 8080,
-						}},
-					},
-					}},
-			},
-		})
+						Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+							Name: ing.ServiceName,
+							Port: networking.ServiceBackendPort{Number: 8080},
+						}}}}}}},
+		)
 	}
 
 	for _, ip := range ing.Ips {
@@ -461,14 +443,11 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 				HTTP: &networking.HTTPIngressRuleValue{
 					Paths: []networking.HTTPIngressPath{{
 						Path: path,
-						Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-							Type:   intstr.Int,
-							IntVal: 8080,
-						}},
-					},
-					}},
-			},
-		})
+						Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+							Name: ing.ServiceName,
+							Port: networking.ServiceBackendPort{Number: 8080},
+						}}}}}}},
+		)
 	}
 	for _, ip := range ing.Ips {
 		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
@@ -533,9 +512,9 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 		for _, path := range ing.Paths {
 			ingrPath := networking.HTTPIngressPath{
 				Path: path,
-				Backend: networking.IngressBackend{ServiceName: ing.ServiceName, ServicePort: intstr.IntOrString{
-					Type:   intstr.Int,
-					IntVal: 8080,
+				Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+					Name: ing.ServiceName,
+					Port: networking.ServiceBackendPort{Number: 8080},
 				}},
 			}
 			ingrPaths = append(ingrPaths, ingrPath)
@@ -1174,7 +1153,7 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 
 	//check if resource already exists
-	ingress, err := KubeClient.NetworkingV1beta1().Ingresses(ing.Namespace).Get(context.TODO(), ing.Name, metav1.GetOptions{})
+	ingress, err := KubeClient.NetworkingV1().Ingresses(ing.Namespace).Get(context.TODO(), ing.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -1185,7 +1164,7 @@ func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 	newIngress.ResourceVersion = strconv.Itoa(rv + 1)
 
 	//update ingress resource
-	updatedIngress, err := KubeClient.NetworkingV1beta1().Ingresses(newIngress.Namespace).Update(context.TODO(), newIngress, metav1.UpdateOptions{})
+	updatedIngress, err := KubeClient.NetworkingV1().Ingresses(newIngress.Namespace).Update(context.TODO(), newIngress, metav1.UpdateOptions{})
 	return updatedIngress, err
 }
 
@@ -1444,13 +1423,13 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 	}
 
 	ingClassCreate := ingclass.IngressClass()
-	if _, err := KubeClient.NetworkingV1beta1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding IngressClass: %v", err)
 	}
 }
 
 func TeardownIngressClass(t *testing.T, ingClassName string) {
-	if err := KubeClient.NetworkingV1beta1().IngressClasses().Delete(context.TODO(), ingClassName, metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), ingClassName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting IngressClass: %v", err)
 	}
 }

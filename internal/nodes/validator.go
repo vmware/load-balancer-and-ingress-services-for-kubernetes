@@ -24,7 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -57,7 +57,7 @@ func (v *Validator) IsValidHostName(hostname string) bool {
 	return false
 }
 
-func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec networkingv1beta1.IngressSpec) bool {
+func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec networkingv1.IngressSpec) bool {
 	nsIngress := ns + "/" + ingName
 	for _, rule := range ingSpec.Rules {
 		if rule.IngressRuleValue.HTTP != nil {
@@ -168,7 +168,7 @@ func destinationCAHTTPRulePresent(key, host, path string) (bool, string) {
 
 // ParseHostPathForIngress handling for hostrule: if the host has a hostrule, and that hostrule has a tls.sslkeycertref then
 // move that host in the tls.hosts, this should be only in case of hostname sharding
-func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec networkingv1beta1.IngressSpec, annotations map[string]string, key string) IngressConfig {
+func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec networkingv1.IngressSpec, annotations map[string]string, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
 
 	ingressConfig := IngressConfig{}
@@ -239,17 +239,17 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 		}
 		if rule.IngressRuleValue.HTTP != nil {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
-				pathType := networkingv1beta1.PathTypeImplementationSpecific
+				pathType := networkingv1.PathTypeImplementationSpecific
 				if path.PathType != nil {
 					pathType = *path.PathType
 				}
 				hostPathMapSvc := IngressHostPathSvc{
 					Path:        path.Path,
 					PathType:    pathType,
-					ServiceName: path.Backend.ServiceName,
-					Port:        path.Backend.ServicePort.IntVal,
-					PortName:    path.Backend.ServicePort.StrVal,
-					TargetPort:  v.findTargetPort(path.Backend.ServiceName, ns, path.Backend.ServicePort.IntVal, key),
+					ServiceName: path.Backend.Service.Name,
+					Port:        path.Backend.Service.Port.Number,
+					PortName:    path.Backend.Service.Port.Name,
+					TargetPort:  v.findTargetPort(path.Backend.Service.Name, ns, path.Backend.Service.Port.Number, key),
 				}
 				if hostPathMapSvc.Port == 0 {
 					// Default to port 80 if not set in the ingress object

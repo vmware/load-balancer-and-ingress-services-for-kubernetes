@@ -66,11 +66,11 @@ func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 		},
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	ingrFake_2 := ingressObject2.Ingress()
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake_2, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake_2, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -83,10 +83,10 @@ func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 	// Shard scheme: cluster--Shared-L7-EVH-1 -> bar.com
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 45*time.Second).Should(gomega.Equal(3))
-	ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+	ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 	// fake avi controller server returns IP in the form: 10.250.250.1<Shared-L7-NUM>
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))
 	g.Expect(ingress.Status.LoadBalancer.Ingress[0].Hostname).To(gomega.MatchRegexp(`^((foo|bar|xyz).com)$`))
@@ -95,11 +95,11 @@ func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 	g.Expect(ingress.Status.LoadBalancer.Ingress[2].IP).To(gomega.MatchRegexp(`^(10.250.250.1(0|1|3))`))
 	g.Expect(ingress.Status.LoadBalancer.Ingress[2].Hostname).To(gomega.MatchRegexp(`^((foo|bar|xyz).com)$`))
 
-	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 
-	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 
@@ -130,16 +130,16 @@ func TestMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 	}
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	ingrFake := ingressObject.Ingress()
-	if _, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 60*time.Second).Should(gomega.Equal(2))
-	ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
+	ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
 
 	// donot update status
 	var ingressStatusIPs, ingressStatusNames []string
@@ -162,18 +162,18 @@ func TestMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 		},
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
 	// statuses go down from 3 to 2
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 10*time.Second).Should(gomega.Equal(2))
 
-	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	TearDownTestForIngress(t, modelName)
@@ -223,7 +223,7 @@ func TestCreateIngressCacheSyncForEvh(t *testing.T) {
 	g.Expect(sniCacheObj.PGKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.HTTPKeyCollection).To(gomega.HaveLen(1))
 
-	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
@@ -245,10 +245,10 @@ func TestIngressStatusCheckForEvh(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 5*time.Second).Should(gomega.Equal(1))
-	ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+	ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 	g.Expect(ingress.Status.LoadBalancer.Ingress).To(gomega.HaveLen(1))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
@@ -395,7 +395,7 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 		},
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -456,7 +456,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 	integrationtest.AddSecret("my-secret-v2", "default", "tlsCert", "tlsKey")
 	ingrFake := ingressObject.Ingress()
 	ingrFake.ResourceVersion = "2"
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -516,7 +516,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 	}
 	integrationtest.AddSecret("my-secret", "red", "tlsCert", "tlsKey")
 	ingrFake = ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 	sniVSKey3 := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
@@ -524,7 +524,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 		_, found1 := mcache.VsCacheMeta.AviCacheGet(sniVSKey3)
 		return found1
 	}, 20*time.Second).Should(gomega.Equal(true))
-	if err := KubeClient.NetworkingV1beta1().Ingresses("red").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses("red").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	TearDownIngressForCacheSyncCheck(t, modelName)
@@ -557,7 +557,7 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -638,7 +638,7 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 
 	ingrUpdate := ingressUpdateObject.Ingress()
 	ingrUpdate.ResourceVersion = "2"
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -664,7 +664,7 @@ func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 	g.Expect(sniCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
 	g.Expect(sniCacheObj.SSLKeyCertCollection).To(gomega.HaveLen(0))
 
-	KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey1)
@@ -695,7 +695,7 @@ func TestDeleteCacheSyncForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -786,7 +786,7 @@ func TestDeleteSecretSecureIngressStatusCheckForEvh(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 30*time.Second).Should(gomega.Equal(1))
 
@@ -794,7 +794,7 @@ func TestDeleteSecretSecureIngressStatusCheckForEvh(t *testing.T) {
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 50*time.Second).Should(gomega.Equal(0))
 

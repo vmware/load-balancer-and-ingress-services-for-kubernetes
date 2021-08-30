@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"
-	networking "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -140,18 +140,20 @@ func ValidateIngress(t *testing.T) {
 	}
 	waitAndverify(t, "L4LBService/red-ns/testsvc")
 
-	ingrExample := &networking.Ingress{
+	ingrExample := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "red-ns",
 			Name:      "testingr",
 		},
-		Spec: networking.IngressSpec{
-			Backend: &networking.IngressBackend{
-				ServiceName: "testsvc",
+		Spec: networkingv1.IngressSpec{
+			DefaultBackend: &networkingv1.IngressBackend{
+				Service: &networkingv1.IngressServiceBackend{
+					Name: "testsvc",
+				},
 			},
 		},
 	}
-	_, err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Create(context.TODO(), ingrExample, metav1.CreateOptions{})
+	_, err = kubeClient.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -162,7 +164,7 @@ func ValidateIngress(t *testing.T) {
 		t.Fatalf("error in deleting Service: %v", err)
 	}
 	waitAndverify(t, "L4LBService/red-ns/testsvc")
-	err = kubeClient.NetworkingV1beta1().Ingresses("red-ns").Delete(context.TODO(), "testingr", metav1.DeleteOptions{})
+	err = kubeClient.NetworkingV1().Ingresses("red-ns").Delete(context.TODO(), "testingr", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}

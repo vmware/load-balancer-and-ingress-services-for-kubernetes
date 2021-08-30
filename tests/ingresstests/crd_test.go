@@ -242,7 +242,7 @@ func TestMultiIngressToSecureHostRule(t *testing.T) {
 		ServiceName: "avisvc",
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -270,7 +270,7 @@ func TestMultiIngressToSecureHostRule(t *testing.T) {
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
 
-	if err := KubeClient.NetworkingV1beta1().Ingresses("red").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses("red").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
@@ -296,7 +296,7 @@ func TestMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 		ServiceName: "avisvc",
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("red").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -348,7 +348,7 @@ func TestMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-with-targets"))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--red-voo.com_voo-voo-with-targets"))
 
-	if err := KubeClient.NetworkingV1beta1().Ingresses("red").Delete(context.TODO(), "voo-with-targets", metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses("red").Delete(context.TODO(), "voo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't Delete the Ingress %v", err)
 	}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--voo.com"}
@@ -514,7 +514,7 @@ func TestHTTPRuleCreateDelete(t *testing.T) {
 	}
 
 	ingrFake := ingressObject.Ingress(true)
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -572,7 +572,7 @@ func TestHTTPRuleHostSwitch(t *testing.T) {
 		ServiceName: "avisvc",
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -623,7 +623,7 @@ func TestHTTPRuleHostSwitch(t *testing.T) {
 		return false
 	}, 25*time.Second).Should(gomega.Equal(true))
 
-	if err := KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "voo-with-targets", metav1.DeleteOptions{}); err != nil {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "voo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}

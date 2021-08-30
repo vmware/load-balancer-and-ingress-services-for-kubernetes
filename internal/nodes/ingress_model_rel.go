@@ -29,7 +29,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
@@ -709,7 +709,7 @@ func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 	}
 
 	for _, ingClass := range ingClasses {
-		if ingClassObj, isIngClass := ingClass.(*networkingv1beta1.IngressClass); isIngClass {
+		if ingClassObj, isIngClass := ingClass.(*networkingv1.IngressClass); isIngClass {
 			if ingresses, found := IngClassToIng(ingClassObj.Name, namespace, key); found {
 				allIngresses = append(allIngresses, ingresses...)
 			}
@@ -791,13 +791,13 @@ func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]s
 	return allSvcs, true
 }
 
-func parseServicesForIngress(ingSpec networkingv1beta1.IngressSpec, key string) []string {
+func parseServicesForIngress(ingSpec networkingv1.IngressSpec, key string) []string {
 	// Figure out the service names that are part of this ingress
 	var services []string
 	for _, rule := range ingSpec.Rules {
 		if rule.IngressRuleValue.HTTP != nil {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
-				services = append(services, path.Backend.ServiceName)
+				services = append(services, path.Backend.Service.Name)
 			}
 		}
 	}
@@ -805,7 +805,7 @@ func parseServicesForIngress(ingSpec networkingv1beta1.IngressSpec, key string) 
 	return services
 }
 
-func parseSecretsForIngress(ingSpec networkingv1beta1.IngressSpec, key string) []string {
+func parseSecretsForIngress(ingSpec networkingv1.IngressSpec, key string) []string {
 	// Figure out the service names that are part of this ingress
 	var secrets []string
 	for _, tlsSettings := range ingSpec.TLS {

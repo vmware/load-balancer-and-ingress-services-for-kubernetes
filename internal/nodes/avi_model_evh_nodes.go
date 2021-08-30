@@ -30,7 +30,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -619,7 +619,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 
 		httpPGPath := AviHostPathPortPoolPG{Host: allFqdns}
 
-		if path.PathType == networkingv1beta1.PathTypeExact {
+		if path.PathType == networkingv1.PathTypeExact {
 			httpPGPath.MatchCriteria = "EQUALS"
 		} else {
 			// PathTypePrefix and PathTypeImplementationSpecific

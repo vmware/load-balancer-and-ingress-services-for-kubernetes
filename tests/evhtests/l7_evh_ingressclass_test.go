@@ -63,7 +63,7 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 		DnsNames:    []string{"bar.com"},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 40*time.Second).Should(gomega.Equal(1))
 
@@ -85,14 +85,14 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
 	VerifyEvhNodeDeletionFromVsNode(g, modelName)
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
@@ -104,7 +104,7 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "3"
-	if _, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Update(context.TODO(), ingressUpdate2, metav1.UpdateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses(ns).Update(context.TODO(), ingressUpdate2, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
@@ -118,11 +118,11 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(1))
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 50*time.Second).Should(gomega.Equal(1))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -150,7 +150,7 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 		Controller: lib.AviIngressController,
 		Default:    true,
 	}).IngressClass()
-	if _, err := KubeClient.NetworkingV1beta1().IngressClasses().Create(context.TODO(), ingClass, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClass, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding IngressClass: %v", err)
 	}
 
@@ -161,29 +161,29 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 		DnsNames:    []string{"bar.com"},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 40*time.Second).Should(gomega.Equal(1))
 
 	ingClass.Annotations = map[string]string{lib.DefaultIngressClassAnnotation: "false"}
 	ingClass.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().IngressClasses().Update(context.TODO(), ingClass, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().IngressClasses().Update(context.TODO(), ingClass, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating IngressClass: %v", err)
 	}
 
 	g.Eventually(func() int {
-		ingress, _ := KubeClient.NetworkingV1beta1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -224,7 +224,7 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 		}
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -303,7 +303,7 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -327,7 +327,7 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 		Default:         false,
 	}).IngressClass()
 	ingClassUpdate.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().IngressClasses().Update(context.TODO(), ingClassUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().IngressClasses().Update(context.TODO(), ingClassUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error updating IngressClass")
 	}
@@ -348,12 +348,12 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 		Default:    false,
 	}).IngressClass()
 	ingClassUpdate.ResourceVersion = "3"
-	_, err = KubeClient.NetworkingV1beta1().IngressClasses().Update(context.TODO(), ingClassUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().IngressClasses().Update(context.TODO(), ingClassUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error updating IngressClass")
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -394,7 +394,7 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 		DnsNames:    []string{"bar.com"},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -415,7 +415,7 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 		AviInfraSetting: settingName2,
 	}).IngressClass()
 	ingClassUpdate.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().IngressClasses().Update(context.TODO(), ingClassUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().IngressClasses().Update(context.TODO(), ingClassUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error updating IngressClass")
 	}
@@ -432,7 +432,7 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(settingNodes[0].EvhNodes[0].Name).Should(gomega.Equal(lib.Encode("cluster--my-infrasetting2-bar.com", lib.EVHVS)))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -476,7 +476,7 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -489,7 +489,7 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -512,7 +512,7 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 	g.Expect(settingNodes[0].EvhNodes[0].Name).Should(gomega.Equal(lib.Encode("cluster--my-infrasetting-bar.com", lib.EVHVS)))
 	g.Expect(settingNodes[0].EvhNodes[0].PoolRefs[0].Name).Should(gomega.Equal(lib.Encode("cluster--my-infrasetting-default-bar.com_foo-foo-with-class-avisvc", lib.Pool)))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -570,7 +570,7 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -595,7 +595,7 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 		},
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -612,7 +612,7 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 	settingNodes1 = aviSettingModel1.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(settingNodes1[0].EvhNodes).Should(gomega.HaveLen(0))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -654,7 +654,7 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -741,7 +741,7 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[2].NetworkName).Should(gomega.Equal("multivip-network3"))
 	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -784,7 +784,7 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -814,7 +814,7 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 		},
 	}).Ingress()
 	ingressUpdate.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -831,7 +831,7 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(settingNodes[0].EvhNodes).Should(gomega.HaveLen(0))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -874,7 +874,7 @@ func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -911,7 +911,7 @@ func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -958,7 +958,7 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -987,7 +987,7 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1040,7 +1040,7 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 			secretName: {"baz.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1070,7 +1070,7 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	integrationtest.TeardownHTTPRule(t, rrname)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
-	err = KubeClient.NetworkingV1beta1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}

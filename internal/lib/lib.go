@@ -37,7 +37,7 @@ import (
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/vmware/alb-sdk/go/models"
 	v1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -1126,7 +1126,7 @@ func GetDefaultSecretForRoutes() string {
 	return DefaultRouteCert
 }
 
-func ValidateIngressForClass(key string, ingress *networkingv1beta1.Ingress) bool {
+func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {
 	// see whether ingress class resources are present or not
 	if !utils.GetIngressClassEnabled() {
 		return filterIngressOnClassAnnotation(key, ingress)
@@ -1145,10 +1145,10 @@ func ValidateIngressForClass(key string, ingress *networkingv1beta1.Ingress) boo
 
 	// If the key is "syncstatus" then use a clientset, else using the lister cache. This is because
 	// the status sync happens before the informers are run and caches are synced.
-	var ingClassObj *networkingv1beta1.IngressClass
+	var ingClassObj *networkingv1.IngressClass
 	var err error
 	if key == SyncStatusKey {
-		ingClassObj, err = utils.GetInformers().ClientSet.NetworkingV1beta1().IngressClasses().Get(context.TODO(), *ingress.Spec.IngressClassName, metav1.GetOptions{})
+		ingClassObj, err = utils.GetInformers().ClientSet.NetworkingV1().IngressClasses().Get(context.TODO(), *ingress.Spec.IngressClassName, metav1.GetOptions{})
 	} else {
 		ingClassObj, err = utils.GetInformers().IngressClassInformer.Lister().Get(*ingress.Spec.IngressClassName)
 	}
@@ -1168,7 +1168,7 @@ func ValidateIngressForClass(key string, ingress *networkingv1beta1.Ingress) boo
 	return true
 }
 
-func filterIngressOnClassAnnotation(key string, ingress *networkingv1beta1.Ingress) bool {
+func filterIngressOnClassAnnotation(key string, ingress *networkingv1.Ingress) bool {
 	// If Avi is not the default ingress, then filter on ingress class.
 	if !GetDefaultIngController() {
 		annotations := ingress.GetAnnotations()
@@ -1209,7 +1209,7 @@ func IsAviLBDefaultIngressClass() (string, bool) {
 }
 
 func IsAviLBDefaultIngressClassWithClient(kc kubernetes.Interface) (string, bool) {
-	ingClassObjs, _ := kc.NetworkingV1beta1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
+	ingClassObjs, _ := kc.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
 	for _, ingClass := range ingClassObjs.Items {
 		if ingClass.Spec.Controller == AviIngressController {
 			annotations := ingClass.GetAnnotations()

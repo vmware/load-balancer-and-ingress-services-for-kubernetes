@@ -26,7 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -88,7 +88,7 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 	}
 }
 
-func updateObject(mIngress *networkingv1beta1.Ingress, updateOption UpdateOptions, retryNum ...int) error {
+func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, retryNum ...int) error {
 	if updateOption.Vip == "" {
 		return nil
 	}
@@ -136,13 +136,13 @@ func updateObject(mIngress *networkingv1beta1.Ingress, updateOption UpdateOption
 
 	sameStatus := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
 
-	var updatedIng *networkingv1beta1.Ingress
+	var updatedIng *networkingv1.Ingress
 	var err error
 	if !sameStatus {
 		patchPayload, _ := json.Marshal(map[string]interface{}{
 			"status": mIngress.Status,
 		})
-		updatedIng, err = mClient.NetworkingV1beta1().Ingresses(mIngress.Namespace).Patch(context.TODO(), mIngress.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+		updatedIng, err = mClient.NetworkingV1().Ingresses(mIngress.Namespace).Patch(context.TODO(), mIngress.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress status: %v", key, err)
 			// fetch updated ingress and feed for update status
@@ -165,8 +165,8 @@ func updateObject(mIngress *networkingv1beta1.Ingress, updateOption UpdateOption
 	return nil
 }
 
-func updateIngAnnotations(mClient kubernetes.Interface, ingObj *networkingv1beta1.Ingress, hostnamesToBeUpdated []string,
-	vsUUID, key string, ingSpecHostnames []string, oldIng *networkingv1beta1.Ingress, retryNum ...int) error {
+func updateIngAnnotations(mClient kubernetes.Interface, ingObj *networkingv1.Ingress, hostnamesToBeUpdated []string,
+	vsUUID, key string, ingSpecHostnames []string, oldIng *networkingv1.Ingress, retryNum ...int) error {
 
 	if ingObj == nil {
 		ingObj = oldIng
@@ -278,13 +278,13 @@ func getAnnotationsPayload(vsAnnotations map[string]string, existingAnnotations 
 	return patchPayloadBytes, nil
 }
 
-func patchIngressAnnotations(ingObj *networkingv1beta1.Ingress, vsAnnotations map[string]string, mClient kubernetes.Interface) error {
+func patchIngressAnnotations(ingObj *networkingv1.Ingress, vsAnnotations map[string]string, mClient kubernetes.Interface) error {
 	annotations := ingObj.GetAnnotations()
 	patchPayloadBytes, err := getAnnotationsPayload(vsAnnotations, annotations)
 	if err != nil {
 		return fmt.Errorf("error in generating payload for vs annotations %v: %v", vsAnnotations, err)
 	}
-	if _, err = mClient.NetworkingV1beta1().Ingresses(ingObj.Namespace).Patch(context.TODO(), ingObj.Name, types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{}); err != nil {
+	if _, err = mClient.NetworkingV1().Ingresses(ingObj.Namespace).Patch(context.TODO(), ingObj.Name, types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -331,7 +331,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	}
 
 	mClient := utils.GetInformers().ClientSet
-	mIngress, err := mClient.NetworkingV1beta1().Ingresses(svc_mdata_obj.Namespace).Get(context.TODO(), svc_mdata_obj.IngressName, metav1.GetOptions{})
+	mIngress, err := mClient.NetworkingV1().Ingresses(svc_mdata_obj.Namespace).Get(context.TODO(), svc_mdata_obj.IngressName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus: %s", key, err)
 		return err
@@ -358,7 +358,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 
 	sameStatus := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
 
-	var updatedIng *networkingv1beta1.Ingress
+	var updatedIng *networkingv1.Ingress
 	if !sameStatus {
 		patchPayload, _ := json.Marshal(map[string]interface{}{
 			"status": mIngress.Status,
@@ -368,7 +368,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 				"status": nil,
 			})
 		}
-		updatedIng, err = mClient.NetworkingV1beta1().Ingresses(svc_mdata_obj.Namespace).Patch(context.TODO(), mIngress.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+		updatedIng, err = mClient.NetworkingV1().Ingresses(svc_mdata_obj.Namespace).Patch(context.TODO(), mIngress.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
 			return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
@@ -389,8 +389,8 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	return nil
 }
 
-func deleteIngressAnnotation(ingObj *networkingv1beta1.Ingress, svcMeta avicache.ServiceMetadataObj, isVSDelete bool,
-	key string, mClient kubernetes.Interface, oldIng *networkingv1beta1.Ingress,
+func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta avicache.ServiceMetadataObj, isVSDelete bool,
+	key string, mClient kubernetes.Interface, oldIng *networkingv1.Ingress,
 	ingHostList []string, retryNum ...int) error {
 	if ingObj == nil {
 		ingObj = oldIng
@@ -462,10 +462,10 @@ func compareLBStatus(oldStatus, newStatus *corev1.LoadBalancerStatus) bool {
 
 // getIngresses fetches all ingresses and returns a map: {"namespace/name": ingressObj...}
 // if bulk is set to true, this fetches all ingresses in a single k8s api-server call
-func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[string]*networkingv1beta1.Ingress {
+func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[string]*networkingv1.Ingress {
 	retry := 0
 	mClient := utils.GetInformers().ClientSet
-	ingressMap := make(map[string]*networkingv1beta1.Ingress)
+	ingressMap := make(map[string]*networkingv1.Ingress)
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("Retrying to get the ingress for status update")
 		retry = retryNum[0]
@@ -480,7 +480,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		// to return all AKO ingestable Ingresses.
 		aviIngClasses := make(map[string]bool)
 		if utils.GetIngressClassEnabled() {
-			ingClassList, err := mClient.NetworkingV1beta1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
+			ingClassList, err := mClient.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				utils.AviLog.Warnf("Could not get the IngressClass object for UpdateStatus: %s", err)
 				// retry get if request timeout
@@ -501,7 +501,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 			}
 		}
 
-		ingressList, err := mClient.NetworkingV1beta1().Ingresses(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		ingressList, err := mClient.NetworkingV1().Ingresses(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %v", err)
 			// retry get if request timeout
@@ -539,7 +539,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 	for _, namespaceName := range ingressNSNames {
 		nsNameSplit := strings.Split(namespaceName, "/")
 
-		mIngress, err := mClient.NetworkingV1beta1().Ingresses(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
+		mIngress, err := mClient.NetworkingV1().Ingresses(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %v", err)
 			// retry get if request timeout
