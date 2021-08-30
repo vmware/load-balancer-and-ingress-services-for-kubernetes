@@ -16,10 +16,6 @@ spec:
       labels:
         {{- include "ako.selectorLabels" . | nindent 8 }}
     spec:
-    {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
       serviceAccountName: ako-sa
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
