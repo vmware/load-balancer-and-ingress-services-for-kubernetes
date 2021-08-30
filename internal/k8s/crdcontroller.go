@@ -21,6 +21,11 @@ import (
 	"regexp"
 	"time"
 
+	istiov1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
+
+	istiocrd "istio.io/client-go/pkg/clientset/versioned"
+	istioinformers "istio.io/client-go/pkg/informers/externalversions"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -46,6 +51,21 @@ func NewCRDInformers(cs akocrd.Interface) {
 		HostRuleInformer:        hostRuleInformer,
 		HTTPRuleInformer:        httpRuleInformer,
 		AviInfraSettingInformer: aviSettingsInformer,
+	})
+}
+
+func NewIstioCRDInformers(cs istiocrd.Interface) {
+	var istioInformerFactory istioinformers.SharedInformerFactory
+
+	istioInformerFactory = istioinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+	vsInformer := istioInformerFactory.Networking().V1alpha3().VirtualServices()
+	drInformer := istioInformerFactory.Networking().V1alpha3().DestinationRules()
+	gatewayInformer := istioInformerFactory.Networking().V1alpha3().Gateways()
+
+	lib.SetIstioCRDInformers(&lib.IstioCRDInformers{
+		VirtualServiceInformer:  vsInformer,
+		DestinationRuleInformer: drInformer,
+		GatewayInformer:         gatewayInformer,
 	})
 }
 
@@ -281,6 +301,173 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			},
 		)
 	}
+
+	return
+}
+
+// SetupIstioCRDEventHandlers handles setting up of Istio CRD event handlers
+func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
+	utils.AviLog.Infof("Setting up AKO Istio CRD Event handlers")
+	informer := lib.GetIstioCRDInformers()
+
+	virtualServiceEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			vs := obj.(*istiov1alpha3.VirtualService)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
+			key := lib.IstioVirtualService + "/" + utils.ObjKey(vs)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldObj := old.(*istiov1alpha3.VirtualService)
+			vs := new.(*istiov1alpha3.VirtualService)
+			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
+				key := lib.IstioVirtualService + "/" + utils.ObjKey(vs)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			vs, ok := obj.(*istiov1alpha3.VirtualService)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				vs, ok = tombstone.Obj.(*istiov1alpha3.VirtualService)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an vs: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
+			key := lib.IstioVirtualService + "/" + utils.ObjKey(vs)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+
+	informer.VirtualServiceInformer.Informer().AddEventHandler(virtualServiceEventHandler)
+
+	drEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			dr := obj.(*istiov1alpha3.DestinationRule)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(dr))
+			key := lib.IstioDestinationRule + "/" + utils.ObjKey(dr)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldObj := old.(*istiov1alpha3.DestinationRule)
+			dr := new.(*istiov1alpha3.DestinationRule)
+			if !reflect.DeepEqual(oldObj.Spec, dr.Spec) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(dr))
+				key := lib.IstioDestinationRule + "/" + utils.ObjKey(dr)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			dr, ok := obj.(*istiov1alpha3.DestinationRule)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				dr, ok = tombstone.Obj.(*istiov1alpha3.DestinationRule)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an vs: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(dr))
+			key := lib.IstioDestinationRule + "/" + utils.ObjKey(dr)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+
+	informer.DestinationRuleInformer.Informer().AddEventHandler(drEventHandler)
+
+	gatewayEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			vs := obj.(*istiov1alpha3.Gateway)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
+			key := lib.IstioGateway + "/" + utils.ObjKey(vs)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldObj := old.(*istiov1alpha3.Gateway)
+			vs := new.(*istiov1alpha3.Gateway)
+			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
+				key := lib.IstioGateway + "/" + utils.ObjKey(vs)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			vs, ok := obj.(*istiov1alpha3.Gateway)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				vs, ok = tombstone.Obj.(*istiov1alpha3.Gateway)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an vs: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
+			key := lib.IstioGateway + "/" + utils.ObjKey(vs)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+
+	informer.GatewayInformer.Informer().AddEventHandler(gatewayEventHandler)
 
 	return
 }

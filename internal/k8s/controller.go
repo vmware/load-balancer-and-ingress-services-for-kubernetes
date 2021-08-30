@@ -1005,6 +1005,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings
 	c.SetupAKOCRDEventHandlers(numWorkers)
 
+	if lib.IsIstioEnabled() {
+		c.SetupIstioCRDEventHandlers(numWorkers)
+	}
+
 	//Add namespace event handler if migration is enabled and informer not nil
 	nsFilterObj := utils.GetGlobalNSFilter()
 	if nsFilterObj.EnableMigration && c.informers.NSInformer != nil {
@@ -1112,6 +1116,14 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		if lib.GetHttpRuleEnabled() {
 			go lib.GetCRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.GetCRDInformers().HTTPRuleInformer.Informer().HasSynced)
+		}
+		if lib.IsIstioEnabled() {
+			go lib.GetIstioCRDInformers().VirtualServiceInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.GetIstioCRDInformers().VirtualServiceInformer.Informer().HasSynced)
+			go lib.GetIstioCRDInformers().DestinationRuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.GetIstioCRDInformers().DestinationRuleInformer.Informer().HasSynced)
+			go lib.GetIstioCRDInformers().GatewayInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.GetIstioCRDInformers().GatewayInformer.Informer().HasSynced)
 		}
 	}
 

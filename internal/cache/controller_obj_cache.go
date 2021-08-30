@@ -2981,7 +2981,6 @@ func checkPublicCloud(client *clients.AviClient) bool {
 }
 
 func checkNodeNetwork(client *clients.AviClient) bool {
-
 	// Not applicable for NodePort mode and non vcenter clouds
 	if lib.IsNodePortMode() || lib.GetCloudType() != lib.CLOUD_VCENTER {
 		utils.AviLog.Infof("Skipping the check for Node Network ")
@@ -2994,7 +2993,6 @@ func checkNodeNetwork(client *clients.AviClient) bool {
 		utils.AviLog.Errorf("Fetching node network list failed with error: %s, syncing will be disabled.", err.Error())
 		return false
 	}
-
 	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 
 		uri := "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
@@ -3029,7 +3027,6 @@ func checkNodeNetwork(client *clients.AviClient) bool {
 			}
 		}
 	}
-
 	return true
 }
 

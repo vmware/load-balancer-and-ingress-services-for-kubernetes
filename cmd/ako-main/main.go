@@ -29,6 +29,8 @@ import (
 
 	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
 
+	istiocrd "istio.io/client-go/pkg/clientset/versioned"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -83,6 +85,7 @@ func InitializeAKC() {
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
+	var istioClient *istiocrd.Clientset
 	if lib.GetAdvancedL4() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
@@ -102,8 +105,15 @@ func InitializeAKC() {
 			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 		}
 		lib.SetCRDClientset(crdClient)
+		// Handle Istio code.
+		if lib.IsIstioEnabled() {
+			istioClient, err = istiocrd.NewForConfig(cfg)
+			if err != nil {
+				utils.AviLog.Fatalf("Error building Istio CRD clientset: %s", err.Error())
+			}
+			lib.SetIstioClientset(istioClient)
+		}
 	}
-
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
 	if err != nil {
 		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
@@ -153,7 +163,10 @@ func InitializeAKC() {
 			k8s.NewSvcApiInformers(svcAPIClient)
 		}
 	}
-
+	// Set Istio Informers
+	if lib.IsIstioEnabled() {
+		k8s.NewIstioCRDInformers(istioClient)
+	}
 	err = k8s.PopulateControllerProperties(kubeClient)
 	if err != nil {
 		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)

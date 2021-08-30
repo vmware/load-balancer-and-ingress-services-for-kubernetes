@@ -1425,7 +1425,7 @@ func (ingclass FakeIngressClass) IngressClass() *networking.IngressClass {
 
 	if ingclass.AviInfraSetting != "" {
 		akoGroup := lib.AkoGroup
-		ingressclass.Spec.Parameters = &corev1.TypedLocalObjectReference{
+		ingressclass.Spec.Parameters = &networking.IngressClassParametersReference{
 			APIGroup: &akoGroup,
 			Kind:     lib.AviInfraSetting,
 			Name:     ingclass.AviInfraSetting,

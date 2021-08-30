@@ -57,7 +57,7 @@ type EventLog struct {
 
 	// Number of report_timestamp.
 	// Required: true
-	ReportTimestamp *string `json:"report_timestamp"`
+	ReportTimestamp *int64 `json:"report_timestamp"`
 
 	// tenant of EventLog.
 	Tenant *string `json:"tenant,omitempty"`
