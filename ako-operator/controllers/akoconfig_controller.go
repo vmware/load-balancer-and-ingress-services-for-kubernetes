@@ -55,13 +55,6 @@ var objectList map[types.NamespacedName]client.Object
 
 var objListOnce sync.Once
 
-// func getObjectList() map[types.NamespacedName]runtime.Object {
-// 	objListOnce.Do(func() {
-// 		objectList = make(map[types.NamespacedName]runtime.Object)
-// 	})
-// 	return objectList
-// }
-
 func getObjectList() map[types.NamespacedName]client.Object {
 	objListOnce.Do(func() {
 		objectList = make(map[types.NamespacedName]client.Object)
@@ -98,7 +91,6 @@ func removeFinalizer(finalizers []string, key string) (result []string) {
 // +kubebuilder:rbac:groups="policy",resources=podsecuritypolicies,verbs=get;list;watch;create;update;patch;delete
 
 func (r *AKOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	// ctx := context.Background()
 	log := r.Log.WithValues("ako-operator", req.NamespacedName)
 
 	var ako akov1alpha1.AKOConfig

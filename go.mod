@@ -5,7 +5,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-logr/logr v0.4.0
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/gorilla/mux v1.8.0

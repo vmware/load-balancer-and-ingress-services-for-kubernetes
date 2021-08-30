@@ -23,6 +23,9 @@ import (
 
 	istiov1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
 
+	istiocrd "istio.io/client-go/pkg/clientset/versioned"
+	istioinformers "istio.io/client-go/pkg/informers/externalversions"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -48,6 +51,21 @@ func NewCRDInformers(cs akocrd.Interface) {
 		HostRuleInformer:        hostRuleInformer,
 		HTTPRuleInformer:        httpRuleInformer,
 		AviInfraSettingInformer: aviSettingsInformer,
+	})
+}
+
+func NewIstioCRDInformers(cs istiocrd.Interface) {
+	var istioInformerFactory istioinformers.SharedInformerFactory
+
+	istioInformerFactory = istioinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+	vsInformer := istioInformerFactory.Networking().V1alpha3().VirtualServices()
+	drInformer := istioInformerFactory.Networking().V1alpha3().DestinationRules()
+	gatewayInformer := istioInformerFactory.Networking().V1alpha3().Gateways()
+
+	lib.SetIstioCRDInformers(&lib.IstioCRDInformers{
+		VirtualServiceInformer:  vsInformer,
+		DestinationRuleInformer: drInformer,
+		GatewayInformer:         gatewayInformer,
 	})
 }
 
@@ -287,7 +305,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	return
 }
 
-// SetupAKOCRDEventHandlers handles setting up of AKO CRD event handlers
+// SetupIstioCRDEventHandlers handles setting up of Istio CRD event handlers
 func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up AKO Istio CRD Event handlers")
 	informer := lib.GetIstioCRDInformers()

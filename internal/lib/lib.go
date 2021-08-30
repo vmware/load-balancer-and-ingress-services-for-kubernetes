@@ -488,7 +488,6 @@ func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 		// do not return error in case of advancedL4 (wcp)
 		return vipNetworkList, nil
 	}
-
 	vipNetworkListStr := os.Getenv(VIP_NETWORK_LIST)
 	if vipNetworkListStr == "" || vipNetworkListStr == "null" {
 		return vipNetworkList, fmt.Errorf("vipNetworkList not set in values.yaml")
@@ -496,6 +495,7 @@ func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 
 	err := json.Unmarshal([]byte(vipNetworkListStr), &vipNetworkList)
 	if err != nil {
+		utils.AviLog.Warnf("Unable to unmarshall json for vipNetworkList :%v", err)
 		return vipNetworkList, fmt.Errorf("unable to unmarshall json for vipNetworkList")
 	}
 
@@ -503,7 +503,6 @@ func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 	if GetCloudType() != CLOUD_AWS && len(vipNetworkList) > 1 {
 		return nil, fmt.Errorf("more than one network specified in VIP Network List and Cloud type is not AWS")
 	}
-
 	return vipNetworkList, nil
 }
 

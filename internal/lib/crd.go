@@ -21,6 +21,8 @@ import (
 
 	istioInformer "istio.io/client-go/pkg/informers/externalversions/networking/v1alpha3"
 
+	istiocrd "istio.io/client-go/pkg/clientset/versioned"
+
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -81,6 +83,16 @@ func SetCRDClientset(cs akocrd.Interface) {
 
 func GetCRDClientset() akocrd.Interface {
 	return CRDClientset
+}
+
+var IstioClientset istiocrd.Interface
+
+func SetIstioClientset(cs istiocrd.Interface) {
+	IstioClientset = cs
+}
+
+func GetIstioClientset() istiocrd.Interface {
+	return IstioClientset
 }
 
 var CRDInformers *AKOCrdInformers

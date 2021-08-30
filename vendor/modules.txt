@@ -277,9 +277,19 @@ istio.io/client-go/pkg/clientset/versioned/typed/networking/v1alpha3
 istio.io/client-go/pkg/clientset/versioned/typed/networking/v1beta1
 istio.io/client-go/pkg/clientset/versioned/typed/security/v1beta1
 istio.io/client-go/pkg/clientset/versioned/typed/telemetry/v1alpha1
+istio.io/client-go/pkg/informers/externalversions
 istio.io/client-go/pkg/informers/externalversions/internalinterfaces
+istio.io/client-go/pkg/informers/externalversions/networking
 istio.io/client-go/pkg/informers/externalversions/networking/v1alpha3
+istio.io/client-go/pkg/informers/externalversions/networking/v1beta1
+istio.io/client-go/pkg/informers/externalversions/security
+istio.io/client-go/pkg/informers/externalversions/security/v1beta1
+istio.io/client-go/pkg/informers/externalversions/telemetry
+istio.io/client-go/pkg/informers/externalversions/telemetry/v1alpha1
 istio.io/client-go/pkg/listers/networking/v1alpha3
+istio.io/client-go/pkg/listers/networking/v1beta1
+istio.io/client-go/pkg/listers/security/v1beta1
+istio.io/client-go/pkg/listers/telemetry/v1alpha1
 # istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f
 istio.io/gogo-genproto/googleapis/google/api
 # k8s.io/api v0.21.3
