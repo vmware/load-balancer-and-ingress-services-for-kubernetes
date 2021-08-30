@@ -88,7 +88,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		}
 
 		if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
-			vips := networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
+			vips := networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP, vsvip.Vip)
 			vsvip.Vip = []*avimodels.Vip{}
 			vsvip.Vip = append(vsvip.Vip, vips...)
 		} else {
@@ -142,7 +142,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		// selecting network with user input, in case user input is not provided AKO relies on
 		// usable network configuration in ipamdnsproviderprofile
 		if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
-			vips = networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
+			vips = networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP, vips)
 		} else {
 			// Set the IPAM network subnet for all clouds except AWS and Azure
 			if len(vsvip_meta.VipNetworks) != 0 {
@@ -522,7 +522,7 @@ func (rest *RestOperations) AviVsVipCacheDel(rest_op *utils.RestOp, vsKey avicac
 	return nil
 }
 
-func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, enablePublicIP *bool) []*avimodels.Vip {
+func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, enablePublicIP *bool, vips []*avimodels.Vip) []*avimodels.Vip {
 	var vipList []*avimodels.Vip
 	autoAllocate := true
 	for vipIDInt, vipNetwork := range vipNetworks {
@@ -533,7 +533,28 @@ func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, ena
 			AutoAllocateFloatingIP: enablePublicIP,
 		}
 		newVip.SubnetUUID = proto.String(vipNetwork.NetworkName)
+		if lib.GetCloudType() == lib.CLOUD_AWS {
+			ipType := "V4"
+			addr, mask, networkRef, portUUID := getSubnetFromUUID(vips, vipNetwork.NetworkName)
+			if addr != "" {
+				newVip.Subnet = &avimodels.IPAddrPrefix{
+					IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &addr},
+					Mask:   proto.Int32(mask),
+				}
+				newVip.NetworkRef = &networkRef
+				newVip.PortUUID = &portUUID
+			}
+		}
 		vipList = append(vipList, newVip)
 	}
 	return vipList
+}
+
+func getSubnetFromUUID(vips []*avimodels.Vip, subnetUUID string) (string, int32, string, string) {
+	for _, vip := range vips {
+		if *vip.SubnetUUID == subnetUUID {
+			return *vip.Subnet.IPAddr.Addr, *vip.Subnet.Mask, *vip.NetworkRef, *vip.PortUUID
+		}
+	}
+	return "", 0, "", ""
 }
