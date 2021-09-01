@@ -2556,6 +2556,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 
 	// 3. Default-SEGroup
 	if seGroupToUse == "" {
+		utils.AviLog.Infof("Setting %s for VS placement.", lib.DEFAULT_SE_GROUP)
 		seGroupToUse = lib.DEFAULT_SE_GROUP
 	}
 	lib.SetSEGName(seGroupToUse)
@@ -2662,6 +2663,7 @@ func fetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 		}
 	}
 
+	utils.AviLog.Infof("No Marker configured Service Engine Group found.")
 	return nil, ""
 }
 
@@ -2877,7 +2879,8 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		// Using clusterID for advl4.
 		ipam := models.IPAMDNSProviderProfile{}
 		ipamRef := strings.SplitAfter(*ipamRefUri, "/api/")
-		if err := lib.AviGet(client, "/api/"+ipamRef[1], &ipam); err != nil {
+		ipamRefWithoutName := strings.Split(ipamRef[1], "#")[0]
+		if err := lib.AviGet(client, "/api/"+ipamRefWithoutName+"/?include_name", &ipam); err != nil {
 			utils.AviLog.Errorf("Get uri %v returned err %v", ipamRef, err)
 			return false
 		}
@@ -2966,6 +2969,7 @@ func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []s
 		}
 	}
 
+	utils.AviLog.Infof("No Marker configured usable networks found.")
 	return nil, ""
 }
 
