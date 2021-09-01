@@ -49,6 +49,8 @@ var isVCF = flag.String("isVCF", "false", "is vcf enabled")
 func setVCF(isvcf string) {
 	if isvcf == "true" {
 		os.Setenv("VCF_CLUSTER", "true")
+		// We can't create a CR using fake client, hence setting this manually for tests.
+		lib.SetBootstrapCRFound(true)
 	}
 }
 

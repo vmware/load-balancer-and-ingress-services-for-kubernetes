@@ -47,12 +47,18 @@ var (
 		Version:  "v1",
 		Resource: "hostsubnets",
 	}
+
+	BootstrapGVR = schema.GroupVersionResource{
+		Group:    "ncp.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "akobootstrapconditions",
+	}
 )
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
+	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && !IsVCFCluster() {
 		return nil, nil
 	}
 
@@ -80,6 +86,7 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
+	NCPBootstrapInformer        informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -96,6 +103,10 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 		utils.AviLog.Infof("Skipped initializing dynamic informers %s \n", GetCNIPlugin())
 	}
 
+	if IsVCFCluster() {
+		informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
+	}
+
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
 }
@@ -107,6 +118,34 @@ func GetDynamicInformers() *DynamicInformers {
 		return nil
 	}
 	return dynamicInformerInstance
+}
+
+var bootstrapCRFound bool
+
+func BootstrapCRPresent() bool {
+	if bootstrapCRFound {
+		return true
+	}
+	dynamicClient := GetDynamicClientSet()
+
+	crdClient := dynamicClient.Resource(BootstrapGVR)
+	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting CRD %v", err)
+		return false
+	}
+
+	if len(crdList.Items) > 1 {
+		utils.AviLog.Errorf("Expected ony one object for NCP bootstrap but found: %d", len(crdList.Items))
+		return false
+	}
+
+	SetBootstrapCRFound(true)
+	return true
+}
+
+func SetBootstrapCRFound(found bool) {
+	bootstrapCRFound = found
 }
 
 // GetPodCIDR returns the node's configured PodCIDR
