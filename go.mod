@@ -5,20 +5,17 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-logr/logr v0.4.0
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/uuid v1.1.2 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/onsi/gomega v1.14.0
 	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 	github.com/vmware/alb-sdk v0.0.0-20210721142023-8e96475b833b
-	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.18.1
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect
-	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	istio.io/client-go v1.10.0
