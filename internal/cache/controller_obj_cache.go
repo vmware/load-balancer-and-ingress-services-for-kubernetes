@@ -2913,6 +2913,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		return true
 	}
 
+	utils.AviLog.Warnf("No user input detected for vipNetworkList.")
 	return false
 }
 
