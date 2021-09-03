@@ -120,32 +120,38 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-var bootstrapCRFound bool
-
-func BootstrapCRPresent() bool {
-	if bootstrapCRFound {
-		return true
-	}
+func GetBootstrapCRData() (string, string, string) {
 	dynamicClient := GetDynamicClientSet()
-
 	crdClient := dynamicClient.Resource(BootstrapGVR)
 	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting CRD %v", err)
-		return false
+		return "", "", ""
 	}
 
-	if len(crdList.Items) > 1 {
+	if len(crdList.Items) != 1 {
 		utils.AviLog.Errorf("Expected ony one object for NCP bootstrap but found: %d", len(crdList.Items))
-		return false
+		return "", "", ""
 	}
 
-	SetBootstrapCRFound(true)
-	return true
-}
+	obj := crdList.Items[0]
+	spec := obj.Object["spec"].(map[string]interface{})
+	secretref := spec["albCredentialSecretRef"].(map[string]interface{})
+	albtoken := spec["albTokenProperty"].(map[string]interface{})
 
-func SetBootstrapCRFound(found bool) {
-	bootstrapCRFound = found
+	secretName, ok := secretref["name"].(string)
+	if !ok {
+		utils.AviLog.Errorf("secretName is not of type string")
+	}
+	secretNamespace, ok := secretref["namespace"].(string)
+	if !ok {
+		utils.AviLog.Errorf("secretNamespace is not of type string")
+	}
+	userName, ok := albtoken["userName"].(string)
+	if !ok {
+		utils.AviLog.Errorf("userName is not of type string")
+	}
+	return secretName, secretNamespace, userName
 }
 
 // GetPodCIDR returns the node's configured PodCIDR

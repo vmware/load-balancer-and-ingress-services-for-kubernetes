@@ -211,31 +211,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	return nil
 }
 
-func (c *AviController) addNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	cs := k8sinfo.Cs
-	utils.AviLog.Debugf("Creating event broadcaster for NCP Bootstrap CRD")
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(utils.AviLog.Debugf)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
-	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("NCP Bootstrap ADD Event")
-			if c.DisableSync {
-				return
-			}
-			startSyncCh <- struct{}{}
-		},
-	}
-	c.dynamicInformers.NCPBootstrapInformer.Informer().AddEventHandler(NCPBootstrapHandler)
-
-	go c.dynamicInformers.NCPBootstrapInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.informers.ConfigMapInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-	} else {
-		utils.AviLog.Info("Caches synced for NCP Bootstrap informer")
-	}
-}
-
 func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
 	// set up signals so we handle the first shutdown signal gracefully
 	var worker *utils.FullSyncThread
@@ -291,27 +266,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
-	}
-
-	if lib.IsVCFCluster() {
-		if !lib.BootstrapCRPresent() {
-			utils.AviLog.Infof("Running in a VCF Cluster, but Bootstrap CR not found, waiting .. ")
-			startSyncCh := make(chan struct{})
-			c.addNCPBootstrapEventHandler(informers, stopCh, startSyncCh)
-		L:
-			for {
-				select {
-				case <-startSyncCh:
-					break L
-				case <-ctrlCh:
-					if worker != nil {
-						worker.Shutdown()
-					}
-					return
-				}
-			}
-		}
-		utils.AviLog.Infof("NCP Bootstrap CR found, continuing AKO initialization")
 	}
 
 	// Setup and start event handlers for objects.
