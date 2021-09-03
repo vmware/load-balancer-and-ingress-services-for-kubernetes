@@ -86,7 +86,7 @@ func TestL7ModelForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestL7ModelForEvh(t *testing.T) {
 	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 	g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -136,13 +136,13 @@ func TestShardObjectsForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
 
-	verifyIng, _ := KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+	verifyIng, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 	for i, host := range []string{"foo.com", "noo.com"} {
 		if verifyIng.Spec.Rules[i].Host == host {
 			g.Expect(verifyIng.Spec.Rules[i].Host).To(gomega.Equal(host))
@@ -183,7 +183,7 @@ func TestShardObjectsForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_foo_bar-foo-with-targets", lib.HTTPPS)))
 	g.Expect(nodes[0].EvhNodes[1].HttpPolicyRefs[1].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.HTTPPS)))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -210,7 +210,7 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 		Paths:     []string{"/"},
 	}).IngressOnlyHostNoBackend()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -221,7 +221,7 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -267,7 +267,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	}
 	//====== VERIFICATION OF ONE INGRESS DELETE
 	// Now let's delete one ingress and expect the update for that.
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets1", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -392,7 +392,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets2", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets2", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -414,7 +414,7 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
 
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -457,7 +457,7 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multipath", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multipath", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -482,7 +482,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress(true)
 
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -522,7 +522,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multipath", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multipath", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -546,7 +546,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -559,7 +559,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -599,7 +599,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -610,7 +610,7 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 	g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -633,7 +633,7 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -646,7 +646,7 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -683,7 +683,7 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -693,7 +693,7 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal(lib.Encode("cluster--default-foo.com_bar-ingress-multi2-avisvc", lib.Pool)))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -713,7 +713,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 		Paths:       []string{"/foo"},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -754,7 +754,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-backend-svc", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-backend-svc", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -784,7 +784,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 		},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -866,7 +866,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-chksum", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-chksum", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -892,7 +892,7 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -915,7 +915,7 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multihost", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multihost", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -937,7 +937,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	ingrFake.ResourceVersion = "1"
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -973,7 +973,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -1001,7 +1001,7 @@ func TestEditPathIngressForEvh(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-edit", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-edit", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1024,7 +1024,7 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 	}).Ingress()
 	ingrFake.ResourceVersion = "1"
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1037,7 +1037,7 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1085,7 +1085,7 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 	}).IngressMultiPath()
 	ingrFake.ResourceVersion = "3"
 	objects.SharedAviGraphLister().Delete(modelName)
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1124,7 +1124,7 @@ func TestEditMultiPathIngressForEvh(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multipath-edit", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multipath-edit", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1147,7 +1147,7 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := integrationtest.KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := integrationtest.KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1159,7 +1159,7 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = integrationtest.KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	_, err = integrationtest.KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1171,7 +1171,7 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = integrationtest.KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake2, metav1.UpdateOptions{})
+	_, err = integrationtest.KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake2, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1212,7 +1212,7 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = integrationtest.KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
+	err = integrationtest.KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1221,7 +1221,7 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 
-	err = integrationtest.KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
+	err = integrationtest.KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1243,7 +1243,7 @@ func TestNoHostIngressForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressNoHost()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1269,7 +1269,7 @@ func TestNoHostIngressForEvh(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-nohost", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-nohost", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1290,7 +1290,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressNoHost()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1325,7 +1325,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 	}).Ingress()
 
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in Updating Ingress: %v", err)
 	}
@@ -1372,7 +1372,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-nohost", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-nohost", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1396,7 +1396,7 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1409,7 +1409,7 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1459,7 +1459,7 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 	g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
 	g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[1].Servers)).To(gomega.Equal(2))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multi1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1467,7 +1467,7 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-multi2", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1500,7 +1500,7 @@ func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 			"my-secret": {"foo.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1531,7 +1531,7 @@ func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-no-secret", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-no-secret", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1563,7 +1563,7 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 			"my-secret": {"foo.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1579,7 +1579,7 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 		},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1631,11 +1631,11 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].SSLKeyCertRefs).Should(gomega.HaveLen(0))
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-no-secret1", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-no-secret1", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-no-secret2", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-no-secret2", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1660,7 +1660,7 @@ func TestL7ModelMultiSNIForEvh(t *testing.T) {
 			"my-secret": {"foo.com", "noo.com"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1682,7 +1682,7 @@ func TestL7ModelMultiSNIForEvh(t *testing.T) {
 		t.Fatalf("Could not find Model: %v", err)
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1718,7 +1718,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 		},
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1756,7 +1756,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 		},
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
@@ -1786,7 +1786,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -1818,7 +1818,7 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 			"my-secret": {"foo.org"},
 		},
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1841,7 +1841,7 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 		},
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update the Ingress %v", err)
 	}
@@ -1863,7 +1863,7 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find Model: %v", modelName)
 	}
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}

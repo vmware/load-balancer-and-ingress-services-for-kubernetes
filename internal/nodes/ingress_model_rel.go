@@ -29,7 +29,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
@@ -304,9 +304,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 					status.PublishToStatusQueue(svc, statusOption)
 				}
 			}
-			if utils.GetIngressClassEnabled() {
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
-			}
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 	} else {
 		// simple validator check for duplicate hostpaths, logs Warning if duplicates found
@@ -315,20 +313,18 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 			return ingresses, false
 		}
 
-		if utils.GetIngressClassEnabled() {
-			var ingClassName string
-			if ingObj.Spec.IngressClassName != nil {
-				ingClassName = *ingObj.Spec.IngressClassName
-			} else if aviIngClassName, found := lib.IsAviLBDefaultIngressClass(); found {
-				// check if default IngressClass is present, and it is Avi's IngressClass, in which case add mapping for that.
-				ingClassName = aviIngClassName
-			}
+		var ingClassName string
+		if ingObj.Spec.IngressClassName != nil {
+			ingClassName = *ingObj.Spec.IngressClassName
+		} else if aviIngClassName, found := lib.IsAviLBDefaultIngressClass(); found {
+			// check if default IngressClass is present, and it is Avi's IngressClass, in which case add mapping for that.
+			ingClassName = aviIngClassName
+		}
 
-			if ingClassName != "" {
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, ingClassName)
-			} else {
-				objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
-			}
+		if ingClassName != "" {
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).UpdateIngressClassMappings(namespace+"/"+ingName, ingClassName)
+		} else {
+			objects.SharedSvcLister().IngressMappings(metav1.NamespaceAll).RemoveIngressClassMappings(namespace + "/" + ingName)
 		}
 
 		// If the Ingress Class is not found or is not valid, then return.
@@ -696,11 +692,6 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 	allIngresses := make([]string, 0)
 
-	if !utils.GetIngressClassEnabled() {
-		utils.AviLog.Infof("key: %s, msg: AviInfraSetting cannot be applied to Ingresses when IngressClass is not enabled in the cluster.", key)
-		return allIngresses, false
-	}
-
 	// Get all IngressClasses from AviInfraSetting.
 	ingClasses, err := utils.GetInformers().IngressClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingIngClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
 	if err != nil {
@@ -709,7 +700,7 @@ func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 	}
 
 	for _, ingClass := range ingClasses {
-		if ingClassObj, isIngClass := ingClass.(*networkingv1beta1.IngressClass); isIngClass {
+		if ingClassObj, isIngClass := ingClass.(*networkingv1.IngressClass); isIngClass {
 			if ingresses, found := IngClassToIng(ingClassObj.Name, namespace, key); found {
 				allIngresses = append(allIngresses, ingresses...)
 			}
@@ -791,13 +782,13 @@ func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]s
 	return allSvcs, true
 }
 
-func parseServicesForIngress(ingSpec networkingv1beta1.IngressSpec, key string) []string {
+func parseServicesForIngress(ingSpec networkingv1.IngressSpec, key string) []string {
 	// Figure out the service names that are part of this ingress
 	var services []string
 	for _, rule := range ingSpec.Rules {
 		if rule.IngressRuleValue.HTTP != nil {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
-				services = append(services, path.Backend.ServiceName)
+				services = append(services, path.Backend.Service.Name)
 			}
 		}
 	}
@@ -805,7 +796,7 @@ func parseServicesForIngress(ingSpec networkingv1beta1.IngressSpec, key string) 
 	return services
 }
 
-func parseSecretsForIngress(ingSpec networkingv1beta1.IngressSpec, key string) []string {
+func parseSecretsForIngress(ingSpec networkingv1.IngressSpec, key string) []string {
 	// Figure out the service names that are part of this ingress
 	var secrets []string
 	for _, tlsSettings := range ingSpec.TLS {

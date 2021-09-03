@@ -26,7 +26,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -119,7 +119,7 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 }
 
 // Consider an ingress has been updated only if spec/annotation is updated
-func isIngressUpdated(oldIngress, newIngress *networkingv1beta1.Ingress) bool {
+func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 	if oldIngress.ResourceVersion == newIngress.ResourceVersion {
 		return false
 	}
@@ -792,7 +792,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if c.DisableSync {
 				return
 			}
-			ingress := obj.(*networkingv1beta1.Ingress)
+			ingress := obj.(*networkingv1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 			if !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("Ingress add event: Namespace: %s didn't qualify filter. Not adding ingress", namespace)
@@ -807,7 +807,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if c.DisableSync {
 				return
 			}
-			ingress, ok := obj.(*networkingv1beta1.Ingress)
+			ingress, ok := obj.(*networkingv1.Ingress)
 			if !ok {
 				// ingress was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -815,7 +815,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				ingress, ok = tombstone.Obj.(*networkingv1beta1.Ingress)
+				ingress, ok = tombstone.Obj.(*networkingv1.Ingress)
 				if !ok {
 					utils.AviLog.Errorf("Tombstone contained object that is not an Ingress: %#v", obj)
 					return
@@ -835,8 +835,8 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if c.DisableSync {
 				return
 			}
-			oldobj := old.(*networkingv1beta1.Ingress)
-			ingress := cur.(*networkingv1beta1.Ingress)
+			oldobj := old.(*networkingv1.Ingress)
+			ingress := cur.(*networkingv1.Ingress)
 			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 				if !utils.CheckIfNamespaceAccepted(namespace) {
@@ -911,7 +911,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				if c.DisableSync {
 					return
 				}
-				ingClass := obj.(*networkingv1beta1.IngressClass)
+				ingClass := obj.(*networkingv1.IngressClass)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingClass))
 				key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -922,14 +922,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				if c.DisableSync {
 					return
 				}
-				ingClass, ok := obj.(*networkingv1beta1.IngressClass)
+				ingClass, ok := obj.(*networkingv1.IngressClass)
 				if !ok {
 					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 					if !ok {
 						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 						return
 					}
-					ingClass, ok = tombstone.Obj.(*networkingv1beta1.IngressClass)
+					ingClass, ok = tombstone.Obj.(*networkingv1.IngressClass)
 					if !ok {
 						utils.AviLog.Errorf("Tombstone contained object that is not an IngressClass: %#v", obj)
 						return
@@ -945,8 +945,8 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				if c.DisableSync {
 					return
 				}
-				oldobj := old.(*networkingv1beta1.IngressClass)
-				ingClass := cur.(*networkingv1beta1.IngressClass)
+				oldobj := old.(*networkingv1.IngressClass)
+				ingClass := cur.(*networkingv1.IngressClass)
 				if oldobj.ResourceVersion != ingClass.ResourceVersion {
 					// Only add the key if the resource versions have changed.
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingClass))
@@ -962,7 +962,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.IngressClassInformer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.AviSettingIngClassIndex: func(obj interface{}) ([]string, error) {
-					ingclass, ok := obj.(*networkingv1beta1.IngressClass)
+					ingclass, ok := obj.(*networkingv1.IngressClass)
 					if !ok {
 						return []string{}, nil
 					}

@@ -132,7 +132,7 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 		},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
-	_, err := KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "ingress-shp", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-shp", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}

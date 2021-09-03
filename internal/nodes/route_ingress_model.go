@@ -24,7 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 // RouteIngressModel : High Level interfaces that should be implemenetd by
@@ -60,7 +60,7 @@ type K8sIngressModel struct {
 	key          string
 	name         string
 	namespace    string
-	spec         networkingv1beta1.IngressSpec
+	spec         networkingv1.IngressSpec
 	infrasetting *akov1alpha1.AviInfraSetting
 	annotations  map[string]string
 }
@@ -238,9 +238,7 @@ func (m *K8sIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
 func getL7IngressInfraSetting(key string, ingClassName string) (*akov1alpha1.AviInfraSetting, error) {
 	var infraSetting *akov1alpha1.AviInfraSetting
 
-	if !utils.GetIngressClassEnabled() {
-		return nil, nil
-	} else if ingClassName == "" {
+	if ingClassName == "" {
 		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
 			return nil, nil
 		} else {
