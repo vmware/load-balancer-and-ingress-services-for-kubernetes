@@ -746,7 +746,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
-			if validateAviSecret(secret) {
+			if checkAviSecretUpdateAndShutdown(secret) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 				key := "Secret" + "/" + utils.ObjKey(secret)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -761,7 +761,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			oldobj := old.(*corev1.Secret)
 			secret := cur.(*corev1.Secret)
 			if oldobj.ResourceVersion != secret.ResourceVersion && !reflect.DeepEqual(secret.Data, oldobj.Data) {
-				if validateAviSecret(secret) {
+				if checkAviSecretUpdateAndShutdown(secret) {
 					// Only add the key if the resource versions have changed.
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 					key := "Secret" + "/" + utils.ObjKey(secret)
@@ -1032,8 +1032,11 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 	return nil, false
 }
 
-func validateAviSecret(secret *corev1.Secret) bool {
+func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
 	if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.AviSecret {
+		// if the secret is updated or deleted we shutdown API server
+		utils.AviLog.Warnf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
+		lib.ShutdownApi()
 		return false
 	}
 	return true
