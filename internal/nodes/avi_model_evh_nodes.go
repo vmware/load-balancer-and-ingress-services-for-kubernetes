@@ -363,7 +363,7 @@ func (o *AviEvhVsNode) DeleteCACertRefInEVHNode(cacertNodeName, key string) {
 	for i, cacert := range o.CACertRefs {
 		if cacert.Name == cacertNodeName {
 			o.CACertRefs = append(o.CACertRefs[:i], o.CACertRefs[i+1:]...)
-			utils.AviLog.Infof("key: %s, msg: replaced cacert for evh in model: %s Pool name: %s", key, o.Name, cacert.Name)
+			utils.AviLog.Infof("key: %s, msg: deleted cacert for evh in model: %s Pool name: %s", key, o.Name, cacert.Name)
 			return
 		}
 	}
@@ -443,6 +443,9 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	for _, evhnode := range v.EvhNodes {
 		checksumStringSlice = append(checksumStringSlice, "EVHNode"+evhnode.Name)
+		if evhnode.SSLKeyCertAviRef != "" {
+			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhnode.SSLKeyCertAviRef)
+		}
 	}
 
 	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
@@ -1066,7 +1069,18 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		evhNode.ServiceMetadata.Namespace = namespace
 		evhNode.ServiceMetadata.HostNames = hosts
 		if evhNode.SSLKeyCertAviRef != "" {
-			certsBuilt = true
+			//Logic to check host crd with sslcert field present for given host or not.
+			//This will decide to rebuilt sslkeycert object from tlssetting or not
+			found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
+			if found {
+				hrNSName := strings.Split(hrNamespaceName, "/")
+				hostrule, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
+				if err == nil && hostrule.Status.Status != lib.StatusRejected {
+					if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
+						certsBuilt = true
+					}
+				}
+			}
 		}
 	}
 	evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
@@ -1090,7 +1104,18 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	}
 	if !certsBuilt {
 		certsBuilt = o.BuildTlsCertNodeForEvh(routeIgrObj.GetSvcLister(), vsNode[0], namespace, tlssetting, key, infraSettingName, host)
+	} else {
+		//Delete sslcertref object if host crd sslcertref (sslcertAviRef) is present for given host
+		secretName := tlssetting.SecretName
+		if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
+			// Openshift case
+			vsNode[0].DeleteCACertRefInEVHNode(lib.GetCACertNodeName(infraSettingName, host), key)
+		} else {
+			// K8 case
+			vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+		}
 	}
+
 	if certsBuilt {
 		hosts := []string{host}
 		if paths.gslbHostHeader != "" {
@@ -1634,8 +1659,6 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 }
 
 func manipulateEvhNodeForSSL(key string, vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {
-	vsNode.SetSSLKeyCertAviRef(evhNode.GetSSLKeyCertAviRef())
-	evhNode.SetSSLKeyCertAviRef("")
 	oldSSLProfile := vsNode.GetSSLProfileRef()
 	newSSLProfile := evhNode.GetSSLProfileRef()
 	if oldSSLProfile != "" && oldSSLProfile != newSSLProfile {
