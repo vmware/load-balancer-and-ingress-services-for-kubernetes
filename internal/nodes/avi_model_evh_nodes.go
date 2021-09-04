@@ -1068,20 +1068,6 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
 		evhNode.ServiceMetadata.Namespace = namespace
 		evhNode.ServiceMetadata.HostNames = hosts
-		if evhNode.SSLKeyCertAviRef != "" {
-			//Logic to check host crd with sslcert field present for given host or not.
-			//This will decide to rebuilt sslkeycert object from tlssetting or not
-			found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
-			if found {
-				hrNSName := strings.Split(hrNamespaceName, "/")
-				hostrule, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
-				if err == nil && hostrule.Status.Status != lib.StatusRejected {
-					if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
-						certsBuilt = true
-					}
-				}
-			}
-		}
 	}
 	evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	evhNode.ServiceEngineGroup = lib.GetSEGName()
@@ -1108,12 +1094,11 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		//Delete sslcertref object if host crd sslcertref (sslcertAviRef) is present for given host
 		secretName := tlssetting.SecretName
 		if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
-			// Openshift case
+			//Openshift: Remove CA cert if present
 			vsNode[0].DeleteCACertRefInEVHNode(lib.GetCACertNodeName(infraSettingName, host), key)
-		} else {
-			// K8 case
-			vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
 		}
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+
 	}
 
 	if certsBuilt {
