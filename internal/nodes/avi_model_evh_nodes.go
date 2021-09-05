@@ -651,6 +651,13 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			PortName:   path.PortName,
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
+			Port:       path.Port,
+			TargetPort: path.TargetPort,
+			ServiceMetadata: avicache.ServiceMetadataObj{
+				IngressName: ingName,
+				Namespace:   namespace,
+				PoolRatio:   path.weight,
+			},
 		}
 		if lib.GetT1LRPath() != "" {
 			poolNode.T1Lr = lib.GetT1LRPath()
