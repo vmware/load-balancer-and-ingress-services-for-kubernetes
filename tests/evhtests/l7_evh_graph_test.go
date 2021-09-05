@@ -480,7 +480,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo"},
 		ServiceName: "avisvc",
-	}).Ingress(true)
+	}).IngressMultiPort()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
@@ -494,6 +494,19 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
+
+		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].EvhNodes[0].PoolRefs {
+			if pool.Name == lib.Encode("cluster--default-foo.com_foo-ingress-multipath-avisvc", lib.Pool) {
+				g.Expect(pool.Port).To(gomega.Equal(int32(8080)))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(3))
+			} else if pool.Name == lib.Encode("cluster--default-foo.com_bar-ingress-multipath-avisvc", lib.Pool) {
+				g.Expect(pool.Port).To(gomega.Equal(int32(8081)))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(2))
+			} else {
+				t.Fatalf("unexpected pool: %s", pool.Name)
+			}
+		}
 
 		g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(1))
 		g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal(lib.Encode("cluster--foo.com", lib.EVHVS)))
