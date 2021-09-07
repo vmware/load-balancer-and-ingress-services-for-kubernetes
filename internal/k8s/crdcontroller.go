@@ -96,6 +96,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if err := validateHostRuleObj(key, hostrule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
 				}
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == hostrule.ResourceVersion {
+					utils.AviLog.Debugf("Same resource version returning")
+					return
+				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -156,6 +161,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 				if err := validateHTTPRuleObj(key, httprule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+				}
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == httprule.ResourceVersion {
+					utils.AviLog.Debugf("Same resource version returning")
+					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -220,6 +230,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
 				if err := validateAviInfraSetting(key, aviinfra); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+				}
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == aviinfra.ResourceVersion {
+					utils.AviLog.Debugf("Same resource version returning")
+					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)

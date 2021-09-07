@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -341,6 +342,11 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				return
 			}
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
+			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+			if ok && resVer.(string) == route.ResourceVersion {
+				utils.AviLog.Debugf("Same resource version returning")
+				return
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			if !lib.HasValidBackends(route.Spec, route.Name, namespace, key) {
 				status.UpdateRouteStatusWithErrMsg(key, route.Name, namespace, lib.DuplicateBackends)
@@ -409,6 +415,11 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			pod := obj.(*corev1.Pod)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
 			key := utils.Pod + "/" + utils.ObjKey(pod)
+			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+			if ok && resVer.(string) == pod.ResourceVersion {
+				utils.AviLog.Debugf("Same resource version returning")
+				return
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD\n", key)
@@ -543,6 +554,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
+			}
+			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+			if ok && resVer.(string) == svc.ResourceVersion {
+				utils.AviLog.Debugf("Same resource version returning")
+				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -799,6 +815,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				return
 			}
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
+			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+			if ok && resVer.(string) == ingress.ResourceVersion {
+				utils.AviLog.Debugf("Same resource version returning")
+				return
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -859,6 +880,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			node := obj.(*corev1.Node)
 			key := utils.NodeObj + "/" + node.Name
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+			if ok && resVer.(string) == node.ResourceVersion {
+				utils.AviLog.Debugf("Same resource version returning")
+				return
+			}
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
@@ -914,6 +940,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				ingClass := obj.(*networkingv1beta1.IngressClass)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingClass))
 				key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == ingClass.ResourceVersion {
+					utils.AviLog.Debugf("Same resource version returning")
+					return
+				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
