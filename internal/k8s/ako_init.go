@@ -32,6 +32,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -269,9 +271,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	}
 
 	// Setup and start event handlers for objects.
-	c.SetupEventHandlers(informers)
 	c.Start(stopCh)
-
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
@@ -312,7 +312,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 			go tokenWorker.Run()
 		}
 	}
-
+	c.SetupEventHandlers(informers)
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer
 	ingestionQueue.Run(stopCh, ingestionwg)
@@ -448,6 +448,11 @@ func (c *AviController) FullSyncK8s() error {
 			}
 			key = utils.Service + "/" + utils.ObjKey(svcObj)
 		}
+		meta, err := meta.Accessor(svcObj)
+		if err == nil {
+			resVer := meta.GetResourceVersion()
+			objects.SharedResourceVerInstanceLister().Save(key, resVer)
+		}
 		nodes.DequeueIngestion(key, true)
 	}
 
@@ -459,6 +464,11 @@ func (c *AviController) FullSyncK8s() error {
 		}
 		for _, podObj := range podObjs {
 			key := utils.Pod + "/" + utils.ObjKey(podObj)
+			meta, err := meta.Accessor(podObj)
+			if err == nil {
+				resVer := meta.GetResourceVersion()
+				objects.SharedResourceVerInstanceLister().Save(key, resVer)
+			}
 			nodes.DequeueIngestion(key, true)
 		}
 	}
@@ -472,6 +482,11 @@ func (c *AviController) FullSyncK8s() error {
 		} else {
 			for _, vsObj := range virtualServiceObjs {
 				key := lib.IstioVirtualService + "/" + utils.ObjKey(vsObj)
+				meta, err := meta.Accessor(vsObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -481,6 +496,11 @@ func (c *AviController) FullSyncK8s() error {
 		} else {
 			for _, drObj := range destinationRuleObjs {
 				key := lib.IstioDestinationRule + "/" + utils.ObjKey(drObj)
+				meta, err := meta.Accessor(drObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -490,6 +510,11 @@ func (c *AviController) FullSyncK8s() error {
 		} else {
 			for _, gwObj := range gatewayObjs {
 				key := lib.IstioGateway + "/" + utils.ObjKey(gwObj)
+				meta, err := meta.Accessor(gwObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -502,6 +527,11 @@ func (c *AviController) FullSyncK8s() error {
 		} else {
 			for _, hostRuleObj := range hostRuleObjs {
 				key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
+				meta, err := meta.Accessor(hostRuleObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -512,6 +542,11 @@ func (c *AviController) FullSyncK8s() error {
 		} else {
 			for _, httpRuleObj := range httpRuleObjs {
 				key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
+				meta, err := meta.Accessor(httpRuleObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -522,6 +557,11 @@ func (c *AviController) FullSyncK8s() error {
 		} else {
 			for _, aviInfraObj := range aviInfraObjs {
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfraObj)
+				meta, err := meta.Accessor(aviInfraObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -537,6 +577,11 @@ func (c *AviController) FullSyncK8s() error {
 					ns := strings.Split(ingLabel, "/")
 					if utils.CheckIfNamespaceAccepted(ns[0]) {
 						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+						meta, err := meta.Accessor(ingObj)
+						if err == nil {
+							resVer := meta.GetResourceVersion()
+							objects.SharedResourceVerInstanceLister().Save(key, resVer)
+						}
 						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
 						nodes.DequeueIngestion(key, true)
 					}
@@ -556,6 +601,11 @@ func (c *AviController) FullSyncK8s() error {
 					ns := strings.Split(routeLabel, "/")
 					if utils.CheckIfNamespaceAccepted(ns[0]) {
 						key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
+						meta, err := meta.Accessor(routeObj)
+						if err == nil {
+							resVer := meta.GetResourceVersion()
+							objects.SharedResourceVerInstanceLister().Save(key, resVer)
+						}
 						utils.AviLog.Debugf("Dequeue for route key: %v", key)
 						nodes.DequeueIngestion(key, true)
 					}
@@ -573,6 +623,11 @@ func (c *AviController) FullSyncK8s() error {
 				ns := strings.Split(gatewayLabel, "/")
 				if utils.CheckIfNamespaceAccepted(ns[0]) {
 					key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+					meta, err := meta.Accessor(gatewayObj)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					}
 					InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
 					nodes.DequeueIngestion(key, true)
 				}
@@ -585,6 +640,11 @@ func (c *AviController) FullSyncK8s() error {
 			}
 			for _, gwClassObj := range gwClassObjs {
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+				meta, err := meta.Accessor(gwClassObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
 				nodes.DequeueIngestion(key, true)
 			}
 		}
