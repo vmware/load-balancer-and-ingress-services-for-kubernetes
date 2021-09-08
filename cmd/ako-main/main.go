@@ -176,6 +176,7 @@ func InitializeAKC() {
 
 	if lib.IsVCFCluster() {
 		c.HandleVCF(informers, stopCh, ctrlCh)
+		lib.VCFInitialized = true
 	}
 
 	err = k8s.PopulateControllerProperties(kubeClient)

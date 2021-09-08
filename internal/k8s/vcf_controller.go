@@ -35,6 +35,44 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
+func (c *AviController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+	cs := k8sinfo.Cs
+	utils.AviLog.Infof("Creating event broadcaster for NCP Secret Handling")
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(utils.AviLog.Debugf)
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
+	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if lib.VCFInitialized {
+				return
+			}
+			if c.ValidBSData() && startSyncCh != nil {
+				c.UpdateAviSecret()
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
+			}
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			if lib.VCFInitialized {
+				return
+			}
+			if c.ValidBSData() && startSyncCh != nil {
+				c.UpdateAviSecret()
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
+			}
+		},
+	}
+	c.informers.SecretInformer.Informer().AddEventHandler(NCPSecretHandler)
+
+	go c.informers.SecretInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.informers.SecretInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for NCP Secret informer")
+	}
+}
+
 func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
 	cs := k8sinfo.Cs
 	utils.AviLog.Debugf("Creating event broadcaster for NCP Bootstrap CRD")
@@ -78,12 +116,11 @@ func (c *AviController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
 	if err == nil {
 		ctrlIP := os.Getenv(utils.ENV_CTRL_IPADDRESS)
-		authToken := aviSecret.Data["authToken"]
+		authToken := aviSecret.Data["authtoken"]
 		username := aviSecret.Data["username"]
 		var transport *http.Transport
 		_, err = clients.NewAviClient(
 			ctrlIP, string(username), session.SetAuthToken(string(authToken)),
-			session.SetRefreshAuthTokenCallbackV2(utils.GetAuthtokenFromCache),
 			session.SetNoControllerStatusCheck, session.SetTransport(transport),
 			session.SetInsecure,
 		)
@@ -96,11 +133,11 @@ func (c *AviController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}
 	}
 
 	utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)
-
 	if !c.ValidBSData() {
 		utils.AviLog.Infof("Running in a VCF Cluster, but valid Bootstrap CR not found, waiting .. ")
 		startSyncCh := make(chan struct{})
 		c.AddNCPBootstrapEventHandler(informers, stopCh, startSyncCh)
+		c.AddNCPSecretEventHandler(informers, stopCh, startSyncCh)
 	L:
 		for {
 			select {
@@ -118,7 +155,6 @@ func (c *AviController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}
 func (c *AviController) UpdateAviSecret() error {
 	secretName, ns, username := lib.GetBootstrapCRData()
 	cs := c.informers.KubeClientIntf.ClientSet
-	cs.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
 
 	var ncpSecret *corev1.Secret
 	var err error
@@ -141,6 +177,7 @@ func (c *AviController) UpdateAviSecret() error {
 			utils.AviLog.Warnf("Failed to create avi-secret, err: %v", err)
 			return err
 		}
+		return nil
 	}
 
 	_, err = cs.CoreV1().Secrets(utils.GetAKONamespace()).Update(context.TODO(), &aviSecret, metav1.UpdateOptions{})
@@ -173,9 +210,18 @@ func (c *AviController) ValidBSData() bool {
 		session.SetInsecure,
 	)
 	if err != nil {
-		utils.AviLog.Infof("Failed to connect to AVI controller using secret provided by NCP, err: %v", err)
+		utils.AviLog.Infof("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
+		c.deleteNCPSecret(secretName, ns)
 		return false
 	}
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
 	return true
+}
+
+func (c *AviController) deleteNCPSecret(name, ns string) {
+	cs := c.informers.ClientSet
+	err := cs.CoreV1().Secrets(ns).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Failed to delete NCP secret, got error: %v", err)
+	}
 }
