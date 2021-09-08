@@ -264,6 +264,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, infraSettingName, hostName string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var sniFQDNs []string
+	var priorityLabel string
 	for host, paths := range hostpath.Hosts {
 		var pathFQDNs []string
 		pathFQDNs = append(pathFQDNs, host)
@@ -297,8 +298,10 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 			if path.Path != "" {
 				httpPGPath.Path = append(httpPGPath.Path, path.Path)
+				priorityLabel = host + path.Path
+			} else {
+				priorityLabel = host
 			}
-
 			var poolName string
 			var pgfound bool
 			var pgNode *AviPoolGroupNode
@@ -332,15 +335,20 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 			hostSlice := []string{host}
 			poolNode := &AviPoolNode{
-				Name:       poolName,
-				PortName:   path.PortName,
-				Tenant:     lib.GetTenant(),
-				VrfContext: lib.GetVrf(),
+				Name:          poolName,
+				IngressName:   ingName,
+				PortName:      path.PortName,
+				Tenant:        lib.GetTenant(),
+				PriorityLabel: priorityLabel,
+				Port:          path.Port,
+				TargetPort:    path.TargetPort,
 				ServiceMetadata: avicache.ServiceMetadataObj{
 					IngressName: ingName,
 					Namespace:   namespace,
 					HostNames:   hostSlice,
+					PoolRatio:   path.weight,
 				},
+				VrfContext: lib.GetVrf(),
 			}
 			if lib.GetT1LRPath() != "" {
 				poolNode.T1Lr = lib.GetT1LRPath()
