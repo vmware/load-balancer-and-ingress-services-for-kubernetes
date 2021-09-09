@@ -363,7 +363,7 @@ func (o *AviEvhVsNode) DeleteCACertRefInEVHNode(cacertNodeName, key string) {
 	for i, cacert := range o.CACertRefs {
 		if cacert.Name == cacertNodeName {
 			o.CACertRefs = append(o.CACertRefs[:i], o.CACertRefs[i+1:]...)
-			utils.AviLog.Infof("key: %s, msg: deleted cacert for evh in model: %s Pool name: %s", key, o.Name, cacert.Name)
+			utils.AviLog.Debugf("key: %s, msg: deleted cacert for evh in model: %s Pool name: %s", key, o.Name, cacert.Name)
 			return
 		}
 	}
