@@ -344,7 +344,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == route.ResourceVersion {
-				utils.AviLog.Debugf("Same resource version returning")
+				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -379,6 +379,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			objects.SharedResourceVerInstanceLister().Delete(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -417,7 +418,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			key := utils.Pod + "/" + utils.ObjKey(pod)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == pod.ResourceVersion {
-				utils.AviLog.Debugf("Same resource version returning")
+				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -444,6 +445,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
 			key := utils.Pod + "/" + utils.ObjKey(pod)
 			bkt := utils.Bkt(namespace, numWorkers)
+			objects.SharedResourceVerInstanceLister().Delete(key)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
@@ -557,7 +559,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == svc.ResourceVersion {
-				utils.AviLog.Debugf("Same resource version returning")
+				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -599,6 +601,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			objects.SharedResourceVerInstanceLister().Delete(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -641,22 +644,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
 
 	c.informers.ServiceInformer.Informer().AddEventHandler(svcEventHandler)
-	c.informers.ServiceInformer.Informer().AddIndexers(
-		cache.Indexers{
-			lib.AviSettingServicesIndex: func(obj interface{}) ([]string, error) {
-				service, ok := obj.(*corev1.Service)
-				if !ok {
-					return []string{}, nil
-				}
-				if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
-					if val, ok := service.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
-						return []string{val}, nil
-					}
-				}
-				return []string{}, nil
-			},
-		},
-	)
 
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {
 		blockAffinityHandler := cache.ResourceEventHandlerFuncs{
@@ -817,7 +804,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == ingress.ResourceVersion {
-				utils.AviLog.Debugf("Same resource version returning")
+				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -848,6 +835,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				return
 			}
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
+			objects.SharedResourceVerInstanceLister().Delete(key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
@@ -882,7 +870,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == node.ResourceVersion {
-				utils.AviLog.Debugf("Same resource version returning")
+				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
 			c.workqueue[bkt].AddRateLimited(key)
@@ -907,6 +895,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			key := utils.NodeObj + "/" + node.Name
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+			objects.SharedResourceVerInstanceLister().Delete(key)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
@@ -942,7 +931,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
 				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 				if ok && resVer.(string) == ingClass.ResourceVersion {
-					utils.AviLog.Debugf("Same resource version returning")
+					utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -969,6 +958,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingClass))
 				key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
 				bkt := utils.Bkt(namespace, numWorkers)
+				objects.SharedResourceVerInstanceLister().Delete(key)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			},
@@ -990,22 +980,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		}
 
 		c.informers.IngressClassInformer.Informer().AddEventHandler(ingressClassEventHandler)
-		c.informers.IngressClassInformer.Informer().AddIndexers(
-			cache.Indexers{
-				lib.AviSettingIngClassIndex: func(obj interface{}) ([]string, error) {
-					ingclass, ok := obj.(*networkingv1.IngressClass)
-					if !ok {
-						return []string{}, nil
-					}
-					if ingclass.Spec.Parameters != nil {
-						// sample settingKey: ako.vmware.com/AviInfraSetting/avi-1
-						settingKey := *ingclass.Spec.Parameters.APIGroup + "/" + ingclass.Spec.Parameters.Kind + "/" + ingclass.Spec.Parameters.Name
-						return []string{settingKey}, nil
-					}
-					return []string{}, nil
-				},
-			},
-		)
+
 	}
 
 	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
@@ -1017,20 +992,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	if c.informers.RouteInformer != nil {
 		routeEventHandler := AddRouteEventHandler(numWorkers, c)
 		c.informers.RouteInformer.Informer().AddEventHandler(routeEventHandler)
-		c.informers.RouteInformer.Informer().AddIndexers(
-			cache.Indexers{
-				lib.AviSettingRouteIndex: func(obj interface{}) ([]string, error) {
-					route, ok := obj.(*routev1.Route)
-					if !ok {
-						return []string{}, nil
-					}
-					if settingName, ok := route.Annotations[lib.InfraSettingNameAnnotation]; ok {
-						return []string{settingName}, nil
-					}
-					return []string{}, nil
-				},
-			},
-		)
 	}
 
 	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings
