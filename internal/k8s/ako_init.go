@@ -24,6 +24,9 @@ import (
 	"sync"
 	"time"
 
+	routev1 "github.com/openshift/api/route/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -271,6 +274,8 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	}
 
 	// Setup and start event handlers for objects.
+	c.addIndexers()
+	c.AddCrdIndexer()
 	c.Start(stopCh)
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
@@ -353,6 +358,60 @@ func (c *AviController) RefreshAuthToken() {
 	lib.RefreshAuthToken(c.informers.KubeClientIntf.ClientSet)
 }
 
+func (c *AviController) addIndexers() {
+	if c.informers.IngressClassInformer != nil {
+		c.informers.IngressClassInformer.Informer().AddIndexers(
+			cache.Indexers{
+				lib.AviSettingIngClassIndex: func(obj interface{}) ([]string, error) {
+					ingclass, ok := obj.(*networkingv1.IngressClass)
+					if !ok {
+						return []string{}, nil
+					}
+					if ingclass.Spec.Parameters != nil {
+						// sample settingKey: ako.vmware.com/AviInfraSetting/avi-1
+						settingKey := *ingclass.Spec.Parameters.APIGroup + "/" + ingclass.Spec.Parameters.Kind + "/" + ingclass.Spec.Parameters.Name
+						return []string{settingKey}, nil
+					}
+					return []string{}, nil
+				},
+			},
+		)
+	}
+	c.informers.ServiceInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.AviSettingServicesIndex: func(obj interface{}) ([]string, error) {
+				service, ok := obj.(*corev1.Service)
+				if !ok {
+					return []string{}, nil
+				}
+				if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
+					if val, ok := service.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
+						return []string{val}, nil
+					}
+				}
+				return []string{}, nil
+			},
+		},
+	)
+	if c.informers.RouteInformer != nil {
+		c.informers.RouteInformer.Informer().AddIndexers(
+			cache.Indexers{
+				lib.AviSettingRouteIndex: func(obj interface{}) ([]string, error) {
+					route, ok := obj.(*routev1.Route)
+					if !ok {
+						return []string{}, nil
+					}
+					if settingName, ok := route.Annotations[lib.InfraSettingNameAnnotation]; ok {
+						return []string{settingName}, nil
+					}
+					return []string{}, nil
+				},
+			},
+		)
+	}
+
+}
+
 func (c *AviController) FullSync() {
 
 	avi_rest_client_pool := avicache.SharedAVIClients()
@@ -402,6 +461,11 @@ func (c *AviController) FullSyncK8s() error {
 		nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
 		for _, node := range nodeObjects {
 			key := utils.NodeObj + "/" + node.Name
+			meta, err := meta.Accessor(node)
+			if err == nil {
+				resVer := meta.GetResourceVersion()
+				objects.SharedResourceVerInstanceLister().Save(key, resVer)
+			}
 			nodes.DequeueIngestion(key, true)
 		}
 		// Publish vrfcontext model now, this has to be processed first
