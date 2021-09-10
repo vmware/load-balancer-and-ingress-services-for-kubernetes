@@ -219,8 +219,8 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))
-	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
-	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	//At rest layer, sslref are switched to Parent
+	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 	g.Expect(nodes[0].EvhNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
 	g.Expect(nodes[0].EvhNodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
@@ -297,7 +297,6 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].AppProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
@@ -326,7 +325,7 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		if len(nodes[0].EvhNodes) == 1 {
-			return nodes[0].SSLKeyCertAviRef
+			return nodes[0].EvhNodes[0].SSLKeyCertAviRef
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref-sslkey"))
@@ -338,7 +337,7 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		if len(nodes[0].EvhNodes) == 1 {
-			return nodes[0].SSLKeyCertAviRef
+			return nodes[0].EvhNodes[0].SSLKeyCertAviRef
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.Equal(""))
@@ -375,11 +374,12 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
-	// the last applied hostrule values would exist
+	// the last applied hostrule values would exist. At rest layer, all ssl avi ref will be assigned to parent
+	// In Avi model, sslaviref will be associated with child
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return nodes[0].SSLKeyCertAviRef
+		return nodes[0].EvhNodes[0].SSLKeyCertAviRef
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref"))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
