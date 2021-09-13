@@ -130,7 +130,7 @@ func GetBootstrapCRData() (string, string, string) {
 	}
 
 	if len(crdList.Items) != 1 {
-		utils.AviLog.Errorf("Expected ony one object for NCP bootstrap but found: %d", len(crdList.Items))
+		utils.AviLog.Errorf("Expected only one object for NCP bootstrap but found: %d", len(crdList.Items))
 		return "", "", ""
 	}
 

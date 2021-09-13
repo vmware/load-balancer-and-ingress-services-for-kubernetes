@@ -16,6 +16,7 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -47,9 +48,14 @@ func (c *AviController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-
 				return
 			}
 			if c.ValidBSData() && startSyncCh != nil {
-				c.UpdateAviSecret()
-				startSyncCh <- struct{}{}
-				startSyncCh = nil
+				err := c.CreateOrUpdateAviSecret()
+				if err != nil {
+					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
+					lib.ShutdownApi()
+				} else {
+					startSyncCh <- struct{}{}
+					startSyncCh = nil
+				}
 			}
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -57,9 +63,14 @@ func (c *AviController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-
 				return
 			}
 			if c.ValidBSData() && startSyncCh != nil {
-				c.UpdateAviSecret()
-				startSyncCh <- struct{}{}
-				startSyncCh = nil
+				err := c.CreateOrUpdateAviSecret()
+				if err != nil {
+					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
+					lib.ShutdownApi()
+				} else {
+					startSyncCh <- struct{}{}
+					startSyncCh = nil
+				}
 			}
 		},
 	}
@@ -83,17 +94,27 @@ func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Bootstrap ADD Event")
 			if c.ValidBSData() && startSyncCh != nil {
-				c.UpdateAviSecret()
-				startSyncCh <- struct{}{}
-				startSyncCh = nil
+				err := c.CreateOrUpdateAviSecret()
+				if err != nil {
+					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
+					lib.ShutdownApi()
+				} else {
+					startSyncCh <- struct{}{}
+					startSyncCh = nil
+				}
 			}
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("NCP Bootstrap Update Event")
 			if c.ValidBSData() && startSyncCh != nil {
-				c.UpdateAviSecret()
-				startSyncCh <- struct{}{}
-				startSyncCh = nil
+				err := c.CreateOrUpdateAviSecret()
+				if err != nil {
+					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
+					lib.ShutdownApi()
+				} else {
+					startSyncCh <- struct{}{}
+					startSyncCh = nil
+				}
 			}
 		},
 	}
@@ -130,9 +151,10 @@ func (c *AviController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}
 		} else {
 			utils.AviLog.Error("AVI controller initialization failed with err: %v", err)
 		}
+	} else {
+		utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)
 	}
 
-	utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)
 	if !c.ValidBSData() {
 		utils.AviLog.Infof("Running in a VCF Cluster, but valid Bootstrap CR not found, waiting .. ")
 		startSyncCh := make(chan struct{})
@@ -149,12 +171,18 @@ func (c *AviController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}
 		}
 	}
 	utils.AviLog.Infof("NCP Bootstrap CR found, continuing AKO initialization")
-	c.UpdateAviSecret()
+	c.CreateOrUpdateAviSecret()
 }
 
-func (c *AviController) UpdateAviSecret() error {
+func (c *AviController) CreateOrUpdateAviSecret() error {
 	secretName, ns, username := lib.GetBootstrapCRData()
-	cs := c.informers.KubeClientIntf.ClientSet
+	if secretName == "" || ns == "" || username == "" {
+		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR, secretName: %s, namespace: %s, username: %s",
+			secretName, ns, username)
+		return errors.New("Empty field in Bootstrap CR")
+	}
+
+	cs := c.informers.ClientSet
 
 	var ncpSecret *corev1.Secret
 	var err error
@@ -190,9 +218,13 @@ func (c *AviController) UpdateAviSecret() error {
 }
 
 func (c *AviController) ValidBSData() bool {
-	utils.AviLog.Infof("Validating BS data")
+	utils.AviLog.Infof("Validating NCP Boostrap data for AKO")
 	cs := c.informers.ClientSet
 	secretName, ns, username := lib.GetBootstrapCRData()
+	if secretName == "" || ns == "" || username == "" {
+		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR, secretName: %s, namespace: %s, username: %s", secretName, ns, username)
+		return false
+	}
 	utils.AviLog.Infof("Got data from Bootstrap CR, secretName: %s, namespace: %s, username: %s", secretName, ns, username)
 	var ncpSecret *corev1.Secret
 	var err error
