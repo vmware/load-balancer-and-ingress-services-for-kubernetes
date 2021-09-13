@@ -135,7 +135,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniMod
 // BuildPoolHTTPRule notes
 // when we get an ingress update and we are building the corresponding pools of that ingress
 // we need to get all httprules which match ingress's host/path
-func BuildPoolHTTPRule(host, path, ingName, namespace, infraSettingName, key string, vsNode AviVsEvhSniModel, isSNI bool) {
+func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key string, vsNode AviVsEvhSniModel, isSNI bool) {
 	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
 	if !found {
 		utils.AviLog.Debugf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
@@ -183,6 +183,11 @@ func BuildPoolHTTPRule(host, path, ingName, namespace, infraSettingName, key str
 			pathSslProfile := pool.SslProfileRef
 			destinationCertNode := pool.PkiProfile
 			pathHMs := pool.HealthMonitors
+			if poolPath == "" && path == "/" {
+				// In case of openfhit Route, the path could be empty, in that case, treat
+				// httprule targt path / as that of empty path, to match the pool appropriately.
+				path = ""
+			}
 			// pathprefix match
 			// lets say path: / and available pools are cluster--namespace-host_foo-ingName, cluster--namespace-host_bar-ingName
 			// then cluster--namespace-host_-ingName should qualify for both pools
