@@ -799,9 +799,12 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 		settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return settingNodes[0].ServiceEngineGroup
 	}, 40*time.Second).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
-	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
-	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	g.Expect(settingNodes[0].EvhNodes).Should(gomega.HaveLen(2))
+
+	g.Eventually(func() int {
+		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
+		settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(settingNodes[0].EvhNodes)
+	}, 40*time.Second).Should(gomega.Equal(2))
 
 	ingressUpdate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -827,8 +830,8 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(2))
 	g.Expect(nodes[0].ServiceEngineGroup).Should(gomega.Equal("Default-Group"))
-	_, aviSettingModel = objects.SharedAviGraphLister().Get(settingModelName)
-	settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
+	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(settingNodes[0].EvhNodes).Should(gomega.HaveLen(0))
 
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})

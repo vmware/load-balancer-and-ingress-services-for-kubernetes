@@ -1049,12 +1049,15 @@ func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
-	go c.informers.SecretInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
-		c.informers.SecretInformer.Informer().HasSynced,
+	}
+
+	if !lib.VCFInitialized {
+		go c.informers.SecretInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 	}
 
 	if lib.GetServiceType() == lib.NodePortLocal {

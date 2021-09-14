@@ -167,11 +167,24 @@ func InitializeAKC() {
 	if lib.IsIstioEnabled() {
 		k8s.NewIstioCRDInformers(istioClient)
 	}
+
+	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
+	c := k8s.SharedAviController()
+	stopCh := utils.SetupSignalHandler()
+	ctrlCh := make(chan struct{})
+	quickSyncCh := make(chan struct{})
+
+	if lib.IsVCFCluster() {
+		c.HandleVCF(informers, stopCh, ctrlCh)
+		lib.VCFInitialized = true
+	}
+
 	err = k8s.PopulateControllerProperties(kubeClient)
 	if err != nil {
 		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
 		lib.ShutdownApi()
 	}
+
 	aviObjCache := avicache.SharedAviObjCache()
 	aviRestClientPool := avicache.SharedAVIClients()
 	if aviRestClientPool == nil {
@@ -182,11 +195,6 @@ func InitializeAKC() {
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 
-	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
-	c := k8s.SharedAviController()
-	stopCh := utils.SetupSignalHandler()
-	ctrlCh := make(chan struct{})
-	quickSyncCh := make(chan struct{})
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
 		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")

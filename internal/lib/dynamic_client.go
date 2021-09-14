@@ -47,12 +47,18 @@ var (
 		Version:  "v1",
 		Resource: "hostsubnets",
 	}
+
+	BootstrapGVR = schema.GroupVersionResource{
+		Group:    "ncp.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "akobootstrapconditions",
+	}
 )
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
+	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && !IsVCFCluster() {
 		return nil, nil
 	}
 
@@ -80,6 +86,7 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
+	NCPBootstrapInformer        informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -96,6 +103,10 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 		utils.AviLog.Infof("Skipped initializing dynamic informers %s \n", GetCNIPlugin())
 	}
 
+	if IsVCFCluster() {
+		informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
+	}
+
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
 }
@@ -107,6 +118,40 @@ func GetDynamicInformers() *DynamicInformers {
 		return nil
 	}
 	return dynamicInformerInstance
+}
+
+func GetBootstrapCRData() (string, string, string) {
+	dynamicClient := GetDynamicClientSet()
+	crdClient := dynamicClient.Resource(BootstrapGVR)
+	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting CRD %v", err)
+		return "", "", ""
+	}
+
+	if len(crdList.Items) != 1 {
+		utils.AviLog.Errorf("Expected only one object for NCP bootstrap but found: %d", len(crdList.Items))
+		return "", "", ""
+	}
+
+	obj := crdList.Items[0]
+	spec := obj.Object["spec"].(map[string]interface{})
+	secretref := spec["albCredentialSecretRef"].(map[string]interface{})
+	albtoken := spec["albTokenProperty"].(map[string]interface{})
+
+	secretName, ok := secretref["name"].(string)
+	if !ok {
+		utils.AviLog.Errorf("secretName is not of type string")
+	}
+	secretNamespace, ok := secretref["namespace"].(string)
+	if !ok {
+		utils.AviLog.Errorf("secretNamespace is not of type string")
+	}
+	userName, ok := albtoken["userName"].(string)
+	if !ok {
+		utils.AviLog.Errorf("userName is not of type string")
+	}
+	return secretName, secretNamespace, userName
 }
 
 // GetPodCIDR returns the node's configured PodCIDR

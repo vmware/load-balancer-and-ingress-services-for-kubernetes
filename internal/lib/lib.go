@@ -1333,3 +1333,5 @@ func IsVCFCluster() bool {
 	vcfCluster := os.Getenv(VCF_CLUSTER)
 	return vcfCluster == "true"
 }
+
+var VCFInitialized bool
