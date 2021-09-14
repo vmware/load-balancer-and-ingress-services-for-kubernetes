@@ -194,7 +194,7 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 
 // AviInfraSetting CRD
 func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	// create secure and insecure host ingress, connect with infrasetting
@@ -276,7 +276,7 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 
 // Updating IngressClass
 func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	// create ingressclass/ingress, add infrasetting ref, model changes
@@ -365,7 +365,7 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 }
 
 func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	// create ingressclass/ingress/infrasetting
@@ -447,7 +447,7 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 
 // Updating Ingress
 func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	// add ingress, ingressclass with valid infrasetting,
@@ -535,7 +535,7 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	// update from ingressclass with infrasetting to another
@@ -626,7 +626,7 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHUpdateWithInfraSetting(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	// update from ingressclass with infrasetting to another
@@ -752,7 +752,7 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	// update ingressclass (without infrasetting) in ingress
@@ -847,7 +847,7 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 }
 
 func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	g := gomega.NewGomegaWithT(t)
@@ -931,7 +931,7 @@ func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	g := gomega.NewGomegaWithT(t)
@@ -1007,7 +1007,7 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHCRDWithAviInfraSetting(t *testing.T) {
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	g := gomega.NewGomegaWithT(t)

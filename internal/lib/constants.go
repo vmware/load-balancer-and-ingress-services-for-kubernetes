@@ -152,6 +152,7 @@ const (
 	AutoFQDNFlat                               = "Flat"
 	AutoFQDNDisabled                           = "Disabled"
 	VCF_CLUSTER                                = "VCF_CLUSTER"
+	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
 
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation          = "external-dns.alpha.kubernetes.io/hostname"
