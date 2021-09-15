@@ -377,9 +377,6 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
 		sniNode.ServiceMetadata.Namespace = namespace
 		sniNode.ServiceMetadata.HostNames = sniHosts
-		if sniNode.SSLKeyCertAviRef != "" {
-			certsBuilt = true
-		}
 	}
 
 	sniNode.ServiceEngineGroup = lib.GetSEGName()

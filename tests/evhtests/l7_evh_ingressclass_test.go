@@ -1029,7 +1029,7 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	integrationtest.VerifyMetadataHTTPRule(g, poolKey, "default/"+rrname, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))

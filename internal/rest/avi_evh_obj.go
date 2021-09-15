@@ -324,14 +324,16 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		}
 
 		if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
-			// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-			if vs_meta.SSLKeyCertAviRef != "" {
-				vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef)
-			} else {
-				for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
-					certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
-					vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
+			//Append cert from hostrule
+			for _, evhNode := range vs_meta.EvhNodes {
+				if evhNode.SSLKeyCertAviRef != "" {
+					vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, evhNode.SSLKeyCertAviRef)
 				}
+			}
+			//Append cert present in ingress/route
+			for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
+				certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
+				vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 			}
 			if vs_meta.SSLProfileRef != "" {
 				vs.SslProfileRef = &vs_meta.SSLProfileRef
@@ -454,15 +456,6 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
-		// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-		if vs_meta.SSLKeyCertAviRef != "" {
-			evhChild.SslKeyAndCertificateRefs = append(evhChild.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef)
-		} else {
-			for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
-				certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
-				evhChild.SslKeyAndCertificateRefs = append(evhChild.SslKeyAndCertificateRefs, certName)
-			}
-		}
 		evhChild.HTTPPolicies = AviVsHttpPSAdd(vs_meta, true)
 	}
 
