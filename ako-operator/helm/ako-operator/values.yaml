@@ -97,6 +97,7 @@ rbac:
 avicredentials:
   username: ""
   password: ""
+  authtoken: ""
   certificateAuthorityData:
 
 

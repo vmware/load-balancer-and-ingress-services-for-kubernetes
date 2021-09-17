@@ -160,6 +160,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.layer7Only` | Operate AKO as a pure layer 7 ingress controller | false |
 | `avicredentials.username` | Avi controller username | empty |
 | `avicredentials.password` | Avi controller password | empty |
+| `avicredentials.authtoken` | Avi controller authentication token | empty |
 | `image.repository` | Specify docker-registry that has the AKO image | avinetworks/ako |
 
 > AKO 1.5.1 deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
