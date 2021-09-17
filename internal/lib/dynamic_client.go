@@ -33,6 +33,9 @@ import (
 
 var dynamicInformerInstance *DynamicInformers
 var dynamicClientSet dynamic.Interface
+
+var vcfDynamicInformerInstance *VCFDynamicInformers
+var vcfDynamicClientSet dynamic.Interface
 var (
 	// CalicoBlockaffinityGVR : Calico's BlockAffinity CRD resource identifier
 	CalicoBlockaffinityGVR = schema.GroupVersionResource{
@@ -52,6 +55,12 @@ var (
 		Group:    "ncp.vmware.com",
 		Version:  "v1alpha1",
 		Resource: "akobootstrapconditions",
+	}
+
+	NetworkInfoGVR = schema.GroupVersionResource{
+		Group:    "nsx.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "namespacenetworkinfos",
 	}
 )
 
@@ -86,7 +95,6 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
-	NCPBootstrapInformer        informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -103,10 +111,6 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 		utils.AviLog.Infof("Skipped initializing dynamic informers %s \n", GetCNIPlugin())
 	}
 
-	if IsVCFCluster() {
-		informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
-	}
-
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
 }
@@ -120,8 +124,52 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
+func NewVCFDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
+	ds, err := dynamic.NewForConfig(config)
+	if err != nil {
+		utils.AviLog.Infof("Error while creating dynamic client %v", err)
+		return nil, err
+	}
+	if vcfDynamicClientSet == nil {
+		vcfDynamicClientSet = ds
+	}
+	return vcfDynamicClientSet, nil
+}
+
+func GetVCFDynamicClientSet() dynamic.Interface {
+	if vcfDynamicClientSet == nil {
+		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
+		return nil
+	}
+	return vcfDynamicClientSet
+}
+
+type VCFDynamicInformers struct {
+	NCPBootstrapInformer informers.GenericInformer
+	NetworkInfoInformer  informers.GenericInformer
+}
+
+func NewVCFDynamicInformers(client dynamic.Interface) *VCFDynamicInformers {
+	informers := &VCFDynamicInformers{}
+	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
+
+	informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
+	informers.NetworkInfoInformer = f.ForResource(NetworkInfoGVR)
+
+	vcfDynamicInformerInstance = informers
+	return vcfDynamicInformerInstance
+}
+
+func GetVCFDynamicInformers() *VCFDynamicInformers {
+	if vcfDynamicInformerInstance == nil {
+		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
+		return nil
+	}
+	return vcfDynamicInformerInstance
+}
+
 func GetBootstrapCRData() (string, string, string) {
-	dynamicClient := GetDynamicClientSet()
+	dynamicClient := GetVCFDynamicClientSet()
 	crdClient := dynamicClient.Resource(BootstrapGVR)
 	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {

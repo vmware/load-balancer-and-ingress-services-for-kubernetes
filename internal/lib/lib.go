@@ -1340,3 +1340,4 @@ func IsVCFCluster() bool {
 }
 
 var VCFInitialized bool
+var AviSecretInitialized bool

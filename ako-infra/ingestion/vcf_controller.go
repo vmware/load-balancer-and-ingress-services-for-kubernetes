@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package k8s
+package ingestion
 
 import (
 	"context"
@@ -31,17 +31,10 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 )
 
 func (c *AviController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	cs := k8sinfo.Cs
-	utils.AviLog.Infof("Creating event broadcaster for NCP Secret Handling")
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(utils.AviLog.Debugf)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if lib.VCFInitialized {
@@ -85,11 +78,6 @@ func (c *AviController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-
 }
 
 func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	cs := k8sinfo.Cs
-	utils.AviLog.Debugf("Creating event broadcaster for NCP Bootstrap CRD")
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(utils.AviLog.Debugf)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Bootstrap ADD Event")
@@ -125,6 +113,31 @@ func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for NCP Bootstrap informer")
+	}
+}
+
+func (c *AviController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
+	NetworkinfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Network Info ADD Event")
+			// To Do
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NCP Network Info Update Event")
+			// To Do
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Network Info Delete Event")
+			// To Do
+		},
+	}
+	c.dynamicInformers.NetworkInfoInformer.Informer().AddEventHandler(NetworkinfoHandler)
+
+	go c.dynamicInformers.NetworkInfoInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NetworkInfoInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for networkinfo informer")
 	}
 }
 
