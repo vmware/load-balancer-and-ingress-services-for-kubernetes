@@ -25,11 +25,13 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -40,6 +42,7 @@ type UpdateOptions struct {
 	ServiceMetadata    avicache.ServiceMetadataObj
 	Key                string
 	VirtualServiceUUID string
+	VSName             string
 }
 
 const (
@@ -68,6 +71,9 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 		}
 	}
 	// reset IPAddress and annotations from Ingresses that do not have a corresponding VS in cache
+	// this comes in handy when, during bulk ingress removal (lets say IngressClass is removed/deleteConfig etc.),
+	// VSes will be deleted from Avi. At that point if the VS is deleted, but the ingress status update
+	// is incomplete, this is required to fix it as part of bootup.
 	if bulk {
 		for ingNSName, ing := range ingressMap {
 			if val, ok := skipDelete[ingNSName]; ok && val {
@@ -134,8 +140,8 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 		}
 	}
 
-	sameStatus := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
-
+	// we need hosts for which the IP is getting removed, and hosts for which it is being added/updated
+	sameStatus, hostsBefore, hostsAfter := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
 	var updatedIng *networkingv1.Ingress
 	var err error
 	if !sameStatus {
@@ -150,9 +156,16 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 			if len(mIngresses) > 0 {
 				return updateObject(mIngresses[mIngress.Namespace+"/"+mIngress.Name], updateOption, retry+1)
 			}
+		} else {
+			for _, hns := range (hostsBefore.Difference(hostsAfter)).List() {
+				lib.AKOControlConfig().EventRecorder().Eventf(updatedIng, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", hns)
+			}
+			for _, hns := range (hostsAfter.Difference(hostsBefore)).List() {
+				lib.AKOControlConfig().EventRecorder().Eventf(updatedIng, corev1.EventTypeNormal, lib.Synced, "Added virtualservice %s for %s", updateOption.VSName, hns)
+			}
+			utils.AviLog.Infof("key: %s, msg: Successfully updated the ingress status of ingress: %s/%s old: %+v new: %+v",
+				key, mIngress.Namespace, mIngress.Name, oldIngressStatus.Ingress, mIngress.Status.LoadBalancer.Ingress)
 		}
-		utils.AviLog.Infof("key: %s, msg: Successfully updated the ingress status of ingress: %s/%s old: %+v new: %+v",
-			key, mIngress.Namespace, mIngress.Name, oldIngressStatus.Ingress, mIngress.Status.LoadBalancer.Ingress)
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: no changes detected in the ingress %s/%s status", key, mIngress.Namespace, mIngress.Name)
 	}
@@ -294,22 +307,21 @@ func DeleteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) e
 	if len(options) == 0 {
 		return fmt.Errorf("Length of options is zero")
 	}
-	svc_mdata_obj := options[0].ServiceMetadata
 	var err error
-	if len(svc_mdata_obj.NamespaceIngressName) > 0 {
+	if len(options[0].ServiceMetadata.NamespaceIngressName) > 0 {
 		// This is SNI with hostname sharding.
-		for _, ingressns := range svc_mdata_obj.NamespaceIngressName {
+		for _, ingressns := range options[0].ServiceMetadata.NamespaceIngressName {
 			ingressArr := strings.Split(ingressns, "/")
 			if len(ingressArr) != 2 {
 				utils.AviLog.Errorf("key: %s, msg: DeleteIngressStatus IngressNamespace format not correct", key)
 				return errors.New("DeleteIngressStatus IngressNamespace format not correct")
 			}
-			svc_mdata_obj.Namespace = ingressArr[0]
-			svc_mdata_obj.IngressName = ingressArr[1]
-			err = deleteObject(svc_mdata_obj, key, isVSDelete)
+			options[0].ServiceMetadata.Namespace = ingressArr[0]
+			options[0].ServiceMetadata.IngressName = ingressArr[1]
+			err = deleteObject(options[0], key, isVSDelete)
 		}
 	} else {
-		err = deleteObject(svc_mdata_obj, key, isVSDelete)
+		err = deleteObject(options[0], key, isVSDelete)
 	}
 
 	if err != nil {
@@ -319,7 +331,7 @@ func DeleteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) e
 	return nil
 }
 
-func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDelete bool, retryNum ...int) error {
+func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("key: %s, msg: Retrying to update the ingress status", key)
@@ -331,7 +343,7 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 	}
 
 	mClient := utils.GetInformers().ClientSet
-	mIngress, err := mClient.NetworkingV1().Ingresses(svc_mdata_obj.Namespace).Get(context.TODO(), svc_mdata_obj.IngressName, metav1.GetOptions{})
+	mIngress, err := mClient.NetworkingV1().Ingresses(option.ServiceMetadata.Namespace).Get(context.TODO(), option.ServiceMetadata.IngressName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus: %s", key, err)
 		return err
@@ -343,20 +355,20 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 		hostListIng = append(hostListIng, rule.Host)
 	}
 
-	for _, host := range svc_mdata_obj.HostNames {
+	for _, host := range option.ServiceMetadata.HostNames {
 		for i, status := range mIngress.Status.LoadBalancer.Ingress {
 			if status.Hostname != host {
 				continue
 			}
-			if !lib.ValidateIngressForClass(key, mIngress) || !utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace) || !utils.HasElem(hostListIng, host) || isVSDelete {
+			if !lib.ValidateIngressForClass(key, mIngress) || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) || !utils.HasElem(hostListIng, host) || isVSDelete {
 				mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 			} else {
-				utils.AviLog.Debugf("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
+				utils.AviLog.Infof("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
 			}
 		}
 	}
 
-	sameStatus := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
+	sameStatus, hostsBefore, hostsAfter := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
 
 	var updatedIng *networkingv1.Ingress
 	if !sameStatus {
@@ -368,21 +380,23 @@ func deleteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDel
 				"status": nil,
 			})
 		}
-		updatedIng, err = mClient.NetworkingV1().Ingresses(svc_mdata_obj.Namespace).Patch(context.TODO(), mIngress.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+		updatedIng, err = mClient.NetworkingV1().Ingresses(option.ServiceMetadata.Namespace).Patch(context.TODO(), mIngress.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the ingress status: %v", key, err)
-			return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
+			return deleteObject(option, key, isVSDelete, retry+1)
+		} else {
+			for _, hns := range (hostsBefore.Difference(hostsAfter)).List() {
+				lib.AKOControlConfig().EventRecorder().Eventf(updatedIng, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", hns)
+			}
+			utils.AviLog.Infof("key: %s, msg: Successfully deleted the ingress status of ingress: %s/%s old: %+v new: %+v",
+				key, mIngress.Namespace, mIngress.Name, oldIngressStatus.Ingress, mIngress.Status.LoadBalancer.Ingress)
 		}
-
-		utils.AviLog.Infof("key: %s, msg: Successfully deleted the ingress status of ingress: %s/%s old: %+v new: %+v",
-			key, mIngress.Namespace, mIngress.Name, oldIngressStatus.Ingress, mIngress.Status.LoadBalancer.Ingress)
-
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in ingress status. old: %+v new: %+v",
 			key, oldIngressStatus.Ingress, mIngress.Status.LoadBalancer.Ingress)
 	}
 
-	if err = deleteIngressAnnotation(updatedIng, svc_mdata_obj, isVSDelete, key, mClient, mIngress, hostListIng); err != nil {
+	if err = deleteIngressAnnotation(updatedIng, option.ServiceMetadata, isVSDelete, key, mClient, mIngress, hostListIng); err != nil {
 		utils.AviLog.Errorf("key: %s, msg: error in deleting ingress annotation: %v", key, err)
 	}
 
@@ -442,22 +456,32 @@ func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta avicache.Serv
 }
 
 // compareLBStatus returns true if status objects are same, so status update is not required
-func compareLBStatus(oldStatus, newStatus *corev1.LoadBalancerStatus) bool {
-	if len(oldStatus.Ingress) != len(newStatus.Ingress) {
-		return false
+func compareLBStatus(oldStatus, newStatus *corev1.LoadBalancerStatus) (bool, sets.String, sets.String) {
+	exists := sets.NewString()
+	oldHosts := sets.NewString()
+	newHosts := sets.NewString()
+	var diff *bool
+	for _, status := range oldStatus.Ingress {
+		exists.Insert(status.IP + ":" + status.Hostname)
+		oldHosts.Insert(status.Hostname)
 	}
 
-	exists := []string{}
-	for _, status := range oldStatus.Ingress {
-		exists = append(exists, status.IP+":"+status.Hostname)
+	if len(newStatus.Ingress) != len(oldStatus.Ingress) {
+		diff = proto.Bool(false)
 	}
 	for _, status := range newStatus.Ingress {
-		if !utils.HasElem(exists, status.IP+":"+status.Hostname) {
-			return false
+		if !exists.Has(status.IP + ":" + status.Hostname) {
+			if diff == nil {
+				diff = proto.Bool(false)
+			}
 		}
+		newHosts.Insert(status.Hostname)
 	}
 
-	return true
+	if diff == nil {
+		diff = proto.Bool(true)
+	}
+	return *diff, oldHosts, newHosts
 }
 
 // getIngresses fetches all ingresses and returns a map: {"namespace/name": ingressObj...}

@@ -44,6 +44,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -1115,12 +1116,12 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
 			resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 		}
-		if val, ok := resp["name"]; !ok || val == nil {
-			resp["name"] = object + "-sample-name"
-		}
+		// if val, ok := resp["name"]; !ok || val == nil {
+		// 	resp["name"] = object + "-sample-name"
+		// }
 		if strings.Contains(url, "vsvip") {
 			//if !strings.Contains(url, "gateway") {
-			if resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"] == nil {
+			if resp["vip"] == nil || resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"] == nil {
 				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}}}
 			}
 			//}
@@ -1348,7 +1349,7 @@ func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, 
 	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
-	VerifyMetadataHostRule(g, vskey, "default/"+hrname, false)
+	VerifyMetadataHostRule(t, g, vskey, "default/"+hrname, false)
 }
 
 func TearDownHostRuleWithNoVerif(t *testing.T, g *gomega.WithT, hrname string) {
@@ -1429,41 +1430,84 @@ func TeardownHTTPRule(t *testing.T, rrname string) {
 	}
 }
 
-func VerifyMetadataHostRule(g *gomega.WithT, vsKey cache.NamespaceName, hrnsname string, active bool) {
+func VerifyMetadataHostRule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName, hrnsname string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	status := "INACTIVE"
-	if active {
-		status = "ACTIVE"
-	}
-	g.Eventually(func() bool {
+	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
 		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
-		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
-		if (ok && found && sniCacheObj.ServiceMetadataObj.CRDStatus.Value == hrnsname && sniCacheObj.ServiceMetadataObj.CRDStatus.Status == status) ||
-			(ok && found && !active && sniCacheObj.ServiceMetadataObj.CRDStatus.Status == "") ||
-			(!active && !found) {
-			return true
+		if active && !found {
+			t.Logf("SNI Cache not found.")
+			return false, nil
 		}
-		return false
-	}, 50*time.Second).Should(gomega.Equal(true))
+
+		if !active && !found {
+			return true, nil
+		}
+
+		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
+		if !ok {
+			t.Logf("Unable to cast SNI Cache to AviVsCache.")
+			return false, nil
+		}
+
+		if active {
+			if sniCacheObj.ServiceMetadataObj.CRDStatus.Value != hrnsname {
+				t.Logf("Expected CRD ServiceMetadata Value to be %s, found %s", hrnsname, sniCacheObj.ServiceMetadataObj.CRDStatus.Value)
+				return false, nil
+			}
+
+			if sniCacheObj.ServiceMetadataObj.CRDStatus.Status != lib.CRDActive {
+				t.Logf("Expected CRD ServiceMetadata Status to be %s, found %s", lib.CRDActive, sniCacheObj.ServiceMetadataObj.CRDStatus.Status)
+				return false, nil
+			}
+		}
+
+		if !active && (sniCacheObj.ServiceMetadataObj.CRDStatus.Status == lib.CRDActive) {
+			t.Logf("Expected CRD ServiceMetadata Status to be empty/inactive, found %s", sniCacheObj.ServiceMetadataObj.CRDStatus.Status)
+			return false, nil
+		}
+
+		return true, nil
+	})
 }
 
-func VerifyMetadataHTTPRule(g *gomega.WithT, poolKey cache.NamespaceName, rrnsname string, active bool) {
+func VerifyMetadataHTTPRule(t *testing.T, g *gomega.WithT, poolKey cache.NamespaceName, httpruleNSNamePath string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	status := "INACTIVE"
-	if active {
-		status = "ACTIVE"
-	}
-
-	g.Eventually(func() bool {
+	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
 		poolCache, found := mcache.PoolCache.AviCacheGet(poolKey)
-		poolCacheObj, ok := poolCache.(*cache.AviPoolCache)
-		if (ok && found && poolCacheObj.ServiceMetadataObj.CRDStatus.Value == rrnsname && poolCacheObj.ServiceMetadataObj.CRDStatus.Status == status) ||
-			(ok && found && !active && poolCacheObj.ServiceMetadataObj.CRDStatus.Status == "") ||
-			(!active && !found) {
-			return true
+		if !found {
+			t.Logf("Pool Cache not found.")
+			return false, nil
 		}
-		return false
-	}, 50*time.Second).Should(gomega.Equal(true))
+
+		if !active && !found {
+			return true, nil
+		}
+
+		poolCacheObj, ok := poolCache.(*cache.AviPoolCache)
+		if !ok {
+			t.Logf("Unable to cast Pool Cache to AviPoolCache.")
+			return false, nil
+		}
+
+		if active {
+			if poolCacheObj.ServiceMetadataObj.CRDStatus.Value != httpruleNSNamePath {
+				t.Logf("Expected CRD ServiceMetadata Value to be %s, found %s", httpruleNSNamePath, poolCacheObj.ServiceMetadataObj.CRDStatus.Value)
+				return false, nil
+			}
+
+			if poolCacheObj.ServiceMetadataObj.CRDStatus.Status != lib.CRDActive {
+				t.Logf("Expected CRD ServiceMetadata Status to be %s, found %s", lib.CRDActive, poolCacheObj.ServiceMetadataObj.CRDStatus.Status)
+				return false, nil
+			}
+		}
+
+		if !active && (poolCacheObj.ServiceMetadataObj.CRDStatus.Status == lib.CRDActive) {
+			t.Logf("Expected CRD ServiceMetadata Status to be empty/inactive, found %s", poolCacheObj.ServiceMetadataObj.CRDStatus.Status)
+			return false, nil
+		}
+
+		return true, nil
+	})
 }
 
 type FakeIngressClass struct {

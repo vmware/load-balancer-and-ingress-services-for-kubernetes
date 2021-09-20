@@ -246,6 +246,14 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			}
 		}
 
+		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
+		oldCacheServiceMetadataCRD := lib.CRDMetadata{}
+		if poolCache, ok := rest.cache.PoolCache.AviCacheGet(k); ok {
+			if poolCacheObj, found := poolCache.(*avicache.AviPoolCache); found {
+				oldCacheServiceMetadataCRD = poolCacheObj.ServiceMetadataObj.CRDStatus
+			}
+		}
+
 		pool_cache_obj := avicache.AviPoolCache{
 			Name:                 name,
 			Tenant:               rest_op.Tenant,
@@ -259,8 +267,11 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			pool_cache_obj.InvalidData = true
 		}
 
-		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.PoolCache.AviCacheAdd(k, &pool_cache_obj)
+		if (oldCacheServiceMetadataCRD != lib.CRDMetadata{}) {
+			status.HttpRuleEventBroadcast(k.Name, oldCacheServiceMetadataCRD, svc_mdata_obj.CRDStatus)
+		}
+
 		// Update the VS object
 		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if ok {
@@ -285,6 +296,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 						ServiceMetadata:    svc_mdata_obj,
 						Key:                key,
 						VirtualServiceUUID: vs_cache_obj.Uuid,
+						VSName:             vs_cache_obj.Name,
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.L4LBService,
@@ -298,6 +310,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 						ServiceMetadata:    svc_mdata_obj,
 						Key:                key,
 						VirtualServiceUUID: vs_cache_obj.Uuid,
+						VSName:             vs_cache_obj.Name,
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.Ingress,
@@ -331,29 +344,36 @@ func (rest *RestOperations) AviPoolCacheDel(rest_op *utils.RestOp, vsKey avicach
 	if ok {
 		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
-			utils.AviLog.Debugf("key: %s, msg: VsKey: %s, VS Pool key cache before deletion :%s", key, vsKey, vs_cache_obj.PoolKeyCollection)
 			vs_cache_obj.RemoveFromPoolKeyCollection(poolKey)
-			utils.AviLog.Infof("key: %s, msg: VS Pool key cache after deletion :%s", key, vs_cache_obj.PoolKeyCollection)
+			utils.AviLog.Debugf("key: %s, msg: VS Pool key cache after deletion: %s", key, vs_cache_obj.PoolKeyCollection)
+			rest.DeletePoolIngressStatus(poolKey, false, vs_cache_obj.Name, key)
 		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: deleting pool with key: %s", key, poolKey)
-	// Fetch the pool's cache data and obtain the service metadata
-	rest.DeletePoolIngressStatus(poolKey, false, key)
-	// Now delete the cache.
+	cacheServiceMetadataCRD := lib.CRDMetadata{}
+	if poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey); ok {
+		if poolCacheObj, found := poolCache.(*avicache.AviPoolCache); found {
+			cacheServiceMetadataCRD = poolCacheObj.ServiceMetadataObj.CRDStatus
+		}
+	}
 	rest.cache.PoolCache.AviCacheDelete(poolKey)
-
+	if (cacheServiceMetadataCRD != lib.CRDMetadata{}) {
+		status.HttpRuleEventBroadcast(poolKey.Name, cacheServiceMetadataCRD, lib.CRDMetadata{})
+	}
 	return nil
 }
 
-func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceName, isVSDelete bool, key string) {
+func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceName, isVSDelete bool, vsName, key string) {
 	pool_cache, found := rest.cache.PoolCache.AviCacheGet(poolKey)
 	if found {
 		pool_cache_obj, success := pool_cache.(*avicache.AviPoolCache)
 		if success {
 			if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+				// pool metadata is used for backend services of gateways.
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
+					VSName:          vsName,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
@@ -362,10 +382,11 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 				}
 				status.PublishToStatusQueue(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
 			} else if pool_cache_obj.ServiceMetadataObj.IngressName != "" {
-				// SNI VSes use the VS object metadata, delete ingress status for others
+				// pool metadata is used for insecure ingresses in regular AKO (non SNI).
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
+					VSName:          vsName,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.Ingress,

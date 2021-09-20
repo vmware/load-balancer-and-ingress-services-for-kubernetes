@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -57,27 +58,28 @@ func (v *Validator) IsValidHostName(hostname string) bool {
 	return false
 }
 
-func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec networkingv1.IngressSpec) bool {
-	nsIngress := ns + "/" + ingName
-	for _, rule := range ingSpec.Rules {
+func validateSpecFromHostnameCache(key string, ingress *networkingv1.Ingress) bool {
+	nsIngress := ingress.Namespace + "/" + ingress.Name
+	for _, rule := range ingress.Spec.Rules {
 		if rule.IngressRuleValue.HTTP != nil {
 			for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
 				found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
 				if found && len(val) > 1 && utils.HasElem(val, nsIngress) {
-					// TODO: push in ako apiserver
-					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s%s: %s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
+					lib.AKOControlConfig().EventRecorder().Eventf(ingress, corev1.EventTypeWarning, lib.DuplicateHostPath, "Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", rule.Host, svcPath.Path, utils.Stringify(val))
+					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 				}
 			}
 			// In VCF, we use VIP per Namespace, hence same hostname can should not be present across multiple namespaces
 			if lib.VIPPerNamespace() {
 				if ok, oldNS := SharedHostNameLister().GetNamespace(rule.Host); ok {
-					if oldNS != ns {
-						utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostname %s in multiple namespaces: %s and %s", key, rule.Host, oldNS, ns)
+					if oldNS != ingress.Namespace {
+						lib.AKOControlConfig().EventRecorder().Eventf(ingress, corev1.EventTypeWarning, lib.DuplicateHost, "Duplicate entries found for hostname %s in multiple namespaces %s and %s", rule.Host, oldNS, ingress.Namespace)
+						utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostname %s in multiple namespaces: %s and %s", key, rule.Host, oldNS, ingress.Namespace)
 					}
 				}
 			}
 		} else {
-			utils.AviLog.Warnf("key: %s, msg: Found Ingress: %s without service backends. Not going to process.", key, ingName)
+			utils.AviLog.Warnf("key: %s, msg: Found Ingress: %s without service backends. Not going to process.", key, ingress.Name)
 			return false
 		}
 	}

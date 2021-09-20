@@ -37,8 +37,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
 	routev1 "github.com/openshift/api/route/v1"
-
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,7 +70,11 @@ func PopulateCache() error {
 	aviclient := avicache.SharedAVIClients()
 	restlayer := rest.NewRestOperations(avi_obj_cache, aviclient)
 	staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
-	if lib.IsClusterNameValid() && aviclient != nil && len(aviclient.AviClient) > 0 {
+	if _, err := lib.IsClusterNameValid(); err != nil {
+		utils.AviLog.Errorf("AKO cluster name is invalid.")
+		return nil
+	}
+	if aviclient != nil && len(aviclient.AviClient) > 0 {
 		utils.AviLog.Infof("Starting clean up of stale objects")
 		restlayer.CleanupVS(staleVSKey, true)
 		staleCacheKey := avicache.NamespaceName{
@@ -130,7 +134,15 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 		return errors.New("Unable to contact the avi controller on bootup")
 	}
 	aviclient := aviClientPool.AviClient[0]
-	c.DisableSync = !avicache.ValidateUserInput(aviclient) || deleteConfigFromConfigmap(cs)
+
+	validateUserInput, err := avicache.ValidateUserInput(aviclient)
+	if err != nil {
+		utils.AviLog.Errorf("Error while validating input: %s", err.Error())
+		lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
+	} else {
+		lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, lib.ValidatedUserInput, "User input validation completed.")
+	}
+	c.DisableSync = !validateUserInput || deleteConfigFromConfigmap(cs)
 	if c.DisableSync {
 		return errors.New("Sync is disabled because of configmap unavailability during bootup")
 	}
@@ -153,7 +165,14 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			if !delModels {
 				status.ResetStatefulSetStatus()
 			}
-			c.DisableSync = !avicache.ValidateUserInput(aviclient) || delModels
+			validateUserInput, err := avicache.ValidateUserInput(aviclient)
+			if err != nil {
+				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
+				lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
+			} else {
+				lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, lib.ValidatedUserInput, "User input validation completed.")
+			}
+			c.DisableSync = !validateUserInput || delModels
 			lib.SetDisableSync(c.DisableSync)
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -174,7 +193,10 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				return
 			}
 			// if DeleteConfig value has changed, then check if we need to enable/disable sync
-			isValidUserInput := avicache.ValidateUserInput(aviclient)
+			isValidUserInput, err := avicache.ValidateUserInput(aviclient)
+			if err != nil {
+				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
+			}
 			c.DisableSync = !isValidUserInput || delConfigFromData(cm.Data)
 			lib.SetDisableSync(c.DisableSync)
 			if isValidUserInput {
@@ -377,6 +399,8 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		}
 	}
 	c.SetupEventHandlers(informers)
+	lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKOReady, "AKO is now listening for Object updates in the cluster")
+
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer
 	ingestionQueue.Run(stopCh, ingestionwg)

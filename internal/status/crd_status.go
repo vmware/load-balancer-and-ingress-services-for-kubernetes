@@ -23,6 +23,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -65,6 +66,44 @@ func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus Upd
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the hostrule %s/%s status %+v", key, hr.Namespace, hr.Name, utils.Stringify(updateStatus))
 }
 
+// HostRuleEventBroadcast is responsible from broadcasting HostRule specific events when the VS Cache is Added/Updated/Deleted.
+func HostRuleEventBroadcast(vsName string, vsCacheMetadataOld, vsMetadataNew lib.CRDMetadata) {
+	if vsCacheMetadataOld.Value != vsMetadataNew.Value {
+		oldHRNamespaceName := strings.Split(vsCacheMetadataOld.Value, "/")
+		newHRNamespaceName := strings.Split(vsMetadataNew.Value, "/")
+
+		if len(oldHRNamespaceName) != 2 || len(newHRNamespaceName) != 2 {
+			return
+		}
+
+		oldHostRule, _ := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(oldHRNamespaceName[0]).Get(oldHRNamespaceName[1])
+		newHostRule, _ := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(newHRNamespaceName[0]).Get(newHRNamespaceName[1])
+		if oldHostRule == nil || newHostRule == nil {
+			return
+		}
+
+		lib.AKOControlConfig().EventRecorder().Eventf(oldHostRule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
+		lib.AKOControlConfig().EventRecorder().Eventf(newHostRule, corev1.EventTypeNormal, lib.Attached, "Configuration applied to VirtualService %s", vsName)
+	}
+
+	hrNamespaceName := strings.Split(vsMetadataNew.Value, "/")
+	if len(hrNamespaceName) != 2 {
+		return
+	}
+	hostrule, _ := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hrNamespaceName[0]).Get(hrNamespaceName[1])
+	if hostrule == nil {
+		return
+	}
+
+	if (vsCacheMetadataOld.Status == lib.CRDInactive || vsCacheMetadataOld.Status == "") && vsMetadataNew.Status == lib.CRDActive {
+		// CRD was added, INACTIVE -> ACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(hostrule, corev1.EventTypeNormal, lib.Attached, "Configuration applied to VirtualService %s", vsName)
+	} else if vsCacheMetadataOld.Status == lib.CRDActive && (vsMetadataNew.Status == "" || vsMetadataNew.Status == lib.CRDInactive) {
+		// CRD was removed, ACTIVE -> INACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(hostrule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
+	}
+}
+
 // UpdateHTTPRuleStatus HttpRule status updates
 func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
 	retry := 0
@@ -95,6 +134,44 @@ func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus Upd
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the httprule %s/%s status %+v", key, rr.Namespace, rr.Name, utils.Stringify(updateStatus))
+}
+
+// HttpRuleEventBroadcast is responsible from broadcasting HttpRule specific events when the Pool Cache is Added/Updated/Deleted.
+func HttpRuleEventBroadcast(poolName string, poolCacheMetadataOld, vsMetadataNew lib.CRDMetadata) {
+	if poolCacheMetadataOld.Value != vsMetadataNew.Value {
+		oldHRNamespaceName := strings.SplitN(poolCacheMetadataOld.Value, "/", 3)
+		newHRNamespaceName := strings.SplitN(vsMetadataNew.Value, "/", 3)
+
+		if len(oldHRNamespaceName) != 3 || len(newHRNamespaceName) != 3 {
+			return
+		}
+
+		oldHttpRule, _ := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(oldHRNamespaceName[0]).Get(oldHRNamespaceName[1])
+		newHttpRule, _ := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(newHRNamespaceName[0]).Get(newHRNamespaceName[1])
+		if oldHttpRule == nil || newHttpRule == nil {
+			return
+		}
+
+		lib.AKOControlConfig().EventRecorder().Eventf(oldHttpRule, corev1.EventTypeNormal, lib.Attached, "Configuration for target path %s removed from Pool %s", oldHRNamespaceName[2], poolName)
+		lib.AKOControlConfig().EventRecorder().Eventf(newHttpRule, corev1.EventTypeNormal, lib.Attached, "Configuration for target path %s applied to Pool %s", newHRNamespaceName[2], poolName)
+	}
+
+	hrNamespaceName := strings.SplitN(vsMetadataNew.Value, "/", 3)
+	if len(hrNamespaceName) != 3 {
+		return
+	}
+	httprule, _ := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(hrNamespaceName[0]).Get(hrNamespaceName[1])
+	if httprule == nil {
+		return
+	}
+
+	if (poolCacheMetadataOld.Status == lib.CRDInactive || poolCacheMetadataOld.Status == "") && vsMetadataNew.Status == lib.CRDActive {
+		// CRD was added, INACTIVE -> ACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(httprule, corev1.EventTypeNormal, lib.Attached, "Configuration for target path %s applied to Pool %s", hrNamespaceName[2], poolName)
+	} else if poolCacheMetadataOld.Status == lib.CRDActive && (vsMetadataNew.Status == "" || vsMetadataNew.Status == lib.CRDInactive) {
+		// CRD was removed, ACTIVE -> INACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(httprule, corev1.EventTypeNormal, lib.Attached, "Configuration for target path %s removed from Pool %s", hrNamespaceName[2], poolName)
+	}
 }
 
 // UpdateAviInfraSettingStatus AviInfraSetting status updates

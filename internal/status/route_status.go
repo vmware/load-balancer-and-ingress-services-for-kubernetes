@@ -26,10 +26,12 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map[string]UpdateOptions) {
@@ -239,7 +241,7 @@ func UpdateRouteStatusWithErrMsg(key, routeName, namespace, msg string, retryNum
 	}
 	mRoute.Status.Ingress = append(mRoute.Status.Ingress, rtIngress)
 
-	if sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress); sameStatus {
+	if sameStatus, _, _ := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress); sameStatus {
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 		return
@@ -337,7 +339,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 
 	var updatedRoute *routev1.Route
 
-	sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress)
+	sameStatus, beforeHost, afterHost := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	if !sameStatus {
 		patchPayload, _ := json.Marshal(map[string]interface{}{
 			"status": mRoute.Status,
@@ -351,10 +353,18 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 			if len(mRoutes) > 0 {
 				return updateRouteObject(mRoutes[mRoute.Namespace+"/"+mRoute.Name], updateOption, retry+1)
 			}
+		} else {
+			// The UTs discovered that the route might have gotten deleted just before the PATCH status call to the route.
+			// In that case the updatedRoute would turn out to be empty. This else conditional checks saves AKO from
+			// the a crash in that case.
+			if afterHost != "" {
+				lib.AKOControlConfig().EventRecorder().Eventf(updatedRoute, corev1.EventTypeNormal, lib.Synced, "Added virtualservice %s for %s", updateOption.VSName, afterHost)
+			} else if beforeHost != "" {
+				lib.AKOControlConfig().EventRecorder().Eventf(updatedRoute, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", beforeHost)
+			}
+			utils.AviLog.Infof("key: %s, msg: Successfully updated the status of route: %s/%s old: %+v new: %+v",
+				key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 		}
-
-		utils.AviLog.Infof("key: %s, msg: Successfully updated the status of route: %s/%s old: %+v new: %+v",
-			key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
@@ -428,60 +438,76 @@ func patchRouteAnnotations(mRoute *routev1.Route, vsAnnotations map[string]strin
 	return nil
 }
 
-func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) bool {
-
-	if len(oldStatus) != len(newStatus) {
-		return false
-	}
-	exists := []string{}
+func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) (bool, string, string) {
+	exists := sets.NewString()
+	// Route would essentially consist of single hosts.
+	var beforeHost, afterHost string
+	var diff *bool
 	for _, status := range oldStatus {
+		if status.RouterName != lib.AKOUser {
+			continue
+		}
 		if len(status.Conditions) < 1 {
 			continue
 		}
 		// For older created routes, time will be nil
 		if status.Conditions[0].LastTransitionTime == nil {
-			return false
+			if diff == nil {
+				diff = proto.Bool(false)
+			}
+			continue
 		}
 		ip := status.Conditions[0].Message
 		reason := status.Conditions[0].Reason
-		exists = append(exists, ip+":"+status.Host+":"+status.RouterName+":"+reason)
+		exists.Insert(ip + ":" + status.Host + ":" + status.RouterName + ":" + reason)
+		beforeHost = status.Host
+		break
 	}
+
 	for _, status := range newStatus {
+		if status.RouterName != lib.AKOUser {
+			continue
+		}
 		if len(status.Conditions) < 1 {
 			continue
 		}
 		ip := status.Conditions[0].Message
 		reason := status.Conditions[0].Reason
-		ipHost := ip + ":" + status.Host + ":" + status.RouterName + ":" + reason
-
-		if !utils.HasElem(exists, ipHost) {
-			return false
+		if !exists.Has(ip + ":" + status.Host + ":" + status.RouterName + ":" + reason) {
+			if diff == nil {
+				diff = proto.Bool(false)
+			}
+			continue
 		}
+		afterHost = status.Host
+		break
 	}
 
-	return true
+	if diff == nil {
+		diff = proto.Bool(true)
+	}
+	return *diff, beforeHost, afterHost
 }
 
 func DeleteRouteStatus(options []UpdateOptions, isVSDelete bool, key string) error {
 	if len(options) == 0 {
 		return fmt.Errorf("Length of options is zero")
 	}
-	svc_mdata_obj := options[0].ServiceMetadata
 	var err error
-	if len(svc_mdata_obj.NamespaceIngressName) > 0 {
+	if len(options[0].ServiceMetadata.NamespaceIngressName) > 0 {
 		// This is SNI with hostname sharding.
-		for _, ingressns := range svc_mdata_obj.NamespaceIngressName {
+		for _, ingressns := range options[0].ServiceMetadata.NamespaceIngressName {
 			ingressArr := strings.Split(ingressns, "/")
 			if len(ingressArr) != 2 {
 				utils.AviLog.Errorf("key: %s, msg: DeleteRouteStatus IngressNamespace format not correct", key)
 				return errors.New("DeleteRouteStatus IngressNamespace format not correct")
 			}
-			svc_mdata_obj.Namespace = ingressArr[0]
-			svc_mdata_obj.IngressName = ingressArr[1]
-			err = deleteRouteObject(svc_mdata_obj, key, isVSDelete)
+			options[0].ServiceMetadata.Namespace = ingressArr[0]
+			options[0].ServiceMetadata.IngressName = ingressArr[1]
+			err = deleteRouteObject(options[0], key, isVSDelete)
 		}
 	} else {
-		err = deleteRouteObject(svc_mdata_obj, key, isVSDelete)
+		err = deleteRouteObject(options[0], key, isVSDelete)
 	}
 
 	if err != nil {
@@ -491,7 +517,7 @@ func DeleteRouteStatus(options []UpdateOptions, isVSDelete bool, key string) err
 	return nil
 }
 
-func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDelete bool, retryNum ...int) error {
+func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("key: %s, msg: Retrying to update the route status", key)
@@ -502,7 +528,7 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 		}
 	}
 
-	mRoute, err := utils.GetInformers().RouteInformer.Lister().Routes(svc_mdata_obj.Namespace).Get(svc_mdata_obj.IngressName)
+	mRoute, err := utils.GetInformers().RouteInformer.Lister().Routes(option.ServiceMetadata.Namespace).Get(option.ServiceMetadata.IngressName)
 
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not get the Route object for DeleteStatus: %s", key, err)
@@ -510,31 +536,30 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 	}
 
 	oldRouteStatus := mRoute.Status.DeepCopy()
-	if len(svc_mdata_obj.HostNames) > 0 {
-		// If the route status for the host is alresay fasle, then don't delete the status
-		if !routeStatusCheck(key, oldRouteStatus.Ingress, svc_mdata_obj.HostNames[0]) {
+	if len(option.ServiceMetadata.HostNames) > 0 {
+		// If the route status for the host is already fasle, then don't delete the status
+		if !routeStatusCheck(key, oldRouteStatus.Ingress, option.ServiceMetadata.HostNames[0]) {
 			return nil
 		}
 	}
 
-	utils.AviLog.Infof("key: %s, deleting hostnames %v from Route status %s/%s", key, svc_mdata_obj.HostNames, svc_mdata_obj.Namespace, svc_mdata_obj.IngressName)
-	for _, host := range svc_mdata_obj.HostNames {
-		for i := 0; i < len(mRoute.Status.Ingress); i++ {
-			if mRoute.Status.Ingress[i].Host != host {
-				continue
-			}
-			// Check if this host is still present in the spec, if so - don't delete it
-			//NS migration case: if false -> ns invalid event happened so remove status
-			if mRoute.Spec.Host != host || isVSDelete || !utils.CheckIfNamespaceAccepted(svc_mdata_obj.Namespace) {
-				mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
-			} else {
-				utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the route: %v", key, host)
-			}
+	utils.AviLog.Infof("key: %s, deleting hostnames %v from Route status %s/%s", key, option.ServiceMetadata.HostNames, option.ServiceMetadata.Namespace, option.ServiceMetadata.IngressName)
+	svcMdataHostname := option.ServiceMetadata.HostNames[0]
+	for i := 0; i < len(mRoute.Status.Ingress); i++ {
+		if mRoute.Status.Ingress[i].Host != svcMdataHostname {
+			continue
+		}
+		// Check if this host is still present in the spec, if so - don't delete it
+		// NS migration case: if false -> ns invalid event happened so remove status
+		if mRoute.Spec.Host != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) {
+			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
+		} else {
+			utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the route: %v", key, svcMdataHostname)
 		}
 	}
 
 	var updatedRoute *routev1.Route
-	sameStatus := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress)
+	sameStatus, _, afterHost := compareRouteStatus(oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	if sameStatus {
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in Route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
@@ -547,17 +572,20 @@ func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, is
 				"status": nil,
 			})
 		}
-		updatedRoute, err = utils.GetInformers().OshiftClient.RouteV1().Routes(svc_mdata_obj.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+		updatedRoute, err = utils.GetInformers().OshiftClient.RouteV1().Routes(option.ServiceMetadata.Namespace).Patch(context.TODO(), mRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, msg: there was an error in deleting the Route status: %v", key, err)
-			return deleteObject(svc_mdata_obj, key, isVSDelete, retry+1)
+			return deleteRouteObject(option, key, isVSDelete, retry+1)
+		} else {
+			if afterHost == "" {
+				lib.AKOControlConfig().EventRecorder().Eventf(updatedRoute, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", afterHost)
+			}
+			utils.AviLog.Infof("key: %s, msg: Successfully deleted status of route: %s/%s old: %+v new: %+v",
+				key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 		}
-
-		utils.AviLog.Infof("key: %s, msg: Successfully deleted status of route: %s/%s old: %+v new: %+v",
-			key, mRoute.Namespace, mRoute.Name, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	}
 
-	return deleteRouteAnnotation(updatedRoute, svc_mdata_obj, isVSDelete, mRoute.Spec.Host, key, mRoute)
+	return deleteRouteAnnotation(updatedRoute, option.ServiceMetadata, isVSDelete, mRoute.Spec.Host, key, mRoute)
 }
 
 func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMetadataObj, isVSDelete bool,

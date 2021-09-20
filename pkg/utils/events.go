@@ -64,12 +64,25 @@ func init() {
 
 type EventRecorder struct {
 	Recorder record.EventRecorder
+	Fake     bool
 }
 
-func NewEventRecorder(id string, kubeClient kubernetes.Interface) *EventRecorder {
+func (e *EventRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
+	if !e.Fake {
+		e.Recorder.Eventf(object, eventtype, reason, messageFmt, args)
+	}
+}
+
+func (e *EventRecorder) Event(object runtime.Object, eventtype, reason, messageFmt string) {
+	if !e.Fake {
+		e.Recorder.Event(object, eventtype, reason, messageFmt)
+	}
+}
+
+func NewEventRecorder(id string, kubeClient kubernetes.Interface, fake bool) *EventRecorder {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(AviLog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(EventScheme, corev1.EventSource{Component: id})
-	return &EventRecorder{Recorder: recorder}
+	return &EventRecorder{Recorder: recorder, Fake: fake}
 }

@@ -15,10 +15,11 @@
 package rest
 
 import (
+	v1 "k8s.io/api/core/v1"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -168,4 +169,5 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		}
 	}
 	utils.AviLog.Infof("Status syncing completed")
+	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, lib.StatusSync, "Status syncing completed")
 }

@@ -15,15 +15,19 @@
 package lib
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"net/http"
+	"os"
 	"strings"
 
 	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int) (session.AviCollectionResult, error) {
@@ -151,4 +155,45 @@ func checkForInvalidCredentials(uri string, err error) {
 		}
 	}
 	return
+}
+
+func NewAviRestClientWithToken(api_ep string, username string, authToken string) *clients.AviClient {
+	var aviClient *clients.AviClient
+	var transport *http.Transport
+	var err error
+
+	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+	if username == "" || authToken == "" || ctrlIpAddress == "" {
+		var authTokenLog string
+		if authToken != "" {
+			authTokenLog = "<sensitive>"
+		}
+		AKOControlConfig().PodEventf(
+			corev1.EventTypeWarning,
+			AKOShutdown, "Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s)",
+			username, authTokenLog, ctrlIpAddress,
+		)
+		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, authToken: %s, controller: %s). Update them in avi-secret.", username, authTokenLog, ctrlIpAddress)
+	}
+
+	rootPEMCerts := os.Getenv("CTRL_CA_DATA")
+	if rootPEMCerts != "" {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
+
+		transport =
+			&http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: caCertPool,
+				},
+			}
+		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport))
+	} else {
+		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+	}
+	if err != nil {
+		utils.AviLog.Warnf("NewAviClient returned err %v", err)
+		return nil
+	}
+	return aviClient
 }

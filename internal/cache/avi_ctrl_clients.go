@@ -17,12 +17,12 @@ package cache
 import (
 	"os"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
 
 var AviClientInstance *utils.AviRestClientPool
@@ -38,7 +38,19 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
 	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
-		utils.AviLog.Fatal("AVI controller information missing. Update them in kubernetes secret or via environment variables.")
+		var passwordLog, authTokenLog string
+		if ctrlPassword != "" {
+			passwordLog = "<sensitive>"
+		}
+		if ctrlAuthToken != "" {
+			authTokenLog = "<sensitive>"
+		}
+		lib.AKOControlConfig().PodEventf(
+			corev1.EventTypeWarning,
+			lib.AKOShutdown, "Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s)",
+			ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress,
+		)
+		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update them in avi-secret.", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
 	}
 
 	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
@@ -63,9 +75,13 @@ func SharedAVIClients() *utils.AviRestClientPool {
 			utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", lib.GetAviMaxSupportedVersion())
 			controllerVersion = lib.GetAviMaxSupportedVersion()
 		}
-
 		if lib.CompareVersions(controllerVersion, "<", lib.GetAviMinSupportedVersion()) {
-			utils.AviLog.Fatalf("AKO is not supported for the following Avi version %s, Avi must be %s or more", controllerVersion, lib.GetAviMinSupportedVersion())
+			lib.AKOControlConfig().PodEventf(
+				corev1.EventTypeWarning,
+				lib.AKOShutdown, "AKO is running with unsupported Avi version %s",
+				controllerVersion,
+			)
+			utils.AviLog.Fatalf("AKO is not supported for the Avi version %s, Avi must be %s or more", controllerVersion, lib.GetAviMinSupportedVersion())
 		}
 		utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
 
@@ -77,7 +93,6 @@ func SharedAVIClients() *utils.AviRestClientPool {
 			lib.SetEnableCtrl2014Features(controllerVersion)
 			SetVersion := session.SetVersion(controllerVersion)
 			SetVersion(client.AviSession)
-
 		}
 	}
 

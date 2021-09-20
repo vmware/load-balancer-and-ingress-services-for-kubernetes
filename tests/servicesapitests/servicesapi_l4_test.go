@@ -58,11 +58,12 @@ func TestMain(m *testing.M) {
 	os.Setenv("AUTO_L4_FQDN", "default")
 
 	akoControlConfig := lib.AKOControlConfig()
+	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	k8s.NewCRDInformers(CRDClient)
 
-	KubeClient = k8sfake.NewSimpleClientset()
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),

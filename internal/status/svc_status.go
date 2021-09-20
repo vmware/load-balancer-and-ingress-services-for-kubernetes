@@ -67,7 +67,7 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 							Hostname: svcHostname,
 						}}}}
 
-				sameStatus := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer)
+				sameStatus, _, _ := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer)
 				var updatedSvc *corev1.Service
 				var err error
 				if !sameStatus {
@@ -79,6 +79,11 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 					if err != nil {
 						utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
 					} else {
+						if len(service.Status.LoadBalancer.Ingress) > 0 {
+							lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Synced, "Added virtualservice %s for %s", option.VSName, service.Name)
+						} else {
+							lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", service.Name)
+						}
 						utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
 							key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 					}
@@ -102,7 +107,7 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			}
 			DeleteL4LBStatus(avicache.ServiceMetadataObj{
 				NamespaceServiceName: []string{svcNSName},
-			}, lib.SyncStatusKey)
+			}, "", lib.SyncStatusKey)
 		}
 	}
 }
@@ -149,7 +154,7 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 	return nil
 }
 
-func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) error {
+func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, vsName, key string) error {
 	serviceMap := getServices(svc_mdata_obj.NamespaceServiceName, false)
 	for _, service := range svc_mdata_obj.NamespaceServiceName {
 		serviceNSName := strings.Split(service, "/")
@@ -166,12 +171,14 @@ func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, key string) err
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: there was an error in resetting the loadbalancer status: %v", key, err)
 			return err
-		}
-		utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s", key, service)
+		} else {
+			lib.AKOControlConfig().EventRecorder().Eventf(updatedSvc, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", updatedSvc.Name)
+			utils.AviLog.Infof("key: %s, msg: Successfully reset the status of serviceLB: %s", key, service)
 
-		err = deleteSvcAnnotation(updatedSvc)
-		if err != nil {
-			utils.AviLog.Errorf("key: %s, msg: error in deleting service annotation: %v", key, err)
+			err = deleteSvcAnnotation(updatedSvc)
+			if err != nil {
+				utils.AviLog.Errorf("key: %s, msg: error in deleting service annotation: %v", key, err)
+			}
 		}
 	}
 	return nil

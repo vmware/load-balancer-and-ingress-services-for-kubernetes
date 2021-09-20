@@ -348,9 +348,12 @@ func TestDeletePoolCacheSync(t *testing.T) {
 		_, found := mcache.PoolCache.AviCacheGet(oldPoolKey)
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
-	newPoolCache, found := mcache.PoolCache.AviCacheGet(newPoolKey)
+	g.Eventually(func() bool {
+		_, found := mcache.PoolCache.AviCacheGet(newPoolKey)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	newPoolCache, _ := mcache.PoolCache.AviCacheGet(newPoolKey)
 	newPoolCacheObj, _ := newPoolCache.(*cache.AviPoolCache)
-	g.Expect(found).To(gomega.Equal(true))
 	g.Expect(newPoolCacheObj.Name).To(gomega.Not(gomega.ContainSubstring("foo.com")))
 	g.Expect(newPoolCacheObj.Name).To(gomega.ContainSubstring("bar.com"))
 

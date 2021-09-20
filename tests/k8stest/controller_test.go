@@ -106,6 +106,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	crdClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 
 	registeredInformers := []string{
 		utils.ServiceInformer,

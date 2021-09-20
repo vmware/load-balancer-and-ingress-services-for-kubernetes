@@ -308,7 +308,7 @@ func IngressChanges(ingName string, namespace string, key string) ([]string, boo
 		}
 	} else {
 		// simple validator check for duplicate hostpaths, logs Warning if duplicates found
-		success := validateSpecFromHostnameCache(key, ingObj.Namespace, ingObj.Name, ingObj.Spec)
+		success := validateSpecFromHostnameCache(key, ingObj)
 		if !success {
 			return ingresses, false
 		}

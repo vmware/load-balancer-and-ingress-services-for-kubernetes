@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -24,7 +25,6 @@ import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
@@ -33,6 +33,8 @@ import (
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	istiocrd "istio.io/client-go/pkg/clientset/versioned"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -127,7 +129,12 @@ func InitializeAKC() {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, false)
+	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Error getting AKO pod details.")
+	}
+	akoControlConfig.SaveAKOPodObjectMeta(pod)
 
 	// Check for kubernetes apiserver version compatibility with AKO version.
 	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {
@@ -137,6 +144,7 @@ func InitializeAKC() {
 		utils.AviLog.Infof("Kubernetes cluster apiserver version %s", serverVersion)
 		if lib.CompareVersions(serverVersion, ">", lib.GetK8sMaxSupportedVersion()) ||
 			lib.CompareVersions(serverVersion, "<", lib.GetK8sMinSupportedVersion()) {
+			akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Unsupported kubernetes apiserver %s version detected", serverVersion)
 			utils.AviLog.Fatalf("Unsupported kubernetes apiserver version detected. Please check the supportability guide.")
 		}
 	}
@@ -208,6 +216,7 @@ func InitializeAKC() {
 	}
 
 	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
+		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 
@@ -215,10 +224,6 @@ func InitializeAKC() {
 	if err != nil {
 		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")
 		return
-	}
-
-	if _, err := lib.GetVipNetworkListEnv(); err != nil {
-		utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
 	}
 
 	c.InitializeNamespaceSync()

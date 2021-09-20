@@ -245,6 +245,7 @@ func TestAviInfraSettingNamingConvention(t *testing.T) {
 	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
+	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
 	g.Expect(settingNodes[0].HttpPolicyRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].SniNodes[0].PoolRefs[0].Name).Should(gomega.Equal(sniPoolName))
 	g.Expect(settingNodes[0].SniNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(sniPoolName))
@@ -1228,8 +1229,9 @@ func TestCRDWithAviInfraSetting(t *testing.T) {
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
+	httpRulePath := "/"
 	integrationtest.SetupHostRule(t, hrname, "baz.com", true)
-	integrationtest.SetupHTTPRule(t, rrname, "baz.com", "/")
+	integrationtest.SetupHTTPRule(t, rrname, "baz.com", httpRulePath)
 
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -1256,8 +1258,8 @@ func TestCRDWithAviInfraSetting(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal("Accepted"))
 
 	// check for values set in graph layer.
-	integrationtest.VerifyMetadataHostRule(g, sniKey, "default/"+hrname, true)
-	integrationtest.VerifyMetadataHTTPRule(g, poolKey, "default/"+rrname, true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniKey, "default/"+hrname, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolKey, "default/"+rrname+"/"+httpRulePath, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))

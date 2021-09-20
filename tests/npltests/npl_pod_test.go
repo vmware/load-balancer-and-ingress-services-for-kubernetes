@@ -173,6 +173,7 @@ func TestMain(m *testing.M) {
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),

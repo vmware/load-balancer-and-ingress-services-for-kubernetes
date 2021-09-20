@@ -46,7 +46,7 @@ func DequeueStatus(objIntf interface{}) error {
 		if obj.Op == lib.UpdateStatus {
 			UpdateL4LBStatus([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
-			DeleteL4LBStatus(obj.Options.ServiceMetadata, obj.Options.Key)
+			DeleteL4LBStatus(obj.Options.ServiceMetadata, "", obj.Options.Key)
 		}
 	case utils.Ingress:
 		if obj.Op == lib.UpdateStatus {

@@ -43,7 +43,7 @@ func TestCreateDeleteHostRule(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
-	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
@@ -84,7 +84,7 @@ func TestCreateDeleteHostRule(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(false))
 	g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.ContainElement("baz.com"))
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", false)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].Enabled).To(gomega.BeNil())
@@ -163,7 +163,7 @@ func TestInsecureToSecureHostRule(t *testing.T) {
 	}, 15*time.Second).Should(gomega.Equal(1))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
-	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -268,7 +268,7 @@ func TestMultiIngressToSecureHostRule(t *testing.T) {
 	}
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
-	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
 
 	if err := KubeClient.NetworkingV1().Ingresses("red").Delete(context.TODO(), "foo-with-targets-2", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -366,7 +366,7 @@ func TestGoodToBadHostRule(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
-	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
 
 	// update hostrule with bad ref
 	hrUpdate := integrationtest.FakeHostRule{
@@ -438,7 +438,7 @@ func TestValidToInvalidHostSwitch(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
-	integrationtest.VerifyMetadataHostRule(g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
 
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:              hrname,
@@ -521,9 +521,10 @@ func TestHTTPRuleCreateDelete(t *testing.T) {
 
 	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-with-targets"}
 	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-foo-with-targets"}
-	integrationtest.SetupHTTPRule(t, rrname, "foo.com", "/")
-	integrationtest.VerifyMetadataHTTPRule(g, poolFooKey, "default/"+rrname, true)
-	integrationtest.VerifyMetadataHTTPRule(g, poolBarKey, "default/"+rrname, true)
+	httpRulePath := "/"
+	integrationtest.SetupHTTPRule(t, rrname, "foo.com", httpRulePath)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
@@ -536,8 +537,8 @@ func TestHTTPRuleCreateDelete(t *testing.T) {
 
 	// delete httprule deletes refs as well
 	integrationtest.TeardownHTTPRule(t, rrname)
-	integrationtest.VerifyMetadataHTTPRule(g, poolFooKey, "default/"+rrname, false)
-	integrationtest.VerifyMetadataHTTPRule(g, poolBarKey, "default/"+rrname, false)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, false)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal(""))

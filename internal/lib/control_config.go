@@ -211,8 +211,8 @@ func (c *akoControlConfig) IstioCRDInformers() *IstioCRDInformers {
 	return c.istioInformers
 }
 
-func (c *akoControlConfig) SetEventRecorder(id string, client kubernetes.Interface) {
-	c.akoEventRecorder = utils.NewEventRecorder(id, client)
+func (c *akoControlConfig) SetEventRecorder(id string, client kubernetes.Interface, fake bool) {
+	c.akoEventRecorder = utils.NewEventRecorder(id, client, fake)
 }
 
 func (c *akoControlConfig) EventRecorder() *utils.EventRecorder {
@@ -225,12 +225,10 @@ func (c *akoControlConfig) SaveAKOPodObjectMeta(pod *v1.Pod) {
 
 func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatArgs ...string) {
 	if c.akoPodObjectMeta != nil {
-		c.EventRecorder().Recorder.Eventf(
-			&v1.Pod{ObjectMeta: *c.akoPodObjectMeta},
-			eventType,
-			reason,
-			message,
-			formatArgs,
-		)
+		if len(formatArgs) > 0 {
+			c.EventRecorder().Eventf(&v1.Pod{ObjectMeta: *c.akoPodObjectMeta}, eventType, reason, message, formatArgs)
+		} else {
+			c.EventRecorder().Event(&v1.Pod{ObjectMeta: *c.akoPodObjectMeta}, eventType, reason, message)
+		}
 	}
 }
