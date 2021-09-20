@@ -1,3 +1,17 @@
+/*
+ * Copyright 2021 VMware, Inc.
+ * All Rights Reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*   http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
 package main
 
 import (
@@ -9,7 +23,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -71,23 +84,17 @@ func InitializeAKOInfra() {
 		}
 	}
 
-	oshiftClient, err := oshiftclient.NewForConfig(cfg)
-	if err != nil {
-		utils.AviLog.Warnf("Error in creating openshift clientset")
-	}
-
-	registeredInformers, err := lib.InformersToRegister(oshiftClient, kubeClient)
+	registeredInformers, err := lib.InformersToRegister(kubeClient, nil)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO-Infra, going to reboot", err)
 	}
 
 	informersArg := make(map[string]interface{})
-	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = oshiftClient
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewVCFDynamicInformers(dynamicClient)
 
-	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
+	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := ingestion.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})

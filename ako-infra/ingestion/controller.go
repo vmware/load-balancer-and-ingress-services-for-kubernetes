@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright 2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -40,7 +39,6 @@ type AviController struct {
 type K8sinformers struct {
 	Cs            kubernetes.Interface
 	DynamicClient dynamic.Interface
-	OshiftClient  oshiftclient.Interface
 }
 
 func SharedAviController() *AviController {

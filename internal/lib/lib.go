@@ -876,7 +876,8 @@ func PopulatePassthroughPoolMarkers(host, svcName string) utils.AviObjectMarkers
 	markers.ServiceName = svcName
 	return markers
 }
-func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Clientset) ([]string, error) {
+func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset) ([]string, error) {
+	var isOshift bool
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
@@ -898,12 +899,15 @@ func InformersToRegister(oclient *oshiftclient.Clientset, kclient *kubernetes.Cl
 		if err != nil {
 			return allInformers, errors.New("Error in fetching services: " + err.Error())
 		}
-		_, err = oclient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
-		if err == nil {
-			// Openshift cluster with route support, we will just add route informer
-			allInformers = append(allInformers, utils.RouteInformer)
-		} else {
-			// Kubernetes cluster
+		if oclient != nil {
+			_, err = oclient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
+			if err == nil {
+				// Openshift cluster with route support, we will just add route informer
+				allInformers = append(allInformers, utils.RouteInformer)
+				isOshift = true
+			}
+		}
+		if !isOshift {
 			allInformers = append(allInformers, utils.IngressInformer)
 			allInformers = append(allInformers, utils.IngressClassInformer)
 		}
