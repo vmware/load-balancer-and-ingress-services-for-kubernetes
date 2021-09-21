@@ -96,6 +96,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if err := validateHostRuleObj(key, hostrule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
 				}
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == hostrule.ResourceVersion {
+					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
+					return
+				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -137,6 +142,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				objects.SharedResourceVerInstanceLister().Delete(key)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			},
@@ -156,6 +162,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 				if err := validateHTTPRuleObj(key, httprule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+				}
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == httprule.ResourceVersion {
+					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
+					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -202,6 +213,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 				// no need to validate for delete handler
 				bkt := utils.Bkt(namespace, numWorkers)
+				objects.SharedResourceVerInstanceLister().Delete(key)
 				c.workqueue[bkt].AddRateLimited(key)
 			},
 		}
@@ -220,6 +232,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
 				if err := validateAviInfraSetting(key, aviinfra); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+				}
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == aviinfra.ResourceVersion {
+					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
+					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -262,6 +279,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				objects.SharedResourceVerInstanceLister().Delete(key)
 				// no need to validate for delete handler
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -269,6 +287,13 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		}
 
 		informer.AviInfraSettingInformer.Informer().AddEventHandler(aviInfraEventHandler)
+	}
+	return
+}
+
+func (c *AviController) AddCrdIndexer() {
+	informer := lib.GetCRDInformers()
+	if lib.GetAviInfraSettingEnabled() {
 		informer.AviInfraSettingInformer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
@@ -281,8 +306,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			},
 		)
 	}
-
-	return
 }
 
 // validateHostRuleObj would do validation checks
