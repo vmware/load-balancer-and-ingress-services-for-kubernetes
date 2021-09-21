@@ -27,10 +27,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
-	"github.com/vmware/alb-sdk/go/clients"
 	avimodels "github.com/vmware/alb-sdk/go/models"
-	"github.com/vmware/alb-sdk/go/session"
 )
 
 type RestOperations struct {

@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/alb-sdk/go/session"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
 
 type AviRestClientPool struct {
