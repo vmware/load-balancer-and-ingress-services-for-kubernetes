@@ -61,6 +61,8 @@ type AKOSettings struct {
 	Layer7Only bool `json:"layer7Only,omitempty"`
 	// ServicesAPI enables AKO to do Layer 4 loadbalancing using Services API
 	ServicesAPI bool `json:"servicesAPI,omitempty"`
+	// VipPerNamespace enables AKO to create Parent VS per Namespace in EVH mode
+	VipPerNamespace bool `json:"vipPerNamespace,omitempty"`
 }
 
 type NodeNetwork struct {

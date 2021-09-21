@@ -58,6 +58,9 @@ spec:
                 servicesAPI:
                   description: ServicesAPI enables AKO to do Layer 4 loadbalancing using Services API
                   type: boolean
+                vipPerNamespace:
+                  description: vipPerNamespace enables AKO to create Parent VS per Namespace in EVH mode
+                  type: boolean
                 deleteConfig:
                   description: DeleteConfig is set if clean up is required by AKO
                   type: boolean

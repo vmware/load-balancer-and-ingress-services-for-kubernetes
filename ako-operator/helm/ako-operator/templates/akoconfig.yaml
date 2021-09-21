@@ -19,6 +19,7 @@ spec:
     enableEVH: {{ .Values.AKOSettings.enableEVH }}
     layer7Only: {{ .Values.AKOSettings.layer7Only }}
     servicesAPI: {{ .Values.AKOSettings.servicesAPI }}
+    vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace }} 
     namespaceSelector:
       labelKey: {{ .Values.AKOSettings.namespaceSelector.labelKey | quote }}
       labelValue: {{ .Values.AKOSettings.namespaceSelector.labelValue | quote }}
