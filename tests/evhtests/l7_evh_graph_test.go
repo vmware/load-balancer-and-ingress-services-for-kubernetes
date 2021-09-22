@@ -1353,7 +1353,7 @@ func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
-		if !lib.IsVCFCluster() {
+		if !lib.VIPPerNamespace() {
 			g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(0))
 		}
 
@@ -1777,7 +1777,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 	// Because of change of the hostnames, the SNI nodes should now get distributed to two shared VSes.
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	evhNodesLen := 1
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		evhNodesLen = 2
 	}
 	if found {

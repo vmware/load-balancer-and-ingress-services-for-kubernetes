@@ -137,6 +137,12 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	}
 	cm.Data[ServicesAPI] = servicesAPI
 
+	vipPerNamespace := "false"
+	if ako.Spec.AKOSettings.VipPerNamespace {
+		vipPerNamespace = "true"
+	}
+	cm.Data[VipPerNamespace] = vipPerNamespace
+
 	cm.Data[ShardVSSize] = string(ako.Spec.L7Settings.ShardVSSize)
 	cm.Data[PassthroughShardSize] = string(ako.Spec.L7Settings.PassthroughShardSize)
 	fullSyncFreq := ako.Spec.AKOSettings.FullSyncFrequency

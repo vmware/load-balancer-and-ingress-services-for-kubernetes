@@ -46,6 +46,7 @@ var cmJson = `
 		"enableEVH: "false",
 		"layer7Only": "false",
 		"servicesAPI": "false",
+		"vipPerNamespace": "false",
 		"controllerIP": "10.10.10.11",
 		"controllerVersion": "1.1",
 		"defaultDomain": "test.com",

@@ -797,7 +797,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 	}
 	SharedHostNameLister().Save(host, ingressHostMap)
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		SharedHostNameLister().SaveNamespace(host, routeIgrObj.GetNamespace())
 	}
 
@@ -995,7 +995,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 		}
 		SharedHostNameLister().Save(host, ingressHostMap)
-		if lib.IsVCFCluster() {
+		if lib.VIPPerNamespace() {
 			SharedHostNameLister().SaveNamespace(host, routeIgrObj.GetNamespace())
 		}
 		hosts = append(hosts, host)
@@ -1326,7 +1326,7 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (s
 		newVsName += newInfraPrefix + "-"
 	}
 
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		oldVsName += "NS-" + routeIgrObj.GetNamespace()
 		newVsName += "NS-" + routeIgrObj.GetNamespace()
 	} else {

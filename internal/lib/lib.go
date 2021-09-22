@@ -1329,6 +1329,11 @@ func GetK8sMaxSupportedVersion() string {
 	return k8sMaxVersion
 }
 
+func VIPPerNamespace() bool {
+	vipPerNS := os.Getenv(VIP_PER_NAMESPACE)
+	return vipPerNS == "true"
+}
+
 func IsVCFCluster() bool {
 	vcfCluster := os.Getenv(VCF_CLUSTER)
 	return vcfCluster == "true"

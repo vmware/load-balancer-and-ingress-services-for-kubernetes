@@ -48,13 +48,14 @@ var isVCF = flag.String("isVCF", "false", "is vcf enabled")
 
 func setVCF(isvcf string) {
 	if isvcf == "true" {
+		os.Setenv("VIP_PER_NAMESPACE", "true")
 		os.Setenv("VCF_CLUSTER", "true")
 	}
 }
 
 func GetModelName(hostname, namespace string) (string, string) {
 	vsName := "cluster--Shared-L7-EVH-"
-	if !lib.IsVCFCluster() {
+	if !lib.VIPPerNamespace() {
 		vsName += strconv.Itoa(int(utils.Bkt(hostname, 8)))
 		return "admin/" + vsName, vsName
 	}

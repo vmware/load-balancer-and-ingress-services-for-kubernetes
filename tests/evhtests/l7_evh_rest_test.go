@@ -34,7 +34,7 @@ import (
 func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 	// Skip this test for VIP per Namespace model, as the validations have to be changed.
 	// Separate tests would be added to check these conditions.
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	SetupDomain()
@@ -432,7 +432,7 @@ func TestUpdateCacheSyncForEvh(t *testing.T) {
 
 func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 	// Skip this test for VIP per Namespace model, as the validations have to be changed
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	g := gomega.NewGomegaWithT(t)
@@ -532,7 +532,7 @@ func TestMultiHostMultiSecretCacheSyncForEvh(t *testing.T) {
 
 func TestMultiHostMultiSecretUpdateCacheSyncForEvh(t *testing.T) {
 	// Skip this test for VIP per Namespace model, as the validations have to be changed
-	if lib.IsVCFCluster() {
+	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	g := gomega.NewGomegaWithT(t)

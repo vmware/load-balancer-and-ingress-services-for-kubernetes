@@ -25,6 +25,7 @@ AKOSettings:
   cniPlugin: "calico" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift 
   enableEVH: false # This enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services 
   layer7Only: false  # If this flag is switched on, then AKO will only do layer 7 loadbalancing.
+  vipPerNamespace: "false" # Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
   # namespaceSelector contains label key and value used for namespacemigration
   # same label has to be present on namespace/s which needs migration/sync to AKO
   namespaceSelector:

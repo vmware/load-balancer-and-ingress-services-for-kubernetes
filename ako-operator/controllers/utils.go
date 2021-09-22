@@ -34,6 +34,7 @@ const (
 	EnableEVH              = "enableEVH"
 	Layer7Only             = "layer7Only"
 	ServicesAPI            = "servicesAPI"
+	VipPerNamespace        = "vipPerNamespace"
 	ShardVSSize            = "shardVSSize"
 	PassthroughShardSize   = "passhtroughShardSize"
 	FullSyncFrequency      = "fullSyncFrequency"

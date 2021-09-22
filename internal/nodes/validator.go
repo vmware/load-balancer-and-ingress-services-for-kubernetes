@@ -69,7 +69,7 @@ func validateSpecFromHostnameCache(key, ns, ingName string, ingSpec networkingv1
 				}
 			}
 			// In VCF, we use VIP per Namespace, hence same hostname can should not be present across multiple namespaces
-			if lib.IsVCFCluster() {
+			if lib.VIPPerNamespace() {
 				if ok, oldNS := SharedHostNameLister().GetNamespace(rule.Host); ok {
 					if oldNS != ns {
 						utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostname %s in multiple namespaces: %s and %s", key, rule.Host, oldNS, ns)

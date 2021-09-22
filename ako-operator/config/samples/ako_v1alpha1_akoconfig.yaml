@@ -19,6 +19,7 @@ spec:
     enableEVH: false
     layer7Only: false
     servicesAPI: false
+    vipPerNamespace: false
 
   networkSettings:
     vipNetworkList:
