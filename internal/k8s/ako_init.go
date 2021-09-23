@@ -18,14 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	routev1 "github.com/openshift/api/route/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -34,15 +32,17 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-
-	"k8s.io/apimachinery/pkg/api/meta"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	routev1 "github.com/openshift/api/route/v1"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -214,6 +214,74 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 		utils.AviLog.Info("Caches synced")
 	}
 	return nil
+}
+
+func (c *AviController) AddBootupSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+	cs := k8sinfo.Cs
+	utils.AviLog.Infof("Creating event broadcaster for Avi Secret Handling")
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(utils.AviLog.Debugf)
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
+	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if lib.AviSecretInitialized {
+				return
+			}
+			if c.ValidAviSecret() {
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
+			}
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			if lib.AviSecretInitialized {
+				return
+			}
+			if c.ValidAviSecret() {
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
+			}
+		},
+	}
+	c.informers.SecretInformer.Informer().AddEventHandler(NCPSecretHandler)
+
+	go c.informers.SecretInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.informers.SecretInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for Avi Secret informer")
+	}
+}
+
+func (c *AviController) ValidAviSecret() bool {
+	cs := c.informers.ClientSet
+	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
+	if err == nil {
+		ctrlIP := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+		authToken := string(aviSecret.Data["authtoken"])
+		username := string(aviSecret.Data["username"])
+		password := string(aviSecret.Data["password"])
+		if username == "" || (password == "" && authToken == "") {
+			return false
+		}
+
+		var transport *http.Transport
+		if authToken == "" {
+			_, err = clients.NewAviClient(ctrlIP, username,
+				session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+		} else {
+			_, err = clients.NewAviClient(ctrlIP, username,
+				session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+		}
+		if err == nil {
+			utils.AviLog.Infof("Successfully connected to AVI controller using existing AKO secret")
+			return true
+		} else {
+			utils.AviLog.Error("AVI controller initialization failed with err: %v", err)
+		}
+	} else {
+		utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)
+	}
+	return false
 }
 
 func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {

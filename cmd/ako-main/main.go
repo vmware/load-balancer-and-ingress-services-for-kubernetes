@@ -141,7 +141,7 @@ func InitializeAKC() {
 		utils.AviLog.Warnf("Error in creating openshift clientset")
 	}
 
-	registeredInformers, err := lib.InformersToRegister(oshiftClient, kubeClient)
+	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO, going to reboot", err)
 	}
@@ -174,10 +174,22 @@ func InitializeAKC() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
-	if lib.IsVCFCluster() {
-		c.HandleVCF(informers, stopCh, ctrlCh)
-		lib.VCFInitialized = true
+	if !c.ValidAviSecret() {
+		utils.AviLog.Infof("Valid Avi Secret not found, waiting .. ")
+		startSyncCh := make(chan struct{})
+		c.AddBootupSecretEventHandler(informers, stopCh, startSyncCh)
+	L:
+		for {
+			select {
+			case <-startSyncCh:
+				lib.AviSecretInitialized = true
+				break L
+			case <-ctrlCh:
+				return
+			}
+		}
 	}
+	utils.AviLog.Infof("Valid Avi Secret found, continuing .. ")
 
 	err = k8s.PopulateControllerProperties(kubeClient)
 	if err != nil {

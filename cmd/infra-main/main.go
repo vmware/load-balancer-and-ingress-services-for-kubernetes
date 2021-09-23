@@ -1,0 +1,115 @@
+/*
+ * Copyright 2021 VMware, Inc.
+ * All Rights Reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*   http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+var (
+	masterURL  string
+	kubeconfig string
+	version    = "dev"
+)
+
+func main() {
+	InitializeAKOInfra()
+}
+
+func InitializeAKOInfra() {
+	if !lib.IsVCFCluster() {
+		utils.AviLog.Fatalf("Not running in vcf cluster, shutting down")
+	}
+
+	var err error
+	kubeCluster := false
+	utils.AviLog.Info("AKO-Infra is running with version: ", version)
+	// Check if we are running inside kubernetes. Hence try authenticating with service token
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		utils.AviLog.Warnf("We are not running inside kubernetes cluster. %s", err.Error())
+	} else {
+		utils.AviLog.Info("We are running inside kubernetes cluster. Won't use kubeconfig files.")
+		kubeCluster = true
+	}
+	if kubeCluster == false {
+		cfg, err = clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+		utils.AviLog.Infof("master: %s", masterURL)
+		if err != nil {
+			utils.AviLog.Fatalf("Error building kubeconfig: %s", err.Error())
+		}
+	}
+
+	dynamicClient, err := lib.NewVCFDynamicClientSet(cfg)
+	if err != nil {
+		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	// Check for kubernetes apiserver version compatibility with AKO version.
+	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {
+		utils.AviLog.Warnf("Error while fetching kubernetes apiserver version")
+	} else {
+		serverVersion := fmt.Sprintf("%s.%s", serverVersionInfo.Major, serverVersionInfo.Minor)
+		utils.AviLog.Infof("Kubernetes cluster apiserver version %s", serverVersion)
+		if lib.CompareVersions(serverVersion, ">", lib.GetK8sMaxSupportedVersion()) ||
+			lib.CompareVersions(serverVersion, "<", lib.GetK8sMinSupportedVersion()) {
+			utils.AviLog.Fatalf("Unsupported kubernetes apiserver version detected. Please check the supportability guide.")
+		}
+	}
+
+	registeredInformers, err := lib.InformersToRegister(kubeClient, nil)
+	if err != nil {
+		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO-Infra, going to reboot", err)
+	}
+
+	informersArg := make(map[string]interface{})
+
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
+	lib.NewVCFDynamicInformers(dynamicClient)
+
+	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
+	c := ingestion.SharedAviController()
+	stopCh := utils.SetupSignalHandler()
+	ctrlCh := make(chan struct{})
+
+	c.HandleVCF(informers, stopCh, ctrlCh)
+	lib.VCFInitialized = true
+
+	c.AddNetworkInfoEventHandler(informers, stopCh)
+
+	<-stopCh
+	close(ctrlCh)
+}
+
+func init() {
+	def_kube_config := os.Getenv("HOME") + "/.kube/config"
+	flag.StringVar(&kubeconfig, "kubeconfig", def_kube_config, "Path to a kubeconfig. Only required if out-of-cluster.")
+	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+}

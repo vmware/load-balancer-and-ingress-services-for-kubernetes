@@ -1047,7 +1047,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		c.informers.ServiceInformer.Informer().HasSynced,
 	}
 
-	if !lib.VCFInitialized {
+	if !lib.AviSecretInitialized {
 		go c.informers.SecretInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 	}
