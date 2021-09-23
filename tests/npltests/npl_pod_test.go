@@ -161,9 +161,10 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
+	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
-	lib.SetCRDClientset(CRDClient)
+	akoControlConfig.SetCRDClientset(CRDClient)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),

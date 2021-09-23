@@ -153,6 +153,7 @@ const (
 	AutoFQDNDisabled                           = "Disabled"
 	VCF_CLUSTER                                = "VCF_CLUSTER"
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
+	AKOEventComponent                          = "avi-kubernetes-operator"
 
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation          = "external-dns.alpha.kubernetes.io/hostname"

@@ -40,7 +40,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniMod
 	var hostrule *akov1alpha1.HostRule
 	if !deleteCase {
 		hrNSName = strings.Split(hrNamespaceName, "/")
-		hostrule, err = lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
+		hostrule, err = lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s msg: %v", key, host, err)
 			deleteCase = true
@@ -154,7 +154,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 	httpruleNameObjMap := make(map[string]akov1alpha1.HTTPRulePaths)
 	for _, httprule := range getHTTPRules {
 		pathNSName := strings.Split(httprule, "/")
-		httpRuleObj, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(pathNSName[0]).Get(pathNSName[1])
+		httpRuleObj, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(pathNSName[0]).Get(pathNSName[1])
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: httprule not found err: %+v", key, err)
 			continue

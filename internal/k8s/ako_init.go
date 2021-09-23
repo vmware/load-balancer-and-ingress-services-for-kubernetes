@@ -45,9 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 )
 
 func PopulateCache() error {
@@ -138,11 +136,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	}
 	lib.SetDisableSync(c.DisableSync)
 
-	utils.AviLog.Infof("Creating event broadcaster for handling configmap")
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(utils.AviLog.Infof)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
-
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			cm, ok := validateAviConfigMap(obj)
@@ -217,11 +210,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 }
 
 func (c *AviController) AddBootupSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	cs := k8sinfo.Cs
-	utils.AviLog.Infof("Creating event broadcaster for Avi Secret Handling")
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(utils.AviLog.Debugf)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if lib.AviSecretInitialized {
@@ -608,7 +596,7 @@ func (c *AviController) FullSyncK8s() error {
 	// Section for Istio
 	if lib.IsIstioEnabled() {
 		// If Istio is enabled, we need to listen to few of the Istio CRDs.
-		virtualServiceObjs, err := lib.GetIstioCRDInformers().VirtualServiceInformer.Lister().VirtualServices(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		virtualServiceObjs, err := lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Lister().VirtualServices(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the Istio virtualservices during full sync: %s", err)
 		} else {
@@ -622,7 +610,7 @@ func (c *AviController) FullSyncK8s() error {
 				nodes.DequeueIngestion(key, true)
 			}
 		}
-		destinationRuleObjs, err := lib.GetIstioCRDInformers().DestinationRuleInformer.Lister().DestinationRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		destinationRuleObjs, err := lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Lister().DestinationRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the Istio DestinationRules during full sync: %s", err)
 		} else {
@@ -636,7 +624,7 @@ func (c *AviController) FullSyncK8s() error {
 				nodes.DequeueIngestion(key, true)
 			}
 		}
-		gatewayObjs, err := lib.GetIstioCRDInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		gatewayObjs, err := lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the Istio Gateways during full sync: %s", err)
 		} else {
@@ -653,7 +641,7 @@ func (c *AviController) FullSyncK8s() error {
 
 	}
 	if !lib.GetAdvancedL4() {
-		hostRuleObjs, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
 		} else {
@@ -668,7 +656,7 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 
-		httpRuleObjs, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		httpRuleObjs, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the httprules during full sync: %s", err)
 		} else {
@@ -683,7 +671,7 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 
-		aviInfraObjs, err := lib.GetCRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
 		} else {
@@ -745,7 +733,7 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 		if lib.UseServicesAPI() {
-			gatewayObjs, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+			gatewayObjs, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
 				return err
@@ -765,7 +753,7 @@ func (c *AviController) FullSyncK8s() error {
 				}
 			}
 
-			gwClassObjs, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+			gwClassObjs, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 			if err != nil {
 				utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
 				return err
@@ -783,7 +771,7 @@ func (c *AviController) FullSyncK8s() error {
 	} else {
 		//Gateway Section
 
-		gatewayObjs, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		gatewayObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
 			return err
@@ -794,7 +782,7 @@ func (c *AviController) FullSyncK8s() error {
 			nodes.DequeueIngestion(key, true)
 		}
 
-		gwClassObjs, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+		gwClassObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
 			return err

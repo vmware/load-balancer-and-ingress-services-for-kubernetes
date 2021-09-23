@@ -48,10 +48,10 @@ func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus Upd
 		"status": akov1alpha1.HostRuleStatus(updateStatus),
 	})
 
-	_, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Patch(context.TODO(), hr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Patch(context.TODO(), hr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the hostrule status: %+v", key, err)
-		updatedHr, err := lib.GetCRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Get(context.TODO(), hr.Name, metav1.GetOptions{})
+		updatedHr, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Get(context.TODO(), hr.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: hostrule not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
@@ -80,10 +80,10 @@ func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus Upd
 		"status": akov1alpha1.HTTPRuleStatus(updateStatus),
 	})
 
-	_, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Patch(context.TODO(), rr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Patch(context.TODO(), rr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the httprule status: %+v", key, retry, err)
-		updatedRr, err := lib.GetCRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Get(context.TODO(), rr.Name, metav1.GetOptions{})
+		updatedRr, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules(rr.Namespace).Get(context.TODO(), rr.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: httprule not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
@@ -112,10 +112,10 @@ func UpdateAviInfraSettingStatus(key string, infraSetting *akov1alpha1.AviInfraS
 		"status": akov1alpha1.AviInfraSettingStatus(updateStatus),
 	})
 
-	_, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Patch(context.TODO(), infraSetting.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Patch(context.TODO(), infraSetting.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the aviinfrasetting status: %+v", key, retry, err)
-		updatedInfraSetting, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), infraSetting.Name, metav1.GetOptions{})
+		updatedInfraSetting, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), infraSetting.Name, metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: aviinfrasetting not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {

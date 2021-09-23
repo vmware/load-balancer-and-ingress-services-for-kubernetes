@@ -1,0 +1,236 @@
+/*
+ * Copyright 2020-2021 VMware, Inc.
+ * All Rights Reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*   http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+package lib
+
+import (
+	"context"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+
+	istiocrd "istio.io/client-go/pkg/clientset/versioned"
+	istioInformer "istio.io/client-go/pkg/informers/externalversions/networking/v1alpha3"
+	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
+	svcInformer "sigs.k8s.io/service-apis/pkg/client/informers/externalversions/apis/v1alpha1"
+
+	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
+	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	advl4crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
+	advl4informer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis/v1alpha1pre1"
+)
+
+type AdvL4Informers struct {
+	GatewayInformer      advl4informer.GatewayInformer
+	GatewayClassInformer advl4informer.GatewayClassInformer
+}
+
+type ServicesAPIInformers struct {
+	GatewayInformer      svcInformer.GatewayInformer
+	GatewayClassInformer svcInformer.GatewayClassInformer
+}
+
+type AKOCrdInformers struct {
+	HostRuleInformer        akoinformer.HostRuleInformer
+	HTTPRuleInformer        akoinformer.HTTPRuleInformer
+	AviInfraSettingInformer akoinformer.AviInfraSettingInformer
+}
+
+type IstioCRDInformers struct {
+	VirtualServiceInformer  istioInformer.VirtualServiceInformer
+	DestinationRuleInformer istioInformer.DestinationRuleInformer
+	GatewayInformer         istioInformer.GatewayInformer
+}
+
+// akoControlConfig struct is intended to store all AKO related global
+// variables, that are set as part of AKO bootup. This is a store of client-sets,
+// informers, config parameters, and internally computed static configurations.
+// TODO (shchauhan): Add other global parameters, which are currently present as independent
+// global variables as part of lib.go
+type akoControlConfig struct {
+	// client-set and informer for v1alpha1pre1 services API.
+	advL4Clientset    advl4crd.Interface
+	akoAdvL4Informers *AdvL4Informers
+
+	// client-set and informer for v1alpha1 services API.
+	svcAPICS        svcapi.Interface
+	svcAPIInformers *ServicesAPIInformers
+
+	// client-set and informer for v1alpha1 AKO CRDs.
+	crdClientset akocrd.Interface
+	crdInformers *AKOCrdInformers
+
+	// client-set and informer for v1alpha3 istio CRDs.
+	istioClientset istiocrd.Interface
+	istioInformers *IstioCRDInformers
+
+	// akoEventRecorder is used to store record.akoEventRecorder
+	// that allows AKO to broadcast kubernetes Events.
+	akoEventRecorder *utils.EventRecorder
+
+	// akoPodObjectMeta holds AKO Pod ObjectMeta information
+	akoPodObjectMeta *metav1.ObjectMeta
+
+	// aviInfraSettingEnabled is set to true if the cluster has
+	// AviInfraSetting CRD installed.
+	aviInfraSettingEnabled bool
+	// hostRuleEnabled is set to true if the cluster has
+	// HostRule CRD installed.
+	hostRuleEnabled bool
+	// httpRuleEnabled is set to true if the cluster has
+	// HTTPRule CRD installed.
+	httpRuleEnabled bool
+}
+
+var akoControlConfigInstance *akoControlConfig
+
+func AKOControlConfig() *akoControlConfig {
+	if akoControlConfigInstance == nil {
+		akoControlConfigInstance = &akoControlConfig{}
+	}
+	return akoControlConfigInstance
+}
+
+func (c *akoControlConfig) SetAdvL4Clientset(cs advl4crd.Interface) {
+	c.advL4Clientset = cs
+}
+
+func (c *akoControlConfig) AdvL4Clientset() advl4crd.Interface {
+	return c.advL4Clientset
+}
+
+func (c *akoControlConfig) SetAdvL4Informers(i *AdvL4Informers) {
+	c.akoAdvL4Informers = i
+}
+
+func (c *akoControlConfig) AdvL4Informers() *AdvL4Informers {
+	return c.akoAdvL4Informers
+}
+
+func (c *akoControlConfig) SetServicesAPIClientset(cs svcapi.Interface) {
+	c.svcAPICS = cs
+}
+
+func (c *akoControlConfig) ServicesAPIClientset() svcapi.Interface {
+	return c.svcAPICS
+}
+
+func (c *akoControlConfig) SetSvcAPIsInformers(i *ServicesAPIInformers) {
+	c.svcAPIInformers = i
+}
+
+func (c *akoControlConfig) SvcAPIInformers() *ServicesAPIInformers {
+	return c.svcAPIInformers
+}
+
+func (c *akoControlConfig) SetCRDClientset(cs akocrd.Interface) {
+	c.crdClientset = cs
+	c.SetCRDEnabledParams(cs)
+}
+
+func (c *akoControlConfig) CRDClientset() akocrd.Interface {
+	return c.crdClientset
+}
+
+func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
+	timeout := int64(120)
+	_, aviInfraError := cs.AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
+	if aviInfraError != nil {
+		utils.AviLog.Infof("ako.vmware.com/v1alpha1/AviInfraSetting not found/enabled on cluster: %v", aviInfraError)
+		c.aviInfraSettingEnabled = false
+	} else {
+		utils.AviLog.Infof("ako.vmware.com/v1alpha1/AviInfraSetting enabled on cluster")
+		c.aviInfraSettingEnabled = true
+	}
+
+	_, hostRulesError := cs.AkoV1alpha1().HostRules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
+	if hostRulesError != nil {
+		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HostRule not found/enabled on cluster: %v", hostRulesError)
+		c.hostRuleEnabled = false
+	} else {
+		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HostRule enabled on cluster")
+		c.hostRuleEnabled = true
+	}
+
+	_, httpRulesError := cs.AkoV1alpha1().HTTPRules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
+	if httpRulesError != nil {
+		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HTTPRule not found/enabled on cluster: %v", httpRulesError)
+		c.httpRuleEnabled = false
+	} else {
+		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HTTPRule enabled on cluster")
+		c.httpRuleEnabled = true
+	}
+}
+
+func (c *akoControlConfig) AviInfraSettingEnabled() bool {
+	return c.aviInfraSettingEnabled
+}
+
+func (c *akoControlConfig) HostRuleEnabled() bool {
+	return c.hostRuleEnabled
+}
+
+func (c *akoControlConfig) HttpRuleEnabled() bool {
+	return c.httpRuleEnabled
+}
+
+func (c *akoControlConfig) SetIstioClientset(cs istiocrd.Interface) {
+	c.istioClientset = cs
+}
+
+func (c *akoControlConfig) IstioClientset() istiocrd.Interface {
+	return c.istioClientset
+}
+
+func (c *akoControlConfig) SetCRDInformers(i *AKOCrdInformers) {
+	c.crdInformers = i
+}
+
+func (c *akoControlConfig) CRDInformers() *AKOCrdInformers {
+	return c.crdInformers
+}
+
+func (c *akoControlConfig) SetIstioCRDInformers(i *IstioCRDInformers) {
+	c.istioInformers = i
+}
+
+func (c *akoControlConfig) IstioCRDInformers() *IstioCRDInformers {
+	return c.istioInformers
+}
+
+func (c *akoControlConfig) SetEventRecorder(id string, client kubernetes.Interface) {
+	c.akoEventRecorder = utils.NewEventRecorder(id, client)
+}
+
+func (c *akoControlConfig) EventRecorder() *utils.EventRecorder {
+	return c.akoEventRecorder
+}
+
+func (c *akoControlConfig) SaveAKOPodObjectMeta(pod *v1.Pod) {
+	c.akoPodObjectMeta = &pod.ObjectMeta
+}
+
+func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatArgs ...string) {
+	if c.akoPodObjectMeta != nil {
+		c.EventRecorder().Recorder.Eventf(
+			&v1.Pod{ObjectMeta: *c.akoPodObjectMeta},
+			eventType,
+			reason,
+			message,
+			formatArgs,
+		)
+	}
+}

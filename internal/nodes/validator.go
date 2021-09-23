@@ -102,7 +102,7 @@ func findHostRuleMappingForFqdn(key, host string) (bool, *v1alpha1.HostRule) {
 
 	hrNSName := strings.Split(hrNSNameStr, "/")
 	// from hostrule check if hostrule.TLS.SSLKeyCertificate is not null
-	hostRuleObj, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
+	hostRuleObj, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Couldn't find hostrule %s: %v", key, hrNSNameStr, err)
 		return false, nil
@@ -146,7 +146,7 @@ func destinationCAHTTPRulePresent(key, host, path string) (bool, string) {
 
 	ruleNSName := strings.Split(rule, "/")
 	// from hostrule check if hostrule.TLS.SSLKeyCertificate is not null
-	httpRuleObj, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(ruleNSName[0]).Get(ruleNSName[1])
+	httpRuleObj, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(ruleNSName[0]).Get(ruleNSName[1])
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Couldn't find httprule %s: %v", key, rule, err)
 		return false, ""

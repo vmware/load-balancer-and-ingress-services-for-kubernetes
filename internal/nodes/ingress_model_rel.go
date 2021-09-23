@@ -242,7 +242,7 @@ func GatewayChanges(gwName string, namespace string, key string) ([]string, bool
 	var allGateways []string
 	allGateways = append(allGateways, namespace+"/"+gwName)
 	if lib.GetAdvancedL4() {
-		gateway, err := lib.GetAdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
 			// Remove all the Gateway to Services mapping.
 			objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
@@ -257,7 +257,7 @@ func GatewayChanges(gwName string, namespace string, key string) ([]string, bool
 			}
 		}
 	} else if lib.UseServicesAPI() {
-		gateway, err := lib.GetSvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		gateway, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
 			// Remove all the Gateway to Services mapping.
 			objects.ServiceGWLister().DeleteGWListeners(namespace + "/" + gwName)
@@ -543,7 +543,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 	var oldFound bool
 
 	allIngresses := make([]string, 0)
-	hostrule, err := lib.GetCRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrname)
+	hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrname)
 	if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted\n", key)
 		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
@@ -600,7 +600,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool) {
 	var err error
 	allIngresses := make([]string, 0)
-	httprule, err := lib.GetCRDInformers().HTTPRuleInformer.Lister().HTTPRules(namespace).Get(rrname)
+	httprule, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(namespace).Get(rrname)
 
 	var hostrule string
 	var oldFqdn, fqdn string
@@ -735,7 +735,7 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 	allGateways := make([]string, 0)
 
 	// Get all GatewayClasses from AviInfraSetting.
-	gwClasses, err := lib.GetSvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
+	gwClasses, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to fetch GatewayClasses corresponding to AviInfraSetting %s", key, infraSettingName)
 		return allGateways, false
@@ -745,7 +745,7 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 		// Get all Gateways from GatewayClass.
 		gwClassObj, isGwClass := gwClass.(*servicesapi.GatewayClass)
 		if isGwClass {
-			gateways, err := lib.GetSvcAPIInformers().GatewayInformer.Informer().GetIndexer().ByIndex(lib.GatewayClassGatewayIndex, gwClassObj.Name)
+			gateways, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().GetIndexer().ByIndex(lib.GatewayClassGatewayIndex, gwClassObj.Name)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Unable to fetch Gateways %v", key, err)
 				continue
@@ -861,7 +861,7 @@ func parseSvcApiGatewayForListeners(gateway *svcapiv1alpha1.Gateway, key string)
 }
 
 func validateGatewayForClass(key string, gateway *advl4v1alpha1pre1.Gateway) error {
-	gwClassObj, err := lib.GetAdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
+	gwClassObj, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().Get(gateway.Spec.Class)
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Unable to fetch corresponding networking.x-k8s.io/gatewayclass %s %v",
 			key, gateway.Spec.Class, err)
@@ -888,7 +888,7 @@ func validateGatewayForClass(key string, gateway *advl4v1alpha1pre1.Gateway) err
 }
 
 func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) error {
-	gwClassObj, err := lib.GetSvcAPIInformers().GatewayClassInformer.Lister().Get(gateway.Spec.GatewayClassName)
+	gwClassObj, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Lister().Get(gateway.Spec.GatewayClassName)
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Unable to fetch corresponding networking.x-k8s.io/gatewayclass %s %v",
 			key, gateway.Spec.GatewayClassName, err)

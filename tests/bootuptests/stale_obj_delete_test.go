@@ -42,9 +42,10 @@ func TestMain(m *testing.M) {
 	restChan = make(chan bool)
 	uuidMap = make(map[string]bool)
 
+	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
-	lib.SetCRDClientset(CRDClient)
+	akoControlConfig.SetCRDClientset(CRDClient)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),

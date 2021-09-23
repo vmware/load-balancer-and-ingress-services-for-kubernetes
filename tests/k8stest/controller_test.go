@@ -103,8 +103,9 @@ func TestMain(m *testing.M) {
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
 	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
+	akoControlConfig := lib.AKOControlConfig()
 	crdClient = crdfake.NewSimpleClientset()
-	lib.SetCRDClientset(crdClient)
+	akoControlConfig.SetCRDClientset(crdClient)
 
 	registeredInformers := []string{
 		utils.ServiceInformer,

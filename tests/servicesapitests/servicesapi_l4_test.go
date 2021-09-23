@@ -57,8 +57,9 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("AUTO_L4_FQDN", "default")
 
+	akoControlConfig := lib.AKOControlConfig()
 	CRDClient = crdfake.NewSimpleClientset()
-	lib.SetCRDClientset(CRDClient)
+	akoControlConfig.SetCRDClientset(CRDClient)
 	k8s.NewCRDInformers(CRDClient)
 
 	KubeClient = k8sfake.NewSimpleClientset()
@@ -71,7 +72,7 @@ func TestMain(m *testing.M) {
 	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	SvcAPIClient = svcapifake.NewSimpleClientset()
-	lib.SetServicesAPIClientset(SvcAPIClient)
+	akoControlConfig.SetServicesAPIClientset(SvcAPIClient)
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
@@ -191,13 +192,13 @@ func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
 	}
 
 	gwCreate := gateway.Gateway()
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(namespace).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(namespace).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 }
 
 func TeardownGateway(t *testing.T, gwname, namespace string) {
-	if err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(namespace).Delete(context.TODO(), gwname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(namespace).Delete(context.TODO(), gwname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting Gateway: %v", err)
 	}
 }
@@ -237,13 +238,13 @@ func SetupGatewayClass(t *testing.T, gwclassName, controller, infraSetting strin
 	}
 
 	gwClassCreate := gatewayclass.GatewayClass()
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Create(context.TODO(), gwClassCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Create(context.TODO(), gwClassCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding GatewayClass: %v", err)
 	}
 }
 
 func TeardownGatewayClass(t *testing.T, gwClassName string) {
-	if err := lib.GetServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Delete(context.TODO(), gwClassName, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Delete(context.TODO(), gwClassName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting GatewayClass: %v", err)
 	}
 }
@@ -392,7 +393,7 @@ func TestServicesAPIWithStaticIP(t *testing.T) {
 		}},
 	}
 	gwCreate := gateway.Gateway()
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
@@ -443,7 +444,7 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 		Controller: "xyz",
 	}.GatewayClass()
 	gwclassUpdate.ResourceVersion = "2"
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Update(context.TODO(), gwclassUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Update(context.TODO(), gwclassUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating GatewayClass: %v", err)
 	}
 
@@ -495,7 +496,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -517,7 +518,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "3"
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -729,7 +730,7 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -786,7 +787,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -874,7 +875,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -1069,7 +1070,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 			{Port: 8082, Protocol: "UDP", Labels: labels},
 		},
 	}
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gateway.Gateway(), metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gateway.Gateway(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
@@ -1126,7 +1127,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		},
 	}.Gateway()
 	gatewayUpdate.ResourceVersion = "2"
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -1165,7 +1166,7 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 			{Port: 8082, Protocol: "TCP", Labels: labels},
 		},
 	}
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gateway.Gateway(), metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gateway.Gateway(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
@@ -1215,7 +1216,7 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 			{Port: 8082, Protocol: "TCP", Labels: labels, HostName: proto.String("bar.avi.internal")},
 		},
 	}
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate.Gateway(), metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate.Gateway(), metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating Gateway: %v", err)
 	}
 
@@ -1262,7 +1263,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		Networks:    []string{"thisisaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
 	}
 
@@ -1292,12 +1293,12 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "2"
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating AviInfraSetting: %v", err)
 	}
 
 	g.Eventually(func() string {
-		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 45*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1320,12 +1321,12 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "3"
-	if _, err := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating AviInfraSetting: %v", err)
 	}
 
 	g.Eventually(func() string {
-		setting, _ := lib.GetCRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 15*time.Second).Should(gomega.Equal("Rejected"))
 
@@ -1418,7 +1419,7 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 		InfraSetting: settingName2,
 	}).GatewayClass()
 	gwClassUpdate.ResourceVersion = "2"
-	if _, err := lib.GetServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Update(context.TODO(), gwClassUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Update(context.TODO(), gwClassUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating GatewayClass: %v", err)
 	}
 

@@ -23,34 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	advl4crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
-	advl4informer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis/v1alpha1pre1"
 )
-
-var AdvL4Clientset advl4crd.Interface
-
-func SetAdvL4Clientset(cs advl4crd.Interface) {
-	AdvL4Clientset = cs
-}
-
-func GetAdvL4Clientset() advl4crd.Interface {
-	return AdvL4Clientset
-}
-
-var AKOAdvL4Informers *AdvL4Informers
-
-type AdvL4Informers struct {
-	GatewayInformer      advl4informer.GatewayInformer
-	GatewayClassInformer advl4informer.GatewayClassInformer
-}
-
-func SetAdvL4Informers(c *AdvL4Informers) {
-	AKOAdvL4Informers = c
-}
-
-func GetAdvL4Informers() *AdvL4Informers {
-	return AKOAdvL4Informers
-}
 
 func RemoveGatewayFinalizer(gw *advl4v1alpha1pre1.Gateway) {
 	finalizers := utils.Remove(gw.GetFinalizers(), GatewayFinalizer)
@@ -73,7 +46,7 @@ func UpdateGatewayFinalizer(gw *advl4v1alpha1pre1.Gateway) {
 		},
 	})
 
-	_, err := GetAdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{})
+	_, err := AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("error while patching the gateway with updated finalizers, %v", err)
 		return
