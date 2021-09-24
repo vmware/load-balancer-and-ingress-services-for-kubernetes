@@ -421,8 +421,8 @@ func TestUpdateSNICacheSync(t *testing.T) {
 	}
 
 	// verify that a NEW httppolicy set object is created
-	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-with-targets"}
-	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-updated-foo-with-targets"}
+	oldHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
+	newHttpPolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com"}
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(newHttpPolKey)
 		return found
@@ -431,7 +431,7 @@ func TestUpdateSNICacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.HTTPPolicyCache.AviCacheGet(oldHttpPolKey)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(false))
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	// verify same vs cksum
 	g.Eventually(func() string {

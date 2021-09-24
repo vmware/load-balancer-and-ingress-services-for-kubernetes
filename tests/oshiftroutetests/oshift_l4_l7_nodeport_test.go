@@ -579,7 +579,7 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 
 	aviModel := ValidateSniModel(t, g, defaultModelName)
 
-	CheckMultiSNIMultiNS(t, g, aviModel)
+	CheckMultiSNIMultiNS(t, g, aviModel, 2, 1)
 
 	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
 	if err != nil {

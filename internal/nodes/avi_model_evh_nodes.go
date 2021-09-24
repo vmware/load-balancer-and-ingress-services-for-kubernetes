@@ -646,7 +646,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			httpPGPath.Host = allFqdns
 			httpPolicySet = append(httpPolicySet, httpPGPath)
 		}
-		pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, hosts[0], ingName, path.Path, infraSettingName)
+		pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, hosts[0], infraSettingName, []string{ingName}, []string{path.Path})
 		var poolName string
 		poolName = lib.GetEvhPoolName(ingName, namespace, hosts[0], path.Path, infraSettingName, path.ServiceName)
 		poolNode := &AviPoolNode{
@@ -667,9 +667,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			// Unset the poolnode's vrfcontext.
 			poolNode.VrfContext = ""
 		}
-		poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hosts[0], path.Path, ingName,
-			infraSettingName, path.ServiceName)
-		if tlsSettings != nil && tlsSettings.reencrypt == true {
+		poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hosts[0],
+			infraSettingName, path.ServiceName, []string{ingName}, []string{path.Path})
+		if tlsSettings != nil && tlsSettings.reencrypt {
 			o.BuildPoolSecurity(poolNode, *tlsSettings, key, poolNode.AviMarkers)
 		}
 		serviceType := lib.GetServiceType()
@@ -698,11 +698,14 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			childNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
 		if !pgfound {
-			httppolname := lib.GetSniHttpPolName(ingName, namespace, hosts[0], path.Path, infraSettingName)
+			//For evh case, hppmap name will represent httppol name.
+			//TODO: When EVH implementation is finalized, change this definition to appropriate one.
+			httppolname := lib.GetSniHppMapName(ingName, namespace, hosts[0], path.Path, infraSettingName)
 			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
-			policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, hosts[0], ingName, path.Path, infraSettingName)
+			policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, hosts[0], infraSettingName, []string{ingName}, []string{path.Path})
 			if childNode.CheckHttpPolNameNChecksumForEvh(httppolname, policyNode.GetCheckSum()) {
 				childNode.ReplaceHTTPRefInNodeForEvh(policyNode, key)
+				policyNode.HppMap[0].IngName = ingName
 			}
 		}
 	}

@@ -17,6 +17,7 @@ package rest
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -28,6 +29,7 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 
 	"github.com/davecgh/go-spew/spew"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode, cache_obj *avicache.AviHTTPPolicyCache, key string) *utils.RestOp {
@@ -37,23 +39,48 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		return nil
 	}
 	name := hps_meta.Name
-	cksum := hps_meta.CloudConfigCksum
-	cksumString := strconv.Itoa(int(cksum))
+	var httpPresentPaths []string
+	httpPresentIng := sets.NewString()
+
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
 	cr := lib.AKOUser
 
 	http_req_pol := avimodels.HTTPRequestPolicy{}
 	http_sec_pol := avimodels.HttpsecurityPolicy{}
-	hps := avimodels.HTTPPolicySet{Name: &name, CloudConfigCksum: &cksumString,
+	hps := avimodels.HTTPPolicySet{Name: &name,
 		CreatedBy: &cr, TenantRef: &tenant, HTTPRequestPolicy: &http_req_pol, HTTPSecurityPolicy: &http_sec_pol}
 
+	var hppmapWithPath []nodes.AviHostPathPortPoolPG
+	var hppmapWithoutPath []nodes.AviHostPathPortPoolPG
+	var hppmapAllPaths []nodes.AviHostPathPortPoolPG
+	for _, hppmap := range hps_meta.HppMap {
+		if hppmap.Path != nil {
+			hppmapWithPath = append(hppmapWithPath, hppmap)
+			httpPresentPaths = append(httpPresentPaths, hppmap.Path[0])
+		} else {
+			hppmapWithoutPath = append(hppmapWithoutPath, hppmap)
+		}
+		httpPresentIng.Insert(hppmap.IngName)
+	}
+	sort.Slice(hppmapWithPath, func(i, j int) bool {
+		return len(hppmapWithPath[i].Path[0]) > len(hppmapWithPath[j].Path[0])
+	})
+	hppmapAllPaths = append(hppmapAllPaths, hppmapWithPath...)
+	hppmapAllPaths = append(hppmapAllPaths, hppmapWithoutPath...)
 	if lib.GetGRBACSupport() {
 		if !hps_meta.AttachedToSharedVS {
+			hps_meta.AviMarkers.Path = httpPresentPaths
+			hps_meta.AviMarkers.IngressName = httpPresentIng.List()
 			hps.Markers = lib.GetAllMarkers(hps_meta.AviMarkers)
 		} else {
 			hps.Markers = lib.GetMarkers()
 		}
 	}
+	hps_meta.CalculateCheckSum()
+	cksum := hps_meta.CloudConfigCksum
+	cksumString := strconv.Itoa(int(cksum))
+
+	hps.CloudConfigCksum = &cksumString
 	var idx int32
 	idx = 0
 	for _, sec_rule := range hps_meta.SecurityRules {
@@ -84,7 +111,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		http_sec_pol.Rules = append(http_sec_pol.Rules, &rule)
 		idx = idx + 1
 	}
-	for _, hppmap := range hps_meta.HppMap {
+	for _, hppmap := range hppmapAllPaths {
 		enable := true
 		name := fmt.Sprintf("%s-%d", hps_meta.Name, idx)
 		if lib.CheckObjectNameLength(name, lib.HTTPRequestRule) {

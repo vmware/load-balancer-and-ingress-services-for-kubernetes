@@ -131,7 +131,7 @@ func ValidateSniModel(t *testing.T, g *gomega.GomegaWithT, modelName string, red
 	return aviModel
 }
 
-func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interface{}) {
+func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interface{}, httpsCount, hppmapCount int) {
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
 	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 	g.Eventually(func() string {
@@ -146,7 +146,8 @@ func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interfac
 		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
 		return len(sniVS.PoolRefs)
 	}, 40*time.Second).Should(gomega.Equal(2))
-	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(2))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(httpsCount))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(hppmapCount))
 	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(2))
 
 	for _, pool := range sniVS.PoolRefs {
@@ -155,7 +156,7 @@ func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interfac
 		}
 	}
 	for _, httpps := range sniVS.HttpPolicyRefs {
-		if httpps.Name != "cluster--default-foo.com_foo-foo" && httpps.Name != "cluster--test-foo.com_bar-foo" {
+		if httpps.Name != "cluster--default-foo.com" && httpps.Name != "cluster--test-foo.com" {
 			t.Fatalf("Unexpected http policyset found: %s", httpps.Name)
 		}
 	}
@@ -332,7 +333,7 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 
 	aviModel := ValidateSniModel(t, g, defaultModelName)
 
-	CheckMultiSNIMultiNS(t, g, aviModel)
+	CheckMultiSNIMultiNS(t, g, aviModel, 2, 1)
 
 	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
@@ -840,7 +841,7 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 
 	aviModel := ValidateSniModel(t, g, defaultModelName, true)
 
-	CheckMultiSNIMultiNS(t, g, aviModel)
+	CheckMultiSNIMultiNS(t, g, aviModel, 2, 1)
 
 	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
@@ -903,7 +904,7 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	}
 
 	// sni VS
-	CheckMultiSNIMultiNS(t, g, aviModel)
+	CheckMultiSNIMultiNS(t, g, aviModel, 2, 1)
 
 	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
 	if err != nil {
@@ -1054,7 +1055,8 @@ func TestSecureOshiftNamingConvention(t *testing.T) {
 	g.Expect(vsNode.SniNodes[0].PoolRefs[0].PkiProfile.Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-avisvc-pkiprofile"))
 	g.Expect(vsNode.SniNodes[0].CACertRefs[0].Name).To(gomega.Equal("cluster--foo.com-cacert"))
 	g.Expect(vsNode.SniNodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("cluster--foo.com"))
-	g.Expect(vsNode.SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo"))
+	g.Expect(vsNode.SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com"))
+	g.Expect(vsNode.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo"))
 	g.Expect(vsNode.VSVIPRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
 
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)

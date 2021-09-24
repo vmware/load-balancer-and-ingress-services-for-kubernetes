@@ -269,6 +269,16 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				vs_cache_obj.AddToPoolKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
+				if len(IPAddrs) == 0 {
+					var vip string
+					parent_vs_key := vs_cache_obj.ParentVSRef
+					parent_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(parent_vs_key)
+					if ok {
+						parent_cache_obj, _ := parent_cache.(*avicache.AviVsCache)
+						vip = parent_cache_obj.Vip
+					}
+					IPAddrs = []string{vip}
+				}
 				if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 					updateOptions := status.UpdateOptions{
 						Vip:                IPAddrs,
