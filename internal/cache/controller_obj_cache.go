@@ -82,38 +82,58 @@ func SharedAviObjCache() *AviObjCache {
 	return cacheInstance
 }
 
-func (c *AviObjCache) AviRefreshObjectCache(client *clients.AviClient, cloud string) {
-	c.PopulatePkiProfilesToCache(client)
-	c.PopulatePoolsToCache(client, cloud)
-	c.PopulatePgDataToCache(client, cloud)
-	c.PopulateDSDataToCache(client, cloud)
-	c.PopulateSSLKeyToCache(client, cloud)
-	c.PopulateHttpPolicySetToCache(client, cloud)
-	c.PopulateL4PolicySetToCache(client, cloud)
-	c.PopulateVsVipDataToCache(client, cloud)
+func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud string) {
+	var wg sync.WaitGroup
+	// We want to run 8 go routines which will simultanesouly fetch objects from the controller.
+	wg.Add(5)
+	go func() {
+		defer wg.Done()
+		c.PopulateSSLKeyToCache(client[4], cloud)
+	}()
+	go func() {
+		defer wg.Done()
+		c.PopulateVsVipDataToCache(client[7], cloud)
+	}()
+	c.PopulatePkiProfilesToCache(client[0])
+	c.PopulatePoolsToCache(client[1], cloud)
+	c.PopulatePgDataToCache(client[2], cloud)
+
+	go func() {
+		defer wg.Done()
+		c.PopulateDSDataToCache(client[3], cloud)
+	}()
+
+	go func() {
+		defer wg.Done()
+		c.PopulateHttpPolicySetToCache(client[5], cloud)
+	}()
+	go func() {
+		defer wg.Done()
+		c.PopulateL4PolicySetToCache(client[6], cloud)
+	}()
+
+	wg.Wait()
+	utils.AviLog.Infof("Finished syncing all objects except virtualservices")
 }
 
 func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient, cloud string) {
 	c.AviCloudPropertiesPopulate(client, cloud)
 }
 
-func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version string, cloud string) ([]NamespaceName, []NamespaceName, error) {
-	SetTenant := session.SetTenant(lib.GetTenant())
-	SetTenant(client.AviSession)
-	SetVersion := session.SetVersion(version)
-	SetVersion(client.AviSession)
+func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version string, cloud string) ([]NamespaceName, []NamespaceName, error) {
 	vsCacheCopy := []NamespaceName{}
 	allVsKeys := []NamespaceName{}
-	err := c.AviObjVrfCachePopulate(client, cloud)
+	err := c.AviObjVrfCachePopulate(client[0], cloud)
 	if err != nil {
 		return vsCacheCopy, allVsKeys, err
 	}
 	// Populate the VS cache
 	utils.AviLog.Infof("Refreshing all object cache")
 	c.AviRefreshObjectCache(client, cloud)
+	utils.AviLog.Infof("Finished Refreshing all object cache")
 	vsCacheCopy = c.VsCacheMeta.AviCacheGetAllParentVSKeys()
 	allVsKeys = c.VsCacheMeta.AviGetAllKeys()
-	err = c.AviObjVSCachePopulate(client, cloud, &allVsKeys)
+	err = c.AviObjVSCachePopulate(client[0], cloud, &allVsKeys)
 	if err != nil {
 		return vsCacheCopy, allVsKeys, err
 	}
@@ -126,7 +146,7 @@ func (c *AviObjCache) AviObjCachePopulate(client *clients.AviClient, version str
 		vsCacheCopy = RemoveNamespaceName(vsCacheCopy, key)
 		c.VsCacheMeta.AviCacheDelete(key)
 	}
-	err = c.AviCloudPropertiesPopulate(client, cloud)
+	err = c.AviCloudPropertiesPopulate(client[0], cloud)
 	if err != nil {
 		return vsCacheCopy, allVsKeys, err
 	}
@@ -215,7 +235,6 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 // MarkReference : check objects referred by a VS and mark they they have reference
 // so that they are not deleted during clean up stage
 func (c *AviObjCache) MarkReference(vsCacheObj *AviVsCache) {
-
 	for _, objKey := range vsCacheObj.DSKeyCollection {
 		if intf, found := c.DSCache.AviCacheGet(objKey); found {
 			if obj, ok := intf.(*AviDSCache); ok {
