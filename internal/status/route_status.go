@@ -133,7 +133,6 @@ func UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 			skipDelete[option.IngSvc] = true
 		}
 	}
-
 	if bulk {
 		for routeNSName, route := range routeMap {
 			if val, ok := skipDelete[routeNSName]; ok && val {
@@ -147,7 +146,6 @@ func UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 			}}, true, lib.SyncStatusKey)
 		}
 	}
-
 	return
 }
 
@@ -301,7 +299,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 
 	// If we find a hostname in the present update, let's first remove it from the existing status.
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
-		if utils.HasElem(hostnames, mRoute.Status.Ingress[i].Host) {
+		if utils.HasElem(hostnames, mRoute.Status.Ingress[i].Host) && mRoute.Status.Ingress[i].RouterName == lib.AKOUser {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		}
 	}
@@ -327,7 +325,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 
 	// remove the host from status which is not in spec
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
-		if mRoute.Spec.Host != mRoute.Status.Ingress[i].Host {
+		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && mRoute.Spec.Host != mRoute.Status.Ingress[i].Host {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		}
 	}

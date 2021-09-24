@@ -44,7 +44,6 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			updateServiceOptions = append(updateServiceOptions, option)
 		}
 	}
-
 	serviceMap := getServices(servicesToUpdate, bulk)
 	skipDelete := map[string]bool{}
 	for _, option := range updateServiceOptions {
@@ -221,15 +220,23 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		}
 		for i := range serviceLBList.Items {
 			svc := serviceLBList.Items[i]
-			//Do not perform status update on service if namespace is not accepted.
-			if utils.CheckIfNamespaceAccepted(svc.Namespace) {
-				serviceMap[svc.Namespace+"/"+svc.Name] = &svc
+			if !lib.UseServicesAPI() {
+				if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+					//Do not perform status update on service if namespace is not accepted.
+					if utils.CheckIfNamespaceAccepted(svc.Namespace) {
+						serviceMap[svc.Namespace+"/"+svc.Name] = &svc
+					}
+				}
+			} else {
+				// This shouldn't be required in the future once there is no requirement to update status on ClusterIP type of services used with Gateways
+				if utils.CheckIfNamespaceAccepted(svc.Namespace) {
+					serviceMap[svc.Namespace+"/"+svc.Name] = &svc
+				}
 			}
 		}
 
 		return serviceMap
 	}
-
 	for _, namespaceName := range serviceNSNames {
 		nsNameSplit := strings.Split(namespaceName, "/")
 		serviceLB, err := mClient.CoreV1().Services(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
@@ -244,6 +251,5 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 
 		serviceMap[serviceLB.Namespace+"/"+serviceLB.Name] = serviceLB
 	}
-
 	return serviceMap
 }
