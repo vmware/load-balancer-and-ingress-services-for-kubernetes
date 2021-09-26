@@ -25,7 +25,7 @@ var resourceVerOnce sync.Once
 
 func SharedResourceVerInstanceLister() *ResourceVersionLister {
 	resourceVerOnce.Do(func() {
-		ResourceVerStore := NewObjectMapStore()
+		ResourceVerStore := NewObjectMapStoreWithLock()
 		resouceVerInstance = &ResourceVersionLister{}
 		resouceVerInstance.ResourceVerStore = ResourceVerStore
 	})
@@ -33,24 +33,24 @@ func SharedResourceVerInstanceLister() *ResourceVersionLister {
 }
 
 type ResourceVersionLister struct {
-	ResourceVerStore *ObjectMapStore
+	ResourceVerStore *ObjectMapStoreWithLock
 }
 
 func (a *ResourceVersionLister) Save(vsName string, resVer interface{}) {
-	a.ResourceVerStore.AddOrUpdate(vsName, resVer)
+	a.ResourceVerStore.AddOrUpdateWithLock(vsName, resVer)
 }
 
 func (a *ResourceVersionLister) Get(resName string) (bool, interface{}) {
-	ok, obj := a.ResourceVerStore.Get(resName)
+	ok, obj := a.ResourceVerStore.GetWithLock(resName)
 	return ok, obj
 }
 
 func (a *ResourceVersionLister) GetAll() interface{} {
-	obj := a.ResourceVerStore.GetAllObjectNames()
+	obj := a.ResourceVerStore.GetAllObjectNamesWithLock()
 	return obj
 }
 
 func (a *ResourceVersionLister) Delete(resName string) {
-	a.ResourceVerStore.Delete(resName)
+	a.ResourceVerStore.DeleteWithLock(resName)
 
 }
