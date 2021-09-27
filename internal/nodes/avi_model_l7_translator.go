@@ -111,6 +111,35 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	o.ConstructShardVsPGNode(vsName, key, avi_vs_meta)
 	o.ConstructHTTPDataScript(vsName, key, avi_vs_meta)
 	var fqdns []string
+	subDomains := GetDefaultSubDomain()
+	autoFQDN := true
+	if lib.GetL4FqdnFormat() == lib.AutoFQDNDisabled {
+		autoFQDN = false
+	}
+	if subDomains != nil && autoFQDN {
+		var fqdn string
+		// honour defaultSubDomain from values.yaml if specified
+		defaultSubDomain := lib.GetDomain()
+		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
+			subDomains = []string{defaultSubDomain}
+		}
+
+		// subDomains[0] would either have the defaultSubDomain value
+		// or would default to the first dns subdomain it gets from the dns profile
+		subdomain := subDomains[0]
+		if strings.HasPrefix(subDomains[0], ".") {
+			subdomain = strings.Replace(subDomains[0], ".", "", -1)
+		}
+		if lib.GetL4FqdnFormat() == lib.AutoFQDNDefault {
+			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
+			fqdn = vsName + "." + lib.GetTenant() + "." + subdomain
+		} else if lib.GetL4FqdnFormat() == lib.AutoFQDNFlat {
+			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
+			fqdn = vsName + "-" + lib.GetTenant() + "." + subdomain
+		}
+		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", fqdn)
+		fqdns = append(fqdns, fqdn)
+	}
 
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetVsVipName(vsName),
