@@ -23,18 +23,18 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-type ObjectStore struct {
-	NSObjectMap map[string]*ObjectMapStore
+type ObjectStoreWithLock struct {
+	NSObjectMap map[string]*ObjectMapStoreWithLock
 	NSLock      sync.RWMutex
 }
 
-func NewObjectStore() *ObjectStore {
-	objectStore := &ObjectStore{}
-	objectStore.NSObjectMap = make(map[string]*ObjectMapStore)
+func NewObjectStoreWithLock() *ObjectStoreWithLock {
+	objectStore := &ObjectStoreWithLock{}
+	objectStore.NSObjectMap = make(map[string]*ObjectMapStoreWithLock)
 	return objectStore
 }
 
-func (store *ObjectStore) GetNSStore(nsName string) *ObjectMapStore {
+func (store *ObjectStoreWithLock) GetNSStoreWithLock(nsName string) *ObjectMapStoreWithLock {
 	store.NSLock.Lock()
 	defer store.NSLock.Unlock()
 	val, ok := store.NSObjectMap[nsName]
@@ -42,14 +42,14 @@ func (store *ObjectStore) GetNSStore(nsName string) *ObjectMapStore {
 		return val
 	} else {
 		// This namespace is not initialized, let's initialze it
-		nsObjStore := NewObjectMapStore()
+		nsObjStore := NewObjectMapStoreWithLock()
 		// Update the store.
 		store.NSObjectMap[nsName] = nsObjStore
 		return nsObjStore
 	}
 }
 
-func (store *ObjectStore) DeleteNSStore(nsName string) bool {
+func (store *ObjectStoreWithLock) DeleteNSStoreWithLock(nsName string) bool {
 	// Deletes the key for a namespace. Wipes off the entire NS. So use with care.
 	store.NSLock.Lock()
 	defer store.NSLock.Unlock()
@@ -63,7 +63,7 @@ func (store *ObjectStore) DeleteNSStore(nsName string) bool {
 
 }
 
-func (store *ObjectStore) GetAllNamespaces() []string {
+func (store *ObjectStoreWithLock) GetAllNamespacesWithLock() []string {
 	// Take a read lock on the store and write lock on NS object
 	store.NSLock.RLock()
 	defer store.NSLock.RUnlock()
@@ -75,24 +75,24 @@ func (store *ObjectStore) GetAllNamespaces() []string {
 
 }
 
-type ObjectMapStore struct {
+type ObjectMapStoreWithLock struct {
 	ObjectMap map[string]interface{}
 	ObjLock   sync.RWMutex
 }
 
-func NewObjectMapStore() *ObjectMapStore {
-	nsObjStore := &ObjectMapStore{}
+func NewObjectMapStoreWithLock() *ObjectMapStoreWithLock {
+	nsObjStore := &ObjectMapStoreWithLock{}
 	nsObjStore.ObjectMap = make(map[string]interface{})
 	return nsObjStore
 }
 
-func (o *ObjectMapStore) AddOrUpdate(objName string, obj interface{}) {
+func (o *ObjectMapStoreWithLock) AddOrUpdateWithLock(objName string, obj interface{}) {
 	o.ObjLock.Lock()
 	defer o.ObjLock.Unlock()
 	o.ObjectMap[objName] = obj
 }
 
-func (o *ObjectMapStore) Delete(objName string) bool {
+func (o *ObjectMapStoreWithLock) DeleteWithLock(objName string) bool {
 	o.ObjLock.Lock()
 	defer o.ObjLock.Unlock()
 	_, ok := o.ObjectMap[objName]
@@ -104,7 +104,7 @@ func (o *ObjectMapStore) Delete(objName string) bool {
 
 }
 
-func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
+func (o *ObjectMapStoreWithLock) GetWithLock(objName string) (bool, interface{}) {
 	o.ObjLock.RLock()
 	defer o.ObjLock.RUnlock()
 	val, ok := o.ObjectMap[objName]
@@ -115,7 +115,7 @@ func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
 
 }
 
-func (o *ObjectMapStore) GetAllObjectNames() map[string]interface{} {
+func (o *ObjectMapStoreWithLock) GetAllObjectNamesWithLock() map[string]interface{} {
 	o.ObjLock.RLock()
 	defer o.ObjLock.RUnlock()
 	// TODO (sudswas): Pass a copy instead of the reference
@@ -123,7 +123,7 @@ func (o *ObjectMapStore) GetAllObjectNames() map[string]interface{} {
 
 }
 
-func (o *ObjectMapStore) CopyAllObjects() map[string]interface{} {
+func (o *ObjectMapStoreWithLock) CopyAllObjectsWithLock() map[string]interface{} {
 	o.ObjLock.RLock()
 	defer o.ObjLock.RUnlock()
 	CopiedObjMap := make(map[string]interface{})

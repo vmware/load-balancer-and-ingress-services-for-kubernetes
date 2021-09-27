@@ -42,15 +42,10 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	}
 
 	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
-		shardSize := lib.GetshardSize()
-		if shardSize == 0 {
-			// For dedicated VSes, we will have 8 threads in layer 3
-			shardSize = 8
-		}
 		if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
-			// initializing shardSize+1 clients in pool, the +1 is used by CRD ref verification calls
+			// Always create 9 clients irrespective of shard size
 			AviClientInstance, err = utils.NewAviRestClientPool(
-				shardSize+1,
+				9,
 				ctrlIpAddress,
 				ctrlUsername,
 				ctrlPassword,

@@ -27,7 +27,7 @@ var avionce sync.Once
 
 func SharedAviGraphLister() *AviGraphLister {
 	avionce.Do(func() {
-		AviGraphStore := NewObjectMapStore()
+		AviGraphStore := NewObjectMapStoreWithLock()
 		aviGraphinstance = &AviGraphLister{}
 		aviGraphinstance.AviGraphStore = AviGraphStore
 	})
@@ -35,24 +35,24 @@ func SharedAviGraphLister() *AviGraphLister {
 }
 
 type AviGraphLister struct {
-	AviGraphStore *ObjectMapStore
+	AviGraphStore *ObjectMapStoreWithLock
 }
 
 func (a *AviGraphLister) Save(vsName string, aviGraph interface{}) {
 	utils.AviLog.Infof("Saving Model: %s", vsName)
-	a.AviGraphStore.AddOrUpdate(vsName, aviGraph)
+	a.AviGraphStore.AddOrUpdateWithLock(vsName, aviGraph)
 }
 
 func (a *AviGraphLister) Get(vsName string) (bool, interface{}) {
-	ok, obj := a.AviGraphStore.Get(vsName)
+	ok, obj := a.AviGraphStore.GetWithLock(vsName)
 	return ok, obj
 }
 
 func (a *AviGraphLister) GetAll() interface{} {
-	obj := a.AviGraphStore.GetAllObjectNames()
+	obj := a.AviGraphStore.GetAllObjectNamesWithLock()
 	return obj
 }
 
 func (a *AviGraphLister) Delete(vsName string) {
-	a.AviGraphStore.Delete(vsName)
+	a.AviGraphStore.DeleteWithLock(vsName)
 }
