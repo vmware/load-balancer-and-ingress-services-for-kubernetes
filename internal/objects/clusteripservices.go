@@ -25,7 +25,7 @@ var clusterIponce sync.Once
 
 func SharedClusterIpLister() *clusterIpLister {
 	clusterIponce.Do(func() {
-		clusterIpStore := NewObjectMapStore()
+		clusterIpStore := NewObjectMapStoreWithLock()
 		clusterIpinstance = &clusterIpLister{}
 		clusterIpinstance.clusterIpStore = clusterIpStore
 	})
@@ -33,25 +33,25 @@ func SharedClusterIpLister() *clusterIpLister {
 }
 
 type clusterIpLister struct {
-	clusterIpStore *ObjectMapStore
+	clusterIpStore *ObjectMapStoreWithLock
 }
 
 func (a *clusterIpLister) Save(svcName string, lb interface{}) {
 	utils.AviLog.Debugf("Saving clusterIp svc :%s", svcName)
-	a.clusterIpStore.AddOrUpdate(svcName, lb)
+	a.clusterIpStore.AddOrUpdateWithLock(svcName, lb)
 }
 
 func (a *clusterIpLister) Get(svcName string) (bool, interface{}) {
-	ok, obj := a.clusterIpStore.Get(svcName)
+	ok, obj := a.clusterIpStore.GetWithLock(svcName)
 	return ok, obj
 }
 
 func (a *clusterIpLister) GetAll() interface{} {
-	obj := a.clusterIpStore.GetAllObjectNames()
+	obj := a.clusterIpStore.GetAllObjectNamesWithLock()
 	return obj
 }
 
 func (a *clusterIpLister) Delete(svcName string) {
-	a.clusterIpStore.Delete(svcName)
+	a.clusterIpStore.DeleteWithLock(svcName)
 
 }
