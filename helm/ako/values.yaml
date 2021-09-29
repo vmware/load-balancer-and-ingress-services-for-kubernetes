@@ -77,11 +77,11 @@ nodePortSelector: # Only applicable if serviceType is NodePort
 
 resources:
   limits:
-    cpu: 250m
-    memory: 300Mi
+    cpu: 350m
+    memory: 400Mi
   requests:
-    cpu: 100m
-    memory: 200Mi
+    cpu: 200m
+    memory: 300Mi
 
 podSecurityContext: {}
 

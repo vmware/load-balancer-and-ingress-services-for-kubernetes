@@ -179,11 +179,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case EndpointInformer:
 			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
 		case SecretInformer:
-			if akoNSBoundInformer {
-				informers.SecretInformer = akoNSInformerFactory.Core().V1().Secrets()
-			} else {
-				informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
-			}
+			informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
 		case NodeInformer:
 			informers.NodeInformer = kubeInformerFactory.Core().V1().Nodes()
 		case ConfigMapInformer:
@@ -245,9 +241,6 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 		}
 	}
 
-	if oshiftclient != nil {
-		akoNSBoundInformer = true
-	}
 	if !instantiateOnce {
 		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace, akoNSBoundInformer)
 	}

@@ -80,6 +80,10 @@ func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1alpha1.AviInfraSetting) bo
 }
 
 // SetupAKOCRDEventHandlers handles setting up of AKO CRD event handlers
+// TODO: The CRD are getting re-enqueued for the same resourceVersion via fullsync as well as via these handlers.
+// We can leverage the resourceVersion checks to optimize this code. However the CRDs would need a check on
+// status for re-publish. The status does not change the resourceVersion and during fullsync we ignore a CRD
+// if it's status is not updated.
 func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up AKO CRD Event handlers")
 	informer := lib.GetCRDInformers()
@@ -93,16 +97,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				hostrule := obj.(*akov1alpha1.HostRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
-				statusBefore := hostrule.Status.Status
 				if err := validateHostRuleObj(key, hostrule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
-				}
-				// It's a reference, so pointer should be able to access the updated status.
-				statusAfter := hostrule.Status.Status
-				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
-				if ok && resVer.(string) == hostrule.ResourceVersion && statusBefore == statusAfter {
-					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
-					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -163,16 +159,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				httprule := obj.(*akov1alpha1.HTTPRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
-				statusBefore := httprule.Status.Status
 				if err := validateHTTPRuleObj(key, httprule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
-				}
-				// It's a reference, so pointer should be able to access the updated status.
-				statusAfter := httprule.Status.Status
-				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
-				if ok && resVer.(string) == httprule.ResourceVersion && statusAfter == statusBefore {
-					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
-					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -236,16 +224,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				aviinfra := obj.(*akov1alpha1.AviInfraSetting)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
-				statusBefore := aviinfra.Status.Status
 				if err := validateAviInfraSetting(key, aviinfra); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
-				}
-				// It's a reference, so pointer should be able to access the updated status.
-				statusAfter := aviinfra.Status.Status
-				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
-				if ok && resVer.(string) == aviinfra.ResourceVersion && statusAfter == statusBefore {
-					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
-					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
