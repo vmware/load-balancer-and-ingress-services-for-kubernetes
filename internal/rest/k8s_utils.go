@@ -76,21 +76,6 @@ func (rest *RestOperations) SyncObjectStatuses() {
 						VirtualServiceUUID: vsCacheObj.Uuid,
 					})
 			}
-		} else if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
-			// serviceLB
-			if vsCacheObj.Fip != "" {
-				IPAddrs = append(IPAddrs, vsCacheObj.Fip)
-			} else {
-				IPAddrs = append(IPAddrs, vsCacheObj.Vip)
-			}
-			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
-
-				status.UpdateOptions{
-					Vip:                IPAddrs,
-					ServiceMetadata:    vsSvcMetadataObj,
-					Key:                lib.SyncStatusKey,
-					VirtualServiceUUID: vsCacheObj.Uuid,
-				})
 		} else {
 			// insecure VSes handler
 			for _, poolKey := range vsCacheObj.PoolKeyCollection {
@@ -118,8 +103,37 @@ func (rest *RestOperations) SyncObjectStatuses() {
 							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,
 						})
+				} else if len(poolCacheObj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+					if vsCacheObj.Fip != "" {
+						IPAddrs = append(IPAddrs, vsCacheObj.Fip)
+					} else {
+						IPAddrs = append(IPAddrs, vsCacheObj.Vip)
+					}
+					allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
+						status.UpdateOptions{
+							Vip:                IPAddrs,
+							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
+							Key:                lib.SyncStatusKey,
+							VirtualServiceUUID: vsCacheObj.Uuid,
+						})
 				}
 			}
+		}
+
+		if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
+			var IPAddrsSvc []string
+			if vsCacheObj.Fip != "" {
+				IPAddrsSvc = append(IPAddrsSvc, vsCacheObj.Fip)
+			} else {
+				IPAddrsSvc = append(IPAddrsSvc, vsCacheObj.Vip)
+			}
+			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
+				status.UpdateOptions{
+					Vip:                IPAddrsSvc,
+					ServiceMetadata:    vsSvcMetadataObj,
+					Key:                lib.SyncStatusKey,
+					VirtualServiceUUID: vsCacheObj.Uuid,
+				})
 		}
 	}
 

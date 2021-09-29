@@ -43,7 +43,6 @@ type UpdateGWStatusConditionOptions struct {
 
 func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	gatewaysToUpdate, updateGWOptions := parseOptionsFromMetadata(options, bulk)
-	var updateServiceOptions []UpdateOptions
 
 	// gatewayMap: {ns/gateway: gatewayObj}
 	// this pre-fetches all gateways to be candidates for status update
@@ -52,14 +51,6 @@ func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	gatewayMap := getGateways(gatewaysToUpdate, bulk)
 	skipDelete := map[string]bool{}
 	for _, option := range updateGWOptions {
-		updateServiceOptions = append(updateServiceOptions, UpdateOptions{
-			Vip: option.Vip,
-			Key: option.Key,
-			ServiceMetadata: avicache.ServiceMetadataObj{
-				NamespaceServiceName: option.ServiceMetadata.NamespaceServiceName,
-			},
-		})
-
 		if gw := gatewayMap[option.IngSvc]; gw != nil {
 			// assuming 1 IP per gateway
 			gwStatus := gw.Status.DeepCopy()
@@ -92,8 +83,6 @@ func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 			}, lib.SyncStatusKey)
 		}
 	}
-
-	UpdateL4LBStatus(updateServiceOptions, bulk)
 }
 
 func parseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []UpdateOptions) {
