@@ -15,7 +15,6 @@
 package nodes
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -27,7 +26,6 @@ import (
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TODO: Move to utils
@@ -185,7 +183,6 @@ func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, infraSettin
 }
 
 func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode *AviVsNode, namespace string, tlsData TlsSettings, key, infraSettingName, sniHost string) bool {
-	mClient := utils.GetInformers().ClientSet
 	secretName := tlsData.SecretName
 	secretNS := tlsData.SecretNS
 	if secretNS == "" {
@@ -218,7 +215,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 			return false
 		}
 	} else {
-		secretObj, err := mClient.CoreV1().Secrets(secretNS).Get(context.TODO(), secretName, metav1.GetOptions{})
+		secretObj, err := utils.GetInformers().SecretInformer.Lister().Secrets(secretNS).Get(secretName)
 		if err != nil || secretObj == nil {
 			// This secret has been deleted.
 			ok, ingNames := svcLister.IngressMappings(namespace).GetSecretToIng(secretName)

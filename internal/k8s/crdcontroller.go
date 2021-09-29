@@ -113,11 +113,14 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				hostrule := obj.(*akov1alpha1.HostRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
+				statusBefore := hostrule.Status.Status
 				if err := validateHostRuleObj(key, hostrule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
 				}
+				// It's a reference, so pointer should be able to access the updated status.
+				statusAfter := hostrule.Status.Status
 				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
-				if ok && resVer.(string) == hostrule.ResourceVersion {
+				if ok && resVer.(string) == hostrule.ResourceVersion && statusBefore == statusAfter {
 					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
 					return
 				}
@@ -180,11 +183,14 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				httprule := obj.(*akov1alpha1.HTTPRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
+				statusBefore := httprule.Status.Status
 				if err := validateHTTPRuleObj(key, httprule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
 				}
+				// It's a reference, so pointer should be able to access the updated status.
+				statusAfter := httprule.Status.Status
 				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
-				if ok && resVer.(string) == httprule.ResourceVersion {
+				if ok && resVer.(string) == httprule.ResourceVersion && statusAfter == statusBefore {
 					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
 					return
 				}
@@ -250,11 +256,14 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				aviinfra := obj.(*akov1alpha1.AviInfraSetting)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
+				statusBefore := aviinfra.Status.Status
 				if err := validateAviInfraSetting(key, aviinfra); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
 				}
+				// It's a reference, so pointer should be able to access the updated status.
+				statusAfter := aviinfra.Status.Status
 				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
-				if ok && resVer.(string) == aviinfra.ResourceVersion {
+				if ok && resVer.(string) == aviinfra.ResourceVersion && statusAfter == statusBefore {
 					utils.AviLog.Debugf("key: %s, msg: Same resource version returning", key)
 					return
 				}
