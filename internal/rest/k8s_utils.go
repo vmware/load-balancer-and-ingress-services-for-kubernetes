@@ -73,15 +73,6 @@ func (rest *RestOperations) SyncObjectStatuses() {
 						VirtualServiceUUID: vsCacheObj.Uuid,
 					})
 			}
-		} else if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
-			// serviceLB
-			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
-				status.UpdateOptions{
-					Vip:                vsCacheObj.Vip,
-					ServiceMetadata:    vsSvcMetadataObj,
-					Key:                lib.SyncStatusKey,
-					VirtualServiceUUID: vsCacheObj.Uuid,
-				})
 		} else {
 			// insecure VSes handler
 			for _, poolKey := range vsCacheObj.PoolKeyCollection {
@@ -104,8 +95,27 @@ func (rest *RestOperations) SyncObjectStatuses() {
 							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,
 						})
+				} else if len(poolCacheObj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+					allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
+						status.UpdateOptions{
+							Vip:                vsCacheObj.Vip,
+							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
+							Key:                lib.SyncStatusKey,
+							VirtualServiceUUID: vsCacheObj.Uuid,
+						})
 				}
 			}
+		}
+
+		if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
+			// serviceLB
+			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
+				status.UpdateOptions{
+					Vip:                vsCacheObj.Vip,
+					ServiceMetadata:    vsSvcMetadataObj,
+					Key:                lib.SyncStatusKey,
+					VirtualServiceUUID: vsCacheObj.Uuid,
+				})
 		}
 	}
 
