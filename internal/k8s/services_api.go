@@ -309,6 +309,12 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 	}
 
 	informer.GatewayInformer.Informer().AddEventHandler(gatewayEventHandler)
+	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
+	return
+}
+
+func (c *AviController) AddSvcApiIndexers() {
+	informer := lib.AKOControlConfig().SvcAPIInformers()
 	informer.GatewayInformer.Informer().AddIndexers(
 		cache.Indexers{
 			lib.GatewayClassGatewayIndex: func(obj interface{}) ([]string, error) {
@@ -320,8 +326,6 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 			},
 		},
 	)
-
-	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
 	informer.GatewayClassInformer.Informer().AddIndexers(
 		cache.Indexers{
 			lib.AviSettingGWClassIndex: func(obj interface{}) ([]string, error) {
@@ -338,6 +342,4 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 			},
 		},
 	)
-
-	return
 }
