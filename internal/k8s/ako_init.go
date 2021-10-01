@@ -25,7 +25,7 @@ import (
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
-	networkingv1 "k8s.io/api/networking/v1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -366,7 +366,7 @@ func (c *AviController) addIndexers() {
 		c.informers.IngressClassInformer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.AviSettingIngClassIndex: func(obj interface{}) ([]string, error) {
-					ingclass, ok := obj.(*networkingv1.IngressClass)
+					ingclass, ok := obj.(*networkingv1beta1.IngressClass)
 					if !ok {
 						return []string{}, nil
 					}

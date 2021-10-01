@@ -980,22 +980,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		}
 
 		c.informers.IngressClassInformer.Informer().AddEventHandler(ingressClassEventHandler)
-		c.informers.IngressClassInformer.Informer().AddIndexers(
-			cache.Indexers{
-				lib.AviSettingIngClassIndex: func(obj interface{}) ([]string, error) {
-					ingclass, ok := obj.(*networkingv1beta1.IngressClass)
-					if !ok {
-						return []string{}, nil
-					}
-					if ingclass.Spec.Parameters != nil {
-						// sample settingKey: ako.vmware.com/AviInfraSetting/avi-1
-						settingKey := *ingclass.Spec.Parameters.APIGroup + "/" + ingclass.Spec.Parameters.Kind + "/" + ingclass.Spec.Parameters.Name
-						return []string{settingKey}, nil
-					}
-					return []string{}, nil
-				},
-			},
-		)
 	}
 
 	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
