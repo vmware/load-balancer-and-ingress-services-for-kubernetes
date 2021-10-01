@@ -25,7 +25,7 @@ var lbonce sync.Once
 
 func SharedlbLister() *lbLister {
 	lbonce.Do(func() {
-		lbStore := NewObjectMapStoreWithLock()
+		lbStore := NewObjectMapStore()
 		lbinstance = &lbLister{}
 		lbinstance.lbStore = lbStore
 	})
@@ -33,25 +33,25 @@ func SharedlbLister() *lbLister {
 }
 
 type lbLister struct {
-	lbStore *ObjectMapStoreWithLock
+	lbStore *ObjectMapStore
 }
 
 func (a *lbLister) Save(svcName string, lb interface{}) {
 	utils.AviLog.Debugf("Saving lb svc :%s", svcName)
-	a.lbStore.AddOrUpdateWithLock(svcName, lb)
+	a.lbStore.AddOrUpdate(svcName, lb)
 }
 
 func (a *lbLister) Get(svcName string) (bool, interface{}) {
-	ok, obj := a.lbStore.GetWithLock(svcName)
+	ok, obj := a.lbStore.Get(svcName)
 	return ok, obj
 }
 
 func (a *lbLister) GetAll() interface{} {
-	obj := a.lbStore.GetAllObjectNamesWithLock()
+	obj := a.lbStore.GetAllObjectNames()
 	return obj
 }
 
 func (a *lbLister) Delete(svcName string) {
-	a.lbStore.DeleteWithLock(svcName)
+	a.lbStore.Delete(svcName)
 
 }
