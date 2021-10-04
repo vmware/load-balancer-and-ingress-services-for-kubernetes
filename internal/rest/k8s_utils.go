@@ -48,11 +48,13 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 		parentVsKey := vsCacheObj.ParentVSRef
 		vsSvcMetadataObj := vsCacheObj.ServiceMetadataObj
+		var IPAddrs []string
 		if vsSvcMetadataObj.Gateway != "" {
 			// gateway based VSes
+			IPAddrs = append(IPAddrs, vsCacheObj.Vip)
 			allGatewayUpdateOptions = append(allGatewayUpdateOptions,
 				status.UpdateOptions{
-					Vip:             vsCacheObj.Vip,
+					Vip:             IPAddrs,
 					ServiceMetadata: vsSvcMetadataObj,
 					Key:             lib.SyncStatusKey,
 				})
@@ -65,9 +67,10 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 			parentVsObj, _ := parentVs.(*avicache.AviVsCache)
 			if (vsSvcMetadataObj.IngressName != "" || len(vsSvcMetadataObj.NamespaceIngressName) > 0) && vsSvcMetadataObj.Namespace != "" && parentVsObj != nil {
+				IPAddrs = append(IPAddrs, vsCacheObj.Vip)
 				allIngressUpdateOptions = append(allIngressUpdateOptions,
 					status.UpdateOptions{
-						Vip:                parentVsObj.Vip,
+						Vip:                IPAddrs,
 						ServiceMetadata:    vsSvcMetadataObj,
 						Key:                lib.SyncStatusKey,
 						VirtualServiceUUID: vsCacheObj.Uuid,
@@ -75,14 +78,15 @@ func (rest *RestOperations) SyncObjectStatuses() {
 			}
 		} else if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
 			// serviceLB
-			IPAddr := vsCacheObj.Vip
 			if vsCacheObj.Fip != "" {
-				IPAddr = vsCacheObj.Fip
+				IPAddrs = append(IPAddrs, vsCacheObj.Fip)
+			} else {
+				IPAddrs = append(IPAddrs, vsCacheObj.Vip)
 			}
 			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
 
 				status.UpdateOptions{
-					Vip:                IPAddr,
+					Vip:                IPAddrs,
 					ServiceMetadata:    vsSvcMetadataObj,
 					Key:                lib.SyncStatusKey,
 					VirtualServiceUUID: vsCacheObj.Uuid,
@@ -102,13 +106,14 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 				// insecure pools
 				if poolCacheObj.ServiceMetadataObj.Namespace != "" {
-					IPAddr := vsCacheObj.Vip
 					if vsCacheObj.Fip != "" {
-						IPAddr = vsCacheObj.Fip
+						IPAddrs = append(IPAddrs, vsCacheObj.Fip)
+					} else {
+						IPAddrs = append(IPAddrs, vsCacheObj.Vip)
 					}
 					allIngressUpdateOptions = append(allIngressUpdateOptions,
 						status.UpdateOptions{
-							Vip:                IPAddr,
+							Vip:                IPAddrs,
 							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
 							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,

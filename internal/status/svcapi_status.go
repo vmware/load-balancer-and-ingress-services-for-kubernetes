@@ -50,20 +50,22 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	for _, option := range updateGWOptions {
 		if gw := gatewayMap[option.IngSvc]; gw != nil {
 			// assuming 1 IP per gateway
-			gwStatus := gw.Status.DeepCopy()
-			gwStatus.Addresses = []svcapiv1alpha1.GatewayAddress{{
-				Value: option.Vip,
-				Type:  svcapiv1alpha1.IPAddressType,
-			}}
+			for _, vip := range option.Vip {
+				gwStatus := gw.Status.DeepCopy()
+				gwStatus.Addresses = []svcapiv1alpha1.GatewayAddress{{
+					Value: vip,
+					Type:  svcapiv1alpha1.IPAddressType,
+				}}
 
-			// when statuses are synced during bootup
-			InitializeSvcApiGatewayConditions(gwStatus, &gw.Spec, true)
-			UpdateSvcApiGatewayStatusGWCondition(option.Key, gwStatus, &UpdateSvcApiGWStatusConditionOptions{
-				Type:   "Ready",
-				Status: metav1.ConditionTrue,
-			})
-			UpdateSvcApiGatewayStatusObject(option.Key, gw, gwStatus)
-			skipDelete[option.IngSvc] = true
+				// when statuses are synced during bootup
+				InitializeSvcApiGatewayConditions(gwStatus, &gw.Spec, true)
+				UpdateSvcApiGatewayStatusGWCondition(option.Key, gwStatus, &UpdateSvcApiGWStatusConditionOptions{
+					Type:   "Ready",
+					Status: metav1.ConditionTrue,
+				})
+				UpdateSvcApiGatewayStatusObject(option.Key, gw, gwStatus)
+				skipDelete[option.IngSvc] = true
+			}
 		}
 	}
 

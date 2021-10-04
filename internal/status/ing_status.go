@@ -36,7 +36,7 @@ import (
 type UpdateOptions struct {
 	// IngSvc format: namespace/name, not supposed to be provided by the caller
 	IngSvc             string
-	Vip                string
+	Vip                []string
 	ServiceMetadata    avicache.ServiceMetadataObj
 	Key                string
 	VirtualServiceUUID string
@@ -89,7 +89,7 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 }
 
 func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, retryNum ...int) error {
-	if updateOption.Vip == "" {
+	if len(updateOption.Vip) == 0 {
 		return nil
 	}
 
@@ -120,11 +120,13 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 
 	// Handle fresh hostname update
 	for _, host := range hostnames {
-		lbIngress := corev1.LoadBalancerIngress{
-			IP:       updateOption.Vip,
-			Hostname: host,
+		for _, vip := range updateOption.Vip {
+			lbIngress := corev1.LoadBalancerIngress{
+				IP:       vip,
+				Hostname: host,
+			}
+			mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress, lbIngress)
 		}
-		mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress, lbIngress)
 	}
 
 	// remove the host from status which is not in spec

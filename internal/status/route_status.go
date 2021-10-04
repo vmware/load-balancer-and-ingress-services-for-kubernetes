@@ -47,9 +47,27 @@ func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map
 					utils.AviLog.Errorf("key: %s, msg: UpdateIngressStatus IngressNamespace format not correct", option.Key)
 					continue
 				}
-
-				ingressIPKey := ingressns + "/" + option.Vip
-				option.IngSvc = ingressns
+				for _, vip := range option.Vip {
+					ingressIPKey := ingressns + "/" + vip
+					option.IngSvc = ingressns
+					if opt, ok := updateIngressOptions[ingressIPKey]; ok {
+						for _, hostname := range option.ServiceMetadata.HostNames {
+							if !utils.HasElem(opt.ServiceMetadata.HostNames, hostname) {
+								opt.ServiceMetadata.HostNames = append(opt.ServiceMetadata.HostNames, option.ServiceMetadata.HostNames...)
+								updateIngressOptions[ingressIPKey] = opt
+							}
+						}
+					} else {
+						updateIngressOptions[ingressIPKey] = option
+					}
+				}
+			}
+		} else {
+			// insecure VSes, servicemetadata comes from Pools.
+			ingress := option.ServiceMetadata.Namespace + "/" + option.ServiceMetadata.IngressName
+			for _, vip := range option.Vip {
+				ingressIPKey := ingress + "/" + vip
+				option.IngSvc = ingress
 				if opt, ok := updateIngressOptions[ingressIPKey]; ok {
 					for _, hostname := range option.ServiceMetadata.HostNames {
 						if !utils.HasElem(opt.ServiceMetadata.HostNames, hostname) {
@@ -60,21 +78,6 @@ func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map
 				} else {
 					updateIngressOptions[ingressIPKey] = option
 				}
-			}
-		} else {
-			// insecure VSes, servicemetadata comes from Pools.
-			ingress := option.ServiceMetadata.Namespace + "/" + option.ServiceMetadata.IngressName
-			ingressIPKey := ingress + "/" + option.Vip
-			option.IngSvc = ingress
-			if opt, ok := updateIngressOptions[ingressIPKey]; ok {
-				for _, hostname := range option.ServiceMetadata.HostNames {
-					if !utils.HasElem(opt.ServiceMetadata.HostNames, hostname) {
-						opt.ServiceMetadata.HostNames = append(opt.ServiceMetadata.HostNames, option.ServiceMetadata.HostNames...)
-						updateIngressOptions[ingressIPKey] = opt
-					}
-				}
-			} else {
-				updateIngressOptions[ingressIPKey] = option
 			}
 		}
 	}
@@ -277,7 +280,7 @@ func routeStatusCheck(key string, oldStatus []routev1.RouteIngress, hostname str
 }
 
 func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryNum ...int) error {
-	if updateOption.Vip == "" {
+	if len(updateOption.Vip) == 0 {
 		return nil
 	}
 	if updateOption.ServiceMetadata.InsecureEdgeTermAllow {
@@ -307,20 +310,22 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 	// Handle fresh hostname update
 	for _, host := range hostnames {
 		now := metav1.Now()
-		condition := routev1.RouteIngressCondition{
-			Message:            updateOption.Vip,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: &now,
-			Type:               routev1.RouteAdmitted,
+		for _, vip := range updateOption.Vip {
+			condition := routev1.RouteIngressCondition{
+				Message:            vip,
+				Status:             corev1.ConditionTrue,
+				LastTransitionTime: &now,
+				Type:               routev1.RouteAdmitted,
+			}
+			rtIngress := routev1.RouteIngress{
+				Host:       host,
+				RouterName: lib.AKOUser,
+				Conditions: []routev1.RouteIngressCondition{
+					condition,
+				},
+			}
+			mRoute.Status.Ingress = append(mRoute.Status.Ingress, rtIngress)
 		}
-		rtIngress := routev1.RouteIngress{
-			Host:       host,
-			RouterName: lib.AKOUser,
-			Conditions: []routev1.RouteIngressCondition{
-				condition,
-			},
-		}
-		mRoute.Status.Ingress = append(mRoute.Status.Ingress, rtIngress)
 	}
 
 	// remove the host from status which is not in spec

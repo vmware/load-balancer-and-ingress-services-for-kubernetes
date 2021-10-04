@@ -378,14 +378,25 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 					utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
 					pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 					if found {
-						IPAddr := vs_cache_obj.Vip
-						if vs_cache_obj.Fip != "" {
-							IPAddr = vs_cache_obj.Fip
+						var IPAddrs []string
+						for _, vsvipkey := range vs_cache_obj.VSVipKeyCollection {
+							vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvipkey)
+							if ok {
+								vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
+								if found {
+
+									if len(vsvip_cache_obj.Fips) == 0 {
+										IPAddrs = vsvip_cache_obj.Vips
+									} else {
+										IPAddrs = vsvip_cache_obj.Fips
+									}
+								}
+							}
 						}
 						if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 
 							updateOptions := status.UpdateOptions{
-								Vip:                IPAddr,
+								Vip:                IPAddrs,
 								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
 								Key:                key,
 								VirtualServiceUUID: vs_cache_obj.Uuid,
@@ -398,7 +409,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 							status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 						} else if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
 							updateOptions := status.UpdateOptions{
-								Vip:                IPAddr,
+								Vip:                IPAddrs,
 								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
 								Key:                key,
 								VirtualServiceUUID: vs_cache_obj.Uuid,
@@ -413,18 +424,31 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 							}
 							status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 						}
+
 					}
 				}
 			}
 		}
+
 	} else {
-		IPAddr := vs_cache_obj.Vip
-		if vs_cache_obj.Fip != "" {
-			IPAddr = vs_cache_obj.Fip
+		var IPAddrs []string
+		for _, vsvipkey := range vs_cache_obj.VSVipKeyCollection {
+			vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvipkey)
+			if ok {
+				vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
+				if found {
+
+					if len(vsvip_cache_obj.Fips) == 0 {
+						IPAddrs = vsvip_cache_obj.Vips
+					} else {
+						IPAddrs = vsvip_cache_obj.Fips
+					}
+				}
+			}
 		}
 		if svc_mdata_obj.Gateway != "" {
 			updateOptions := status.UpdateOptions{
-				Vip:             IPAddr,
+				Vip:             IPAddrs,
 				ServiceMetadata: *svc_mdata_obj,
 				Key:             key,
 			}
@@ -441,7 +465,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 		} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 			// This service needs an update of the status
 			updateOptions := status.UpdateOptions{
-				Vip:                IPAddr,
+				Vip:                IPAddrs,
 				ServiceMetadata:    *svc_mdata_obj,
 				Key:                key,
 				VirtualServiceUUID: vs_cache_obj.Uuid,
@@ -453,8 +477,10 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 			}
 			status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 		} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
+			var parentVsVips []string
+			parentVsVips = append(parentVsVips, parentVsObj.Vip)
 			updateOptions := status.UpdateOptions{
-				Vip:                parentVsObj.Vip,
+				Vip:                parentVsVips,
 				ServiceMetadata:    *svc_mdata_obj,
 				Key:                key,
 				VirtualServiceUUID: vs_cache_obj.Uuid,
@@ -469,6 +495,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 			}
 			status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 		}
+
 	}
 	return nil
 }

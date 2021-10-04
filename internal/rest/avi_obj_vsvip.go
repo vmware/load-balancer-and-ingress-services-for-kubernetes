@@ -504,17 +504,6 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			if found {
 				vs_cache_obj.AddToVSVipKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
-				if len(vsvip_cache_obj.Vips) > 0 {
-					vip := vsvip_cache_obj.Vips[0]
-					vs_cache_obj.Vip = vip
-				}
-				if len(vsvip_cache_obj.Fips) > 0 {
-					fip := vsvip_cache_obj.Fips[0]
-					vs_cache_obj.Fip = fip
-				} else {
-					vs_cache_obj.Fip = ""
-				}
-				rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
 				rest.StatusUpdate(rest_op, vs_cache_obj, nil, nil, key, true)
 			}
 
@@ -523,15 +512,6 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vs_cache_obj.AddToVSVipKeyCollection(k)
 			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v\n", key, vsKey,
 				vs_cache_obj))
-			vip := vsvip_cache_obj.Vips[0]
-			vs_cache_obj.Vip = vip
-			if len(vsvip_cache_obj.Fips) > 0 {
-				fip := vsvip_cache_obj.Fips[0]
-				vs_cache_obj.Fip = fip
-			} else {
-				vs_cache_obj.Fip = ""
-			}
-			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
 			rest.StatusUpdate(rest_op, vs_cache_obj, nil, nil, key, true)
 		}
 		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v\n", key, k,
