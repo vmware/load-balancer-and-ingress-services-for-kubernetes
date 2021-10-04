@@ -1,11 +1,8 @@
-
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
-  creationTimestamp: null
   name: akoconfigs.ako.vmware.com
 spec:
   group: ako.vmware.com
@@ -172,6 +169,7 @@ spec:
                     - LARGE
                     - MEDIUM
                     - SMALL
+                    - DEDICATED
                     type: string
                   syncNamespace:
                     description: SyncNamespace takes in a namespace from which AKO
@@ -210,6 +208,10 @@ spec:
                           type: string
                       type: object
                     type: array
+                  nsxtT1LR:
+                    description: T1 Logical Segment mapping for backend network. Only
+                      applies to NSX-T cloud.
+                    type: string
                   vipNetworkList:
                     description: VipNetworkList holds the names and subnet information
                       of networks as specified in Avi

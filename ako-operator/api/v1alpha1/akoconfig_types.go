@@ -29,8 +29,11 @@ type LogLevelType string
 // +kubebuilder:validation:Enum=NodePort;ClusterIP;NodePortLocal
 type ServiceTypeStr string
 
-// +kubebuilder:validation:Enum=LARGE;MEDIUM;SMALL
+// +kubebuilder:validation:Enum=LARGE;MEDIUM;SMALL;DEDICATED
 type VSSize string
+
+// +kubebuilder:validation:Enum=LARGE;MEDIUM;SMALL
+type PassthroughVSSize string
 
 type NamespaceSelector struct {
 	LabelKey   string `json:"labelKey,omitempty"`
@@ -83,6 +86,8 @@ type NetworkSettings struct {
 	NodeNetworkList []NodeNetwork `json:"nodeNetworkList,omitempty"`
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
+	// T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
+	NsxtT1LR string `json:"nsxtT1LR,omitempty"`
 	// BGPPeerLabels enable selection of BGP peers, for selective VsVip advertisement.
 	BGPPeerLabels []string `json:"bgpPeerLabels,omitempty"`
 	// VipNetworkList holds the names and subnet information of networks as specified in Avi
@@ -98,7 +103,7 @@ type L7Settings struct {
 	// ShardVSSize specifies the number of shard VSs to be created
 	ShardVSSize VSSize `json:"shardVSSize,omitempty"`
 	// PassthroughShardSize specifies the number of shard VSs to be created for passthrough routes
-	PassthroughShardSize VSSize `json:"passthroughShardSize,omitempty"`
+	PassthroughShardSize PassthroughVSSize `json:"passthroughShardSize,omitempty"`
 	// SyncNamespace takes in a namespace from which AKO will sync the objects
 	SyncNamespace string `json:"syncNamespace,omitempty"`
 	// NoPGForSNI removes Avi PoolGroups from SNI VSes
