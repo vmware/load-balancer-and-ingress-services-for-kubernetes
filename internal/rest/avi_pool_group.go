@@ -79,23 +79,20 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 
 func (rest *RestOperations) SanitizePGMembers(Members []*avimodels.PoolGroupMember, key string) []*avimodels.PoolGroupMember {
 	// This method iterates over the pg members and removes any duplicate.
-	var newList []string
-	var pgmemberscopy []*avimodels.PoolGroupMember
-	pgmemberscopy = make([]*avimodels.PoolGroupMember, len(Members))
-	copy(pgmemberscopy, Members)
-	for i, member := range Members {
-		if utils.HasElem(newList, member.PoolRef) {
+	var pgmembers []*avimodels.PoolGroupMember
+	var refList []string
+	for _, member := range Members {
+		if utils.HasElem(refList, *member.PoolRef) {
 			// Duplicate detected, remove it from the copy
-			pgmemberscopy = append(pgmemberscopy[:i], pgmemberscopy[i+1:]...)
-			utils.AviLog.Warnf("key: %s, msg: detected duplicate poolref :%s", key, member.PoolRef)
+			utils.AviLog.Warnf("key: %s, msg: detected duplicate poolref :%s", key, *member.PoolRef)
 		} else if member.PriorityLabel != nil && lib.CheckObjectNameLength(*member.PriorityLabel, lib.PriorityLabel) {
 			utils.AviLog.Warnf("key: %s not adding priority label to pool ref to PG", key)
-			pgmemberscopy = append(pgmemberscopy[:i], pgmemberscopy[i+1:]...)
 		} else {
-			newList = append(newList, *member.PoolRef)
+			refList = append(refList, *member.PoolRef)
+			pgmembers = append(pgmembers, member)
 		}
 	}
-	return pgmemberscopy
+	return pgmembers
 }
 
 func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *utils.RestOp {
