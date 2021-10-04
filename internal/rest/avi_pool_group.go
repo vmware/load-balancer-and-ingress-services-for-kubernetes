@@ -83,11 +83,12 @@ func (rest *RestOperations) SanitizePGMembers(Members []*avimodels.PoolGroupMemb
 	var refList []string
 	for _, member := range Members {
 		if utils.HasElem(refList, *member.PoolRef) {
-			// Duplicate detected, remove it from the copy
+			// Duplicate detected.
 			utils.AviLog.Warnf("key: %s, msg: detected duplicate poolref :%s", key, *member.PoolRef)
 		} else if member.PriorityLabel != nil && lib.CheckObjectNameLength(*member.PriorityLabel, lib.PriorityLabel) {
 			utils.AviLog.Warnf("key: %s not adding priority label to pool ref to PG", key)
 		} else {
+			// No duplicates, append the member.
 			refList = append(refList, *member.PoolRef)
 			pgmembers = append(pgmembers, member)
 		}
