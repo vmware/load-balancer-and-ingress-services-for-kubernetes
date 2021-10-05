@@ -487,6 +487,7 @@ func DeleteRouteStatus(options []UpdateOptions, isVSDelete bool, key string) err
 }
 
 func deleteRouteObject(svc_mdata_obj avicache.ServiceMetadataObj, key string, isVSDelete bool, retryNum ...int) error {
+	utils.AviLog.Infof("key: %s, Deleting Route status, svc_mdata_obj: %v, isVSDelete: %v", key, svc_mdata_obj, isVSDelete)
 	retry := 0
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("key: %s, msg: Retrying to update the route status", key)
