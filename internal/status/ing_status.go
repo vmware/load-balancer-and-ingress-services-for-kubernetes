@@ -67,7 +67,6 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 			skipDelete[option.IngSvc] = true
 		}
 	}
-
 	// reset IPAddress and annotations from Ingresses that do not have a corresponding VS in cache
 	if bulk {
 		for ingNSName, ing := range ingressMap {
@@ -128,7 +127,6 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 			mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress, lbIngress)
 		}
 	}
-
 	// remove the host from status which is not in spec
 	for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
 		if !utils.HasElem(hostListIng, mIngress.Status.LoadBalancer.Ingress[i].Hostname) {

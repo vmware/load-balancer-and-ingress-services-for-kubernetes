@@ -302,7 +302,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	g.Eventually(func() string {
 		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
@@ -310,7 +310,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 			return svc.Status.LoadBalancer.Ingress[0].IP
 		}
 		return ""
-	}, 30*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -354,7 +354,7 @@ func TestServicesAPINamingConvention(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -437,7 +437,7 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	gwclassUpdate := FakeGWClass{
 		Name:       gwClassName,
@@ -483,7 +483,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 20*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 20*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	gwUpdate := FakeGateway{
 		Name: gatewayName, Namespace: ns, GWClass: gwClassName,
@@ -1097,6 +1097,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
+
 	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
 
 	g.Eventually(func() string {
@@ -1105,7 +1106,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	g.Eventually(func() string {
 		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
@@ -1116,7 +1117,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 			return svc1.Status.LoadBalancer.Ingress[0].IP
 		}
 		return ""
-	}, 30*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	gatewayUpdate := FakeGateway{
 		Name:      gatewayName,
