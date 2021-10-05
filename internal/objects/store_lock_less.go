@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright 2020-2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,14 +18,11 @@
 package objects
 
 import (
-	"sync"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 type ObjectStore struct {
 	NSObjectMap map[string]*ObjectMapStore
-	NSLock      sync.RWMutex
 }
 
 func NewObjectStore() *ObjectStore {
@@ -35,8 +32,7 @@ func NewObjectStore() *ObjectStore {
 }
 
 func (store *ObjectStore) GetNSStore(nsName string) *ObjectMapStore {
-	store.NSLock.Lock()
-	defer store.NSLock.Unlock()
+
 	val, ok := store.NSObjectMap[nsName]
 	if ok {
 		return val
@@ -51,8 +47,6 @@ func (store *ObjectStore) GetNSStore(nsName string) *ObjectMapStore {
 
 func (store *ObjectStore) DeleteNSStore(nsName string) bool {
 	// Deletes the key for a namespace. Wipes off the entire NS. So use with care.
-	store.NSLock.Lock()
-	defer store.NSLock.Unlock()
 	_, ok := store.NSObjectMap[nsName]
 	if ok {
 		delete(store.NSObjectMap, nsName)
@@ -65,8 +59,6 @@ func (store *ObjectStore) DeleteNSStore(nsName string) bool {
 
 func (store *ObjectStore) GetAllNamespaces() []string {
 	// Take a read lock on the store and write lock on NS object
-	store.NSLock.RLock()
-	defer store.NSLock.RUnlock()
 	var allNamespaces []string
 	for ns := range store.NSObjectMap {
 		allNamespaces = append(allNamespaces, ns)
@@ -77,7 +69,6 @@ func (store *ObjectStore) GetAllNamespaces() []string {
 
 type ObjectMapStore struct {
 	ObjectMap map[string]interface{}
-	ObjLock   sync.RWMutex
 }
 
 func NewObjectMapStore() *ObjectMapStore {
@@ -87,14 +78,10 @@ func NewObjectMapStore() *ObjectMapStore {
 }
 
 func (o *ObjectMapStore) AddOrUpdate(objName string, obj interface{}) {
-	o.ObjLock.Lock()
-	defer o.ObjLock.Unlock()
 	o.ObjectMap[objName] = obj
 }
 
 func (o *ObjectMapStore) Delete(objName string) bool {
-	o.ObjLock.Lock()
-	defer o.ObjLock.Unlock()
 	_, ok := o.ObjectMap[objName]
 	if ok {
 		delete(o.ObjectMap, objName)
@@ -105,8 +92,6 @@ func (o *ObjectMapStore) Delete(objName string) bool {
 }
 
 func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
-	o.ObjLock.RLock()
-	defer o.ObjLock.RUnlock()
 	val, ok := o.ObjectMap[objName]
 	if ok {
 		return true, val
@@ -116,16 +101,13 @@ func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
 }
 
 func (o *ObjectMapStore) GetAllObjectNames() map[string]interface{} {
-	o.ObjLock.RLock()
-	defer o.ObjLock.RUnlock()
 	// TODO (sudswas): Pass a copy instead of the reference
 	return o.ObjectMap
 
 }
 
 func (o *ObjectMapStore) CopyAllObjects() map[string]interface{} {
-	o.ObjLock.RLock()
-	defer o.ObjLock.RUnlock()
+
 	CopiedObjMap := make(map[string]interface{})
 	for k, v := range o.ObjectMap {
 		CopiedObjMap[k] = v
