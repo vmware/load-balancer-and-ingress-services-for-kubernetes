@@ -332,6 +332,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	// Setup and start event handlers for objects.
 	c.addIndexers()
 	c.AddCrdIndexer()
+	if lib.UseServicesAPI() {
+		c.AddSvcApiIndexers()
+	}
 	c.Start(stopCh)
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
