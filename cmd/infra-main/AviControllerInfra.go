@@ -35,8 +35,6 @@ var (
 )
 
 func main() {
-	a := ingestion.AviControllerInfra{}
-	a.InitInfraController()
 	InitializeAKOInfra()
 }
 
@@ -73,7 +71,9 @@ func InitializeAKOInfra() {
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
-
+	// Checking/Setting up Avi pre-reqs
+	a := ingestion.NewAviControllerInfra(kubeClient)
+	a.InitInfraController()
 	// Check for kubernetes apiserver version compatibility with AKO version.
 	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {
 		utils.AviLog.Warnf("Error while fetching kubernetes apiserver version")

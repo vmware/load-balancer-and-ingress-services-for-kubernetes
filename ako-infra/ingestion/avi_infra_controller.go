@@ -17,19 +17,68 @@
 package ingestion
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/vmware/alb-sdk/go/models"
+	"k8s.io/client-go/kubernetes"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-type AviControllerInfra struct{}
+type AviControllerInfra struct {
+	AviRestClients *utils.AviRestClientPool
+	cs             *kubernetes.Clientset
+}
+
+func NewAviControllerInfra(cs *kubernetes.Clientset) *AviControllerInfra {
+	PopulateControllerProperties(cs)
+	AviRestClientsPool := avicache.SharedAVIClients()
+	return &AviControllerInfra{AviRestClients: AviRestClientsPool, cs: cs}
+}
 
 func (a *AviControllerInfra) InitInfraController() {
-	aviRestClientPool := avicache.SharedAVIClients()
-	if aviRestClientPool == nil {
+	if a.AviRestClients == nil {
 		utils.AviLog.Fatalf("Avi client not initialized during Infra bootup")
 	}
 
-	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
-		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO info container")
+	if a.AviRestClients != nil && !avicache.IsAviClusterActive(a.AviRestClients.AviClient[0]) {
+		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO infa container")
 	}
+
+	// First verify the license of the Avi controller. If it's not Avi Enterprise, then fail the infra container bootup.
+	err := a.VerifyAviControllerLicense()
+	if err != nil {
+		utils.AviLog.Fatalf(err.Error())
+	}
+}
+
+func (a *AviControllerInfra) VerifyAviControllerLicense() error {
+	uri := "/api/systemconfiguration"
+	response := models.SystemConfiguration{}
+	err := lib.AviGet(a.AviRestClients.AviClient[0], uri, &response)
+	if err != nil {
+		utils.AviLog.Warnf("System config Get uri %v returned err %v", uri, err)
+		return err
+	}
+
+	if *response.DefaultLicenseTier != AVI_ENTERPRISE {
+		errStr := fmt.Sprintf("Avi Controller license is not ENTERPRISE. License tier is: %s", *response.DefaultLicenseTier)
+		return errors.New(errStr)
+	} else {
+		utils.AviLog.Infof("Avi Controller is running with ENTERPRISE license, proceeding with bootup")
+	}
+	return nil
+}
+
+func PopulateControllerProperties(cs kubernetes.Interface) error {
+	ctrlPropCache := utils.SharedCtrlProp()
+	ctrlProps, err := lib.GetControllerPropertiesFromSecret(cs)
+	if err != nil {
+		return err
+	}
+	ctrlPropCache.PopulateCtrlProp(ctrlProps)
+	return nil
 }
