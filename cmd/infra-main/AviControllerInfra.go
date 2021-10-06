@@ -35,6 +35,8 @@ var (
 )
 
 func main() {
+	a := ingestion.AviControllerInfra{}
+	a.InitInfraController()
 	InitializeAKOInfra()
 }
 
