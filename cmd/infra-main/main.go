@@ -95,7 +95,7 @@ func InitializeAKOInfra() {
 	lib.NewVCFDynamicInformers(dynamicClient)
 
 	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
-	c := ingestion.SharedAviController()
+	c := ingestion.SharedVCFK8sController()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 

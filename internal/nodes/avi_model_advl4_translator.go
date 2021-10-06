@@ -255,7 +255,11 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	gwListenerHostNameMapping := make(map[string]string)
 	if lib.UseServicesAPI() {
 		// enable fqdn for gateway services only for non-advancedl4 usecases.
-		gw, _ := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Gateway deleted, not constructing the pool nodes", key)
+			return
+		}
 		for _, gwlistener := range gw.Spec.Listeners {
 			if gwlistener.Hostname != nil && string(*gwlistener.Hostname) != "" {
 				gwListenerHostNameMapping[fmt.Sprintf("%s/%d", gwlistener.Protocol, gwlistener.Port)] = string(*gwlistener.Hostname)
