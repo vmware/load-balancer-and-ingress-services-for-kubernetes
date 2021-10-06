@@ -52,7 +52,11 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	found, listeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gatewayName)
 	if found {
 		vsName := lib.GetL4VSName(gatewayName, namespace)
-		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+		gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for advancedL4: %s", err)
+			return nil
+		}
 
 		var serviceNSNames []string
 		if found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName); found {
@@ -135,7 +139,11 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	found, listeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gatewayName)
 	if found {
 		vsName := lib.GetL4VSName(gatewayName, namespace)
-		gw, _ := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+		gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for services APIs : %s", err)
+			return nil
+		}
 
 		var serviceNSNames []string
 		listenerSvcMapping := make(map[string][]string)
