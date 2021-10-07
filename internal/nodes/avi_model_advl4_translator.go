@@ -52,7 +52,11 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	found, listeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gatewayName)
 	if found {
 		vsName := lib.GetL4VSName(gatewayName, namespace)
-		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+		gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for advancedL4: %s", err)
+			return nil
+		}
 
 		var serviceNSNames []string
 		if found, services := objects.ServiceGWLister().GetGwToSvcs(namespace + "/" + gatewayName); found {
@@ -135,7 +139,11 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	found, listeners := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gatewayName)
 	if found {
 		vsName := lib.GetL4VSName(gatewayName, namespace)
-		gw, _ := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+		gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for services APIs : %s", err)
+			return nil
+		}
 
 		var serviceNSNames []string
 		listenerSvcMapping := make(map[string][]string)
@@ -255,7 +263,11 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	gwListenerHostNameMapping := make(map[string]string)
 	if lib.UseServicesAPI() {
 		// enable fqdn for gateway services only for non-advancedl4 usecases.
-		gw, _ := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Gateway deleted, not constructing the pool nodes", key)
+			return
+		}
 		for _, gwlistener := range gw.Spec.Listeners {
 			if gwlistener.Hostname != nil && string(*gwlistener.Hostname) != "" {
 				gwListenerHostNameMapping[fmt.Sprintf("%s/%d", gwlistener.Protocol, gwlistener.Port)] = string(*gwlistener.Hostname)

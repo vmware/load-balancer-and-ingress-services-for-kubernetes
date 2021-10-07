@@ -2294,7 +2294,7 @@ func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud st
 	return poolKeyCollection
 }
 
-func (c *AviObjCache) IsAviClusterActive(client *clients.AviClient) bool {
+func IsAviClusterActive(client *clients.AviClient) bool {
 	uri := "/api/cluster/runtime"
 	var response map[string]interface{}
 	err := lib.AviGet(client, uri, &response)

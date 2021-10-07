@@ -202,13 +202,12 @@ func InitializeAKC() {
 		lib.ShutdownApi()
 	}
 
-	aviObjCache := avicache.SharedAviObjCache()
 	aviRestClientPool := avicache.SharedAVIClients()
 	if aviRestClientPool == nil {
 		utils.AviLog.Fatalf("Avi client not initialized")
 	}
 
-	if aviRestClientPool != nil && !aviObjCache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
+	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 

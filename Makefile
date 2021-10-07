@@ -4,8 +4,10 @@ GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
+BINARY_NAME_AKO_INFRA=ako-infra
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
+REL_PATH_AKO_INFRA=$(PACKAGE_PATH_AKO)/cmd/infra-main
 AKO_OPERATOR_IMAGE=ako-operator
 
 define GetSupportabilityMatrix
@@ -81,13 +83,32 @@ build: pre-build glob-vars
 		-mod=vendor \
 		/go/src/$(REL_PATH_AKO)
 
+.PHONY: build-infra
+build: pre-build glob-vars
+		sudo docker run \
+		-w=/go/src/$(PACKAGE_PATH_AKO) \
+		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+		$(GOBUILD) \
+		-o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO_INFRA) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		/go/src/$(REL_PATH_AKO_INFRA)
+
 .PHONY: build-local
 build-local: pre-build
+		$(GOBUILD) \
+		-o bin/$(BINARY_NAME_AKO_INFRA) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		./cmd/ako-main
+
+.PHONY: build-local-infra
+build-local-infra: pre-build
 		$(GOBUILD) \
 		-o bin/$(BINARY_NAME_AKO) \
 		-ldflags $(AKO_LDFLAGS) \
 		-mod=vendor \
-		./cmd/ako-main
+		./cmd/infra-main
 
 .PHONY: clean
 clean:

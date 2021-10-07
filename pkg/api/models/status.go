@@ -72,6 +72,11 @@ func (a *StatusModel) ApiOperationMap() []OperationMap {
 
 // utility function to be used by modules to update RestStatus.AviApi
 func (a *StatusModel) UpdateAviApiRestStatus(connectionStatus string, err error) {
+	// In case of avi infra component we won't use the API server, hence the model won't be initialized.
+	// Return if the model is not inited.
+	if a == nil {
+		return
+	}
 	a.statusLock.Lock()
 	defer a.statusLock.Unlock()
 	aviApiRestStatus := a.AviApi

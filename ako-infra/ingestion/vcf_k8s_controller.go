@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -31,16 +32,59 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
-func (c *AviController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+var controllerInstance *VCFK8sController
+var ctrlonce sync.Once
+
+type VCFK8sController struct {
+	worker_id        uint32
+	informers        *utils.Informers
+	dynamicInformers *lib.VCFDynamicInformers
+	//workqueue        []workqueue.RateLimitingInterface
+	DisableSync bool
+}
+
+type K8sinformers struct {
+	Cs            kubernetes.Interface
+	DynamicClient dynamic.Interface
+}
+
+func SharedVCFK8sController() *VCFK8sController {
+	ctrlonce.Do(func() {
+		controllerInstance = &VCFK8sController{
+			worker_id:        (uint32(1) << utils.NumWorkersIngestion) - 1,
+			informers:        utils.GetInformers(),
+			dynamicInformers: lib.GetVCFDynamicInformers(),
+			DisableSync:      true,
+		}
+	})
+	return controllerInstance
+}
+
+// Run will set up the event handlers for types we are interested in, as well
+// as syncing informer caches and starting workers. It will block until stopCh
+// is closed, at which point it will shutdown the workqueue and wait for
+// workers to finish processing their current work items.
+func (c *VCFK8sController) Run(stopCh <-chan struct{}) error {
+	defer runtime.HandleCrash()
+
+	utils.AviLog.Info("Started the Kubernetes Controller")
+	<-stopCh
+	utils.AviLog.Info("Shutting down the Kubernetes Controller")
+
+	return nil
+}
+func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
 	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if lib.VCFInitialized {
 				return
 			}
-			if c.ValidBSData() && startSyncCh != nil {
+			if c.ValidBootStrapData() && startSyncCh != nil {
 				err := c.CreateOrUpdateAviSecret()
 				if err != nil {
 					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
@@ -55,7 +99,7 @@ func (c *AviController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-
 			if lib.VCFInitialized {
 				return
 			}
-			if c.ValidBSData() && startSyncCh != nil {
+			if c.ValidBootStrapData() && startSyncCh != nil {
 				err := c.CreateOrUpdateAviSecret()
 				if err != nil {
 					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
@@ -77,11 +121,11 @@ func (c *AviController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-
 	}
 }
 
-func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+func (c *VCFK8sController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
 	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Bootstrap ADD Event")
-			if c.ValidBSData() && startSyncCh != nil {
+			if c.ValidBootStrapData() && startSyncCh != nil {
 				err := c.CreateOrUpdateAviSecret()
 				if err != nil {
 					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
@@ -94,7 +138,7 @@ func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("NCP Bootstrap Update Event")
-			if c.ValidBSData() && startSyncCh != nil {
+			if c.ValidBootStrapData() && startSyncCh != nil {
 				err := c.CreateOrUpdateAviSecret()
 				if err != nil {
 					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
@@ -116,7 +160,7 @@ func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh
 	}
 }
 
-func (c *AviController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
+func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
 	NetworkinfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info ADD Event")
@@ -145,7 +189,7 @@ func (c *AviController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stopCh 
 // AVI Controller. If there is any failure, we would look at Bootstrap CR used by NCP to communicate with AKO.
 // If Bootstrap CR is not found, AKO would wait for it to be created. If the authtoken from Bootstrap CR
 // can be used to connect to the AVI Controller, then avi-secret would be created with that token.
-func (c *AviController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}, ctrlCh chan struct{}) {
+func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}, ctrlCh chan struct{}) {
 	cs := c.informers.ClientSet
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
 	if err == nil {
@@ -168,7 +212,7 @@ func (c *AviController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}
 		utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)
 	}
 
-	if !c.ValidBSData() {
+	if !c.ValidBootStrapData() {
 		utils.AviLog.Infof("Running in a VCF Cluster, but valid Bootstrap CR not found, waiting .. ")
 		startSyncCh := make(chan struct{})
 		c.AddNCPBootstrapEventHandler(informers, stopCh, startSyncCh)
@@ -187,7 +231,7 @@ func (c *AviController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}
 	c.CreateOrUpdateAviSecret()
 }
 
-func (c *AviController) CreateOrUpdateAviSecret() error {
+func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
 	secretName, ns, username := lib.GetBootstrapCRData()
 	if secretName == "" || ns == "" || username == "" {
 		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR, secretName: %s, namespace: %s, username: %s",
@@ -230,7 +274,7 @@ func (c *AviController) CreateOrUpdateAviSecret() error {
 	return nil
 }
 
-func (c *AviController) ValidBSData() bool {
+func (c *VCFK8sController) ValidBootStrapData() bool {
 	utils.AviLog.Infof("Validating NCP Boostrap data for AKO")
 	cs := c.informers.ClientSet
 	secretName, ns, username := lib.GetBootstrapCRData()
@@ -263,7 +307,7 @@ func (c *AviController) ValidBSData() bool {
 	return true
 }
 
-func (c *AviController) deleteNCPSecret(name, ns string) {
+func (c *VCFK8sController) deleteNCPSecret(name, ns string) {
 	cs := c.informers.ClientSet
 	err := cs.CoreV1().Secrets(ns).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
