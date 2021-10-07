@@ -177,7 +177,11 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case EndpointInformer:
 			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
 		case SecretInformer:
-			informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
+			if akoNSBoundInformer {
+				informers.SecretInformer = akoNSInformerFactory.Core().V1().Secrets()
+			} else {
+				informers.SecretInformer = kubeInformerFactory.Core().V1().Secrets()
+			}
 		case NodeInformer:
 			informers.NodeInformer = kubeInformerFactory.Core().V1().Nodes()
 		case ConfigMapInformer:
@@ -235,6 +239,12 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 				AviLog.Warnf("Unknown Key %s in args", k)
 			}
 		}
+	}
+
+	// In Openshift cluster use NS bound informer for secret as certificates for routes are specified in the route itself. Also,
+	// there are many secrets installed by default in Openshift cluster which have to be handled if NS bound informer is not used.
+	if HasElem(registeredInformers, RouteInformer) {
+		akoNSBoundInformer = true
 	}
 
 	if !instantiateOnce {
