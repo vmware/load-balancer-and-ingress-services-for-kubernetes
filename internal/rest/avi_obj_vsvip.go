@@ -452,7 +452,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 					vsvipVips = append(vsvipVips, addr)
 					floating_ip, valid := vip["floating_ip"].(map[string]interface{})
 					if !valid {
-						utils.AviLog.Infof("key: %s, msg: invalid type for floating_ip in vsvip: %s", key, name)
+						utils.AviLog.Warnf("key: %s, msg: invalid type for floating_ip in vsvip: %s", key, name)
 					} else {
 						fip_addr, valid := floating_ip["addr"].(string)
 						if !valid {

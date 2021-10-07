@@ -378,21 +378,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 					utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
 					pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 					if found {
-						var IPAddrs []string
-						for _, vsvipkey := range vs_cache_obj.VSVipKeyCollection {
-							vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvipkey)
-							if ok {
-								vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
-								if found {
-
-									if len(vsvip_cache_obj.Fips) == 0 {
-										IPAddrs = vsvip_cache_obj.Vips
-									} else {
-										IPAddrs = vsvip_cache_obj.Fips
-									}
-								}
-							}
-						}
+						IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
 						if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 
 							updateOptions := status.UpdateOptions{
@@ -431,21 +417,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 		}
 
 	} else {
-		var IPAddrs []string
-		for _, vsvipkey := range vs_cache_obj.VSVipKeyCollection {
-			vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvipkey)
-			if ok {
-				vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
-				if found {
-
-					if len(vsvip_cache_obj.Fips) == 0 {
-						IPAddrs = vsvip_cache_obj.Vips
-					} else {
-						IPAddrs = vsvip_cache_obj.Fips
-					}
-				}
-			}
-		}
+		IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
 		if svc_mdata_obj.Gateway != "" {
 			updateOptions := status.UpdateOptions{
 				Vip:             IPAddrs,
@@ -807,4 +779,23 @@ func (rest *RestOperations) isHostPresentInSharedPool(hostname string, parentVs 
 		}
 	}
 	return false
+}
+
+func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []string {
+	var IPAddrs []string
+	for _, vsvipkey := range vsCache.VSVipKeyCollection {
+		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvipkey)
+		if ok {
+			vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
+			if found {
+
+				if len(vsvip_cache_obj.Fips) == 0 {
+					IPAddrs = vsvip_cache_obj.Vips
+				} else {
+					IPAddrs = vsvip_cache_obj.Fips
+				}
+			}
+		}
+	}
+	return IPAddrs
 }
