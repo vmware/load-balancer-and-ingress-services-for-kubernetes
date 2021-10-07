@@ -253,11 +253,11 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 		if evhnode.Name == lib.Encode(insecureVsName, lib.EVHVS) {
 			g.Expect(evhnode.PoolRefs[0].Name).Should(gomega.Equal(lib.Encode(insecurePoolName, lib.Pool)))
 			g.Expect(evhnode.PoolGroupRefs[0].Name).Should(gomega.Equal(lib.Encode(insecurePGName, lib.PG)))
-			g.Expect(evhnode.HttpPolicyRefs[0].Name).Should(gomega.Equal(lib.Encode(insecurePGName, lib.HTTPPS)))
+			g.Expect(evhnode.HttpPolicyRefs[0].HppMap[0].Name).Should(gomega.Equal(lib.Encode(insecurePGName, lib.HPPMAP)))
 		} else if evhnode.Name == lib.Encode(secureVsName, lib.EVHVS) {
 			g.Expect(evhnode.PoolRefs[0].Name).Should(gomega.Equal(lib.Encode(securePoolName, lib.Pool)))
 			g.Expect(evhnode.PoolGroupRefs[0].Name).Should(gomega.Equal(lib.Encode(securePGName, lib.PG)))
-			g.Expect(evhnode.HttpPolicyRefs[0].Name).Should(gomega.Equal(lib.Encode(securePGName, lib.HTTPPS)))
+			g.Expect(evhnode.HttpPolicyRefs[0].HppMap[0].Name).Should(gomega.Equal(lib.Encode(securePGName, lib.HPPMAP)))
 		} else {
 			t.Fatalf("No matching evh node names found, nodes found: %s, expected one of %s, %s", evhnode.Name, secureVsName, insecureVsName)
 		}
