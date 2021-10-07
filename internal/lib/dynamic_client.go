@@ -24,6 +24,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -200,6 +201,30 @@ func GetBootstrapCRData() (string, string, string) {
 		utils.AviLog.Errorf("userName is not of type string")
 	}
 	return secretName, secretNamespace, userName
+}
+
+func GetNetinfoCRData() map[string]string {
+	lslrMap := make(map[string]string)
+	dynamicClient := GetVCFDynamicClientSet()
+	crdClient := dynamicClient.Resource(NetworkInfoGVR)
+	crList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
+		return lslrMap
+	}
+
+	for _, obj := range crList.Items {
+		spec, found, err := unstructured.NestedStringMap(obj.UnstructuredContent(), "topology")
+		if found && err == nil {
+			lr := spec["gatewayPath"]
+			ls := spec["aviSegmentPath"]
+			lslrMap[ls] = lr
+		} else {
+			utils.AviLog.Warnf("NetworkInfo topology not found: %v", err)
+		}
+	}
+
+	return lslrMap
 }
 
 // GetPodCIDR returns the node's configured PodCIDR

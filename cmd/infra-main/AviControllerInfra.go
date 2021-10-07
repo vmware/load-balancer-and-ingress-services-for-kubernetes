@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -104,6 +105,7 @@ func InitializeAKOInfra() {
 	c.HandleVCF(informers, stopCh, ctrlCh)
 	lib.VCFInitialized = true
 
+	avirest.SyncLSLR()
 	c.AddNetworkInfoEventHandler(informers, stopCh)
 
 	<-stopCh
