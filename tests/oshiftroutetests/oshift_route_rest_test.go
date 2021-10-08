@@ -230,7 +230,7 @@ func TestPassthroughRouteAlternateBackend(t *testing.T) {
 		}
 		return route.Status.Ingress[0].Host
 	}, 60*time.Second).Should(gomega.Equal(defaultHostname))
-	g.Expect(route.Status.Ingress[0].Conditions[0].Message).Should(gomega.Equal("10.250.250.250"))
+	g.Expect(route.Status.Ingress[0].Conditions[0].Message).Should(gomega.Equal("10.250.250.1"))
 
 	TearDownRouteForRestCheck(t, DefaultPassthroughModel)
 	integrationtest.DelSVC(t, "default", "absvc2")

@@ -980,6 +980,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 	var vipAddress, shardVSNum string
 	var object string
 	addrPrefix := "10.250.250"
+	publicAddrPrefix := "35.250.250"
 	urlSlice := strings.Split(strings.Trim(url, "/"), "/")
 	if len(urlSlice) > 1 {
 		object = urlSlice[1]
@@ -1019,13 +1020,35 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else {
-				vipAddress = "10.250.250.250"
+				vipAddress = addrPrefix + ".1"
 			}
 
 			// add vip for status update checks
 			// use vh_parent_vs_uuid for sniVS, and name for normal VSes
 
 			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
+			if strings.Contains(rName, "public") {
+				fipAddress := "35.250.250.1"
+				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": fipAddress, "type": "V4"}
+			}
+			if strings.Contains(rName, "multivip") {
+				if strings.Contains(rName, "public") {
+					resp["vip"] = []interface{}{
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
+					}
+				} else {
+					resp["vip"] = []interface{}{
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
+					}
+				}
+			}
 			resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
 		} else if strings.Contains(url, "vsvip") {
 			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
@@ -1047,9 +1070,31 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
 			} else {
-				vipAddress = "10.250.250.250"
+				vipAddress = addrPrefix + ".1"
 			}
 			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
+			if strings.Contains(rName, "public") {
+				fipAddress := "35.250.250.1"
+				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": fipAddress, "type": "V4"}
+			}
+			if strings.Contains(rName, "multivip") {
+				if strings.Contains(rName, "public") {
+					resp["vip"] = []interface{}{
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
+					}
+				} else {
+					resp["vip"] = []interface{}{
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
+					}
+				}
+			}
 		}
 		finalResponse, _ = json.Marshal(resp)
 		w.WriteHeader(http.StatusOK)
@@ -1065,6 +1110,34 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		}
 		if val, ok := resp["name"]; !ok || val == nil {
 			resp["name"] = object + "-sample-name"
+		}
+		if strings.Contains(url, "vsvip") {
+			//if !strings.Contains(url, "gateway") {
+			if resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"] == nil {
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}}}
+			}
+			//}
+			if strings.Contains(url, "public") {
+				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}
+			}
+			if strings.Contains(url, "multivip") {
+				if strings.Contains(url, "public") {
+					resp["vip"] = []interface{}{
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
+							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
+					}
+				} else {
+					resp["vip"] = []interface{}{
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"}},
+						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
+					}
+				}
+			}
 		}
 		finalResponse, _ = json.Marshal(resp)
 		w.WriteHeader(http.StatusOK)
@@ -1493,4 +1566,29 @@ func TeardownAviInfraSetting(t *testing.T, infraSettingName string) {
 	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AviInfraSetting: %v", err)
 	}
+}
+
+func ClearAllCache(cacheObj *cache.AviObjCache) {
+	var keys []cache.NamespaceName
+	keys = cacheObj.PgCache.AviGetAllKeys()
+	for _, k := range keys {
+		cacheObj.PgCache.AviCacheDelete(k)
+	}
+	keys = cacheObj.PoolCache.AviGetAllKeys()
+	for _, k := range keys {
+		cacheObj.PoolCache.AviCacheDelete(k)
+	}
+	keys = cacheObj.VSVIPCache.AviGetAllKeys()
+	for _, k := range keys {
+		cacheObj.VSVIPCache.AviCacheDelete(k)
+	}
+	keys = cacheObj.VsCacheMeta.AviGetAllKeys()
+	for _, k := range keys {
+		cacheObj.VsCacheMeta.AviCacheDelete(k)
+	}
+	keys = cacheObj.VsCacheLocal.AviGetAllKeys()
+	for _, k := range keys {
+		cacheObj.VsCacheLocal.AviCacheDelete(k)
+	}
+
 }

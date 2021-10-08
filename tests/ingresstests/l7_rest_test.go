@@ -127,11 +127,12 @@ func TestCreateIngressCacheSync(t *testing.T) {
 
 func TestIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+	mcache := cache.SharedAviObjCache()
+	integrationtest.ClearAllCache(mcache)
 
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 
-	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)

@@ -63,10 +63,12 @@ func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 		if gw := gatewayMap[option.IngSvc]; gw != nil {
 			// assuming 1 IP per gateway
 			gwStatus := gw.Status.DeepCopy()
-			gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
-				Value: option.Vip,
-				Type:  advl4v1alpha1pre1.IPAddressType,
-			}}
+			for _, vip := range option.Vip {
+				gwStatus.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
+					Value: vip,
+					Type:  advl4v1alpha1pre1.IPAddressType,
+				}}
+			}
 
 			// when statuses are synced during bootup
 			InitializeGatewayConditions(gwStatus, &gw.Spec, true)

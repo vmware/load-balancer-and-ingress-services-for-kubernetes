@@ -268,9 +268,10 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			if found {
 				vs_cache_obj.AddToPoolKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
+				IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
 				if len(svc_mdata_obj.NamespaceServiceName) > 0 {
 					updateOptions := status.UpdateOptions{
-						Vip:                vs_cache_obj.Vip,
+						Vip:                IPAddrs,
 						ServiceMetadata:    svc_mdata_obj,
 						Key:                key,
 						VirtualServiceUUID: vs_cache_obj.Uuid,
@@ -283,7 +284,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 					status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 				} else if svc_mdata_obj.Namespace != "" {
 					updateOptions := status.UpdateOptions{
-						Vip:                vs_cache_obj.Vip,
+						Vip:                IPAddrs,
 						ServiceMetadata:    svc_mdata_obj,
 						Key:                key,
 						VirtualServiceUUID: vs_cache_obj.Uuid,
@@ -299,6 +300,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
 			}
+
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPoolKeyCollection(k)

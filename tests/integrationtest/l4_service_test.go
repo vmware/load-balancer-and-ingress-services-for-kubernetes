@@ -999,7 +999,7 @@ func TestBootupServiceLBStatusPersistence(t *testing.T) {
 			return svc.Status.LoadBalancer.Ingress[0].IP
 		}
 		return ""
-	}, 20*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 20*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	TearDownTestForSvcLB(t, g)
 }

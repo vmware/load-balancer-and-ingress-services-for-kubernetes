@@ -277,7 +277,7 @@ func TestAdvL4BestCase(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	g.Eventually(func() string {
 		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
@@ -285,7 +285,7 @@ func TestAdvL4BestCase(t *testing.T) {
 			return svc.Status.LoadBalancer.Ingress[0].IP
 		}
 		return ""
-	}, 30*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -329,7 +329,7 @@ func TestAdvL4NamingConvention(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -413,7 +413,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 50*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 50*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	gwclassUpdate := FakeGWClass{
 		Name:       gwClassName,
@@ -459,7 +459,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 			return gw.Status.Addresses[0].Value
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Equal("10.250.250.250"))
+	}, 10*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	gwUpdate := FakeGateway{
 		Name: gatewayName, Namespace: ns, GWClass: gwClassName,

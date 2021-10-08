@@ -723,9 +723,13 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			fqdns = append(fqdns, *dnsinfo.Fqdn)
 		}
 		var vips []string
+		var fips []string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
+			if vip.FloatingIP != nil {
+				fips = append(fips, *vip.FloatingIP.Addr)
+			}
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
@@ -750,6 +754,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			NetworkNames:     networkNames,
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
+			Fips:             fips,
 			CloudConfigCksum: checksum,
 		}
 		*vsVipData = append(*vsVipData, vsVipCacheObj)
@@ -1303,9 +1308,13 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 		}
 
 		var vips []string
+		var fips []string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
+			if vip.FloatingIP != nil {
+				fips = append(vips, *vip.FloatingIP.Addr)
+			}
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
@@ -1328,6 +1337,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			FQDNs:            fqdns,
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
+			Fips:             fips,
 			NetworkNames:     networkNames,
 			CloudConfigCksum: checksum,
 		}
@@ -1841,6 +1851,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				k := NamespaceName{Namespace: lib.GetTenant(), Name: vs["name"].(string)}
 				*vsCacheCopy = RemoveNamespaceName(*vsCacheCopy, k)
 				var vip string
+				var fip string
 				var vsVipKey []NamespaceName
 				var sslKeys []NamespaceName
 				var dsKeys []NamespaceName
@@ -1855,7 +1866,6 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					// find the vsvip name from the vsvip cache
 					vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
 					objKey, objFound := c.VSVIPCache.AviCacheGetKeyByUuid(vsVipUuid)
-
 					if objFound {
 						vsVip, foundVip := c.VSVIPCache.AviCacheGet(objKey)
 						if foundVip {
@@ -1865,6 +1875,9 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 								vsVipKey = append(vsVipKey, vipKey)
 								if len(vsVipData.Vips) > 0 {
 									vip = vsVipData.Vips[0]
+									if len(vsVipData.Fips) > 0 {
+										fip = vsVipData.Fips[0]
+									}
 								}
 							}
 						}
@@ -1999,6 +2012,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					PGKeyCollection:      poolgroupKeys,
 					PoolKeyCollection:    poolKeys,
 					Vip:                  vip,
+					Fip:                  fip,
 					CloudConfigCksum:     vs["cloud_config_cksum"].(string),
 					SNIChildCollection:   sni_child_collection,
 					ParentVSRef:          parentVSKey,
@@ -2096,6 +2110,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 			}
 			if vs["cloud_config_cksum"] != nil {
 				var vip string
+				var fip string
 				var vsVipKey []NamespaceName
 				var sslKeys []NamespaceName
 				var dsKeys []NamespaceName
@@ -2117,6 +2132,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 							vsVipKey = append(vsVipKey, vipKey)
 							if len(vsVipData.Vips) > 0 {
 								vip = vsVipData.Vips[0]
+								if len(vsVipData.Fips) > 0 {
+									fip = vsVipData.Fips[0]
+								}
 							}
 						}
 					}
@@ -2238,6 +2256,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 					PGKeyCollection:      poolgroupKeys,
 					PoolKeyCollection:    poolKeys,
 					Vip:                  vip,
+					Fip:                  fip,
 					CloudConfigCksum:     vs["cloud_config_cksum"].(string),
 					SNIChildCollection:   sni_child_collection,
 					ParentVSRef:          parentVSKey,
