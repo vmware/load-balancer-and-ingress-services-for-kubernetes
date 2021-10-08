@@ -1226,7 +1226,7 @@ func TestIngressAddPodWithMultiport(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(false))
+	}, 20*time.Second, 1*time.Second).Should(gomega.Equal(false))
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -1241,23 +1241,16 @@ func TestIngressAddPodWithMultiport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 		return found
-	}, 20*time.Second).Should(gomega.Equal(true))
+	}, 20*time.Second, 1*time.Second).Should(gomega.Equal(true))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(defaultL7Model)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(2))
-
-	g.Eventually(func() int {
-		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-
-		return len(nodes[0].PoolRefs[0].Servers)
-	}, 20*time.Second).Should(gomega.Equal(1))
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].PoolRefs[1].Servers).To(gomega.HaveLen(1))
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
