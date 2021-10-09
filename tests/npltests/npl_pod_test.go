@@ -1208,9 +1208,9 @@ func TestNPLSvcNodePort(t *testing.T) {
 	}
 }
 
-// TestIngressAddPodWithMultiport creates a Pod with multiple nodeportlocal.antrea.io annotations, Service with multiport and
+// TestIngressAddPodWithMultiportSvc creates a Pod with multiple nodeportlocal.antrea.io annotations, Service with multiport and
 // an Ingress which uses that Service. Port number is mentioned instead of port name as backend servicePort.
-func TestIngressAddPodWithMultiport(t *testing.T) {
+func TestIngressAddPodWithMultiportSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	SetUpTestForIngress(t, defaultL7Model)
