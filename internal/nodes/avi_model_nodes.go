@@ -677,19 +677,15 @@ func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key
 }
 
 func (o *AviVsNode) CheckHttpPolNameNChecksum(httpPolName, hppMapName string, checksum uint32) bool {
-	hppMapFound := false
 	for i, http := range o.HttpPolicyRefs {
 		if http.Name == httpPolName {
 			for _, hppMap := range o.HttpPolicyRefs[i].HppMap {
 				if hppMap.Name == hppMapName {
-					hppMapFound = true
 					if http.GetCheckSum() == checksum {
 						return false
+					} else {
+						return true
 					}
-				}
-				//checksum is not same so need to modify
-				if hppMapFound {
-					return true
 				}
 			}
 		}
