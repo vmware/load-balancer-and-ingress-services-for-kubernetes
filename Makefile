@@ -84,7 +84,7 @@ build: pre-build glob-vars
 		/go/src/$(REL_PATH_AKO)
 
 .PHONY: build-infra
-build: pre-build glob-vars
+build-infra: pre-build glob-vars
 		sudo docker run \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
 		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
@@ -97,7 +97,7 @@ build: pre-build glob-vars
 .PHONY: build-local
 build-local: pre-build
 		$(GOBUILD) \
-		-o bin/$(BINARY_NAME_AKO_INFRA) \
+		-o bin/$(BINARY_NAME_AKO) \
 		-ldflags $(AKO_LDFLAGS) \
 		-mod=vendor \
 		./cmd/ako-main
@@ -105,7 +105,7 @@ build-local: pre-build
 .PHONY: build-local-infra
 build-local-infra: pre-build
 		$(GOBUILD) \
-		-o bin/$(BINARY_NAME_AKO) \
+		-o bin/$(BINARY_NAME_AKO_INFRA) \
 		-ldflags $(AKO_LDFLAGS) \
 		-mod=vendor \
 		./cmd/infra-main
