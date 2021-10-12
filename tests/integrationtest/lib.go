@@ -645,10 +645,11 @@ func (svc FakeService) Service() *corev1.Service {
 }
 
 type FakeNode struct {
-	Name    string
-	PodCIDR string
-	NodeIP  string
-	Version string
+	Name               string
+	PodCIDR            string
+	NodeIP             string
+	Version            string
+	PodCIDRsAnnotation string
 }
 
 func (node FakeNode) Node() *corev1.Node {
@@ -668,6 +669,11 @@ func (node FakeNode) Node() *corev1.Node {
 				},
 			},
 		},
+	}
+	if node.PodCIDRsAnnotation != "" {
+		nodeExample.Annotations = map[string]string{
+			lib.StaticRouteAnnotation: node.PodCIDRsAnnotation,
+		}
 	}
 	return nodeExample
 }
@@ -1146,6 +1152,13 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 	} else if r.Method == "DELETE" {
 		w.WriteHeader(http.StatusNoContent)
 		w.Write(finalResponse)
+
+	} else if r.Method == "PATCH" && strings.Contains(url, "vrfcontext") {
+		// This won't help in checking for Cache values, since we are sending back static content
+		// It is only to remove API call warning related to vrfcontext PATCH calls.
+		w.WriteHeader(http.StatusOK)
+		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/vrfcontext_uuid_mock.json", mockFilePath))
+		w.Write(data)
 
 	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "aviref") {
 		// block to handle

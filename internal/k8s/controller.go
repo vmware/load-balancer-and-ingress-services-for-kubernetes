@@ -109,8 +109,11 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 		return true
 	}
 
-	nodeLabelEq := reflect.DeepEqual(oldNode.ObjectMeta.Labels, newNode.ObjectMeta.Labels)
-	if !nodeLabelEq {
+	if !reflect.DeepEqual(oldNode.Labels, newNode.Labels) {
+		return true
+	}
+
+	if !reflect.DeepEqual(oldNode.Annotations, newNode.Annotations) {
 		return true
 	}
 

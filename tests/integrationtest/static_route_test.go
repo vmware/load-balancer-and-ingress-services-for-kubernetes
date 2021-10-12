@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
@@ -200,4 +201,79 @@ func TestMultiNodeAdd(t *testing.T) {
 		}
 	}
 	g.Expect(len(nodeIPMap)).To(gomega.Equal(0))
+}
+
+func TestNodeCIDRInAnnotation(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/global"
+	nodeip := "30.1.1.2"
+	objects.SharedAviGraphLister().Delete(modelName)
+	nodeExample := (FakeNode{
+		Name:               "testNodeAnnotation",
+		PodCIDR:            "10.244.0.0/24",
+		PodCIDRsAnnotation: "192.168.1.0/24, 192.168.2.0/24 ,",
+		Version:            "1",
+		NodeIP:             nodeip,
+	}).Node()
+
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	PollForCompletion(t, modelName, 5)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(2))
+	g.Expect(*(nodes[0].StaticRoutes[0].NextHop.Addr)).To(gomega.Equal(nodeip))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.IPAddr.Addr)).To(gomega.Equal("192.168.1.0"))
+	g.Expect(*(nodes[0].StaticRoutes[1].Prefix.IPAddr.Addr)).To(gomega.Equal("192.168.2.0"))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.Mask)).To(gomega.Equal(int32(24)))
+
+	nodeExample = (FakeNode{
+		Name:               "testNodeAnnotation",
+		PodCIDR:            "10.244.0.0/24",
+		PodCIDRsAnnotation: "  192.168.1.0/24,  192.168.2.0/24   ",
+		Version:            "1",
+		NodeIP:             nodeip,
+	}).Node()
+
+	// Update the annotation to have a single and different CIDR.
+	nodeExample.Annotations[lib.StaticRouteAnnotation] = "192.168.3.0/24   "
+	nodeExample.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Node: %v", err)
+	}
+
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		return len(nodes[0].StaticRoutes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(nodes[0].StaticRoutes).To(gomega.HaveLen(1))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.IPAddr.Addr)).To(gomega.Equal("192.168.3.0"))
+
+	// Remove the whole annotation for AKO to fallback to PodCIDR field.
+	delete(nodeExample.Annotations, lib.StaticRouteAnnotation)
+	nodeExample.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Node: %v", err)
+	}
+
+	g.Eventually(func() string {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) > 0 {
+			return *(nodes[0].StaticRoutes[0].Prefix.IPAddr.Addr)
+		}
+		return ""
+	}, 10*time.Second).Should(gomega.Equal("10.244.0.0"))
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNodeAnnotation", metav1.DeleteOptions{})
 }
