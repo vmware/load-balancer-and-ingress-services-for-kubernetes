@@ -114,6 +114,28 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 	return nil
 }
 
+func AviPost(client *clients.AviClient, uri string, payload interface{}, response interface{}, retryNum ...int) error {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			err := errors.New("msg: AviPut retried 3 times, aborting")
+			return err
+		}
+	}
+
+	err := client.AviSession.Post(uri, payload, &response)
+	if err != nil {
+		utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v", uri, err)
+		checkForInvalidCredentials(uri, err)
+		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		return AviPost(client, uri, payload, response, retry+1)
+	}
+
+	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
+	return nil
+}
+
 func checkForInvalidCredentials(uri string, err error) {
 	if err == nil {
 		return

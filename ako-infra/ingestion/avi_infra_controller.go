@@ -17,8 +17,10 @@
 package ingestion
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
 	"k8s.io/client-go/kubernetes"
@@ -26,6 +28,8 @@ import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
 
 type AviControllerInfra struct {
@@ -71,6 +75,137 @@ func (a *AviControllerInfra) VerifyAviControllerLicense() error {
 		utils.AviLog.Infof("Avi Controller is running with ENTERPRISE license, proceeding with bootup")
 	}
 	return nil
+}
+
+func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, string, string) {
+	// This method queries the Avi controller for all available cloud and then returns the cloud that matches the supplied transport zone
+	uri := "/api/cloud/"
+	result, err := lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, "", ""
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return err, "", ""
+	}
+	for i := 0; i < len(elems); i++ {
+		cloud := models.Cloud{}
+		err = json.Unmarshal(elems[i], &cloud)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+			continue
+		}
+		vtype := *cloud.Vtype
+		if vtype == lib.CLOUD_NSXT && cloud.NsxtConfiguration != nil {
+			if cloud.NsxtConfiguration.TransportZone != nil && *cloud.NsxtConfiguration.TransportZone == tz {
+				utils.AviLog.Infof("Found NSX-T cloud :%s match Transport Zone : %s", *cloud.Name, tz)
+				if *cloud.SeGroupTemplateRef != "" {
+					tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
+					if len(tokenized) == 2 {
+						return nil, *cloud.Name, tokenized[1]
+					}
+				}
+			}
+			return nil, *cloud.Name, ""
+		}
+	}
+	return errors.New("Cloud not found"), "", ""
+}
+
+func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
+	// This method checks if the cloud in Avi has a SE Group template configured or not. If has the SEG template then it returns true, else false
+	err, _, segUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
+	if err == nil {
+		if segUuid == "" {
+			// The cloud does not have a SEG template set, use `Default-Group`
+			uri := "/api/serviceenginegroup/" + "?name=Default-Group"
+			result, err := lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return false
+			}
+			// Construct an SE group based on parameters in the `Default-Group`
+			elems := make([]json.RawMessage, result.Count)
+			err = json.Unmarshal(result.Results, &elems)
+			if err != nil {
+				utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+				return false
+			}
+
+			for _, elem := range elems {
+				seg := models.ServiceEngineGroup{}
+				if err := json.Unmarshal(elem, &seg); err != nil {
+					utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+					continue
+				}
+
+				if !ConfigureSeGroup(a.AviRestClients.AviClient[0], &seg) {
+					return false
+				}
+			}
+
+		} else {
+			// se group template exists, use the same to fetch the SE group details and use it to create the new SE group
+			// The cloud does not have a SEG template set, use `Default-Group`
+			uri := "/api/serviceenginegroup/" + segUuid
+			result, err := lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return false
+			}
+			// Construct an SE group based on parameters in the `Default-Group`
+			elems := make([]json.RawMessage, result.Count)
+			err = json.Unmarshal(result.Results, &elems)
+			if err != nil {
+				utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+				return false
+			}
+
+			for _, elem := range elems {
+				seg := models.ServiceEngineGroup{}
+				if err := json.Unmarshal(elem, &seg); err != nil {
+					utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+					continue
+				}
+
+				if !ConfigureSeGroup(a.AviRestClients.AviClient[0], &seg) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the labels.
+func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGroup) bool {
+	// Change the name of the SE group
+	*seGroup.Name = lib.GetClusterID()
+
+	uri := "/api/serviceenginegroup/"
+	// Add the labels.
+	seGroup.Labels = lib.GetLabels()
+	response := models.ServiceEngineGroupAPIResponse{}
+	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
+	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
+		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+		SetTenant := session.SetTenant(lib.GetTenant())
+		SetAdminTenant(client.AviSession)
+		defer SetTenant(client.AviSession)
+	}
+
+	err := lib.AviPost(client, uri, seGroup, response)
+	if err != nil {
+		utils.AviLog.Warnf("Error during POST call to create the SE group :%v. Expected Labels: %v", *seGroup.Name, err.Error(), utils.Stringify(lib.GetLabels()))
+		return false
+	}
+	utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), *seGroup.Name)
+	return true
+
 }
 
 func PopulateControllerProperties(cs kubernetes.Interface) error {
