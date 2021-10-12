@@ -67,6 +67,14 @@ func createPodWithNPLAnnotation(labels map[string]string) {
 	KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
 }
 
+func createPodWithMultipleNPLAnnotations(labels map[string]string) {
+	testPod := getTestPod(labels)
+	ann := make(map[string]string)
+	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}, {\"podPort\":8081,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40002}]"
+	testPod.Annotations = ann
+	KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
+}
+
 func updatePodWithNPLAnnotation(labels map[string]string) {
 	testPod := getTestPod(labels)
 	ann := make(map[string]string)
@@ -1140,6 +1148,10 @@ func TestNPLSvcNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	SetUpTestForIngress(t, defaultL7Model)
+	defer func() {
+		tearDownTestForSvcLB(t, g)
+		TearDownTestForIngress(t, defaultL7Model)
+	}()
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
 	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
@@ -1189,4 +1201,66 @@ func TestNPLSvcNodePort(t *testing.T) {
 		}
 		return false
 	}, 20*time.Second).Should(gomega.Equal(false))
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+}
+
+// TestIngressAddPodWithMultiportSvc creates a Pod with multiple nodeportlocal.antrea.io annotations, Service with multiport and
+// an Ingress which uses that Service. Port number is mentioned instead of port name as backend servicePort.
+func TestIngressAddPodWithMultiportSvc(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	SetUpTestForIngress(t, defaultL7Model)
+	defer func() {
+		tearDownTestForSvcLB(t, g)
+		TearDownTestForIngress(t, defaultL7Model)
+	}()
+	selectors := make(map[string]string)
+	selectors["app"] = "npl"
+	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, true, selectors)
+	createPodWithMultipleNPLAnnotations(selectors)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+		return found
+	}, 20*time.Second, 1*time.Second).Should(gomega.Equal(false))
+
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).IngressMultiPort()
+
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+		return found
+	}, 20*time.Second, 1*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(defaultL7Model)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[1].Servers).To(gomega.HaveLen(1))
+	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(40001)))
+	g.Expect(*nodes[0].PoolRefs[1].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
+	g.Expect(nodes[0].PoolRefs[1].Servers[0].Port).To(gomega.Equal(int32(40002)))
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	verifyIngressDeletion(t, g, aviModel, 0)
 }
