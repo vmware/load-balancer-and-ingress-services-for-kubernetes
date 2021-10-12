@@ -201,6 +201,8 @@ func TestMultiNodeAdd(t *testing.T) {
 		}
 	}
 	g.Expect(len(nodeIPMap)).To(gomega.Equal(0))
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode1", metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode2", metav1.DeleteOptions{})
 }
 
 func TestNodeCIDRInAnnotation(t *testing.T) {
