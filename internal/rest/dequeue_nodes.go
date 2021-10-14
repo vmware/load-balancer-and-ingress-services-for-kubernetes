@@ -53,13 +53,18 @@ func (rest *RestOperations) CleanupVS(key string, skipVS bool) {
 
 func (rest *RestOperations) DequeueNodes(key string) {
 	utils.AviLog.Infof("key: %s, msg: start rest layer sync.", key)
-	namespace, name := utils.ExtractNamespaceObjectName(key)
+
 	// Got the key from the Graph Layer - let's fetch the model
 	ok, avimodelIntf := objects.SharedAviGraphLister().Get(key)
 	if !ok {
 		utils.AviLog.Warnf("key: %s, msg: no model found for the key", key)
+		// In the case of L7 shared VS, the following condition check makes sure the
+		// IPs persist over AKO reboots.
+		if strings.Contains(key, lib.ShardVSPrefix) {
+			return
+		}
 	}
-
+	namespace, name := utils.ExtractNamespaceObjectName(key)
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
 	if !ok || avimodelIntf == nil {
