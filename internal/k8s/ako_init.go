@@ -807,38 +807,37 @@ func (c *AviController) FullSyncK8s() error {
 			allModels = append(allModels, modelName)
 		}
 	}
-	if len(vsKeys) != 0 {
-		for _, vsCacheKey := range vsKeys {
-			// Reverse map the model key from this.
-			if lib.GetNamespaceToSync() != "" {
-				shardVsPrefix := lib.ShardVSPrefix
-				if shardVsPrefix != "" {
-					if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
-						modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
-						if utils.HasElem(allModels, modelName) {
-							allModels = utils.Remove(allModels, modelName)
-						}
-						utils.AviLog.Infof("Model published L7 VS during namespace based sync: %s", modelName)
-						nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
-					}
-				}
-				// For namespace based syncs, the L4 VSes would be named: clusterName + "--" + namespace
-				if strings.HasPrefix(vsCacheKey.Name, lib.GetNamePrefix()+lib.GetNamespaceToSync()) {
+	syncNamespace := lib.GetNamespaceToSync()
+	for _, vsCacheKey := range vsKeys {
+		// Reverse map the model key from this.
+		if syncNamespace != "" {
+			shardVsPrefix := lib.ShardVSPrefix
+			if shardVsPrefix != "" {
+				if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
 					modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 					if utils.HasElem(allModels, modelName) {
 						allModels = utils.Remove(allModels, modelName)
 					}
-					utils.AviLog.Infof("Model published L4 VS during namespace based sync: %s", modelName)
+					utils.AviLog.Infof("Model published L7 VS during namespace based sync: %s", modelName)
 					nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 				}
-			} else {
+			}
+			// For namespace based syncs, the L4 VSes would be named: clusterName + "--" + namespace
+			if strings.HasPrefix(vsCacheKey.Name, lib.GetNamePrefix()+syncNamespace) {
 				modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 				if utils.HasElem(allModels, modelName) {
 					allModels = utils.Remove(allModels, modelName)
 				}
-				utils.AviLog.Infof("Model published in full sync %s", modelName)
+				utils.AviLog.Infof("Model published L4 VS during namespace based sync: %s", modelName)
 				nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 			}
+		} else {
+			modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
+			if utils.HasElem(allModels, modelName) {
+				allModels = utils.Remove(allModels, modelName)
+			}
+			utils.AviLog.Infof("Model published in full sync %s", modelName)
+			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
 	}
 	// Now also publish the newly generated models (if any)
