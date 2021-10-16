@@ -74,6 +74,7 @@ var (
 	numOfIng                 int
 	numOfLBSvc               int
 	numOfPodsForLBSvc        = 100
+	numOfPaths               int
 	clusterName              string
 	evhEnabled               bool
 	testCaseTimeOut          = 1800
@@ -99,6 +100,7 @@ func Setup() {
 	flag.StringVar(&kubeconfigFile, "kubeConfigFileName", "", "Kubeconfig file path")
 	flag.IntVar(&numGoRoutines, "numGoRoutines", 10, "Number of Go routines")
 	flag.IntVar(&numOfIng, "numOfIng", 500, "Number of Ingresses")
+	flag.IntVar(&numOfPaths, "numOfPaths", 10, "Number of routes/paths")
 	flag.IntVar(&numOfLBSvc, "numOfLBSvc", 10, "Number of Services of type Load Balancer")
 	flag.Parse()
 	if testbedFileName == "" {
@@ -538,7 +540,7 @@ func CheckVSOperDown(t *testing.T, OPERDownVSes []lib.VirtualServiceInventoryRun
 
 func parallelInsecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName string, namespace string, numOfIng int, startIndex int) {
 	defer wg.Done()
-	ingresses, hostNames, err := lib.CreateInsecureIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
+	ingresses, hostNames, err := lib.CreateInsecureIngress(ingressNamePrefix, serviceName, namespace, numOfPaths, numOfIng, startIndex)
 	if err != nil {
 		ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 	}
@@ -548,7 +550,7 @@ func parallelInsecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceNa
 
 func parallelSecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName string, namespace string, numOfIng int, startIndex int) {
 	defer wg.Done()
-	ingresses, hostNames, err := lib.CreateSecureIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
+	ingresses, hostNames, err := lib.CreateSecureIngress(ingressNamePrefix, serviceName, namespace, numOfPaths, numOfIng, startIndex)
 	if err != nil {
 		ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 	}
@@ -558,7 +560,7 @@ func parallelSecureIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName
 
 func parallelMultiHostIngressCreation(t *testing.T, wg *sync.WaitGroup, serviceName []string, namespace string, numOfIng int, startIndex int) {
 	defer wg.Done()
-	ingresses, secureHostNames, insecureHostNames, err := lib.CreateMultiHostIngress(ingressNamePrefix, serviceName, namespace, numOfIng, startIndex)
+	ingresses, secureHostNames, insecureHostNames, err := lib.CreateMultiHostIngress(ingressNamePrefix, serviceName, namespace, numOfPaths, numOfIng, startIndex)
 	if err != nil {
 		ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 	}
@@ -736,19 +738,19 @@ func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
 	switch {
 	case ingressType == INSECURE:
 		t.Logf("Creating %d %s Ingresses Serially...", numOfIng, ingressType)
-		ingressesCreated, ingressHostNames, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfIng)
+		ingressesCreated, ingressHostNames, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfPaths, numOfIng)
 		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}
 	case ingressType == SECURE:
 		t.Logf("Creating %d %s Ingresses Serially...", numOfIng, ingressType)
-		ingressesCreated, ingressHostNames, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfIng)
+		ingressesCreated, ingressHostNames, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfPaths, numOfIng)
 		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}
 	case ingressType == MULTIHOST:
 		t.Logf("Creating %d %s Ingresses Serially...", numOfIng, ingressType)
-		ingressesCreated, ingressSecureHostNames, ingressInsecureHostNames, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, numOfIng)
+		ingressesCreated, ingressSecureHostNames, ingressInsecureHostNames, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, numOfPaths, numOfIng)
 		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}
@@ -810,17 +812,17 @@ func HybridCreation(t *testing.T, wg *sync.WaitGroup, numOfIng int, deletionStar
 		var err error
 		switch {
 		case ingressType == INSECURE:
-			ingresses, _, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, 1, i)
+			ingresses, _, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfPaths, 1, i)
 			if err != nil {
 				ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 			}
 		case ingressType == SECURE:
-			ingresses, _, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, 1, i)
+			ingresses, _, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfPaths, 1, i)
 			if err != nil {
 				ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 			}
 		case ingressType == MULTIHOST:
-			ingresses, _, _, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, 1, i)
+			ingresses, _, _, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, numOfPaths, 1, i)
 			if err != nil {
 				ExitWithErrorf(t, "Failed to create %s ingresses as : %v", ingressType, err)
 			}
@@ -885,19 +887,19 @@ func HybridExecution(t *testing.T, numOfIng int, deletionStartPoint int) {
 	switch {
 	case ingressType == INSECURE:
 		t.Logf("Creating %d %s Ingresses...", deletionStartPoint, ingressType)
-		ingressesCreated, _, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, deletionStartPoint)
+		ingressesCreated, _, err = lib.CreateInsecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfPaths, deletionStartPoint)
 		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}
 	case ingressType == SECURE:
 		t.Logf("Creating %d %s Ingresses...", deletionStartPoint, ingressType)
-		ingressesCreated, _, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, deletionStartPoint)
+		ingressesCreated, _, err = lib.CreateSecureIngress(ingressNamePrefix, listOfServicesCreated[0], namespace, numOfPaths, deletionStartPoint)
 		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}
 	case ingressType == MULTIHOST:
 		t.Logf("Creating %d %s Ingresses...", deletionStartPoint, ingressType)
-		ingressesCreated, _, _, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, deletionStartPoint)
+		ingressesCreated, _, _, err = lib.CreateMultiHostIngress(ingressNamePrefix, listOfServicesCreated, namespace, numOfPaths, deletionStartPoint)
 		if err != nil {
 			t.Fatalf("Failed to create %s ingresses as : %v", ingressType, err)
 		}

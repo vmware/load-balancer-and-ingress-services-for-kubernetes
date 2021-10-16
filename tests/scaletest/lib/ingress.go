@@ -175,6 +175,29 @@ func CreateLBService(serviceNamePrefix string, appName string, namespace string,
 	return listOfServicesCreated, strconv.Itoa(PORT), nil
 }
 
+func CreatePaths(numOfPaths int, serviceName string) []map[string]interface{} {
+	var listOfPaths []map[string]interface{}
+	for i := 0; i < numOfPaths; i++ {
+		pathName := "/path-" + strconv.Itoa(i)
+		path := map[string]interface{}{
+			"path":     pathName,
+			"pathType": PATHTYPE,
+			"backend": map[string]interface{}{
+				"service": map[string]interface{}{
+					"name": serviceName,
+					"port": map[string]interface{}{
+						"number": PORT,
+					},
+				},
+			},
+		}
+
+		listOfPaths = append(listOfPaths, path)
+	}
+
+	return listOfPaths
+}
+
 func DeleteService(serviceNameList []string, namespace string) error {
 	for i := 0; i < len(serviceNameList); i++ {
 		err := coreV1Client.Services(namespace).Delete(ctx, serviceNameList[i], metaV1.DeleteOptions{})
@@ -185,7 +208,7 @@ func DeleteService(serviceNameList []string, namespace string) error {
 	return nil
 }
 
-func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespace string, num int, startIndex ...int) ([]string, []string, error) {
+func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespace string, numOfPaths int, num int, startIndex ...int) ([]string, []string, error) {
 	var listOfIngressCreated []string
 	var ingressHostNames []string
 	var startInd int
@@ -210,20 +233,7 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 						{
 							"host": hostName,
 							"http": map[string]interface{}{
-								"paths": []map[string]interface{}{
-									{
-										"path":     "/",
-										"pathType": PATHTYPE,
-										"backend": map[string]interface{}{
-											"service": map[string]interface{}{
-												"name": serviceName,
-												"port": map[string]interface{}{
-													"number": PORT,
-												},
-											},
-										},
-									},
-								},
+								"paths": CreatePaths(numOfPaths, serviceName),
 							},
 						},
 					},
@@ -241,7 +251,7 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 	return listOfIngressCreated, ingressHostNames, nil
 }
 
-func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace string, num int, startIndex ...int) ([]string, []string, error) {
+func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace string, numOfPaths int, num int, startIndex ...int) ([]string, []string, error) {
 	var listOfIngressCreated []string
 	var ingressHostNames []string
 	var startInd int
@@ -274,20 +284,7 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 						{
 							"host": hostName,
 							"http": map[string]interface{}{
-								"paths": []map[string]interface{}{
-									{
-										"path":     "/",
-										"pathType": PATHTYPE,
-										"backend": map[string]interface{}{
-											"service": map[string]interface{}{
-												"name": serviceName,
-												"port": map[string]interface{}{
-													"number": PORT,
-												},
-											},
-										},
-									},
-								},
+								"paths": CreatePaths(numOfPaths, serviceName),
 							},
 						},
 					},
@@ -305,7 +302,7 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 	return listOfIngressCreated, ingressHostNames, nil
 }
 
-func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, namespace string, num int, startIndex ...int) ([]string, []string, []string, error) {
+func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, namespace string, numOfPaths int, num int, startIndex ...int) ([]string, []string, []string, error) {
 	var listOfIngressCreated []string
 	var ingressSecureHostNames []string
 	var ingressInsecureHostNames []string
@@ -340,39 +337,13 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 						{
 							"host": hostNameSecure,
 							"http": map[string]interface{}{
-								"paths": []map[string]interface{}{
-									{
-										"path":     "/",
-										"pathType": PATHTYPE,
-										"backend": map[string]interface{}{
-											"service": map[string]interface{}{
-												"name": listOfServices[0],
-												"port": map[string]interface{}{
-													"number": PORT,
-												},
-											},
-										},
-									},
-								},
+								"paths": CreatePaths(numOfPaths, listOfServices[0]),
 							},
 						},
 						{
 							"host": hostNameInsecure,
 							"http": map[string]interface{}{
-								"paths": []map[string]interface{}{
-									{
-										"path":     "/",
-										"pathType": PATHTYPE,
-										"backend": map[string]interface{}{
-											"service": map[string]interface{}{
-												"name": listOfServices[1],
-												"port": map[string]interface{}{
-													"number": PORT,
-												},
-											},
-										},
-									},
-								},
+								"paths": CreatePaths(numOfPaths, listOfServices[1]),
 							},
 						},
 					},
@@ -411,7 +382,8 @@ func DeleteIngress(namespace string, listOfIngressToDelete []string) ([]string, 
 
 func UpdateIngress(namespace string, listOfIngressToUpdate []string) ([]string, error) {
 	for _, ing := range listOfIngressToUpdate {
-		UpdatedPath := "new-path-" + ing + SUBDOMAIN
+		UpdatedHost := "new-path-" + ing + SUBDOMAIN
+		UpdatedPath := "/new-path-"
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			result, getErr := kubeClient.Resource(ingressResource).Namespace(namespace).Get(ctx, ing, metaV1.GetOptions{})
 			if getErr != nil {
@@ -421,7 +393,21 @@ func UpdateIngress(namespace string, listOfIngressToUpdate []string) ([]string, 
 			if err != nil || !found || rules == nil {
 				return err
 			}
-			if err := unstructured.SetNestedField(rules[0].(map[string]interface{}), UpdatedPath, "host"); err != nil {
+			paths, found, err := unstructured.NestedSlice(rules[0].(map[string]interface{}), "http", "paths")
+			counter := 0
+			for _, path := range paths {
+				if err != nil || !found || paths == nil {
+					return err
+				}
+				if err := unstructured.SetNestedField(path.(map[string]interface{}), UpdatedPath+strconv.Itoa(counter), "path"); err != nil {
+					return err
+				}
+				counter += 1
+			}
+			if err := unstructured.SetNestedField(rules[0].(map[string]interface{}), UpdatedHost, "host"); err != nil {
+				return err
+			}
+			if err := unstructured.SetNestedField(rules[0].(map[string]interface{}), paths, "http", "paths"); err != nil {
 				return err
 			}
 			if err := unstructured.SetNestedField(result.Object, rules, "spec", "rules"); err != nil {
