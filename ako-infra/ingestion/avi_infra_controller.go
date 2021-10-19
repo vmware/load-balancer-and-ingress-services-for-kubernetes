@@ -118,66 +118,44 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	// This method checks if the cloud in Avi has a SE Group template configured or not. If has the SEG template then it returns true, else false
-	err, _, segUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
-	if err == nil {
-		if segUuid == "" {
-			// The cloud does not have a SEG template set, use `Default-Group`
-			uri := "/api/serviceenginegroup/" + "?name=Default-Group"
-			result, err := lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return false
-			}
-			// Construct an SE group based on parameters in the `Default-Group`
-			elems := make([]json.RawMessage, result.Count)
-			err = json.Unmarshal(result.Results, &elems)
-			if err != nil {
-				utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-				return false
-			}
+	err, cloudName, segUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
+	if err != nil {
+		return false
+	}
+	var uri string
+	if segUuid == "" {
+		// The cloud does not have a SEG template set, use `Default-Group`
+		uri = "/api/serviceenginegroup/?include_name&cloud_ref.name=" + cloudName + "&name=Default-Group"
+	} else {
+		// se group template exists, use the same to fetch the SE group details and use it to create the new SE group
+		// The cloud does not have a SEG template set, use `Default-Group`
+		uri = "/api/serviceenginegroup/" + segUuid
+	}
+	result, err := lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return false
+	}
+	// Construct an SE group based on parameters in the `Default-Group`
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return false
+	}
 
-			for _, elem := range elems {
-				seg := models.ServiceEngineGroup{}
-				if err := json.Unmarshal(elem, &seg); err != nil {
-					utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-					continue
-				}
+	for _, elem := range elems {
+		seg := models.ServiceEngineGroup{}
+		if err := json.Unmarshal(elem, &seg); err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
 
-				if !ConfigureSeGroup(a.AviRestClients.AviClient[0], &seg) {
-					return false
-				}
-			}
-
-		} else {
-			// se group template exists, use the same to fetch the SE group details and use it to create the new SE group
-			// The cloud does not have a SEG template set, use `Default-Group`
-			uri := "/api/serviceenginegroup/" + segUuid
-			result, err := lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return false
-			}
-			// Construct an SE group based on parameters in the `Default-Group`
-			elems := make([]json.RawMessage, result.Count)
-			err = json.Unmarshal(result.Results, &elems)
-			if err != nil {
-				utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-				return false
-			}
-
-			for _, elem := range elems {
-				seg := models.ServiceEngineGroup{}
-				if err := json.Unmarshal(elem, &seg); err != nil {
-					utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-					continue
-				}
-
-				if !ConfigureSeGroup(a.AviRestClients.AviClient[0], &seg) {
-					return false
-				}
-			}
+		if !ConfigureSeGroup(a.AviRestClients.AviClient[0], &seg) {
+			return false
 		}
 	}
+
 	return true
 }
 
@@ -200,7 +178,7 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 
 	err := lib.AviPost(client, uri, seGroup, response)
 	if err != nil {
-		utils.AviLog.Warnf("Error during POST call to create the SE group :%v. Expected Labels: %v", *seGroup.Name, err.Error(), utils.Stringify(lib.GetLabels()))
+		utils.AviLog.Warnf("Error during POST call to create the SE group :%v", err.Error())
 		return false
 	}
 	utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), *seGroup.Name)

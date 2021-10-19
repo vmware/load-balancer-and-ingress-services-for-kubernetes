@@ -119,7 +119,7 @@ func AviPost(client *clients.AviClient, uri string, payload interface{}, respons
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 3 {
-			err := errors.New("msg: AviPut retried 3 times, aborting")
+			err := errors.New("msg: AviPost retried 3 times, aborting")
 			return err
 		}
 	}
