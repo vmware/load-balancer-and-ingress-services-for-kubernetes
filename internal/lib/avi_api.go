@@ -126,7 +126,7 @@ func AviPost(client *clients.AviClient, uri string, payload interface{}, respons
 
 	err := client.AviSession.Post(uri, payload, &response)
 	if err != nil {
-		utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v", uri, err)
+		utils.AviLog.Warnf("msg: Unable to execute Post on uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		return AviPost(client, uri, payload, response, retry+1)

@@ -216,8 +216,16 @@ func GetNetinfoCRData() map[string]string {
 	for _, obj := range crList.Items {
 		spec, found, err := unstructured.NestedStringMap(obj.UnstructuredContent(), "topology")
 		if found && err == nil {
-			lr := spec["gatewayPath"]
-			ls := spec["aviSegmentPath"]
+			lr, found := spec["gatewayPath"]
+			if !found {
+				utils.AviLog.Warnf("gatewayPath not found in NetworkInfo object")
+				continue
+			}
+			ls, found := spec["aviSegmentPath"]
+			if !found {
+				utils.AviLog.Warnf("aviSegmentPath not found in NetworkInfo object")
+				continue
+			}
 			lslrMap[ls] = lr
 		} else {
 			utils.AviLog.Warnf("NetworkInfo topology not found: %v", err)

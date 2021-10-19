@@ -122,6 +122,7 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	if err != nil {
 		return false
 	}
+	utils.SetCloudName(cloudName)
 	var uri string
 	if segUuid == "" {
 		// The cloud does not have a SEG template set, use `Default-Group`

@@ -44,6 +44,15 @@ func SyncLSLR() {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
 		return
 	}
+
+	if len(cloudModel.NsxtConfiguration.DataNetworkConfig.VlanSegments) != 0 {
+		utils.AviLog.Infof("NSX-T cloud is using Vlan Segments, LS-LR mapping won't be updated")
+		return
+	}
+	if cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual == nil {
+		utils.AviLog.Warnf("Tier1SegmentConfig is nil in NSX-T cloud, LS-LR mapping won't be updated")
+		return
+	}
 	matched := matchSegmentInCloud(cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs, lslrmap)
 	if !matched {
 		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = constructLsLrInCloud(lslrmap)
@@ -57,8 +66,8 @@ func SyncLSLR() {
 }
 
 func AddSegment(obj interface{}) {
-	objKey := "Netinfo" + utils.ObjKey(obj)
-	utils.AviLog.Debugf("key: %s, Network Info DELETE Event", objKey)
+	objKey := "Netinfo" + "/" + utils.ObjKey(obj)
+	utils.AviLog.Debugf("key: %s, Network Info ADD Event", objKey)
 	crd := obj.(*unstructured.Unstructured)
 
 	specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "topology")
@@ -72,7 +81,7 @@ func AddSegment(obj interface{}) {
 	client := avicache.SharedAVIClients().AviClient[0]
 	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
-		utils.AviLog.Warnf("key: %s, Failed to get Cloud data from cache", objKey)
+		utils.AviLog.Fatalf("key: %s, Failed to get Cloud data from cache", objKey)
 		return
 	}
 	updateRequired, lslrList := addSegmentInCloud(cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs, lr, ls)
@@ -119,12 +128,15 @@ func DeleteSegment(obj interface{}) {
 }
 
 func addSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lr, ls string) (bool, []*models.Tier1LogicalRouterInfo) {
-	for i := range lslrList {
+	listCopy := make([]*models.Tier1LogicalRouterInfo, len(lslrList))
+	copy(listCopy, lslrList)
+	for i := range listCopy {
 		if *lslrList[i].SegmentID == ls {
 			if *lslrList[i].Tier1LrID == lr {
 				return false, lslrList
 			}
 			lslrList = append(lslrList[:i], lslrList[i+1:]...)
+			break
 		}
 	}
 	lrls := models.Tier1LogicalRouterInfo{
@@ -230,9 +242,6 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 }
 
 func checkAndRetry(key string, err error) bool {
-	if err == nil {
-		return false
-	}
 	if webSyncErr, ok := err.(*utils.WebSyncError); ok {
 		if aviError, ok := webSyncErr.GetWebAPIError().(session.AviError); ok {
 			switch aviError.HttpStatusCode {
