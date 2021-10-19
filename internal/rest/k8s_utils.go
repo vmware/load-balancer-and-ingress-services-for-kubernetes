@@ -67,7 +67,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 			parentVsObj, _ := parentVs.(*avicache.AviVsCache)
 			if (vsSvcMetadataObj.IngressName != "" || len(vsSvcMetadataObj.NamespaceIngressName) > 0) && vsSvcMetadataObj.Namespace != "" && parentVsObj != nil {
-				IPAddrs = append(IPAddrs, vsCacheObj.Vip)
+				IPAddrs = append(IPAddrs, parentVsObj.Vip)
 				allIngressUpdateOptions = append(allIngressUpdateOptions,
 					status.UpdateOptions{
 						Vip:                IPAddrs,
@@ -109,7 +109,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 					if vsCacheObj.Fip != "" {
 						IPAddrs = append(IPAddrs, vsCacheObj.Fip)
 					} else {
-						IPAddrs = append(IPAddrs, vsCacheObj.Vip)
+						IPAddrs = []string{vsCacheObj.Vip}
 					}
 					allIngressUpdateOptions = append(allIngressUpdateOptions,
 						status.UpdateOptions{
