@@ -35,7 +35,7 @@ To re-create the objects in Avi, the configmap has to be edited to set deleteCon
 
 AKO follows hostname based sharding to sync multiple ingresses with same hostname to a single virtual service. When an ingress object is created with multiple hostnames, AKO generates an md5 hash using the hostname and the Shard VS number. This uniquely maps an FQDN to a given Shared VS and avoids DNS conflicts. During initial clean bootup, if the Shared VS does not exist in Avi - AKO creates the same and then patches the ingress FQDN to it either in the form of a pool (for insecure routes) or in the form of an SNI child virtual service (in case of secure routes).
 
-The Shared VSes aren't deleted if all the FQDNs mapped to it are removed from Kubernetes. However, if the user wants AKO to delete unused shared VSes - a pod restart is required that would evaluate the VS and delete it appropriately.
+The Shared VSes aren't deleted if all the FQDNs mapped to it are removed from Kubernetes. However, if the user wants AKO to delete unused shared VSes then the configmap has to be edited to set deleteConfig as "true" that would evaluate the VS and delete it appropriately.
 
 #### How are VSes sharded?
 
