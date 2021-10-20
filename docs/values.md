@@ -2,7 +2,7 @@
 
 This document is intended to help the operator make the right choices while deploying AKO with the configurable settings.
 The values.yaml in AKO affects a configmap that AKO's deployment reads to make adjustments as per user needs. Listed are detailed
-explanation of various fields specified in the values.yaml. If the field is marked as "editable", it means that it can be edited without an AKO POD restart.
+explanation of various fields specified in the values.yaml. If the field is marked as "editable", it means that it can be edited without an AKO Pod restart.
 
 ### AKOSettings.fullSyncFrequency
 
@@ -27,7 +27,7 @@ After that, if the value is set to "false", AKO would resume processing kubernet
 
 This flag can be used in 2 scenarios:
 
-* If your POD CIDRs are routable either through an internal implementation or by default.
+* If your Pod CIDRs are routable either through an internal implementation or by default.
 * If you are working with multiple NICs on your kubernetes worker nodes and the default gateway is not from the same subnet as
 your VRF's PG network.
 
@@ -44,11 +44,16 @@ The `apiServerPort` field is used to run the API server within the AKO pod. The 
 ### AKOSettings.cniPlugin
 
 Use this flag only if you are using `calico`/`openshift` as a CNI and you are looking to a sync your static route configurations automatically.
-Once enabled, for `calico` this flag is used to read the `blockaffinity` CRD to determine the POD CIDR to Node IP mappings. If you are
-on an older version of calico where `blockaffinity` is not present, then leave this field as blank. For `openshift` hostsubnet CRD is used to to determine the POD CIDR to Node IP mappings.
+Once enabled, for `calico` this flag is used to read the `blockaffinity` CRD to determine the Pod CIDR to Node IP mappings. If you are
+on an older version of calico where `blockaffinity` is not present, then leave this field as blank. For `openshift` hostsubnet CRD is used to to determine the Pod CIDR to Node IP mappings.
 
 AKO will then determine the static routes based on the Kubernetes Nodes object as done with other CNIs.
 In case of `ncp` CNI, AKO automatically disables the configuration of static routes.
+
+There are certain scenarios where AKO cannot determine the Pod CIDRs being used in the Kubernetes Nodes, for instance, when deploying calico using `etcd` as the datastore. In such cases AKO provides it's own interface to feed in Pod CIDR to Node mappings, using an annotation in the Node object. While keeping the `cniPlugin` value to be empty, add the following annotation in the Node object to provide Pod CIDRs being used in the Node. Note that for multiple Pod CIDRs that are being used in the Node, simply provide the entries as a comma separated string.
+
+    annotations:
+      ako.vmware.com/pod-cidrs: 192.168.1.0/24,192.169.1.0/24
 
 ### AKOSettings.layer7Only
 
@@ -72,7 +77,7 @@ Use this flag to enable AKO to watch over Gateway API CRDs i.e. GatewayClasses a
 
 The `nodeNetworkList` lists the Networks and Node CIDR's where the k8s Nodes are created. This is only used in the ClusterIP deployment of AKO and in vCenter cloud and only when disableStaticRouteSync is set to false.
 
-If two Kubernetes clusters have overlapping POD CIDRs, the service engine needs to identify the right gateway for each of the overlapping CIDR groups. This is achieved by specifying the right placement network for the pools that helps the Service Engine place the pools appropriately.
+If two Kubernetes clusters have overlapping Pod CIDRs, the service engine needs to identify the right gateway for each of the overlapping CIDR groups. This is achieved by specifying the right placement network for the pools that helps the Service Engine place the pools appropriately.
 
 ### NetworkSettings.subnetIP and NetworkSettings.subnetPrefix
 

@@ -174,6 +174,7 @@ const (
 	InfraSettingNameAnnotation     = "aviinfrasetting.ako.vmware.com/name"
 	SkipNodePortAnnotation         = "skipnodeport.ako.vmware.com/enabled"
 	PassthroughAnnotation          = "passthrough.ako.vmware.com/enabled"
+	StaticRouteAnnotation          = "ako.vmware.com/pod-cidrs"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

@@ -17,7 +17,9 @@ package lib
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -262,13 +264,26 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 		}
 
 	} else {
-		podCIDR = node.Spec.PodCIDR
-		if podCIDR == "" {
-			utils.AviLog.Errorf("Error in fetching Pod CIDR from NodeSpec %v", node.ObjectMeta.Name)
-			return nil, errors.New("podcidr not found")
+		if podCidrsFromAnnotation, ok := node.Annotations[StaticRouteAnnotation]; ok {
+			podCidrSlice := strings.Split(strings.TrimSpace(podCidrsFromAnnotation), ",")
+			for _, podCidr := range podCidrSlice {
+				if podCidr == "" {
+					continue
+				}
+				cidr := strings.TrimSpace(podCidr)
+				re := regexp.MustCompile(IPCIDRRegex)
+				if !re.MatchString(cidr) {
+					return nil, fmt.Errorf("CIDR value %s in annotation %v is of incorrect format", cidr, podCidrsFromAnnotation)
+				}
+				podCIDRs = append(podCIDRs, cidr)
+			}
+		} else {
+			if node.Spec.PodCIDR == "" {
+				utils.AviLog.Errorf("Error in fetching Pod CIDR from NodeSpec %v", node.ObjectMeta.Name)
+				return nil, errors.New("podcidr not found")
+			}
+			podCIDRs = append(podCIDRs, node.Spec.PodCIDR)
 		}
-
-		podCIDRs = append(podCIDRs, node.Spec.PodCIDR)
 	}
 
 	return podCIDRs, nil

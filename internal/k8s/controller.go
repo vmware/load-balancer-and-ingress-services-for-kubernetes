@@ -79,11 +79,18 @@ func SharedAviController() *AviController {
 }
 
 func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
+	oldPodCIDRAnnotation, oldOk := oldNode.Annotations[lib.StaticRouteAnnotation]
+	newPodCIDRAnnotation, newOk := newNode.Annotations[lib.StaticRouteAnnotation]
+	if oldOk != newOk ||
+		(oldOk && newOk && oldPodCIDRAnnotation != newPodCIDRAnnotation) {
+		return true
+	}
+
 	if oldNode.ResourceVersion == newNode.ResourceVersion {
 		return false
 	}
-	var oldaddr, newaddr string
 
+	var oldaddr, newaddr string
 	oldAddrs := oldNode.Status.Addresses
 	newAddrs := newNode.Status.Addresses
 	if len(oldAddrs) != len(newAddrs) {
@@ -109,8 +116,7 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 		return true
 	}
 
-	nodeLabelEq := reflect.DeepEqual(oldNode.ObjectMeta.Labels, newNode.ObjectMeta.Labels)
-	if !nodeLabelEq {
+	if !reflect.DeepEqual(oldNode.Labels, newNode.Labels) {
 		return true
 	}
 

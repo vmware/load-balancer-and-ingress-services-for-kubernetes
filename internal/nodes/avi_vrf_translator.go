@@ -96,7 +96,7 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 
 	podCIDRs, err := lib.GetPodCIDR(node)
 	if err != nil {
-		utils.AviLog.Errorf("Error in fetching Pod CIDR for %v", node.ObjectMeta.Name)
+		utils.AviLog.Errorf("Error in fetching Pod CIDR for %v: %s", node.ObjectMeta.Name, err.Error())
 		return nil, errors.New("podcidr not found")
 	}
 	nodeipType := "V4"
