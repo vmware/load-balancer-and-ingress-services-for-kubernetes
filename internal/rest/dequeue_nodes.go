@@ -514,7 +514,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 		if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
 			utils.AviLog.Infof("key: %s, msg: processing in rest queue number: %v", key, bkt)
 			aviclient := rest.aviRestPoolClient.AviClient[bkt]
-			err := rest.AviRestOperateWrapper(aviclient, rest_ops)
+			err := AviRestOperateWrapper(aviclient, rest_ops)
 			if err == nil {
 				models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
 				utils.AviLog.Debugf("key: %s, msg: rest call executed successfully, will update cache", key)
@@ -709,7 +709,7 @@ func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, key s
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, parentVsKey)
 }
 
-func (rest *RestOperations) AviRestOperateWrapper(aviClient *clients.AviClient, rest_ops []*utils.RestOp) error {
+func AviRestOperateWrapper(aviClient *clients.AviClient, rest_ops []*utils.RestOp) error {
 	restTimeoutChan := make(chan error, 1)
 	go func() {
 		err := AviRestOperate(aviClient, rest_ops)

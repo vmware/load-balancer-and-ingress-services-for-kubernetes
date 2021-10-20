@@ -22,6 +22,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -164,15 +165,15 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 	NetworkinfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info ADD Event")
-			// To Do
+			avirest.AddSegment(obj)
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info Update Event")
-			// To Do
+			avirest.AddSegment(obj)
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info Delete Event")
-			// To Do
+			avirest.DeleteSegment(obj)
 		},
 	}
 	c.dynamicInformers.NetworkInfoInformer.Informer().AddEventHandler(NetworkinfoHandler)
