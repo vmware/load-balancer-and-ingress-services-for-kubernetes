@@ -17,12 +17,14 @@
 package ingestion
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -156,7 +158,7 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 			return false
 		}
 	}
-
+	a.AnnotateSystemNamespace(lib.GetClusterID(), cloudName)
 	return true
 }
 
@@ -185,6 +187,21 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 	utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), *seGroup.Name)
 	return true
 
+}
+
+func (a *AviControllerInfra) AnnotateSystemNamespace(seGroup string, cloudName string) {
+	nsName := "vmware-system-ako"
+	nsObj, err := a.cs.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Fatalf("Failed to update the vmware-system-ako namespace due to the following error :%v", err.Error())
+	}
+	// Update the namespace with the required annotations
+	nsObj.Annotations["ako.vmware.com/wcp-se-group"] = seGroup
+	nsObj.Annotations["ako.vmware.com/wcp-cloud-name"] = cloudName
+	_, err = a.cs.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Fatalf("Error occurred while Updating namespace: %v", err)
+	}
 }
 
 func PopulateControllerProperties(cs kubernetes.Interface) error {
