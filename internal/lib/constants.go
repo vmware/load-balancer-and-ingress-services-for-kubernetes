@@ -123,6 +123,7 @@ const (
 	DataScript                                 = "Vsdatascript"
 	EVHVS                                      = "EVH VirtualService"
 	HTTPPS                                     = "HTTPPolicySet"
+	HPPMAP                                     = "HTTP Policyset Map"
 	HTTPSecurityRule                           = "HTTP Security Rule"
 	HTTPRequestRule                            = "HTTP Request Rule"
 	HTTPRedirectRule                           = "HTTP Redirect Rule"
