@@ -106,7 +106,7 @@ func InitializeAKOInfra() {
 	lib.VCFInitialized = true
 
 	a.SetupSEGroup(transportZone)
-	avirest.SyncLSLR()
+	avirest.SyncLSLRNetwork()
 	c.AddNetworkInfoEventHandler(informers, stopCh)
 
 	<-stopCh

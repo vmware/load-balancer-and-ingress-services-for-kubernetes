@@ -153,6 +153,7 @@ const (
 	AutoFQDNFlat                               = "Flat"
 	AutoFQDNDisabled                           = "Disabled"
 	VCF_CLUSTER                                = "VCF_CLUSTER"
+	VCF_NETWORK                                = "vcf-ako-net"
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
 	AKOEventComponent                          = "avi-kubernetes-operator"
 
