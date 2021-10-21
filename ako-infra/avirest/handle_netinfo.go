@@ -72,7 +72,7 @@ func AddSegment(obj interface{}) {
 
 	specJSON, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "topology")
 	if err != nil || !found {
-		utils.AviLog.Warnf("NetworkInfo topology not found: %+v", err)
+		utils.AviLog.Warnf("key: %s, NetworkInfo topology not found: %v", objKey, err)
 		return
 	}
 	lr := specJSON["gatewayPath"]
