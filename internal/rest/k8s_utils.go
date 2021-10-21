@@ -67,14 +67,31 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 			parentVsObj, _ := parentVs.(*avicache.AviVsCache)
 			if (vsSvcMetadataObj.IngressName != "" || len(vsSvcMetadataObj.NamespaceIngressName) > 0) && vsSvcMetadataObj.Namespace != "" && parentVsObj != nil {
-				IPAddrs = append(IPAddrs, parentVsObj.Vip)
-				allIngressUpdateOptions = append(allIngressUpdateOptions,
-					status.UpdateOptions{
-						Vip:                IPAddrs,
-						ServiceMetadata:    vsSvcMetadataObj,
-						Key:                lib.SyncStatusKey,
-						VirtualServiceUUID: vsCacheObj.Uuid,
-					})
+				for _, poolKey := range vsCacheObj.PoolKeyCollection {
+					poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey)
+					if !ok {
+						continue
+					}
+
+					poolCacheObj, found := poolCache.(*avicache.AviPoolCache)
+					if !found {
+						continue
+					}
+					if poolCacheObj.ServiceMetadataObj.Namespace != "" {
+						if vsCacheObj.Fip != "" {
+							IPAddrs = append(IPAddrs, vsCacheObj.Fip)
+						} else {
+							IPAddrs = []string{parentVsObj.Vip}
+						}
+						allIngressUpdateOptions = append(allIngressUpdateOptions,
+							status.UpdateOptions{
+								Vip:                IPAddrs,
+								ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
+								Key:                lib.SyncStatusKey,
+								VirtualServiceUUID: vsCacheObj.Uuid,
+							})
+					}
+				}
 			}
 		} else if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
 			// serviceLB

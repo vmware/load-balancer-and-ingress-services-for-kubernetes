@@ -247,17 +247,23 @@ func (o *AviObjectGraph) RemovePGNodeRefs(pgName string, vsNode *AviVsNode) {
 
 }
 
-func (o *AviObjectGraph) RemoveHTTPRefsFromSni(httpPol string, sniNode *AviVsNode) {
+func (o *AviObjectGraph) RemoveHTTPRefsFromSni(httpPol, hppMap string, sniNode *AviVsNode) {
 
 	for i, pol := range sniNode.HttpPolicyRefs {
 		if pol.Name == httpPol {
-			utils.AviLog.Debugf("Removing http pol ref: %s", httpPol)
-			sniNode.HttpPolicyRefs = append(sniNode.HttpPolicyRefs[:i], sniNode.HttpPolicyRefs[i+1:]...)
-			break
+			for j, hppmap := range sniNode.HttpPolicyRefs[i].HppMap {
+				if hppmap.Name == hppMap {
+					sniNode.HttpPolicyRefs[i].HppMap = append(sniNode.HttpPolicyRefs[i].HppMap[:j], sniNode.HttpPolicyRefs[i].HppMap[j+1:]...)
+					break
+				}
+			}
+			if len(pol.HppMap) == 0 {
+				utils.AviLog.Debugf("Removing http pol ref: %s", httpPol)
+				sniNode.HttpPolicyRefs = append(sniNode.HttpPolicyRefs[:i], sniNode.HttpPolicyRefs[i+1:]...)
+				break
+			}
 		}
 	}
-	utils.AviLog.Debugf("After removing the http policy nodes are: %s", utils.Stringify(sniNode.HttpPolicyRefs))
-
 }
 
 func (o *AviObjectGraph) RemovePoolNodeRefsFromSni(poolName string, sniNode *AviVsNode) {
@@ -378,6 +384,8 @@ type AviVsNode struct {
 	VsDatascriptRefs      []string
 	SSLKeyCertAviRef      string
 	AviMarkers            utils.AviObjectMarkers
+	Paths                 []string
+	IngressNames          []string
 }
 
 // Implementing AviVsEvhSniModel
@@ -598,7 +606,6 @@ func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string
 	}
 	// If we have reached here it means we haven't found a match. Just append the pool.
 	o.PoolRefs = append(o.PoolRefs, newPoolNode)
-	return
 }
 
 func (o *AviVsNode) ReplaceSniPGInSNINode(newPGNode *AviPoolGroupNode, key string) {
@@ -612,21 +619,24 @@ func (o *AviVsNode) ReplaceSniPGInSNINode(newPGNode *AviPoolGroupNode, key strin
 	}
 	// If we have reached here it means we haven't found a match. Just append.
 	o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
-	return
 }
 
-func (o *AviVsNode) ReplaceSniHTTPRefInSNINode(newHttpNode *AviHttpPolicySetNode, key string) {
+func (o *AviVsNode) ReplaceSniHTTPRefInSNINode(httpPGPath AviHostPathPortPoolPG, httpPolName, key string) {
 	for i, http := range o.HttpPolicyRefs {
-		if http.Name == newHttpNode.Name {
-			o.HttpPolicyRefs = append(o.HttpPolicyRefs[:i], o.HttpPolicyRefs[i+1:]...)
-			o.HttpPolicyRefs = append(o.HttpPolicyRefs, newHttpNode)
-			utils.AviLog.Infof("key: %s, msg: replaced sni http in model: %s Pool name: %s", key, o.Name, http.Name)
-			return
+		if http.Name == httpPolName {
+			for j, hppMap := range o.HttpPolicyRefs[i].HppMap {
+				if hppMap.Name == httpPGPath.Name {
+					o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap[:j], o.HttpPolicyRefs[i].HppMap[j+1:]...)
+					o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
+
+					utils.AviLog.Infof("key: %s, msg: replaced SNI httpmap in model: %s Pool name: %s", key, o.Name, hppMap.Name)
+					return
+				}
+			}
+			// If we have reached here it means we haven't found a match. Just append.
+			o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
 		}
 	}
-	// If we have reached here it means we haven't found a match. Just append.
-	o.HttpPolicyRefs = append(o.HttpPolicyRefs, newHttpNode)
-	return
 }
 
 func (o *AviVsNode) DeleteCACertRefInSNINode(cacertNodeName, key string) {
@@ -666,12 +676,17 @@ func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key
 	return
 }
 
-func (o *AviVsNode) CheckHttpPolNameNChecksum(httpNodeName string, checksum uint32) bool {
-	for _, http := range o.HttpPolicyRefs {
-		if http.Name == httpNodeName {
-			//Check if their checksums are same
-			if http.GetCheckSum() == checksum {
-				return false
+func (o *AviVsNode) CheckHttpPolNameNChecksum(httpPolName, hppMapName string, checksum uint32) bool {
+	for i, http := range o.HttpPolicyRefs {
+		if http.Name == httpPolName {
+			for _, hppMap := range o.HttpPolicyRefs[i].HppMap {
+				if hppMap.Name == hppMapName {
+					if http.GetCheckSum() == checksum {
+						return false
+					} else {
+						return true
+					}
+				}
 			}
 		}
 	}
@@ -875,10 +890,20 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	if v.HeaderReWrite != nil {
 		checksum = checksum + utils.Hash(utils.Stringify(v.HeaderReWrite))
 	}
+
 	if lib.GetGRBACSupport() {
 		checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	}
+
 	v.CloudConfigCksum = checksum
+}
+func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
+	var checksum uint32
+	sort.Strings(v.Path)
+	sort.Strings(v.Host)
+	checksum = checksum + utils.Hash(utils.Stringify(v))
+	v.Checksum = checksum
+
 }
 
 func (v *AviHttpPolicySetNode) GetNodeType() string {
@@ -900,6 +925,8 @@ func (v *AviHttpPolicySetNode) CopyNode() AviModelNode {
 }
 
 type AviHostPathPortPoolPG struct {
+	Name          string
+	Checksum      uint32
 	Host          []string
 	Path          []string
 	Port          uint32
@@ -907,21 +934,25 @@ type AviHostPathPortPoolPG struct {
 	PoolGroup     string
 	MatchCriteria string
 	Protocol      string
+	IngName       string
 }
 
 type AviRedirectPort struct {
+	Name         string
 	Hosts        []string
 	RedirectPort int32
 	StatusCode   string
 	VsPort       int32
 }
 type AviHTTPSecurity struct {
+	Name          string
 	Action        string
 	MatchCriteria string
 	Enable        bool
 	Port          int64
 }
 type AviHostHeaderRewrite struct {
+	Name       string
 	SourceHost string
 	TargetHost string
 }

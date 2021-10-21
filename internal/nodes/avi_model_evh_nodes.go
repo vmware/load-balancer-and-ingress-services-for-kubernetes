@@ -32,6 +32,7 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // AviVsEvhSniModel : High Level interfaces that should be implemented by
@@ -122,6 +123,8 @@ type AviEvhVsNode struct {
 	VsDatascriptRefs    []string
 	SSLProfileRef       string
 	SSLKeyCertAviRef    string
+	Paths               []string
+	IngressNames        []string
 }
 
 // Implementing AviVsEvhSniModel
@@ -509,30 +512,39 @@ func (v *AviEvhVsNode) CopyNode() AviModelNode {
 	return &newNode
 }
 
-func (o *AviEvhVsNode) CheckHttpPolNameNChecksumForEvh(httpNodeName string, checksum uint32) bool {
-	for _, http := range o.HttpPolicyRefs {
+func (o *AviEvhVsNode) CheckHttpPolNameNChecksumForEvh(httpNodeName, hppMapName string, checksum uint32) bool {
+	for i, http := range o.HttpPolicyRefs {
 		if http.Name == httpNodeName {
-			//Check if their checksums are same
-			if http.GetCheckSum() == checksum {
-				return false
+			for _, hppMap := range o.HttpPolicyRefs[i].HppMap {
+				if hppMap.Name == hppMapName {
+					if http.GetCheckSum() == checksum {
+						return false
+					} else {
+						return true
+					}
+				}
 			}
 		}
 	}
 	return true
 }
 
-func (o *AviEvhVsNode) ReplaceHTTPRefInNodeForEvh(newHttpNode *AviHttpPolicySetNode, key string) {
+func (o *AviEvhVsNode) ReplaceHTTPRefInNodeForEvh(httpPGPath AviHostPathPortPoolPG, httpPolName, key string) {
 	for i, http := range o.HttpPolicyRefs {
-		if http.Name == newHttpNode.Name {
-			o.HttpPolicyRefs = append(o.HttpPolicyRefs[:i], o.HttpPolicyRefs[i+1:]...)
-			o.HttpPolicyRefs = append(o.HttpPolicyRefs, newHttpNode)
-			utils.AviLog.Infof("key: %s, msg: replaced Evh http in model: %s Pool name: %s", key, o.Name, http.Name)
-			return
+		if http.Name == httpPolName {
+			for j, hppMap := range o.HttpPolicyRefs[i].HppMap {
+				if hppMap.Name == httpPGPath.Name {
+					o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap[:j], o.HttpPolicyRefs[i].HppMap[j+1:]...)
+					o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
+
+					utils.AviLog.Infof("key: %s, msg: replaced Evh httpmap in model: %s Pool name: %s", key, o.Name, hppMap.Name)
+					return
+				}
+			}
+			// If we have reached here it means we haven't found a match. Just append.
+			o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
 		}
 	}
-	// If we have reached here it means we haven't found a match. Just append.
-	o.HttpPolicyRefs = append(o.HttpPolicyRefs, newHttpNode)
-	return
 }
 
 // Insecure ingress graph functions below
@@ -607,19 +619,33 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 
 func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key, infraSettingName string, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings) {
 	localPGList := make(map[string]*AviPoolGroupNode)
+	var httppolname string
+	var policyNode *AviHttpPolicySetNode
+	pathSet := sets.NewString(childNode.Paths...)
 
+	ingressNameSet := sets.NewString(childNode.IngressNames...)
+	ingressNameSet.Insert(ingName)
 	// Update the VSVIP with the host information.
 	if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hosts[0]) {
 		vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hosts[0])
 	}
 
 	childNode.VHDomainNames = hosts
+	httppolname = lib.GetSniHttpPolName(namespace, hosts[0], infraSettingName)
+
+	for i, http := range childNode.HttpPolicyRefs {
+		if http.Name == httppolname {
+			policyNode = childNode.HttpPolicyRefs[i]
+		}
+	}
+	if policyNode == nil {
+		policyNode = &AviHttpPolicySetNode{Name: httppolname, Tenant: lib.GetTenant()}
+		childNode.HttpPolicyRefs = append(childNode.HttpPolicyRefs, policyNode)
+	}
 
 	var allFqdns []string
 	allFqdns = append(allFqdns, hosts...)
 	for _, path := range paths {
-		var httpPolicySet []AviHostPathPortPoolPG
-
 		httpPGPath := AviHostPathPortPoolPG{Host: allFqdns}
 
 		if path.PathType == networkingv1.PathTypeExact {
@@ -644,11 +670,10 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			localPGList[pgName] = pgNode
 			httpPGPath.PoolGroup = pgNode.Name
 			httpPGPath.Host = allFqdns
-			httpPolicySet = append(httpPolicySet, httpPGPath)
 		}
-		pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, hosts[0], ingName, path.Path, infraSettingName)
-		var poolName string
-		poolName = lib.GetEvhPoolName(ingName, namespace, hosts[0], path.Path, infraSettingName, path.ServiceName)
+		pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, hosts[0], infraSettingName, []string{ingName}, []string{path.Path})
+		poolName := lib.GetEvhPoolName(ingName, namespace, hosts[0], path.Path, infraSettingName, path.ServiceName)
+		hostslice := []string{hosts[0]}
 		poolNode := &AviPoolNode{
 			Name:       poolName,
 			PortName:   path.PortName,
@@ -659,6 +684,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			ServiceMetadata: avicache.ServiceMetadataObj{
 				IngressName: ingName,
 				Namespace:   namespace,
+				HostNames:   hostslice,
 				PoolRatio:   path.weight,
 			},
 		}
@@ -667,9 +693,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			// Unset the poolnode's vrfcontext.
 			poolNode.VrfContext = ""
 		}
-		poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hosts[0], path.Path, ingName,
-			infraSettingName, path.ServiceName)
-		if tlsSettings != nil && tlsSettings.reencrypt == true {
+		poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hosts[0],
+			infraSettingName, path.ServiceName, []string{ingName}, []string{path.Path})
+		if tlsSettings != nil && tlsSettings.reencrypt {
 			o.BuildPoolSecurity(poolNode, *tlsSettings, key, poolNode.AviMarkers)
 		}
 		serviceType := lib.GetServiceType()
@@ -698,14 +724,19 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			childNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
 		if !pgfound {
-			httppolname := lib.GetSniHttpPolName(ingName, namespace, hosts[0], path.Path, infraSettingName)
-			policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
-			policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, hosts[0], ingName, path.Path, infraSettingName)
-			if childNode.CheckHttpPolNameNChecksumForEvh(httppolname, policyNode.GetCheckSum()) {
-				childNode.ReplaceHTTPRefInNodeForEvh(policyNode, key)
+			pathSet.Insert(path.Path)
+			hppMapName := lib.GetSniHppMapName(ingName, namespace, hosts[0], path.Path, infraSettingName)
+			httpPGPath.Name = hppMapName
+			httpPGPath.IngName = ingName
+			httpPGPath.CalculateCheckSum()
+			policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, hosts[0], infraSettingName, ingressNameSet.List(), pathSet.List())
+			if childNode.CheckHttpPolNameNChecksumForEvh(httppolname, hppMapName, httpPGPath.Checksum) {
+				childNode.ReplaceHTTPRefInNodeForEvh(httpPGPath, httppolname, key)
 			}
 		}
 	}
+	childNode.Paths = pathSet.List()
+	childNode.IngressNames = ingressNameSet.List()
 	for _, path := range paths {
 		BuildPoolHTTPRule(hosts[0], path.Path, ingName, namespace, infraSettingName, key, childNode, true)
 	}
@@ -1351,13 +1382,21 @@ func (o *AviObjectGraph) RemovePoolNodeRefsFromEvh(poolName string, evhNode *Avi
 
 }
 
-func (o *AviObjectGraph) RemoveHTTPRefsFromEvh(httpPol string, evhNode *AviEvhVsNode) {
+func (o *AviObjectGraph) RemoveHTTPRefsFromEvh(httpPol, hppmapName string, evhNode *AviEvhVsNode) {
 
 	for i, pol := range evhNode.HttpPolicyRefs {
 		if pol.Name == httpPol {
-			utils.AviLog.Debugf("Removing http pol ref: %s", httpPol)
-			evhNode.HttpPolicyRefs = append(evhNode.HttpPolicyRefs[:i], evhNode.HttpPolicyRefs[i+1:]...)
-			break
+			for j, hppmap := range evhNode.HttpPolicyRefs[i].HppMap {
+				if hppmap.Name == hppmapName {
+					evhNode.HttpPolicyRefs[i].HppMap = append(evhNode.HttpPolicyRefs[i].HppMap[:j], evhNode.HttpPolicyRefs[i].HppMap[j+1:]...)
+					break
+				}
+			}
+			if len(pol.HppMap) == 0 {
+				utils.AviLog.Debugf("Removing http pol ref: %s", httpPol)
+				evhNode.HttpPolicyRefs = append(evhNode.HttpPolicyRefs[:i], evhNode.HttpPolicyRefs[i+1:]...)
+				break
+			}
 		}
 	}
 	utils.AviLog.Debugf("After removing the http policy nodes are: %s", utils.Stringify(evhNode.HttpPolicyRefs))
@@ -1395,8 +1434,9 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 				if pgNode != nil {
 					if len(pgNode.Members) == 0 {
 						o.RemovePGNodeRefsForEvh(pgName, modelEvhNode)
-						httppolname := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName)
-						o.RemoveHTTPRefsFromEvh(httppolname, modelEvhNode)
+						httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
+						hppmapname := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName)
+						o.RemoveHTTPRefsFromEvh(httppolname, hppmapname, modelEvhNode)
 					}
 				}
 			}

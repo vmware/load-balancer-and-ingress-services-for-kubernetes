@@ -196,7 +196,6 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 			vs_cache_obj, foundvs := vsObj.(*AviVsCache)
 			if foundvs {
 				vs_cache_obj.ReplaceSNIChildCollection(sniChildUuids)
-
 				if isEVHEnabled {
 					curChildNSNameToDelete, curChildUuidToDelete := c.listEVHChildrenToDelete(vs_cache_obj, sniChildUuids)
 					childUuidToDelete = append(childUuidToDelete, curChildUuidToDelete...)

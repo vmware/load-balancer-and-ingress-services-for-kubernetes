@@ -257,7 +257,7 @@ func TestShardNamingConvention(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
 	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("cluster--foo.com"))
-	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Name).To(gomega.Equal("cluster--default-foo.com_foo_bar-foo-with-targets"))
 
 	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
 	if err != nil {
@@ -1022,11 +1022,6 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 		g.Eventually(len(nodes), 5*time.Second).Should(gomega.Equal(1))
 
 		g.Expect(len(nodes[0].SniNodes)).To(gomega.Equal(1))
-		g.Eventually(func() uint32 {
-			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return nodes[0].SniNodes[0].CloudConfigCksum
-		}, 5*time.Second).ShouldNot(gomega.Equal(initCheckSums["nodes[0].SniNodes[0]"]))
-
 		g.Expect(len(nodes[0].SniNodes[0].PoolRefs)).To(gomega.Equal(1))
 		g.Eventually(func() uint32 {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -1094,14 +1089,15 @@ func TestSniHttpPolicy(t *testing.T) {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Eventually(len(nodes), 30*time.Second).Should(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes), gomega.Equal(1))
-		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs), gomega.Equal(2))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs), gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap), gomega.Equal(2))
 		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
-		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[1].Path)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
 		g.Expect(func() []string {
 			p := []string{
 				nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
-				nodes[0].SniNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0]}
+				nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[1].Path[0]}
 			sort.Strings(p)
 			return p
 		}, gomega.Equal([]string{"/bar", "/foo"}))
@@ -1148,7 +1144,8 @@ func TestSniHttpPolicy(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
 	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).To(gomega.Equal("/foo"))
-	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-shp"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-ingress-shp"))
 	g.Expect(len(nodes[0].SniNodes[0].SSLKeyCertRefs)).To(gomega.Equal(1))
 
 	_, err = (integrationtest.FakeIngress{
@@ -1171,7 +1168,7 @@ func TestSniHttpPolicy(t *testing.T) {
 		found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		if found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return len(nodes[0].SniNodes[0].HttpPolicyRefs)
+			return len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap)
 		} else {
 			return 0
 		}
@@ -1179,20 +1176,21 @@ func TestSniHttpPolicy(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
-	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[1].Path)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[2].Path)).To(gomega.Equal(1))
 	g.Expect(func() []string {
 		p := []string{
 			nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0],
-			nodes[0].SniNodes[0].HttpPolicyRefs[1].HppMap[0].Path[0],
-			nodes[0].SniNodes[0].HttpPolicyRefs[2].HppMap[0].Path[0]}
+			nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[1].Path[0],
+			nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[2].Path[0]}
 		sort.Strings(p)
 		return p
 	}, gomega.Equal([]string{"/bar", "/baz", "/foo"}))
 	g.Expect(func() []string {
 		p := []string{
-			nodes[0].SniNodes[0].HttpPolicyRefs[0].Name,
-			nodes[0].SniNodes[0].HttpPolicyRefs[1].Name,
-			nodes[0].SniNodes[0].HttpPolicyRefs[2].Name}
+			nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Name,
+			nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[1].Name,
+			nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[2].Name}
 		sort.Strings(p)
 		return p
 	}, gomega.Equal([]string{"cluster--default-foo.com_bar-ingress-shp",
