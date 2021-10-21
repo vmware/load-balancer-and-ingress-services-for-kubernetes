@@ -371,38 +371,66 @@ func AviVsHttpPSAdd(vs_meta interface{}, isEVH bool) []*avimodels.HTTPPolicies {
 func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *avicache.AviVsCache, svc_mdata_obj *avicache.ServiceMetadataObj, parentVsObj *avicache.AviVsCache, key string, oldObj bool) error {
 	if oldObj {
 		if rest_op.Method == utils.RestPost || rest_op.Method == utils.RestDelete || rest_op.Method == utils.RestPut {
-			for _, poolkey := range vs_cache_obj.PoolKeyCollection {
-				// Fetch the pool object from cache and check the service metadata
-				pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
-				if ok {
-					utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
-					pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
-					if found {
-						IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
-						if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+			//in secure case, PoolKeyCollection will be empty
+			if len(vs_cache_obj.PoolKeyCollection) > 0 {
+				for _, poolkey := range vs_cache_obj.PoolKeyCollection {
+					// Fetch the pool object from cache and check the service metadata
+					pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
+					if ok {
+						utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
+						pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
+						if found {
+							IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
+							if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+
+								updateOptions := status.UpdateOptions{
+									Vip:                IPAddrs,
+									ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
+									Key:                key,
+									VirtualServiceUUID: vs_cache_obj.Uuid,
+								}
+								statusOption := status.StatusOptions{
+									ObjType: utils.L4LBService,
+									Op:      lib.UpdateStatus,
+									Options: &updateOptions,
+								}
+								status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
+							} else if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
+								updateOptions := status.UpdateOptions{
+									Vip:                IPAddrs,
+									ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
+									Key:                key,
+									VirtualServiceUUID: vs_cache_obj.Uuid,
+								}
+								statusOption := status.StatusOptions{
+									ObjType: utils.Ingress,
+									Op:      lib.UpdateStatus,
+									Options: &updateOptions,
+								}
+								if utils.GetInformers().RouteInformer != nil {
+									statusOption.ObjType = utils.OshiftRoute
+								}
+								status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+							}
+
+						}
+					}
+				}
+			} else {
+				IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
+				for _, vsUuid := range vs_cache_obj.SNIChildCollection {
+
+					vsKey, ok := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(vsUuid)
+					if ok {
+						vsKey := vsKey.(avicache.NamespaceName)
+						vsCache, _ := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
+						vsCacheObj, found := vsCache.(*avicache.AviVsCache)
+						if found {
 							updateOptions := status.UpdateOptions{
 								Vip:                IPAddrs,
-								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
-								Key:                key,
-								VirtualServiceUUID: vs_cache_obj.Uuid,
-								VSName:             vs_cache_obj.Name,
-							}
-							statusOption := status.StatusOptions{
-								ObjType: utils.L4LBService,
-								Op:      lib.UpdateStatus,
-								Options: &updateOptions,
-							}
-							status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
-						} else if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-							if len(IPAddrs) == 0 {
-								IPAddrs = []string{parentVsObj.Vip}
-							}
-							updateOptions := status.UpdateOptions{
-								Vip:                IPAddrs,
-								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
-								Key:                key,
-								VirtualServiceUUID: vs_cache_obj.Uuid,
-								VSName:             vs_cache_obj.Name,
+								ServiceMetadata:    vsCacheObj.ServiceMetadataObj,
+								Key:                vsKey.Name,
+								VirtualServiceUUID: vsCacheObj.Uuid,
 							}
 							statusOption := status.StatusOptions{
 								ObjType: utils.Ingress,
@@ -419,7 +447,6 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 				}
 			}
 		}
-
 	} else {
 		IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
 		if svc_mdata_obj.Gateway != "" {
@@ -455,10 +482,9 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 			}
 			status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 		} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
-			var parentVsVips []string
-			parentVsVips = append(parentVsVips, parentVsObj.Vip)
+			IPAddrs := rest.GetIPAddrsFromCache(parentVsObj)
 			updateOptions := status.UpdateOptions{
-				Vip:                parentVsVips,
+				Vip:                IPAddrs,
 				ServiceMetadata:    *svc_mdata_obj,
 				Key:                key,
 				VirtualServiceUUID: vs_cache_obj.Uuid,
@@ -474,7 +500,6 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 			}
 			status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 		}
-
 	}
 	return nil
 }
