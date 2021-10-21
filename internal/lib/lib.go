@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 
 	"github.com/Masterminds/semver"
 	routev1 "github.com/openshift/api/route/v1"
@@ -586,6 +587,65 @@ func GetAdvancedL4() bool {
 		return true
 	}
 	return false
+}
+
+type NextPage struct {
+	Next_uri   string
+	Collection interface{}
+}
+
+func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPage) (error, string) {
+	var uri string
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
+	} else {
+		uri = "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
+	}
+
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, ""
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return err, ""
+	}
+
+	// Using clusterID for advl4.
+	clusterName := GetClusterID()
+	for _, elem := range elems {
+		seg := models.ServiceEngineGroup{}
+		err = json.Unmarshal(elem, &seg)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
+
+		if len(seg.Markers) == 1 &&
+			*seg.Markers[0].Key == ClusterNameLabelKey &&
+			len(seg.Markers[0].Values) == 1 &&
+			seg.Markers[0].Values[0] == clusterName {
+			utils.AviLog.Infof("Marker configuration found in Service Engine Group %s.", *seg.Name)
+			return nil, *seg.Name
+		}
+	}
+
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/serviceenginegroup")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/serviceenginegroup" + next_uri[1]
+			nextPage := NextPage{Next_uri: overrideUri}
+			return FetchSEGroupWithMarkerSet(client, nextPage)
+		}
+	}
+
+	utils.AviLog.Infof("No Marker configured Service Engine Group found.")
+	return nil, ""
 }
 
 // This utility returns true if AKO is configured to create

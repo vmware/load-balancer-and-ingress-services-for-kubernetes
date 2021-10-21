@@ -119,6 +119,10 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 }
 
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
+	err, seGroup := lib.FetchSEGroupWithMarkerSet(a.AviRestClients.AviClient[0])
+	if err == nil && seGroup != "" {
+		utils.AviLog.Infof("SE Group: %s already configured with the marker labels: %s", seGroup, lib.GetClusterID())
+	}
 	// This method checks if the cloud in Avi has a SE Group template configured or not. If has the SEG template then it returns true, else false
 	err, cloudName, segUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
 	if err != nil {
