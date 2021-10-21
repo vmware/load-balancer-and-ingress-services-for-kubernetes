@@ -55,6 +55,11 @@ var ShardSizeMap = map[string]uint32{
 	"DEDICATED": 0,
 }
 
+var ipSchemeMap = map[string]string{
+	"V6": "IPV6",
+	"V4": "IPV4",
+}
+
 var fqdnMap = map[string]string{
 	"default": AutoFQDNDefault,
 	"flat":    AutoFQDNFlat,
@@ -575,6 +580,16 @@ func GetDomain() string {
 		return subDomain
 	}
 	return ""
+}
+
+func GetIpScheme() string {
+	subDomain := os.Getenv(IPSCHEME)
+	scheme, ok := ipSchemeMap[subDomain]
+	if !ok {
+		// Default to IPv4 if the scheme is an invalid string
+		return "IPV4"
+	}
+	return scheme
 }
 
 // This utility returns a true/false depending on whether

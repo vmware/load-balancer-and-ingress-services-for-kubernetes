@@ -277,6 +277,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	var worker *utils.FullSyncThread
 	var tokenWorker *utils.FullSyncThread
 	informersArg := make(map[string]interface{})
+	if lib.GetIpScheme() == lib.IPV6 {
+		utils.AviLog.Infof("AKO is running with IPv6 scheme")
+	}
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = informers.OshiftClient
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()

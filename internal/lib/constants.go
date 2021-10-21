@@ -28,6 +28,8 @@ const (
 	AviSecret                 = "avi-secret"
 	VLAN_TRANSPORT_ZONE       = "VLAN"
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
+	IPV4                      = "IPV4"
+	IPV6                      = "IPV6"
 
 	AVI_INGRESS_CLASS                          = "avi"
 	SUBNET_IP                                  = "SUBNET_IP"
@@ -40,6 +42,7 @@ const (
 	NODE_NETWORK_LIST                          = "NODE_NETWORK_LIST"
 	NODE_NETWORK_MAX_ENTRIES                   = 5
 	DEFAULT_DOMAIN                             = "DEFAULT_DOMAIN"
+	IPSCHEME                                   = "IP_SCHEME"
 	ADVANCED_L4                                = "ADVANCED_L4"
 	SERVICES_API                               = "SERVICES_API"
 	CLUSTER_NAME                               = "CLUSTER_NAME"

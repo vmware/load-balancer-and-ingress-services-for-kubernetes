@@ -46,7 +46,12 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
 	var rest_op utils.RestOp
-	vipId, ipType := "0", "V4"
+	var vipId, ipType string
+	if lib.GetIpScheme() == lib.IPV6 {
+		vipId, ipType = "0", "V6"
+	} else {
+		vipId, ipType = "0", "V4"
+	}
 
 	cksum := vsvip_meta.CloudConfigCksum
 	cksumstr := strconv.Itoa(int(cksum))
