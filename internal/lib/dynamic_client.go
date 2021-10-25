@@ -171,18 +171,18 @@ func GetVCFDynamicInformers() *VCFDynamicInformers {
 	return vcfDynamicInformerInstance
 }
 
-func GetBootstrapCRData() (string, string, string) {
+func GetBootstrapCRData() (string, string, string, string) {
 	dynamicClient := GetVCFDynamicClientSet()
 	crdClient := dynamicClient.Resource(BootstrapGVR)
 	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting CRD %v", err)
-		return "", "", ""
+		return "", "", "", ""
 	}
 
 	if len(crdList.Items) != 1 {
 		utils.AviLog.Errorf("Expected only one object for NCP bootstrap but found: %d", len(crdList.Items))
-		return "", "", ""
+		return "", "", "", ""
 	}
 
 	obj := crdList.Items[0]
@@ -193,16 +193,35 @@ func GetBootstrapCRData() (string, string, string) {
 	secretName, ok := secretref["name"].(string)
 	if !ok {
 		utils.AviLog.Errorf("secretName is not of type string")
+		return "", "", "", ""
 	}
 	secretNamespace, ok := secretref["namespace"].(string)
 	if !ok {
 		utils.AviLog.Errorf("secretNamespace is not of type string")
+		return "", "", "", ""
 	}
 	userName, ok := albtoken["userName"].(string)
 	if !ok {
 		utils.AviLog.Errorf("userName is not of type string")
+		return "", "", "", ""
 	}
-	return secretName, secretNamespace, userName
+
+	status, ok := obj.Object["status"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Errorf("Status not found in bootstrap CR")
+		return "", "", "", ""
+	}
+	tzone, ok := status["transportZone"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Errorf("transportZone not found in status of bootstrap CR")
+		return "", "", "", ""
+	}
+	tzPath, ok := tzone["path"].(string)
+	if !ok {
+		utils.AviLog.Errorf("transportZone path not found in status of bootstrap CR")
+		return "", "", "", ""
+	}
+	return secretName, secretNamespace, userName, tzPath
 }
 
 func GetNetinfoCRData() map[string]string {
