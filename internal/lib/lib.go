@@ -1401,6 +1401,10 @@ func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]stri
 	return ctrlProps, nil
 }
 
+func GetVCFNetworkName() string {
+	return VCF_NETWORK + "-" + GetClusterID()
+}
+
 var (
 	aviMinVersion = ""
 	aviMaxVersion = ""
