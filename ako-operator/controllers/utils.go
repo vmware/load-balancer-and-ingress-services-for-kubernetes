@@ -61,6 +61,7 @@ const (
 	TenantsPerCluster      = "tenantsPerCluster"
 	TenantName             = "tenantName"
 	NoPGForSni             = "noPGForSni"
+	Nsxt1LR                = "nsxtT1LR"
 )
 
 var SecretEnvVars = map[string]string{
@@ -99,6 +100,7 @@ var ConfigMapEnvVars = map[string]string{
 	"TENANTS_PER_CLUSTER":        TenantsPerCluster,
 	"NAMESPACE_SYNC_LABEL_KEY":   NSSyncLabelKey,
 	"NAMESPACE_SYNC_LABEL_VALUE": NSSyncLabelValue,
+	"NSXT_T1_LR":                 Nsxt1LR,
 }
 
 func getSFNamespacedName() types.NamespacedName {
