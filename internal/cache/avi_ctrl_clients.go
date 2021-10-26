@@ -42,42 +42,41 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	}
 
 	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
-		if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
-			// Always create 9 clients irrespective of shard size
-			AviClientInstance, err = utils.NewAviRestClientPool(
-				9,
-				ctrlIpAddress,
-				ctrlUsername,
-				ctrlPassword,
-				ctrlAuthToken,
-			)
-			connectionStatus = utils.AVIAPI_CONNECTED
-			if err != nil {
-				connectionStatus = utils.AVIAPI_DISCONNECTED
-				utils.AviLog.Error("AVI controller initilization failed")
-				return nil
-			}
+		// Always create 9 clients irrespective of shard size
+		AviClientInstance, err = utils.NewAviRestClientPool(
+			9,
+			ctrlIpAddress,
+			ctrlUsername,
+			ctrlPassword,
+			ctrlAuthToken,
+		)
+		connectionStatus = utils.AVIAPI_CONNECTED
+		if err != nil {
+			connectionStatus = utils.AVIAPI_DISCONNECTED
+			utils.AviLog.Error("AVI controller initilization failed")
+			return nil
+		}
 
-			controllerVersion := utils.CtrlVersion
-			// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
-			if lib.CompareVersions(controllerVersion, ">", lib.GetAviMaxSupportedVersion()) {
-				controllerVersion = lib.GetAviMaxSupportedVersion()
-			}
-			if lib.CompareVersions(controllerVersion, "<", lib.GetAviMinSupportedVersion()) {
-				utils.AviLog.Fatal("AKO is not supported for the following Avi version %s, Avi must be %s or more", controllerVersion, lib.GetAviMinSupportedVersion())
-			}
-			utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
+		controllerVersion := utils.CtrlVersion
+		// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
+		if lib.CompareVersions(controllerVersion, ">", lib.GetAviMaxSupportedVersion()) {
+			controllerVersion = lib.GetAviMaxSupportedVersion()
+		}
 
-			// set the tenant and controller version in avisession obj
-			for _, client := range AviClientInstance.AviClient {
-				SetTenant := session.SetTenant(lib.GetTenant())
-				SetTenant(client.AviSession)
+		if lib.CompareVersions(controllerVersion, "<", lib.GetAviMinSupportedVersion()) {
+			utils.AviLog.Fatal("AKO is not supported for the following Avi version %s, Avi must be %s or more", controllerVersion, lib.GetAviMinSupportedVersion())
+		}
+		utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
 
-				lib.SetEnableCtrl2014Features(controllerVersion)
-				SetVersion := session.SetVersion(controllerVersion)
-				SetVersion(client.AviSession)
+		// set the tenant and controller version in avisession obj
+		for _, client := range AviClientInstance.AviClient {
+			SetTenant := session.SetTenant(lib.GetTenant())
+			SetTenant(client.AviSession)
 
-			}
+			lib.SetEnableCtrl2014Features(controllerVersion)
+			SetVersion := session.SetVersion(controllerVersion)
+			SetVersion(client.AviSession)
+
 		}
 	}
 
