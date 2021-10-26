@@ -207,9 +207,9 @@ func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struc
 		)
 		if err == nil {
 			utils.AviLog.Infof("Successfully connected to AVI controller using existing AKO secret")
-			_, _, _, transportZone := lib.GetBootstrapCRData()
-			if transportZone != "" {
-				return transportZone
+			boostrapdata, ok := lib.GetBootstrapCRData()
+			if ok {
+				return boostrapdata.TZPath
 			}
 			utils.AviLog.Warnf("Failed to fetch transportzone from bootstrap CR status")
 		} else {
@@ -240,10 +240,9 @@ func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struc
 }
 
 func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
-	secretName, ns, username, _ := lib.GetBootstrapCRData()
-	if secretName == "" || ns == "" || username == "" {
-		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR, secretName: %s, namespace: %s, username: %s",
-			secretName, ns, username)
+	boostrapdata, ok := lib.GetBootstrapCRData()
+	if !ok {
+		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR")
 		return errors.New("Empty field in Bootstrap CR")
 	}
 
@@ -251,7 +250,7 @@ func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
 
 	var ncpSecret *corev1.Secret
 	var err error
-	ncpSecret, err = cs.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
+	ncpSecret, err = cs.CoreV1().Secrets(boostrapdata.SecretNamespace).Get(context.TODO(), boostrapdata.SecretName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get secret, got err: %v", err)
 		return err
@@ -261,7 +260,7 @@ func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
 	aviSecret.ObjectMeta.Name = lib.AviSecret
 	aviSecret.Data = make(map[string][]byte)
 	aviSecret.Data["authtoken"] = []byte(ncpSecret.Data["authToken"])
-	aviSecret.Data["username"] = []byte(username)
+	aviSecret.Data["username"] = []byte(boostrapdata.UserName)
 
 	_, err = cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
 	if k8serrors.IsNotFound(err) {
@@ -285,17 +284,16 @@ func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
 func (c *VCFK8sController) ValidBootStrapData() bool {
 	utils.AviLog.Infof("Validating NCP Boostrap data for AKO")
 	cs := c.informers.ClientSet
-	secretName, ns, username, tzPath := lib.GetBootstrapCRData()
-	setTranzportZone(tzPath)
-
-	if secretName == "" || ns == "" || username == "" || tzPath == "" {
-		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR, secretName: %s, namespace: %s, username: %s, transportZone: %s", secretName, ns, username, tzPath)
+	boostrapdata, ok := lib.GetBootstrapCRData()
+	if !ok {
+		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR")
 		return false
 	}
-	utils.AviLog.Infof("Got data from Bootstrap CR, secretName: %s, namespace: %s, username: %s", secretName, ns, username)
+	utils.AviLog.Infof("Got data from Bootstrap CR, secretName: %s, namespace: %s, username: %s, tansportzone: %s", boostrapdata.SecretName, boostrapdata.SecretNamespace, boostrapdata.UserName, boostrapdata.TZPath)
+	setTranzportZone(boostrapdata.TZPath)
 	var ncpSecret *corev1.Secret
 	var err error
-	ncpSecret, err = cs.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
+	ncpSecret, err = cs.CoreV1().Secrets(boostrapdata.SecretNamespace).Get(context.TODO(), boostrapdata.SecretName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get secret, got err: %v", err)
 		return false
@@ -304,13 +302,13 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 	ctrlIP := os.Getenv(utils.ENV_CTRL_IPADDRESS)
 	var transport *http.Transport
 	_, err = clients.NewAviClient(
-		ctrlIP, username, session.SetAuthToken(string(authToken)),
+		ctrlIP, boostrapdata.UserName, session.SetAuthToken(string(authToken)),
 		session.SetNoControllerStatusCheck, session.SetTransport(transport),
 		session.SetInsecure,
 	)
 	if err != nil {
 		utils.AviLog.Infof("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
-		c.deleteNCPSecret(secretName, ns)
+		c.deleteNCPSecret(boostrapdata.SecretName, boostrapdata.SecretNamespace)
 		return false
 	}
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
