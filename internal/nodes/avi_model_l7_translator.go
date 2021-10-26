@@ -26,6 +26,7 @@ import (
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // TODO: Move to utils
@@ -262,6 +263,11 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var sniFQDNs []string
 	var priorityLabel string
+	var policyNode *AviHttpPolicySetNode
+	pathSet := sets.NewString(tlsNode.Paths...)
+
+	ingressNameSet := sets.NewString(tlsNode.IngressNames...)
+	ingressNameSet.Insert(ingName)
 	for host, paths := range hostpath.Hosts {
 		var pathFQDNs []string
 		pathFQDNs = append(pathFQDNs, host)
@@ -280,8 +286,19 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				pathFQDNs = append(pathFQDNs, paths.gslbHostHeader)
 			}
 		}
+
+		httpPolName := lib.GetSniHttpPolName(namespace, host, infraSettingName)
+		for i, http := range tlsNode.HttpPolicyRefs {
+			if http.Name == httpPolName {
+				policyNode = tlsNode.HttpPolicyRefs[i]
+			}
+		}
+		if policyNode == nil {
+			policyNode = &AviHttpPolicySetNode{Name: httpPolName, Tenant: lib.GetTenant()}
+			tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
+		}
+
 		for _, path := range paths.ingressHPSvc {
-			var httpPolicySet []AviHostPathPortPoolPG
 
 			httpPGPath := AviHostPathPortPoolPG{Host: pathFQDNs}
 
@@ -327,9 +344,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				}
 				localPGList[pgName] = pgNode
 				httpPGPath.PoolGroup = pgNode.Name
-				pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, host, ingName, path.Path, infraSettingName)
+				pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, host, infraSettingName, []string{ingName}, []string{path.Path})
 			}
-			httpPolicySet = append(httpPolicySet, httpPGPath)
+
 			hostSlice := []string{host}
 			poolNode := &AviPoolNode{
 				Name:          poolName,
@@ -352,8 +369,8 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				// Unset the poolnode's vrfcontext.
 				poolNode.VrfContext = ""
 			}
-			poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, host, path.Path, ingName, infraSettingName,
-				path.ServiceName)
+			poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, host, infraSettingName,
+				path.ServiceName, []string{ingName}, []string{path.Path})
 			if hostpath.reencrypt == true {
 				o.BuildPoolSecurity(poolNode, hostpath, key, poolNode.AviMarkers)
 			}
@@ -385,17 +402,24 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				tlsNode.ReplaceSniPoolInSNINode(poolNode, key)
 			}
 			if !pgfound {
-				httppolname := lib.GetSniHttpPolName(ingName, namespace, host, path.Path, infraSettingName)
-				policyNode := &AviHttpPolicySetNode{Name: httppolname, HppMap: httpPolicySet, Tenant: lib.GetTenant()}
-				policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, host, ingName, path.Path, infraSettingName)
-				if tlsNode.CheckHttpPolNameNChecksum(httppolname, policyNode.GetCheckSum()) {
-					tlsNode.ReplaceSniHTTPRefInSNINode(policyNode, key)
+				pathSet.Insert(path.Path)
+				hppMapName := lib.GetSniHppMapName(ingName, namespace, host, path.Path, infraSettingName)
+				httpPGPath.Name = hppMapName
+				httpPGPath.IngName = ingName
+				policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, host, infraSettingName, ingressNameSet.List(), pathSet.List())
+				httpPGPath.CalculateCheckSum()
+
+				if tlsNode.CheckHttpPolNameNChecksum(httpPolName, hppMapName, httpPGPath.Checksum) {
+					tlsNode.ReplaceSniHTTPRefInSNINode(httpPGPath, httpPolName, key)
 				}
 			}
 			BuildPoolHTTPRule(host, path.Path, ingName, namespace, infraSettingName, key, tlsNode, true)
 		}
 		sniFQDNs = append(sniFQDNs, pathFQDNs...)
 	}
+	tlsNode.Paths = pathSet.List()
+	tlsNode.IngressNames = ingressNameSet.List()
+
 	// Whatever is there in sniFQDNs should be in the VHDomain
 	tlsNode.VHDomainNames = sniFQDNs
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. tlsNodeChecksum for tlsNode :%s is :%v", key, tlsNode.Name, tlsNode.GetCheckSum())
@@ -415,8 +439,8 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 		Tenant: lib.GetTenant(),
 		CACert: tlsData.destCA,
 	}
-	pkiProfile.AviMarkers = lib.PopulatePoolNodeMarkers(aviMarkers.Namespace, aviMarkers.Host, aviMarkers.Path,
-		aviMarkers.IngressName, aviMarkers.InfrasettingName, aviMarkers.ServiceName)
+	pkiProfile.AviMarkers = lib.PopulatePoolNodeMarkers(aviMarkers.Namespace, aviMarkers.Host,
+		aviMarkers.InfrasettingName, aviMarkers.ServiceName, aviMarkers.IngressName, aviMarkers.Path)
 	utils.AviLog.Infof("key: %s, Added pki profile %s for pool %s", pkiProfile.Name, poolNode.Name)
 	poolNode.PkiProfile = &pkiProfile
 }

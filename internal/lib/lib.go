@@ -301,12 +301,19 @@ func GetSniPoolName(ingName, namespace, host, path, infrasetting string, args ..
 	return poolName
 }
 
-func GetSniHttpPolName(ingName, namespace, host, path, infrasetting string) string {
+func GetSniHttpPolName(namespace, host, infrasetting string) string {
+
+	if infrasetting != "" {
+		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host, HTTPPS)
+	}
+	return Encode(NamePrefix+namespace+"-"+host, HTTPPS)
+}
+func GetSniHppMapName(ingName, namespace, host, path, infrasetting string) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	if infrasetting != "" {
-		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host+path+"-"+ingName, HTTPPS)
+		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host+path+"-"+ingName, HPPMAP)
 	}
-	return Encode(NamePrefix+namespace+"-"+host+path+"-"+ingName, HTTPPS)
+	return Encode(NamePrefix+namespace+"-"+host+path+"-"+ingName, HPPMAP)
 }
 
 func GetSniPGName(ingName, namespace, host, path, infrasetting string) string {
@@ -725,10 +732,19 @@ func GetMarkersChecksum(markers utils.AviObjectMarkers) uint32 {
 	var cksum uint32
 	var combinedString string
 	numMarkerFields := vals.NumField()
+	typeOfVals := vals.Type()
 	markersStr := make([]string, numMarkerFields)
 	for i := 0; i < numMarkerFields; i++ {
 		if vals.Field(i).Interface() != "" {
-			value := vals.Field(i).Interface().(string)
+			field := typeOfVals.Field(i).Name
+			var value string
+			if field == "Path" || field == "IngressName" {
+				pathArr := vals.Field(i).Interface().([]string)
+				sort.Strings(pathArr)
+				value = strings.Join(pathArr, "-")
+			} else {
+				value = vals.Field(i).Interface().(string)
+			}
 			markersStr[j] = value
 			j = j + 1
 		}
@@ -758,8 +774,10 @@ func ObjectLabelChecksum(objectLabels []*models.RoleFilterMatchLabel) uint32 {
 				objChecksum += clusterLabelChecksum
 			}
 		} else {
-			markersStr[j] = label.Values[0]
-			j = j + 1
+			if len(label.Values) != 0 {
+				markersStr[j] = label.Values[0]
+				j = j + 1
+			}
 		}
 	}
 	sort.Strings(markersStr)
@@ -798,7 +816,7 @@ func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populat
 	return checksum
 }
 
-func PopulatePoolNodeMarkers(namespace, host, path, ingName, infraSettingName, serviceName string) utils.AviObjectMarkers {
+func PopulatePoolNodeMarkers(namespace, host, infraSettingName, serviceName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
 	markers.Host = host
@@ -815,7 +833,7 @@ func PopulateVSNodeMarkers(namespace, host, infraSettingName string) utils.AviOb
 	markers.InfrasettingName = infraSettingName
 	return markers
 }
-func PopulateHTTPPolicysetNodeMarkers(namespace, host, ingName, path, infraSettingName string) utils.AviObjectMarkers {
+func PopulateHTTPPolicysetNodeMarkers(namespace, host, infraSettingName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
 	markers.Host = host
@@ -844,7 +862,7 @@ func PopulateAdvL4PoolNodeMarkers(namespace, svcName, gatewayName string, port i
 	markers.Port = strconv.Itoa(port)
 	return markers
 }
-func PopulatePGNodeMarkers(namespace, host, ingName, path, infraSettingName string) utils.AviObjectMarkers {
+func PopulatePGNodeMarkers(namespace, host, infraSettingName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
 	markers.Host = host
@@ -1079,9 +1097,21 @@ func GetAllMarkers(markers utils.AviObjectMarkers) []*models.RoleFilterMatchLabe
 		if vals.Field(i).Interface() != "" {
 			field := typeOfVals.Field(i).Name
 			value := vals.Field(i).Interface()
-			rfml = &models.RoleFilterMatchLabel{
-				Key:    &field,
-				Values: []string{value.(string)},
+			if field == "Path" || field == "IngressName" {
+				values := value.([]string)
+				if len(values) == 0 {
+					continue
+				}
+				rfml = &models.RoleFilterMatchLabel{
+					Key:    &field,
+					Values: values,
+				}
+
+			} else {
+				rfml = &models.RoleFilterMatchLabel{
+					Key:    &field,
+					Values: []string{value.(string)},
+				}
 			}
 			rfmls = append(rfmls, rfml)
 		}

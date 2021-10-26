@@ -380,7 +380,6 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 					if found {
 						IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
 						if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
-
 							updateOptions := status.UpdateOptions{
 								Vip:                IPAddrs,
 								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
@@ -394,6 +393,9 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 							}
 							status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 						} else if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
+							if len(IPAddrs) == 0 {
+								IPAddrs = []string{parentVsObj.Vip}
+							}
 							updateOptions := status.UpdateOptions{
 								Vip:                IPAddrs,
 								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,

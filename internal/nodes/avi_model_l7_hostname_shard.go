@@ -127,7 +127,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 				}
 			}
 			//In Insecure SNI VS, only pool node should have markers.
-			poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hostname, obj.Path, ingName, infraSettingName, serviceName)
+			poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hostname, infraSettingName, serviceName, []string{ingName}, []string{obj.Path})
 			vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
 			utils.AviLog.Debugf("key: %s, msg: the pools after append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
 		}
@@ -257,14 +257,16 @@ func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespac
 			if pgNode != nil {
 				if len(pgNode.Members) == 0 {
 					o.RemovePGNodeRefs(pgName, modelSniNode)
-					httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path, infraSettingName)
-					o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
+					hppmapname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName)
+					httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
+					o.RemoveHTTPRefsFromSni(httppolname, hppmapname, modelSniNode)
 				}
 			}
 			// Keeping this block separate for deprecation later.
 			if lib.GetNoPGForSNI() && isIngr {
-				httppolname := lib.GetSniHttpPolName(ingName, namespace, hostname, path, infraSettingName)
-				o.RemoveHTTPRefsFromSni(httppolname, modelSniNode)
+				hppmapname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName)
+				httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
+				o.RemoveHTTPRefsFromSni(httppolname, hppmapname, modelSniNode)
 			}
 		}
 		// After going through the paths, if the SNI node does not have any PGs - then delete it.
