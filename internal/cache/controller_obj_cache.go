@@ -2585,7 +2585,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	var err error
 	// 2. Marker based (only advancedL4)
 	if seGroupToUse == "" && lib.GetAdvancedL4() {
-		err, seGroupToUse = fetchSEGroupWithMarkerSet(client)
+		err, seGroupToUse = lib.FetchSEGroupWithMarkerSet(client)
 		if err != nil {
 			return false
 		}
@@ -2648,60 +2648,6 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	}
 
 	return true
-}
-
-func fetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPage) (error, string) {
-	var uri string
-	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
-	} else {
-		uri = "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
-	}
-
-	result, err := lib.AviGetCollectionRaw(client, uri)
-	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return err, ""
-	}
-
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-		return err, ""
-	}
-
-	// Using clusterID for advl4.
-	clusterName := lib.GetClusterID()
-	for _, elem := range elems {
-		seg := models.ServiceEngineGroup{}
-		err = json.Unmarshal(elem, &seg)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			continue
-		}
-
-		if len(seg.Markers) == 1 &&
-			*seg.Markers[0].Key == lib.ClusterNameLabelKey &&
-			len(seg.Markers[0].Values) == 1 &&
-			seg.Markers[0].Values[0] == clusterName {
-			utils.AviLog.Infof("Marker configuration found in Service Engine Group %s.", *seg.Name)
-			return nil, *seg.Name
-		}
-	}
-
-	if result.Next != "" {
-		// It has a next page, let's recursively call the same method.
-		next_uri := strings.Split(result.Next, "/api/serviceenginegroup")
-		if len(next_uri) > 1 {
-			overrideUri := "/api/serviceenginegroup" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
-			return fetchSEGroupWithMarkerSet(client, nextPage)
-		}
-	}
-
-	utils.AviLog.Infof("No Marker configured Service Engine Group found.")
-	return nil, ""
 }
 
 // ConfigureSeGroupLabels configures labels on the SeGroup if not present already

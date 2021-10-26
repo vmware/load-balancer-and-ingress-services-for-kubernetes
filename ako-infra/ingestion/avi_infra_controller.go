@@ -17,12 +17,14 @@
 package ingestion
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -117,6 +119,10 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 }
 
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
+	err, seGroup := lib.FetchSEGroupWithMarkerSet(a.AviRestClients.AviClient[0])
+	if err == nil && seGroup != "" {
+		utils.AviLog.Infof("SE Group: %s already configured with the marker labels: %s", seGroup, lib.GetClusterID())
+	}
 	// This method checks if the cloud in Avi has a SE Group template configured or not. If has the SEG template then it returns true, else false
 	err, cloudName, segUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
 	if err != nil {
@@ -156,7 +162,9 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 			return false
 		}
 	}
-
+	if !a.AnnotateSystemNamespace(lib.GetClusterID(), cloudName) {
+		return false
+	}
 	return true
 }
 
@@ -185,6 +193,24 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 	utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), *seGroup.Name)
 	return true
 
+}
+
+func (a *AviControllerInfra) AnnotateSystemNamespace(seGroup string, cloudName string) bool {
+	nsName := utils.VMWARE_SYSTEM_AKO
+	nsObj, err := a.cs.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Failed to GET the vmware-system-ako namespace details due to the following error :%v", err.Error())
+		return false
+	}
+	// Update the namespace with the required annotations
+	nsObj.Annotations["ako.vmware.com/wcp-se-group"] = seGroup
+	nsObj.Annotations["ako.vmware.com/wcp-cloud-name"] = cloudName
+	_, err = a.cs.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Error occurred while Updating namespace: %v", err)
+		return false
+	}
+	return true
 }
 
 func PopulateControllerProperties(cs kubernetes.Interface) error {
