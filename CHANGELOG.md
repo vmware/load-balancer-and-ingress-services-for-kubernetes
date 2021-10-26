@@ -161,3 +161,18 @@ All notable changes to this project will be documented in this file. The format 
 ### Known Issues
  - AKO update ingress status with VIP instead of public IP when public IP is enabled in public cloud deployments.
 
+## AKO-1.5.2
+
+### Added:
+ - Bootup optimizations improves AKO’s boot time in scaled environments.
+ - Support for HTTPRule CRD for Routes without paths.
+ - Support for `Service` with multiple ports in EVH.
+
+### Changed
+ - In SNI deployment,  Host rule CRD with sslkeycertificate reference would get applied successfully to virtual service. However, upon deletion of this CRD, this virtual service would loose all cert configuration and get default cert. This issue is fixed.
+ - In EVH deployment, existing certificate references on parent VS are overwritten if ingress (with host and secret) and Host rule CRD (with sslkeyandcertificate reference and different host) would get applied to same parent VS. Expected behaviour is to append all cert references belongs to different hosts that maps to same parent. This issue is fixed.
+
+### Known Issues
+ - Due to the use of Informers for Secrets, there is an adverse effect on bootup time in OpenShift based setups. AKO can further optimize bootup time on openshift setup by filtering out the Secrets on `avi-system` namespace. This feature will be added in 1.6.1
+ - `ServiceType` of `NodePort` does not support multi-port `Services` with port number.
+
