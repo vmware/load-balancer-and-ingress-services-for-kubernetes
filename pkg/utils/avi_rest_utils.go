@@ -131,7 +131,10 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
 		if err == nil {
 			AviLog.Infof("Setting the client version to the current controller version %v", version)
-			session.SetVersion(version)
+			SetVersion := session.SetVersion(version)
+			for i := uint32(0); i < num; i++ {
+				SetVersion(clientPool.AviClient[i].AviSession)
+			}
 			CtrlVersion = version
 		}
 	}
