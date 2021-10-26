@@ -57,6 +57,7 @@ func main() {
 
 	if err = (&controllers.AKOConfigReconciler{
 		Client: mgr.GetClient(),
+		Config: mgr.GetConfig(),
 		Log:    ctrl.Log.WithName("controllers").WithName("AKOConfig"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
