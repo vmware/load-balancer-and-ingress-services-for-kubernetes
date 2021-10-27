@@ -102,9 +102,10 @@ func InitializeAKOInfra() {
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 
-	c.HandleVCF(informers, stopCh, ctrlCh)
+	transportZone := c.HandleVCF(informers, stopCh, ctrlCh)
 	lib.VCFInitialized = true
 
+	a.SetupSEGroup(transportZone)
 	avirest.SyncLSLR()
 	c.AddNetworkInfoEventHandler(informers, stopCh)
 
