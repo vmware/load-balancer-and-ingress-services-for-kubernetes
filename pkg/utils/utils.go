@@ -311,6 +311,15 @@ func Remove(arr []string, item string) []string {
 	return arr
 }
 
+func FindAndRemove(arr []string, item string) (bool, []string) {
+	for i, v := range arr {
+		if v == item {
+			return true, append(arr[:i], arr[i+1:]...)
+		}
+	}
+	return false, arr
+}
+
 func RemoveNamespaceName(s []NamespaceName, r NamespaceName) []NamespaceName {
 	for i, v := range s {
 		if v == r {

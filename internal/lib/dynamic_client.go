@@ -26,7 +26,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -234,36 +233,42 @@ func GetBootstrapCRData() (BootstrapCRData, bool) {
 	return boostrapdata, true
 }
 
-func GetNetinfoCRData() map[string]string {
+func GetNetinfoCRData() (map[string]string, []string) {
 	lslrMap := make(map[string]string)
+	var cidrs []string
 	dynamicClient := GetVCFDynamicClientSet()
 	crdClient := dynamicClient.Resource(NetworkInfoGVR)
 	crList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
-		return lslrMap
+		return lslrMap, cidrs
 	}
 
 	for _, obj := range crList.Items {
-		spec, found, err := unstructured.NestedStringMap(obj.UnstructuredContent(), "topology")
-		if found && err == nil {
-			lr, found := spec["gatewayPath"]
-			if !found {
-				utils.AviLog.Warnf("gatewayPath not found in NetworkInfo object")
-				continue
-			}
-			ls, found := spec["aviSegmentPath"]
-			if !found {
-				utils.AviLog.Warnf("aviSegmentPath not found in NetworkInfo object")
-				continue
-			}
-			lslrMap[ls] = lr
+		spec := obj.Object["topology"].(map[string]interface{})
+		lr, ok := spec["gatewayPath"].(string)
+		if !ok {
+			utils.AviLog.Infof("lr not found in networkinfo object")
+			continue
+		}
+		ls, ok := spec["aviSegmentPath"].(string)
+		if !ok {
+			utils.AviLog.Infof("ls not found in networkinfo object")
+			continue
+		}
+		lslrMap[ls] = lr
+		cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
+		if !ok {
+			utils.AviLog.Infof("cidr not found in networkinfo object")
+			continue
 		} else {
-			utils.AviLog.Warnf("NetworkInfo topology not found: %v", err)
+			for _, cidr := range cidrIntf {
+				cidrs = append(cidrs, cidr.(string))
+			}
 		}
 	}
 
-	return lslrMap
+	return lslrMap, cidrs
 }
 
 // GetPodCIDR returns the node's configured PodCIDR
