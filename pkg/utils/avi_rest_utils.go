@@ -86,6 +86,18 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 			}
 	}
 
+	var options []func(*session.AviSession) error
+	options = append(options, session.SetNoControllerStatusCheck, session.SetTransport(transport))
+	if authToken == "" {
+		options = append(options, session.SetPassword(password))
+	} else {
+		options = append(options,
+			session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache))
+	}
+	if rootPEMCerts == "" {
+		options = append(options, session.SetInsecure)
+	}
+
 	clientPool.AviClient = make([]*clients.AviClient, num)
 	for i := uint32(0); i < num; i++ {
 		wg.Add(1)
@@ -95,26 +107,7 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 				return
 			}
 
-			var aviClient *clients.AviClient
-			var err error
-
-			if authToken == "" {
-				if rootPEMCerts != "" {
-					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
-				} else {
-					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
-				}
-			} else {
-				if rootPEMCerts != "" {
-					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache), session.SetNoControllerStatusCheck, session.SetTransport(transport))
-				} else {
-					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
-				}
-			}
+			aviClient, err := clients.NewAviClient(api_ep, username, options...)
 			if err != nil {
 				AviLog.Warnf("NewAviClient returned err %v", err)
 				globalErr = err
@@ -129,7 +122,23 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	// Get the controller version if it is not present in env variable.
 	if CtrlVersion == "" {
 		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
-		if err == nil {
+		if err != nil {
+			if aviError, ok := err.(session.AviError); ok &&
+				aviError.HttpStatusCode == http.StatusForbidden {
+				// Controller returned 403 error, refresh the session and
+				// retry the get controller version.
+				AviLog.Debug("Server returned 403 status code, refreshing the session and retrying the get controller version API call", err)
+				clientPool.AviClient[0].AviSession, err = session.NewAviSession(api_ep, username, options...)
+				if err != nil {
+					AviLog.Warnf("Refreshing the session failed with err %v", err)
+					return &clientPool, err
+				}
+				version, err = clientPool.AviClient[0].AviSession.GetControllerVersion()
+				if err != nil {
+					AviLog.Warnf("GetControllerVersion API call failed with err %v", err)
+					return &clientPool, err
+				}
+			}
 			AviLog.Infof("Setting the client version to the current controller version %v", version)
 			CtrlVersion = version
 		}
