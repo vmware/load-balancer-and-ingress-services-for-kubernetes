@@ -145,6 +145,20 @@ func SetGRBACSupport() {
 	}
 }
 
+func IsShardVS(vsName string) bool {
+	if IsEvhEnabled() {
+		if strings.Contains(vsName, ShardEVHVSPrefix) {
+			return true
+		}
+	} else {
+		//Second condition is for migration from evh -> sni
+		if strings.Contains(vsName, ShardVSPrefix) && !strings.Contains(vsName, ShardEVHVSPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func GetGRBACSupport() bool {
 	return gRBAC
 }

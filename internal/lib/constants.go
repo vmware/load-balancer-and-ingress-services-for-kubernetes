@@ -68,6 +68,7 @@ const (
 	NODE_KEY                                   = "NODE_KEY"
 	NODE_VALUE                                 = "NODE_VALUE"
 	ShardVSPrefix                              = "Shared-L7"
+	ShardEVHVSPrefix                           = "Shared-L7-EVH-"
 	PassthroughPrefix                          = "Shared-Passthrough-"
 	PolicyAllow                                = "ALLOW"
 	PolicyNone                                 = "NONE"
