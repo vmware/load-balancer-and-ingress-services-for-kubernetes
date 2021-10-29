@@ -155,7 +155,22 @@ const (
 	VCF_CLUSTER                                = "VCF_CLUSTER"
 	VCF_NETWORK                                = "vcf-ako-net"
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
-	AKOEventComponent                          = "avi-kubernetes-operator"
+	CRDActive                                  = "ACTIVE"
+	CRDInactive                                = "INACTIVE"
+
+	// AKO Event constants
+	AKOEventComponent  = "avi-kubernetes-operator"
+	AKOShutdown        = "AKOShutdown"
+	SyncDisabled       = "SyncDisabled"
+	ValidatedUserInput = "ValidatedUserInput"
+	StatusSync         = "StatusSync"
+	AKOReady           = "AKOReady"
+	DuplicateHostPath  = "DuplicateHostPath"
+	DuplicateHost      = "DuplicateHost"
+	Removed            = "Removed"
+	Synced             = "Synced"
+	Attached           = "Attached"
+	Detached           = "Detached"
 
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation          = "external-dns.alpha.kubernetes.io/hostname"

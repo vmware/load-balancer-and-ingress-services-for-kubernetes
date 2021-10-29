@@ -34,6 +34,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
 	"github.com/vmware/alb-sdk/go/models"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -2504,50 +2505,60 @@ func GetControllerClusterUUID() string {
 	return controllerClusterUUID
 }
 
-func ValidateUserInput(client *clients.AviClient) bool {
+func ValidateUserInput(client *clients.AviClient) (bool, error) {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
 
-	isTenantValid := checkTenant(client)
-	isCloudValid := checkAndSetCloudType(client)
-	isRequiredValuesValid := checkRequiredValuesYaml()
-	isSegroupValid := isCloudValid && validateAndConfigureSeGroup(client)
-	if lib.GetAdvancedL4() &&
-		isTenantValid &&
-		isCloudValid &&
-		isSegroupValid &&
-		isRequiredValuesValid {
-		utils.AviLog.Info("All values verified for advanced L4, proceeding with bootup")
-		return true
+	var err error
+	isTenantValid := checkTenant(client, &err)
+	isCloudValid := checkAndSetCloudType(client, &err)
+	isRequiredValuesValid := checkRequiredValuesYaml(&err)
+	isSegroupValid := validateAndConfigureSeGroup(client, &err)
+	if lib.GetAdvancedL4() {
+		if isTenantValid &&
+			isCloudValid &&
+			isRequiredValuesValid &&
+			isSegroupValid {
+			utils.AviLog.Info("All values verified for advanced L4, proceeding with bootup.")
+			return true, nil
+		}
+		return false, err
 	}
 
-	isNodeNetworkValid := isCloudValid && checkNodeNetwork(client)
-	isBGPConfigurationValid := checkBGPParams()
+	isNodeNetworkValid := checkNodeNetwork(client, &err)
+	isBGPConfigurationValid := checkBGPParams(&err)
+	isPublicCloudConfigValid := checkPublicCloud(client, &err)
+	checkedAndSetVRFConfig := checkAndSetVRFFromNetwork(client, &err)
+	isCNIConfigValid := lib.IsValidCni(&err)
+
 	isValid := isTenantValid &&
 		isCloudValid &&
 		isSegroupValid &&
-		isNodeNetworkValid &&
-		checkPublicCloud(client) &&
 		isRequiredValuesValid &&
-		checkAndSetVRFFromNetwork(client) &&
-		lib.IsValidCni() &&
+		isNodeNetworkValid &&
+		isPublicCloudConfigValid &&
+		checkedAndSetVRFConfig &&
+		isCNIConfigValid &&
 		isBGPConfigurationValid
 
 	if !isValid {
 		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid || !isBGPConfigurationValid {
-			utils.AviLog.Warn("Invalid input detected, AKO will be rebooted to retry")
+			utils.AviLog.Warnf("Invalid input detected, AKO will be rebooted to retry %s", err.Error())
+			lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Invalid user input %s", err.Error())
 			lib.ShutdownApi()
+		} else {
+			utils.AviLog.Warn("Invalid input detected, sync will be disabled.")
 		}
-		utils.AviLog.Warn("Invalid input detected, sync will be disabled.")
 	}
-	return isValid
+	return isValid, err
 }
 
-func checkRequiredValuesYaml() bool {
-	if !lib.IsClusterNameValid() {
+func checkRequiredValuesYaml(returnErr *error) bool {
+	if _, err := lib.IsClusterNameValid(); err != nil {
+		*returnErr = err
 		return false
 	}
-	lib.SetNamePrefix()
 
+	lib.SetNamePrefix()
 	// after clusterName validation, set AKO User to be used in created_by fields for Avi Objects
 	lib.SetAKOUser()
 	//Set clusterlabel checksum
@@ -2555,8 +2566,16 @@ func checkRequiredValuesYaml() bool {
 
 	cloudName := os.Getenv("CLOUD_NAME")
 	if cloudName == "" {
-		utils.AviLog.Error("Required param cloudName not specified, syncing will be disabled")
+		*returnErr = fmt.Errorf("Required param cloudName not specified, syncing will be disabled")
 		return false
+	}
+
+	if vipList, err := lib.GetVipNetworkListEnv(); err != nil {
+		*returnErr = fmt.Errorf("Error in getting VIP network %s, shutting down AKO", err)
+		return false
+	} else if len(vipList) > 0 {
+		lib.SetVipNetworkList(vipList)
+		return true
 	}
 
 	// check if config map exists
@@ -2567,7 +2586,7 @@ func checkRequiredValuesYaml() bool {
 	}
 	_, err := k8sClient.CoreV1().ConfigMaps(aviCMNamespace).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Errorf("Configmap %s/%s not found, error: %v, syncing will be disabled", aviCMNamespace, lib.AviConfigMap, err)
+		*returnErr = fmt.Errorf("Configmap %s/%s not found, error: %v, syncing will be disabled", aviCMNamespace, lib.AviConfigMap, err)
 		return false
 	}
 
@@ -2576,7 +2595,7 @@ func checkRequiredValuesYaml() bool {
 
 // validateAndConfigureSeGroup validates SeGroup configuration provided during installation
 // and configures labels on the SeGroup if not present already
-func validateAndConfigureSeGroup(client *clients.AviClient) bool {
+func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bool {
 	// Indulge in Marker based SEGroup searching only when user input is empty.
 	// SE Group selection priority
 	// 1. User input
@@ -2587,6 +2606,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	if seGroupToUse == "" && lib.GetAdvancedL4() {
 		err, seGroupToUse = lib.FetchSEGroupWithMarkerSet(client)
 		if err != nil {
+			*returnErr = err
 			return false
 		}
 	}
@@ -2624,14 +2644,14 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName + "&name.in=" + strings.Join(seGroupSet.List(), ",")
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
 		return false
 	}
 
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
 		return false
 	}
 
@@ -2642,8 +2662,11 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 			continue
 		}
 
-		if _, found := seGroupSet[*seg.Name]; found && !ConfigureSeGroupLabels(client, &seg) {
-			return false
+		if _, found := seGroupSet[*seg.Name]; found {
+			if err = ConfigureSeGroupLabels(client, &seg); err != nil {
+				*returnErr = err
+				return false
+			}
 		}
 	}
 
@@ -2651,7 +2674,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient) bool {
 }
 
 // ConfigureSeGroupLabels configures labels on the SeGroup if not present already
-func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEngineGroup) bool {
+func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEngineGroup) error {
 	labels := seGroup.Labels
 	segName := *seGroup.Name
 
@@ -2669,21 +2692,18 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 
 		err := lib.AviPut(client, uri, seGroup, response)
 		if err != nil {
-			utils.AviLog.Warnf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
-			return false
+			return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
 		}
 		utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), segName)
-		return true
-
+		return nil
 	}
 
 	segLabelEq := reflect.DeepEqual(labels, lib.GetLabels())
 	if !segLabelEq {
-		utils.AviLog.Warnf("Labels does not match with cluster name for SE group :%v. Expected Labels: %v", segName, utils.Stringify(lib.GetLabels()))
-		return false
+		return fmt.Errorf("Labels does not match with cluster name for SE group :%v. Expected Labels: %v", segName, utils.Stringify(lib.GetLabels()))
 	}
 
-	return true
+	return nil
 }
 
 // DeConfigureSeGroupLabels deconfigures labels on the SeGroup.
@@ -2756,7 +2776,7 @@ func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEn
 	return &seg, nil
 }
 
-func checkTenant(client *clients.AviClient) bool {
+func checkTenant(client *clients.AviClient, returnError *error) bool {
 	uri := "/api/tenant/?name=" + lib.GetTenant()
 	if lib.GetTenantsPerCluster() {
 		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
@@ -2766,41 +2786,42 @@ func checkTenant(client *clients.AviClient) bool {
 	}
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		*returnError = fmt.Errorf("Get uri %v returned err %v", uri, err)
 		return false
 	}
 
 	if result.Count != 1 {
-		utils.AviLog.Errorf("Tenant details not found for the tenant: %s", lib.GetTenant())
+		*returnError = fmt.Errorf("Tenant details not found for the tenant: %s", lib.GetTenant())
 		return false
 	}
+
 	return true
 }
 
-func checkAndSetCloudType(client *clients.AviClient) bool {
+func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 	uri := "/api/cloud/?include_name&name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
 		return false
 	}
 
 	if result.Count != 1 {
-		utils.AviLog.Errorf("Cloud details not found for cloud name: %s", utils.CloudName)
+		*returnErr = fmt.Errorf("Cloud details not found for cloud name: %s", utils.CloudName)
 		return false
 	}
 
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
 		return false
 	}
 
 	cloud := models.Cloud{}
 	err = json.Unmarshal(elems[0], &cloud)
 	if err != nil {
-		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
 		return false
 	}
 	vType := *cloud.Vtype
@@ -2812,36 +2833,37 @@ func checkAndSetCloudType(client *clients.AviClient) bool {
 
 	// IPAM is mandatory for vcenter and noaccess cloud
 	if !lib.IsPublicCloud() && cloud.IPAMProviderRef == nil {
-		utils.AviLog.Errorf("Cloud does not have a ipam_provider_ref configured")
+		*returnErr = fmt.Errorf("Cloud does not have a ipam_provider_ref configured")
 		return false
 	}
 
 	// if the cloud's ipamprovider profile is set, check in the ipam
 	// whether any of the usable networks have a label set. The marker based approach is not valid
 	// for public clouds.
-	if ipamCheck := checkIPAMForUsableNetworkLabels(client, cloud.IPAMProviderRef); !ipamCheck {
+	if ipamCheck, err := checkIPAMForUsableNetworkLabels(client, cloud.IPAMProviderRef); !ipamCheck {
+		*returnErr = err
 		return false
 	}
 
 	// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
 	if vType == lib.CLOUD_NSXT && lib.GetNSXTTransportZone() == lib.OVERLAY_TRANSPORT_ZONE {
 		if lib.GetT1LRPath() == "" {
-			utils.AviLog.Errorf("Cloud is configured as NSX-T with overlay transport zone but the T1 LR mapping is not provided")
+			*returnErr = fmt.Errorf("Cloud is configured as NSX-T with overlay transport zone but the T1 LR mapping is not provided")
 			return false
 		}
 	} else if lib.GetT1LRPath() != "" && vType != lib.CLOUD_NSXT {
 		// If the cloud type is not NSX-T and yet the T1 LR is set then too disable sync
-		utils.AviLog.Errorf("Cloud is not configured as NSX-T but the T1 LR mapping is  provided")
+		*returnErr = fmt.Errorf("Cloud is not configured as NSX-T but the T1 LR mapping is provided")
 		return false
 	} else if lib.GetT1LRPath() != "" && vType == lib.CLOUD_NSXT && lib.GetNSXTTransportZone() == lib.VLAN_TRANSPORT_ZONE {
-		utils.AviLog.Errorf("Cloud configured as NSX-T with VLAN transport zone but the T1 LR mapping is  provided")
+		*returnErr = fmt.Errorf("Cloud configured as NSX-T with VLAN transport zone but the T1 LR mapping is  provided")
 		return false
 	}
 
 	return true
 }
 
-func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *string) bool {
+func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *string) (bool, error) {
 	// Donot check for labels in usable networks if a vipNetwork is provided by the user.
 	// In this case, the vipNetwork provided by the user will be used.
 	// 1. Prioritize user input vipetworkList, skip marker based selection if provided.
@@ -2850,9 +2872,11 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 4. vipNetworkList can be empty only in WCP usecases, for all others, mark invalid configuration.
 
 	// 1. User input
-	if vipList, _ := lib.GetVipNetworkListEnv(); len(vipList) > 0 {
+	if vipList, err := lib.GetVipNetworkListEnv(); err != nil {
+		return false, fmt.Errorf("Error in getting VIP network %s, shutting down AKO", err)
+	} else if len(vipList) > 0 {
 		lib.SetVipNetworkList(vipList)
-		return true
+		return true, nil
 	}
 
 	// 2. Marker based (only advancedL4)
@@ -2864,8 +2888,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		ipamRef := strings.SplitAfter(*ipamRefUri, "/api/")
 		ipamRefWithoutName := strings.Split(ipamRef[1], "#")[0]
 		if err := lib.AviGet(client, "/api/"+ipamRefWithoutName+"/?include_name", &ipam); err != nil {
-			utils.AviLog.Errorf("Get uri %v returned err %v", ipamRef, err)
-			return false
+			return false, fmt.Errorf("Get uri %v returned err %v", ipamRef, err)
 		}
 
 		usableNetworkNames := []string{}
@@ -2875,20 +2898,19 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		}
 
 		if len(usableNetworkNames) == 0 {
-			utils.AviLog.Errorf("No usable network configured in configured cloud's ipam profile.")
-			return false
+			return false, fmt.Errorf("No usable network configured in configured cloud's ipam profile.")
 		}
 
 		err, markerNetworkFound = fetchNetworkWithMarkerSet(client, usableNetworkNames)
 		if err != nil {
-			return false
+			return false, err
 		}
 
 		if markerNetworkFound != "" {
 			lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{{
 				NetworkName: markerNetworkFound,
 			}})
-			return true
+			return true, nil
 		}
 
 	}
@@ -2896,11 +2918,10 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 3. Empty VipNetworkList
 	if lib.GetAdvancedL4() && markerNetworkFound == "" {
 		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
-		return true
+		return true, nil
 	}
 
-	utils.AviLog.Warnf("No user input detected for vipNetworkList.")
-	return false
+	return false, fmt.Errorf("No user input detected for vipNetworkList.")
 }
 
 func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []string, overrideUri ...NextPage) (error, string) {
@@ -2956,19 +2977,19 @@ func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []s
 	return nil, ""
 }
 
-func checkPublicCloud(client *clients.AviClient) bool {
+func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
 		vipNetworkList := lib.GetVipNetworkList()
 		if len(vipNetworkList) == 0 {
-			utils.AviLog.Errorf("vipNetworkList not specified, syncing will be disabled.")
+			*returnErr = fmt.Errorf("vipNetworkList not specified, syncing will be disabled.")
 			return false
 		}
 	}
 	return true
 }
 
-func checkNodeNetwork(client *clients.AviClient) bool {
+func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
 	// Not applicable for NodePort mode and non vcenter clouds
 	if lib.IsNodePortMode() || lib.GetCloudType() != lib.CLOUD_VCENTER {
 		utils.AviLog.Infof("Skipping the check for Node Network ")
@@ -2978,39 +2999,39 @@ func checkNodeNetwork(client *clients.AviClient) bool {
 	// check if node network and cidr's are valid
 	nodeNetworkMap, err := lib.GetNodeNetworkMap()
 	if err != nil {
-		utils.AviLog.Errorf("Fetching node network list failed with error: %s, syncing will be disabled.", err.Error())
+		*returnErr = fmt.Errorf("Fetching node network list failed with error: %s, syncing will be disabled.", err.Error())
 		return false
 	}
-	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 
+	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 		uri := "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
 		result, err := lib.AviGetCollectionRaw(client, uri)
 		if err != nil {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
 			return false
 		}
 		elems := make([]json.RawMessage, result.Count)
 		err = json.Unmarshal(result.Results, &elems)
 		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %s", err.Error())
+			*returnErr = fmt.Errorf("Failed to unmarshal data, err: %s", err.Error())
 			return false
 		}
 
 		if result.Count == 0 {
-			utils.AviLog.Errorf("No networks found for networkName: %s", nodeNetworkName)
+			*returnErr = fmt.Errorf("No networks found for networkName: %s", nodeNetworkName)
 			return false
 		}
 
 		for _, cidr := range nodeNetworkCIDRs {
 			_, _, err := net.ParseCIDR(cidr)
 			if err != nil {
-				utils.AviLog.Errorf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
+				*returnErr = fmt.Errorf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
 				return false
 			}
 			mask := strings.Split(cidr, "/")[1]
 			_, err = strconv.ParseInt(mask, 10, 32)
 			if err != nil {
-				utils.AviLog.Errorf("The value of CIDR couldn't be converted to int32")
+				*returnErr = fmt.Errorf("The value of CIDR couldn't be converted to int32")
 				return false
 			}
 		}
@@ -3018,7 +3039,7 @@ func checkNodeNetwork(client *clients.AviClient) bool {
 	return true
 }
 
-func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
+func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool {
 	if lib.IsPublicCloud() {
 		// Need not set VRFContext for public clouds.
 		return true
@@ -3031,7 +3052,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 	}
 
 	if !validateNetworkNames(client, networkList) {
-		utils.AviLog.Warnf("Failed to validate Network Names specified in VIP Network List")
+		*returnErr = fmt.Errorf("Failed to validate Network Names specified in VIP Network List")
 		return false
 	}
 
@@ -3040,25 +3061,25 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 	uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+		*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
 		return false
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
 		return false
 	}
 
 	if result.Count == 0 {
-		utils.AviLog.Warnf("No networks found for networkName: %s", networkName)
+		*returnErr = fmt.Errorf("No networks found for networkName: %s", networkName)
 		return false
 	}
 
 	network := models.Network{}
 	err = json.Unmarshal(elems[0], &network)
 	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
 		return false
 	}
 
@@ -3075,6 +3096,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient) bool {
 		// Current pagination size is set to 100, this may have to increased if we have more than 100 T1 routers.
 		err, foundVrf := fetchAndSetVrf(client)
 		if err != nil {
+			*returnErr = err
 			return false
 		}
 
@@ -3148,11 +3170,11 @@ func fetchAndSetVrf(client *clients.AviClient, overrideUri ...NextPage) (error, 
 	return nil, false
 }
 
-func checkBGPParams() bool {
+func checkBGPParams(returnErr *error) bool {
 	enableRhi := lib.GetEnableRHI()
 	bgpPeerLabels := lib.GetGlobalBgpPeerLabels()
 	if !enableRhi && len(bgpPeerLabels) > 0 {
-		utils.AviLog.Error("BGPPeerLabels %s cannot be set if EnableRhi is set to %v.", utils.Stringify(bgpPeerLabels), enableRhi)
+		*returnErr = fmt.Errorf("BGPPeerLabels %s cannot be set if EnableRhi is set to %v.", utils.Stringify(bgpPeerLabels), enableRhi)
 		return false
 	}
 	return true

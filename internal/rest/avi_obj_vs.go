@@ -385,6 +385,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
 								Key:                key,
 								VirtualServiceUUID: vs_cache_obj.Uuid,
+								VSName:             vs_cache_obj.Name,
 							}
 							statusOption := status.StatusOptions{
 								ObjType: utils.L4LBService,
@@ -401,6 +402,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
 								Key:                key,
 								VirtualServiceUUID: vs_cache_obj.Uuid,
+								VSName:             vs_cache_obj.Name,
 							}
 							statusOption := status.StatusOptions{
 								ObjType: utils.Ingress,
@@ -425,6 +427,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 				Vip:             IPAddrs,
 				ServiceMetadata: *svc_mdata_obj,
 				Key:             key,
+				VSName:          vs_cache_obj.Name,
 			}
 			statusOption := status.StatusOptions{
 				ObjType: lib.Gateway,
@@ -443,6 +446,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 				ServiceMetadata:    *svc_mdata_obj,
 				Key:                key,
 				VirtualServiceUUID: vs_cache_obj.Uuid,
+				VSName:             vs_cache_obj.Name,
 			}
 			statusOption := status.StatusOptions{
 				ObjType: utils.L4LBService,
@@ -458,6 +462,7 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 				ServiceMetadata:    *svc_mdata_obj,
 				Key:                key,
 				VirtualServiceUUID: vs_cache_obj.Uuid,
+				VSName:             vs_cache_obj.Name,
 			}
 			statusOption := status.StatusOptions{
 				ObjType: utils.Ingress,
@@ -576,6 +581,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
 
+				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, svc_mdata_obj.CRDStatus)
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
 				if val, ok := resp["enable_rhi"].(bool); ok {
 					vs_cache_obj.EnableRhi = val
@@ -639,11 +645,11 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			}
 
 			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
+			status.HostRuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
 			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(vs_cache_obj))
 		}
 
 		rest.StatusUpdate(rest_op, vs_cache_obj, &svc_mdata_obj, parentVsObj, key, false)
-
 	}
 
 	return nil
@@ -688,6 +694,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
 					Key:             key,
+					VSName:          vs_cache_obj.Name,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: lib.Gateway,
@@ -700,6 +707,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					ServiceMetadata:    vs_cache_obj.ServiceMetadataObj,
 					Key:                key,
 					VirtualServiceUUID: vs_cache_obj.Uuid,
+					VSName:             vs_cache_obj.Name,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
@@ -715,6 +723,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					updateOptions := status.UpdateOptions{
 						ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
 						Key:             key,
+						VSName:          vs_cache_obj.Name,
 					}
 					statusOption := status.StatusOptions{
 						ObjType: utils.Ingress,
@@ -727,10 +736,12 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					}
 					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
+
+				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
 			} else {
-				// Shared VS deletion related ingress status update
+				// insecure ingress status updates in regular AKO.
 				for _, poolKey := range vs_cache_obj.PoolKeyCollection {
-					rest.DeletePoolIngressStatus(poolKey, true, key)
+					rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
 				}
 			}
 		}

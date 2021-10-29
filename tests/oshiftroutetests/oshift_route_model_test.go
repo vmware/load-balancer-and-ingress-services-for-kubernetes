@@ -128,6 +128,7 @@ func TestMain(m *testing.M) {
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
@@ -370,8 +371,11 @@ func TestRouteServiceDel(t *testing.T) {
 
 	g.Eventually(func() int {
 		_, aviModel = objects.SharedAviGraphLister().Get(defaultModelName)
-		pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
-		return len(pool.Servers)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes) > 0 {
+			return len(nodes[0].PoolRefs[0].Servers)
+		}
+		return -1
 	}, 10*time.Second).Should(gomega.Equal(0))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)

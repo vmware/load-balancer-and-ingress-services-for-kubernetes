@@ -61,6 +61,12 @@ var fqdnMap = map[string]string{
 	"flat":    AutoFQDNFlat,
 }
 
+type CRDMetadata struct {
+	Type   string `json:"type"`
+	Value  string `json:"value"`
+	Status string `json:"status"`
+}
+
 var NamePrefix string
 
 func CheckObjectNameLength(objName, objType string) bool {
@@ -683,10 +689,10 @@ func CompareVersions(v1, cmpSign, v2 string) bool {
 	return false
 }
 
-func IsValidCni() bool {
+func IsValidCni(returnErr *error) bool {
 	// if serviceType is set as NodePortLocal, then the CNI must be of type 'antrea'
 	if GetServiceType() == NodePortLocal && GetCNIPlugin() != ANTREA_CNI {
-		utils.AviLog.Warnf("ServiceType is set as a NodePortLocal, but the CNI is not set as antrea")
+		*returnErr = fmt.Errorf("ServiceType is set as a NodePortLocal, but the CNI is not set as antrea")
 		return false
 	}
 	return true
@@ -738,17 +744,15 @@ func GetClusterIDSplit() string {
 	return ""
 }
 
-func IsClusterNameValid() bool {
+func IsClusterNameValid() (bool, error) {
 	clusterName := GetClusterName()
 	re := regexp.MustCompile(`^[a-zA-Z0-9-_]*$`)
 	if clusterName == "" {
-		utils.AviLog.Error("Required param clusterName not specified, syncing will be disabled")
-		return false
+		return false, fmt.Errorf("Required param clusterName not specified, syncing will be disabled")
 	} else if !re.MatchString(clusterName) {
-		utils.AviLog.Error("clusterName must consist of alphanumeric characters or '-'/'_' (max 32 chars), syncing will be disabled")
-		return false
+		return false, fmt.Errorf("clusterName must consist of alphanumeric characters or '-'/'_' (max 32 chars), syncing will be disabled")
 	}
-	return true
+	return true, nil
 }
 
 var StaticRouteSyncChan chan struct{}
@@ -783,9 +787,11 @@ func SetClusterLabelChecksum() {
 		clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
 	}
 }
+
 func GetClusterLabelChecksum() uint32 {
 	return clusterLabelChecksum
 }
+
 func GetMarkersChecksum(markers utils.AviObjectMarkers) uint32 {
 	vals := reflect.ValueOf(markers)
 	var j int
@@ -1331,7 +1337,7 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
 	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
 
-	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
+	aviClient := NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
 	if aviClient == nil {
 		utils.AviLog.Errorf("Failed to initialize AVI client")
 		return
