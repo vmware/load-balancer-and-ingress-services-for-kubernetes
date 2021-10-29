@@ -123,25 +123,16 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	if CtrlVersion == "" {
 		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
 		if err != nil {
-			if aviError, ok := err.(session.AviError); ok &&
-				aviError.HttpStatusCode == http.StatusForbidden {
-				// Controller returned 403 error, refresh the session and
-				// retry the get controller version.
-				AviLog.Debug("Server returned 403 status code, refreshing the session and retrying the get controller version API call", err)
-				clientPool.AviClient[0].AviSession, err = session.NewAviSession(api_ep, username, options...)
-				if err != nil {
-					AviLog.Warnf("Refreshing the session failed with err %v", err)
-					return &clientPool, err
-				}
-				version, err = clientPool.AviClient[0].AviSession.GetControllerVersion()
-				if err != nil {
-					AviLog.Warnf("GetControllerVersion API call failed with err %v", err)
-					return &clientPool, err
-				}
+			// Controller returned an error, retry the get controller version API call.
+			AviLog.Debugf("Controller returned an error %v, retrying the get controller version API call", err)
+			version, err = clientPool.AviClient[0].AviSession.GetControllerVersion()
+			if err != nil {
+				AviLog.Warnf("GetControllerVersion API call failed with err %v", err)
+				return &clientPool, err
 			}
-			AviLog.Infof("Setting the client version to the current controller version %v", version)
-			CtrlVersion = version
 		}
+		AviLog.Infof("Setting the client version to the current controller version %v", version)
+		CtrlVersion = version
 	}
 
 	if globalErr != nil {

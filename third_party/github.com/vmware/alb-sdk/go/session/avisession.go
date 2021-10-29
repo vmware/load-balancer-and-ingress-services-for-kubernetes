@@ -687,6 +687,7 @@ func (avisess *AviSession) restRequest(verb string, uri string, payload interfac
 				return nil, err
 			}
 			if avisess.ctrlStatusCheckDisabled {
+				resp.Body.Close()
 				return resp, nil
 			}
 			retryReq = true
