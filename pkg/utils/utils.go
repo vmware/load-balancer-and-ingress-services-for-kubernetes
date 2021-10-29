@@ -413,6 +413,11 @@ func IsServiceNSValid(namespace string) bool {
 	return true
 }
 
+func IsVCFCluster() bool {
+	vcfCluster := os.Getenv(VCF_CLUSTER)
+	return vcfCluster == "true"
+}
+
 // This utility returns a true/false depending on whether
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {

@@ -128,7 +128,11 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	if err != nil {
 		return false
 	}
+	utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
 	utils.SetCloudName(cloudName)
+	if CheckSeGroup(a.AviRestClients.AviClient[0]) {
+		return true
+	}
 	var uri string
 	if segUuid == "" {
 		// The cloud does not have a SEG template set, use `Default-Group`
@@ -162,9 +166,6 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 			return false
 		}
 	}
-	if !a.AnnotateSystemNamespace(lib.GetClusterID(), cloudName) {
-		return false
-	}
 	return true
 }
 
@@ -195,12 +196,32 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 
 }
 
+// ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the labels.
+func CheckSeGroup(client *clients.AviClient) bool {
+	// Change the name of the SE group
+	segroupName := lib.GetClusterID()
+
+	uri := "/api/serviceenginegroup/?name=" + segroupName
+	response := models.ServiceEngineGroupAPIResponse{}
+	err := lib.AviGet(client, uri, &response)
+	if err != nil {
+		utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
+		return false
+	}
+	utils.AviLog.Infof("Found Service Engine Group :%v", segroupName)
+	utils.IsVCFCluster()
+	return true
+}
+
 func (a *AviControllerInfra) AnnotateSystemNamespace(seGroup string, cloudName string) bool {
-	nsName := utils.VMWARE_SYSTEM_AKO
+	nsName := utils.GetAKONamespace()
 	nsObj, err := a.cs.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the vmware-system-ako namespace details due to the following error :%v", err.Error())
 		return false
+	}
+	if nsObj.Annotations == nil {
+		nsObj.Annotations = make(map[string]string)
 	}
 	// Update the namespace with the required annotations
 	nsObj.Annotations["ako.vmware.com/wcp-se-group"] = seGroup

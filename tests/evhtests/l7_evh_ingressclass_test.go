@@ -151,6 +151,9 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 }
 
 func TestEVHDefaultIngressClassChange(t *testing.T) {
+	if lib.VIPPerNamespace() {
+		t.Skip()
+	}
 	// use default ingress class, change default annotation to false
 	// check that ingress status is removed
 	// change back default class annotation to true
@@ -564,9 +567,13 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
+
+	settingModelName1, settingModelName2 := "admin/cluster--Shared-L7-EVH-my-infrasetting1-0", "admin/cluster--Shared-L7-EVH-my-infrasetting2-1"
 	if lib.VIPPerNamespace() {
-		t.Skip()
+		settingModelName1, settingModelName2 = "admin/cluster--Shared-L7-EVH-my-infrasetting1-NS-default", "admin/cluster--Shared-L7-EVH-my-infrasetting2-NS-default"
 	}
+	objects.SharedAviGraphLister().Delete(settingModelName1)
+	objects.SharedAviGraphLister().Delete(settingModelName2)
 	// update from ingressclass with infrasetting to another
 	// ingressclass with infrasetting in ingress
 
@@ -584,7 +591,6 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 
 	integrationtest.SetupAviInfraSetting(t, settingName1, "SMALL")
 	integrationtest.SetupAviInfraSetting(t, settingName2, "MEDIUM")
-	settingModelName1, settingModelName2 := "admin/cluster--Shared-L7-EVH-my-infrasetting1-0", "admin/cluster--Shared-L7-EVH-my-infrasetting2-1"
 
 	integrationtest.SetupIngressClass(t, ingClassName1, lib.AviIngressController, settingName1)
 	integrationtest.SetupIngressClass(t, ingClassName2, lib.AviIngressController, settingName2)

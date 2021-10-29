@@ -40,7 +40,7 @@ func main() {
 }
 
 func InitializeAKOInfra() {
-	if !lib.IsVCFCluster() {
+	if !utils.IsVCFCluster() {
 		utils.AviLog.Fatalf("Not running in vcf cluster, shutting down")
 	}
 
@@ -72,20 +72,8 @@ func InitializeAKOInfra() {
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
-	// Checking/Setting up Avi pre-reqs
-	a := ingestion.NewAviControllerInfra(kubeClient)
-	a.InitInfraController()
-	// Check for kubernetes apiserver version compatibility with AKO version.
-	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {
-		utils.AviLog.Warnf("Error while fetching kubernetes apiserver version")
-	} else {
-		serverVersion := fmt.Sprintf("%s.%s", serverVersionInfo.Major, serverVersionInfo.Minor)
-		utils.AviLog.Infof("Kubernetes cluster apiserver version %s", serverVersion)
-		if lib.CompareVersions(serverVersion, ">", lib.GetK8sMaxSupportedVersion()) ||
-			lib.CompareVersions(serverVersion, "<", lib.GetK8sMinSupportedVersion()) {
-			utils.AviLog.Fatalf("Unsupported kubernetes apiserver version detected. Please check the supportability guide.")
-		}
-	}
+
+	utils.AviLog.Infof("Successfully created kube client for ako-infra")
 
 	registeredInformers, err := lib.InformersToRegister(kubeClient, nil)
 	if err != nil {
@@ -105,8 +93,25 @@ func InitializeAKOInfra() {
 	transportZone := c.HandleVCF(informers, stopCh, ctrlCh)
 	lib.VCFInitialized = true
 
+	// Checking/Setting up Avi pre-reqs
+	a := ingestion.NewAviControllerInfra(kubeClient)
+
+	a.InitInfraController()
+	// Check for kubernetes apiserver version compatibility with AKO version.
+	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {
+		utils.AviLog.Warnf("Error while fetching kubernetes apiserver version")
+	} else {
+		serverVersion := fmt.Sprintf("%s.%s", serverVersionInfo.Major, serverVersionInfo.Minor)
+		utils.AviLog.Infof("Kubernetes cluster apiserver version %s", serverVersion)
+		if lib.CompareVersions(serverVersion, ">", lib.GetK8sMaxSupportedVersion()) ||
+			lib.CompareVersions(serverVersion, "<", lib.GetK8sMinSupportedVersion()) {
+			utils.AviLog.Fatalf("Unsupported kubernetes apiserver version detected. Please check the supportability guide.")
+		}
+	}
+
 	a.SetupSEGroup(transportZone)
 	avirest.SyncLSLRNetwork()
+	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(informers, stopCh)
 
 	<-stopCh

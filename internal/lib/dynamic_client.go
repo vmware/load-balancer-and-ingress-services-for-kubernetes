@@ -73,7 +73,7 @@ type BootstrapCRData struct {
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && !IsVCFCluster() {
+	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && !utils.IsVCFCluster() {
 		return nil, nil
 	}
 
@@ -233,9 +233,9 @@ func GetBootstrapCRData() (BootstrapCRData, bool) {
 	return boostrapdata, true
 }
 
-func GetNetinfoCRData() (map[string]string, []string) {
+func GetNetinfoCRData() (map[string]string, map[string]struct{}) {
 	lslrMap := make(map[string]string)
-	var cidrs []string
+	cidrs := make(map[string]struct{})
 	dynamicClient := GetVCFDynamicClientSet()
 	crdClient := dynamicClient.Resource(NetworkInfoGVR)
 	crList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
@@ -263,7 +263,7 @@ func GetNetinfoCRData() (map[string]string, []string) {
 			continue
 		} else {
 			for _, cidr := range cidrIntf {
-				cidrs = append(cidrs, cidr.(string))
+				cidrs[cidr.(string)] = struct{}{}
 			}
 		}
 	}

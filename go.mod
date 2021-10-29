@@ -2,6 +2,7 @@ module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
 require (
 	github.com/Masterminds/semver v1.5.0
+	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-logr/logr v0.4.0

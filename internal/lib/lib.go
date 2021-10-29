@@ -513,7 +513,7 @@ func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
 
 func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-	if GetAdvancedL4() {
+	if GetAdvancedL4() || utils.IsVCFCluster() {
 		// do not return error in case of advancedL4 (wcp)
 		return vipNetworkList, nil
 	}
@@ -545,8 +545,16 @@ func GetGlobalBgpPeerLabels() []string {
 	return bgpPeerLabels
 }
 
+var t1LrPath string
+
+func SetT1LRPath(lr string) {
+	t1LrPath = lr
+}
+
 func GetT1LRPath() string {
-	t1LrPath := os.Getenv("NSXT_T1_LR")
+	if t1LrPath == "" {
+		t1LrPath = os.Getenv("NSXT_T1_LR")
+	}
 	return t1LrPath
 }
 
@@ -1453,10 +1461,6 @@ func VIPPerNamespace() bool {
 	return vipPerNS == "true"
 }
 
-func IsVCFCluster() bool {
-	vcfCluster := os.Getenv(VCF_CLUSTER)
-	return vcfCluster == "true"
-}
-
 var VCFInitialized bool
 var AviSecretInitialized bool
+var AviSEInitialized bool

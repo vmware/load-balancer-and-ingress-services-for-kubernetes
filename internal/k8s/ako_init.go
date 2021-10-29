@@ -121,6 +121,93 @@ func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 	return true
 }
 
+func (c *AviController) SetSEGroupCloudName() bool {
+	seGroupToUse := lib.GetSEGNameEnv()
+	client := avicache.SharedAVIClients().AviClient[0]
+	var err error
+	// 2. Marker based (only advancedL4)
+	if seGroupToUse == "" && lib.GetAdvancedL4() {
+		err, seGroupToUse = lib.FetchSEGroupWithMarkerSet(client)
+		if err != nil {
+			utils.AviLog.Infof("Setting SEGroup with markerset and no SEGroup found from env")
+			return false
+		}
+	}
+
+	// 3. Default-SEGroup
+	if seGroupToUse == "" {
+		utils.AviLog.Infof("Setting SEGroup %s for VS placement.", lib.DEFAULT_SE_GROUP)
+		seGroupToUse = lib.DEFAULT_SE_GROUP
+	}
+
+	if !utils.IsVCFCluster() {
+		lib.SetSEGName(seGroupToUse)
+		cloudName := os.Getenv("CLOUD_NAME")
+		if cloudName == "" {
+			// If the cloud name is blank - assume it to be Default-Cloud
+			cloudName = "Default-Cloud"
+		}
+		utils.SetCloudName(cloudName)
+		return true
+	}
+
+	nsName := utils.GetAKONamespace()
+	nsObj, err := c.informers.ClientSet.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Failed to GET the namespace %s details due to the following error: %v", nsName, err.Error())
+		return false
+	}
+
+	annotations := nsObj.GetAnnotations()
+	segroup, ok := annotations[lib.WCPSEGroup]
+	if !ok {
+		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
+		return false
+	}
+
+	cloud, ok := annotations[lib.WCPCloud]
+	if !ok {
+		utils.AviLog.Warnf("Failed to get cloud name from annotation in namespace")
+		return false
+	}
+	utils.AviLog.Infof("Setting SEGroup %s, cloud %s for VS placement.", segroup, cloud)
+	lib.SetSEGName(segroup)
+	utils.SetCloudName(cloud)
+
+	return true
+}
+
+func (c *AviController) AddBootupNSEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+	NSHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if lib.AviSEInitialized {
+				return
+			}
+			if c.SetSEGroupCloudName() {
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
+			}
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			if lib.AviSEInitialized {
+				return
+			}
+			if c.SetSEGroupCloudName() {
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
+			}
+		},
+	}
+	c.informers.NSInformer.Informer().AddEventHandler(NSHandler)
+
+	go c.informers.NSInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for NS informer")
+	}
+}
+
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {

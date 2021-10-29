@@ -185,6 +185,8 @@ func TestMain(m *testing.M) {
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
+	ctrl.SetSEGroupCloudName()
+
 	defaultKey = "app"
 	defaultValue = "migrate"
 	SetupRouteNamespaceSync(defaultKey, defaultValue)
