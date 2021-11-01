@@ -28,9 +28,8 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
-
 	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	"github.com/onsi/gomega"
 	"github.com/vmware/alb-sdk/go/models"
@@ -39,8 +38,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
-var KubeClient *k8sfake.Clientset
-var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 
 const (
@@ -64,7 +61,7 @@ func createPodWithNPLAnnotation(labels map[string]string) {
 	ann := make(map[string]string)
 	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
 	testPod.Annotations = ann
-	KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
+	utils.GetInformers().ClientSet.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
 }
 
 func createPodWithMultipleNPLAnnotations(labels map[string]string) {
@@ -72,7 +69,7 @@ func createPodWithMultipleNPLAnnotations(labels map[string]string) {
 	ann := make(map[string]string)
 	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}, {\"podPort\":8081,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40002}]"
 	testPod.Annotations = ann
-	KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
+	utils.GetInformers().ClientSet.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
 }
 
 func updatePodWithNPLAnnotation(labels map[string]string) {
@@ -81,34 +78,34 @@ func updatePodWithNPLAnnotation(labels map[string]string) {
 	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
 	testPod.Annotations = ann
 	testPod.ResourceVersion = "2"
-	KubeClient.CoreV1().Pods(defaultNS).Update(context.TODO(), &testPod, metav1.UpdateOptions{})
+	utils.GetInformers().ClientSet.CoreV1().Pods(defaultNS).Update(context.TODO(), &testPod, metav1.UpdateOptions{})
 }
 
 func setUpTestForSvcLB(t *testing.T) {
-	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
+	objects.SharedAviGraphLister().Delete(testlib.SINGLEPORTMODEL)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	svcExample := integrationtest.ConstructService(defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
+	svcExample := testlib.ConstructService(defaultNS, testlib.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
 	svcExample.Annotations = make(map[string]string)
 	svcExample.Annotations[lib.NPLSvcAnnotation] = "true"
-	_, err := KubeClient.CoreV1().Services(defaultNS).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, defaultLBModel, 5)
+	testlib.PollForCompletion(t, defaultLBModel, 5)
 }
 
 func tearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
-	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
-	integrationtest.DelSVC(t, defaultNS, integrationtest.SINGLEPORTSVC)
+	objects.SharedAviGraphLister().Delete(testlib.SINGLEPORTMODEL)
+	testlib.DeleteObject(t, lib.Service, testlib.SINGLEPORTSVC, defaultNS)
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", integrationtest.SINGLEPORTSVC, defaultNS)}
+	vsKey := cache.NamespaceName{Namespace: testlib.AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", testlib.SINGLEPORTSVC, defaultNS)}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 40*time.Second).Should(gomega.Equal(false))
-	KubeClient.CoreV1().Pods(defaultNS).Delete(context.TODO(), defaultPodName, metav1.DeleteOptions{})
+	testlib.DeleteObject(t, lib.Pod, defaultPodName, defaultNS)
 }
 
 func verifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int) {
@@ -126,8 +123,8 @@ func verifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, 
 
 func TearDownTestForIngress(t *testing.T, modelName string) {
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.DelSVC(t, "default", "avisvc")
-	KubeClient.CoreV1().Pods(defaultNS).Delete(context.TODO(), defaultPodName, metav1.DeleteOptions{})
+	testlib.DeleteObject(t, lib.Service, "avisvc", "default")
+	testlib.DeleteObject(t, lib.Pod, defaultPodName, defaultNS)
 }
 
 func getTestPod(labels map[string]string) corev1.Pod {
@@ -170,17 +167,10 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	akoControlConfig := lib.AKOControlConfig()
-	KubeClient = k8sfake.NewSimpleClientset()
-	CRDClient = crdfake.NewSimpleClientset()
-	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
-	data := map[string][]byte{
-		"username": []byte("admin"),
-		"password": []byte("admin"),
-	}
-	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()}
-	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
+	kubeClient := k8sfake.NewSimpleClientset()
+	crdClient := crdfake.NewSimpleClientset()
+	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -193,9 +183,15 @@ func TestMain(m *testing.M) {
 		utils.ConfigMapInformer,
 		utils.PodInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers(CRDClient)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	informers := k8s.K8sinformers{Cs: kubeClient}
+	k8s.NewCRDInformers(crdClient)
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()},
+		Data:       map[string][]byte{"username": []byte("admin"), "password": []byte("admin")},
+	}
+	utils.GetInformers().ClientSet.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -203,9 +199,9 @@ func TestMain(m *testing.M) {
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 
-	integrationtest.InitializeFakeAKOAPIServer()
-	integrationtest.NewAviFakeClientInstance(KubeClient)
-	defer integrationtest.AviFakeClientInstance.Close()
+	testlib.InitializeFakeAKOAPIServer()
+	testlib.NewAviFakeClientInstance(kubeClient)
+	defer testlib.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
@@ -223,12 +219,11 @@ func TestMain(m *testing.M) {
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
 
-	integrationtest.AddConfigMap(KubeClient)
-	integrationtest.PollForSyncStart(ctrl, 10)
+	testlib.AddConfigMap()
+	testlib.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	integrationtest.KubeClient = KubeClient
-	integrationtest.AddDefaultIngressClass()
+	testlib.AddDefaultIngressClass()
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
@@ -241,15 +236,15 @@ func TestIngressAddPod(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model for DELETE event %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -258,11 +253,11 @@ func TestIngressAddPod(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
@@ -282,10 +277,7 @@ func TestIngressAddPod(t *testing.T) {
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	verifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, defaultL7Model)
 }
@@ -298,15 +290,15 @@ func TestIngressDelPod(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model for DELETE event %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -315,11 +307,11 @@ func TestIngressDelPod(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
@@ -339,20 +331,14 @@ func TestIngressDelPod(t *testing.T) {
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
 
-	err = KubeClient.CoreV1().Pods(defaultNS).Delete(context.TODO(), defaultPodName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting Pod: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Pod, defaultPodName, defaultNS)
 	g.Eventually(func() int {
 		_, aviModel = objects.SharedAviGraphLister().Get(defaultL7Model)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes[0].PoolRefs[0].Servers)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	verifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, defaultL7Model)
 }
@@ -364,15 +350,15 @@ func TestIngressAddPodWithoutLabel(t *testing.T) {
 
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model for DELETE event %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -381,11 +367,11 @@ func TestIngressAddPodWithoutLabel(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
@@ -397,10 +383,7 @@ func TestIngressAddPodWithoutLabel(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	verifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, defaultL7Model)
 }
@@ -413,16 +396,16 @@ func TestIngressUpdatePodWithLabel(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	labels := make(map[string]string)
 	createPodWithNPLAnnotation(labels)
 
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model for DELETE event %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -431,11 +414,11 @@ func TestIngressUpdatePodWithLabel(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
@@ -460,10 +443,7 @@ func TestIngressUpdatePodWithLabel(t *testing.T) {
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	verifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, defaultL7Model)
 }
@@ -476,15 +456,15 @@ func TestIngressUpdatePodWithoutLabel(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
-	integrationtest.PollForCompletion(t, defaultL7Model, 5)
+	testlib.PollForCompletion(t, defaultL7Model, 5)
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model for DELETE event %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -493,11 +473,11 @@ func TestIngressUpdatePodWithoutLabel(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
@@ -525,10 +505,7 @@ func TestIngressUpdatePodWithoutLabel(t *testing.T) {
 		return len(nodes[0].PoolRefs[0].Servers)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	verifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, defaultL7Model)
 }
@@ -541,15 +518,15 @@ func TestIngressDelSvc(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model for DELETE event %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -558,11 +535,11 @@ func TestIngressDelSvc(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	testlib.PollForCompletion(t, defaultL7Model, 10)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
@@ -582,17 +559,14 @@ func TestIngressDelSvc(t *testing.T) {
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
 
-	integrationtest.DelSVC(t, "default", "avisvc")
+	testlib.DeleteObject(t, lib.Service, "avisvc", "default")
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(defaultL7Model)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes[0].PoolRefs[0].Servers)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	verifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, defaultL7Model)
 }
@@ -612,8 +586,8 @@ func TestNPLLBSvc(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(defaultLBModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
-	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, testlib.SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(testlib.AVINAMESPACE))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
@@ -625,40 +599,35 @@ func TestNPLLBSvc(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
-	svcExample := (integrationtest.FakeService{
-		Name:         integrationtest.SINGLEPORTSVC,
+	svcExample := (testlib.FakeService{
+		Name:         testlib.SINGLEPORTSVC,
 		Namespace:    defaultNS,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.Annotations = make(map[string]string)
 	svcExample.Annotations[lib.NPLSvcAnnotation] = "true"
 	svcExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Services(defaultNS).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcExample)
+
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)}
+	vsKey := cache.NamespaceName{Namespace: testlib.AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", defaultNS, testlib.SINGLEPORTSVC)}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 40*time.Second).Should(gomega.Equal(false))
 
 	// If we transition the service from clusterIP to Loadbalancer - vs should get created
-	svcExample = (integrationtest.FakeService{
-		Name:         integrationtest.SINGLEPORTSVC,
+	svcExample = (testlib.FakeService{
+		Name:         testlib.SINGLEPORTSVC,
 		Namespace:    defaultNS,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.Annotations = make(map[string]string)
 	svcExample.Annotations[lib.NPLSvcAnnotation] = "true"
 	svcExample.ResourceVersion = "3"
-	_, err = KubeClient.CoreV1().Services(defaultNS).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcExample)
 
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
@@ -688,8 +657,8 @@ func TestNPLLBSvcDelPod(t *testing.T) {
 	}
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
-	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, testlib.SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(testlib.AVINAMESPACE))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
@@ -701,10 +670,7 @@ func TestNPLLBSvcDelPod(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 
 	// If we delete the Pod, the server should get deleted from model
-	err := KubeClient.CoreV1().Pods(defaultNS).Delete(context.TODO(), defaultPodName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting Pod: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Pod, defaultPodName, defaultNS)
 	g.Eventually(func() int {
 		_, aviModel = objects.SharedAviGraphLister().Get(defaultLBModel)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -721,10 +687,10 @@ func TestNPLLBSvcNoLabel(t *testing.T) {
 	labels["app"] = "npl"
 	createPodWithNPLAnnotation(labels)
 
-	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
+	objects.SharedAviGraphLister().Delete(testlib.SINGLEPORTMODEL)
 	selectors := make(map[string]string)
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
-	integrationtest.PollForCompletion(t, defaultLBModel, 5)
+	testlib.CreateServiceWithSelectors(t, defaultNS, testlib.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
+	testlib.PollForCompletion(t, defaultLBModel, 5)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultLBModel)
@@ -733,8 +699,8 @@ func TestNPLLBSvcNoLabel(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(defaultLBModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
-	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, testlib.SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(testlib.AVINAMESPACE))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Eventually(func() int {
@@ -757,13 +723,13 @@ func TestNPLUpdateLBSvcCorrectSelector(t *testing.T) {
 	labels["app"] = "npl"
 	createPodWithNPLAnnotation(labels)
 
-	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
+	objects.SharedAviGraphLister().Delete(testlib.SINGLEPORTMODEL)
 	selectors := make(map[string]string)
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
-	integrationtest.PollForCompletion(t, defaultLBModel, 10)
+	testlib.CreateServiceWithSelectors(t, defaultNS, testlib.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
+	testlib.PollForCompletion(t, defaultLBModel, 10)
 
 	selectors["app"] = "npl"
-	integrationtest.UpdateServiceWithSelectors(t, defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
+	testlib.UpdateServiceWithSelectors(t, defaultNS, testlib.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultLBModel)
@@ -772,8 +738,8 @@ func TestNPLUpdateLBSvcCorrectSelector(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(defaultLBModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, integrationtest.SINGLEPORTSVC)))
-	g.Expect(nodes[0].Tenant).To(gomega.Equal(integrationtest.AVINAMESPACE))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", defaultNS, testlib.SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(testlib.AVINAMESPACE))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
@@ -797,14 +763,14 @@ func TestNPLSvcIngressAddDel(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -813,13 +779,13 @@ func TestNPLSvcIngressAddDel(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -827,13 +793,10 @@ func TestNPLSvcIngressAddDel(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -852,10 +815,10 @@ func TestNPLSvcIngressUpdate(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -863,12 +826,12 @@ func TestNPLSvcIngressUpdate(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc-wrong",
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	ingrFake = (integrationtest.FakeIngress{
+	ingrFake = (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -877,13 +840,10 @@ func TestNPLSvcIngressUpdate(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -891,14 +851,11 @@ func TestNPLSvcIngressUpdate(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 
 	//time.Sleep(10)
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -918,14 +875,14 @@ func TestNPLSvcIngressUpdateWrongSvc(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -933,13 +890,13 @@ func TestNPLSvcIngressUpdateWrongSvc(t *testing.T) {
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -947,7 +904,7 @@ func TestNPLSvcIngressUpdateWrongSvc(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	ingrFake = (integrationtest.FakeIngress{
+	ingrFake = (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -956,13 +913,10 @@ func TestNPLSvcIngressUpdateWrongSvc(t *testing.T) {
 		ServiceName: "avisvc-wrong",
 	}).Ingress()
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -970,10 +924,7 @@ func TestNPLSvcIngressUpdateWrongSvc(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(false))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
@@ -988,30 +939,30 @@ func TestNPLSvcIngressUpdateClass(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
-		ClassName:   integrationtest.DefaultIngressClass,
+		ClassName:   testlib.DefaultIngressClass,
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1022,13 +973,10 @@ func TestNPLSvcIngressUpdateClass(t *testing.T) {
 	wrongClass := "wrong-class"
 	ingrFake.Spec.IngressClassName = &wrongClass
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Update the Ingress %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1036,15 +984,12 @@ func TestNPLSvcIngressUpdateClass(t *testing.T) {
 		return false
 	}, 20*time.Second).Should(gomega.Equal(false))
 
-	defaultClass := integrationtest.DefaultIngressClass
+	defaultClass := testlib.DefaultIngressClass
 	ingrFake.Spec.IngressClassName = &defaultClass
 	ingrFake.ResourceVersion = "3"
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Update the Ingress %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1052,7 +997,7 @@ func TestNPLSvcIngressUpdateClass(t *testing.T) {
 		return false
 	}, 20*time.Second).Should(gomega.Equal(true))
 
-	KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
@@ -1065,30 +1010,30 @@ func TestNPLSvcIngressRemoveAddClass(t *testing.T) {
 	SetUpTestForIngress(t, defaultL7Model)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
-		ClassName:   integrationtest.DefaultIngressClass,
+		ClassName:   testlib.DefaultIngressClass,
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1096,9 +1041,9 @@ func TestNPLSvcIngressRemoveAddClass(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	integrationtest.RemoveDefaultIngressClass()
+	testlib.RemoveDefaultIngressClass()
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1106,9 +1051,9 @@ func TestNPLSvcIngressRemoveAddClass(t *testing.T) {
 		return false
 	}, 20*time.Second).Should(gomega.Equal(false))
 
-	integrationtest.AddDefaultIngressClass()
+	testlib.AddDefaultIngressClass()
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1116,7 +1061,7 @@ func TestNPLSvcIngressRemoveAddClass(t *testing.T) {
 		return false
 	}, 20*time.Second).Should(gomega.Equal(true))
 
-	KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
@@ -1128,11 +1073,11 @@ func TestNPLAutoAnnotationLBSvc(t *testing.T) {
 	labels["app"] = "npl"
 	createPodWithNPLAnnotation(labels)
 
-	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
+	objects.SharedAviGraphLister().Delete(testlib.SINGLEPORTMODEL)
 	selectors := make(map[string]string)
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, testlib.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false, selectors)
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), integrationtest.SINGLEPORTSVC, metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), testlib.SINGLEPORTSVC, metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1155,14 +1100,14 @@ func TestNPLSvcNodePort(t *testing.T) {
 	}()
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, false, selectors)
 	createPodWithNPLAnnotation(selectors)
 
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
 		t.Fatalf("Couldn't find Model %v", defaultL7Model)
 	}
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -1171,13 +1116,13 @@ func TestNPLSvcNodePort(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1185,17 +1130,15 @@ func TestNPLSvcNodePort(t *testing.T) {
 		return false
 	}, 20*time.Second).Should(gomega.Equal(true))
 
-	svc := integrationtest.ConstructService(defaultNS, "avisvc", corev1.ServiceTypeNodePort, false, selectors)
+	svc := testlib.ConstructService(defaultNS, "avisvc", corev1.ServiceTypeNodePort, false, selectors)
 	ann := make(map[string]string)
 	ann[lib.NPLSvcAnnotation] = "true"
 	svc.Annotations = ann
 	svc.ResourceVersion = "2"
-	_, err = KubeClient.CoreV1().Services(defaultNS).Update(context.TODO(), svc, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svc)
+
 	g.Eventually(func() bool {
-		svc, _ := KubeClient.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(defaultNS).Get(context.TODO(), "avisvc", metav1.GetOptions{})
 		ann := svc.GetAnnotations()
 		if _, ok := ann[lib.NPLSvcAnnotation]; ok {
 			return true
@@ -1203,10 +1146,7 @@ func TestNPLSvcNodePort(t *testing.T) {
 		return false
 	}, 20*time.Second).Should(gomega.Equal(false))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 }
 
 // TestIngressAddPodWithMultiportSvc creates a Pod with multiple nodeportlocal.antrea.io annotations, Service with multiport and
@@ -1221,7 +1161,7 @@ func TestIngressAddPodWithMultiportSvc(t *testing.T) {
 	}()
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, true, selectors)
+	testlib.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ServiceTypeClusterIP, true, selectors)
 	createPodWithMultipleNPLAnnotations(selectors)
 
 	g.Eventually(func() bool {
@@ -1229,7 +1169,7 @@ func TestIngressAddPodWithMultiportSvc(t *testing.T) {
 		return found
 	}, 20*time.Second, 1*time.Second).Should(gomega.Equal(false))
 
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -1238,7 +1178,7 @@ func TestIngressAddPodWithMultiportSvc(t *testing.T) {
 		ServiceName: "avisvc",
 	}).IngressMultiPort()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -1259,9 +1199,6 @@ func TestIngressAddPodWithMultiportSvc(t *testing.T) {
 	g.Expect(*nodes[0].PoolRefs[1].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(nodes[0].PoolRefs[1].Servers[0].Port).To(gomega.Equal(int32(40002)))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
 	verifyIngressDeletion(t, g, aviModel, 0)
 }

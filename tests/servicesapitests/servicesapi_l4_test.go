@@ -16,6 +16,7 @@ package servicesapitests
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -31,7 +32,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -40,10 +41,7 @@ import (
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
 
-var KubeClient *k8sfake.Clientset
-var SvcAPIClient *svcapifake.Clientset
 var ctrl *k8s.AviController
-var CRDClient *crdfake.Clientset
 
 func TestMain(m *testing.M) {
 	os.Setenv("SERVICES_API", "true")
@@ -58,11 +56,11 @@ func TestMain(m *testing.M) {
 	os.Setenv("AUTO_L4_FQDN", "default")
 
 	akoControlConfig := lib.AKOControlConfig()
-	KubeClient = k8sfake.NewSimpleClientset()
-	CRDClient = crdfake.NewSimpleClientset()
-	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
-	k8s.NewCRDInformers(CRDClient)
+	kubeClient := k8sfake.NewSimpleClientset()
+	crdClient := crdfake.NewSimpleClientset()
+	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
+	k8s.NewCRDInformers(crdClient)
 
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -70,10 +68,10 @@ func TestMain(m *testing.M) {
 	}
 	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()}
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
+	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
-	SvcAPIClient = svcapifake.NewSimpleClientset()
-	akoControlConfig.SetServicesAPIClientset(SvcAPIClient)
+	svcAPIClient := svcapifake.NewSimpleClientset()
+	akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
@@ -84,9 +82,9 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewSvcApiInformers(SvcAPIClient)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	informers := k8s.K8sinformers{Cs: kubeClient}
+	k8s.NewSvcApiInformers(svcAPIClient)
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -94,10 +92,10 @@ func TestMain(m *testing.M) {
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 
-	integrationtest.InitializeFakeAKOAPIServer()
+	testlib.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance(KubeClient)
-	defer integrationtest.AviFakeClientInstance.Close()
+	testlib.NewAviFakeClientInstance(kubeClient)
+	defer testlib.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
@@ -115,12 +113,11 @@ func TestMain(m *testing.M) {
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
 
-	integrationtest.AddConfigMap(KubeClient)
-	integrationtest.PollForSyncStart(ctrl, 10)
+	testlib.AddConfigMap()
+	testlib.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
-	integrationtest.KubeClient = KubeClient
 	os.Exit(m.Run())
 }
 
@@ -198,12 +195,6 @@ func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
 	}
 }
 
-func TeardownGateway(t *testing.T, gwname, namespace string) {
-	if err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(namespace).Delete(context.TODO(), gwname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting Gateway: %v", err)
-	}
-}
-
 type FakeGWClass struct {
 	Name         string
 	Controller   string
@@ -244,14 +235,8 @@ func SetupGatewayClass(t *testing.T, gwclassName, controller, infraSetting strin
 	}
 }
 
-func TeardownGatewayClass(t *testing.T, gwClassName string) {
-	if err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Delete(context.TODO(), gwClassName, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting GatewayClass: %v", err)
-	}
-}
-
 func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace string) {
-	svc := integrationtest.FakeService{
+	svc := testlib.FakeService{
 		Name:      svcname,
 		Namespace: namespace,
 		Labels: map[string]string{
@@ -259,21 +244,19 @@ func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace st
 			lib.SvcApiGatewayNamespaceLabelKey: gwnamespace,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: 8081}},
 	}
 
 	svcCreate := svc.Service()
-	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetInformers().ClientSet.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
+	testlib.CreateEP(t, namespace, svcname, false, true, "1.1.1")
 }
 
-func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
-	if err := KubeClient.CoreV1().Services(namespace).Delete(context.TODO(), svcname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting AdvLB Service: %v", err)
-	}
-	integrationtest.DelEP(t, namespace, svcname)
+func TeardownService(t *testing.T, svcname, namespace string) {
+	testlib.DeleteObject(t, lib.Service, svcname, namespace)
+	testlib.DeleteObject(t, lib.Endpoint, svcname, namespace)
 }
 
 func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
@@ -298,7 +281,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -306,7 +289,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	g.Eventually(func() string {
-		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
 		if len(svc.Status.LoadBalancer.Ingress) > 0 {
 			return svc.Status.LoadBalancer.Ingress[0].IP
 		}
@@ -324,14 +307,14 @@ func TestServicesAPIBestCase(t *testing.T) {
 	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
 
-	TeardownGatewayClass(t, gwClassName)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -350,7 +333,7 @@ func TestServicesAPINamingConvention(t *testing.T) {
 	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -363,9 +346,9 @@ func TestServicesAPINamingConvention(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-svc-my-gateway--8081"))
 	g.Expect(nodes[0].L4PolicyRefs[0].Name).To(gomega.Equal("cluster--default-my-gateway"))
 
-	TeardownGatewayClass(t, gwClassName)
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -410,9 +393,9 @@ func TestServicesAPIWithStaticIP(t *testing.T) {
 		return ""
 	}, 40*time.Second).Should(gomega.Equal(staticIP))
 
-	TeardownGatewayClass(t, gwClassName)
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -433,7 +416,7 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 
 	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -445,22 +428,21 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 		Controller: "xyz",
 	}.GatewayClass()
 	gwclassUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Update(context.TODO(), gwclassUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating GatewayClass: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.GatewayClass, gwclassUpdate)
 
+	time.Sleep(5 * time.Second)
 	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 40*time.Second).Should(gomega.Equal(0))
 	g.Eventually(func() int {
-		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
+		svc, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
 		return len(svc.Status.LoadBalancer.Ingress)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -479,7 +461,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 
 	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -497,14 +479,12 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Gateway: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Gateway, gwUpdate)
 
 	// vsNode must get deleted
 	VerifyGatewayVSNodeDeletion(g, modelName)
 	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 10*time.Second).Should(gomega.Equal(0))
 
@@ -519,19 +499,17 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "3"
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Gateway: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Gateway, gwUpdate)
 
 	// vsNode must come back up
 	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		return len(gw.Status.Addresses)
 	}, 10*time.Second).Should(gomega.Equal(1))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -557,7 +535,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 		return false
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	svcUpdate := integrationtest.FakeService{
+	svcUpdate := testlib.FakeService{
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
@@ -565,13 +543,15 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
-	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcUpdate)
 
+	time.Sleep(10 * time.Second)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	fmt.Printf("HAHA: %v\n", utils.Stringify(nodes))
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if found && aviModel != nil {
@@ -583,9 +563,9 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 		return false
 	}, 50*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -611,7 +591,7 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 		return false
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	svcUpdate := integrationtest.FakeService{
+	svcUpdate := testlib.FakeService{
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
@@ -619,12 +599,10 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
-	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcUpdate)
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -637,9 +615,9 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -664,7 +642,7 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 		return false
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	svcUpdate := integrationtest.FakeService{
+	svcUpdate := testlib.FakeService{
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
@@ -672,12 +650,10 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
-	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcUpdate)
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -690,9 +666,9 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -731,9 +707,7 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Gateway: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Gateway, gwUpdate)
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -743,9 +717,9 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 		return true
 	}, 40*time.Second).Should(gomega.Equal(false))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -788,9 +762,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Gateway: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Gateway, gwUpdate)
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -804,7 +776,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(true))
 
 	// match service to chaged gateway port: 8080
-	svcUpdate := integrationtest.FakeService{
+	svcUpdate := testlib.FakeService{
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
@@ -812,12 +784,10 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
-	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcUpdate)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -831,9 +801,9 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 		return false
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -876,9 +846,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 		}},
 	}.Gateway()
 	gwUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gwUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Gateway: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Gateway, gwUpdate)
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -892,7 +860,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(true))
 
 	// match service to chaged gateway protocol: UDP
-	svcUpdate := integrationtest.FakeService{
+	svcUpdate := testlib.FakeService{
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
@@ -900,12 +868,10 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
-	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcUpdate)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -919,9 +885,9 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 		return false
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -954,7 +920,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 	g.Expect(nodes[0].L4PolicyRefs).Should(gomega.HaveLen(1))
 
 	// change service gw binding from gw1 to gw2
-	svcUpdate := integrationtest.FakeService{
+	svcUpdate := testlib.FakeService{
 		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
@@ -962,12 +928,10 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
-	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcUpdate)
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName1)
@@ -990,10 +954,10 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gateway1Name, ns)
-	TeardownGateway(t, gateway2Name, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gateway1Name, ns)
+	testlib.DeleteObject(t, lib.Gateway, gateway2Name, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName2)
 }
 
@@ -1010,7 +974,7 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	// delete endpoints
-	integrationtest.DelEP(t, ns, "svc")
+	testlib.DeleteObject(t, lib.Endpoint, "svc", ns)
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -1025,7 +989,7 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 
 	// create new endpoints
 	newIP := "2.2.2"
-	integrationtest.CreateEP(t, ns, "svc", false, true, newIP)
+	testlib.CreateEP(t, ns, "svc", false, true, newIP)
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -1042,9 +1006,9 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(1))
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).Should(gomega.ContainSubstring(newIP))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -1075,34 +1039,34 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
-	svc1 := integrationtest.FakeService{
+	svc1 := testlib.FakeService{
 		Name:         svcName1,
 		Namespace:    ns,
 		Labels:       labels,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
+		ServicePorts: []testlib.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
 	}
-	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetInformers().ClientSet.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEP(t, ns, svcName1, false, true, "1.1.1")
+	testlib.CreateEP(t, ns, svcName1, false, true, "1.1.1")
 
-	svc2 := integrationtest.FakeService{
+	svc2 := testlib.FakeService{
 		Name:         svcName2,
 		Namespace:    ns,
 		Labels:       labels,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "fooudp", Protocol: "UDP", PortNumber: 8082, TargetPort: 80}},
+		ServicePorts: []testlib.Serviceport{{PortName: "fooudp", Protocol: "UDP", PortNumber: 8082, TargetPort: 80}},
 	}
 
-	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetInformers().ClientSet.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
+	testlib.CreateEP(t, ns, svcName2, false, true, "1.1.1")
 
 	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -1110,8 +1074,8 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	g.Eventually(func() string {
-		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
-		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		svc1, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
+		svc2, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
 		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
 			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
 			svc1.Status.LoadBalancer.Ingress[0].IP == svc2.Status.LoadBalancer.Ingress[0].IP {
@@ -1129,19 +1093,17 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		},
 	}.Gateway()
 	gatewayUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Gateway: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Gateway, gatewayUpdate)
 
 	g.Eventually(func() int {
-		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		svc2, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
 		return len(svc2.Status.LoadBalancer.Ingress)
 	}, 30*time.Second).Should(gomega.Equal(0))
 
-	TeardownAdvLBService(t, svcName1, ns)
-	TeardownAdvLBService(t, svcName2, ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, svcName1, ns)
+	TeardownService(t, svcName2, ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -1172,34 +1134,34 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
-	svc1 := integrationtest.FakeService{
+	svc1 := testlib.FakeService{
 		Name:         svcName1,
 		Namespace:    ns,
 		Labels:       labels,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
+		ServicePorts: []testlib.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
 	}
-	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetInformers().ClientSet.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	svc2 := integrationtest.FakeService{
+	svc2 := testlib.FakeService{
 		Name:         svcName2,
 		Namespace:    ns,
 		Labels:       labels,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8082, TargetPort: 80}},
+		ServicePorts: []testlib.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8082, TargetPort: 80}},
 	}
-	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetInformers().ClientSet.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	integrationtest.CreateEP(t, ns, svcName1, false, true, "1.1.1")
-	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
+	testlib.CreateEP(t, ns, svcName1, false, true, "1.1.1")
+	testlib.CreateEP(t, ns, svcName2, false, true, "1.1.1")
 
 	g.Eventually(func() bool {
-		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
-		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		svc1, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
+		svc2, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
 		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
 			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
 			svc1.Status.LoadBalancer.Ingress[0].Hostname == "foo.avi.internal" &&
@@ -1218,13 +1180,11 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 			{Port: 8082, Protocol: "TCP", Labels: labels, HostName: proto.String("bar.avi.internal")},
 		},
 	}
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate.Gateway(), metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Gateway: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Gateway, gatewayUpdate.Gateway())
 
 	g.Eventually(func() bool {
-		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
-		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		svc1, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
+		svc2, _ := utils.GetInformers().ClientSet.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
 		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
 			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
 			svc1.Status.LoadBalancer.Ingress[0].Hostname == "svc1.default.com" &&
@@ -1234,10 +1194,10 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 		return false
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName1, ns)
-	TeardownAdvLBService(t, svcName2, ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, svcName1, ns)
+	TeardownService(t, svcName2, ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -1259,7 +1219,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	// Create with bad seGroup ref.
-	settingCreate := (integrationtest.FakeAviInfraSetting{
+	settingCreate := (testlib.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisBADaviref-seGroup",
 		Networks:    []string{"thisisaviref-networkName"},
@@ -1270,7 +1230,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		setting, _ := CRDClient.AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
@@ -1288,16 +1248,14 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	settingUpdate := (integrationtest.FakeAviInfraSetting{
+	settingUpdate := (testlib.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
 		Networks:    []string{"thisisaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating AviInfraSetting: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.AviInfraSetting, settingUpdate)
 
 	g.Eventually(func() string {
 		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
@@ -1316,27 +1274,25 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
 
-	settingUpdate = (integrationtest.FakeAviInfraSetting{
+	settingUpdate = (testlib.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
 		Networks:    []string{"thisisBADaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "3"
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating AviInfraSetting: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.AviInfraSetting, settingUpdate)
 
 	g.Eventually(func() string {
 		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 15*time.Second).Should(gomega.Equal("Rejected"))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
-	integrationtest.TeardownAviInfraSetting(t, settingName)
+	testlib.DeleteObject(t, lib.AviInfraSetting, settingName)
 }
 
 func TestServicesAPInfraSettingDelete(t *testing.T) {
@@ -1351,7 +1307,7 @@ func TestServicesAPInfraSettingDelete(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
-	integrationtest.SetupAviInfraSetting(t, settingName, "")
+	testlib.SetupAviInfraSetting(t, settingName, "")
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -1365,7 +1321,7 @@ func TestServicesAPInfraSettingDelete(t *testing.T) {
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
 
-	integrationtest.TeardownAviInfraSetting(t, settingName)
+	testlib.DeleteObject(t, lib.AviInfraSetting, settingName)
 
 	// defaults to global seGroup and networkName.
 	netList := lib.GetVipNetworkList()
@@ -1381,9 +1337,9 @@ func TestServicesAPInfraSettingDelete(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
@@ -1400,8 +1356,8 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName1)
 	SetupGateway(t, gatewayName, ns, gwClassName)
 	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
-	integrationtest.SetupAviInfraSetting(t, settingName1, "")
-	integrationtest.SetupAviInfraSetting(t, settingName2, "")
+	testlib.SetupAviInfraSetting(t, settingName1, "")
+	testlib.SetupAviInfraSetting(t, settingName2, "")
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -1421,9 +1377,7 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 		InfraSetting: settingName2,
 	}).GatewayClass()
 	gwClassUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Update(context.TODO(), gwClassUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating GatewayClass: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.GatewayClass, gwClassUpdate)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -1436,10 +1390,10 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, "svc", ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
-	integrationtest.TeardownAviInfraSetting(t, settingName1)
-	integrationtest.TeardownAviInfraSetting(t, settingName2)
+	TeardownService(t, "svc", ns)
+	testlib.DeleteObject(t, lib.Gateway, gatewayName, ns)
+	testlib.DeleteObject(t, lib.GatewayClass, gwClassName)
+	testlib.DeleteObject(t, lib.AviInfraSetting, settingName1)
+	testlib.DeleteObject(t, lib.AviInfraSetting, settingName2)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }

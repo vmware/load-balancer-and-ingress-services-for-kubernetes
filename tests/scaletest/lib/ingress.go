@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+
 	appsV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -223,7 +225,7 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 		ingress := &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": INGRESSAPIVERSION,
-				"kind":       "Ingress",
+				"kind":       lib.Ingress,
 				"metadata": map[string]interface{}{
 					"name":      ingressName,
 					"namespace": namespace,
@@ -266,7 +268,7 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 		ingress := &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": INGRESSAPIVERSION,
-				"kind":       "Ingress",
+				"kind":       lib.Ingress,
 				"metadata": map[string]interface{}{
 					"name":      ingressName,
 					"namespace": namespace,
@@ -319,7 +321,7 @@ func CreateMultiHostIngress(ingressNamePrefix string, listOfServices []string, n
 		ingress := &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": INGRESSAPIVERSION,
-				"kind":       "Ingress",
+				"kind":       lib.Ingress,
 				"metadata": map[string]interface{}{
 					"name":      ingressName,
 					"namespace": namespace,

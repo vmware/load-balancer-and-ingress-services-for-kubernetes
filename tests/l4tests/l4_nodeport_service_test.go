@@ -12,33 +12,32 @@
 * limitations under the License.
 */
 
-package integrationtest
+package l4tests
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TestNodeAddInNodePortMode tests if VRF creation is skipped in NodePort mode for node addition
 func TestNodeAddInNodePortMode(t *testing.T) {
-	SetNodePortMode()
-	defer SetClusterIPMode()
+	testlib.SetNodePortMode()
+	defer testlib.SetClusterIPMode()
 	nodeIP := "10.1.1.2"
-	CreateNode(t, "testNodeNP", nodeIP)
-	defer DeleteNode(t, "testNodeNP")
+	testlib.CreateNode(t, "testNodeNP", nodeIP)
+	defer testlib.DeleteNode(t, "testNodeNP")
 	modelName := "admin/global"
 	found, _ := objects.SharedAviGraphLister().Get(modelName)
 	if found {
@@ -50,12 +49,12 @@ func TestNodeAddInNodePortMode(t *testing.T) {
 func TestSinglePortL4SvcNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	SetNodePortMode()
-	defer SetClusterIPMode()
+	testlib.SetNodePortMode()
+	defer testlib.SetClusterIPMode()
 	nodeIP := "10.1.1.2"
 	nodePort := int32(31030)
-	CreateNode(t, "testNode1", nodeIP)
-	defer DeleteNode(t, "testNode1")
+	testlib.CreateNode(t, "testNode1", nodeIP)
+	defer testlib.DeleteNode(t, "testNode1")
 
 	SetUpTestForSvcLB(t)
 	g.Eventually(func() bool {
@@ -75,17 +74,15 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
-	svcExample := (FakeService{
+	svcExample := (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcExample)
+
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
 	g.Eventually(func() bool {
@@ -93,17 +90,14 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		return found
 	}, 15*time.Second).Should(gomega.Equal(false))
 	// If we transition the service from clusterIP to Loadbalancer - vs should get ceated
-	svcExample = (FakeService{
+	svcExample = (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
 	}).Service()
 	svcExample.ResourceVersion = "3"
-	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcExample)
 
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
@@ -115,12 +109,12 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	SetNodePortMode()
-	defer SetClusterIPMode()
+	testlib.SetNodePortMode()
+	defer testlib.SetClusterIPMode()
 	nodeIP := "10.1.1.2"
 	nodePort := int32(31030)
-	CreateNode(t, "testNode1", nodeIP)
-	defer DeleteNode(t, "testNode1")
+	testlib.CreateNode(t, "testNode1", nodeIP)
+	defer testlib.DeleteNode(t, "testNode1")
 	SetUpTestForSvcLB(t)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
@@ -142,18 +136,16 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	skipNodePort := make(map[string]string)
 	skipNodePort["skipnodeport.ako.vmware.com/enabled"] = "true"
 
-	svcExample := (FakeService{
+	svcExample := (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
 		Annotations:  skipNodePort,
 	}).Service()
 	svcExample.ResourceVersion = "3"
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcExample)
+
 	address := "1.1.1.1"
 	g.Eventually(func() *string {
 		_, model := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
@@ -162,18 +154,16 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(&address))
 	// Reset the annotation
 	skipNodePort = nil
-	svcExample = (FakeService{
+	svcExample = (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
 		Annotations:  skipNodePort,
 	}).Service()
 	svcExample.ResourceVersion = "4"
-	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcExample)
+
 	g.Eventually(func() *string {
 		_, model := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
 		nodes := model.(*avinodes.AviObjectGraph).GetAviVS()
@@ -187,15 +177,15 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 func TestSinglePortL4SvcNodePortWithNodeSelector(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	SetNodePortMode()
-	defer SetClusterIPMode()
+	testlib.SetNodePortMode()
+	defer testlib.SetClusterIPMode()
 	// Add node filter labels
 	os.Setenv("NODE_KEY", "my-node")
 
 	// Add node
 	nodeIP1 := "10.1.1.2"
-	CreateNode(t, "testNode1", nodeIP1)
-	defer DeleteNode(t, "testNode1")
+	testlib.CreateNode(t, "testNode1", nodeIP1)
+	defer testlib.DeleteNode(t, "testNode1")
 
 	SetUpTestForSvcLB(t)
 	g.Eventually(func() bool {
@@ -235,12 +225,12 @@ func TestMultiPortL4SvcNodePort(t *testing.T) {
 	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, MULTIPORTSVC)
 
 	SetUpTestForSvcLBMultiport(t)
-	SetNodePortMode()
-	defer SetClusterIPMode()
+	testlib.SetNodePortMode()
+	defer testlib.SetClusterIPMode()
 	nodeIP := "10.1.1.2"
 	nodePort := int32(31030)
-	CreateNode(t, "testNode1", nodeIP)
-	defer DeleteNode(t, "testNode1")
+	testlib.CreateNode(t, "testNode1", nodeIP)
+	defer testlib.DeleteNode(t, "testNode1")
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)

@@ -26,10 +26,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 )
 
 func SetupRouteNamespaceSync(key, value string) {
@@ -41,41 +42,36 @@ func SetupRouteNamespaceSync(key, value string) {
 func SetupRoute(t *testing.T, modelName, namespace string) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, namespace, "avisvc", false, false, "1.1.1")
-	integrationtest.PollForCompletion(t, modelName, 5)
+	testlib.CreateSVC(t, namespace, "avisvc", corev1.ServiceTypeClusterIP, false)
+	testlib.CreateEP(t, namespace, "avisvc", false, false, "1.1.1")
+	testlib.PollForCompletion(t, modelName, 5)
 
 	routeExample := FakeRoute{Namespace: namespace, Path: "/foo"}.Route()
 	routeExample.ResourceVersion = "1"
-	_, err := OshiftClient.RouteV1().Routes(namespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().OshiftClient.RouteV1().Routes(namespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-	integrationtest.PollForCompletion(t, modelName, 15)
+	testlib.PollForCompletion(t, modelName, 15)
 }
-func UpdateRoute(t *testing.T, modelName, namespace string) {
 
+func UpdateRoute(t *testing.T, modelName, namespace string) {
 	routeExample := FakeRoute{Namespace: namespace, Path: "/bar"}.Route()
 	routeExample.ResourceVersion = "2"
-	_, err := OshiftClient.RouteV1().Routes(namespace).Update(context.TODO(), routeExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating route: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Route, routeExample)
 
-	integrationtest.PollForCompletion(t, modelName, 15)
+	testlib.PollForCompletion(t, modelName, 15)
 
 }
-func TearDownTest(t *testing.T, modelName, namespace string) {
-	if err := OshiftClient.RouteV1().Routes(namespace).Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("Couldn't delete route, err: %v", err)
-	}
 
+func TearDownTest(t *testing.T, modelName, namespace string) {
+	testlib.DeleteObject(t, lib.Route, defaultRouteName, namespace)
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.DelSVC(t, namespace, "avisvc")
-	integrationtest.DelEP(t, namespace, "avisvc")
-	integrationtest.DeleteNamespace(namespace)
-	integrationtest.PollForCompletion(t, modelName, 10)
+	testlib.DeleteObject(t, lib.Service, "avisvc", namespace)
+	testlib.DeleteObject(t, lib.Endpoint, "avisvc", namespace)
+	testlib.DeleteObject(t, lib.Namespace, namespace)
+	testlib.PollForCompletion(t, modelName, 10)
 }
 
 func VerifyModelDeleted(g *gomega.WithT, modelName string) {
@@ -100,7 +96,7 @@ func TestNSSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 	var found bool
 	//Valid Namespace
 	namespace1 := "routens"
-	err := integrationtest.AddNamespace(t, namespace1, nsLabel)
+	err := testlib.AddNamespace(t, namespace1, nsLabel)
 
 	if err != nil {
 		t.Fatal("Error while adding namespace")
@@ -125,7 +121,7 @@ func TestNSSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 	UpdateRoute(t, modelName1, namespace1)
 
 	g.Eventually(func() error {
-		_, err := OshiftClient.RouteV1().Routes(namespace1).Get(context.TODO(), defaultRouteName, metav1.GetOptions{})
+		_, err := utils.GetInformers().OshiftClient.RouteV1().Routes(namespace1).Get(context.TODO(), defaultRouteName, metav1.GetOptions{})
 		return err
 	}, 30*time.Second).Should(gomega.BeNil())
 
@@ -148,7 +144,7 @@ func TestNSSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 		"app": "migrate1",
 	}
 
-	err = integrationtest.AddNamespace(t, namespace, nsLabel)
+	err = testlib.AddNamespace(t, namespace, nsLabel)
 	modelName := "admin/cluster--Shared-L7-0"
 	if err != nil {
 		t.Fatal("Error while adding namespace")
@@ -169,7 +165,7 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 	g := gomega.NewGomegaWithT(t)
 	var found bool
 
-	err := integrationtest.AddNamespace(t, namespace, oldLabels)
+	err := testlib.AddNamespace(t, namespace, oldLabels)
 	if err != nil {
 		t.Fatal("Error while adding namespace")
 	}
@@ -193,11 +189,8 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 		}, 30*time.Second).Should(gomega.Equal(oldFlag))
 	}
 
-	err = integrationtest.UpdateNamespace(t, namespace, newLabels)
-	integrationtest.PollForCompletion(t, modelName, 5)
-	if err != nil {
-		t.Fatal("Error occurred while updating namespace")
-	}
+	testlib.UpdateNamespace(t, namespace, newLabels)
+	testlib.PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
 		_, found := mcache.PoolCache.AviCacheGet(poolKey)

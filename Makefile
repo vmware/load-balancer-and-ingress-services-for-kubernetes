@@ -146,12 +146,12 @@ k8stest:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/k8stest -failfast
 
-.PHONY: integrationtest
-integrationtest:
+.PHONY: l4tests
+l4tests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/l4tests -failfast
 
 .PHONY: ingresstests
 ingresstests:
@@ -232,7 +232,7 @@ vcftests:
 
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests evhtests misc vcftests
+	make -j 1 k8stest l4tests ingresstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests evhtests misc vcftests
 
 .PHONY: scale_test
 scale_test:

@@ -24,7 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -39,8 +39,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-var kubeClient *k8sfake.Clientset
-var crdClient *crdfake.Clientset
 var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
@@ -85,7 +83,7 @@ func setupQueue(stopCh <-chan struct{}) {
 }
 
 func TestMain(m *testing.M) {
-	kubeClient = k8sfake.NewSimpleClientset()
+	kubeClient := k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 	os.Setenv("CLUSTER_NAME", "cluster")
@@ -95,16 +93,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
-	data := map[string][]byte{
-		"username": []byte("admin"),
-		"password": []byte("admin"),
-	}
-	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()}
-	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
-
 	akoControlConfig := lib.AKOControlConfig()
-	crdClient = crdfake.NewSimpleClientset()
+	crdClient := crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(crdClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 
@@ -120,10 +110,16 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
 	k8s.NewCRDInformers(crdClient)
-	integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance(kubeClient)
-	defer integrationtest.AviFakeClientInstance.Close()
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()},
+		Data:       map[string][]byte{"username": []byte("admin"), "password": []byte("admin")},
+	}
+	utils.GetInformers().ClientSet.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
+
+	testlib.InitializeFakeAKOAPIServer()
+	testlib.NewAviFakeClientInstance(kubeClient)
+	defer testlib.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
@@ -132,8 +128,8 @@ func TestMain(m *testing.M) {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
-	integrationtest.AddConfigMap(kubeClient)
-	integrationtest.PollForSyncStart(ctrl, 10)
+	testlib.AddConfigMap()
+	testlib.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh, quickSyncCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
@@ -152,7 +148,7 @@ func TestSvc(t *testing.T) {
 			Name:      "testsvc",
 		},
 	}
-	_, err := kubeClient.CoreV1().Services("red-ns").Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Services("red-ns").Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -167,7 +163,7 @@ func TestEndpoint(t *testing.T) {
 		},
 		Subsets: []corev1.EndpointSubset{},
 	}
-	_, err := kubeClient.CoreV1().Endpoints("red-ns").Create(context.TODO(), epExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Endpoints("red-ns").Create(context.TODO(), epExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
@@ -188,7 +184,7 @@ func TestIngress(t *testing.T) {
 			},
 		},
 	}
-	_, err := kubeClient.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -209,7 +205,7 @@ func TestIngressUpdate(t *testing.T) {
 			},
 		},
 	}
-	_, err := kubeClient.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrUpdate, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrUpdate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -229,10 +225,7 @@ func TestIngressUpdate(t *testing.T) {
 		},
 	}
 	ingrUpdate.ResourceVersion = "2"
-	_, err = kubeClient.NetworkingV1().Ingresses("red-ns").Update(context.TODO(), ingrUpdate, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrUpdate)
 	waitAndverify(t, "Ingress/red-ns/testingr-update")
 }
 
@@ -251,7 +244,7 @@ func TestIngressNoUpdate(t *testing.T) {
 			},
 		},
 	}
-	_, err := kubeClient.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrNoUpdate, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrNoUpdate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -268,10 +261,7 @@ func TestIngressNoUpdate(t *testing.T) {
 		},
 	}
 	ingrNoUpdate.ResourceVersion = "2"
-	_, err = kubeClient.NetworkingV1().Ingresses("red-ns").Update(context.TODO(), ingrNoUpdate, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrNoUpdate)
 
 	ingrNoUpdate.Status = networkingv1.IngressStatus{
 		LoadBalancer: corev1.LoadBalancerStatus{
@@ -288,10 +278,7 @@ func TestIngressNoUpdate(t *testing.T) {
 		},
 	}
 	ingrNoUpdate.ResourceVersion = "3"
-	_, err = kubeClient.NetworkingV1().Ingresses("red-ns").Update(context.TODO(), ingrNoUpdate, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrNoUpdate)
 
 	waitAndverify(t, "")
 }
@@ -314,7 +301,7 @@ func TestNode(t *testing.T) {
 			},
 		},
 	}
-	_, err := kubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -322,15 +309,10 @@ func TestNode(t *testing.T) {
 
 	nodeExample.ObjectMeta.ResourceVersion = "2"
 	nodeExample.Spec.PodCIDR = "10.230.0.0/24"
-	_, err = kubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Node: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Node, nodeExample)
+
 	waitAndverify(t, utils.NodeObj+"/testnode")
 
-	err = kubeClient.CoreV1().Nodes().Delete(context.TODO(), "testnode", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in Deleting Node: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Node, "testnode")
 	waitAndverify(t, utils.NodeObj+"/testnode")
 }

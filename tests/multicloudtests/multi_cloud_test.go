@@ -26,7 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -44,8 +44,6 @@ import (
 const defaultMockFilePath = "../avimockobjects"
 const invalidFilePath = "invalidmock"
 
-var kubeClient *k8sfake.Clientset
-var crdClient *crdfake.Clientset
 var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
@@ -100,7 +98,7 @@ func setupQueue(stopCh <-chan struct{}) {
 }
 
 func addConfigMap(t *testing.T) {
-	integrationtest.AddConfigMap(kubeClient)
+	testlib.AddConfigMap()
 	time.Sleep(10 * time.Second)
 }
 
@@ -111,14 +109,11 @@ func AddCMap() {
 			Name:      "avi-k8s-config",
 		},
 	}
-	kubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
+	utils.GetInformers().ClientSet.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
 func DeleteConfigMap(t *testing.T) {
-	err := kubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting configmap: %v", err)
-	}
+	testlib.DeleteObject(t, lib.ConfigMap, "avi-k8s-config", utils.GetAKONamespace())
 	time.Sleep(10 * time.Second)
 }
 
@@ -134,7 +129,7 @@ func ValidateIngress(t *testing.T) {
 			Name:      "testsvc",
 		},
 	}
-	_, err := kubeClient.CoreV1().Services("red-ns").Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Services("red-ns").Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
@@ -153,21 +148,15 @@ func ValidateIngress(t *testing.T) {
 			},
 		},
 	}
-	_, err = kubeClient.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrExample, metav1.CreateOptions{})
+	_, err = utils.GetInformers().ClientSet.NetworkingV1().Ingresses("red-ns").Create(context.TODO(), ingrExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	waitAndverify(t, "Ingress/red-ns/testingr")
 	// delete svc and ingress
-	err = kubeClient.CoreV1().Services("red-ns").Delete(context.TODO(), "testsvc", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting Service: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Service, "testsvc", "red-ns")
 	waitAndverify(t, "L4LBService/red-ns/testsvc")
-	err = kubeClient.NetworkingV1().Ingresses("red-ns").Delete(context.TODO(), "testingr", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "testingr", "red-ns")
 	waitAndverify(t, "Ingress/red-ns/testingr")
 
 }
@@ -190,7 +179,7 @@ func ValidateNode(t *testing.T) {
 			},
 		},
 	}
-	_, err := kubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -198,27 +187,21 @@ func ValidateNode(t *testing.T) {
 
 	nodeExample.ObjectMeta.ResourceVersion = "2"
 	nodeExample.Spec.PodCIDR = "10.230.0.0/24"
-	_, err = kubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Node: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Node, nodeExample)
 	waitAndverify(t, utils.NodeObj+"/testnode")
 
-	err = kubeClient.CoreV1().Nodes().Delete(context.TODO(), "testnode", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in Deleting Node: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Node, "testnode")
 	waitAndverify(t, utils.NodeObj+"/testnode")
 }
 
 func injectMWForCloud() {
-	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	testlib.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		url := r.URL.EscapedPath()
 		if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
-			integrationtest.FeedMockCollectionData(w, r, invalidFilePath)
+			testlib.FeedMockCollectionData(w, r, invalidFilePath)
 
 		} else if r.Method == "GET" {
-			integrationtest.FeedMockCollectionData(w, r, defaultMockFilePath)
+			testlib.FeedMockCollectionData(w, r, defaultMockFilePath)
 
 		} else if strings.Contains(url, "login") {
 			w.WriteHeader(http.StatusOK)
@@ -240,24 +223,24 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	akoControlConfig := lib.AKOControlConfig()
-	kubeClient = k8sfake.NewSimpleClientset()
+	kubeClient := k8sfake.NewSimpleClientset()
+	crdClient := crdfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
-	crdClient = crdfake.NewSimpleClientset()
-	data := map[string][]byte{
-		"username": []byte("admin"),
-		"password": []byte("admin"),
-	}
-	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()}
-	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
+
 	akoControlConfig.SetCRDClientset(crdClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
 	k8s.NewCRDInformers(crdClient)
 
-	integrationtest.InitializeFakeAKOAPIServer()
-	integrationtest.NewAviFakeClientInstance(kubeClient)
-	defer integrationtest.AviFakeClientInstance.Close()
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()},
+		Data:       map[string][]byte{"username": []byte("admin"), "password": []byte("admin")},
+	}
+	utils.GetInformers().ClientSet.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
+
+	testlib.InitializeFakeAKOAPIServer()
+	testlib.NewAviFakeClientInstance(kubeClient)
+	defer testlib.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
@@ -285,7 +268,7 @@ func TestVcenterCloudNoIpamDuringBootup(t *testing.T) {
 	if !ctrl.DisableSync {
 		t.Fatalf("Validation for vcenter Cloud for ipam_provider_ref failed")
 	}
-	integrationtest.ResetMiddleware()
+	testlib.ResetMiddleware()
 	DeleteConfigMap(t)
 }
 

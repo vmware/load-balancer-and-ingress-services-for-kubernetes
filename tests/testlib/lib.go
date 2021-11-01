@@ -12,20 +12,16 @@
 * limitations under the License.
 */
 
-package integrationtest
+package testlib
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
@@ -34,18 +30,18 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
-	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
+	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
 
 // constants to be used for creating K8s objs and verifying Avi objs
@@ -60,10 +56,6 @@ const (
 	RANDOMUUID          = "random-uuid"                        // random avi object uuid
 	DefaultIngressClass = "avi-lb"
 )
-
-var KubeClient *k8sfake.Clientset
-var CRDClient *crdfake.Clientset
-var ctrl *k8s.AviController
 
 var AllModels = []string{
 	"admin/cluster--Shared-L7-0",
@@ -84,37 +76,18 @@ var AllModels = []string{
 	"admin/cluster--Shared-L7-EVH-7",
 }
 
-func AddConfigMap(client *k8sfake.Clientset) {
+// Config Map
+func AddConfigMap() {
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: utils.GetAKONamespace(),
 			Name:      lib.AviConfigMap,
 		},
 	}
-	client.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
+	utils.GetInformers().ClientSet.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
-func AddDefaultIngressClass() {
-	aviIngressClass := &networking.IngressClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DefaultIngressClass,
-			Annotations: map[string]string{
-				lib.DefaultIngressClassAnnotation: "true",
-			},
-		},
-		Spec: networking.IngressClassSpec{
-			Controller: lib.AviIngressController,
-		},
-	}
-
-	KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), aviIngressClass, metav1.CreateOptions{})
-}
-
-func RemoveDefaultIngressClass() {
-	KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), DefaultIngressClass, metav1.DeleteOptions{})
-}
-
-//Fake Namespace
+// Namespace
 type FakeNamespace struct {
 	Name   string
 	Labels map[string]string
@@ -129,41 +102,39 @@ func (namespace FakeNamespace) Namespace() *corev1.Namespace {
 	}
 	return FakeNamespace
 }
+
 func AddNamespace(t *testing.T, nsName string, labels map[string]string) error {
 	nsMetaOptions := (FakeNamespace{
 		Name:   nsName,
 		Labels: labels,
 	}).Namespace()
 	nsMetaOptions.ResourceVersion = "1"
-	ns, err := KubeClient.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	ns, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
 	if err != nil {
-		_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
+		_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatalf("Error occurred while Adding namespace: %v", err)
 		}
-	} else {
-		nsLabels := ns.GetLabels()
-		if len(nsLabels) == 0 {
-			err = UpdateNamespace(t, nsName, labels)
-		}
+		return nil
 	}
-	return err
+	nsLabels := ns.GetLabels()
+	if len(nsLabels) == 0 {
+		UpdateNamespace(t, nsName, labels)
+	}
+	return nil
 }
 
-func UpdateNamespace(t *testing.T, nsName string, labels map[string]string) error {
+func UpdateNamespace(t *testing.T, nsName string, labels map[string]string) {
 	nsMetaOptions := (FakeNamespace{
 		Name:   nsName,
 		Labels: labels,
 	}).Namespace()
 	nsMetaOptions.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Namespaces().Update(context.TODO(), nsMetaOptions, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("Error occurred while Updating namespace: %v", err)
-	}
-	return err
+	UpdateObjectOrFail(t, lib.Namespace, nsMetaOptions)
 }
+
 func WaitTillNamespaceDelete(nsName string, retry_count int) {
-	_, err := KubeClient.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
 	if err == nil {
 		//NS still exists
 		if retry_count > 0 {
@@ -171,15 +142,9 @@ func WaitTillNamespaceDelete(nsName string, retry_count int) {
 			WaitTillNamespaceDelete(nsName, retry_count-1)
 		}
 	}
-
-}
-func DeleteNamespace(nsName string) {
-	KubeClient.CoreV1().Namespaces().Delete(context.TODO(), nsName, metav1.DeleteOptions{})
-	//create delay of max 10 sec
-	WaitTillNamespaceDelete(nsName, 10)
 }
 
-// Fake Secret
+// Secret
 type FakeSecret struct {
 	Cert      string
 	Key       string
@@ -208,14 +173,10 @@ func AddSecret(secretName string, namespace string, cert string, key string) {
 		Namespace: namespace,
 		Name:      secretName,
 	}).Secret()
-	KubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), fakeSecret, metav1.CreateOptions{})
+	utils.GetInformers().ClientSet.CoreV1().Secrets(namespace).Create(context.TODO(), fakeSecret, metav1.CreateOptions{})
 }
 
-func DeleteSecret(secretName string, namespace string) {
-	KubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
-}
-
-// Fake ingress
+// Ingress
 type FakeIngress struct {
 	DnsNames     []string
 	Paths        []string
@@ -549,55 +510,7 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 	return ingress
 }
 
-func DetectModelChecksumChange(t *testing.T, key string, counter int) interface{} {
-	// This method detects a change in the checksum and returns.
-	count := 0
-	initialcs := uint32(0)
-	found, aviModel := objects.SharedAviGraphLister().Get(key)
-	if found {
-		initialcs = aviModel.(*avinodes.AviObjectGraph).GraphChecksum
-	}
-	for count < counter {
-		found, aviModel = objects.SharedAviGraphLister().Get(key)
-		if found {
-			if initialcs == aviModel.(*avinodes.AviObjectGraph).GraphChecksum {
-				count = count + 1
-				time.Sleep(1 * time.Second)
-			} else {
-				return aviModel
-			}
-		}
-	}
-	return nil
-}
-
-func PollForCompletion(t *testing.T, key string, counter int) interface{} {
-	count := 0
-	for count < counter {
-		found, aviModel := objects.SharedAviGraphLister().Get(key)
-		if !found || aviModel == nil {
-			time.Sleep(1 * time.Second)
-			count = count + 1
-		} else {
-			return aviModel
-		}
-	}
-	return nil
-}
-
-func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
-	count := 0
-	for count < counter {
-		if ctrl.DisableSync {
-			time.Sleep(1 * time.Second)
-			count = count + 1
-		} else {
-			return true
-		}
-	}
-	return false
-}
-
+// Service
 type FakeService struct {
 	Namespace      string
 	Name           string
@@ -645,6 +558,67 @@ func (svc FakeService) Service() *corev1.Service {
 	return svcExample
 }
 
+/*
+CreateSVC creates a sample service of type: Type
+if multiPort: True, the service gets created with 3 ports as follows
+ServicePorts: [
+	{Name: "foo0", Port: 8080, Protocol: "TCP", TargetPort: 8080},
+	{Name: "foo1", Port: 8081, Protocol: "TCP", TargetPort: 8081},
+	{Name: "foo2", Port: 8082, Protocol: "TCP", TargetPort: 8082},
+]
+*/
+func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+	selectors := make(map[string]string)
+	CreateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+}
+
+func CreateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+	_, err := utils.GetInformers().ClientSet.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+}
+
+func UpdateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+	selectors := make(map[string]string)
+	UpdateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+}
+
+func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+	svcExample.ResourceVersion = "2"
+	UpdateObjectOrFail(t, lib.Service, svcExample)
+}
+
+func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
+	var servicePorts []Serviceport
+	numPorts := 1
+	if multiPort {
+		numPorts = 3
+	}
+
+	for i := 0; i < numPorts; i++ {
+		mPort := 8080 + i
+		sp := Serviceport{
+			PortName:   fmt.Sprintf("foo%d", i),
+			PortNumber: int32(mPort),
+			Protocol:   "TCP",
+			TargetPort: mPort,
+		}
+		if Type != corev1.ServiceTypeClusterIP {
+			// set nodeport value in case of LoadBalancer and NodePort service type
+			nodePort := 31030 + i
+			sp.NodePort = int32(nodePort)
+		}
+		servicePorts = append(servicePorts, sp)
+	}
+
+	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts, Selectors: selectors}).Service()
+	return svcExample
+}
+
+// Node
 type FakeNode struct {
 	Name               string
 	PodCIDR            string
@@ -679,47 +653,6 @@ func (node FakeNode) Node() *corev1.Node {
 	return nodeExample
 }
 
-func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.StaticRoute {
-	nodeAddrType := "V4"
-	nexthop := models.IPAddr{
-		Addr: &nodeAddr,
-		Type: &nodeAddrType,
-	}
-	prefixAddrType := "V4"
-	prefixIP := models.IPAddr{
-		Addr: &prefixAddr,
-		Type: &prefixAddrType,
-	}
-	prefix := models.IPAddrPrefix{
-		IPAddr: &prefixIP,
-		Mask:   &mask,
-	}
-	staticRoute := models.StaticRoute{
-		NextHop: &nexthop,
-		Prefix:  &prefix,
-		RouteID: &routeID,
-	}
-	return &staticRoute
-}
-
-func SetAkoTenant() {
-	os.Setenv("TENANTS_PER_CLUSTER", "true")
-	os.Setenv("TENANT_NAME", AKOTENANT)
-}
-
-func ResetAkoTenant() {
-	os.Setenv("TENANTS_PER_CLUSTER", "false")
-	os.Setenv("TENANT_NAME", "admin")
-}
-
-func SetNodePortMode() {
-	os.Setenv("SERVICE_TYPE", "NodePort")
-}
-
-func SetClusterIPMode() {
-	os.Setenv("SERVICE_TYPE", "ClusterIP")
-}
-
 func CreateNode(t *testing.T, nodeName string, nodeIP string) {
 	modelName := "admin/global"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -730,7 +663,7 @@ func CreateNode(t *testing.T, nodeName string, nodeIP string) {
 		NodeIP:  nodeIP,
 	}).Node()
 
-	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Node: %v", err)
 	}
@@ -741,81 +674,8 @@ func CreateNode(t *testing.T, nodeName string, nodeIP string) {
 func DeleteNode(t *testing.T, nodeName string) {
 	modelName := "admin/global"
 	objects.SharedAviGraphLister().Delete(modelName)
-	err := KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting Node: %v", err)
-	}
+	DeleteObject(t, lib.Node, nodeName)
 	PollForCompletion(t, modelName, 5)
-}
-
-/*
-CreateSVC creates a sample service of type: Type
-if multiPort: True, the service gets created with 3 ports as follows
-ServicePorts: [
-	{Name: "foo0", Port: 8080, Protocol: "TCP", TargetPort: 8080},
-	{Name: "foo1", Port: 8081, Protocol: "TCP", TargetPort: 8081},
-	{Name: "foo2", Port: 8082, Protocol: "TCP", TargetPort: 8082},
-]
-*/
-func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
-	selectors := make(map[string]string)
-	CreateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
-}
-
-func CreateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
-	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-}
-
-func UpdateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
-	selectors := make(map[string]string)
-	UpdateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
-}
-
-func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
-	svcExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-}
-
-func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
-	var servicePorts []Serviceport
-	numPorts := 1
-	if multiPort {
-		numPorts = 3
-	}
-
-	for i := 0; i < numPorts; i++ {
-		mPort := 8080 + i
-		sp := Serviceport{
-			PortName:   fmt.Sprintf("foo%d", i),
-			PortNumber: int32(mPort),
-			Protocol:   "TCP",
-			TargetPort: mPort,
-		}
-		if Type != corev1.ServiceTypeClusterIP {
-			// set nodeport value in case of LoadBalancer and NodePort service type
-			nodePort := 31030 + i
-			sp.NodePort = int32(nodePort)
-		}
-		servicePorts = append(servicePorts, sp)
-	}
-
-	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts, Selectors: selectors}).Service()
-	return svcExample
-}
-
-func DelSVC(t *testing.T, ns string, Name string) {
-	err := KubeClient.CoreV1().Services(ns).Delete(context.TODO(), Name, metav1.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		t.Fatalf("error in deleting Service: %v", err)
-	}
 }
 
 /*
@@ -868,7 +728,7 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: Name},
 		Subsets:    endpointSubsets,
 	}
-	_, err := KubeClient.CoreV1().Endpoints(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Endpoints(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
@@ -886,378 +746,13 @@ func ScaleCreateEP(t *testing.T, ns string, Name string) {
 		}},
 	}
 	epExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Endpoints(ns).Update(context.TODO(), epExample, metav1.UpdateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Endpoints(ns).Update(context.TODO(), epExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 }
 
-func DelEP(t *testing.T, ns string, Name string) {
-	err := KubeClient.CoreV1().Endpoints(ns).Delete(context.TODO(), Name, metav1.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		t.Fatalf("error in deleting Endpoint: %v", err)
-	}
-}
-
-func InitializeFakeAKOAPIServer() *api.FakeApiServer {
-	utils.AviLog.Infof("Initializing Fake AKO API server")
-	akoApi := &api.FakeApiServer{
-		Port: "54321",
-	}
-
-	akoApi.InitApi()
-	lib.SetApiServerInstance(akoApi)
-	return akoApi
-}
-
-//s: namespace or hostname
-func GetShardVSNumber(s string) string {
-	var vsNum uint32
-	shardSize := lib.GetshardSize()
-	if shardSize != 0 {
-		vsNum = utils.Bkt(s, shardSize)
-	} else {
-		return ""
-	}
-	vsNumber := fmt.Sprint(vsNum)
-	return vsNumber
-}
-
-const defaultMockFilePath = "../avimockobjects"
-
-var AviFakeClientInstance *httptest.Server
-var FakeServerMiddleware InjectFault
-var FakeAviObjects = []string{
-	"cloud",
-	"ipamdnsproviderprofile",
-	"ipamdnsproviderprofiledomainlist",
-	"network",
-	"pool",
-	"poolgroup",
-	"virtualservice",
-	"vrfcontext",
-	"vsdatascriptset",
-	"serviceenginegroup",
-	"tenant",
-	"vsvip",
-}
-
-type InjectFault func(w http.ResponseWriter, r *http.Request)
-
-func AddMiddleware(exec InjectFault) {
-	FakeServerMiddleware = exec
-}
-
-func ResetMiddleware() {
-	FakeServerMiddleware = nil
-}
-func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation ...bool) {
-	if AviFakeClientInstance == nil {
-		AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			utils.AviLog.Infof("[fakeAPI]: %s %s\n", r.Method, r.URL)
-
-			if FakeServerMiddleware != nil {
-				FakeServerMiddleware(w, r)
-				return
-			}
-
-			NormalControllerServer(w, r)
-		}))
-
-		url := strings.Split(AviFakeClientInstance.URL, "https://")[1]
-		os.Setenv("CTRL_IPADDRESS", url)
-		os.Setenv("FULL_SYNC_INTERVAL", "600")
-		// resets avi client pool instance, allows to connect with the new `ts` server
-		cache.AviClientInstance = nil
-		k8s.PopulateControllerProperties(kubeclient)
-		if len(skipCachePopulation) == 0 || skipCachePopulation[0] == false {
-			k8s.PopulateCache()
-		}
-	}
-}
-
-func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...string) {
-	mockFilePath := defaultMockFilePath
-	if len(args) > 0 {
-		mockFilePath = args[0]
-	}
-	url := r.URL.EscapedPath()
-	var resp map[string]interface{}
-	var finalResponse []byte
-	var vipAddress, shardVSNum string
-	var object string
-	addrPrefix := "10.250.250"
-	publicAddrPrefix := "35.250.250"
-	urlSlice := strings.Split(strings.Trim(url, "/"), "/")
-	if len(urlSlice) > 1 {
-		object = urlSlice[1]
-	}
-
-	if r.Method == "POST" && !strings.Contains(url, "login") {
-		data, _ := ioutil.ReadAll(r.Body)
-		json.Unmarshal(data, &resp)
-		rName := resp["name"].(string)
-		objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
-
-		// adding additional 'uuid' and 'url' (read-only) fields in the response
-		resp["url"] = objURL
-		resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
-
-		if strings.Contains(url, "virtualservice") {
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
-			// adding additional 'uuid' and 'url' (read-only) fields in the response
-			resp["url"] = objURL
-			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
-
-			// handle sni child, fill in vs parent ref
-			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
-
-				resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-
-			} else if strings.Contains(rName, "Shared-L7-EVH-") {
-				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
-				if strings.Contains(shardVSNum, "NS-") {
-					shardVSNum = "0"
-				}
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else if strings.Contains(rName, "Shared-L7") {
-				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else {
-				vipAddress = addrPrefix + ".1"
-			}
-
-			// add vip for status update checks
-			// use vh_parent_vs_uuid for sniVS, and name for normal VSes
-
-			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
-			if strings.Contains(rName, "public") {
-				fipAddress := "35.250.250.1"
-				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": fipAddress, "type": "V4"}
-			}
-			if strings.Contains(rName, "multivip") {
-				if strings.Contains(rName, "public") {
-					resp["vip"] = []interface{}{
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
-					}
-				} else {
-					resp["vip"] = []interface{}{
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
-					}
-				}
-			}
-			resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
-		} else if strings.Contains(url, "vsvip") {
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
-			// adding additional 'uuid' and 'url' (read-only) fields in the response
-			resp["url"] = objURL
-			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
-
-			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else if strings.Contains(rName, "Shared-L7-EVH-") {
-				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
-				if strings.Contains(shardVSNum, "NS-") {
-					shardVSNum = "0"
-				}
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else if strings.Contains(rName, "Shared-L7") {
-				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else {
-				vipAddress = addrPrefix + ".1"
-			}
-			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
-			if strings.Contains(rName, "public") {
-				fipAddress := "35.250.250.1"
-				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": fipAddress, "type": "V4"}
-			}
-			if strings.Contains(rName, "multivip") {
-				if strings.Contains(rName, "public") {
-					resp["vip"] = []interface{}{
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
-					}
-				} else {
-					resp["vip"] = []interface{}{
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
-					}
-				}
-			}
-		}
-		finalResponse, _ = json.Marshal(resp)
-		w.WriteHeader(http.StatusOK)
-		w.Write(finalResponse)
-
-	} else if r.Method == "PUT" {
-		data, _ := ioutil.ReadAll(r.Body)
-		json.Unmarshal(data, &resp)
-		resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
-		if vsType, ok := resp["type"]; ok && vsType == "VS_TYPE_VH_CHILD" {
-			parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-			resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
-		}
-
-		if val, ok := resp["name"]; !ok || val == nil {
-			resp["name"] = strings.ReplaceAll(object, "-random-uuid", "")
-		}
-		if strings.Contains(url, "vsvip") {
-			//if !strings.Contains(url, "gateway") {
-			if resp["vip"] == nil || resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"] == nil {
-				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}}}
-			}
-			//}
-			if strings.Contains(url, "public") {
-				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}
-			}
-			if strings.Contains(url, "multivip") {
-				if strings.Contains(url, "public") {
-					resp["vip"] = []interface{}{
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
-					}
-				} else {
-					resp["vip"] = []interface{}{
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
-					}
-				}
-			}
-		}
-		finalResponse, _ = json.Marshal(resp)
-		w.WriteHeader(http.StatusOK)
-		w.Write(finalResponse)
-
-	} else if r.Method == "DELETE" {
-		w.WriteHeader(http.StatusNoContent)
-		w.Write(finalResponse)
-
-	} else if r.Method == "PATCH" && strings.Contains(url, "vrfcontext") {
-		// This won't help in checking for Cache values, since we are sending back static content
-		// It is only to remove API call warning related to vrfcontext PATCH calls.
-		w.WriteHeader(http.StatusOK)
-		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/vrfcontext_uuid_mock.json", mockFilePath))
-		w.Write(data)
-
-	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "aviref") {
-		// block to handle
-		if strings.Contains(r.URL.RawQuery, "thisisaviref") {
-			w.WriteHeader(http.StatusOK)
-			data, _ := ioutil.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
-			w.Write(data)
-		} else if strings.Contains(r.URL.RawQuery, "thisisBADaviref") {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"results": [], "count": 0}`))
-		}
-
-	} else if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
-		var data []byte
-		if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NONE") {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NONE"))
-		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AZURE") {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AZURE"))
-		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AWS") {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AWS"))
-		} else {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_VCENTER"))
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write(data)
-
-	} else if r.Method == "GET" && inArray(FakeAviObjects, object) {
-		FeedMockCollectionData(w, r, mockFilePath)
-
-	} else if strings.Contains(url, "login") {
-		// This is used for /login --> first request to controller
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": "true"}`))
-	} else if strings.Contains(url, "initial-data") {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"version": {"Version": "20.1.2"}}`))
-	} else if strings.Contains(url, "/api/cluster/runtime") {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"node_states": [{"name": "10.79.169.60","role": "CLUSTER_LEADER","up_since": "2020-10-28 04:58:48"}]}`))
-	}
-}
-
-func inArray(a []string, b string) bool {
-	for _, k := range a {
-		if k == b {
-			return true
-		}
-	}
-	return false
-}
-
-// FeedMockCollectionData reads data from avimockobjects/*.json files and returns mock data
-// for GET objects list API. GET /api/virtualservice returns from virtualservice_mock.json and so on
-func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath string) {
-	url := r.URL.EscapedPath() // url = //api/<object>/:objectId
-	splitURL := strings.Split(strings.Trim(url, "/"), "/")
-
-	if r.Method == "GET" {
-		var data []byte
-		if len(splitURL) == 2 {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1]))
-		} else if len(splitURL) == 3 {
-			// with uuid
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write(data)
-	} else if strings.Contains(url, "login") {
-		// This is used for /login --> first request to controller
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": "true"}`))
-	}
-}
-
-//UpdateIngress wrapper over ingress update call.
-//internally calls Ingress() for fakeIngress object
-//performs a get for ingress object so it will update only if ingress exists
-func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
-
-	//check if resource already exists
-	ingress, err := KubeClient.NetworkingV1().Ingresses(ing.Namespace).Get(context.TODO(), ing.Name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	//increment resource version
-	newIngress := ing.IngressMultiPath() //Maybe we should replace Ingress() with IngressMultiPath() completely
-	rv, _ := strconv.Atoi(ingress.ResourceVersion)
-	newIngress.ResourceVersion = strconv.Itoa(rv + 1)
-
-	//update ingress resource
-	updatedIngress, err := KubeClient.NetworkingV1().Ingresses(newIngress.Namespace).Update(context.TODO(), newIngress, metav1.UpdateOptions{})
-	return updatedIngress, err
-}
-
-// HostRule/HTTPRule lib functions
+// HostRule
 type FakeHostRule struct {
 	Name               string
 	Namespace          string
@@ -1347,18 +842,11 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 }
 
 func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, hrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting HostRule: %v", err)
-	}
+	DeleteObject(t, lib.HostRule, hrname, "default")
 	VerifyMetadataHostRule(t, g, vskey, "default/"+hrname, false)
 }
 
-func TearDownHostRuleWithNoVerify(t *testing.T, g *gomega.WithT, hrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting HostRule: %v", err)
-	}
-}
-
+// HTTPRule
 type FakeHTTPRule struct {
 	Name           string
 	Namespace      string
@@ -1422,12 +910,6 @@ func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 	rrCreate := httprule.HTTPRule()
 	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HTTPRule: %v", err)
-	}
-}
-
-func TeardownHTTPRule(t *testing.T, rrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting HTTPRule: %v", err)
 	}
 }
 
@@ -1511,6 +993,7 @@ func VerifyMetadataHTTPRule(t *testing.T, g *gomega.WithT, poolKey cache.Namespa
 	})
 }
 
+// Ingress Class
 type FakeIngressClass struct {
 	Name            string
 	Controller      string
@@ -1555,17 +1038,33 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 	}
 
 	ingClassCreate := ingclass.IngressClass()
-	if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetInformers().ClientSet.NetworkingV1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding IngressClass: %v", err)
 	}
 }
 
-func TeardownIngressClass(t *testing.T, ingClassName string) {
-	if err := KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), ingClassName, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting IngressClass: %v", err)
+// Ingress Class
+func AddDefaultIngressClass() {
+	aviIngressClass := &networking.IngressClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: DefaultIngressClass,
+			Annotations: map[string]string{
+				lib.DefaultIngressClassAnnotation: "true",
+			},
+		},
+		Spec: networking.IngressClassSpec{
+			Controller: lib.AviIngressController,
+		},
 	}
+
+	utils.GetInformers().ClientSet.NetworkingV1().IngressClasses().Create(context.TODO(), aviIngressClass, metav1.CreateOptions{})
 }
 
+func RemoveDefaultIngressClass() {
+	utils.GetInformers().ClientSet.NetworkingV1().IngressClasses().Delete(context.TODO(), DefaultIngressClass, metav1.DeleteOptions{})
+}
+
+// AviInfraSetting
 type FakeAviInfraSetting struct {
 	Name           string
 	SeGroupName    string
@@ -1621,10 +1120,16 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 	}
 }
 
-func TeardownAviInfraSetting(t *testing.T, infraSettingName string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting AviInfraSetting: %v", err)
+// AKO API Server
+func InitializeFakeAKOAPIServer() *api.FakeApiServer {
+	utils.AviLog.Infof("Initializing Fake AKO API server")
+	akoApi := &api.FakeApiServer{
+		Port: "54321",
 	}
+
+	akoApi.InitApi()
+	lib.SetApiServerInstance(akoApi)
+	return akoApi
 }
 
 func ClearAllCache(cacheObj *cache.AviObjCache) {
@@ -1649,5 +1154,262 @@ func ClearAllCache(cacheObj *cache.AviObjCache) {
 	for _, k := range keys {
 		cacheObj.VsCacheLocal.AviCacheDelete(k)
 	}
+}
 
+func DetectModelChecksumChange(t *testing.T, key string, counter int) interface{} {
+	// This method detects a change in the checksum and returns.
+	count := 0
+	initialcs := uint32(0)
+	found, aviModel := objects.SharedAviGraphLister().Get(key)
+	if found {
+		initialcs = aviModel.(*avinodes.AviObjectGraph).GraphChecksum
+	}
+	for count < counter {
+		found, aviModel = objects.SharedAviGraphLister().Get(key)
+		if found {
+			if initialcs == aviModel.(*avinodes.AviObjectGraph).GraphChecksum {
+				count = count + 1
+				time.Sleep(1 * time.Second)
+			} else {
+				return aviModel
+			}
+		}
+	}
+	return nil
+}
+
+func PollForCompletion(t *testing.T, key string, counter int) interface{} {
+	count := 0
+	for count < counter {
+		found, aviModel := objects.SharedAviGraphLister().Get(key)
+		if !found || aviModel == nil {
+			time.Sleep(1 * time.Second)
+			count = count + 1
+		} else {
+			return aviModel
+		}
+	}
+	return nil
+}
+
+func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
+	count := 0
+	for count < counter {
+		if ctrl.DisableSync {
+			time.Sleep(1 * time.Second)
+			count = count + 1
+		} else {
+			return true
+		}
+	}
+	return false
+}
+
+func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.StaticRoute {
+	nodeAddrType := "V4"
+	nexthop := models.IPAddr{
+		Addr: &nodeAddr,
+		Type: &nodeAddrType,
+	}
+	prefixAddrType := "V4"
+	prefixIP := models.IPAddr{
+		Addr: &prefixAddr,
+		Type: &prefixAddrType,
+	}
+	prefix := models.IPAddrPrefix{
+		IPAddr: &prefixIP,
+		Mask:   &mask,
+	}
+	staticRoute := models.StaticRoute{
+		NextHop: &nexthop,
+		Prefix:  &prefix,
+		RouteID: &routeID,
+	}
+	return &staticRoute
+}
+
+func SetAkoTenant() {
+	os.Setenv("TENANTS_PER_CLUSTER", "true")
+	os.Setenv("TENANT_NAME", AKOTENANT)
+}
+
+func ResetAkoTenant() {
+	os.Setenv("TENANTS_PER_CLUSTER", "false")
+	os.Setenv("TENANT_NAME", "admin")
+}
+
+func SetNodePortMode() {
+	os.Setenv("SERVICE_TYPE", "NodePort")
+}
+
+func SetClusterIPMode() {
+	os.Setenv("SERVICE_TYPE", "ClusterIP")
+}
+
+func GetShardVSNumber(s string) string {
+	var vsNum uint32
+	shardSize := lib.GetshardSize()
+	if shardSize != 0 {
+		vsNum = utils.Bkt(s, shardSize)
+	} else {
+		return ""
+	}
+	vsNumber := fmt.Sprint(vsNum)
+	return vsNumber
+}
+
+func UpdateObjectOrFail(t *testing.T, objType string, obj runtime.Object) {
+	switch objType {
+	case lib.AdvancedL4GatewayClass:
+		if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Update(context.TODO(), obj.(*v1alpha1pre1.GatewayClass), metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating GatewayClass: %v", err)
+		}
+	case lib.AdvancedL4Gateway:
+		gw := obj.(*v1alpha1pre1.Gateway)
+		if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gw.Namespace).Update(context.TODO(), gw, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Gateway: %v", err)
+		}
+	case lib.GatewayClass:
+		if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Update(context.TODO(), obj.(*servicesapi.GatewayClass), metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating GatewayClass: %v", err)
+		}
+	case lib.Gateway:
+		gw := obj.(*servicesapi.Gateway)
+		if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(gw.Namespace).Update(context.TODO(), gw, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Gateway: %v", err)
+		}
+	case lib.Service:
+		svc := obj.(*corev1.Service)
+		if _, err := utils.GetInformers().ClientSet.CoreV1().Services(svc.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Service: %v", err)
+		}
+	case lib.Endpoint:
+		ep := obj.(*corev1.Endpoints)
+		if _, err := utils.GetInformers().ClientSet.CoreV1().Endpoints(ep.Namespace).Update(context.TODO(), ep, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Endpoint: %v", err)
+		}
+	case lib.Secret:
+		secret := obj.(*corev1.Secret)
+		if _, err := utils.GetInformers().ClientSet.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Endpoint: %v", err)
+		}
+	case lib.Node:
+		if _, err := utils.GetInformers().ClientSet.CoreV1().Nodes().Update(context.TODO(), obj.(*corev1.Node), metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Endpoint: %v", err)
+		}
+	case lib.Pod:
+		pod := obj.(*corev1.Pod)
+		if _, err := utils.GetInformers().ClientSet.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Endpoint: %v", err)
+		}
+	case lib.Namespace:
+		if _, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), obj.(*corev1.Namespace), metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Endpoint: %v", err)
+		}
+	case lib.IngressClass:
+		if _, err := utils.GetInformers().ClientSet.NetworkingV1().IngressClasses().Update(context.TODO(), obj.(*networking.IngressClass), metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Service: %v", err)
+		}
+	case lib.Ingress:
+		ing := obj.(*networking.Ingress)
+		if _, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses(ing.Namespace).Update(context.TODO(), ing, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating Service: %v", err)
+		}
+	case lib.Route:
+		route := obj.(*routev1.Route)
+		if _, err := utils.GetInformers().OshiftClient.RouteV1().Routes(route.Namespace).Update(context.TODO(), route, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating route: %v", err)
+		}
+	case lib.HostRule:
+		hostrule := obj.(*akov1alpha1.HostRule)
+		if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules(hostrule.Namespace).Update(context.TODO(), hostrule, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating HostRule: %v", err)
+		}
+	case lib.HTTPRule:
+		httprule := obj.(*akov1alpha1.HTTPRule)
+		if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules(httprule.Namespace).Update(context.TODO(), httprule, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating HostRule: %v", err)
+		}
+	case lib.AviInfraSetting:
+		if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), obj.(*akov1alpha1.AviInfraSetting), metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in updating HostRule: %v", err)
+		}
+	default:
+		t.Fatalf("Unrecognized object Type: %s", objType)
+	}
+}
+
+func DeleteObject(t *testing.T, objType string, objName string, objNamespace ...string) {
+	switch objType {
+	case lib.AdvancedL4GatewayClass:
+		if err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting GatewayClass: %v", err)
+		}
+	case lib.AdvancedL4Gateway:
+		if err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Gateway: %v", err)
+		}
+	case lib.GatewayClass:
+		if err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting GatewayClass: %v", err)
+		}
+	case lib.Gateway:
+		if err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Gateway: %v", err)
+		}
+	case lib.Service:
+		if err := utils.GetInformers().ClientSet.CoreV1().Services(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Service: %v", err)
+		}
+	case lib.Endpoint:
+		if err := utils.GetInformers().ClientSet.CoreV1().Endpoints(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Endpoint: %v", err)
+		}
+	case lib.Secret:
+		if err := utils.GetInformers().ClientSet.CoreV1().Secrets(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Secret: %v", err)
+		}
+	case lib.Node:
+		if err := utils.GetInformers().ClientSet.CoreV1().Nodes().Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Node: %v", err)
+		}
+	case lib.ConfigMap:
+		if err := utils.GetInformers().ClientSet.CoreV1().ConfigMaps(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting ConfigMap: %v", err)
+		}
+	case lib.Pod:
+		if err := utils.GetInformers().ClientSet.CoreV1().Pods(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Pod: %v", err)
+		}
+	case lib.Namespace:
+		if err := utils.GetInformers().ClientSet.CoreV1().Namespaces().Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Namespace: %v", err)
+		}
+	case lib.IngressClass:
+		if err := utils.GetInformers().ClientSet.NetworkingV1().IngressClasses().Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting IngressClass: %v", err)
+		}
+	case lib.Ingress:
+		if err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Ingress: %v", err)
+		}
+	case lib.Route:
+		if err := utils.GetInformers().OshiftClient.RouteV1().Routes(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting Route: %v", err)
+		}
+	case lib.HostRule:
+		if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting HostRule: %v", err)
+		}
+	case lib.HTTPRule:
+		if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules(objNamespace[0]).Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting HttpRule: %v", err)
+		}
+	case lib.AviInfraSetting:
+		if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), objName, metav1.DeleteOptions{}); err != nil {
+			t.Logf("error in deleting AviInfraSetting: %v", err)
+		}
+	default:
+		t.Fatalf("Unrecognized object Type: %s", objType)
+	}
 }

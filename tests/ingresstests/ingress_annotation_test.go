@@ -23,7 +23,7 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,7 +104,7 @@ func VerifyPasthrough(t *testing.T, g *gomega.WithT, vs *avinodes.AviVsNode) {
 func TestPassthroughIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForIngress(t, DefaultPassthroughModel)
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        passthroughIngressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -115,11 +115,11 @@ func TestPassthroughIngress(t *testing.T) {
 	ann := make(map[string]string)
 	ann[lib.PassthroughAnnotation] = "true"
 	ingrFake.SetAnnotations(ann)
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, DefaultPassthroughModel, 5)
+	testlib.PollForCompletion(t, DefaultPassthroughModel, 5)
 
 	aviModel := ValidatePassthroughModel(t, g, DefaultPassthroughModel)
 	graph := aviModel.(*avinodes.AviObjectGraph)
@@ -132,10 +132,7 @@ func TestPassthroughIngress(t *testing.T) {
 	g.Expect(passInsecureNode.HttpPolicyRefs[0].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 	g.Expect(passInsecureNode.HttpPolicyRefs[0].RedirectPorts[0].StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), passthroughIngressName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting Ingress: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, passthroughIngressName, "default")
 	VerifyPassthroughIngressDeletion(t, g, DefaultPassthroughModel, 0, 0)
 	TearDownTestForIngress(t, DefaultPassthroughModel)
 }
@@ -143,7 +140,7 @@ func TestPassthroughIngress(t *testing.T) {
 func TestPassthroughIngressUpdateHostname(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForIngress(t, DefaultPassthroughModel)
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        passthroughIngressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -154,11 +151,11 @@ func TestPassthroughIngressUpdateHostname(t *testing.T) {
 	ann := make(map[string]string)
 	ann[lib.PassthroughAnnotation] = "true"
 	ingrFake.SetAnnotations(ann)
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, DefaultPassthroughModel, 5)
+	testlib.PollForCompletion(t, DefaultPassthroughModel, 5)
 
 	aviModel := ValidatePassthroughModel(t, g, DefaultPassthroughModel)
 	graph := aviModel.(*avinodes.AviObjectGraph)
@@ -171,7 +168,7 @@ func TestPassthroughIngressUpdateHostname(t *testing.T) {
 	g.Expect(passInsecureNode.HttpPolicyRefs[0].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 	g.Expect(passInsecureNode.HttpPolicyRefs[0].RedirectPorts[0].StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
 
-	ingrFake = (integrationtest.FakeIngress{
+	ingrFake = (testlib.FakeIngress{
 		Name:        passthroughIngressName,
 		Namespace:   "default",
 		DnsNames:    []string{"bar.com"},
@@ -183,10 +180,7 @@ func TestPassthroughIngressUpdateHostname(t *testing.T) {
 	ann[lib.PassthroughAnnotation] = "true"
 	ingrFake.SetAnnotations(ann)
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
 
 	g.Eventually(func() string {
 		_, aviModel = objects.SharedAviGraphLister().Get(DefaultPassthroughModel)
@@ -202,10 +196,7 @@ func TestPassthroughIngressUpdateHostname(t *testing.T) {
 	g.Expect(pg.Members).To(gomega.HaveLen(1))
 	g.Expect(*pg.Members[0].PoolRef).To(gomega.Equal("/api/pool?name=cluster--bar.com-avisvc"))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), passthroughIngressName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting Ingress: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, passthroughIngressName, "default")
 	VerifyPassthroughIngressDeletion(t, g, DefaultPassthroughModel, 0, 0)
 	TearDownTestForIngress(t, DefaultPassthroughModel)
 }
@@ -213,7 +204,7 @@ func TestPassthroughIngressUpdateHostname(t *testing.T) {
 func TestPassthroughIngressRemoveAnnotation(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForIngress(t, DefaultPassthroughModel)
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        passthroughIngressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -224,11 +215,11 @@ func TestPassthroughIngressRemoveAnnotation(t *testing.T) {
 	ann := make(map[string]string)
 	ann[lib.PassthroughAnnotation] = "true"
 	ingrFake.SetAnnotations(ann)
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, DefaultPassthroughModel, 5)
+	testlib.PollForCompletion(t, DefaultPassthroughModel, 5)
 
 	aviModel := ValidatePassthroughModel(t, g, DefaultPassthroughModel)
 	graph := aviModel.(*avinodes.AviObjectGraph)
@@ -238,23 +229,17 @@ func TestPassthroughIngressRemoveAnnotation(t *testing.T) {
 	ann = make(map[string]string)
 	ingrFake.SetAnnotations(ann)
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
 	VerifyPassthroughIngressDeletion(t, g, DefaultPassthroughModel, 0, 0)
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), passthroughIngressName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, passthroughIngressName, "default")
 	TearDownTestForIngress(t, DefaultPassthroughModel)
 }
 
 func TestPassthroughIngressAddAnnotation(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForIngress(t, DefaultPassthroughModel)
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        passthroughIngressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -263,7 +248,7 @@ func TestPassthroughIngressAddAnnotation(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -272,21 +257,15 @@ func TestPassthroughIngressAddAnnotation(t *testing.T) {
 	ann[lib.PassthroughAnnotation] = "true"
 	ingrFake.SetAnnotations(ann)
 	ingrFake.ResourceVersion = "2"
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
-	integrationtest.PollForCompletion(t, DefaultPassthroughModel, 5)
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
+	testlib.PollForCompletion(t, DefaultPassthroughModel, 5)
 
 	aviModel := ValidatePassthroughModel(t, g, DefaultPassthroughModel)
 	graph := aviModel.(*avinodes.AviObjectGraph)
 	vs := graph.GetAviVS()[0]
 	VerifyPasthrough(t, g, vs)
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), passthroughIngressName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, passthroughIngressName, "default")
 	VerifyPassthroughIngressDeletion(t, g, DefaultPassthroughModel, 0, 0)
 	TearDownTestForIngress(t, DefaultPassthroughModel)
 }
@@ -294,7 +273,7 @@ func TestPassthroughIngressAddAnnotation(t *testing.T) {
 func TestPassthroughMultipleIngresses(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForIngress(t, DefaultPassthroughModel)
-	ingrFake1 := (integrationtest.FakeIngress{
+	ingrFake1 := (testlib.FakeIngress{
 		Name:        passthroughIngressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -304,13 +283,13 @@ func TestPassthroughMultipleIngresses(t *testing.T) {
 	ann := make(map[string]string)
 	ann[lib.PassthroughAnnotation] = "true"
 	ingrFake1.SetAnnotations(ann)
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
 	passthroughIngressName2 := "bar"
-	ingrFake2 := (integrationtest.FakeIngress{
+	ingrFake2 := (testlib.FakeIngress{
 		Name:        passthroughIngressName2,
 		Namespace:   "default",
 		DnsNames:    []string{"bar.com"},
@@ -318,11 +297,11 @@ func TestPassthroughMultipleIngresses(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 	ingrFake2.SetAnnotations(ann)
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	_, err = utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, DefaultPassthroughModel, 5)
+	testlib.PollForCompletion(t, DefaultPassthroughModel, 5)
 
 	_, aviModel := objects.SharedAviGraphLister().Get(DefaultPassthroughModel)
 	graph := aviModel.(*avinodes.AviObjectGraph)
@@ -370,14 +349,8 @@ func TestPassthroughMultipleIngresses(t *testing.T) {
 		g.Expect(redir.RedirectPorts[0].StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
 	}
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), passthroughIngressName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting Ingress: %v", err)
-	}
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), passthroughIngressName2, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting Ingress: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, passthroughIngressName, "default")
+	testlib.DeleteObject(t, lib.Ingress, passthroughIngressName2, "default")
 	VerifyPassthroughIngressDeletion(t, g, DefaultPassthroughModel, 0, 0)
 	TearDownTestForIngress(t, DefaultPassthroughModel)
 }
@@ -387,9 +360,9 @@ func TestAddIngressDefaultCert(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	testlib.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -402,7 +375,7 @@ func TestAddIngressDefaultCert(t *testing.T) {
 	ann[lib.DefaultSecretEnabled] = "true"
 	ingrFake.SetAnnotations(ann)
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -433,14 +406,8 @@ func TestAddIngressDefaultCert(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com"))
 	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Delete the Ingress %v", err)
-	}
-	err = KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Delete the secret %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
+	testlib.DeleteObject(t, lib.Secret, lib.DefaultRouteCert, utils.GetAKONamespace())
 	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, modelName)
 }
@@ -450,9 +417,9 @@ func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	testlib.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -465,7 +432,7 @@ func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
 	ann[lib.DefaultSecretEnabled] = "true"
 	ingrFake.SetAnnotations(ann)
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -492,11 +459,7 @@ func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
 	ann = make(map[string]string)
 	ingrFake.SetAnnotations(ann)
 	ingrFake.ResourceVersion = "2"
-
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
 
 	g.Eventually(func() int {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -507,14 +470,8 @@ func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
 	g.Expect(nodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("cluster--Shared-L7-0"))
 	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-with-targets"))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Delete the Ingress %v", err)
-	}
-	err = KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Delete the secret %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
+	testlib.DeleteObject(t, lib.Secret, lib.DefaultRouteCert, utils.GetAKONamespace())
 	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, modelName)
 }
@@ -524,9 +481,9 @@ func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	testlib.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -535,7 +492,7 @@ func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
@@ -544,11 +501,7 @@ func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
 	ann[lib.DefaultSecretEnabled] = "true"
 	ingrFake.SetAnnotations(ann)
 	ingrFake.ResourceVersion = "2"
-
-	_, err = KubeClient.NetworkingV1().Ingresses("default").Update(context.TODO(), ingrFake, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
 
 	var aviModel interface{}
 	var nodes []*avinodes.AviVsNode
@@ -575,14 +528,8 @@ func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com"))
 	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-with-targets"))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Delete the Ingress %v", err)
-	}
-	err = KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Delete the secret %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
+	testlib.DeleteObject(t, lib.Secret, lib.DefaultRouteCert, utils.GetAKONamespace())
 	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, modelName)
 }
@@ -594,7 +541,7 @@ func TestIngressAnnotationAddDefaultCert(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 
-	ingrFake := (integrationtest.FakeIngress{
+	ingrFake := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
@@ -607,12 +554,12 @@ func TestIngressAnnotationAddDefaultCert(t *testing.T) {
 	ann[lib.DefaultSecretEnabled] = "true"
 	ingrFake.SetAnnotations(ann)
 
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	testlib.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
 	var aviModel interface{}
 	var nodes []*avinodes.AviVsNode
@@ -638,14 +585,8 @@ func TestIngressAnnotationAddDefaultCert(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("cluster--foo.com"))
 	g.Expect(nodes[0].SniNodes[0].HttpPolicyRefs[0].Name).To(gomega.Equal("cluster--default-foo.com"))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Delete the Ingress %v", err)
-	}
-	err = KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), lib.DefaultRouteCert, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't Delete the secret %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
+	testlib.DeleteObject(t, lib.Secret, lib.DefaultRouteCert, utils.GetAKONamespace())
 	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngress(t, modelName)
 }

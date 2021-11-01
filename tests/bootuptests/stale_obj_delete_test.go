@@ -11,7 +11,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,8 +20,6 @@ import (
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 )
 
-var KubeClient *k8sfake.Clientset
-var CRDClient *crdfake.Clientset
 var restChan chan bool
 var uuidMap map[string]bool
 
@@ -43,17 +41,17 @@ func TestMain(m *testing.M) {
 	uuidMap = make(map[string]bool)
 
 	akoControlConfig := lib.AKOControlConfig()
-	KubeClient = k8sfake.NewSimpleClientset()
-	CRDClient = crdfake.NewSimpleClientset()
-	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	kubeClient := k8sfake.NewSimpleClientset()
+	crdClient := crdfake.NewSimpleClientset()
+	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
 	}
 	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()}
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
+	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -65,8 +63,8 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	k8s.NewCRDInformers(CRDClient)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	k8s.NewCRDInformers(crdClient)
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -74,16 +72,16 @@ func TestMain(m *testing.M) {
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 
-	integrationtest.InitializeFakeAKOAPIServer()
+	testlib.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance(KubeClient, true)
-	defer integrationtest.AviFakeClientInstance.Close()
+	testlib.NewAviFakeClientInstance(kubeClient, true)
+	defer testlib.AviFakeClientInstance.Close()
 
 	os.Exit(m.Run())
 }
 
 func injectMWForObjDeletion() {
-	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	testlib.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		var finalResponse []byte
 		url := r.URL.EscapedPath()
 		object := strings.Split(strings.Trim(url, "/"), "/")
@@ -103,7 +101,7 @@ func injectMWForObjDeletion() {
 				restChan <- true
 			}
 		} else if r.Method == "GET" {
-			integrationtest.FeedMockCollectionData(w, r, mockFilePath)
+			testlib.FeedMockCollectionData(w, r, mockFilePath)
 
 		} else if strings.Contains(url, "login") {
 			w.WriteHeader(http.StatusOK)
@@ -116,16 +114,16 @@ func injectMWForObjDeletion() {
 }
 
 func injectMWForCloud() {
-	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	testlib.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		url := r.URL.EscapedPath()
 		if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
-			integrationtest.FeedMockCollectionData(w, r, invalidFilePath)
+			testlib.FeedMockCollectionData(w, r, invalidFilePath)
 
 		} else if strings.Contains(url, "initial-data") {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"version": {"Version": "20.1.2"}}`))
 		} else if r.Method == "GET" {
-			integrationtest.FeedMockCollectionData(w, r, mockFilePath)
+			testlib.FeedMockCollectionData(w, r, mockFilePath)
 
 		} else if strings.Contains(url, "login") {
 			w.WriteHeader(http.StatusOK)
@@ -144,20 +142,20 @@ func TestObjDeletion(t *testing.T) {
 	//uuidMap["vsvip-82b41dd7-5b19-4007-85d4-530acea4d86b"] = true
 
 	injectMWForObjDeletion()
-	integrationtest.AddConfigMap(KubeClient)
-	k8s.PopulateControllerProperties(KubeClient)
+	testlib.AddConfigMap()
+	k8s.PopulateControllerProperties(utils.GetInformers().ClientSet)
 	go k8s.PopulateCache()
 	// DeleteConfigMap(t)
-	integrationtest.ResetMiddleware()
+	testlib.ResetMiddleware()
 }
 
 // Injecting middleware to error out cloud properties cache update failure
 func TestNetworkIssueCacheValidationDuringBootup(t *testing.T) {
 	injectMWForCloud()
-	k8s.PopulateControllerProperties(KubeClient)
+	k8s.PopulateControllerProperties(utils.GetInformers().ClientSet)
 	err := k8s.PopulateCache()
 	if err == nil {
 		t.Fatalf("Cache validation failed.")
 	}
-	integrationtest.ResetMiddleware()
+	testlib.ResetMiddleware()
 }

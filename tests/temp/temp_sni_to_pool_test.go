@@ -26,11 +26,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
+	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -41,8 +40,6 @@ import (
 // Use this file to execute tests that need special handling like - configmap create/delete/update operations etc.
 // Pls delete this file/folder once this feature is deprecated in value of http caching on PG.
 
-var KubeClient *k8sfake.Clientset
-var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
 
@@ -57,10 +54,10 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	akoControlConfig := lib.AKOControlConfig()
-	KubeClient = k8sfake.NewSimpleClientset()
-	CRDClient = crdfake.NewSimpleClientset()
-	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	kubeClient := k8sfake.NewSimpleClientset()
+	crdClient := crdfake.NewSimpleClientset()
+	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -72,9 +69,9 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers(CRDClient)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	informers := k8s.K8sinformers{Cs: kubeClient}
+	k8s.NewCRDInformers(crdClient)
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -82,10 +79,10 @@ func TestMain(m *testing.M) {
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 
-	akoApiServer = integrationtest.InitializeFakeAKOAPIServer()
+	akoApiServer = testlib.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance(KubeClient)
-	defer integrationtest.AviFakeClientInstance.Close()
+	testlib.NewAviFakeClientInstance(kubeClient)
+	defer testlib.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
@@ -101,12 +98,11 @@ func TestMain(m *testing.M) {
 	wgGraph := &sync.WaitGroup{}
 	waitGroupMap["graph"] = wgGraph
 
-	integrationtest.AddConfigMap(KubeClient)
-	integrationtest.PollForSyncStart(ctrl, 10)
+	testlib.AddConfigMap()
+	testlib.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	integrationtest.KubeClient = KubeClient
-	integrationtest.AddDefaultIngressClass()
+	testlib.AddDefaultIngressClass()
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
@@ -119,10 +115,10 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 	*/
 	UpdateConfigMap(lib.NO_PG_FOR_SNI, "true")
 	g := gomega.NewGomegaWithT(t)
-	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	testlib.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
-	ingrFake1 := (integrationtest.FakeIngress{
+	ingrFake1 := (testlib.FakeIngress{
 		Name:      "ingress-shp",
 		Namespace: "default",
 		DnsNames:  []string{"foo.com"},
@@ -134,12 +130,12 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 		},
 		ServiceName: "avisvc",
 	}).IngressMultiPath()
-	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	integrationtest.PollForCompletion(t, modelName, 5)
+	testlib.PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -150,7 +146,7 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	_, err = (integrationtest.FakeIngress{
+	ingressUpdate := testlib.FakeIngress{
 		Name:      "ingress-shp",
 		Namespace: "default",
 		DnsNames:  []string{"foo.com"},
@@ -161,12 +157,11 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
-	}).UpdateIngress()
-	if err != nil {
-		t.Fatalf("error in updating ingress %s", err)
-	}
-	integrationtest.PollForCompletion(t, modelName, 5)
+	}.IngressMultiPath()
+	ingressUpdate.ResourceVersion = "2"
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingressUpdate)
 
+	testlib.PollForCompletion(t, modelName, 5)
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -178,7 +173,7 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	_, err = (integrationtest.FakeIngress{
+	ingressUpdate = testlib.FakeIngress{
 		Name:      "ingress-shp",
 		Namespace: "default",
 		DnsNames:  []string{"foo.com"},
@@ -189,11 +184,11 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 			"my-secret": {"foo.com"},
 		},
 		ServiceName: "avisvc",
-	}).UpdateIngress()
-	if err != nil {
-		t.Fatalf("error in updating ingress %s", err)
-	}
-	integrationtest.PollForCompletion(t, modelName, 5)
+	}.IngressMultiPath()
+	ingressUpdate.ResourceVersion = "3"
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingressUpdate)
+
+	testlib.PollForCompletion(t, modelName, 5)
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 
 	if found {
@@ -206,11 +201,8 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-shp", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
-	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
+	testlib.DeleteObject(t, lib.Ingress, "ingress-shp", "default")
+	testlib.DeleteObject(t, lib.Secret, "my-secret", "default")
 	VerifySNIIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, modelName)
@@ -218,7 +210,7 @@ func TestSniPoolNoPGForSNI(t *testing.T) {
 }
 
 func UpdateConfigMap(key, val string) {
-	KubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
+	utils.GetInformers().ClientSet.CoreV1().ConfigMaps(utils.GetAKONamespace()).Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
 	aviCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: utils.GetAKONamespace(),
@@ -228,7 +220,7 @@ func UpdateConfigMap(key, val string) {
 	}
 	aviCM.Data[key] = val
 	aviCM.ResourceVersion = "2"
-	KubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
+	utils.GetInformers().ClientSet.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 	// Wait for the configmap changes to take effect
 	time.Sleep(3 * time.Second)
 }
@@ -237,16 +229,16 @@ func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
+	testlib.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
+	testlib.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
 }
 
 func TearDownTestForIngress(t *testing.T, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEP(t, "default", "avisvc")
+	testlib.DeleteObject(t, lib.Service, "avisvc", "default")
+	testlib.DeleteObject(t, lib.Endpoint, "avisvc", "default")
 }
 
 func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, sniCount int) {

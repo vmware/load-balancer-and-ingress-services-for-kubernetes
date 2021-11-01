@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package integrationtest
+package l4tests
 
 import (
 	"context"
@@ -31,9 +31,9 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -41,17 +41,28 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
+// constants to be used for creating K8s objs and verifying Avi objs
+const (
+	SINGLEPORTSVC   = "testsvc"                            // single port service name
+	MULTIPORTSVC    = "testsvcmulti"                       // multi port service name
+	NAMESPACE       = "red-ns"                             // namespace
+	AVINAMESPACE    = "admin"                              // avi namespace
+	AKOTENANT       = "akotenant"                          // ako tenant where TENANTS_PER_CLUSTER is enabled
+	SINGLEPORTMODEL = "admin/cluster--red-ns-testsvc"      // single port model name
+	MULTIPORTMODEL  = "admin/cluster--red-ns-testsvcmulti" // multi port model name
+)
+
 func SetUpTestForSvcLB(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
-	PollForCompletion(t, SINGLEPORTMODEL, 5)
+	testlib.CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
+	testlib.CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	testlib.PollForCompletion(t, SINGLEPORTMODEL, 5)
 }
 
 func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	DelSVC(t, NAMESPACE, SINGLEPORTSVC)
-	DelEP(t, NAMESPACE, SINGLEPORTSVC)
+	testlib.DeleteObject(t, lib.Service, SINGLEPORTSVC, NAMESPACE)
+	testlib.DeleteObject(t, lib.Endpoint, SINGLEPORTSVC, NAMESPACE)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", SINGLEPORTSVC, NAMESPACE)}
 	g.Eventually(func() bool {
@@ -62,15 +73,15 @@ func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 
 func SetUpTestForSvcLBMultiport(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
-	CreateSVC(t, NAMESPACE, MULTIPORTSVC, corev1.ServiceTypeLoadBalancer, true)
-	CreateEP(t, NAMESPACE, MULTIPORTSVC, true, true, "1.1.1")
-	PollForCompletion(t, MULTIPORTMODEL, 10)
+	testlib.CreateSVC(t, NAMESPACE, MULTIPORTSVC, corev1.ServiceTypeLoadBalancer, true)
+	testlib.CreateEP(t, NAMESPACE, MULTIPORTSVC, true, true, "1.1.1")
+	testlib.PollForCompletion(t, MULTIPORTMODEL, 10)
 }
 
 func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
-	DelSVC(t, NAMESPACE, MULTIPORTSVC)
-	DelEP(t, NAMESPACE, MULTIPORTSVC)
+	testlib.DeleteObject(t, lib.Service, MULTIPORTSVC, NAMESPACE)
+	testlib.DeleteObject(t, lib.Endpoint, MULTIPORTSVC, NAMESPACE)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", MULTIPORTSVC, NAMESPACE)}
 	g.Eventually(func() bool {
@@ -91,17 +102,17 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	akoControlConfig := lib.AKOControlConfig()
-	KubeClient = k8sfake.NewSimpleClientset()
-	CRDClient = crdfake.NewSimpleClientset()
-	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	kubeClient := k8sfake.NewSimpleClientset()
+	crdClient := crdfake.NewSimpleClientset()
+	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
 	}
 	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()}
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
+	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -113,16 +124,16 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers(CRDClient)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	informers := k8s.K8sinformers{Cs: kubeClient}
+	k8s.NewCRDInformers(crdClient)
 
-	InitializeFakeAKOAPIServer()
+	testlib.InitializeFakeAKOAPIServer()
 
-	NewAviFakeClientInstance(KubeClient)
-	defer AviFakeClientInstance.Close()
+	testlib.NewAviFakeClientInstance(kubeClient)
+	defer testlib.AviFakeClientInstance.Close()
 
-	ctrl = k8s.SharedAviController()
+	ctrl := k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
@@ -138,11 +149,11 @@ func TestMain(m *testing.M) {
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
 
-	AddConfigMap(KubeClient)
-	PollForSyncStart(ctrl, 10)
+	testlib.AddConfigMap()
+	testlib.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	AddDefaultIngressClass()
+	testlib.AddDefaultIngressClass()
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
@@ -169,17 +180,15 @@ func TestAviSvcCreationSinglePort(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
-	svcExample := (FakeService{
+	svcExample := (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcExample)
+
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
 	g.Eventually(func() bool {
@@ -187,17 +196,14 @@ func TestAviSvcCreationSinglePort(t *testing.T) {
 		return found
 	}, 15*time.Second).Should(gomega.Equal(false))
 	// If we transition the service from clusterIP to Loadbalancer - vs should get ceated
-	svcExample = (FakeService{
+	svcExample = (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.ResourceVersion = "3"
-	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcExample)
 
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
@@ -208,12 +214,12 @@ func TestAviSvcCreationSinglePort(t *testing.T) {
 
 func TestAviSvcCreationSinglePortMultiTenantEnabled(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	SetAkoTenant()
-	defer ResetAkoTenant()
+	testlib.SetAkoTenant()
+	defer testlib.ResetAkoTenant()
 	modelName := fmt.Sprintf("%s/cluster--red-ns-testsvc", AKOTENANT)
 	objects.SharedAviGraphLister().Delete(modelName)
-	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	testlib.CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
+	testlib.CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
 
 	var aviModel interface{}
 	var found bool
@@ -238,8 +244,8 @@ func TestAviSvcCreationSinglePortMultiTenantEnabled(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
 
 	objects.SharedAviGraphLister().Delete(modelName)
-	DelSVC(t, NAMESPACE, SINGLEPORTSVC)
-	DelEP(t, NAMESPACE, SINGLEPORTSVC)
+	testlib.DeleteObject(t, lib.Service, SINGLEPORTSVC, NAMESPACE)
+	testlib.DeleteObject(t, lib.Endpoint, SINGLEPORTSVC, NAMESPACE)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", SINGLEPORTSVC, NAMESPACE)}
 	g.Eventually(func() bool {
@@ -353,7 +359,6 @@ func TestAviSvcMultiPortApplicationProf(t *testing.T) {
 }
 
 func TestAviSvcUpdateEndpoint(t *testing.T) {
-	var err error
 	g := gomega.NewGomegaWithT(t)
 	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, SINGLEPORTSVC)
 
@@ -366,9 +371,7 @@ func TestAviSvcUpdateEndpoint(t *testing.T) {
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	if _, err = KubeClient.CoreV1().Endpoints(NAMESPACE).Update(context.TODO(), epExample, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("Error in updating the Endpoint: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Endpoint, epExample)
 
 	var aviModel interface{}
 	g.Eventually(func() []avinodes.AviPoolMetaServer {
@@ -432,7 +435,7 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	injectFault := true
-	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	testlib.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		var resp map[string]interface{}
 		var finalResponse []byte
 		url := r.URL.EscapedPath()
@@ -454,11 +457,11 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 					rModelName = "l4policyset"
 				}
 				rName := resp["name"].(string)
-				objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
+				objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, testlib.RANDOMUUID, rName)
 
 				// adding additional 'uuid' and 'url' (read-only) fields in the response
 				resp["url"] = objURL
-				resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+				resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, testlib.RANDOMUUID)
 				finalResponse, _ = json.Marshal(resp)
 				w.WriteHeader(http.StatusOK)
 				fmt.Fprintln(w, string(finalResponse))
@@ -469,7 +472,7 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 			fmt.Fprintln(w, `{"success": "true"}`)
 		}
 	})
-	defer ResetMiddleware()
+	defer testlib.ResetMiddleware()
 
 	SetUpTestForSvcLB(t)
 
@@ -526,7 +529,6 @@ func TestCreateMultiportServiceLBCacheSync(t *testing.T) {
 
 func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	var err error
 
 	SetUpTestForSvcLB(t)
 
@@ -546,9 +548,7 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
 		}},
 	}
-	if _, err = KubeClient.CoreV1().Endpoints(NAMESPACE).Update(context.TODO(), epExample, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("Error in updating the Endpoint: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Endpoint, epExample)
 
 	var poolCacheObj *cache.AviPoolCache
 	var poolCache interface{}
@@ -585,11 +585,11 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	var model, service string
 
 	// Simulate a delay of 200ms in the Avi API
-	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	testlib.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(200 * time.Millisecond)
-		NormalControllerServer(w, r)
+		testlib.NormalControllerServer(w, r)
 	})
-	defer ResetMiddleware()
+	defer testlib.ResetMiddleware()
 
 	SetUpTestForSvcLB(t)
 
@@ -600,8 +600,8 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
 
 		objects.SharedAviGraphLister().Delete(model)
-		CreateSVC(t, NAMESPACE, service, corev1.ServiceTypeLoadBalancer, true)
-		CreateEP(t, NAMESPACE, service, true, true, "1.1.1")
+		testlib.CreateSVC(t, NAMESPACE, service, corev1.ServiceTypeLoadBalancer, true)
+		testlib.CreateEP(t, NAMESPACE, service, true, true, "1.1.1")
 	}
 
 	// verify that numScale services are created on the graph and corresponding cache objects
@@ -614,7 +614,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
 
-		PollForCompletion(t, model, 5)
+		testlib.PollForCompletion(t, model, 5)
 		found, aviModel = objects.SharedAviGraphLister().Get(model)
 		g.Expect(found).To(gomega.Equal(true))
 		g.Expect(aviModel).To(gomega.Not(gomega.BeNil()))
@@ -631,8 +631,8 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		service = fmt.Sprintf("%s%d", MULTIPORTSVC, i)
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
 		objects.SharedAviGraphLister().Delete(model)
-		DelSVC(t, NAMESPACE, service)
-		DelEP(t, NAMESPACE, service)
+		testlib.DeleteObject(t, lib.Service, service, NAMESPACE)
+		testlib.DeleteObject(t, lib.Endpoint, service, NAMESPACE)
 	}
 
 	// verify that the graph nodes and corresponding cache are deleted for the numScale services
@@ -665,19 +665,19 @@ func TestAviSvcCreationWithStaticIP(t *testing.T) {
 
 	staticIP := "80.80.80.80"
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	svcExample := (FakeService{
+	svcExample := (testlib.FakeService{
 		Name:           SINGLEPORTSVC,
 		Namespace:      NAMESPACE,
 		Type:           corev1.ServiceTypeLoadBalancer,
 		LoadBalancerIP: staticIP,
-		ServicePorts:   []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts:   []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
-	PollForCompletion(t, SINGLEPORTMODEL, 5)
+	testlib.CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	testlib.PollForCompletion(t, SINGLEPORTMODEL, 5)
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
@@ -703,22 +703,22 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	settingName := "infra-setting"
 
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	svcExample := (FakeService{
+	svcExample := (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName}
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
-	PollForCompletion(t, SINGLEPORTMODEL, 5)
+	testlib.CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	testlib.PollForCompletion(t, SINGLEPORTMODEL, 5)
 
 	// Create with bad seGroup ref.
-	settingCreate := (FakeAviInfraSetting{
+	settingCreate := (testlib.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisBADaviref-seGroup",
 		Networks:    []string{"thisisaviref-networkName"},
@@ -729,7 +729,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		setting, _ := CRDClient.AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 15*time.Second).Should(gomega.Equal("Rejected"))
 
@@ -746,16 +746,14 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 		}
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
-	settingUpdate := (FakeAviInfraSetting{
+	settingUpdate := (testlib.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
 		Networks:    []string{"thisisaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating AviInfraSetting: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.AviInfraSetting, settingUpdate)
 
 	g.Eventually(func() string {
 		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
@@ -774,16 +772,14 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
 
-	settingUpdate = (FakeAviInfraSetting{
+	settingUpdate = (testlib.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
 		Networks:    []string{"thisisBADaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "3"
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating AviInfraSetting: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.AviInfraSetting, settingUpdate)
 
 	g.Eventually(func() string {
 		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
@@ -801,16 +797,14 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	settingUpdate = (FakeAviInfraSetting{
+	settingUpdate = (testlib.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
 		Networks:    []string{"multivip-network1", "multivip-network2", "multivip-network3"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "4"
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating AviInfraSetting: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.AviInfraSetting, settingUpdate)
 
 	g.Eventually(func() string {
 		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
@@ -833,7 +827,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[2].NetworkName).Should(gomega.Equal("multivip-network3"))
 	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
-	TeardownAviInfraSetting(t, settingName)
+	testlib.DeleteObject(t, lib.AviInfraSetting, settingName)
 	TearDownTestForSvcLB(t, g)
 }
 
@@ -845,21 +839,21 @@ func TestInfraSettingDelete(t *testing.T) {
 	settingName := "infra-setting"
 
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	svcExample := (FakeService{
+	svcExample := (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName}
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
-	PollForCompletion(t, SINGLEPORTMODEL, 5)
+	testlib.CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	testlib.PollForCompletion(t, SINGLEPORTMODEL, 5)
 
-	SetupAviInfraSetting(t, settingName, "")
+	testlib.SetupAviInfraSetting(t, settingName, "")
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
@@ -874,7 +868,7 @@ func TestInfraSettingDelete(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName + "-networkName"))
 	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
 
-	TeardownAviInfraSetting(t, settingName)
+	testlib.DeleteObject(t, lib.AviInfraSetting, settingName)
 
 	// defaults to global seGroup and networkName.
 	netList := lib.GetVipNetworkList()
@@ -903,22 +897,23 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 	settingName1, settingName2 := "infra-setting1", "infra-setting2"
 
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	svcExample := (FakeService{
+	svcExample := (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName1}
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	_, err := utils.GetInformers().ClientSet.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
-	PollForCompletion(t, SINGLEPORTMODEL, 5)
 
-	SetupAviInfraSetting(t, settingName1, "")
-	SetupAviInfraSetting(t, settingName2, "")
+	testlib.CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	testlib.PollForCompletion(t, SINGLEPORTMODEL, 5)
+
+	testlib.SetupAviInfraSetting(t, settingName1, "")
+	testlib.SetupAviInfraSetting(t, settingName2, "")
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
@@ -932,19 +927,15 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName).Should(gomega.Equal("thisisaviref-" + settingName1 + "-networkName"))
 
-	// TODO: Change service annotation to have infraSettting2
-	svcUpdate := (FakeService{
+	svcUpdate := (testlib.FakeService{
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []testlib.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
 	}).Service()
 	svcUpdate.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName2}
 	svcUpdate.ResourceVersion = "2"
-	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Service: %v", err)
-	}
+	testlib.UpdateObjectOrFail(t, lib.Service, svcUpdate)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
@@ -957,50 +948,7 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 		return false
 	}, 35*time.Second).Should(gomega.Equal(true))
 
-	TeardownAviInfraSetting(t, settingName1)
-	TeardownAviInfraSetting(t, settingName2)
-	TearDownTestForSvcLB(t, g)
-}
-
-func TestBootupServiceLBStatusPersistence(t *testing.T) {
-	// create service of type LB, sync service and check for status, remove status
-	// call SyncObjectStatuses to check if status remains the same
-
-	g := gomega.NewGomegaWithT(t)
-
-	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	svcExample := (FakeService{
-		Name:         SINGLEPORTSVC,
-		Namespace:    NAMESPACE,
-		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
-	}).Service()
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Service: %v", err)
-	}
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
-	PollForCompletion(t, SINGLEPORTMODEL, 5)
-
-	svcExample.ResourceVersion = "2"
-	svcExample.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{}
-	_, err = KubeClient.CoreV1().Services(NAMESPACE).UpdateStatus(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Service Status: %v", err)
-	}
-
-	aviRestClientPool := cache.SharedAVIClients()
-	aviObjCache := cache.SharedAviObjCache()
-	restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
-	restlayer.SyncObjectStatuses()
-
-	g.Eventually(func() string {
-		svc, _ := KubeClient.CoreV1().Services(NAMESPACE).Get(context.TODO(), SINGLEPORTSVC, metav1.GetOptions{})
-		if len(svc.Status.LoadBalancer.Ingress) > 0 {
-			return svc.Status.LoadBalancer.Ingress[0].IP
-		}
-		return ""
-	}, 20*time.Second).Should(gomega.Equal("10.250.250.1"))
-
+	testlib.DeleteObject(t, lib.AviInfraSetting, settingName1)
+	testlib.DeleteObject(t, lib.AviInfraSetting, settingName2)
 	TearDownTestForSvcLB(t, g)
 }

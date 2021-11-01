@@ -22,9 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
-
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,11 +33,11 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/testlib"
 )
 
-var KubeClient *k8sfake.Clientset
 var ctrl *k8s.AviController
-var CRDClient *crdfake.Clientset
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -54,17 +51,17 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
 	akoControlConfig := lib.AKOControlConfig()
-	KubeClient = k8sfake.NewSimpleClientset()
-	CRDClient = crdfake.NewSimpleClientset()
-	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	kubeClient := k8sfake.NewSimpleClientset()
+	crdClient := crdfake.NewSimpleClientset()
+	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
 	}
 	object := metav1.ObjectMeta{Name: "avi-secret", Namespace: utils.GetAKONamespace()}
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
+	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
@@ -76,9 +73,9 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers(CRDClient)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	informers := k8s.K8sinformers{Cs: kubeClient}
+	k8s.NewCRDInformers(crdClient)
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -86,10 +83,10 @@ func TestMain(m *testing.M) {
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 
-	integrationtest.InitializeFakeAKOAPIServer()
+	testlib.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance(KubeClient)
-	defer integrationtest.AviFakeClientInstance.Close()
+	testlib.NewAviFakeClientInstance(kubeClient)
+	defer testlib.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
 	stopCh := utils.SetupSignalHandler()
@@ -107,12 +104,11 @@ func TestMain(m *testing.M) {
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
 
-	integrationtest.AddConfigMap(KubeClient)
-	integrationtest.PollForSyncStart(ctrl, 10)
+	testlib.AddConfigMap()
+	testlib.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	integrationtest.KubeClient = KubeClient
-	integrationtest.AddDefaultIngressClass()
+	testlib.AddDefaultIngressClass()
 
 	SetupNamespaceSync("app", "migrate")
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
@@ -126,10 +122,10 @@ func SetupNamespaceSync(key, value string) {
 }
 
 func UpdateIngress(t *testing.T, modelName, namespace string) {
-	integrationtest.CreateSVC(t, namespace, "avisvc1", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, namespace, "avisvc1", false, false, "2.2.2")
-	integrationtest.PollForCompletion(t, modelName, 5)
-	ingressObject := (integrationtest.FakeIngress{
+	testlib.CreateSVC(t, namespace, "avisvc1", corev1.ServiceTypeClusterIP, false)
+	testlib.CreateEP(t, namespace, "avisvc1", false, false, "2.2.2")
+	testlib.PollForCompletion(t, modelName, 5)
+	ingressObject := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   namespace,
 		DnsNames:    []string{"bar.com"},
@@ -138,20 +134,18 @@ func UpdateIngress(t *testing.T, modelName, namespace string) {
 	})
 	ingrFake := ingressObject.Ingress()
 	ingrFake.ResourceVersion = "22"
-	if _, err := KubeClient.NetworkingV1().Ingresses(namespace).Update(context.TODO(), ingrFake, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
-	integrationtest.PollForCompletion(t, modelName, 5)
+	testlib.UpdateObjectOrFail(t, lib.Ingress, ingrFake)
+	testlib.PollForCompletion(t, modelName, 5)
 }
 
 func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngress bool) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, namespace, "avisvc", false, false, "1.1.1")
-	integrationtest.PollForCompletion(t, modelName, 5)
+	testlib.CreateSVC(t, namespace, "avisvc", corev1.ServiceTypeClusterIP, false)
+	testlib.CreateEP(t, namespace, "avisvc", false, false, "1.1.1")
+	testlib.PollForCompletion(t, modelName, 5)
 
-	ingressObject := (integrationtest.FakeIngress{
+	ingressObject := (testlib.FakeIngress{
 		Name:        "foo-with-targets",
 		Namespace:   namespace,
 		DnsNames:    []string{"foo.com"},
@@ -159,7 +153,7 @@ func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngr
 		ServiceName: "avisvc",
 	})
 	if withSecret {
-		integrationtest.AddSecret("my-secret", namespace, "tlsCert", "tlsKey")
+		testlib.AddSecret("my-secret", namespace, "tlsCert", "tlsKey")
 	}
 	if tlsIngress {
 		ingressObject.TlsSecretDNS = map[string][]string{
@@ -168,27 +162,24 @@ func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngr
 	}
 
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1().Ingresses(namespace).Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses(namespace).Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, modelName, 5)
+	testlib.PollForCompletion(t, modelName, 5)
 }
 
 func TearDownTestForIngressNamespace(t *testing.T, modelName, namespace string, g *gomega.GomegaWithT) {
-
-	if err := KubeClient.NetworkingV1().Ingresses(namespace).Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("Couldn't Delete Ingress: %v", err)
-	}
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", namespace)
 	g.Eventually(func() error {
-		_, err := KubeClient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+		_, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses(namespace).Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return err
 	}, 30*time.Second).Should(gomega.Not(gomega.BeNil()))
 
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.DelSVC(t, namespace, "avisvc")
-	integrationtest.DelEP(t, namespace, "avisvc")
-	integrationtest.DeleteNamespace(namespace)
-	integrationtest.PollForCompletion(t, modelName, 10)
+	testlib.DeleteObject(t, lib.Service, "avisvc", namespace)
+	testlib.DeleteObject(t, lib.Endpoint, "avisvc", namespace)
+	testlib.DeleteObject(t, lib.Namespace, namespace)
+	testlib.PollForCompletion(t, modelName, 10)
 }
 
 func VerifyModelDeleted(g *gomega.WithT, modelName string) {
@@ -213,7 +204,7 @@ func TestNamespaceSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 	var found bool
 	//Valid Namespace
 	namespace1 := "rednsmig"
-	err := integrationtest.AddNamespace(t, namespace1, nsLabel)
+	err := testlib.AddNamespace(t, namespace1, nsLabel)
 	modelName1 := "admin/cluster--Shared-L7-0"
 	if err != nil {
 		t.Fatal("Error while adding namespace")
@@ -256,7 +247,7 @@ func TestNamespaceSyncFeatureWithCorrectEnvParameters(t *testing.T) {
 		"app": "migrate1",
 	}
 
-	err = integrationtest.AddNamespace(t, namespace, nsLabel)
+	err = testlib.AddNamespace(t, namespace, nsLabel)
 	modelName := "admin/cluster--Shared-L7-0"
 	if err != nil {
 		t.Fatal("Error while adding namespace")
@@ -277,7 +268,7 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 	g := gomega.NewGomegaWithT(t)
 	var found bool
 
-	err := integrationtest.AddNamespace(t, namespace, oldLabels)
+	err := testlib.AddNamespace(t, namespace, oldLabels)
 	if err != nil {
 		t.Fatal("Error while adding namespace")
 	}
@@ -302,11 +293,8 @@ func checkNSTransition(t *testing.T, oldLabels, newLabels map[string]string, old
 		}, 30*time.Second).Should(gomega.Equal(oldFlag))
 	}
 
-	err = integrationtest.UpdateNamespace(t, namespace, newLabels)
-	integrationtest.PollForCompletion(t, modelName, 5)
-	if err != nil {
-		t.Fatal("Error occurred while updating namespace")
-	}
+	testlib.UpdateNamespace(t, namespace, newLabels)
+	testlib.PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
 		_, found := mcache.PoolCache.AviCacheGet(poolKey)
