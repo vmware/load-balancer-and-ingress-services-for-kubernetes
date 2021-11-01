@@ -485,7 +485,6 @@ func TestCreateHostRuleWithGSLBFqdn(t *testing.T) {
 		hostrule, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
-
 	testlib.DeleteObject(t, lib.HostRule, hrname, "default")
 }
 

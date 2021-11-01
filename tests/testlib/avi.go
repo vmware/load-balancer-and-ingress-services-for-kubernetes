@@ -93,7 +93,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 	url := r.URL.EscapedPath()
 	var resp map[string]interface{}
 	var finalResponse []byte
-	var vipAddress, shardVSNum string
+	var shardVSNum string
 	var object string
 	addrPrefix := "10.250.250"
 	publicAddrPrefix := "35.250.250"
@@ -118,36 +118,12 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			resp["url"] = objURL
 			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
 
-			// handle sni child, fill in vs parent ref
-			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
-
-				resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-
-			} else if strings.Contains(rName, "Shared-L7-EVH-") {
-				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
-				if strings.Contains(shardVSNum, "NS-") {
-					shardVSNum = "0"
-				}
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else if strings.Contains(rName, "Shared-L7") {
-				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else {
-				vipAddress = addrPrefix + ".1"
-			}
-
 			// add vip for status update checks
 			// use vh_parent_vs_uuid for sniVS, and name for normal VSes
 
-			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 			if strings.Contains(rName, "public") {
-				fipAddress := "35.250.250.1"
-				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": fipAddress, "type": "V4"}
-			}
-			if strings.Contains(rName, "multivip") {
+				resp["vip"] = []interface{}{map[string]interface{}{"floating_ip": map[string]string{"addr": "35.250.250.1", "type": "V4"}}}
+			} else if strings.Contains(rName, "multivip") {
 				if strings.Contains(rName, "public") {
 					resp["vip"] = []interface{}{
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
@@ -164,6 +140,23 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
 					}
 				}
+			} else if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
+				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
+				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
+
+				resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum), "type": "V4"}}}
+			} else if strings.Contains(rName, "Shared-L7-EVH-") {
+				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
+				if strings.Contains(shardVSNum, "NS-") {
+					shardVSNum = "0"
+				}
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum), "type": "V4"}}}
+			} else if strings.Contains(rName, "Shared-L7") {
+				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum), "type": "V4"}}}
+			} else {
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}}}
 			}
 			resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
 		} else if strings.Contains(url, "vsvip") {
@@ -172,28 +165,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			resp["url"] = objURL
 			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
 
-			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else if strings.Contains(rName, "Shared-L7-EVH-") {
-				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
-				if strings.Contains(shardVSNum, "NS-") {
-					shardVSNum = "0"
-				}
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else if strings.Contains(rName, "Shared-L7") {
-				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else {
-				vipAddress = addrPrefix + ".1"
-			}
-			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 			if strings.Contains(rName, "public") {
 				fipAddress := "35.250.250.1"
 				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": fipAddress, "type": "V4"}
-			}
-			if strings.Contains(rName, "multivip") {
+			} else if strings.Contains(rName, "multivip") {
 				if strings.Contains(rName, "public") {
 					resp["vip"] = []interface{}{
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
@@ -210,6 +185,21 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
 					}
 				}
+			} else if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
+				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
+				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum), "type": "V4"}}}
+			} else if strings.Contains(rName, "Shared-L7-EVH-") {
+				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
+				if strings.Contains(shardVSNum, "NS-") {
+					shardVSNum = "0"
+				}
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum), "type": "V4"}}}
+			} else if strings.Contains(rName, "Shared-L7") {
+				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum), "type": "V4"}}}
+			} else {
+				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}}}
 			}
 		}
 		finalResponse, _ = json.Marshal(resp)
@@ -224,15 +214,13 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
 			resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 		}
-		// if val, ok := resp["name"]; !ok || val == nil {
-		// 	resp["name"] = object + "-sample-name"
-		// }
+		if val, ok := resp["name"]; !ok || val == nil {
+			resp["name"] = strings.ReplaceAll(object, "-random-uuid", "")
+		}
 		if strings.Contains(url, "vsvip") {
-			//if !strings.Contains(url, "gateway") {
 			if resp["vip"] == nil || resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"] == nil {
 				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}}}
 			}
-			//}
 			if strings.Contains(url, "public") {
 				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}
 			}

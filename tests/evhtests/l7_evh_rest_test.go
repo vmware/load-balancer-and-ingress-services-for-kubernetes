@@ -97,7 +97,7 @@ func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 	g.Expect(ingress.Status.LoadBalancer.Ingress[2].Hostname).To(gomega.MatchRegexp(`^((foo|bar|xyz).com)$`))
 
 	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets", "default")
-	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets2", "default")
+	testlib.DeleteObject(t, lib.Ingress, "foo-with-targets-2", "default")
 	TearDownTestForIngress(t, modelName)
 }
 

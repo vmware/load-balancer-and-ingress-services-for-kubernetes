@@ -139,12 +139,12 @@ func VerifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, 
 	g.Eventually(func() []*avinodes.AviPoolNode {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolRefs
-	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
+	}, 50*time.Second).Should(gomega.HaveLen(poolCount))
 
 	g.Eventually(func() []*models.PoolGroupMember {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolGroupRefs[0].Members
-	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
+	}, 50*time.Second).Should(gomega.HaveLen(poolCount))
 }
 
 func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, sniCount int) {
@@ -152,7 +152,7 @@ func VerifySNIIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{
 	g.Eventually(func() []*avinodes.AviVsNode {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].SniNodes
-	}, 10*time.Second).Should(gomega.HaveLen(sniCount))
+	}, 50*time.Second).Should(gomega.HaveLen(sniCount))
 
 	g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(sniCount))
 }

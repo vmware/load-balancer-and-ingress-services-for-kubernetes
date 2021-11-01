@@ -732,14 +732,13 @@ func TestPublicIPStatusWithInfraSetting(t *testing.T) {
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
 
-	g.Eventually(func() int {
-		ingress, _ := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
-		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 20*time.Second).Should(gomega.Equal(1))
 	g.Eventually(func() string {
 		ingress, _ := utils.GetInformers().ClientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), ingressName, metav1.GetOptions{})
-		return ingress.Status.LoadBalancer.Ingress[0].IP
-	}, 20*time.Second).Should(gomega.Equal("35.250.250.1"))
+		if len(ingress.Status.LoadBalancer.Ingress) == 1 {
+			return ingress.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 50*time.Second).Should(gomega.Equal("35.250.250.1"))
 
 	testlib.DeleteObject(t, lib.Ingress, ingressName, ns)
 	testlib.DeleteObject(t, lib.Secret, secretName, ns)

@@ -394,9 +394,10 @@ func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *av
 							}
 							status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 						} else if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-							if len(IPAddrs) == 0 {
-								IPAddrs = []string{parentVsObj.Vip}
+							if parentVsObj == nil {
+								continue
 							}
+							IPAddrs = []string{parentVsObj.Vip}
 							updateOptions := status.UpdateOptions{
 								Vip:                IPAddrs,
 								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
