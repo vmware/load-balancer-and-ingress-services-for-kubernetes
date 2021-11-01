@@ -2,10 +2,13 @@ AKO, from 1.4.1, claims support for Layer 4 Service integration with Gateway API
 
 ### Installation
 
-AKO primarily uses GatewayClass and Gateway CRDs for it's Gateway API implementation and integration with Layer 4 Services. These GatewayClass and Gateway CRDs must be installed on the cluster running AKO. The CRDs can be installed on the cluster, post AKO release 1.4.1, the same way as any other AKO CRDs, via helm. More details around CRD installation can be found in the [installation guide](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/install/helm.md).
+AKO primarily uses GatewayClass and Gateway CRDs for it's Gateway API implementation and integration with Layer 4 Services. These GatewayClass and Gateway CRDs must be installed on the cluster running AKO. The CRDs can be installed on the cluster, the same way as any other AKO CRDs, via helm. More details around CRD installation can be found in the [installation guide](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/install/helm.md).
 
 ### Gateway APIs and Service objects
-Starting 1.4.1, AKO allows users to expose Kubernetes/Opennshift Services, outside the cluster, using Gateway and GatewayClass constructs. AKO creates one Layer-4 Avi virtualservice per Gateway object, and configures the backend Services as distinct Avi Pools. In this case the type of Services, to be exposed via the Gateway object, is not limited to Service of Type `LoadBalancer`.
+
+AKO allows users to expose Kubernetes/Opennshift Services, outside the cluster, using Gateway and GatewayClass constructs. AKO creates one Layer-4 Avi virtualservice per Gateway object, and configures the backend Services as distinct Avi Pools. The Gateway object acts as an overlay over Service objects (of type `ClusterIP` or `NodePort`), the same way an Ingress is implemented for Layer7. This overlay allows the Gateway to obtain a VIP, which is further shared by backend Services.
+
+> **Note**: Keep in mind that Services of type `LoadBalancer`, would still be creating dedicated Layer4 VSes.
 
 #### GatewayClass
 
@@ -104,7 +107,7 @@ metadata:
     ako.vmware.com/gateway-name: my-gateway
     ako.vmware.com/gateway-namespace: blue
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
   - port: 8081
     name: eighty-eighty-one
@@ -122,7 +125,7 @@ metadata:
     ako.vmware.com/gateway-name: my-gateway
     ako.vmware.com/gateway-namespace: blue
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
   - port: 80
     name: eighty-eighty

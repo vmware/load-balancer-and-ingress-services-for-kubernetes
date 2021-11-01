@@ -1116,9 +1116,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
 			resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 		}
-		// if val, ok := resp["name"]; !ok || val == nil {
-		// 	resp["name"] = object + "-sample-name"
-		// }
+
+		if val, ok := resp["name"]; !ok || val == nil {
+			resp["name"] = strings.ReplaceAll(object, "-random-uuid", "")
+		}
 		if strings.Contains(url, "vsvip") {
 			//if !strings.Contains(url, "gateway") {
 			if resp["vip"] == nil || resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"] == nil {

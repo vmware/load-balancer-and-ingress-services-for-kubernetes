@@ -141,11 +141,14 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if lib.GetAdvancedL4() || lib.UseServicesAPI() &&
-		(objType == utils.L4LBService || objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting) {
+	if (lib.GetAdvancedL4() && objType == utils.L4LBService) ||
+		(lib.UseServicesAPI() && objType == utils.Service) ||
+		((lib.GetAdvancedL4() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
 		if !valid && objType == utils.L4LBService {
+			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
 		}
+
 		gateways, gatewayFound := schema.GetParentGateways(name, namespace, key)
 		// For each gateway first verify if it has a valid subscription to the GatewayClass or not.
 		// If the gateway does not have a valid gatewayclass relationship, then set the model to nil.
