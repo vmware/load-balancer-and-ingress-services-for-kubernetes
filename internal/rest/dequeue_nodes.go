@@ -60,7 +60,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 		utils.AviLog.Warnf("key: %s, msg: no model found for the key", key)
 		// In the case of L7 shared VS, the following condition check makes sure the
 		// VIPs persist over AKO reboot.
-		if lib.IsShardVS(key) {
+		if lib.IsShardVS(key) && lib.GetRetainSharedVSIPs() {
 			return
 		}
 	}

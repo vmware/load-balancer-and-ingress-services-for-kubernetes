@@ -1460,3 +1460,8 @@ func IsVCFCluster() bool {
 
 var VCFInitialized bool
 var AviSecretInitialized bool
+
+func GetRetainSharedVSIPs() bool {
+	retainSharedVSIPs := os.Getenv(RETAIN_SHARED_VS_IPS)
+	return retainSharedVSIPs == "true"
+}

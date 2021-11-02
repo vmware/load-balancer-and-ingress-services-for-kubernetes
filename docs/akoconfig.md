@@ -34,6 +34,7 @@ spec:
     serviceType: "ClusterIP"
     shardVSSize: "LARGE" #enum
     passthroughShardSize: "SMALL"   #enum
+    retainSharedVSIPs: false
 
   l4Settings:
     advancedL4: false
@@ -93,6 +94,7 @@ spec:
     * `serviceType`: Type of services that we want to configure: Valid values: `ClusterIP` and `NodePort`.
     * `shardVSSize`: Use this to control the Avi Virtual service numbers. This applies to both secure/insecure VSes but does not apply for passthrough. Valud values: `LARGE`, `MEDIUM` and `SMALL`.
     * `passthroughShardSize`: Use this to control the passthrough virtualservice numbers. Valid values: `LARGE`, `MEDIUM` and `SMALL`.
+    * `retainSharedVSIPs`: Retains the shared virtual service IPs if set to `true`.
   - `l4Settings`: Settings for L4 Virtual Services
     * `advancedL4`: Knob to control the settings for the services API usage. Defaults to `false`.
     * `defaultDomain`: If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 Virtual Services.

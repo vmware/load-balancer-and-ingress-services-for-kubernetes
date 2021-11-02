@@ -158,6 +158,7 @@ const (
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
 	CRDActive                                  = "ACTIVE"
 	CRDInactive                                = "INACTIVE"
+	RETAIN_SHARED_VS_IPS                       = "RETAIN_SHARED_VS_IPS"
 
 	// AKO Event constants
 	AKOEventComponent  = "avi-kubernetes-operator"

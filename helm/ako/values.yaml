@@ -57,6 +57,7 @@ L7Settings:
   serviceType: ClusterIP # enum NodePort|ClusterIP|NodePortLocal
   shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL, DEDICATED
   passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
+  retainSharedVSIPs: false # If this flag is switched on, then AKO will retain shared virtual service IPs.
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:

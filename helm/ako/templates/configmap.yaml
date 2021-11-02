@@ -47,3 +47,4 @@ data:
   vipNetworkList: |-
     {{ .Values.NetworkSettings.vipNetworkList | mustToJson }}
   apiServerPort: {{ default "8080" .Values.AKOSettings.apiServerPort | quote }}
+  retainSharedVSIPs: {{ .Values.AKOSettings.retainSharedVSIPs| quote }}
