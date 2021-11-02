@@ -1463,5 +1463,9 @@ var AviSecretInitialized bool
 
 func GetRetainSharedVSIPs() bool {
 	retainSharedVSIPs := os.Getenv(RETAIN_SHARED_VS_IPS)
-	return retainSharedVSIPs == "true"
+	ok, err := strconv.ParseBool(retainSharedVSIPs)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to parse the retain shared VS IP data, err: %v", err)
+	}
+	return ok
 }
