@@ -260,5 +260,11 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[TenantName] = ako.Spec.ControllerSettings.TenantName
 	cm.Data[AutoFQDN] = ako.Spec.L4Settings.AutoFQDN
 
+	retainSharedVSIPs := "false"
+	if ako.Spec.L7Settings.RetainSharedVSIPs {
+		retainSharedVSIPs = "true"
+	}
+	cm.Data[RetainSharedVSIPs] = retainSharedVSIPs
+
 	return cm, nil
 }

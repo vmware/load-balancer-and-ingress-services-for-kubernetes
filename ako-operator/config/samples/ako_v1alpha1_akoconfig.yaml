@@ -32,6 +32,7 @@ spec:
     shardVSSize: "LARGE" #enum
     passthroughShardSize: "SMALL" #enum
     noPGForSNI: false
+    retainSharedVSIPs: false
 
   l4Settings:
     advancedL4: false

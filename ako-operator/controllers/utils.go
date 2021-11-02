@@ -62,6 +62,7 @@ const (
 	TenantsPerCluster      = "tenantsPerCluster"
 	TenantName             = "tenantName"
 	NoPGForSni             = "noPGForSni"
+	RetainSharedVSIPs      = "retainSharedVSIPs"
 )
 
 var SecretEnvVars = map[string]string{

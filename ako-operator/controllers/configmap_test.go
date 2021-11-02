@@ -64,6 +64,7 @@ var cmJson = `
 		"serviceType": "ClusterIP",
 		"shardVSSize": "LARGE",
 		"noPGForSni": "false",
+		"retainSharedVSIPs": "false",
 	}
 }
 `

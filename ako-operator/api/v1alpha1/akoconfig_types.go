@@ -105,6 +105,8 @@ type L7Settings struct {
 	SyncNamespace string `json:"syncNamespace,omitempty"`
 	// NoPGForSNI removes Avi PoolGroups from SNI VSes
 	NoPGForSNI bool `json:"noPGForSNI,omitempty"`
+	// RetainSharedVSIPs retains the shared VS IPs
+	RetainSharedVSIPs bool `json:"retainSharedVSIPs,omitempty"`
 }
 
 // L4Settings defines the L4 configuration for the AKO controller

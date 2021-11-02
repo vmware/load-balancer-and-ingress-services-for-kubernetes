@@ -62,6 +62,7 @@ L7Settings:
   shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL
   passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
   noPGForSNI: false # Switching this knob to true, will get rid of poolgroups from SNI VSes. Do not use this flag, if you don't want http caching. This will be deprecated once the controller support caching on PGs.
+  retainSharedVSIPs: false # If this flag is switched on, then AKO will retain shared virtual service IPs.
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:

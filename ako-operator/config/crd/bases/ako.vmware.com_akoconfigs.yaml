@@ -178,6 +178,10 @@ spec:
                   description: SyncNamespace takes in a namespace from which AKO will
                     sync the objects
                   type: string
+                retainSharedVSIPs:
+                  description: RetainSharedVSIPs if set to true, AKO will retain the shared 
+                    virtual service IPs
+                  type: boolean
               type: object
             logFile:
               type: string

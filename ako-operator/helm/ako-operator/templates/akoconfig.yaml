@@ -45,6 +45,7 @@ spec:
     shardVSSize: {{ .Values.L7Settings.shardVSSize }}
     passthroughShardSize: {{ .Values.L7Settings.passthroughShardSize }}
     noPGForSni: {{ .Values.L7Settings.noPGForSni }}
+    retainSharedVSIPs: {{ .Values.L7Settings.retainSharedVSIPs }}
 
   l4Settings:
     advancedL4: {{ .Values.L4Settings.advancedL4 }}
