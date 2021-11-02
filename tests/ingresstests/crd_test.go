@@ -213,7 +213,7 @@ func TestGSLBHostRewriteRule(t *testing.T) {
 		return nodes[0].GetHttpPolicyRefs()[0].HeaderReWrite.SourceHost == "baz.com"
 	}, 50*time.Second).Should(gomega.Equal(true))
 
-	integrationtest.TearDownHostRuleWithNoVerif(t, g, hrname)
+	integrationtest.TearDownHostRuleWithNoVerify(t, g, hrname)
 	g.Eventually(func() int {
 		vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		vsCacheObj, _ := vsCache.(*cache.AviVsCache)
@@ -482,6 +482,26 @@ func TestValidToInvalidHostSwitch(t *testing.T) {
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+//This tc tests hostrule state if GSLB FQDN is same as that of Local FQDN/ Host.
+func TestCreateHostRuleWithGSLBFqdn(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	hrname := "samplehr-foo-1"
+	integrationtest.SetupHostRule(t, hrname, "zoo.com", true)
+
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	//Update hr
+	integrationtest.SetupHostRule(t, hrname, "zoo.com", true, "zoo.com")
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Rejected"))
+	integrationtest.TearDownHostRuleWithNoVerify(t, g, hrname)
 }
 
 // HttpRule tests

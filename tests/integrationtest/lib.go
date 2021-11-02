@@ -1352,7 +1352,7 @@ func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, 
 	VerifyMetadataHostRule(t, g, vskey, "default/"+hrname, false)
 }
 
-func TearDownHostRuleWithNoVerif(t *testing.T, g *gomega.WithT, hrname string) {
+func TearDownHostRuleWithNoVerify(t *testing.T, g *gomega.WithT, hrname string) {
 	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}

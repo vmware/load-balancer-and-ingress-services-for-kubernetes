@@ -1151,7 +1151,9 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	if certsBuilt {
 		hosts := []string{host}
 		if paths.gslbHostHeader != "" {
-			hosts = append(hosts, paths.gslbHostHeader)
+			if !utils.HasElem(hosts, paths.gslbHostHeader) {
+				hosts = append(hosts, paths.gslbHostHeader)
+			}
 		}
 		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, paths.ingressHPSvc, &tlssetting)
 		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
@@ -1364,7 +1366,7 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (s
 		newInfraPrefix = newSetting.Name
 	}
 
-	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-EVH-"
+	shardVsPrefix := lib.GetNamePrefix() + lib.ShardEVHVSPrefix
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
 	if oldInfraPrefix != "" {
 		oldVsName += oldInfraPrefix + "-"
