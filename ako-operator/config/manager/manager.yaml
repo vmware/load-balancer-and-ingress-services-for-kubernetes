@@ -24,10 +24,11 @@ spec:
     spec:
       containers:
       - command:
-        - /manager
+        - /ako-operator
         args:
         - --enable-leader-election
         image: controller:latest
+        imagePullPolicy: IfNotPresent
         name: manager
         resources:
           limits:

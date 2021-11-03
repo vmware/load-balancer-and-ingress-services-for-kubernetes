@@ -33,7 +33,7 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.19.3
-	k8s.io/apiextensions-apiserver v0.19.0-beta.2 // indirect
+	k8s.io/apiextensions-apiserver v0.19.0-beta.2
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd // indirect
