@@ -22,13 +22,19 @@ metadata:
               "fullSyncFrequency": "1800",
               "layer7Only": false,
               "logLevel": "INFO",
+              "namespaceSelector": {
+                "labelKey": "",
+                "labelValue": ""
+              },
               "servicesAPI": false
             },
             "controllerSettings": {
               "cloudName": "Default-Cloud",
-              "controllerIP": "",
+              "controllerHost": "",
               "controllerVersion": "20.1.5",
-              "serviceEngineGroupName": "Default-Group"
+              "serviceEngineGroupName": "Default-Group",
+              "tenantsPerCluster": "false",
+              "tenantName": "admin"
             },
             "imagePullPolicy": "IfNotPresent",
             "imageRepository": "projects.registry.vmware.com/ako/ako",
@@ -47,11 +53,19 @@ metadata:
             "logFile": "avi.log",
             "mountPath": "/log",
             "networkSettings": {
-              "subnetIP": "",
-              "subnetPrefix": "",
+              "bgpPeerLabels": [],
+              "enableRHI": false,
+              "nodeNetworkList": [
+                {
+                  "networkName": "",
+                  "cidrs": []
+                }   
+              ],
+              "nsxtT1LR": "",
               "vipNetworkList": [
                 {
-                  "networkName": ""
+                  "networkName": "",
+                  "cidr": ""
                 }
               ]
             },
@@ -76,7 +90,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.7.1+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: ako-operator.v1.4.2
+  name: ako-operator.v1.5.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -119,7 +133,7 @@ spec:
       - description: NetworkSettings defines the network details required for the AKO controller
         displayName: Network Settings
         path: networkSettings
-      - description: NodePortSelector defines the node port settings, to be used only if the serviceTYpe is selected NodePort
+      - description: NodePortSelector defines the node port settings, to be used only if the serviceType is selected NodePort
         displayName: NodePort Selector
         path: nodePortSelector
       - description: Resources defines the limits and requests for cpu and memory to be used by the AKO controller
@@ -148,7 +162,7 @@ spec:
         - apiGroups:
           - ""
           resources:
-          - secrets
+          - '*'
           verbs:
           - get
           - list
@@ -168,7 +182,32 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - secrets
+          - secrets/status
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
           - serviceaccounts
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - services/status
           verbs:
           - create
           - delete
@@ -198,9 +237,139 @@ spec:
           - patch
           - update
         - apiGroups:
+          - ako.vmware.com
+          resources:
+          - aviinfrasettings
+          - aviinfrasettings/status
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ako.vmware.com
+          resources:
+          - hostrules
+          - hostrules/status
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ako.vmware.com
+          resources:
+          - httprules
+          - httprules/status
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apiextensions.k8s.io
+          resources:
+          - customresourcedefinitions
+          - customresourcedefinitions/status
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - apps
           resources:
           - statefulsets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - crd.projectcalico.org
+          resources:
+          - blockaffinities
+          - blockaffinities/status
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - extensions
+          resources:
+          - ingresses
+          - ingresses/status
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - network.openshift.io
+          resources:
+          - hostsubnets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - networking.k8s.io
+          resources:
+          - ingressclasses
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - networking.k8s.io
+          resources:
+          - ingresses
+          - ingresses/status
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - networking.x-k8s.io
+          resources:
+          - gatewayclasses
+          - gatewayclasses/status
+          - gateways
+          - gateways/status
           verbs:
           - create
           - delete
@@ -246,17 +415,18 @@ spec:
           - update
           - watch
         - apiGroups:
-          - authentication.k8s.io
+          - route.openshift.io
           resources:
-          - tokenreviews
+          - routes
+          - routes/status
           verbs:
           - create
-        - apiGroups:
-          - authorization.k8s.io
-          resources:
-          - subjectaccessreviews
-          verbs:
-          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         serviceAccountName: default
       deployments:
       - name: ako-operator-controller-manager
@@ -274,7 +444,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.registry.vmware.com/ako/ako-operator:1.4.2
+                image: projects.registry.vmware.com/ako/ako-operator:1.5.2
                 name: ako-operator
                 resources:
                   limits:
@@ -340,4 +510,4 @@ spec:
   maturity: alpha
   provider:
     name: VMware
-  version: 1.4.2
+  version: 1.5.2
