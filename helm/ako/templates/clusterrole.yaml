@@ -28,7 +28,7 @@ rules:
     verbs: ["get","watch","list","patch"]
   - apiGroups: [""]
     resources: ["events"]
-    verbs: ["create"]
+    verbs: ["create","patch","update"]
   - apiGroups: ["crd.projectcalico.org"]
     resources: ["blockaffinities"]
     verbs: ["get","watch","list"]
