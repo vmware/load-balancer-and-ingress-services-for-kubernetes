@@ -554,21 +554,22 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	defer o.Lock.Unlock()
 
 	// This is a shared VS - always created in the admin namespace for now.
-	avi_vs_meta := &AviEvhVsNode{Name: vsName, Tenant: lib.GetTenant(),
-		SharedVS: true}
-	avi_vs_meta.ServiceEngineGroup = lib.GetSEGName()
-	// Hard coded ports for the shared VS
-	var portProtocols []AviPortHostProtocol
+	// Default case
+	avi_vs_meta := &AviEvhVsNode{
+		Name:               vsName,
+		Tenant:             lib.GetTenant(),
+		SharedVS:           true,
+		ServiceEngineGroup: lib.GetSEGName(),
+		PortProto: []AviPortHostProtocol{
+			{Port: 80, Protocol: utils.HTTP},
+			{Port: 443, Protocol: utils.HTTP, EnableSSL: true},
+		},
+		ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
+		NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
+		EVHParent:          true,
+	}
+
 	var vrfcontext string
-	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
-	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true}
-	portProtocols = append(portProtocols, httpPort)
-	portProtocols = append(portProtocols, httpsPort)
-	avi_vs_meta.PortProto = portProtocols
-	// Default case.
-	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
-	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
-	avi_vs_meta.EVHParent = true
 	if lib.GetT1LRPath() != "" {
 		vrfcontext = ""
 	} else {
@@ -605,7 +606,10 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
 			fqdn = vsName + "-" + lib.GetTenant() + "." + subdomain
 		}
-		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", fqdn)
+
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, lib.GetModelName(lib.GetTenant(), vsName))
+		BuildL7HostRule(fqdn, key, avi_vs_meta)
+		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
 	}
 
@@ -886,7 +890,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
 	}
 	// build host rule for insecure ingress in evh
-	BuildL7HostRule(host, namespace, ingName, key, evhNode)
+	BuildL7HostRule(host, key, evhNode)
 	manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 }
 
@@ -1170,7 +1174,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			o.BuildHTTPSecurityPolicyForVSForEvh(evhNode, hosts, namespace, ingName, key, infraSettingName)
 		}
 		// Enable host rule
-		BuildL7HostRule(host, namespace, ingName, key, evhNode)
+		BuildL7HostRule(host, key, evhNode)
 		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 
 	} else {

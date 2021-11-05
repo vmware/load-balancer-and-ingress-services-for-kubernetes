@@ -556,8 +556,6 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 		}
 		return -1
 	}, 40*time.Second).Should(gomega.Equal(0))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	g.Expect(aviModel).Should(gomega.BeNil())
 
 	integrationtest.DeleteSecret(secretName, ns)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
@@ -715,12 +713,7 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 		setting, _ := CRDClient.AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 40*time.Second).Should(gomega.Equal("Rejected"))
-	g.Eventually(func() bool {
-		if found, _ := objects.SharedAviGraphLister().Get(modelName); !found {
-			return true
-		}
-		return false
-	}, 40*time.Second).Should(gomega.Equal(true))
+
 	settingUpdate := (integrationtest.FakeAviInfraSetting{
 		Name:        settingName,
 		SeGroupName: "thisisaviref-seGroup",
@@ -861,10 +854,15 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 		t.Fatalf("error in updating Ingress: %v", err)
 	}
 
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(modelName)
-		return found
-	}, 40*time.Second).Should(gomega.Equal(true))
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			if len(nodes) > 0 {
+				return len(nodes[0].EvhNodes)
+			}
+		}
+		return 0
+	}, 40*time.Second).Should(gomega.Equal(2))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes).Should(gomega.HaveLen(2))

@@ -319,25 +319,25 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 		var pgMembers []string
 		var poolMembers []string
 		if resp["http_request_policy"] != nil {
-			rules, rulessOk := resp["http_request_policy"].(map[string]interface{})
-			if rulessOk {
-				rulesArr := rules["rules"].([]interface{})
-				for _, ruleIntf := range rulesArr {
-					rulemap, _ := ruleIntf.(map[string]interface{})
-					if rulemap["switching_action"] != nil {
-						switchAction := rulemap["switching_action"].(map[string]interface{})
-						if switchAction["pool_group_ref"] != nil {
-							pgUuid := avicache.ExtractUuid(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
-							// Search the poolName using this Uuid in the poolcache.
-							pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
-							if found {
-								pgMembers = append(pgMembers, pgName.(string))
-							}
-						} else if switchAction["pool_ref"] != nil {
-							poolUuid := avicache.ExtractUuid(switchAction["pool_ref"].(string), "pool-.*.#")
-							poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
-							if found {
-								poolMembers = append(poolMembers, poolName.(string))
+			if rules, rulesOk := resp["http_request_policy"].(map[string]interface{}); rulesOk {
+				if rulesArr, rulesArrOk := rules["rules"].([]interface{}); rulesArrOk {
+					for _, ruleIntf := range rulesArr {
+						rulemap, _ := ruleIntf.(map[string]interface{})
+						if rulemap["switching_action"] != nil {
+							switchAction := rulemap["switching_action"].(map[string]interface{})
+							if switchAction["pool_group_ref"] != nil {
+								pgUuid := avicache.ExtractUuid(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
+								// Search the poolName using this Uuid in the poolcache.
+								pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
+								if found {
+									pgMembers = append(pgMembers, pgName.(string))
+								}
+							} else if switchAction["pool_ref"] != nil {
+								poolUuid := avicache.ExtractUuid(switchAction["pool_ref"].(string), "pool-.*.#")
+								poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
+								if found {
+									poolMembers = append(poolMembers, poolName.(string))
+								}
 							}
 						}
 					}

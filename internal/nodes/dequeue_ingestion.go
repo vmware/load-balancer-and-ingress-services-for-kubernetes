@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func DequeueIngestion(key string, fullsync bool) {
@@ -49,6 +50,11 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else if utils.GetInformers().RouteInformer != nil && schema.GetParentRoutes != nil {
 			routeNames, routeFound = schema.GetParentRoutes(name, namespace, key)
 		}
+	}
+
+	if objType == lib.HostRule && len(ingressNames) == 0 {
+		// We should be checking for hostrule being possibly connected to a SharedVS
+		handleHostRuleForSharedVS(key, fullsync)
 	}
 
 	// if we get update for object of type k8s node, create vrf graph
@@ -178,6 +184,75 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 }
 
+func handleHostRuleForSharedVS(key string, fullsync bool) {
+	allModels := []string{}
+	_, namespace, hrName := lib.ExtractTypeNameNamespace(key)
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	var fqdn, oldFqdn string
+	var oldFound bool
+
+	utils.AviLog.Infof("%s %s", namespace, hrName)
+	hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrName)
+	if k8serrors.IsNotFound(err) {
+		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted", key)
+		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
+		if strings.Contains(fqdn, lib.ShardVSSubstring) {
+			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrName)
+		}
+	} else if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v", key, err)
+		return
+	} else {
+		if hostrule.Status.Status == lib.StatusAccepted {
+			fqdn = hostrule.Spec.VirtualHost.Fqdn
+			oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
+			if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
+				objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrName)
+			}
+			if strings.Contains(fqdn, lib.ShardVSSubstring) {
+				objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrName)
+			}
+		}
+	}
+
+	if strings.Contains(fqdn, lib.ShardVSSubstring) {
+		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(fqdn); !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find Shared host info for host: %s", key, fqdn)
+		} else {
+			allModels = append(allModels, obj)
+		}
+	}
+
+	if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
+		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(oldFqdn); !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find Shared host info for host: %s", key, oldFqdn)
+		} else {
+			allModels = append(allModels, obj)
+		}
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Models retrieved from HostRule %v", key, utils.Stringify(allModels))
+
+	for _, modelName := range allModels {
+		// Try getting the SharedVS model, update with hostrule properties
+		// and publish to the rest layer.
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found || aviModel == nil {
+			utils.AviLog.Infof("key: %s, msg: model not found for %s", key, modelName)
+		} else {
+			aviModelObject := aviModel.(*AviObjectGraph)
+			vsNode := aviModelObject.GetAviVS()[0]
+			if found, fqdn := objects.SharedCRDLister().GetSharedVSModelFQDNMapping(modelName); found {
+				BuildL7HostRule(fqdn, key, vsNode)
+				ok := saveAviModel(modelName, aviModelObject, key)
+				if ok && len(aviModelObject.GetOrderedNodes()) != 0 && !fullsync {
+					PublishKeyToRestLayer(modelName, key, sharedQueue)
+				}
+			}
+		}
+	}
+}
+
 // handlePod populates NPL annotations for a pod in store.
 // It also stores a mapping of Pod to Services for future use
 func handlePod(key, namespace, podName string, fullsync bool) {
@@ -298,7 +373,6 @@ func handleRoute(key string, fullsync bool, routeNames []string) {
 		utils.AviLog.Infof("key: %s, msg: processing route: %s", key, route)
 		HostNameShardAndPublish(utils.OshiftRoute, nameroute, nsroute, key, fullsync, sharedQueue)
 	}
-	return
 }
 
 func handleL4Service(key string, fullsync bool) {
@@ -412,16 +486,16 @@ func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool 
 }
 
 func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsync bool) {
-	utils.AviLog.Debugf("key: %s, Got node Object %s\n", key, nodename)
+	utils.AviLog.Debugf("key: %s, Got node Object %s", key, nodename)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
 	if err == nil {
-		utils.AviLog.Debugf("key: %s, Node Object %v\n", key, nodeObj)
+		utils.AviLog.Debugf("key: %s, Node Object %v", key, nodeObj)
 		objects.SharedNodeLister().AddOrUpdate(nodename, nodeObj)
 	} else if errors.IsNotFound(err) {
-		utils.AviLog.Debugf("key: %s, msg: Node Deleted\n", key)
+		utils.AviLog.Debugf("key: %s, msg: Node Deleted", key)
 		objects.SharedNodeLister().Delete(nodename)
 	} else {
-		utils.AviLog.Errorf("key: %s, msg: Error getting node: %v\n", key, err)
+		utils.AviLog.Errorf("key: %s, msg: Error getting node: %v", key, err)
 		return
 	}
 	if lib.IsNodePortMode() {
@@ -432,7 +506,7 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	vrfcontext := lib.GetVrf()
 	err = aviModel.BuildVRFGraph(key, vrfcontext)
 	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Error creating vrf graph: %v\n", key, err)
+		utils.AviLog.Errorf("key: %s, msg: Error creating vrf graph: %v", key, err)
 		return
 	}
 	model_name := lib.GetModelName(lib.GetTenant(), vrfcontext)

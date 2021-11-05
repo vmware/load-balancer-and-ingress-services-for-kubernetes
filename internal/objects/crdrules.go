@@ -25,11 +25,13 @@ var crdonce sync.Once
 func SharedCRDLister() *CRDLister {
 	crdonce.Do(func() {
 		CRDinstance = &CRDLister{
-			FqdnHostRuleCache:  NewObjectMapStore(),
-			HostRuleFQDNCache:  NewObjectMapStore(),
-			FqdnHTTPRulesCache: NewObjectMapStore(),
-			HTTPRuleFqdnCache:  NewObjectMapStore(),
-			FqdnToGSFQDNCache:  NewObjectMapStore(),
+			FqdnHostRuleCache:      NewObjectMapStore(),
+			HostRuleFQDNCache:      NewObjectMapStore(),
+			FqdnHTTPRulesCache:     NewObjectMapStore(),
+			HTTPRuleFqdnCache:      NewObjectMapStore(),
+			FqdnToGSFQDNCache:      NewObjectMapStore(),
+			FqdnSharedVSModelCache: NewObjectMapStore(),
+			SharedVSModelFqdnCache: NewObjectMapStore(),
 		}
 	})
 	return CRDinstance
@@ -40,6 +42,7 @@ type CRDLister struct {
 	// this struct is locked
 	NSLock sync.RWMutex
 
+	// TODO: can be removed once we move to indexers
 	// fqdn.com: hr1
 	FqdnHostRuleCache *ObjectMapStore
 
@@ -49,11 +52,18 @@ type CRDLister struct {
 	// hr1: gsfqdn.com
 	FqdnToGSFQDNCache *ObjectMapStore
 
+	// TODO: can be removed once we move to indexers
 	// fqdn.com: {path1: rr1, path2: rr1, path3: rr2}
 	FqdnHTTPRulesCache *ObjectMapStore
 
 	// rr1: fqdn1.com, rr2: fqdn2.com
 	HTTPRuleFqdnCache *ObjectMapStore
+
+	// shared-vs1-fqdn.com: Shared-VS-L7-1, shared-vs2-fqdn.com: SharedVS-L7-2
+	FqdnSharedVSModelCache *ObjectMapStore
+
+	// Shared-VS-L7-1: shared-vs1-fqdn.com, SharedVS-L7-2: shared-vs2-fqdn.com
+	SharedVSModelFqdnCache *ObjectMapStore
 }
 
 // FqdnHostRuleCache
@@ -165,4 +175,36 @@ func (c *CRDLister) UpdateFqdnHTTPRulesMappings(fqdn, path, httprule string) {
 	_, pathRules := c.GetFqdnHTTPRulesMapping(fqdn)
 	pathRules[path] = httprule
 	c.FqdnHTTPRulesCache.AddOrUpdate(fqdn, pathRules)
+}
+
+// FqdnSharedVSModelCache/SharedVSModelFqdnCache
+func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn string) (bool, string) {
+	found, modelName := c.FqdnSharedVSModelCache.Get(fqdn)
+	if !found {
+		return false, ""
+	}
+	return true, modelName.(string)
+}
+
+func (c *CRDLister) GetSharedVSModelFQDNMapping(modelName string) (bool, string) {
+	found, fqdn := c.SharedVSModelFqdnCache.Get(modelName)
+	if !found {
+		return false, ""
+	}
+	return true, fqdn.(string)
+}
+
+func (c *CRDLister) UpdateFQDNSharedVSModelMappings(fqdn, modelName string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	c.FqdnSharedVSModelCache.AddOrUpdate(fqdn, modelName)
+	c.SharedVSModelFqdnCache.AddOrUpdate(modelName, fqdn)
+}
+
+func (c *CRDLister) DeleteFQDNSharedVSModelMapping(fqdn string) bool {
+	return c.FqdnSharedVSModelCache.Delete(fqdn)
+}
+
+func (c *CRDLister) DeleteSharedVSModelFQDNMapping(modelName string) bool {
+	return c.SharedVSModelFqdnCache.Delete(modelName)
 }

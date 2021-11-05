@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -84,23 +86,17 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		Tenant:             lib.GetTenant(),
 		SharedVS:           true,
 		ServiceEngineGroup: lib.GetSEGName(),
+		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
+		NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
+		ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
+		SNIParent:          true,
+		PortProto: []AviPortHostProtocol{
+			{Port: 80, Protocol: utils.HTTP},
+			{Port: 443, Protocol: utils.HTTP, EnableSSL: true},
+		},
 	}
 
-	enableRhi := lib.GetEnableRHI()
-	avi_vs_meta.EnableRhi = &enableRhi
-
-	// Hard coded ports for the shared VS
-	var portProtocols []AviPortHostProtocol
 	var vrfcontext string
-	httpPort := AviPortHostProtocol{Port: 80, Protocol: utils.HTTP}
-	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true}
-	portProtocols = append(portProtocols, httpPort)
-	portProtocols = append(portProtocols, httpsPort)
-	avi_vs_meta.PortProto = portProtocols
-	// Default case.
-	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
-	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
-	avi_vs_meta.SNIParent = true
 	if lib.GetT1LRPath() != "" {
 		vrfcontext = ""
 	} else {
@@ -138,7 +134,10 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
 			fqdn = vsName + "-" + lib.GetTenant() + "." + subdomain
 		}
-		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", fqdn)
+
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, lib.GetModelName(lib.GetTenant(), vsName))
+		BuildL7HostRule(fqdn, key, avi_vs_meta)
+		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
 	}
 

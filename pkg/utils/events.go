@@ -69,7 +69,7 @@ type EventRecorder struct {
 
 func (e *EventRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
 	if !e.Fake {
-		e.Recorder.Eventf(object, eventtype, reason, messageFmt, args)
+		e.Recorder.Eventf(object, eventtype, reason, messageFmt, args...)
 	}
 }
 

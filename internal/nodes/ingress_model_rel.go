@@ -547,7 +547,9 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 	if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted\n", key)
 		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
-		objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
+		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
+			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
+		}
 	} else if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v\n", key, err)
 		return nil, false
@@ -557,10 +559,12 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		}
 		fqdn = hostrule.Spec.VirtualHost.Fqdn
 		oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
-		if oldFound {
+		if oldFound && !strings.Contains(oldFqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
 		}
-		objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrname)
+		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
+			objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrname)
+		}
 	}
 
 	// find ingresses with host==fqdn, across all namespaces
@@ -593,7 +597,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		}
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
+	utils.AviLog.Infof("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
 	return allIngresses, true
 }
 
