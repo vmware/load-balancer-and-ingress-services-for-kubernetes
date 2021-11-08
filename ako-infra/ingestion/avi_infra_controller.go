@@ -130,7 +130,7 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	}
 	utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
 	utils.SetCloudName(cloudName)
-	if CheckSeGroup(a.AviRestClients.AviClient[0]) {
+	if checkSeGroup(a.AviRestClients.AviClient[0], cloudName) {
 		return true
 	}
 	var uri string
@@ -196,12 +196,10 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 
 }
 
-// ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the labels.
-func CheckSeGroup(client *clients.AviClient) bool {
-	// Change the name of the SE group
+func checkSeGroup(client *clients.AviClient, cloudName string) bool {
 	segroupName := lib.GetClusterID()
 
-	uri := "/api/serviceenginegroup/?name=" + segroupName
+	uri := "/api/serviceenginegroup/?name=" + segroupName + "cloud_ref.name=" + cloudName
 	response := models.ServiceEngineGroupAPIResponse{}
 	err := lib.AviGet(client, uri, &response)
 	if err != nil {
@@ -209,7 +207,6 @@ func CheckSeGroup(client *clients.AviClient) bool {
 		return false
 	}
 	utils.AviLog.Infof("Found Service Engine Group :%v", segroupName)
-	utils.IsVCFCluster()
 	return true
 }
 

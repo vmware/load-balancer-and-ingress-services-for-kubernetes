@@ -415,7 +415,10 @@ func IsServiceNSValid(namespace string) bool {
 
 func IsVCFCluster() bool {
 	vcfCluster := os.Getenv(VCF_CLUSTER)
-	return vcfCluster == "true"
+	if val, err := strconv.ParseBool(vcfCluster); err == nil {
+		return val
+	}
+	return false
 }
 
 // This utility returns a true/false depending on whether

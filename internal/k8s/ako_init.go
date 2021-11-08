@@ -142,17 +142,11 @@ func (c *AviController) SetSEGroupCloudName() bool {
 
 	if !utils.IsVCFCluster() {
 		lib.SetSEGName(seGroupToUse)
-		cloudName := os.Getenv("CLOUD_NAME")
-		if cloudName == "" {
-			// If the cloud name is blank - assume it to be Default-Cloud
-			cloudName = "Default-Cloud"
-		}
-		utils.SetCloudName(cloudName)
 		return true
 	}
 
 	nsName := utils.GetAKONamespace()
-	nsObj, err := c.informers.ClientSet.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	nsObj, err := c.informers.NSInformer.Lister().Get(nsName)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the namespace %s details due to the following error: %v", nsName, err.Error())
 		return false

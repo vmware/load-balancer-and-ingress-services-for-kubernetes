@@ -78,7 +78,6 @@ func (c *VCFK8sController) Run(stopCh <-chan struct{}) error {
 	utils.AviLog.Info("Started the Kubernetes Controller")
 	<-stopCh
 	utils.AviLog.Info("Shutting down the Kubernetes Controller")
-
 	return nil
 }
 func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {

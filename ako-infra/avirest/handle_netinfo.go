@@ -166,7 +166,7 @@ func DeleteSegment(obj interface{}) {
 	} else {
 		utils.AviLog.Infof("key: %s, LSLR update not required in cloud: %s", objKey, utils.CloudName)
 	}
-	delCIDRFromNetwork(objKey, cidrs, false)
+	delCIDRFromNetwork(objKey, cidrs)
 }
 
 func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) bool {
@@ -188,15 +188,20 @@ func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) boo
 func findAndRemoveCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) ([]*models.Subnet, bool) {
 	subnetsCopy := make([]*models.Subnet, len(subnets))
 	copy(subnetsCopy, subnets)
+	cidrsLen := len(cidrs)
+	if cidrsLen == 0 {
+		return subnetsCopy, true
+	}
 	for i, subnet := range subnets {
 		addr := *subnet.Prefix.IPAddr.Addr
 		mask := *subnet.Prefix.Mask
 		cidr := fmt.Sprintf("%s/%d", addr, mask)
 		if _, found := cidrs[cidr]; found {
 			subnetsCopy = append(subnetsCopy[:i], subnetsCopy[i+1:]...)
-		}
-		if len(cidrs) == 0 {
-			return subnetsCopy, true
+			cidrsLen -= 1
+			if cidrsLen == 0 {
+				return subnetsCopy, true
+			}
 		}
 	}
 	return subnetsCopy, false
@@ -305,7 +310,7 @@ func addNetworkInIPAM() {
 	}
 }
 
-func delCIDRFromNetwork(objKey string, cidrs map[string]struct{}, replaceAll bool) {
+func delCIDRFromNetwork(objKey string, cidrs map[string]struct{}) {
 	client := avicache.SharedAVIClients().AviClient[0]
 	netName := lib.GetVCFNetworkName()
 	method := utils.RestPut

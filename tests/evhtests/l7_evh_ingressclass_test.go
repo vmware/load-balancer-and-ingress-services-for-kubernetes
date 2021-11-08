@@ -151,9 +151,6 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 }
 
 func TestEVHDefaultIngressClassChange(t *testing.T) {
-	if lib.VIPPerNamespace() {
-		t.Skip()
-	}
 	// use default ingress class, change default annotation to false
 	// check that ingress status is removed
 	// change back default class annotation to true
@@ -161,9 +158,12 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName, ingressName, ns := "avi-lb", "foo-with-class", "default"
-	modelName, _ := GetModelName("bar.com", "default")
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"}
+	modelName, vsName := GetModelName("bar.com", "default")
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: vsName}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--bar.com", lib.EVHVS)}
+
+	mcache := cache.SharedAviObjCache()
+	mcache.VsCacheMeta.AviCacheDelete(vsKey)
 
 	SetUpTestForIngress(t, modelName)
 	integrationtest.RemoveDefaultIngressClass()
