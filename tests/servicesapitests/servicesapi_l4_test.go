@@ -250,7 +250,7 @@ func TeardownGatewayClass(t *testing.T, gwClassName string) {
 	}
 }
 
-func SetupSvcApiLBService(t *testing.T, svcname, namespace, gwname, gwnamespace string) {
+func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace string) {
 	svc := integrationtest.FakeService{
 		Name:      svcname,
 		Namespace: namespace,
@@ -258,7 +258,7 @@ func SetupSvcApiLBService(t *testing.T, svcname, namespace, gwname, gwnamespace 
 			lib.SvcApiGatewayNameLabelKey:      gwname,
 			lib.SvcApiGatewayNamespaceLabelKey: gwnamespace,
 		},
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: 8081}},
 	}
 
@@ -295,7 +295,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -347,7 +347,7 @@ func TestServicesAPINamingConvention(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -398,7 +398,7 @@ func TestServicesAPIWithStaticIP(t *testing.T) {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -428,7 +428,7 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 
@@ -474,7 +474,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 
@@ -545,7 +545,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -564,7 +564,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 			lib.SvcApiGatewayNameLabelKey:      gatewayName,
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
@@ -599,7 +599,7 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -618,7 +618,7 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 			lib.SvcApiGatewayNameLabelKey:      gatewayName,
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
@@ -652,7 +652,7 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -671,7 +671,7 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 			lib.SvcApiGatewayNameLabelKey:      "BADGATEWAY",
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
@@ -705,7 +705,7 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -760,7 +760,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -811,7 +811,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 			lib.SvcApiGatewayNameLabelKey:      gatewayName,
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
@@ -848,7 +848,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -899,7 +899,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 			lib.SvcApiGatewayNameLabelKey:      gatewayName,
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
@@ -937,7 +937,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gateway1Name, ns, gwClassName)
 	SetupGateway(t, gateway2Name, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gateway1Name, ns)
+	SetupSvcApiService(t, "svc", ns, gateway1Name, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName1); found && aviModel != nil {
@@ -961,7 +961,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 			lib.SvcApiGatewayNameLabelKey:      gateway2Name,
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
@@ -1007,7 +1007,7 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	// delete endpoints
 	integrationtest.DelEP(t, ns, "svc")
@@ -1079,7 +1079,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		Name:         svcName1,
 		Namespace:    ns,
 		Labels:       labels,
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
 	}
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
@@ -1091,7 +1091,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		Name:         svcName2,
 		Namespace:    ns,
 		Labels:       labels,
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "fooudp", Protocol: "UDP", PortNumber: 8082, TargetPort: 80}},
 	}
 
@@ -1176,7 +1176,7 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 		Name:         svcName1,
 		Namespace:    ns,
 		Labels:       labels,
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
 	}
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
@@ -1187,7 +1187,7 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 		Name:         svcName2,
 		Namespace:    ns,
 		Labels:       labels,
-		Type:         corev1.ServiceTypeLoadBalancer,
+		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8082, TargetPort: 80}},
 	}
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
@@ -1256,7 +1256,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	// Create with bad seGroup ref.
 	settingCreate := (integrationtest.FakeAviInfraSetting{
@@ -1350,7 +1350,7 @@ func TestServicesAPInfraSettingDelete(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 	integrationtest.SetupAviInfraSetting(t, settingName, "")
 
 	g.Eventually(func() bool {
@@ -1399,7 +1399,7 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName1)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiLBService(t, "svc", ns, gatewayName, ns)
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 	integrationtest.SetupAviInfraSetting(t, settingName1, "")
 	integrationtest.SetupAviInfraSetting(t, settingName2, "")
 

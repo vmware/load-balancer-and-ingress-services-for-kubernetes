@@ -114,7 +114,6 @@ func (c *CRDLister) UpdateLocalFQDNToGSFqdnMapping(fqdn string, gsFqdn string) {
 func (c *CRDLister) UpdateFQDNHostruleMapping(fqdn string, hostrule string) {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()
-	// utils.AviLog.Infof("Updated the Hostrule.fqdn mappings with fqdn: %s, hostrule: %s", fqdn, hostrule)
 	c.FqdnHostRuleCache.AddOrUpdate(fqdn, hostrule)
 	c.HostRuleFQDNCache.AddOrUpdate(hostrule, fqdn)
 }

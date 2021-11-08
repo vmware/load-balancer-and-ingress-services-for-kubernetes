@@ -29,6 +29,8 @@ spec:
 
 AviInfraSetting is a Cluster scoped CRD and can be attached to the intended Services, Kubernetes Ingresses and Openshift Routes by ways described below.
 
+![AviInfraSetting-with-Objects](../images/infrasetting-integrations.png)<bt/>
+
 #### Services
 AviInfraSetting resources can be attached to Services using Gateway APIs, or simply by using annotations.
 
