@@ -1,0 +1,277 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: akoconfigs.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: AKOConfig
+    listKind: AKOConfigList
+    plural: akoconfigs
+    singular: akoconfig
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AKOConfig is the Schema for the akoconfigs API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AKOConfigSpec defines the desired state of AKOConfig
+            properties:
+              akoSettings:
+                description: AKOSettings defines the settings required for the AKO
+                  controller
+                properties:
+                  apiServerPort:
+                    description: APIServerPort is the port at which the AKO API server
+                      runs
+                    type: integer
+                  clusterName:
+                    description: ClusterName is used to identify a cluster
+                    type: string
+                  cniPlugin:
+                    description: CNIPlugin specifies the CNI to be used
+                    type: string
+                  deleteConfig:
+                    description: DeleteConfig is set if clean up is required by AKO
+                    type: boolean
+                  disableStaticRouteSync:
+                    description: DisableStaticRouteSync is set if the static route
+                      sync is not required
+                    type: boolean
+                  enableEVH:
+                    description: EnableEVH enables the Enhanced Virtual Hosting Model
+                      in Avi Controller for the Virtual Services
+                    type: boolean
+                  fullSyncFrequency:
+                    description: FullSyncFrequency defines the interval at which full
+                      sync is carried out by the AKO controller
+                    type: string
+                  layer7Only:
+                    description: Layer7Only flag, if set to true, then AKO controller
+                      will only do layer 7 loadbalancing
+                    type: boolean
+                  logLevel:
+                    description: LogLevel defines the log level to be used by the
+                      AKO controller
+                    enum:
+                    - INFO
+                    - DEBUG
+                    - WARN
+                    - ERROR
+                    type: string
+                  namespaceSelector:
+                    description: Namespace selector specifies the namespace labels
+                      from which AKO should sync from
+                    properties:
+                      labelKey:
+                        type: string
+                      labelValue:
+                        type: string
+                    type: object
+                  servicesAPI:
+                    description: ServicesAPI enables AKO to do Layer 4 loadbalancing
+                      using Services API
+                    type: boolean
+                type: object
+              controllerSettings:
+                description: ControllerSettings defines the Avi Controller parameters
+                properties:
+                  cloudName:
+                    description: CloudName is the name of the cloud to be used in
+                      Avi
+                    type: string
+                  controllerIP:
+                    description: ControllerIP is the IP address of the Avi Controller
+                    type: string
+                  controllerVersion:
+                    description: ControllerVersion is the Avi controller version
+                    type: string
+                  serviceEngineGroupName:
+                    description: ServiceEngineGroupName is the name of the Serviceengine
+                      group in Avi
+                    type: string
+                  tenantName:
+                    description: TenantName is the name of the tenant where all AKO
+                      objects will be created in Avi.
+                    type: string
+                  tenantsPerCluster:
+                    description: TenantsPerCluster if set to true, AKO will map each
+                      k8s cluster uniquely to a tenant in Avi
+                    type: boolean
+                type: object
+              imagePullPolicy:
+                description: ImagePullPolicy defines when the AKO controller image
+                  gets pulled.
+                type: string
+              imageRepository:
+                description: ImageRepository is where the AKO controller resides.
+                type: string
+              l4Settings:
+                description: L4Settings defines the L4 configuration for the AKO controller
+                properties:
+                  advancedL4:
+                    description: AdvancedL4 specifies whether the AKO controller should
+                      listen for the Gateway objects
+                    type: boolean
+                  autoFQDN:
+                    description: Specifies the FQDN pattern - default, flat or disabled
+                    type: string
+                  defaultDomain:
+                    description: DefaultDomain is the default domain
+                    type: string
+                type: object
+              l7Settings:
+                description: L7Settings defines the L7 configuration for the AKO controller
+                properties:
+                  defaultIngController:
+                    description: DefaultIngController specifies whether AKO controller
+                      is the default ingress controller
+                    type: boolean
+                  noPGForSNI:
+                    description: NoPGForSNI removes Avi PoolGroups from SNI VSes
+                    type: boolean
+                  passthroughShardSize:
+                    description: PassthroughShardSize specifies the number of shard
+                      VSs to be created for passthrough routes
+                    enum:
+                    - LARGE
+                    - MEDIUM
+                    - SMALL
+                    type: string
+                  serviceType:
+                    description: 'ServiceType defines the service type: ClusterIP,
+                      NodePort or NodePortLocal'
+                    enum:
+                    - NodePort
+                    - ClusterIP
+                    - NodePortLocal
+                    type: string
+                  shardVSSize:
+                    description: ShardVSSize specifies the number of shard VSs to
+                      be created
+                    enum:
+                    - LARGE
+                    - MEDIUM
+                    - SMALL
+                    type: string
+                  syncNamespace:
+                    description: SyncNamespace takes in a namespace from which AKO
+                      will sync the objects
+                    type: string
+                type: object
+              logFile:
+                type: string
+              mountPath:
+                type: string
+              networkSettings:
+                description: NetworkSettings defines the network details required
+                  for the AKO controller
+                properties:
+                  enableRHI:
+                    description: EnableRHI is a cluster wide setting for BGP peering
+                    type: boolean
+                  nodeNetworkList:
+                    description: 'NodeNetworkList is the list of networks and their
+                      cidrs used in pool placement network for vcenter cloud. This
+                      is not required for either of these cases: 1. nodeport is enabled
+                      2. static routes are disabled 3. non vcenter clouds'
+                    items:
+                      properties:
+                        cidrs:
+                          items:
+                            type: string
+                          type: array
+                        networkName:
+                          type: string
+                      type: object
+                    type: array
+                  subnetIP:
+                    description: SubnetIP is the Network IP for the subnet to be used
+                    type: string
+                  subnetPrefix:
+                    description: SubnetPrefix is the netmask for the subnet
+                    type: string
+                  vipNetworkList:
+                    description: VipNetworkList holds the names of networks as specified
+                      in Avi
+                    items:
+                      properties:
+                        networkName:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              nodePortSelector:
+                description: NodePortSelector defines the node port settings, to be
+                  used only if the serviceTYpe is selected NodePort
+                properties:
+                  key:
+                    type: string
+                  value:
+                    type: string
+                type: object
+              pvc:
+                type: string
+              rbac:
+                properties:
+                  pspEnable:
+                    type: boolean
+                type: object
+              resources:
+                description: Resources defines the limits and requests for cpu and
+                  memory to be used by the AKO controller
+                properties:
+                  limits:
+                    description: ResourceLimits defines the limits on cpu and memory
+                      for the AKO controller
+                    properties:
+                      cpu:
+                        type: string
+                      memory:
+                        type: string
+                    type: object
+                  requests:
+                    description: ResourceRequests defines the requests for cpu and
+                      memory by the AKO controller
+                    properties:
+                      cpu:
+                        type: string
+                      memory:
+                        type: string
+                    type: object
+                type: object
+            type: object
+          status:
+            description: AKOConfigStatus defines the observed state of AKOConfig
+            properties:
+              state:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
