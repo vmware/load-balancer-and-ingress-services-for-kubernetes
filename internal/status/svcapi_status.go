@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -99,7 +100,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 		// Get GatewayClasses with Avi set as the controller, get corresponding Gateways,
 		// to return all AKO ingestable Gateways.
 		aviGWClasses := make(map[string]bool)
-		gwClassList, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().GatewayClasses().List(context.TODO(), metav1.ListOptions{})
+		gwClassList, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the GatewayClass object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -109,17 +110,17 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 			return gwMap
 		}
 
-		if len(gwClassList.Items) == 0 {
+		if len(gwClassList) == 0 {
 			return gwMap
 		}
 
-		for i := range gwClassList.Items {
-			if gwClassList.Items[i].Spec.Controller == lib.SvcApiAviGatewayController {
-				aviGWClasses[gwClassList.Items[i].Name] = true
+		for i := range gwClassList {
+			if gwClassList[i].Spec.Controller == lib.SvcApiAviGatewayController {
+				aviGWClasses[gwClassList[i].Name] = true
 			}
 		}
 
-		gwList, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		gwList, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the gateway object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -128,11 +129,11 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 			}
 		}
 
-		for i := range gwList.Items {
-			if _, ok := aviGWClasses[gwList.Items[i].Spec.GatewayClassName]; ok {
-				gw := gwList.Items[i]
+		for i := range gwList {
+			if _, ok := aviGWClasses[gwList[i].Spec.GatewayClassName]; ok {
+				gw := gwList[i]
 				if utils.CheckIfNamespaceAccepted(gw.Namespace) {
-					gwMap[gw.Namespace+"/"+gw.Name] = &gw
+					gwMap[gw.Namespace+"/"+gw.Name] = gw
 				}
 			}
 		}
@@ -142,7 +143,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 
 	for _, namespaceName := range gwNSNames {
 		nsNameSplit := strings.Split(namespaceName, "/")
-		gw, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
+		gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(nsNameSplit[0]).Get(nsNameSplit[1])
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the gateway object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -160,7 +161,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 
 func DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj lib.ServiceMetadataObj) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
-	gw, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
+	gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
 		return err
@@ -187,7 +188,7 @@ func DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj lib.ServiceMeta
 
 func DeleteSvcApiStatus(key string, svcMetadataObj lib.ServiceMetadataObj) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
-	gw, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
+	gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
 		return err
@@ -330,7 +331,7 @@ func UpdateSvcApiGatewayStatusObject(key string, gw *svcapiv1alpha1.Gateway, upd
 	_, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("msg: %d there was an error in updating the gateway status: %+v", retry, err)
-		updatedGW, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(gw.Namespace).Get(context.TODO(), gw.Name, metav1.GetOptions{})
+		updatedGW, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(gw.Namespace).Get(gw.Name)
 		if err != nil {
 			utils.AviLog.Warnf("gateway not found %v", err)
 			return
