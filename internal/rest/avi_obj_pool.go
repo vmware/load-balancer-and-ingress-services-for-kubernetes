@@ -281,46 +281,41 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
 				if len(IPAddrs) == 0 {
-					var vip string
-					parent_vs_key := vs_cache_obj.ParentVSRef
-					parent_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(parent_vs_key)
-					if ok {
-						parent_cache_obj, _ := parent_cache.(*avicache.AviVsCache)
-						vip = parent_cache_obj.Vip
+					utils.AviLog.Debugf("key: %s, msg: Unable to find VIP corresponding to Pool %s", key, pool_cache_obj.Name)
+				} else {
+					switch pool_cache_obj.ServiceMetadataObj.ServiceMetadataMapping("Pool") {
+					case lib.GatewayPool:
+						updateOptions := status.UpdateOptions{
+							Vip:                IPAddrs,
+							ServiceMetadata:    svc_mdata_obj,
+							Key:                key,
+							VirtualServiceUUID: vs_cache_obj.Uuid,
+							VSName:             vs_cache_obj.Name,
+						}
+						statusOption := status.StatusOptions{
+							ObjType: utils.L4LBService,
+							Op:      lib.UpdateStatus,
+							Options: &updateOptions,
+						}
+						status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
+					case lib.SNIInsecureOrEVHPool:
+						updateOptions := status.UpdateOptions{
+							Vip:                IPAddrs,
+							ServiceMetadata:    svc_mdata_obj,
+							Key:                key,
+							VirtualServiceUUID: vs_cache_obj.Uuid,
+							VSName:             vs_cache_obj.Name,
+						}
+						statusOption := status.StatusOptions{
+							ObjType: utils.Ingress,
+							Op:      lib.UpdateStatus,
+							Options: &updateOptions,
+						}
+						if utils.GetInformers().RouteInformer != nil {
+							statusOption.ObjType = utils.OshiftRoute
+						}
+						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 					}
-					IPAddrs = []string{vip}
-				}
-				if len(svc_mdata_obj.NamespaceServiceName) > 0 {
-					updateOptions := status.UpdateOptions{
-						Vip:                IPAddrs,
-						ServiceMetadata:    svc_mdata_obj,
-						Key:                key,
-						VirtualServiceUUID: vs_cache_obj.Uuid,
-						VSName:             vs_cache_obj.Name,
-					}
-					statusOption := status.StatusOptions{
-						ObjType: utils.L4LBService,
-						Op:      lib.UpdateStatus,
-						Options: &updateOptions,
-					}
-					status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
-				} else if svc_mdata_obj.Namespace != "" {
-					updateOptions := status.UpdateOptions{
-						Vip:                IPAddrs,
-						ServiceMetadata:    svc_mdata_obj,
-						Key:                key,
-						VirtualServiceUUID: vs_cache_obj.Uuid,
-						VSName:             vs_cache_obj.Name,
-					}
-					statusOption := status.StatusOptions{
-						ObjType: utils.Ingress,
-						Op:      lib.UpdateStatus,
-						Options: &updateOptions,
-					}
-					if utils.GetInformers().RouteInformer != nil {
-						statusOption.ObjType = utils.OshiftRoute
-					}
-					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
 			}
 
@@ -368,8 +363,8 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 	if found {
 		pool_cache_obj, success := pool_cache.(*avicache.AviPoolCache)
 		if success {
-			if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
-				// pool metadata is used for backend services of gateways.
+			switch pool_cache_obj.ServiceMetadataObj.ServiceMetadataMapping(lib.Pool) {
+			case lib.GatewayPool:
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
@@ -381,8 +376,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					Options: &updateOptions,
 				}
 				status.PublishToStatusQueue(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
-			} else if pool_cache_obj.ServiceMetadataObj.IngressName != "" {
-				// pool metadata is used for insecure ingresses in regular AKO (non SNI).
+			case "SNI_INSECURE_OR_EVH_POOL":
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,

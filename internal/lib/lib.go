@@ -81,6 +81,45 @@ type ServiceMetadataObj struct {
 	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
 }
 
+type ServiceMetadataMappingObjType string
+
+const (
+	GatewayVS            ServiceMetadataMappingObjType = "GATEWAY_VS"
+	ChildVS              ServiceMetadataMappingObjType = "CHILD_VS"
+	ServiceTypeLBVS      ServiceMetadataMappingObjType = "SERVICELB_VS"
+	GatewayPool          ServiceMetadataMappingObjType = "GATEWAY_POOL"
+	SNIInsecureOrEVHPool ServiceMetadataMappingObjType = "SNI_INSECURE_OR_EVH_POOL"
+)
+
+func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetadataMappingObjType {
+	if c.Gateway != "" {
+		// Check for `Gateway` in VS serviceMetadata. Present in case of
+		// 1) Advl4 VS
+		// 2) SvcApi VS
+		return GatewayVS
+	} else if len(c.NamespaceIngressName) > 0 {
+		// Check for `NamespaceIngressName` in VS serviceMetadata. Present in case of
+		// 1) SNI Secure VS
+		// 2) EVH Secure/Insecure VS
+		return ChildVS
+	} else if objType == "VS" && len(c.NamespaceServiceName) > 0 {
+		// Check for `NamesppaceServiceName` in VS serviceMetadata. Present in case of
+		// 1) Service TypeLB L4VSes
+		return ServiceTypeLBVS
+	} else if objType == "Pool" && len(c.NamespaceServiceName) > 0 {
+		// Check for `NamespaceServiceName` in Pool serviceMetadata. Present in case of
+		// 1) Advl4 Pools: without hostname information
+		// 2) SvcApi Pools: with hostname information
+		return GatewayPool
+	} else if c.Namespace != "" && c.IngressName != "" {
+		// Check for `Namespace` and `IngressName` in Pool serviceMetadata. Present in case of
+		// 1) Insecure Pools (SNI)
+		// 2) Secure/Insecure Pools (EVH)
+		return SNIInsecureOrEVHPool
+	}
+	return ""
+}
+
 var NamePrefix string
 
 func CheckObjectNameLength(objName, objType string) bool {

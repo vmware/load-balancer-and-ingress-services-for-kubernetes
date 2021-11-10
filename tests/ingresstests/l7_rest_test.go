@@ -373,7 +373,7 @@ func TestCreateSNICacheSync(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 20*time.Second).Should(gomega.Equal(true))
 	parentCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 	parentCacheObj, _ := parentCache.(*cache.AviVsCache)
 	g.Expect(parentCacheObj.SNIChildCollection).To(gomega.HaveLen(1))
