@@ -19,7 +19,6 @@ import (
 	"regexp"
 	"strings"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
@@ -98,7 +97,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 				PriorityLabel: priorityLabel,
 				Port:          obj.Port,
 				TargetPort:    obj.TargetPort,
-				ServiceMetadata: avicache.ServiceMetadataObj{
+				ServiceMetadata: lib.ServiceMetadataObj{
 					IngressName:           ingName,
 					Namespace:             namespace,
 					HostNames:             storedHosts,
@@ -368,7 +367,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			VHParentName: vsNode[0].Name,
 			Tenant:       lib.GetTenant(),
 			IsSNIChild:   true,
-			ServiceMetadata: avicache.ServiceMetadataObj{
+			ServiceMetadata: lib.ServiceMetadataObj{
 				NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
 				Namespace:            namespace,
 				HostNames:            sniHosts,

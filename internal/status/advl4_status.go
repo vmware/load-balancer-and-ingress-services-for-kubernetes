@@ -24,7 +24,6 @@ import (
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -78,7 +77,7 @@ func UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 			if val, ok := skipDelete[gwNSName]; ok && val {
 				continue
 			}
-			DeleteGatewayStatusAddress(avicache.ServiceMetadataObj{
+			DeleteGatewayStatusAddress(lib.ServiceMetadataObj{
 				Gateway: gwNSName,
 			}, lib.SyncStatusKey)
 		}
@@ -99,7 +98,7 @@ func parseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []U
 	return objectsToUpdate, updateGWOptions
 }
 
-func DeleteGatewayStatusAddress(svcMetadataObj avicache.ServiceMetadataObj, key string) error {
+func DeleteGatewayStatusAddress(svcMetadataObj lib.ServiceMetadataObj, key string) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
 	if lib.GetAdvancedL4() {
 		gw, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})

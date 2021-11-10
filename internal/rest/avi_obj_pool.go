@@ -218,7 +218,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 		}
 		cksum := resp["cloud_config_cksum"].(string)
 
-		var svc_mdata_obj avicache.ServiceMetadataObj
+		var svc_mdata_obj lib.ServiceMetadataObj
 		if resp["service_metadata"] != nil {
 			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
 				&svc_mdata_obj); err != nil {

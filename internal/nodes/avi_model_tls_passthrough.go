@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -136,7 +135,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		poolNode.PortName = obj.PortName
 		poolNode.Port = obj.Port
 		poolNode.TargetPort = obj.TargetPort
-		poolNode.ServiceMetadata = avicache.ServiceMetadataObj{
+		poolNode.ServiceMetadata = lib.ServiceMetadataObj{
 			IngressName: objName, Namespace: namespace, PoolRatio: obj.weight,
 			HostNames: []string{hostname},
 		}

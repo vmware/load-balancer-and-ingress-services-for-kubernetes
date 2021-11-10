@@ -366,7 +366,7 @@ func AviVsHttpPSAdd(vs_meta interface{}, isEVH bool) []*avimodels.HTTPPolicies {
 	return httpPolicyCollection
 }
 
-func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *avicache.AviVsCache, svc_mdata_obj *avicache.ServiceMetadataObj, parentVsObj *avicache.AviVsCache, key string, oldObj bool) error {
+func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *avicache.AviVsCache, svc_mdata_obj *lib.ServiceMetadataObj, parentVsObj *avicache.AviVsCache, key string, oldObj bool) error {
 	if oldObj {
 		if rest_op.Method == utils.RestPost || rest_op.Method == utils.RestDelete || rest_op.Method == utils.RestPut {
 			for _, poolkey := range vs_cache_obj.PoolKeyCollection {
@@ -536,7 +536,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					vs_cache_obj))
 			}
 		}
-		var svc_mdata_obj avicache.ServiceMetadataObj
+		var svc_mdata_obj lib.ServiceMetadataObj
 		if resp["service_metadata"] != nil {
 			utils.AviLog.Infof("key:%s, msg: Service Metadata: %s", key, resp["service_metadata"])
 			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strings"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -144,7 +143,7 @@ func UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 				continue
 			}
 			DeleteRouteStatus([]UpdateOptions{{
-				ServiceMetadata: avicache.ServiceMetadataObj{
+				ServiceMetadata: lib.ServiceMetadataObj{
 					NamespaceIngressName: []string{routeNSName},
 					HostNames:            []string{route.Spec.Host},
 				},
@@ -588,7 +587,7 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 	return deleteRouteAnnotation(updatedRoute, option.ServiceMetadata, isVSDelete, mRoute.Spec.Host, key, mRoute)
 }
 
-func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta avicache.ServiceMetadataObj, isVSDelete bool,
+func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataObj, isVSDelete bool,
 	routeHost string, key string, oldRoute *routev1.Route, retryNum ...int) error {
 	if routeObj == nil {
 		routeObj = oldRoute

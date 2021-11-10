@@ -318,8 +318,7 @@ func (rest *RestOperations) AviPkiProfileCacheDel(rest_op *utils.RestOp, poolKey
 	if poolKey != (avicache.NamespaceName{}) {
 		poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey)
 		if ok {
-			poolCacheObj, found := poolCache.(*avicache.AviPoolCache)
-			if found {
+			if poolCacheObj, found := poolCache.(*avicache.AviPoolCache); found {
 				poolCacheObj.PkiProfileCollection = avicache.NamespaceName{}
 			}
 		}

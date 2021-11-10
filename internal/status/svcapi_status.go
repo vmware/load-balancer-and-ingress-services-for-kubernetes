@@ -23,7 +23,6 @@ import (
 
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -75,7 +74,7 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 			if val, ok := skipDelete[gwNSName]; ok && val {
 				continue
 			}
-			DeleteSvcApiGatewayStatusAddress("", avicache.ServiceMetadataObj{
+			DeleteSvcApiGatewayStatusAddress("", lib.ServiceMetadataObj{
 				Gateway: gwNSName,
 			})
 		}
@@ -159,7 +158,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 	return gwMap
 }
 
-func DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj avicache.ServiceMetadataObj) error {
+func DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj lib.ServiceMetadataObj) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
 	gw, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
 	if err != nil {
@@ -186,7 +185,7 @@ func DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj avicache.Servic
 	return nil
 }
 
-func DeleteSvcApiStatus(key string, svcMetadataObj avicache.ServiceMetadataObj) error {
+func DeleteSvcApiStatus(key string, svcMetadataObj lib.ServiceMetadataObj) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
 	gw, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(gwNSName[0]).Get(context.TODO(), gwNSName[1], metav1.GetOptions{})
 	if err != nil {

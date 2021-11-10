@@ -583,7 +583,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 		}
 
 		svc_mdata_intf := *pool.ServiceMetadata
-		var svc_mdata_obj ServiceMetadataObj
+		var svc_mdata_obj lib.ServiceMetadataObj
 		if err := json.Unmarshal([]byte(svc_mdata_intf), &svc_mdata_obj); err != nil {
 			utils.AviLog.Warnf("Error parsing service metadata during pool cache :%v", err)
 		}
@@ -1119,7 +1119,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 		}
 
 		svc_mdata_intf := *pool.ServiceMetadata
-		var svc_mdata_obj ServiceMetadataObj
+		var svc_mdata_obj lib.ServiceMetadataObj
 		if err := json.Unmarshal([]byte(svc_mdata_intf), &svc_mdata_obj); err != nil {
 			utils.AviLog.Warnf("Error parsing service metadata during pool cache :%v", err)
 		}
@@ -1819,7 +1819,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				continue
 			}
 			svc_mdata_intf, ok := vs["service_metadata"]
-			var svc_mdata_obj ServiceMetadataObj
+			var svc_mdata_obj lib.ServiceMetadataObj
 			if ok {
 				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
 					&svc_mdata_obj); err != nil {
@@ -2080,7 +2080,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 		for _, vs_intf := range results {
 			vs := vs_intf.(map[string]interface{})
 			svc_mdata_intf, ok := vs["service_metadata"]
-			var svc_mdata_obj ServiceMetadataObj
+			var svc_mdata_obj lib.ServiceMetadataObj
 			if ok {
 				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
 					&svc_mdata_obj); err != nil {
