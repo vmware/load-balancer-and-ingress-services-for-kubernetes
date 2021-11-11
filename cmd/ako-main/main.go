@@ -191,12 +191,12 @@ func InitializeAKC() {
 		utils.AviLog.Infof("Valid Avi Secret not found, waiting .. ")
 		startSyncCh := make(chan struct{})
 		c.AddBootupSecretEventHandler(informers, stopCh, startSyncCh)
-	L:
+	L1:
 		for {
 			select {
 			case <-startSyncCh:
 				lib.AviSecretInitialized = true
-				break L
+				break L1
 			case <-ctrlCh:
 				return
 			}
@@ -205,6 +205,23 @@ func InitializeAKC() {
 	utils.AviLog.Infof("Valid Avi Secret found, continuing .. ")
 
 	err = k8s.PopulateControllerProperties(kubeClient)
+	if !c.SetSEGroupCloudName() {
+		utils.AviLog.Infof("SEgroup name not found, waiting ..")
+		startSyncCh := make(chan struct{})
+		c.AddBootupNSEventHandler(informers, stopCh, startSyncCh)
+	L2:
+		for {
+			select {
+			case <-startSyncCh:
+				lib.AviSEInitialized = true
+				break L2
+			case <-ctrlCh:
+				return
+			}
+		}
+	}
+	utils.AviLog.Infof("SEgroup name found, continuing ..")
+
 	if err != nil {
 		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
 		lib.ShutdownApi()
@@ -224,6 +241,19 @@ func InitializeAKC() {
 	if err != nil {
 		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")
 		return
+	}
+
+	if !utils.IsVCFCluster() {
+		if _, err := lib.GetVipNetworkListEnv(); err != nil {
+			utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
+		}
+	} else {
+		lib.NewVCFDynamicClientSet(cfg)
+		lslrMap, _ := lib.GetNetinfoCRData()
+		for _, lr := range lslrMap {
+			lib.SetT1LRPath(lr)
+			break
+		}
 	}
 
 	c.InitializeNamespaceSync()

@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -2564,7 +2563,7 @@ func checkRequiredValuesYaml(returnErr *error) bool {
 	//Set clusterlabel checksum
 	lib.SetClusterLabelChecksum()
 
-	cloudName := os.Getenv("CLOUD_NAME")
+	cloudName := utils.CloudName
 	if cloudName == "" {
 		*returnErr = fmt.Errorf("Required param cloudName not specified, syncing will be disabled")
 		return false
@@ -2596,27 +2595,7 @@ func checkRequiredValuesYaml(returnErr *error) bool {
 // validateAndConfigureSeGroup validates SeGroup configuration provided during installation
 // and configures labels on the SeGroup if not present already
 func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bool {
-	// Indulge in Marker based SEGroup searching only when user input is empty.
-	// SE Group selection priority
-	// 1. User input
-	seGroupToUse := lib.GetSEGNameEnv()
-
-	var err error
-	// 2. Marker based (only advancedL4)
-	if seGroupToUse == "" && lib.GetAdvancedL4() {
-		err, seGroupToUse = lib.FetchSEGroupWithMarkerSet(client)
-		if err != nil {
-			*returnErr = err
-			return false
-		}
-	}
-
-	// 3. Default-SEGroup
-	if seGroupToUse == "" {
-		utils.AviLog.Infof("Setting %s for VS placement.", lib.DEFAULT_SE_GROUP)
-		seGroupToUse = lib.DEFAULT_SE_GROUP
-	}
-	lib.SetSEGName(seGroupToUse)
+	// Note: The Name of SEgroup is being set in the function SetSEGroupCloudName during initialisation
 
 	// Not applicable for NodePort mode / disable route is set as True.
 	if lib.GetDisableStaticRoute() {
@@ -2918,6 +2897,14 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 3. Empty VipNetworkList
 	if lib.GetAdvancedL4() && markerNetworkFound == "" {
 		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
+		return true, nil
+	}
+
+	if utils.IsVCFCluster() {
+		vipNetList := akov1alpha1.AviInfraSettingVipNetwork{
+			NetworkName: lib.GetVCFNetworkName(),
+		}
+		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{vipNetList})
 		return true, nil
 	}
 

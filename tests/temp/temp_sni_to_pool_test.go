@@ -105,6 +105,8 @@ func TestMain(m *testing.M) {
 	integrationtest.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	ctrl.SetSEGroupCloudName()
+
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
 

@@ -81,6 +81,7 @@ const (
 	ENV_CTRL_AUTHTOKEN            = "CTRL_AUTHTOKEN"
 	ENV_CTRL_IPADDRESS            = "CTRL_IPADDRESS"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
+	VCF_CLUSTER                   = "VCF_CLUSTER"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours

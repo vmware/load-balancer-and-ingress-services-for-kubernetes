@@ -153,7 +153,6 @@ const (
 	AutoFQDNDefault                            = "Default"
 	AutoFQDNFlat                               = "Flat"
 	AutoFQDNDisabled                           = "Disabled"
-	VCF_CLUSTER                                = "VCF_CLUSTER"
 	VCF_NETWORK                                = "vcf-ako-net"
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
 	CRDActive                                  = "ACTIVE"
@@ -193,6 +192,8 @@ const (
 	SkipNodePortAnnotation         = "skipnodeport.ako.vmware.com/enabled"
 	PassthroughAnnotation          = "passthrough.ako.vmware.com/enabled"
 	StaticRouteAnnotation          = "ako.vmware.com/pod-cidrs"
+	WCPSEGroup                     = "ako.vmware.com/wcp-se-group"
+	WCPCloud                       = "ako.vmware.com/wcp-cloud-name"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"
