@@ -70,8 +70,7 @@ func createOrUpdateClusterRole(ctx context.Context, ako akov1alpha1.AKOConfig, l
 	// update this object in the global list
 	objList := getObjectList()
 	objList[types.NamespacedName{
-		Name:      newCR.GetName(),
-		Namespace: newCR.GetNamespace(),
+		Name: newCR.GetName(),
 	}] = &newCR
 
 	return nil
