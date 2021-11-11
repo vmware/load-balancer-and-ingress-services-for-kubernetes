@@ -120,7 +120,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		}
 	}
 
-	utils.AviLog.Debug(spew.Sprintf("L4PolicySet Restop %v AviHttpPolicySetMeta %v\n",
+	utils.AviLog.Debug(spew.Sprintf("L4PolicySet Restop %v AviHttpPolicySetMeta %v",
 		rest_op, utils.Stringify(hps_meta)))
 	return &rest_op
 }
@@ -129,7 +129,7 @@ func (rest *RestOperations) AviL4PolicyDel(uuid string, tenant string, key strin
 	path := "/api/l4policyset/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
-	utils.AviLog.Infof(spew.Sprintf("L4 Policy Set DELETE Restop %v \n",
+	utils.AviLog.Infof(spew.Sprintf("L4 Policy Set DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -210,10 +210,10 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToL4PolicyCollection(k)
-			utils.AviLog.Info(spew.Sprintf("Added VS cache key during l4 policy update %v val %v\n", vsKey,
+			utils.AviLog.Info(spew.Sprintf("Added VS cache key during l4 policy update %v val %v", vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info(spew.Sprintf("Added L4 Policy Set cache k %v val %v\n", k,
+		utils.AviLog.Info(spew.Sprintf("Added L4 Policy Set cache k %v val %v", k,
 			l4_cache_obj))
 	}
 

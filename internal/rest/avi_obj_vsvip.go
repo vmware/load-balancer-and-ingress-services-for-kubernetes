@@ -292,11 +292,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 
 func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVip, error) {
 	if rest.aviRestPoolClient == nil {
-		utils.AviLog.Warnf("key: %s, msg: aviRestPoolClient during vsvip not initialized\n", key)
+		utils.AviLog.Warnf("key: %s, msg: aviRestPoolClient during vsvip not initialized", key)
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
 	if len(rest.aviRestPoolClient.AviClient) < 1 {
-		utils.AviLog.Warnf("key: %s, msg: client in aviRestPoolClient during vsvip not initialized\n", key)
+		utils.AviLog.Warnf("key: %s, msg: client in aviRestPoolClient during vsvip not initialized", key)
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
 	client := rest.aviRestPoolClient.AviClient[0]
@@ -320,7 +320,7 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 	path := "/api/vsvip/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "VsVip", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v \n", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -510,11 +510,11 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToVSVipKeyCollection(k)
-			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v\n", key, vsKey,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v", key, vsKey,
 				vs_cache_obj))
 			rest.StatusUpdate(rest_op, vs_cache_obj, nil, nil, key, true)
 		}
-		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v\n", key, k,
+		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v", key, k,
 			vsvip_cache_obj))
 
 	}

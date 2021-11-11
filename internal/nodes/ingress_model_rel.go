@@ -545,13 +545,13 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 	allIngresses := make([]string, 0)
 	hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrname)
 	if k8serrors.IsNotFound(err) {
-		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted\n", key)
+		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted", key)
 		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
 		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
 		}
 	} else if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v\n", key, err)
+		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v", key, err)
 		return nil, false
 	} else {
 		if hostrule.Status.Status != lib.StatusAccepted {
@@ -613,7 +613,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 	var ok bool
 
 	if k8serrors.IsNotFound(err) {
-		utils.AviLog.Debugf("key: %s, msg: HTTPRule Deleted\n", key)
+		utils.AviLog.Debugf("key: %s, msg: HTTPRule Deleted", key)
 		_, oldFqdn = objects.SharedCRDLister().GetHTTPRuleFqdnMapping(namespace + "/" + rrname)
 		_, x := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(oldFqdn)
 		for i, elem := range x {
@@ -621,7 +621,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		}
 		objects.SharedCRDLister().RemoveFqdnHTTPRulesMappings(namespace + "/" + rrname)
 	} else if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Error getting httprule: %v\n", key, err)
+		utils.AviLog.Errorf("key: %s, msg: Error getting httprule: %v", key, err)
 		return nil, false
 	} else {
 		if httprule.Status.Status != lib.StatusAccepted {

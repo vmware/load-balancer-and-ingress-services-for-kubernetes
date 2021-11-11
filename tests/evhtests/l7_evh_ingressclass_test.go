@@ -368,7 +368,6 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 		}
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
-	VerifyEvhNodeDeletionFromVsNode(g, modelName, vsKey, evhKey)
 
 	ingClassUpdate = (integrationtest.FakeIngressClass{
 		Name:       ingClassName,

@@ -222,7 +222,7 @@ func FetchControllerTime(t *testing.T) string {
 	layout := "2006-01-02T15:04:05Z"
 	convertedDate, err := time.Parse(layout, controllerTime)
 	if err != nil {
-		t.Logf("Error parsing controller time : %v\n\n", err)
+		t.Logf("Error parsing controller time : %v\n", err)
 	}
 	return convertedDate.Format(time.RFC3339Nano)
 }
@@ -645,7 +645,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	verificationSuccessful := false
 	for waitTime := 0; waitTime < testCaseTimeOut; {
 		if Verify(t) == true {
-			t.Logf("Created %d Ingresses and associated Avi objects\n", numOfIng)
+			t.Logf("Created %d Ingresses and associated Avi objects", numOfIng)
 			verificationSuccessful = true
 			break
 		}
@@ -662,7 +662,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		return operUP
 	}, testCaseTimeOut, testPollInterval).Should(gomega.BeTrue())
 	if !verificationSuccessful {
-		t.Fatalf("Error : Verification failed\n")
+		t.Fatalf("Error : Verification failed")
 	}
 }
 
@@ -695,7 +695,7 @@ func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		pools := lib.FetchPools(t, AviClients[0])
 		return len(pools)
 	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(initialNumOfPools))
-	t.Logf("Deleted %d Ingresses and associated Avi objects\n", numOfIng)
+	t.Logf("Deleted %d Ingresses and associated Avi objects", numOfIng)
 }
 
 func UpdateIngressesParallel(t *testing.T, numOfIng int) {
@@ -728,7 +728,7 @@ func UpdateIngressesParallel(t *testing.T, numOfIng int) {
 		operUP := CheckVSOperDown(t, OPERDownVSes)
 		return operUP
 	}, testCaseTimeOut, testPollInterval).Should(gomega.BeTrue())
-	t.Logf("Updated %d Ingresses\n", numOfIng)
+	t.Logf("Updated %d Ingresses", numOfIng)
 }
 
 func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
@@ -779,7 +779,7 @@ func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
 		return operUP
 	}, testCaseTimeOut, testPollInterval).Should(gomega.BeTrue())
 	if !verificationSuccessful {
-		t.Fatalf("Error : Verification failed\n")
+		t.Fatalf("Error : Verification failed")
 	}
 
 }

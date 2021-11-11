@@ -90,7 +90,7 @@ func (rest *RestOperations) AviSSLKeyCertDel(uuid string, tenant string) *utils.
 	path := "/api/sslkeyandcertificate/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("SSLCertKey DELETE Restop %v \n",
+	utils.AviLog.Info(spew.Sprintf("SSLCertKey DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -164,10 +164,10 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			} else {
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 				vs_cache_obj.AddToSSLKeyCertCollection(k)
-				utils.AviLog.Info(spew.Sprintf("Added VS cache key during SSLKeyCert update %v val %v\n", vsKey,
+				utils.AviLog.Info(spew.Sprintf("Added VS cache key during SSLKeyCert update %v val %v", vsKey,
 					vs_cache_obj))
 			}
-			utils.AviLog.Info(spew.Sprintf("Added SSLKeyCert cache k %v val %v\n", k,
+			utils.AviLog.Info(spew.Sprintf("Added SSLKeyCert cache k %v val %v", k,
 				ssl_cache_obj))
 		}
 	}
@@ -235,7 +235,7 @@ func (rest *RestOperations) AviPkiProfileDel(uuid string, tenant string) *utils.
 	path := "/api/pkiprofile/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "PKIprofile", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("PKIprofile DELETE Restop %v \n",
+	utils.AviLog.Info(spew.Sprintf("PKIprofile DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -300,10 +300,10 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 			} else {
 				pool_cache_obj := rest.cache.PoolCache.AviCacheAddPool(poolKey)
 				pool_cache_obj.PkiProfileCollection = k
-				utils.AviLog.Info(spew.Sprintf("Added Pool cache key during PkiProfile update %v val %v\n", poolKey,
+				utils.AviLog.Info(spew.Sprintf("Added Pool cache key during PkiProfile update %v val %v", poolKey,
 					pool_cache_obj))
 			}
-			utils.AviLog.Info(spew.Sprintf("Added PkiProfile cache k %v val %v\n", k,
+			utils.AviLog.Info(spew.Sprintf("Added PkiProfile cache k %v val %v", k,
 				pki_cache_obj))
 		}
 	}

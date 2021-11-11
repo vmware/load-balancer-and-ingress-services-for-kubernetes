@@ -52,7 +52,9 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if objType == lib.HostRule && len(ingressNames) == 0 {
+	if objType == lib.HostRule &&
+		((utils.GetInformers().IngressInformer != nil && len(ingressNames) == 0) ||
+			(utils.GetInformers().RouteInformer != nil && len(routeNames) == 0)) {
 		// We should be checking for hostrule being possibly connected to a SharedVS
 		handleHostRuleForSharedVS(key, fullsync)
 	}

@@ -45,13 +45,13 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 	}
 	sort.Strings(nodeKeys)
 
-	utils.AviLog.Debugf("key: %s, All Nodes %v\n", key, allNodes)
+	utils.AviLog.Debugf("key: %s, All Nodes %v", key, allNodes)
 	routeid := 1
 	for _, k := range nodeKeys {
 		node := allNodes[k].(*v1.Node)
 		nodeRoutes, err := o.addRouteForNode(node, vrfName, routeid)
 		if err != nil {
-			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v\n", key, node.Name, err)
+			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v", key, node.Name, err)
 			continue
 		}
 		if !findRoutePrefix(nodeRoutes, aviVrfNode.StaticRoutes, key) {
@@ -61,8 +61,8 @@ func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
 	}
 	aviVrfNode.CalculateCheckSum()
 	o.AddModelNode(aviVrfNode)
-	utils.AviLog.Infof("key: %s, Added vrf node %s\n", key, vrfName)
-	utils.AviLog.Infof("key: %s, Number of static routes %v\n", key, len(aviVrfNode.StaticRoutes))
+	utils.AviLog.Infof("key: %s, Added vrf node %s", key, vrfName)
+	utils.AviLog.Infof("key: %s, Number of static routes %v", key, len(aviVrfNode.StaticRoutes))
 	return nil
 }
 

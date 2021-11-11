@@ -16,7 +16,6 @@ package evhtests
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -199,7 +198,6 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, modelName)
 	objects.SharedAviGraphLister().Delete(modelName)
-	fmt.Printf("HAHA: modelName: %s", modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
 	// found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -218,7 +216,7 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	fmt.Println("INGRESS CREATED")
+
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {

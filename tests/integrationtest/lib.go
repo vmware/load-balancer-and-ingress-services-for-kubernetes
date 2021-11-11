@@ -955,7 +955,7 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 	if AviFakeClientInstance == nil {
 		AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			utils.AviLog.Infof("[fakeAPI]: %s %s\n", r.Method, r.URL)
+			utils.AviLog.Infof("[fakeAPI]: %s %s", r.Method, r.URL)
 
 			if FakeServerMiddleware != nil {
 				FakeServerMiddleware(w, r)
@@ -1013,7 +1013,14 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			// handle sni child, fill in vs parent ref
 			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
 				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
+				if strings.Contains(parentVSName, "Shared-L7-EVH-") {
+					shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
+					if strings.Contains(shardVSNum, "NS-") {
+						shardVSNum = "0"
+					}
+				} else if strings.Contains(parentVSName, "Shared-L7") {
+					shardVSNum = strings.Split(parentVSName, "Shared-L7-")[1]
+				}
 
 				resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
