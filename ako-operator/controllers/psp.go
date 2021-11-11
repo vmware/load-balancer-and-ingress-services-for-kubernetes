@@ -79,8 +79,7 @@ func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOCon
 	// update this object in the global list
 	objList := getObjectList()
 	objList[types.NamespacedName{
-		Name:      newPSP.GetName(),
-		Namespace: newPSP.GetNamespace(),
+		Name: newPSP.GetName(),
 	}] = &newPSP
 
 	return nil

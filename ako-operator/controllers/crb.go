@@ -70,8 +70,7 @@ func createOrUpdateClusterroleBinding(ctx context.Context, ako akov1alpha1.AKOCo
 	// update this object in the global list
 	objList := getObjectList()
 	objList[types.NamespacedName{
-		Name:      newCRB.GetName(),
-		Namespace: newCRB.GetNamespace(),
+		Name: newCRB.GetName(),
 	}] = &newCRB
 
 	return nil

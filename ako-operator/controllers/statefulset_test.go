@@ -215,7 +215,7 @@ var sfJson = `
                                 "name": "CTRL_IPADDRESS",
                                 "valueFrom": {
                                     "configMapKeyRef": {
-                                        "key": "controllerIP",
+                                        "key": "controllerHost",
                                         "name": "avi-k8s-config"
                                     }
                                 }
@@ -271,6 +271,15 @@ var sfJson = `
                                     "fieldRef": {
                                         "apiVersion": "v1",
                                         "fieldPath": "metadata.name"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "NSXT_T1_LR",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "nsxtT1LR",
+                                        "name": "avi-k8s-config"
                                     }
                                 }
                             },
