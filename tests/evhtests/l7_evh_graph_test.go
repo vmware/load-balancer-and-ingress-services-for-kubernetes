@@ -1657,7 +1657,7 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 		g.Eventually(func() int {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			return len(nodes[0].EvhNodes)
-		}, 15*time.Second).Should(gomega.Equal(1))
+		}, 30*time.Second).Should(gomega.Equal(1))
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}

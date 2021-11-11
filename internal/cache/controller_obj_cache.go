@@ -1849,8 +1849,6 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 			if vs["cloud_config_cksum"] != nil {
 				k := NamespaceName{Namespace: lib.GetTenant(), Name: vs["name"].(string)}
 				*vsCacheCopy = RemoveNamespaceName(*vsCacheCopy, k)
-				var vip string
-				var fip string
 				var vsVipKey []NamespaceName
 				var sslKeys []NamespaceName
 				var dsKeys []NamespaceName
@@ -1872,12 +1870,6 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 							if ok {
 								vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipData.Name}
 								vsVipKey = append(vsVipKey, vipKey)
-								if len(vsVipData.Vips) > 0 {
-									vip = vsVipData.Vips[0]
-									if len(vsVipData.Fips) > 0 {
-										fip = vsVipData.Fips[0]
-									}
-								}
 							}
 						}
 					}
@@ -2010,8 +2002,6 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					SSLKeyCertCollection: sslKeys,
 					PGKeyCollection:      poolgroupKeys,
 					PoolKeyCollection:    poolKeys,
-					Vip:                  vip,
-					Fip:                  fip,
 					CloudConfigCksum:     vs["cloud_config_cksum"].(string),
 					SNIChildCollection:   sni_child_collection,
 					ParentVSRef:          parentVSKey,
@@ -2108,8 +2098,6 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 
 			}
 			if vs["cloud_config_cksum"] != nil {
-				var vip string
-				var fip string
 				var vsVipKey []NamespaceName
 				var sslKeys []NamespaceName
 				var dsKeys []NamespaceName
@@ -2129,12 +2117,6 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						if ok {
 							vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipData.Name}
 							vsVipKey = append(vsVipKey, vipKey)
-							if len(vsVipData.Vips) > 0 {
-								vip = vsVipData.Vips[0]
-								if len(vsVipData.Fips) > 0 {
-									fip = vsVipData.Fips[0]
-								}
-							}
 						}
 					}
 				}
@@ -2254,8 +2236,6 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 					SSLKeyCertCollection: sslKeys,
 					PGKeyCollection:      poolgroupKeys,
 					PoolKeyCollection:    poolKeys,
-					Vip:                  vip,
-					Fip:                  fip,
 					CloudConfigCksum:     vs["cloud_config_cksum"].(string),
 					SNIChildCollection:   sni_child_collection,
 					ParentVSRef:          parentVSKey,

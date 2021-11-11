@@ -281,7 +281,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for Pool Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
 				if len(IPAddrs) == 0 {
-					utils.AviLog.Debugf("key: %s, msg: Unable to find VIP corresponding to Pool %s", key, pool_cache_obj.Name)
+					utils.AviLog.Warnf("key: %s, msg: Unable to find VIP corresponding to Pool %s vsCache %v", key, pool_cache_obj.Name, utils.Stringify(vs_cache_obj))
 				} else {
 					switch pool_cache_obj.ServiceMetadataObj.ServiceMetadataMapping("Pool") {
 					case lib.GatewayPool:
@@ -376,7 +376,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					Options: &updateOptions,
 				}
 				status.PublishToStatusQueue(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
-			case "SNI_INSECURE_OR_EVH_POOL":
+			case lib.SNIInsecureOrEVHPool:
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,

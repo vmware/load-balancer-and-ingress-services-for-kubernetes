@@ -383,7 +383,7 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return nodes[0].EvhNodes[0].SSLKeyCertAviRef
-	}, 30*time.Second).Should(gomega.ContainSubstring("thisisaviref"))
+	}, 50*time.Second).Should(gomega.ContainSubstring("thisisaviref"))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))

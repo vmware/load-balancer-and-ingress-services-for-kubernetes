@@ -233,6 +233,9 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 		}
 	}
 
+	if len(allModels) == 0 {
+		return
+	}
 	utils.AviLog.Infof("key: %s, msg: Models retrieved from HostRule %v", key, utils.Stringify(allModels))
 
 	for _, modelName := range allModels {

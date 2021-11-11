@@ -372,12 +372,12 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 			// Fetch the pool object from cache and check the service metadata
 			pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
 			if ok {
-				utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
 				pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
 				if found {
+					utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
 					IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
 					if len(IPAddrs) == 0 {
-						utils.AviLog.Debugf("key: %s, msg: Unable to find VIP corresponding to Pool %s", key, pool_cache_obj.Name)
+						utils.AviLog.Warnf("key: %s, msg: Unable to find VIP corresponding to Pool %s vsCache %v", key, pool_cache_obj.Name, utils.Stringify(vs_cache_obj))
 						continue
 					}
 					switch pool_cache_obj.ServiceMetadataObj.ServiceMetadataMapping("Pool") {
@@ -419,7 +419,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 	}
 }
 
-func (rest *RestOperations) StatusUpdateForVS(vsCacheObj *avicache.AviVsCache, parentVsObj *avicache.AviVsCache, key string) {
+func (rest *RestOperations) StatusUpdateForVS(vsCacheObj *avicache.AviVsCache, key string) {
 	IPAddrs := rest.GetIPAddrsFromCache(vsCacheObj)
 	serviceMetadataObj := vsCacheObj.ServiceMetadataObj
 	switch serviceMetadataObj.ServiceMetadataMapping("VS") {
@@ -454,24 +454,22 @@ func (rest *RestOperations) StatusUpdateForVS(vsCacheObj *avicache.AviVsCache, p
 		}
 		status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 	case lib.ChildVS:
-		if parentVsObj != nil {
-			updateOptions := status.UpdateOptions{
-				Vip:                []string{parentVsObj.Vip},
-				ServiceMetadata:    serviceMetadataObj,
-				Key:                key,
-				VirtualServiceUUID: vsCacheObj.Uuid,
-				VSName:             vsCacheObj.Name,
-			}
-			statusOption := status.StatusOptions{
-				ObjType: utils.Ingress,
-				Op:      lib.UpdateStatus,
-				Options: &updateOptions,
-			}
-			if utils.GetInformers().RouteInformer != nil {
-				statusOption.ObjType = utils.OshiftRoute
-			}
-			status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+		updateOptions := status.UpdateOptions{
+			Vip:                IPAddrs,
+			ServiceMetadata:    serviceMetadataObj,
+			Key:                key,
+			VirtualServiceUUID: vsCacheObj.Uuid,
+			VSName:             vsCacheObj.Name,
 		}
+		statusOption := status.StatusOptions{
+			ObjType: utils.Ingress,
+			Op:      lib.UpdateStatus,
+			Options: &updateOptions,
+		}
+		if utils.GetInformers().RouteInformer != nil {
+			statusOption.ObjType = utils.OshiftRoute
+		}
+		status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 	}
 }
 
@@ -550,30 +548,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		if ok {
 			vs_cache_obj, found = vs_cache.(*avicache.AviVsCache)
 			if found {
-				if _, ok := resp["vsvip_ref"].(string); ok {
-					vsVipUuid := avicache.ExtractUuid(resp["vsvip_ref"].(string), "vsvip-.*.#")
-					vsVipName, vipFound := rest.cache.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
-					if vipFound {
-						vipKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
-						vsvip_cache, found := rest.cache.VSVIPCache.AviCacheGet(vipKey)
-						if found {
-							vsvip_cache_obj, ok := vsvip_cache.(*avicache.AviVSVIPCache)
-							if ok {
-								if len(vsvip_cache_obj.Vips) > 0 {
-									vip := vsvip_cache_obj.Vips[0]
-									vs_cache_obj.Vip = vip
-									if len(vsvip_cache_obj.Fips) > 0 {
-										fip := vsvip_cache_obj.Fips[0]
-										vs_cache_obj.Fip = fip
-									} else {
-										vs_cache_obj.Fip = ""
-									}
-									utils.AviLog.Info(spew.Sprintf("key: %s, msg: updated vsvip to the cache: %s", key, vip))
-								}
-							}
-						}
-					}
-				}
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
 
@@ -616,37 +590,13 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			if lastModifiedStr == "" {
 				vs_cache_obj.InvalidData = true
 			}
-			if _, ok := resp["vsvip_ref"].(string); ok {
-				vsVipUuid := avicache.ExtractUuid(resp["vsvip_ref"].(string), "vsvip-.*.#")
-				vsVipName, vipFound := rest.cache.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
-				if vipFound {
-					vipKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
-					vsvip_cache, found := rest.cache.VSVIPCache.AviCacheGet(vipKey)
-					if found {
-						vsvip_cache_obj, ok := vsvip_cache.(*avicache.AviVSVIPCache)
-						if ok {
-							if len(vsvip_cache_obj.Vips) > 0 {
-								vip := vsvip_cache_obj.Vips[0]
-								vs_cache_obj.Vip = vip
-								if len(vsvip_cache_obj.Fips) > 0 {
-									fip := vsvip_cache_obj.Fips[0]
-									vs_cache_obj.Fip = fip
-								} else {
-									vs_cache_obj.Fip = ""
-								}
-								utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
-							}
-						}
-					}
-				}
-			}
 
 			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
 			status.HostRuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
 			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v", key, k, utils.Stringify(vs_cache_obj))
 		}
 
-		rest.StatusUpdateForVS(vs_cache_obj, parentVsObj, key)
+		rest.StatusUpdateForVS(vs_cache_obj, key)
 	}
 
 	return nil
@@ -801,8 +751,18 @@ func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []
 		parentCache, ok := rest.cache.VsCacheMeta.AviCacheGet(parentVSKey)
 		if ok {
 			parentCacheObj, _ := parentCache.(*avicache.AviVsCache)
-			if parentCacheObj != nil && parentCacheObj.Vip != "" {
-				IPAddrs = append(IPAddrs, parentCacheObj.Vip)
+			if parentCacheObj != nil && len(parentCacheObj.VSVipKeyCollection) > 0 {
+				// This essentially assigns the value of parent VS Cache to `vsCache`
+				// meaning that if we were originally unable to find VSVIP attached to the
+				// original vsCache (it was a child VS!), then we check whether a parent for
+				// the original vsCache exists. If the parent exists and the parent has VSVIP
+				// references (which it should), going forward we would traverse through it's
+				// VSVIP Collection and fetch the IP Addresses.
+				// If the original vsCache had VSVIP collection (it was a parent VS), we simply
+				// donot arrive at this step and go ahead fetching IP addresses from it's VSVIP
+				// Collection itself.
+				utils.AviLog.Infof("Getting IP Address from parent VS %v", parentCacheObj.Name)
+				vsCache = parentCacheObj
 			}
 		}
 	}
