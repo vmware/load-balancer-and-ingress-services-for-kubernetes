@@ -38,6 +38,12 @@ func createOrUpdateServiceAccount(ctx context.Context, ako akov1alpha1.AKOConfig
 		if oldSA.GetName() != "" {
 			log.V(0).Info("a serviceaccount with name already exists, won't update", "name",
 				oldSA.GetName())
+			// add this object in the global list
+			objList := getObjectList()
+			objList[types.NamespacedName{
+				Name:      oldSA.GetName(),
+				Namespace: oldSA.GetNamespace(),
+			}] = &oldSA
 			return nil
 		}
 	}

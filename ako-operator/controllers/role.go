@@ -44,6 +44,11 @@ func createOrUpdateClusterRole(ctx context.Context, ako akov1alpha1.AKOConfig, l
 	if oldCR.GetName() != "" {
 		if reflect.DeepEqual(oldCR.Rules, cr.Rules) {
 			log.V(0).Info("no updates required for clusterrole")
+			// add this object in the global list
+			objList := getObjectList()
+			objList[types.NamespacedName{
+				Name: oldCR.GetName(),
+			}] = &oldCR
 			return nil
 		}
 		err := r.Update(ctx, &cr)
