@@ -46,6 +46,11 @@ func createOrUpdateClusterroleBinding(ctx context.Context, ako akov1alpha1.AKOCo
 	if oldCRB.ObjectMeta.GetName() != "" {
 		if reflect.DeepEqual(oldCRB.Subjects, crb.Subjects) {
 			log.V(0).Info("no updates required for clusterrolebinding")
+			// add this object in the global list
+			objList := getObjectList()
+			objList[types.NamespacedName{
+				Name: oldCRB.GetName(),
+			}] = &oldCRB
 			return nil
 		}
 		err := r.Update(ctx, &crb)
