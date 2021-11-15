@@ -52,7 +52,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	// host specific
-	var vsWafPolicy, vsAppProfile, vsSslKeyCertificate, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile string
+	var vsWafPolicy, vsAppProfile, vsSslKeyCertificate, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile, lbIP string
 	var vsEnabled *bool
 	var crdStatus lib.CRDMetadata
 
@@ -60,6 +60,11 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsHTTPPolicySets := []string{}
 	vsDatascripts := []string{}
 	var analyticsPolicy *models.AnalyticsPolicy
+
+	portProtocols := []AviPortHostProtocol{
+		{Port: 80, Protocol: utils.HTTP},
+		{Port: 443, Protocol: utils.HTTP, EnableSSL: true},
+	}
 
 	if !deleteCase {
 		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
@@ -104,6 +109,25 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			}
 		}
 
+		if vsNode.IsSharedVS() {
+			portProtocols = []AviPortHostProtocol{}
+			for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
+				portProtocol := AviPortHostProtocol{
+					Port:     int32(listener.Port),
+					Protocol: utils.HTTP,
+				}
+				if listener.EnableSSL {
+					portProtocol.EnableSSL = listener.EnableSSL
+				}
+				portProtocols = append(portProtocols, portProtocol)
+			}
+
+			// L7 StaticIP
+			if hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
+				lbIP = hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP
+			}
+		}
+
 		vsEnabled = hostrule.Spec.VirtualHost.EnableVirtualHost
 		crdStatus = lib.CRDMetadata{
 			Type:   "HostRule",
@@ -127,7 +151,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			crdStatus = vsNode.GetServiceMetadata().CRDStatus
 			crdStatus.Status = lib.CRDInactive
 		}
-		utils.AviLog.Infof("key: %s, Successfully detached hostrule %s from vsNode %s", key, hrNamespaceName, vsNode.GetName())
+		if hrNamespaceName != "" {
+			utils.AviLog.Infof("key: %s, Successfully detached hostrule %s from vsNode %s", key, hrNamespaceName, vsNode.GetName())
+		}
 	}
 
 	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificate)
@@ -140,6 +166,8 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
 	vsNode.SetAnalyticsPolicy(analyticsPolicy)
+	vsNode.SetPortProtocols(portProtocols)
+	vsNode.SetVSVIPLoadBalancerIP(lbIP)
 
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus

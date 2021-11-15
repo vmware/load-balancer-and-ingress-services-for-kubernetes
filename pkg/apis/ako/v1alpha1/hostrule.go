@@ -51,6 +51,20 @@ type HostRuleVirtualHost struct {
 	TLS                HostRuleTLS              `json:"tls,omitempty"`
 	WAFPolicy          string                   `json:"wafPolicy,omitempty"`
 	AnalyticsPolicy    *HostRuleAnalyticsPolicy `json:"analyticsPolicy,omitempty"`
+	TCPSettings        *HostRuleTCPSettings     `json:"tcpSettings,omitempty"`
+}
+
+// HostRuleTCPSettings allows for customizing TCP settings
+type HostRuleTCPSettings struct {
+	Listeners      []HostRuleTCPListeners `json:"listeners,omitempty"`
+	LoadBalancerIP string                 `json:"loadBalancerIP,omitempty"`
+}
+
+// HostRuleTCPListeners holds fields to program listener settings
+// like port to be exposed and enableSsl/enableHttp2 on the port
+type HostRuleTCPListeners struct {
+	Port      int  `json:"port,omitempty"`
+	EnableSSL bool `json:"enableSSL,omitempty"`
 }
 
 // HostRuleTLS holds secure host specific properties

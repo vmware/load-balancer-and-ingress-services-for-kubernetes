@@ -96,6 +96,19 @@ spec:
                       logAllHeaders:
                         type: boolean
                         default: false
+                  tcpSettings:
+                    properties:
+                      listeners:
+                        items:
+                          properties:
+                            port:
+                              type: integer
+                            enableSSL:
+                              type: boolean
+                          type: object
+                        type: array
+                      loadBalancerIP:
+                        type: string
                     type: object
                 required:
                 - fqdn

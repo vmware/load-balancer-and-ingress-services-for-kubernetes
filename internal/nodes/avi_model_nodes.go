@@ -398,6 +398,18 @@ func (v *AviVsNode) SetName(Name string) {
 	v.Name = Name
 }
 
+func (v *AviVsNode) IsSharedVS() bool {
+	return v.SharedVS
+}
+
+func (v *AviVsNode) GetPortProtocols() []AviPortHostProtocol {
+	return v.PortProto
+}
+
+func (v *AviVsNode) SetPortProtocols(portProto []AviPortHostProtocol) {
+	v.PortProto = portProto
+}
+
 func (v *AviVsNode) GetPoolRefs() []*AviPoolNode {
 	return v.PoolRefs
 }
@@ -513,8 +525,22 @@ func (v *AviVsNode) SetEnabled(Enabled *bool) {
 func (v *AviVsNode) GetAnalyticsPolicy() *avimodels.AnalyticsPolicy {
 	return v.AnalyticsPolicy
 }
+
 func (v *AviVsNode) SetAnalyticsPolicy(policy *avimodels.AnalyticsPolicy) {
 	v.AnalyticsPolicy = policy
+}
+
+func (v *AviVsNode) GetVSVIPLoadBalancerIP() string {
+	if len(v.VSVIPRefs) > 0 {
+		return v.VSVIPRefs[0].IPAddress
+	}
+	return ""
+}
+
+func (v *AviVsNode) SetVSVIPLoadBalancerIP(ip string) {
+	if len(v.VSVIPRefs) > 0 {
+		v.VSVIPRefs[0].IPAddress = ip
+	}
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
