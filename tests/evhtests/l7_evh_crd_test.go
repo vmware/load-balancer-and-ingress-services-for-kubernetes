@@ -455,6 +455,65 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
+func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetModelName("foo.com", "default")
+	hrname := "ap-hr-foo"
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/ap-hr-foo", true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	// Check the default value of AnalyticsPolicy
+	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).To(gomega.BeNil())
+
+	// Update host rule with AnalyticsPolicy
+	hrUpdate := integrationtest.FakeHostRule{
+		Name:      hrname,
+		Namespace: "default",
+		Fqdn:      "foo.com",
+	}.HostRule()
+	hrUpdate.Spec.VirtualHost.AnalyticsPolicy.AllHeaders = true
+	hrUpdate.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled = true
+	hrUpdate.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle = "LOW"
+	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
+	time.Sleep(5 * time.Second)
+
+	// Check whether the AnalyticsPolicy values are properly updated
+	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
+	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
+	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.BeTrue())
+	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Throttle).To(gomega.Equal(*lib.GetThrottle("LOW")))
+
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
 // HttpRule tests
 
 func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {

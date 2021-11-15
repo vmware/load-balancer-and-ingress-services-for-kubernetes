@@ -239,6 +239,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 	}
+	sniChild.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
 	if lib.GetT1LRPath() != "" {
 		// Clear the vrfContextRef
 		sniChild.VrfContextRef = nil

@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
@@ -107,6 +108,17 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			Value:  hostrule.Namespace + "/" + hostrule.Name,
 			Status: lib.CRDActive,
 		}
+
+		if (akov1alpha1.HostRuleAnalyticsPolicy{}) != hostrule.Spec.VirtualHost.AnalyticsPolicy {
+			vsNode.SetAnalyticsPolicy(&models.AnalyticsPolicy{
+				FullClientLogs: &models.FullClientLogs{
+					Enabled:  &hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled,
+					Throttle: lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle),
+				},
+				AllHeaders: &hostrule.Spec.VirtualHost.AnalyticsPolicy.AllHeaders,
+			})
+		}
+
 		utils.AviLog.Infof("key: %s, Successfully attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 	} else {
 		if vsNode.GetServiceMetadata().CRDStatus.Value != "" {

@@ -77,6 +77,26 @@ spec:
                     type: object
                   wafPolicy:
                     type: string
+                  analyticsPolicy:
+                    properties:
+                      fullClientLogs:
+                        properties:
+                          enabled:
+                            type: boolean
+                            default: false
+                          throttle:
+                            enum:
+                            - LOW
+                            - MEDIUM
+                            - HIGH
+                            - DISABLED
+                            default: HIGH
+                            type: string
+                        type: object
+                      allHeaders:
+                        type: boolean
+                        default: false
+                    type: object
                 required:
                 - fqdn
                 type: object

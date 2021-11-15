@@ -458,6 +458,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
 		evhChild.HTTPPolicies = AviVsHttpPSAdd(vs_meta, true)
 	}
+	evhChild.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
 
 	var rest_ops []*utils.RestOp
 	var rest_op utils.RestOp
