@@ -1410,7 +1410,7 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	ctrlProp := utils.SharedCtrlProp().GetAllCtrlProp()
 	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME]
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
-	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+	ctrlIpAddress := GetControllerIP()
 
 	aviClient := NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
 	if aviClient == nil {
@@ -1512,6 +1512,19 @@ func GetK8sMaxSupportedVersion() string {
 func VIPPerNamespace() bool {
 	vipPerNS := os.Getenv(VIP_PER_NAMESPACE)
 	return vipPerNS == "true"
+}
+
+var controllerIP string
+
+func GetControllerIP() string {
+	if controllerIP == "" {
+		SetControllerIP(os.Getenv(utils.ENV_CTRL_IPADDRESS))
+	}
+	return controllerIP
+}
+
+func SetControllerIP(ctrlIP string) {
+	controllerIP = ctrlIP
 }
 
 var VCFInitialized bool

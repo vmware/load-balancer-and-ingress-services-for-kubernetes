@@ -15,8 +15,6 @@
 package cache
 
 import (
-	"os"
-
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -36,7 +34,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME]
 	ctrlPassword := ctrlProp[utils.ENV_CTRL_PASSWORD]
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
-	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+	ctrlIpAddress := lib.GetControllerIP()
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
 		var passwordLog, authTokenLog string
 		if ctrlPassword != "" {

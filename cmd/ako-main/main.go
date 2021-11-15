@@ -187,16 +187,38 @@ func InitializeAKC() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
+	lib.NewVCFDynamicClientSet(cfg)
+	// In VCF environment, avi controller details have to be fetched from the Bootstrap CR
+	if lib.GetControllerIP() == "" {
+		ctrlIP := lib.GetControllerURLFromBootstrapCR()
+		if ctrlIP != "" {
+			lib.SetControllerIP(ctrlIP)
+		} else {
+			utils.AviLog.Infof("Valid Avi Controller details not found, waiting .. ")
+			startSyncCh := make(chan struct{})
+			c.AddNCPBootstrapEventHandler(informers, stopCh, startSyncCh)
+		L1:
+			for {
+				select {
+				case <-startSyncCh:
+					break L1
+				case <-ctrlCh:
+					return
+				}
+			}
+		}
+	}
+
 	if !c.ValidAviSecret() {
 		utils.AviLog.Infof("Valid Avi Secret not found, waiting .. ")
 		startSyncCh := make(chan struct{})
 		c.AddBootupSecretEventHandler(informers, stopCh, startSyncCh)
-	L1:
+	L2:
 		for {
 			select {
 			case <-startSyncCh:
 				lib.AviSecretInitialized = true
-				break L1
+				break L2
 			case <-ctrlCh:
 				return
 			}
@@ -209,12 +231,12 @@ func InitializeAKC() {
 		utils.AviLog.Infof("SEgroup name not found, waiting ..")
 		startSyncCh := make(chan struct{})
 		c.AddBootupNSEventHandler(informers, stopCh, startSyncCh)
-	L2:
+	L3:
 		for {
 			select {
 			case <-startSyncCh:
 				lib.AviSEInitialized = true
-				break L2
+				break L3
 			case <-ctrlCh:
 				return
 			}

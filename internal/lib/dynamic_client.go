@@ -67,7 +67,7 @@ var (
 )
 
 type BootstrapCRData struct {
-	SecretName, SecretNamespace, UserName, TZPath string
+	SecretName, SecretNamespace, UserName, TZPath, AviURL string
 }
 
 // NewDynamicClientSet initializes dynamic client set instance
@@ -101,6 +101,7 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
+	NCPBootstrapInformer        informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -115,6 +116,10 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 		informers.HostSubnetInformer = f.ForResource(HostSubnetGVR)
 	default:
 		utils.AviLog.Infof("Skipped initializing dynamic informers %s ", GetCNIPlugin())
+	}
+
+	if utils.IsVCFCluster() {
+		informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
 	}
 
 	dynamicInformerInstance = informers
@@ -225,12 +230,60 @@ func GetBootstrapCRData() (BootstrapCRData, bool) {
 		utils.AviLog.Errorf("transportZone path not found in status of bootstrap CR")
 		return boostrapdata, false
 	}
+
+	albEndpoint, ok := status["albEndpoint"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Errorf("albEndpoint not found in status of bootstrap CR")
+		return boostrapdata, false
+	}
+	hostUrl, ok := albEndpoint["hostUrl"].(string)
+	if !ok {
+		utils.AviLog.Errorf("hostUrl path not found in status of bootstrap CR")
+		return boostrapdata, false
+	}
 	boostrapdata.SecretName = secretName
 	boostrapdata.SecretNamespace = secretNamespace
 	boostrapdata.UserName = userName
 	boostrapdata.TZPath = tzPath
+	boostrapdata.AviURL = hostUrl
 
 	return boostrapdata, true
+}
+
+func GetControllerURLFromBootstrapCR() string {
+	dynamicClient := GetVCFDynamicClientSet()
+	crdClient := dynamicClient.Resource(BootstrapGVR)
+	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting CRD %v", err)
+		return ""
+	}
+
+	if len(crdList.Items) != 1 {
+		utils.AviLog.Errorf("Expected only one object for NCP bootstrap but found: %d", len(crdList.Items))
+		return ""
+	}
+
+	obj := crdList.Items[0]
+
+	status, ok := obj.Object["status"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Errorf("Status not found in bootstrap CR")
+		return ""
+	}
+
+	albEndpoint, ok := status["albEndpoint"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Errorf("albEndpoint not found in status of bootstrap CR")
+		return ""
+	}
+	hostUrl, ok := albEndpoint["hostUrl"].(string)
+	if !ok {
+		utils.AviLog.Errorf("hostUrl path not found in status of bootstrap CR")
+		return ""
+	}
+
+	return hostUrl
 }
 
 func GetNetinfoCRData() (map[string]string, map[string]struct{}) {

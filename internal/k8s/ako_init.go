@@ -202,6 +202,37 @@ func (c *AviController) AddBootupNSEventHandler(k8sinfo K8sinformers, stopCh <-c
 	}
 }
 
+func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Bootstrap ADD Event")
+			ctrlIP := lib.GetControllerURLFromBootstrapCR()
+			if ctrlIP != "" && startSyncCh != nil {
+				lib.SetControllerIP(ctrlIP)
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
+			}
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NCP Bootstrap Update Event")
+			ctrlIP := lib.GetControllerURLFromBootstrapCR()
+			if ctrlIP != "" && startSyncCh != nil {
+				lib.SetControllerIP(ctrlIP)
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
+			}
+		},
+	}
+	c.dynamicInformers.NCPBootstrapInformer.Informer().AddEventHandler(NCPBootstrapHandler)
+
+	go c.dynamicInformers.NCPBootstrapInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NCPBootstrapInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for NCP Bootstrap informer")
+	}
+}
+
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {
@@ -318,6 +349,10 @@ func (c *AviController) AddBootupSecretEventHandler(k8sinfo K8sinformers, stopCh
 			if lib.AviSecretInitialized {
 				return
 			}
+			data, ok := obj.(*corev1.Secret)
+			if !ok || data.Namespace != utils.GetAKONamespace() {
+				return
+			}
 			if c.ValidAviSecret() {
 				startSyncCh <- struct{}{}
 				startSyncCh = nil
@@ -325,6 +360,10 @@ func (c *AviController) AddBootupSecretEventHandler(k8sinfo K8sinformers, stopCh
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			if lib.AviSecretInitialized {
+				return
+			}
+			data, ok := obj.(*corev1.Secret)
+			if !ok || data.Namespace != utils.GetAKONamespace() {
 				return
 			}
 			if c.ValidAviSecret() {
@@ -347,7 +386,7 @@ func (c *AviController) ValidAviSecret() bool {
 	cs := c.informers.ClientSet
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
 	if err == nil {
-		ctrlIP := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+		ctrlIP := lib.GetControllerIP()
 		authToken := string(aviSecret.Data["authtoken"])
 		username := string(aviSecret.Data["username"])
 		password := string(aviSecret.Data["password"])
