@@ -88,7 +88,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 			return
 		}
 		if avimodel.IsVrf {
-			utils.AviLog.Infof("key: %s, msg: processing vrf object\n", key)
+			utils.AviLog.Infof("key: %s, msg: processing vrf object", key)
 			rest.vrfCU(key, name, avimodel)
 			return
 		}
@@ -115,7 +115,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 
 func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObjectGraph) {
 	if lib.GetDisableStaticRoute() {
-		utils.AviLog.Debugf("key: %s, msg: static route sync disabled\n", key)
+		utils.AviLog.Debugf("key: %s, msg: static route sync disabled", key)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -124,12 +124,12 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	}
 	// Disable static route sync if ako is in  NodePort mode
 	if lib.IsNodePortMode() {
-		utils.AviLog.Debugf("key: %s, msg: static route sync disabled in NodePort Mode\n", key)
+		utils.AviLog.Debugf("key: %s, msg: static route sync disabled in NodePort Mode", key)
 		return
 	}
 	vrfNode := avimodel.GetAviVRF()
 	if len(vrfNode) != 1 {
-		utils.AviLog.Warnf("key: %s, msg: Number of vrf nodes is not one\n", key)
+		utils.AviLog.Warnf("key: %s, msg: Number of vrf nodes is not one", key)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -139,7 +139,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	aviVrfNode := vrfNode[0]
 	vrfCacheObj := rest.getVrfCacheObj(vrfName)
 	if vrfCacheObj == nil {
-		utils.AviLog.Warnf("key: %s, vrf %s not found in cache, exiting\n", key, vrfName)
+		utils.AviLog.Warnf("key: %s, vrf %s not found in cache, exiting", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -147,7 +147,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 		return
 	}
 	if vrfCacheObj.CloudConfigCksum == aviVrfNode.CloudConfigCksum {
-		utils.AviLog.Debugf("key: %s, msg: checksum for vrf %s has not changed, skipping\n", key, vrfName)
+		utils.AviLog.Debugf("key: %s, msg: checksum for vrf %s has not changed, skipping", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -157,7 +157,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	var restOps []*utils.RestOp
 	restOp := rest.AviVrfBuild(key, aviVrfNode, vrfCacheObj.Uuid)
 	if restOp == nil {
-		utils.AviLog.Debugf("key: %s, no rest operation for vrf %s\n", key, vrfName)
+		utils.AviLog.Debugf("key: %s, no rest operation for vrf %s", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -166,8 +166,8 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	}
 	restOps = append(restOps, restOp)
 	vrfKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vrfName}
-	utils.AviLog.Debugf("key: %s, msg: Executing rest for vrf %s\n", key, vrfName)
-	utils.AviLog.Debugf("key: %s, msg: restops %v\n", key, *restOp)
+	utils.AviLog.Debugf("key: %s, msg: Executing rest for vrf %s", key, vrfName)
+	utils.AviLog.Debugf("key: %s, msg: restops %v", key, *restOp)
 	success := rest.ExecuteRestAndPopulateCache(restOps, vrfKey, avimodel, key, false)
 
 	if success && lib.ConfigDeleteSyncChan != nil {

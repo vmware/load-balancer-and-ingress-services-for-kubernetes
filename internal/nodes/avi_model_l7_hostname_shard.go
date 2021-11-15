@@ -416,7 +416,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			}
 			o.BuildPolicyRedirectForVS(vsNode, sniHosts, key)
 		}
-		BuildL7HostRule(sniHost, namespace, ingName, key, sniNode)
+		BuildL7HostRule(sniHost, key, sniNode)
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		if hostMapOk {

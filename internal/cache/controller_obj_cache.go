@@ -1032,7 +1032,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *sslkey.Name}
 		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
-		utils.AviLog.Debugf("Adding sslkey to Cache during refresh %s\n", k)
+		utils.AviLog.Debugf("Adding sslkey to Cache during refresh %s", k)
 	}
 	return nil
 }
@@ -1078,7 +1078,7 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pkikey.Name}
 		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
-		utils.AviLog.Debugf("Adding pkikey to Cache during refresh %s\n", k)
+		utils.AviLog.Debugf("Adding pkikey to Cache during refresh %s", k)
 	}
 	return nil
 }
@@ -1143,7 +1143,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pool.Name}
 		c.PoolCache.AviCacheAdd(k, &poolCacheObj)
-		utils.AviLog.Debugf("Adding pool to Cache during refresh %s\n", k)
+		utils.AviLog.Debugf("Adding pool to Cache during refresh %s", k)
 	}
 	return nil
 }
@@ -1204,7 +1204,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 		dsCacheObj.CloudConfigCksum = checksum
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *ds.Name}
 		c.DSCache.AviCacheAdd(k, &dsCacheObj)
-		utils.AviLog.Debugf("Adding ds to Cache during refresh %s\n", k)
+		utils.AviLog.Debugf("Adding ds to Cache during refresh %s", k)
 	}
 	return nil
 }
@@ -1263,7 +1263,7 @@ func (c *AviObjCache) AviPopulateOnePGCache(client *clients.AviClient,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pg.Name}
 		c.PgCache.AviCacheAdd(k, &pgCacheObj)
-		utils.AviLog.Debugf("Adding pg to Cache during refresh %s\n", k)
+		utils.AviLog.Debugf("Adding pg to Cache during refresh %s", k)
 	}
 	return nil
 }
@@ -1342,7 +1342,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *vsvip.Name}
 		c.VSVIPCache.AviCacheAdd(k, &vsVipCacheObj)
-		utils.AviLog.Debugf("Adding vsvip to Cache during refresh %s\n", k)
+		utils.AviLog.Debugf("Adding vsvip to Cache during refresh %s", k)
 	}
 	return nil
 }
@@ -1414,7 +1414,7 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *httppol.Name}
 		c.HTTPPolicyCache.AviCacheAdd(k, &httpPolCacheObj)
-		utils.AviLog.Debugf("Adding httppolicy to Cache during refresh %s\n", k)
+		utils.AviLog.Debugf("Adding httppolicy to Cache during refresh %s", k)
 	}
 	return nil
 }
@@ -1482,7 +1482,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 		}
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *l4pol.Name}
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
-		utils.AviLog.Infof("Adding l4pol to Cache during refresh %s\n", utils.Stringify(l4PolCacheObj))
+		utils.AviLog.Infof("Adding l4pol to Cache during refresh %s", utils.Stringify(l4PolCacheObj))
 	}
 	return nil
 }
@@ -1776,7 +1776,7 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		}
 		// set the vrf context. The result shouldn't be more than 1.
 		lib.SetVrfUuid(*vrf.UUID)
-		utils.AviLog.Debugf("Adding vrf to Cache %s\n", vrfName)
+		utils.AviLog.Debugf("Adding vrf to Cache %s", vrfName)
 		c.VrfCache.AviCacheAdd(vrfName, &vrfCacheObj)
 	}
 	return nil

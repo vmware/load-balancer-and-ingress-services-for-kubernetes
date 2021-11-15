@@ -265,7 +265,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		}
 	}
 
-	utils.AviLog.Debug(spew.Sprintf("HTTPPolicySet Restop %v AviHttpPolicySetMeta %v\n",
+	utils.AviLog.Debug(spew.Sprintf("HTTPPolicySet Restop %v AviHttpPolicySetMeta %v",
 		rest_op, *hps_meta))
 	return &rest_op
 }
@@ -274,7 +274,7 @@ func (rest *RestOperations) AviHttpPolicyDel(uuid string, tenant string, key str
 	path := "/api/httppolicyset/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
-	utils.AviLog.Debug(spew.Sprintf("HTTP Policy Set DELETE Restop %v \n",
+	utils.AviLog.Debug(spew.Sprintf("HTTP Policy Set DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -319,25 +319,25 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 		var pgMembers []string
 		var poolMembers []string
 		if resp["http_request_policy"] != nil {
-			rules, rulessOk := resp["http_request_policy"].(map[string]interface{})
-			if rulessOk {
-				rulesArr := rules["rules"].([]interface{})
-				for _, ruleIntf := range rulesArr {
-					rulemap, _ := ruleIntf.(map[string]interface{})
-					if rulemap["switching_action"] != nil {
-						switchAction := rulemap["switching_action"].(map[string]interface{})
-						if switchAction["pool_group_ref"] != nil {
-							pgUuid := avicache.ExtractUuid(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
-							// Search the poolName using this Uuid in the poolcache.
-							pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
-							if found {
-								pgMembers = append(pgMembers, pgName.(string))
-							}
-						} else if switchAction["pool_ref"] != nil {
-							poolUuid := avicache.ExtractUuid(switchAction["pool_ref"].(string), "pool-.*.#")
-							poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
-							if found {
-								poolMembers = append(poolMembers, poolName.(string))
+			if rules, rulesOk := resp["http_request_policy"].(map[string]interface{}); rulesOk {
+				if rulesArr, rulesArrOk := rules["rules"].([]interface{}); rulesArrOk {
+					for _, ruleIntf := range rulesArr {
+						rulemap, _ := ruleIntf.(map[string]interface{})
+						if rulemap["switching_action"] != nil {
+							switchAction := rulemap["switching_action"].(map[string]interface{})
+							if switchAction["pool_group_ref"] != nil {
+								pgUuid := avicache.ExtractUuid(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
+								// Search the poolName using this Uuid in the poolcache.
+								pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
+								if found {
+									pgMembers = append(pgMembers, pgName.(string))
+								}
+							} else if switchAction["pool_ref"] != nil {
+								poolUuid := avicache.ExtractUuid(switchAction["pool_ref"].(string), "pool-.*.#")
+								poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
+								if found {
+									poolMembers = append(poolMembers, poolName.(string))
+								}
 							}
 						}
 					}
@@ -368,10 +368,10 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToHTTPKeyCollection(k)
-			utils.AviLog.Debug(spew.Sprintf("Added VS cache key during http policy update %v val %v\n", vsKey,
+			utils.AviLog.Debug(spew.Sprintf("Added VS cache key during http policy update %v val %v", vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Debug(spew.Sprintf("Added Http Policy Set cache k %v val %v\n", k,
+		utils.AviLog.Debug(spew.Sprintf("Added Http Policy Set cache k %v val %v", k,
 			http_cache_obj))
 	}
 

@@ -427,7 +427,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD\n", key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -910,7 +910,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			} else {
-				utils.AviLog.Debugf("key: %s, msg: node object did not change\n", key)
+				utils.AviLog.Debugf("key: %s, msg: node object did not change", key)
 			}
 		},
 	}

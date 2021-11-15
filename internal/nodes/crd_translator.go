@@ -25,7 +25,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniModel) {
+func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	// use host to find out HostRule CRD if it exists
 	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
 	deleteCase := false

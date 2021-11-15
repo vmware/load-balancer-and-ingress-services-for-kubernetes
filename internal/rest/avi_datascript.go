@@ -81,7 +81,7 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 		}
 	}
 
-	utils.AviLog.Debugf(spew.Sprintf("key: %s, msg: ds Restop %v DatascriptData %v\n", key,
+	utils.AviLog.Debugf(spew.Sprintf("key: %s, msg: ds Restop %v DatascriptData %v", key,
 		utils.Stringify(rest_op), *ds_meta))
 	return &rest_op
 }
@@ -90,7 +90,7 @@ func (rest *RestOperations) AviDSDel(uuid string, tenant string, key string) *ut
 	path := "/api/vsdatascriptset/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: DS DELETE Restop %v \n", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: DS DELETE Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -155,10 +155,10 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToDSKeyCollection(k)
-			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during datascriptset update %v val %v\n", key, vsKey,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during datascriptset update %v val %v", key, vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added Datascriptset cache k %v val %v\n", key, k,
+		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added Datascriptset cache k %v val %v", key, k,
 			ds_cache_obj))
 	}
 

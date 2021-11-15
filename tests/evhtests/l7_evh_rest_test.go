@@ -109,10 +109,10 @@ func TestMultiHostIngressStatusCheckForEvh(t *testing.T) {
 func TestMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
-	modelName, _ := GetModelName("foo.com", "default")
 	ingressId := "thmhuisc"
 	ingressName := fmt.Sprintf("ing-%s", ingressId)
 	pathSuffix := "-" + ingressName + ".com"
+	modelName, vsName := GetModelName("foo"+pathSuffix, "default")
 
 	SetupDomain()
 	SetUpTestForIngress(t, integrationtest.AllModels...)
@@ -177,6 +177,15 @@ func TestMultiHostUpdateIngressStatusCheckForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	TearDownTestForIngress(t, modelName)
+	g.Eventually(func() int {
+		mcache := cache.SharedAviObjCache()
+		vsKey := cache.NamespaceName{Namespace: "admin", Name: vsName}
+		if vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey); found {
+			vsCacheObj, _ := vsCache.(*cache.AviVsCache)
+			return len(vsCacheObj.SNIChildCollection)
+		}
+		return -1
+	}, 35*time.Second).Should(gomega.Equal(0))
 }
 
 func TestCreateIngressCacheSyncForEvh(t *testing.T) {
@@ -194,14 +203,16 @@ func TestCreateIngressCacheSyncForEvh(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: vsName}
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
-	if !found {
-		t.Fatalf("Cache not found for VS: %v", vsKey)
-	}
-	vsCacheObj, ok := vsCache.(*cache.AviVsCache)
-	if !ok {
-		t.Fatalf("Invalid VS object. Cannot cast.")
-	}
+	g.Eventually(func() int {
+		if vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey); found {
+			if vsCacheObj, ok := vsCache.(*cache.AviVsCache); ok {
+				return len(vsCacheObj.SNIChildCollection)
+			}
+		}
+		return -1
+	}, 15*time.Second).Should(gomega.Equal(1))
+	vsCache, _ := mcache.VsCacheMeta.AviCacheGet(vsKey)
+	vsCacheObj, _ := vsCache.(*cache.AviVsCache)
 	g.Expect(vsCacheObj.Name).To(gomega.Equal(vsName))
 	g.Expect(vsCacheObj.SNIChildCollection).To(gomega.HaveLen(1))
 
@@ -294,7 +305,7 @@ func TestUpdatePoolCacheSyncForEvh(t *testing.T) {
 			}
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Not(gomega.Equal(oldPoolCksum)))
+	}, 50*time.Second).Should(gomega.Not(gomega.Equal(oldPoolCksum)))
 	// If we transition the service from clusterIP to Loadbalancer - pools' servers should get deleted.
 	svcExample := (integrationtest.FakeService{
 		Name:         "avisvc",
@@ -346,6 +357,11 @@ func TestCreateCacheSyncForEvh(t *testing.T) {
 		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
+	g.Eventually(func() int {
+		parentCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
+		parentCacheObj, _ := parentCache.(*cache.AviVsCache)
+		return len(parentCacheObj.SSLKeyCertCollection)
+	}, 15*time.Second).Should(gomega.Equal(1))
 	parentCache, _ := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
 	parentCacheObj, _ := parentCache.(*cache.AviVsCache)
 	g.Expect(parentCacheObj.Name).To(gomega.Equal(vsName))
@@ -796,7 +812,7 @@ func TestDeleteSecretSecureIngressStatusCheckForEvh(t *testing.T) {
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
-	}, 50*time.Second).Should(gomega.Equal(0))
+	}, 30*time.Second).Should(gomega.Equal(1))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }

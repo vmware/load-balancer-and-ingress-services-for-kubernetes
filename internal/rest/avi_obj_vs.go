@@ -44,27 +44,25 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		rest_ops := rest.AviVsSniBuild(vs_meta, rest_method, cache_obj, key)
 		return rest_ops
 	} else {
-		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
-		// TODO use PoolGroup and use policies if there are > 1 pool, etc.
-		name := vs_meta.Name
-		cksum := vs_meta.CloudConfigCksum
-		checksumstr := strconv.Itoa(int(cksum))
-		cr := lib.AKOUser
-		cloudRef := "/api/cloud?name=" + utils.CloudName
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
-		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
-		seGroupRef := "/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup
+
 		vs := avimodels.VirtualService{
-			Name:                  &name,
-			ApplicationProfileRef: &app_prof,
-			CloudConfigCksum:      &checksumstr,
-			CreatedBy:             &cr,
-			CloudRef:              &cloudRef,
+			Name:                  proto.String(vs_meta.Name),
+			CloudConfigCksum:      proto.String(strconv.Itoa(int(vs_meta.CloudConfigCksum))),
+			CreatedBy:             proto.String(lib.AKOUser),
+			CloudRef:              proto.String("/api/cloud?name=" + utils.CloudName),
+			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)),
+			ApplicationProfileRef: proto.String("/api/applicationprofile/?name=" + vs_meta.ApplicationProfile),
+			SeGroupRef:            proto.String("/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup),
+			VrfContextRef:         proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext),
+			WafPolicyRef:          &vs_meta.WafPolicyRef,
+			AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
+			ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
+			Enabled:               vs_meta.Enabled,
 			ServiceMetadata:       &svc_mdata,
-			SeGroupRef:            &seGroupRef,
-			VrfContextRef:         &vrfContextRef,
 		}
+
 		if lib.GetT1LRPath() != "" {
 			// Clear the vrfContextRef
 			vs.VrfContextRef = nil
@@ -80,21 +78,19 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 
 		if lib.GetAdvancedL4() {
-			ignPool := true
-			vs.IgnPoolNetReach = &ignPool
+			vs.IgnPoolNetReach = proto.Bool(true)
 		}
+
 		if vs_meta.DefaultPoolGroup != "" {
-			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
-			vs.PoolGroupRef = &pool_ref
+			vs.PoolGroupRef = proto.String("/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup)
 		}
+
 		if len(vs_meta.VSVIPRefs) > 0 {
-			vipref := "/api/vsvip/?name=" + vs_meta.VSVIPRefs[0].Name
-			vs.VsvipRef = &vipref
+			vs.VsvipRef = proto.String("/api/vsvip/?name=" + vs_meta.VSVIPRefs[0].Name)
 		} else {
 			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference")
 		}
-		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
-		vs.TenantRef = &tenant
+
 		if vs_meta.SNIParent {
 			// This is a SNI parent
 			utils.AviLog.Debugf("key: %s, msg: vs %s is a SNI Parent", key, vs_meta.Name)
@@ -125,34 +121,36 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 
 		if vs_meta.SharedVS {
 			// This is a shared VS - which should have a datascript
-			var i int32
 			var vsdatascripts []*avimodels.VSDataScripts
-			for _, ds := range vs_meta.HTTPDSrefs {
-				var j int32
-				j = i
+			for i, ds := range vs_meta.HTTPDSrefs {
+				j := int32(i)
 				dsRef := "/api/vsdatascriptset/?name=" + ds.Name
 				vsdatascript := &avimodels.VSDataScripts{Index: &j, VsDatascriptSetRef: &dsRef}
 				vsdatascripts = append(vsdatascripts, vsdatascript)
-				i = i + 1
 			}
 			vs.VsDatascripts = vsdatascripts
 		}
 
+		var httpPolicyCollection []*avimodels.HTTPPolicies
+		internalPolicyIndexBuffer := int32(11)
 		if len(vs_meta.HttpPolicyRefs) > 0 {
-			var i int32
-			i = 0
-			var httpPolicyCollection []*avimodels.HTTPPolicies
-			for _, http := range vs_meta.HttpPolicyRefs {
+			for i, http := range vs_meta.HttpPolicyRefs {
 				// Update them on the VS object
-				var j int32
-				j = i + 11
-				i = i + 1
+				j := int32(i) + internalPolicyIndexBuffer
 				httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
 				httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
 				httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 			}
-			vs.HTTPPolicies = httpPolicyCollection
 		}
+
+		bufferLen := int32(len(httpPolicyCollection)) + internalPolicyIndexBuffer + 5
+		for i, policy := range vs_meta.HttpPolicySetRefs {
+			j := int32(i) + bufferLen
+			httpPolicy := policy
+			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
+			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
+		}
+		vs.HTTPPolicies = httpPolicyCollection
 
 		if strings.Contains(*vs.Name, lib.PassthroughPrefix) && !strings.HasSuffix(*vs.Name, lib.PassthroughInsecure) {
 			// This is a passthrough secure VS, we want the VS to be down if all the pools are down.
@@ -534,7 +532,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(vh_parent_uuid.(string))}
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(parentKey)
 				vs_cache_obj.AddToSNIChildCollection(uuid)
-				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v\n", key, vhParentKey,
+				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v", key, vhParentKey,
 					vs_cache_obj))
 			}
 		}
@@ -596,7 +594,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				} else {
 					vs_cache_obj.InvalidData = false
 				}
-				utils.AviLog.Debug(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v\n", key, k,
+				utils.AviLog.Debug(spew.Sprintf("key: %s, msg: updated VS cache key %v val %v", key, k,
 					utils.Stringify(vs_cache_obj)))
 
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
@@ -646,7 +644,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
 			status.HostRuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
-			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v\n", key, k, utils.Stringify(vs_cache_obj))
+			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v", key, k, utils.Stringify(vs_cache_obj))
 		}
 
 		rest.StatusUpdate(rest_op, vs_cache_obj, &svc_mdata_obj, parentVsObj, key, false)
@@ -760,7 +758,7 @@ func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) (*u
 	path := "/api/virtualservice/" + uuid
 	rest_op := utils.RestOp{Path: path, Method: "DELETE",
 		Tenant: tenant, Model: "VirtualService", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v \n",
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v ",
 		key, utils.Stringify(rest_op)))
 	return &rest_op, true
 }

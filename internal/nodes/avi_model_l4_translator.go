@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -59,10 +61,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 			HostNames:            fqdns,
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
+		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 	}
-
-	enableRhi := lib.GetEnableRHI()
-	avi_vs_meta.EnableRhi = &enableRhi
 
 	vrfcontext := lib.GetVrf()
 	if lib.GetT1LRPath() != "" {
