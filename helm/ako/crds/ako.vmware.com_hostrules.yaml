@@ -93,7 +93,7 @@ spec:
                             default: HIGH
                             type: string
                         type: object
-                      allHeaders:
+                      logAllHeaders:
                         type: boolean
                         default: false
                     type: object

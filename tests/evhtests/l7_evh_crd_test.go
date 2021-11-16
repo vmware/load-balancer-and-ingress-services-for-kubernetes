@@ -29,6 +29,7 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -482,9 +483,15 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
-	hrUpdate.Spec.VirtualHost.AnalyticsPolicy.AllHeaders = true
-	hrUpdate.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled = true
-	hrUpdate.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle = "LOW"
+	enabled := true
+	analyticsPolicy := &v1alpha1.HostRuleAnalyticsPolicy{
+		FullClientLogs: &v1alpha1.FullClientLogs{
+			Enabled:  &enabled,
+			Throttle: "LOW",
+		},
+		LogAllHeaders: &enabled,
+	}
+	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = analyticsPolicy
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -509,6 +516,30 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
 	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.BeTrue())
 	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Throttle).To(gomega.Equal(*lib.GetThrottle("LOW")))
+
+	// Remove the analytics Policy and check whether it is removed from VS.
+	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = analyticsPolicy
+	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
+	time.Sleep(5 * time.Second)
+
+	// Check whether the AnalyticsPolicy values are properly removed
+	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	TearDownIngressForCacheSyncCheck(t, modelName)

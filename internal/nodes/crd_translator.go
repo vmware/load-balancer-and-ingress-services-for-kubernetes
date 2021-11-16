@@ -59,6 +59,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	// Initializing the values of vsHTTPPolicySets and vsDatascripts, using a nil value would impact the value of VS checksum
 	vsHTTPPolicySets := []string{}
 	vsDatascripts := []string{}
+	var analyticsPolicy *models.AnalyticsPolicy
 
 	if !deleteCase {
 		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
@@ -110,14 +111,14 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			Status: lib.CRDActive,
 		}
 
-		if (akov1alpha1.HostRuleAnalyticsPolicy{}) != hostrule.Spec.VirtualHost.AnalyticsPolicy {
-			vsNode.SetAnalyticsPolicy(&models.AnalyticsPolicy{
+		if hostrule.Spec.VirtualHost.AnalyticsPolicy != nil {
+			analyticsPolicy = &models.AnalyticsPolicy{
 				FullClientLogs: &models.FullClientLogs{
-					Enabled:  &hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled,
+					Enabled:  hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled,
 					Throttle: lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle),
 				},
-				AllHeaders: &hostrule.Spec.VirtualHost.AnalyticsPolicy.AllHeaders,
-			})
+				AllHeaders: hostrule.Spec.VirtualHost.AnalyticsPolicy.LogAllHeaders,
+			}
 		}
 
 		utils.AviLog.Infof("key: %s, Successfully attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
@@ -138,6 +139,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetSSLProfileRef(vsSslProfile)
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
+	vsNode.SetAnalyticsPolicy(analyticsPolicy)
 
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus
