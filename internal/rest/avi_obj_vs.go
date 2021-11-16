@@ -366,115 +366,111 @@ func AviVsHttpPSAdd(vs_meta interface{}, isEVH bool) []*avimodels.HTTPPolicies {
 	return httpPolicyCollection
 }
 
-func (rest *RestOperations) StatusUpdate(rest_op *utils.RestOp, vs_cache_obj *avicache.AviVsCache, svc_mdata_obj *avicache.ServiceMetadataObj, parentVsObj *avicache.AviVsCache, key string, oldObj bool) error {
-	if oldObj {
-		if rest_op.Method == utils.RestPost || rest_op.Method == utils.RestDelete || rest_op.Method == utils.RestPut {
-			for _, poolkey := range vs_cache_obj.PoolKeyCollection {
-				// Fetch the pool object from cache and check the service metadata
-				pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
-				if ok {
+func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_cache_obj *avicache.AviVsCache, key string) {
+	if restMethod == utils.RestPost || restMethod == utils.RestDelete {
+		for _, poolkey := range vs_cache_obj.PoolKeyCollection {
+			// Fetch the pool object from cache and check the service metadata
+			pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
+			if ok {
+				pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
+				if found {
 					utils.AviLog.Infof("key: %s, msg: found pool: %s, will update status", key, poolkey.Name)
-					pool_cache_obj, found := pool_cache.(*avicache.AviPoolCache)
-					if found {
-						IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
-						if len(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
-							updateOptions := status.UpdateOptions{
-								Vip:                IPAddrs,
-								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
-								Key:                key,
-								VirtualServiceUUID: vs_cache_obj.Uuid,
-								VSName:             vs_cache_obj.Name,
-							}
-							statusOption := status.StatusOptions{
-								ObjType: utils.L4LBService,
-								Op:      lib.UpdateStatus,
-								Options: &updateOptions,
-							}
-							status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
-						} else if pool_cache_obj.ServiceMetadataObj.Namespace != "" {
-							if len(IPAddrs) == 0 {
-								IPAddrs = []string{parentVsObj.Vip}
-							}
-							updateOptions := status.UpdateOptions{
-								Vip:                IPAddrs,
-								ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
-								Key:                key,
-								VirtualServiceUUID: vs_cache_obj.Uuid,
-								VSName:             vs_cache_obj.Name,
-							}
-							statusOption := status.StatusOptions{
-								ObjType: utils.Ingress,
-								Op:      lib.UpdateStatus,
-								Options: &updateOptions,
-							}
-							if utils.GetInformers().RouteInformer != nil {
-								statusOption.ObjType = utils.OshiftRoute
-							}
-							status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+					IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
+					if len(IPAddrs) == 0 {
+						utils.AviLog.Warnf("key: %s, msg: Unable to find VIP corresponding to Pool %s vsCache %v", key, pool_cache_obj.Name, utils.Stringify(vs_cache_obj))
+						continue
+					}
+					switch pool_cache_obj.ServiceMetadataObj.ServiceMetadataMapping("Pool") {
+					case lib.GatewayPool:
+						updateOptions := status.UpdateOptions{
+							Vip:                IPAddrs,
+							ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
+							Key:                key,
+							VirtualServiceUUID: vs_cache_obj.Uuid,
+							VSName:             vs_cache_obj.Name,
 						}
-
+						statusOption := status.StatusOptions{
+							ObjType: utils.L4LBService,
+							Op:      lib.UpdateStatus,
+							Options: &updateOptions,
+						}
+						status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
+					case lib.SNIInsecureOrEVHPool:
+						updateOptions := status.UpdateOptions{
+							Vip:                IPAddrs,
+							ServiceMetadata:    pool_cache_obj.ServiceMetadataObj,
+							Key:                key,
+							VirtualServiceUUID: vs_cache_obj.Uuid,
+							VSName:             vs_cache_obj.Name,
+						}
+						statusOption := status.StatusOptions{
+							ObjType: utils.Ingress,
+							Op:      lib.UpdateStatus,
+							Options: &updateOptions,
+						}
+						if utils.GetInformers().RouteInformer != nil {
+							statusOption.ObjType = utils.OshiftRoute
+						}
+						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 					}
 				}
 			}
 		}
-
-	} else {
-		IPAddrs := rest.GetIPAddrsFromCache(vs_cache_obj)
-		if svc_mdata_obj.Gateway != "" {
-			updateOptions := status.UpdateOptions{
-				Vip:             IPAddrs,
-				ServiceMetadata: *svc_mdata_obj,
-				Key:             key,
-				VSName:          vs_cache_obj.Name,
-			}
-			statusOption := status.StatusOptions{
-				ObjType: lib.Gateway,
-				Op:      lib.UpdateStatus,
-				Options: &updateOptions,
-			}
-			if lib.UseServicesAPI() {
-				statusOption.ObjType = lib.SERVICES_API
-			}
-			status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
-
-		} else if len(svc_mdata_obj.NamespaceServiceName) > 0 {
-			// This service needs an update of the status
-			updateOptions := status.UpdateOptions{
-				Vip:                IPAddrs,
-				ServiceMetadata:    *svc_mdata_obj,
-				Key:                key,
-				VirtualServiceUUID: vs_cache_obj.Uuid,
-				VSName:             vs_cache_obj.Name,
-			}
-			statusOption := status.StatusOptions{
-				ObjType: utils.L4LBService,
-				Op:      lib.UpdateStatus,
-				Options: &updateOptions,
-			}
-			status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
-		} else if (svc_mdata_obj.IngressName != "" || len(svc_mdata_obj.NamespaceIngressName) > 0) && svc_mdata_obj.Namespace != "" && parentVsObj != nil {
-			var parentVsVips []string
-			parentVsVips = append(parentVsVips, parentVsObj.Vip)
-			updateOptions := status.UpdateOptions{
-				Vip:                parentVsVips,
-				ServiceMetadata:    *svc_mdata_obj,
-				Key:                key,
-				VirtualServiceUUID: vs_cache_obj.Uuid,
-				VSName:             vs_cache_obj.Name,
-			}
-			statusOption := status.StatusOptions{
-				ObjType: utils.Ingress,
-				Op:      lib.UpdateStatus,
-				Options: &updateOptions,
-			}
-			if utils.GetInformers().RouteInformer != nil {
-				statusOption.ObjType = utils.OshiftRoute
-			}
-			status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
-		}
-
 	}
-	return nil
+}
+
+func (rest *RestOperations) StatusUpdateForVS(vsCacheObj *avicache.AviVsCache, key string) {
+	IPAddrs := rest.GetIPAddrsFromCache(vsCacheObj)
+	serviceMetadataObj := vsCacheObj.ServiceMetadataObj
+	switch serviceMetadataObj.ServiceMetadataMapping("VS") {
+	case lib.GatewayVS:
+		updateOptions := status.UpdateOptions{
+			Vip:             IPAddrs,
+			ServiceMetadata: serviceMetadataObj,
+			Key:             key,
+			VSName:          vsCacheObj.Name,
+		}
+		statusOption := status.StatusOptions{
+			ObjType: lib.Gateway,
+			Op:      lib.UpdateStatus,
+			Options: &updateOptions,
+		}
+		if lib.UseServicesAPI() {
+			statusOption.ObjType = lib.SERVICES_API
+		}
+		status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
+	case lib.ServiceTypeLBVS:
+		updateOptions := status.UpdateOptions{
+			Vip:                IPAddrs,
+			ServiceMetadata:    serviceMetadataObj,
+			Key:                key,
+			VirtualServiceUUID: vsCacheObj.Uuid,
+			VSName:             vsCacheObj.Name,
+		}
+		statusOption := status.StatusOptions{
+			ObjType: utils.L4LBService,
+			Op:      lib.UpdateStatus,
+			Options: &updateOptions,
+		}
+		status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
+	case lib.ChildVS:
+		updateOptions := status.UpdateOptions{
+			Vip:                IPAddrs,
+			ServiceMetadata:    serviceMetadataObj,
+			Key:                key,
+			VirtualServiceUUID: vsCacheObj.Uuid,
+			VSName:             vsCacheObj.Name,
+		}
+		statusOption := status.StatusOptions{
+			ObjType: utils.Ingress,
+			Op:      lib.UpdateStatus,
+			Options: &updateOptions,
+		}
+		if utils.GetInformers().RouteInformer != nil {
+			statusOption.ObjType = utils.OshiftRoute
+		}
+		status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+	}
 }
 
 func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) error {
@@ -536,7 +532,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 					vs_cache_obj))
 			}
 		}
-		var svc_mdata_obj avicache.ServiceMetadataObj
+		var svc_mdata_obj lib.ServiceMetadataObj
 		if resp["service_metadata"] != nil {
 			utils.AviLog.Infof("key:%s, msg: Service Metadata: %s", key, resp["service_metadata"])
 			if err := json.Unmarshal([]byte(resp["service_metadata"].(string)),
@@ -552,30 +548,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		if ok {
 			vs_cache_obj, found = vs_cache.(*avicache.AviVsCache)
 			if found {
-				if _, ok := resp["vsvip_ref"].(string); ok {
-					vsVipUuid := avicache.ExtractUuid(resp["vsvip_ref"].(string), "vsvip-.*.#")
-					vsVipName, vipFound := rest.cache.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
-					if vipFound {
-						vipKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
-						vsvip_cache, found := rest.cache.VSVIPCache.AviCacheGet(vipKey)
-						if found {
-							vsvip_cache_obj, ok := vsvip_cache.(*avicache.AviVSVIPCache)
-							if ok {
-								if len(vsvip_cache_obj.Vips) > 0 {
-									vip := vsvip_cache_obj.Vips[0]
-									vs_cache_obj.Vip = vip
-									if len(vsvip_cache_obj.Fips) > 0 {
-										fip := vsvip_cache_obj.Fips[0]
-										vs_cache_obj.Fip = fip
-									} else {
-										vs_cache_obj.Fip = ""
-									}
-									utils.AviLog.Info(spew.Sprintf("key: %s, msg: updated vsvip to the cache: %s", key, vip))
-								}
-							}
-						}
-					}
-				}
 				vs_cache_obj.Uuid = uuid
 				vs_cache_obj.CloudConfigCksum = cksum
 
@@ -599,7 +571,8 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 				// This code is most likely hit when the first time a shard vs is created and the vs_cache_obj is populated from the pool update.
 				// But before this a pool may have got created as a part of the macro operation, so update the ingress status here.
-				rest.StatusUpdate(rest_op, vs_cache_obj, nil, parentVsObj, key, true)
+
+				rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
 			}
 
 		} else {
@@ -617,37 +590,13 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			if lastModifiedStr == "" {
 				vs_cache_obj.InvalidData = true
 			}
-			if _, ok := resp["vsvip_ref"].(string); ok {
-				vsVipUuid := avicache.ExtractUuid(resp["vsvip_ref"].(string), "vsvip-.*.#")
-				vsVipName, vipFound := rest.cache.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
-				if vipFound {
-					vipKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
-					vsvip_cache, found := rest.cache.VSVIPCache.AviCacheGet(vipKey)
-					if found {
-						vsvip_cache_obj, ok := vsvip_cache.(*avicache.AviVSVIPCache)
-						if ok {
-							if len(vsvip_cache_obj.Vips) > 0 {
-								vip := vsvip_cache_obj.Vips[0]
-								vs_cache_obj.Vip = vip
-								if len(vsvip_cache_obj.Fips) > 0 {
-									fip := vsvip_cache_obj.Fips[0]
-									vs_cache_obj.Fip = fip
-								} else {
-									vs_cache_obj.Fip = ""
-								}
-								utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip to the cache: %s", key, vip))
-							}
-						}
-					}
-				}
-			}
 
 			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
 			status.HostRuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
 			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v", key, k, utils.Stringify(vs_cache_obj))
 		}
 
-		rest.StatusUpdate(rest_op, vs_cache_obj, &svc_mdata_obj, parentVsObj, key, false)
+		rest.StatusUpdateForVS(vs_cache_obj, key)
 	}
 
 	return nil
@@ -688,7 +637,8 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				}
 			}
 
-			if vs_cache_obj.ServiceMetadataObj.Gateway != "" {
+			switch vs_cache_obj.ServiceMetadataObj.ServiceMetadataMapping("VS") {
+			case lib.GatewayVS:
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
 					Key:             key,
@@ -700,7 +650,12 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					Options: &updateOptions,
 				}
 				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
-			} else if len(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+				// The pools would have service metadata for backend services, corresponding to which
+				// statuses need to be deleted.
+				for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+					rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
+				}
+			case lib.ServiceTypeLBVS:
 				updateOptions := status.UpdateOptions{
 					ServiceMetadata:    vs_cache_obj.ServiceMetadataObj,
 					Key:                key,
@@ -713,10 +668,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					Options: &updateOptions,
 				}
 				status.PublishToStatusQueue(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
-			}
-
-			if (vs_cache_obj.ServiceMetadataObj.IngressName != "" || len(vs_cache_obj.ServiceMetadataObj.NamespaceIngressName) > 0) && vs_cache_obj.ServiceMetadataObj.Namespace != "" {
-				// SNI VS deletion related ingress status update
+			case lib.ChildVS:
 				if !hostFoundInParentPool {
 					updateOptions := status.UpdateOptions{
 						ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
@@ -736,7 +688,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				}
 
 				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
-			} else {
+			default:
 				// insecure ingress status updates in regular AKO.
 				for _, poolKey := range vs_cache_obj.PoolKeyCollection {
 					rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
@@ -794,12 +746,32 @@ func (rest *RestOperations) isHostPresentInSharedPool(hostname string, parentVs 
 
 func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []string {
 	var IPAddrs []string
+	if len(vsCache.VSVipKeyCollection) == 0 {
+		parentVSKey := vsCache.ParentVSRef
+		parentCache, ok := rest.cache.VsCacheMeta.AviCacheGet(parentVSKey)
+		if ok {
+			parentCacheObj, _ := parentCache.(*avicache.AviVsCache)
+			if parentCacheObj != nil && len(parentCacheObj.VSVipKeyCollection) > 0 {
+				// This essentially assigns the value of parent VS Cache to `vsCache`
+				// meaning that if we were originally unable to find VSVIP attached to the
+				// original vsCache (it was a child VS!), then we check whether a parent for
+				// the original vsCache exists. If the parent exists and the parent has VSVIP
+				// references (which it should), going forward we would traverse through it's
+				// VSVIP Collection and fetch the IP Addresses.
+				// If the original vsCache had VSVIP collection (it was a parent VS), we simply
+				// donot arrive at this step and go ahead fetching IP addresses from it's VSVIP
+				// Collection itself.
+				utils.AviLog.Infof("Getting IP Address from parent VS %v", parentCacheObj.Name)
+				vsCache = parentCacheObj
+			}
+		}
+	}
+
 	for _, vsvipkey := range vsCache.VSVipKeyCollection {
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvipkey)
 		if ok {
 			vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
 			if found {
-
 				if len(vsvip_cache_obj.Fips) == 0 {
 					IPAddrs = vsvip_cache_obj.Vips
 				} else {
@@ -808,5 +780,6 @@ func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []
 			}
 		}
 	}
+
 	return IPAddrs
 }

@@ -132,7 +132,7 @@ func InitializeAKC() {
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, false)
 	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Error getting AKO pod details.")
+		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
 	}
 	akoControlConfig.SaveAKOPodObjectMeta(pod)
 

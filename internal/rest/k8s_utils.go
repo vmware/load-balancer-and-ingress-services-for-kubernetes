@@ -49,10 +49,9 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 		parentVsKey := vsCacheObj.ParentVSRef
 		vsSvcMetadataObj := vsCacheObj.ServiceMetadataObj
-		var IPAddrs []string
+		IPAddrs := rest.GetIPAddrsFromCache(vsCacheObj)
 		if vsSvcMetadataObj.Gateway != "" {
 			// gateway based VSes
-			IPAddrs = append(IPAddrs, vsCacheObj.Vip)
 			allGatewayUpdateOptions = append(allGatewayUpdateOptions,
 				status.UpdateOptions{
 					Vip:             IPAddrs,
@@ -79,11 +78,6 @@ func (rest *RestOperations) SyncObjectStatuses() {
 						continue
 					}
 					if poolCacheObj.ServiceMetadataObj.Namespace != "" {
-						if vsCacheObj.Fip != "" {
-							IPAddrs = append(IPAddrs, vsCacheObj.Fip)
-						} else {
-							IPAddrs = []string{parentVsObj.Vip}
-						}
 						allIngressUpdateOptions = append(allIngressUpdateOptions,
 							status.UpdateOptions{
 								Vip:                IPAddrs,
@@ -109,11 +103,6 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 				// insecure pools
 				if poolCacheObj.ServiceMetadataObj.Namespace != "" {
-					if vsCacheObj.Fip != "" {
-						IPAddrs = append(IPAddrs, vsCacheObj.Fip)
-					} else {
-						IPAddrs = []string{vsCacheObj.Vip}
-					}
 					allIngressUpdateOptions = append(allIngressUpdateOptions,
 						status.UpdateOptions{
 							Vip:                IPAddrs,
@@ -122,11 +111,6 @@ func (rest *RestOperations) SyncObjectStatuses() {
 							VirtualServiceUUID: vsCacheObj.Uuid,
 						})
 				} else if len(poolCacheObj.ServiceMetadataObj.NamespaceServiceName) > 0 {
-					if vsCacheObj.Fip != "" {
-						IPAddrs = append(IPAddrs, vsCacheObj.Fip)
-					} else {
-						IPAddrs = append(IPAddrs, vsCacheObj.Vip)
-					}
 					allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
 						status.UpdateOptions{
 							Vip:                IPAddrs,
@@ -139,12 +123,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		}
 
 		if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
-			var IPAddrsSvc []string
-			if vsCacheObj.Fip != "" {
-				IPAddrsSvc = append(IPAddrsSvc, vsCacheObj.Fip)
-			} else {
-				IPAddrsSvc = append(IPAddrsSvc, vsCacheObj.Vip)
-			}
+			IPAddrsSvc := rest.GetIPAddrsFromCache(vsCacheObj)
 			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
 				status.UpdateOptions{
 					Vip:                IPAddrsSvc,

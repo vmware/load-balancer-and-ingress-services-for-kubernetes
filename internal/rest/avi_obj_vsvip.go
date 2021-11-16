@@ -504,7 +504,10 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			if found {
 				vs_cache_obj.AddToVSVipKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
-				rest.StatusUpdate(rest_op, vs_cache_obj, nil, nil, key, true)
+				if rest_op.Method == utils.RestPut {
+					rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
+					rest.StatusUpdateForVS(vs_cache_obj, key)
+				}
 			}
 
 		} else {
@@ -512,7 +515,10 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vs_cache_obj.AddToVSVipKeyCollection(k)
 			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v", key, vsKey,
 				vs_cache_obj))
-			rest.StatusUpdate(rest_op, vs_cache_obj, nil, nil, key, true)
+			if rest_op.Method == utils.RestPut {
+				rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
+				rest.StatusUpdateForVS(vs_cache_obj, key)
+			}
 		}
 		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v", key, k,
 			vsvip_cache_obj))

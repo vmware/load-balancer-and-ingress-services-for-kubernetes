@@ -36,25 +36,11 @@ type AviPoolCache struct {
 	Tenant               string
 	Uuid                 string
 	CloudConfigCksum     string
-	ServiceMetadataObj   ServiceMetadataObj
+	ServiceMetadataObj   lib.ServiceMetadataObj
 	PkiProfileCollection NamespaceName
 	LastModified         string
 	InvalidData          bool
 	HasReference         bool
-}
-
-type ServiceMetadataObj struct {
-	NamespaceIngressName  []string        `json:"namespace_ingress_name"`
-	IngressName           string          `json:"ingress_name"`
-	Namespace             string          `json:"namespace"`
-	HostNames             []string        `json:"hostnames"`
-	NamespaceServiceName  []string        `json:"namespace_svc_name"` // []string{ns/name}
-	CRDStatus             lib.CRDMetadata `json:"crd_status"`
-	PoolRatio             int32           `json:"pool_ratio"`
-	PassthroughParentRef  string          `json:"passthrough_parent_ref"`
-	PassthroughChildRef   string          `json:"passthrough_child_ref"`
-	Gateway               string          `json:"gateway"` // ns/name
-	InsecureEdgeTermAllow bool            `json:"insecureedgetermallow"`
 }
 
 type AviDSCache struct {
@@ -83,8 +69,6 @@ type AviVsCache struct {
 	Name                 string
 	Tenant               string
 	Uuid                 string
-	Vip                  string
-	Fip                  string
 	CloudConfigCksum     string
 	PGKeyCollection      []NamespaceName
 	VSVipKeyCollection   []NamespaceName
@@ -97,7 +81,7 @@ type AviVsCache struct {
 	ParentVSRef          NamespaceName
 	PassthroughParentRef NamespaceName
 	PassthroughChildRef  NamespaceName
-	ServiceMetadataObj   ServiceMetadataObj
+	ServiceMetadataObj   lib.ServiceMetadataObj
 	LastModified         string
 	EnableRhi            bool
 	InvalidData          bool

@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -72,7 +71,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			Name:       vsName,
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
-			ServiceMetadata: avicache.ServiceMetadataObj{
+			ServiceMetadata: lib.ServiceMetadataObj{
 				NamespaceServiceName: serviceNSNames,
 				Gateway:              namespace + "/" + gatewayName,
 			},
@@ -185,7 +184,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			Name:       vsName,
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
-			ServiceMetadata: avicache.ServiceMetadataObj{
+			ServiceMetadata: lib.ServiceMetadataObj{
 				Gateway:   namespace + "/" + gatewayName,
 				HostNames: fqdns,
 			},
@@ -298,7 +297,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			Tenant:   lib.GetTenant(),
 			Protocol: portProto[0],
 			PortName: "",
-			ServiceMetadata: avicache.ServiceMetadataObj{
+			ServiceMetadata: lib.ServiceMetadataObj{
 				NamespaceServiceName: []string{svc[0]},
 			},
 			VrfContext: lib.GetVrf(),

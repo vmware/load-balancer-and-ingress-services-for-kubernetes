@@ -39,7 +39,7 @@ type UpdateOptions struct {
 	// IngSvc format: namespace/name, not supposed to be provided by the caller
 	IngSvc             string
 	Vip                []string
-	ServiceMetadata    avicache.ServiceMetadataObj
+	ServiceMetadata    lib.ServiceMetadataObj
 	Key                string
 	VirtualServiceUUID string
 	VSName             string
@@ -84,7 +84,7 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 				hostnames = append(hostnames, rule.Host)
 			}
 			DeleteIngressStatus([]UpdateOptions{{
-				ServiceMetadata: avicache.ServiceMetadataObj{
+				ServiceMetadata: lib.ServiceMetadataObj{
 					NamespaceIngressName: []string{ingNSName},
 					HostNames:            hostnames,
 				},
@@ -403,7 +403,7 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 	return nil
 }
 
-func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta avicache.ServiceMetadataObj, isVSDelete bool,
+func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta lib.ServiceMetadataObj, isVSDelete bool,
 	key string, mClient kubernetes.Interface, oldIng *networkingv1.Ingress,
 	ingHostList []string, retryNum ...int) error {
 	if ingObj == nil {

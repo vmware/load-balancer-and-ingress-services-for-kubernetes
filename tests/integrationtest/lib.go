@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -994,6 +995,8 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		object = urlSlice[1]
 	}
 
+	reg, _ := regexp.Compile("[^.0-9]+")
+
 	if r.Method == "POST" && !strings.Contains(url, "login") {
 		data, _ := ioutil.ReadAll(r.Body)
 		json.Unmarshal(data, &resp)
@@ -1009,73 +1012,23 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			// adding additional 'uuid' and 'url' (read-only) fields in the response
 			resp["url"] = objURL
 			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
-
-			// handle sni child, fill in vs parent ref
-			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-				if strings.Contains(parentVSName, "Shared-L7-EVH-") {
-					shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
-					if strings.Contains(shardVSNum, "NS-") {
-						shardVSNum = "0"
-					}
-				} else if strings.Contains(parentVSName, "Shared-L7") {
-					shardVSNum = strings.Split(parentVSName, "Shared-L7-")[1]
-				}
-
-				resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-
-			} else if strings.Contains(rName, "Shared-L7-EVH-") {
-				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
-				if strings.Contains(shardVSNum, "NS-") {
-					shardVSNum = "0"
-				}
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else if strings.Contains(rName, "Shared-L7") {
-				shardVSNum = strings.Split(rName, "Shared-L7-")[1]
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else {
-				vipAddress = addrPrefix + ".1"
-			}
-
-			// add vip for status update checks
-			// use vh_parent_vs_uuid for sniVS, and name for normal VSes
-
-			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
-			if strings.Contains(rName, "public") {
-				fipAddress := "35.250.250.1"
-				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": fipAddress, "type": "V4"}
-			}
-			if strings.Contains(rName, "multivip") {
-				if strings.Contains(rName, "public") {
-					resp["vip"] = []interface{}{
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
-					}
+			if vsType, ok := resp["type"]; ok {
+				if vsType == "VS_TYPE_VH_CHILD" {
+					parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
+					resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				} else {
-					resp["vip"] = []interface{}{
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"}},
-						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"}},
-					}
+					resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
 				}
+			} else {
+				resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
 			}
-			resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
 		} else if strings.Contains(url, "vsvip") {
 			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
 			// adding additional 'uuid' and 'url' (read-only) fields in the response
 			resp["url"] = objURL
 			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
 
-			if vsType := resp["type"]; vsType == "VS_TYPE_VH_CHILD" {
-				parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-				shardVSNum = strings.Split(parentVSName, "cluster--Shared-L7-")[1]
-				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
-			} else if strings.Contains(rName, "Shared-L7-EVH-") {
+			if strings.Contains(rName, "Shared-L7-EVH-") {
 				shardVSNum = strings.Split(rName, "Shared-L7-EVH-")[1]
 				if strings.Contains(shardVSNum, "NS-") {
 					shardVSNum = "0"
@@ -1087,6 +1040,8 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			} else {
 				vipAddress = addrPrefix + ".1"
 			}
+
+			vipAddress = reg.ReplaceAllString(vipAddress, "")
 			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 			if strings.Contains(rName, "public") {
 				fipAddress := "35.250.250.1"
@@ -1119,24 +1074,44 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		data, _ := ioutil.ReadAll(r.Body)
 		json.Unmarshal(data, &resp)
 		resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
-		if vsType, ok := resp["type"]; ok && vsType == "VS_TYPE_VH_CHILD" {
-			parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
-			resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
+
+		if strings.Contains(url, "virtualservice") {
+			rName := resp["name"].(string)
+			if vsType, ok := resp["type"]; ok {
+				if vsType == "VS_TYPE_VH_CHILD" {
+					parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
+					resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
+				} else {
+					resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
+				}
+			} else {
+				resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
+			}
 		}
 
 		if val, ok := resp["name"]; !ok || val == nil {
-			resp["name"] = strings.ReplaceAll(object, "-random-uuid", "")
+			tmp := strings.Split(url, "vsvip/vsvip-")[1]
+			resp["name"] = strings.ReplaceAll(tmp, "-random-uuid", "")
 		}
 		if strings.Contains(url, "vsvip") {
-			//if !strings.Contains(url, "gateway") {
-			if resp["vip"] == nil || resp["vip"].([]interface{})[0].(map[string]interface{})["ip_address"] == nil {
-				resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"}}}
+			if strings.Contains(url, "Shared-L7-EVH-") {
+				shardVSNum = strings.Split(url, "Shared-L7-EVH-")[1]
+				if strings.Contains(shardVSNum, "NS-") {
+					shardVSNum = "0"
+				}
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
+			} else if strings.Contains(url, "Shared-L7") {
+				shardVSNum = strings.Split(url, "Shared-L7-")[1]
+				vipAddress = fmt.Sprintf("%s.1%s", addrPrefix, shardVSNum)
+			} else {
+				vipAddress = addrPrefix + ".1"
 			}
-			//}
+			vipAddress = reg.ReplaceAllString(vipAddress, "")
+			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
+
 			if strings.Contains(url, "public") {
 				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}
-			}
-			if strings.Contains(url, "multivip") {
+			} else if strings.Contains(url, "multivip") {
 				if strings.Contains(url, "public") {
 					resp["vip"] = []interface{}{
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},

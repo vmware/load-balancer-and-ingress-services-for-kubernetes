@@ -105,7 +105,7 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			if val, ok := skipDelete[svcNSName]; ok && val {
 				continue
 			}
-			DeleteL4LBStatus(avicache.ServiceMetadataObj{
+			DeleteL4LBStatus(lib.ServiceMetadataObj{
 				NamespaceServiceName: []string{svcNSName},
 			}, "", lib.SyncStatusKey)
 		}
@@ -154,7 +154,7 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 	return nil
 }
 
-func DeleteL4LBStatus(svc_mdata_obj avicache.ServiceMetadataObj, vsName, key string) error {
+func DeleteL4LBStatus(svc_mdata_obj lib.ServiceMetadataObj, vsName, key string) error {
 	serviceMap := getServices(svc_mdata_obj.NamespaceServiceName, false)
 	for _, service := range svc_mdata_obj.NamespaceServiceName {
 		serviceNSName := strings.Split(service, "/")
