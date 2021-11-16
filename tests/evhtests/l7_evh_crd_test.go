@@ -518,7 +518,7 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Throttle).To(gomega.Equal(*lib.GetThrottle("LOW")))
 
 	// Remove the analytics Policy and check whether it is removed from VS.
-	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = analyticsPolicy
+	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = nil
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -539,7 +539,7 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 
 	// Check whether the AnalyticsPolicy values are properly removed
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
+	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).Should(gomega.BeNil())
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	TearDownIngressForCacheSyncCheck(t, modelName)
