@@ -19,6 +19,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vmware/alb-sdk/go/models"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
@@ -57,6 +59,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	// Initializing the values of vsHTTPPolicySets and vsDatascripts, using a nil value would impact the value of VS checksum
 	vsHTTPPolicySets := []string{}
 	vsDatascripts := []string{}
+	var analyticsPolicy *models.AnalyticsPolicy
 
 	if !deleteCase {
 		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
@@ -107,6 +110,17 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			Value:  hostrule.Namespace + "/" + hostrule.Name,
 			Status: lib.CRDActive,
 		}
+
+		if hostrule.Spec.VirtualHost.AnalyticsPolicy != nil {
+			analyticsPolicy = &models.AnalyticsPolicy{
+				FullClientLogs: &models.FullClientLogs{
+					Enabled:  hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled,
+					Throttle: lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle),
+				},
+				AllHeaders: hostrule.Spec.VirtualHost.AnalyticsPolicy.LogAllHeaders,
+			}
+		}
+
 		utils.AviLog.Infof("key: %s, Successfully attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 	} else {
 		if vsNode.GetServiceMetadata().CRDStatus.Value != "" {
@@ -125,6 +139,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetSSLProfileRef(vsSslProfile)
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
+	vsNode.SetAnalyticsPolicy(analyticsPolicy)
 
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus

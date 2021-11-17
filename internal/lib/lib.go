@@ -957,6 +957,10 @@ func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populat
 	return checksum
 }
 
+func GetAnalyticsPolicyChecksum(analyticsPolicy *models.AnalyticsPolicy) uint32 {
+	return utils.Hash(utils.Stringify(analyticsPolicy)) + GetClusterLabelChecksum()
+}
+
 func PopulatePoolNodeMarkers(namespace, host, infraSettingName, serviceName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
@@ -1517,3 +1521,15 @@ func VIPPerNamespace() bool {
 var VCFInitialized bool
 var AviSecretInitialized bool
 var AviSEInitialized bool
+
+var throttle = map[string]uint32{
+	"HIGH":     10,
+	"MEDIUM":   30,
+	"LOW":      50,
+	"DISABLED": 0,
+}
+
+func GetThrottle(key string) *int32 {
+	throttle := int32(throttle[key])
+	return &throttle
+}

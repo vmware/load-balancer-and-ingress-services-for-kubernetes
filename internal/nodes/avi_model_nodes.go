@@ -385,6 +385,7 @@ type AviVsNode struct {
 	AviMarkers            utils.AviObjectMarkers
 	Paths                 []string
 	IngressNames          []string
+	AnalyticsPolicy       *avimodels.AnalyticsPolicy
 }
 
 // Implementing AviVsEvhSniModel
@@ -507,6 +508,13 @@ func (v *AviVsNode) GetEnabled() *bool {
 
 func (v *AviVsNode) SetEnabled(Enabled *bool) {
 	v.Enabled = Enabled
+}
+
+func (v *AviVsNode) GetAnalyticsPolicy() *avimodels.AnalyticsPolicy {
+	return v.AnalyticsPolicy
+}
+func (v *AviVsNode) SetAnalyticsPolicy(policy *avimodels.AnalyticsPolicy) {
+	v.AnalyticsPolicy = policy
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -788,6 +796,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
+	}
+
+	if v.AnalyticsPolicy != nil {
+		checksum += lib.GetAnalyticsPolicyChecksum(v.AnalyticsPolicy)
 	}
 
 	v.CloudConfigCksum = checksum

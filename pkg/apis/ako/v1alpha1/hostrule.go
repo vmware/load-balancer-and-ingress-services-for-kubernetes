@@ -14,7 +14,9 @@
 
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -38,16 +40,17 @@ type HostRuleSpec struct {
 
 // HostRuleVirtualHost defines properties for a host
 type HostRuleVirtualHost struct {
-	AnalyticsProfile   string             `json:"analyticsProfile,omitempty"`
-	ApplicationProfile string             `json:"applicationProfile,omitempty"`
-	Datascripts        []string           `json:"datascripts,omitempty"`
-	EnableVirtualHost  *bool              `json:"enableVirtualHost,omitempty"`
-	ErrorPageProfile   string             `json:"errorPageProfile,omitempty"`
-	Fqdn               string             `json:"fqdn,omitempty"`
-	HTTPPolicy         HostRuleHTTPPolicy `json:"httpPolicy,omitempty"`
-	Gslb               HostRuleGSLB       `json:"gslb,omitempty"`
-	TLS                HostRuleTLS        `json:"tls,omitempty"`
-	WAFPolicy          string             `json:"wafPolicy,omitempty"`
+	AnalyticsProfile   string                   `json:"analyticsProfile,omitempty"`
+	ApplicationProfile string                   `json:"applicationProfile,omitempty"`
+	Datascripts        []string                 `json:"datascripts,omitempty"`
+	EnableVirtualHost  *bool                    `json:"enableVirtualHost,omitempty"`
+	ErrorPageProfile   string                   `json:"errorPageProfile,omitempty"`
+	Fqdn               string                   `json:"fqdn,omitempty"`
+	HTTPPolicy         HostRuleHTTPPolicy       `json:"httpPolicy,omitempty"`
+	Gslb               HostRuleGSLB             `json:"gslb,omitempty"`
+	TLS                HostRuleTLS              `json:"tls,omitempty"`
+	WAFPolicy          string                   `json:"wafPolicy,omitempty"`
+	AnalyticsPolicy    *HostRuleAnalyticsPolicy `json:"analyticsPolicy,omitempty"`
 }
 
 // HostRuleTLS holds secure host specific properties
@@ -90,4 +93,16 @@ type HostRuleList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 
 	Items []HostRule `json:"items"`
+}
+
+// HostRuleAnalyticsPolicy holds analytics policy objects
+type HostRuleAnalyticsPolicy struct {
+	FullClientLogs *FullClientLogs `json:"fullClientLogs,omitempty"`
+	LogAllHeaders  *bool           `json:"logAllHeaders,omitempty"`
+}
+
+// FullClientLogs hold the client log properties
+type FullClientLogs struct {
+	Enabled  *bool  `json:"enabled,omitempty"`
+	Throttle string `json:"throttle,omitempty"`
 }

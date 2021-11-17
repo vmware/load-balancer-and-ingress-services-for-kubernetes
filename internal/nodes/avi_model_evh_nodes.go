@@ -81,6 +81,9 @@ type AviVsEvhSniModel interface {
 
 	GetEnabled() *bool
 	SetEnabled(*bool)
+
+	GetAnalyticsPolicy() *avimodels.AnalyticsPolicy
+	SetAnalyticsPolicy(*avimodels.AnalyticsPolicy)
 }
 
 type AviEvhVsNode struct {
@@ -124,6 +127,7 @@ type AviEvhVsNode struct {
 	SSLKeyCertAviRef    string
 	Paths               []string
 	IngressNames        []string
+	AnalyticsPolicy     *avimodels.AnalyticsPolicy
 }
 
 // Implementing AviVsEvhSniModel
@@ -246,6 +250,13 @@ func (v *AviEvhVsNode) GetEnabled() *bool {
 
 func (v *AviEvhVsNode) SetEnabled(Enabled *bool) {
 	v.Enabled = Enabled
+}
+
+func (v *AviEvhVsNode) GetAnalyticsPolicy() *avimodels.AnalyticsPolicy {
+	return v.AnalyticsPolicy
+}
+func (v *AviEvhVsNode) SetAnalyticsPolicy(policy *avimodels.AnalyticsPolicy) {
+	v.AnalyticsPolicy = policy
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -493,6 +504,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
+	}
+
+	if v.AnalyticsPolicy != nil {
+		checksum += lib.GetAnalyticsPolicyChecksum(v.AnalyticsPolicy)
 	}
 
 	v.CloudConfigCksum = checksum
