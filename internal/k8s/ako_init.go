@@ -244,7 +244,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			lib.SetGRBACSupport()
 			delModels := delConfigFromData(cm.Data)
 			if !delModels {
-				status.ResetStatefulSetStatus()
+				status.ResetStatefulSetAnnotation()
 			}
 			validateUserInput, err := avicache.ValidateUserInput(aviclient)
 			if err != nil {
@@ -287,7 +287,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 						avicache.DeConfigureSeGroupLabels()
 					}
 				} else {
-					status.ResetStatefulSetStatus()
+					status.ResetStatefulSetAnnotation()
 					quickSyncCh <- struct{}{}
 				}
 			}
@@ -960,12 +960,12 @@ func (c *AviController) FullSyncK8s() error {
 // The rest layer would pick up the model key and delete the objects in Avi
 func (c *AviController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
-	status.AddStatefulSetStatus(lib.ObjectDeletionStartStatus, corev1.ConditionTrue)
+	status.AddStatefulSetAnnotation(lib.ObjectDeletionStartStatus)
 	allModels := objects.SharedAviGraphLister().GetAll()
 	allModelsMap := allModels.(map[string]interface{})
 	if len(allModelsMap) == 0 {
 		utils.AviLog.Infof("No Avi Object to delete, status would be updated in Statefulset")
-		status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus, corev1.ConditionFalse)
+		status.AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
 		return
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
@@ -999,10 +999,10 @@ func (c *AviController) DeleteModels() {
 	lib.SetConfigDeleteSyncChan()
 	select {
 	case <-lib.ConfigDeleteSyncChan:
-		status.AddStatefulSetStatus(lib.ObjectDeletionDoneStatus, corev1.ConditionFalse)
+		status.AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
 		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
 	case <-timeout:
-		status.AddStatefulSetStatus(lib.ObjectDeletionTimeoutStatus, corev1.ConditionUnknown)
+		status.AddStatefulSetAnnotation(lib.ObjectDeletionTimeoutStatus)
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 	}
 
