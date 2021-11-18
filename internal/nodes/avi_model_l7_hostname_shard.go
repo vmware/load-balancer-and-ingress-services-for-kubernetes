@@ -25,7 +25,173 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
+	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
+
+func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname string, routeIgrObj RouteIngressModel, insecureEdgeTermAllow bool, pathsvcMap HostMetadata, key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
+	var pathFQDNs []string
+
+	namespace := routeIgrObj.GetNamespace()
+	ingName := routeIgrObj.GetName()
+	utils.AviLog.Infof("key: %s, msg: Building the L7 pools for namespace: %s, hostname: %s", key, namespace, hostname)
+	vsNode := o.GetAviVS()
+
+	if len(vsNode) != 1 {
+		utils.AviLog.Warnf("key: %s, msg: more than one vs in model.", key)
+		return
+	}
+	var infraSettingName string
+	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
+		infraSettingName = aviInfraSetting.Name
+	}
+	pathFQDNs = append(pathFQDNs, hostname)
+
+	// Populate the hostmap with empty secret for insecure ingress
+	PopulateIngHostMap(namespace, hostname, ingName, "", pathsvcMap)
+	_, ingressHostMap := SharedHostNameLister().Get(hostname)
+	vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(hostname)
+	vsNode[0].ServiceMetadata.Namespace = namespace
+	vsNode[0].ServiceMetadata.HostNames = pathFQDNs
+	vsNode[0].AviMarkers = lib.PopulateVSNodeMarkers(namespace, hostname, infraSettingName)
+
+	// Update the VSVIP with the host information.
+	if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hostname) {
+		vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
+	}
+
+	found, gsFqdnCache := objects.SharedCRDLister().GetLocalFqdnToGSFQDNMapping(hostname)
+	gslbHostHeader := pathsvcMap.gslbHostHeader
+	if gslbHostHeader != "" {
+		utils.AviLog.Debugf("key: %s, msg: GSLB host header: %v", key, gslbHostHeader)
+		if gsFqdnCache != gslbHostHeader {
+			RemoveGSFqdnFromVIP(vsNode[0], gsFqdnCache, key)
+		}
+		// check if the Domain is already added, if not add it.
+		if !utils.HasElem(pathFQDNs, gslbHostHeader) {
+			pathFQDNs = append(pathFQDNs, gslbHostHeader)
+		}
+		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, gslbHostHeader) {
+			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, gslbHostHeader)
+		}
+		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(hostname, gslbHostHeader)
+	} else {
+		if found {
+			objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(hostname)
+			RemoveGSFqdnFromVIP(vsNode[0], gsFqdnCache, key)
+		}
+	}
+
+	RemoveRedirectHTTPPolicyInModel(vsNode[0], pathFQDNs, key)
+	vsNode[0].DeletSSLRefInDedicatedNode(key)
+	vsNode[0].DeleteSSLPort(key)
+	vsNode[0].DeleteSecureAppProfile(key)
+	objType := routeIgrObj.GetType()
+	isIngr := objType == utils.Ingress
+	pathsvc := pathsvcMap.ingressHPSvc
+
+	o.BuildPoolPGPolicyForDedicatedVS(vsNode, namespace, ingName, hostname, infraSettingName, key, pathFQDNs, pathsvc, insecureEdgeTermAllow, isIngr)
+	BuildL7HostRule(hostname, namespace, vsNode[0])
+}
+func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, namespace, ingName, hostname, infraSettingName, key string, pathFQDNs []string, paths []IngressHostPathSvc, insecureEdgeTermAllow, isIngr bool) {
+	localPGList := make(map[string]*AviPoolGroupNode)
+	var policyNode *AviHttpPolicySetNode
+	var pgfound bool
+	var priorityLabel string
+	var poolName string
+
+	pathSet := sets.NewString(vsNode[0].Paths...)
+	ingressNameSet := sets.NewString(vsNode[0].IngressNames...)
+	ingressNameSet.Insert(ingName)
+
+	httpPolName := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
+	for i, http := range vsNode[0].HttpPolicyRefs {
+		if http.Name == httpPolName {
+			policyNode = vsNode[0].HttpPolicyRefs[i]
+		}
+	}
+	if policyNode == nil {
+		policyNode = &AviHttpPolicySetNode{Name: httpPolName, Tenant: lib.GetTenant()}
+		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, policyNode)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: The pathsvc mapping: %v", key, paths)
+	for _, obj := range paths {
+		var pgNode *AviPoolGroupNode
+		httpPGPath := AviHostPathPortPoolPG{Host: pathFQDNs}
+
+		if obj.PathType == networkingv1.PathTypeExact {
+			httpPGPath.MatchCriteria = "EQUALS"
+		} else {
+			// PathTypePrefix and PathTypeImplementationSpecific
+			// default behaviour for AKO set be Prefix match on the path
+			httpPGPath.MatchCriteria = "BEGINS_WITH"
+		}
+
+		if obj.Path != "" {
+			httpPGPath.Path = append(httpPGPath.Path, obj.Path)
+			priorityLabel = hostname + obj.Path
+		} else {
+			priorityLabel = hostname
+		}
+		if isIngr {
+			poolName = lib.GetSniPoolName(ingName, namespace, hostname, obj.Path, infraSettingName, vsNode[0].Dedicated)
+		} else {
+			poolName = lib.GetSniPoolName(ingName, namespace, hostname, obj.Path, infraSettingName, vsNode[0].Dedicated, obj.ServiceName)
+		}
+
+		if lib.GetNoPGForSNI() && isIngr {
+			// If this flag is switched on at a time when the pool is referred by a PG, then the httppolicyset cannot refer to the same pool unless the pool is detached from the poolgroup
+			// first, and that is going to mess up the ordering. Hence creating a pool with a different name here. The previous pool will become stale in the process and will get deleted.
+			// An AKO reboot would be required to clean up any stale pools if left behind.
+			poolName = poolName + "--" + lib.PoolNameSuffixForHttpPolToPool
+			httpPGPath.Pool = poolName
+			utils.AviLog.Infof("key: %s, msg: using pool name: %s instead of poolgroups for http policy set", key, poolName)
+		} else {
+			pgName := lib.GetSniPGName(ingName, namespace, hostname, obj.Path, infraSettingName, vsNode[0].Dedicated)
+			//var pgfound bool
+			pgNode, pgfound = localPGList[pgName]
+			if !pgfound {
+				pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
+			}
+			localPGList[pgName] = pgNode
+			httpPGPath.PoolGroup = pgNode.Name
+			pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, hostname, infraSettingName, []string{ingName}, []string{obj.Path})
+		}
+		var storedHosts []string
+		storedHosts = append(storedHosts, hostname)
+		poolNode := buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname, infraSettingName, obj.ServiceName, storedHosts, insecureEdgeTermAllow, obj)
+		if !lib.GetNoPGForSNI() || !isIngr {
+			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
+			ratio := obj.weight
+			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
+			if vsNode[0].CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
+				vsNode[0].ReplaceSniPGInSNINode(pgNode, key)
+			}
+		}
+		if vsNode[0].CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
+			// Replace the poolNode.
+			vsNode[0].ReplaceSniPoolInSNINode(poolNode, key)
+		}
+		if !pgfound {
+			pathSet.Insert(obj.Path)
+			hppMapName := lib.GetSniHppMapName(ingName, namespace, hostname, obj.Path, infraSettingName, vsNode[0].Dedicated)
+			httpPGPath.Name = hppMapName
+			httpPGPath.IngName = ingName
+			policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, hostname, infraSettingName, ingressNameSet.List(), pathSet.List())
+			httpPGPath.CalculateCheckSum()
+			if vsNode[0].CheckHttpPolNameNChecksum(httpPolName, hppMapName, httpPGPath.Checksum) {
+				vsNode[0].ReplaceSniHTTPRefInSNINode(httpPGPath, httpPolName, key)
+			}
+		}
+		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], true, vsNode[0].Dedicated)
+	}
+	vsNode[0].Paths = pathSet.List()
+	vsNode[0].IngressNames = ingressNameSet.List()
+	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. NodeChecksum for Insecure Dedicated Vs :%s is :%v", key, vsNode[0].Name, vsNode[0].GetCheckSum())
+}
 
 func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, routeIgrObj RouteIngressModel, pathsvc []IngressHostPathSvc, gslbHostHeader string, insecureEdgeTermAllow bool, key string) {
 	o.Lock.Lock()
@@ -77,10 +243,10 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 		for _, pool := range poolNodes {
 			if pool.Name == poolName {
 				o.RemovePoolNodeRefs(pool.Name)
+				break
 			}
 		}
 		// First retrieve the FQDNs from the cache and update the model
-
 		var storedHosts []string
 		storedHosts = append(storedHosts, hostname)
 		RemoveFQDNsFromModel(vsNode[0], storedHosts, key)
@@ -89,51 +255,14 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 			if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hostname) {
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
 			}
-			poolNode := &AviPoolNode{
-				Name:          poolName,
-				IngressName:   ingName,
-				PortName:      obj.PortName,
-				Tenant:        lib.GetTenant(),
-				PriorityLabel: priorityLabel,
-				Port:          obj.Port,
-				TargetPort:    obj.TargetPort,
-				ServiceMetadata: lib.ServiceMetadataObj{
-					IngressName:           ingName,
-					Namespace:             namespace,
-					HostNames:             storedHosts,
-					PoolRatio:             obj.weight,
-					InsecureEdgeTermAllow: insecureEdgeTermAllow,
-				},
-				VrfContext: lib.GetVrf(),
-			}
-			if lib.GetT1LRPath() != "" {
-				poolNode.T1Lr = lib.GetT1LRPath()
-				// Unset the poolnode's vrfcontext.
-				poolNode.VrfContext = ""
-			}
-			serviceType := lib.GetServiceType()
-			if serviceType == lib.NodePortLocal {
-				if servers := PopulateServersForNPL(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
-					poolNode.Servers = servers
-				}
-			} else if serviceType == lib.NodePort {
-				if servers := PopulateServersForNodePort(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
-					poolNode.Servers = servers
-				}
-			} else {
-				if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
-					poolNode.Servers = servers
-				}
-			}
-			//In Insecure SNI VS, only pool node should have markers.
-			poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hostname, infraSettingName, serviceName, []string{ingName}, []string{obj.Path})
+			poolNode := buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname, infraSettingName, serviceName, storedHosts, insecureEdgeTermAllow, obj)
 			vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
 			utils.AviLog.Debugf("key: %s, msg: the pools after append are: %v", key, utils.Stringify(vsNode[0].PoolRefs))
 		}
 
 	}
 	for _, obj := range pathsvc {
-		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], false)
+		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], false, vsNode[0].Dedicated)
 	}
 
 	// Reset the PG Node members and rebuild them
@@ -146,7 +275,48 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 	}
 }
 
-func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key string, infraSettingName string, removeFqdn, removeRedir, secure bool) {
+func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname, infraSettingName, serviceName string, storedHosts []string, insecureEdgeTermAllow bool, obj IngressHostPathSvc) *AviPoolNode {
+	poolNode := &AviPoolNode{
+		Name:          poolName,
+		IngressName:   ingName,
+		PortName:      obj.PortName,
+		Tenant:        lib.GetTenant(),
+		PriorityLabel: priorityLabel,
+		Port:          obj.Port,
+		TargetPort:    obj.TargetPort,
+		ServiceMetadata: lib.ServiceMetadataObj{
+			IngressName:           ingName,
+			Namespace:             namespace,
+			HostNames:             storedHosts,
+			PoolRatio:             obj.weight,
+			InsecureEdgeTermAllow: insecureEdgeTermAllow,
+		},
+		VrfContext: lib.GetVrf(),
+	}
+	if lib.GetT1LRPath() != "" {
+		poolNode.T1Lr = lib.GetT1LRPath()
+		// Unset the poolnode's vrfcontext.
+		poolNode.VrfContext = ""
+	}
+	serviceType := lib.GetServiceType()
+	if serviceType == lib.NodePortLocal {
+		if servers := PopulateServersForNPL(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+			poolNode.Servers = servers
+		}
+	} else if serviceType == lib.NodePort {
+		if servers := PopulateServersForNodePort(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+			poolNode.Servers = servers
+		}
+	} else {
+		if servers := PopulateServers(poolNode, namespace, obj.ServiceName, true, key); servers != nil {
+			poolNode.Servers = servers
+		}
+	}
+	poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hostname, infraSettingName, serviceName, []string{ingName}, []string{obj.Path})
+	return poolNode
+}
+
+func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key string, infraSettingName string, removeFqdn, removeRedir, secure bool) bool {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
@@ -154,8 +324,9 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 	ingName := routeIgrObj.GetName()
 	vsNode := o.GetAviVS()
 	var poolName string
+
 	keepSni := false
-	if !secure {
+	if !secure && !vsNode[0].Dedicated {
 		// Fetch the ingress pools that are present in the model and delete them.
 		poolNodes := o.GetAviPoolNodesByIngress(namespace, ingName)
 		utils.AviLog.Debugf("key: %s, msg: Pool Nodes to delete for ingress: %s", key, utils.Stringify(poolNodes))
@@ -196,7 +367,9 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 			RemoveHeaderRewriteHTTPPolicyInModel(vsNode[0], hostname, key)
 		}
 	} else {
-		// Remove the ingress from the hostmap
+		isIngr := routeIgrObj.GetType() == utils.Ingress
+		// SNI VSes donot have secretname in their names
+		// Remove the ingress from the hostmap if it secure or dedicated vs
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(hostname)
 		if hostMapOk {
 			// Replace the ingress map for this host.
@@ -204,10 +377,6 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 			delete(ingressHostMap.HostNameMap, keyToRemove)
 			SharedHostNameLister().Save(hostname, ingressHostMap)
 		}
-
-		isIngr := routeIgrObj.GetType() == utils.Ingress
-		// SNI VSes donot have secretname in their names
-
 		sniNodeName := lib.GetSniNodeName(infraSettingName, hostname)
 		utils.AviLog.Infof("key: %s, msg: sni node to delete: %s", key, sniNodeName)
 		keepSni = o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, pathSvc, vsNode, key, isIngr, infraSettingName)
@@ -227,59 +396,100 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 		hostnames = append(hostnames, hostname)
 		RemoveRedirectHTTPPolicyInModel(vsNode[0], hostnames, key)
 	}
-
+	if vsNode[0].Dedicated && !keepSni {
+		return true
+	}
+	return false
+}
+func (o *AviObjectGraph) manipulateVsNode(vsNode *AviVsNode, ingName, namespace, hostname, infraSettingName string, pathSvc map[string][]string, isIngr bool) {
+	for path, services := range pathSvc {
+		pgName := lib.GetSniPGName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
+		pgNode := vsNode.GetPGForVSByName(pgName)
+		for _, svc := range services {
+			var sniPool string
+			if isIngr {
+				sniPool = lib.GetSniPoolName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
+			} else {
+				sniPool = lib.GetSniPoolName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated, svc)
+			}
+			// Pls decprecate when PGs have http caching
+			if lib.GetNoPGForSNI() && isIngr {
+				sniPool = sniPool + "--" + lib.PoolNameSuffixForHttpPolToPool
+			}
+			o.RemovePoolNodeRefsFromSni(sniPool, vsNode)
+			o.RemovePoolRefsFromPG(sniPool, pgNode)
+		}
+		// Remove the SNI PG if it has no member
+		if pgNode != nil {
+			if len(pgNode.Members) == 0 {
+				o.RemovePGNodeRefs(pgName, vsNode)
+				hppmapname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
+				httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
+				o.RemoveHTTPRefsFromSni(httppolname, hppmapname, vsNode)
+			}
+		}
+		// Keeping this block separate for deprecation later.
+		if lib.GetNoPGForSNI() && isIngr {
+			hppmapname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
+			httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
+			o.RemoveHTTPRefsFromSni(httppolname, hppmapname, vsNode)
+		}
+	}
 }
 
 func (o *AviObjectGraph) ManipulateSniNode(currentSniNodeName, ingName, namespace, hostname string, pathSvc map[string][]string, vsNode []*AviVsNode, key string, isIngr bool, infraSettingName string) bool {
-	for _, modelSniNode := range vsNode[0].SniNodes {
-		if currentSniNodeName != modelSniNode.Name {
-			continue
-		}
-		for path, services := range pathSvc {
-			pgName := lib.GetSniPGName(ingName, namespace, hostname, path, infraSettingName)
-			pgNode := modelSniNode.GetPGForVSByName(pgName)
-			for _, svc := range services {
-				var sniPool string
-				if isIngr {
-					sniPool = lib.GetSniPoolName(ingName, namespace, hostname, path, infraSettingName)
-				} else {
-					sniPool = lib.GetSniPoolName(ingName, namespace, hostname, path, infraSettingName, svc)
-				}
-				// Pls decprecate when PGs have http caching
-				if lib.GetNoPGForSNI() && isIngr {
-					sniPool = sniPool + "--" + lib.PoolNameSuffixForHttpPolToPool
-				}
-				o.RemovePoolNodeRefsFromSni(sniPool, modelSniNode)
-				o.RemovePoolRefsFromPG(sniPool, pgNode)
-			}
-			// Remove the SNI PG if it has no member
-			if pgNode != nil {
-				if len(pgNode.Members) == 0 {
-					o.RemovePGNodeRefs(pgName, modelSniNode)
-					hppmapname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName)
-					httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
-					o.RemoveHTTPRefsFromSni(httppolname, hppmapname, modelSniNode)
-				}
-			}
-			// Keeping this block separate for deprecation later.
-			if lib.GetNoPGForSNI() && isIngr {
-				hppmapname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName)
-				httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
-				o.RemoveHTTPRefsFromSni(httppolname, hppmapname, modelSniNode)
-			}
-		}
-		// After going through the paths, if the SNI node does not have any PGs - then delete it.
-		if len(modelSniNode.PoolRefs) == 0 {
-			RemoveSniInModel(currentSniNodeName, vsNode, key)
-			// Remove the snihost mapping
+	if vsNode[0].Dedicated {
+		o.manipulateVsNode(vsNode[0], ingName, namespace, hostname, infraSettingName, pathSvc, isIngr)
+		if len(vsNode[0].PoolRefs) == 0 {
+			// Remove the host mapping
 			SharedHostNameLister().Delete(hostname)
+			vsNode[0].DeletSSLRefInDedicatedNode(key)
 			return false
 		}
+	} else {
+		for _, modelSniNode := range vsNode[0].SniNodes {
+			if currentSniNodeName != modelSniNode.Name {
+				continue
+			}
+			o.manipulateVsNode(modelSniNode, ingName, namespace, hostname, infraSettingName, pathSvc, isIngr)
+			// After going through the paths, if the SNI node does not have any PGs - then delete it.
+			if len(modelSniNode.PoolRefs) == 0 {
+				RemoveSniInModel(currentSniNodeName, vsNode, key)
+				// Remove the snihost mapping
+				SharedHostNameLister().Delete(hostname)
+				return false
+			}
+		}
 	}
-
 	return true
 }
 
+func (vsNode *AviVsNode) DeleteSSLPort(key string) {
+	for i, port := range vsNode.PortProto {
+		if port.Port == lib.SSLPort {
+			vsNode.PortProto = append(vsNode.PortProto[:i], vsNode.PortProto[i+1:]...)
+		}
+	}
+}
+func (vsNode *AviVsNode) AddSSLPort(key string) {
+	for _, port := range vsNode.PortProto {
+		if port.Port == lib.SSLPort {
+			return
+		}
+	}
+	httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true}
+	vsNode.PortProto = append(vsNode.PortProto, httpsPort)
+}
+func (vsNode *AviVsNode) DeletSSLRefInDedicatedNode(key string) {
+	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
+	vsNode.SSLProfileRef = ""
+	vsNode.CACertRefs = []*AviTLSKeyCertNode{}
+}
+func (vsNode *AviVsNode) DeleteSecureAppProfile(key string) {
+	if vsNode.ApplicationProfile == utils.DEFAULT_L7_SECURE_APP_PROFILE {
+		vsNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
+	}
+}
 func getPaths(pathMapArr []IngressHostPathSvc) []string {
 	// Returns a list of paths for a given host
 	paths := []string{}
@@ -289,44 +499,34 @@ func getPaths(pathMapArr []IngressHostPathSvc) []string {
 	return paths
 }
 
-func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) map[string][]IngressHostPathSvc {
+func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) (map[string][]IngressHostPathSvc, bool) {
 	hostPathSvcMap := make(map[string][]IngressHostPathSvc)
 	var infraSettingName string
 	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
 		infraSettingName = aviInfraSetting.Name
 	}
-
+	dedicated := false
 	for sniHost, paths := range tlssetting.Hosts {
 		var sniHosts []string
 		hostPathSvcMap[sniHost] = paths.ingressHPSvc
-		hostMap := HostNamePathSecrets{paths: getPaths(paths.ingressHPSvc), secretName: tlssetting.SecretName}
-		found, ingressHostMap := SharedHostNameLister().Get(sniHost)
-		if found {
-			// Replace the ingress map for this host.
-			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
-			ingressHostMap.GetIngressesForHostName(sniHost)
-		} else {
-			// Create the map
-			ingressHostMap = NewSecureHostNameMapProp()
-			ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
-		}
-		SharedHostNameLister().Save(sniHost, ingressHostMap)
+		PopulateIngHostMap(namespace, sniHost, ingName, tlssetting.SecretName, paths)
+		_, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		sniHosts = append(sniHosts, sniHost)
 		_, shardVsName := DeriveShardVS(sniHost, key, routeIgrObj)
-
+		dedicated = shardVsName.Dedicated
 		// For each host, create a SNI node with the secret giving us the key and cert.
 		// construct a SNI VS node per tls setting which corresponds to one secret
-		model_name := lib.GetModelName(lib.GetTenant(), shardVsName)
+		model_name := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName, key, routeIgrObj)
+			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName.Name, key, routeIgrObj, shardVsName.Dedicated, true)
 		}
 
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 		if len(vsNode) < 1 {
-			return nil
+			return nil, dedicated
 		}
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
@@ -343,12 +543,13 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		}
 	}
 
-	return hostPathSvcMap
+	return hostPathSvcMap, dedicated
 }
 
 func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, sniHosts []string, tlssetting TlsSettings, ingName, namespace, infraSettingName, sniHost, gsFqdn string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
+	var sniNode *AviVsNode
 	vsNode := o.GetAviVS()
 
 	certsBuilt := false
@@ -359,30 +560,41 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		certsBuilt = true
 	}
 
-	sniNodeName := lib.GetSniNodeName(infraSettingName, sniHost)
-	sniNode := vsNode[0].GetSniNodeForName(sniNodeName)
-	if sniNode == nil {
-		sniNode = &AviVsNode{
-			Name:         sniNodeName,
-			VHParentName: vsNode[0].Name,
-			Tenant:       lib.GetTenant(),
-			IsSNIChild:   true,
-			ServiceMetadata: lib.ServiceMetadataObj{
-				NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
-				Namespace:            namespace,
-				HostNames:            sniHosts,
-			},
+	isDedicated := vsNode[0].Dedicated
+	if !isDedicated {
+		sniNodeName := lib.GetSniNodeName(infraSettingName, sniHost)
+		sniNode = vsNode[0].GetSniNodeForName(sniNodeName)
+		if sniNode == nil {
+			sniNode = &AviVsNode{
+				Name:         sniNodeName,
+				VHParentName: vsNode[0].Name,
+				Tenant:       lib.GetTenant(),
+				IsSNIChild:   true,
+				ServiceMetadata: lib.ServiceMetadataObj{
+					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
+					Namespace:            namespace,
+					HostNames:            sniHosts,
+				},
+			}
+		} else {
+			// The SNI node exists, just update the svc metadata
+			sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
+			sniNode.ServiceMetadata.Namespace = namespace
+			sniNode.ServiceMetadata.HostNames = sniHosts
 		}
-	} else {
-		// The SNI node exists, just update the svc metadata
-		sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
-		sniNode.ServiceMetadata.Namespace = namespace
-		sniNode.ServiceMetadata.HostNames = sniHosts
-	}
 
-	sniNode.ServiceEngineGroup = lib.GetSEGName()
-	sniNode.VrfContext = lib.GetVrf()
-	sniNode.AviMarkers = lib.PopulateVSNodeMarkers(namespace, sniHost, infraSettingName)
+		sniNode.ServiceEngineGroup = lib.GetSEGName()
+		sniNode.VrfContext = lib.GetVrf()
+		sniNode.AviMarkers = lib.PopulateVSNodeMarkers(namespace, sniHost, infraSettingName)
+	} else {
+		//For dedicated VS
+		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
+		vsNode[0].ServiceMetadata.Namespace = namespace
+		vsNode[0].ServiceMetadata.HostNames = sniHosts
+		vsNode[0].AddSSLPort(key)
+		vsNode[0].ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE
+		vsNode[0].AviMarkers = lib.PopulateVSNodeMarkers(namespace, sniHost, infraSettingName)
+	}
 	var sniHostToRemove []string
 	sniHostToRemove = append(sniHostToRemove, sniHost)
 	found, gsFqdnCache := objects.SharedCRDLister().GetLocalFqdnToGSFQDNMapping(sniHost)
@@ -391,12 +603,21 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		if found {
 			sniHostToRemove = append(sniHostToRemove, gsFqdnCache)
 			objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(sniHost)
+			if vsNode[0].Dedicated {
+				RemoveGSFqdnFromVIP(vsNode[0], gsFqdnCache, key)
+			}
 		}
 	} else {
 		if gsFqdn != gsFqdnCache {
 			sniHostToRemove = append(sniHostToRemove, gsFqdnCache)
+			if vsNode[0].Dedicated {
+				RemoveGSFqdnFromVIP(vsNode[0], gsFqdnCache, key)
+			}
 		}
 		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(sniHost, gsFqdn)
+	}
+	if isDedicated {
+		sniNode = vsNode[0]
 	}
 	if !certsBuilt {
 		certsBuilt = o.BuildTlsCertNode(routeIgrObj.GetSvcLister(), sniNode, namespace, tlssetting, key, infraSettingName, sniHost)
@@ -404,16 +625,18 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 	if certsBuilt {
 		isIngr := routeIgrObj.GetType() == utils.Ingress
 		o.BuildPolicyPGPoolsForSNI(vsNode, sniNode, namespace, ingName, tlssetting, sniSecretName, key, isIngr, infraSettingName, sniHost)
-		foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
-		if !foundSniModel {
-			vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
+		if !isDedicated {
+			foundSniModel := FindAndReplaceSniInModel(sniNode, vsNode, key)
+			if !foundSniModel {
+				vsNode[0].SniNodes = append(vsNode[0].SniNodes, sniNode)
+			}
 		}
 		RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
 		if tlssetting.redirect {
 			if gsFqdn != "" {
 				sniHosts = append(sniHosts, gsFqdn)
 			}
-			o.BuildPolicyRedirectForVS(vsNode, sniHosts, key)
+			o.BuildPolicyRedirectForVS(vsNode, sniHosts, namespace, infraSettingName, sniHost, key)
 		}
 		BuildL7HostRule(sniHost, key, sniNode)
 	} else {
@@ -426,7 +649,9 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		}
 		// Since the cert couldn't be built, check if this SNI is affected by only in ingress if so remove the sni node from the model
 		if len(ingressHostMap.GetIngressesForHostName(sniHost)) == 0 {
-			RemoveSniInModel(sniNode.Name, vsNode, key)
+			if !isDedicated {
+				RemoveSniInModel(sniNode.Name, vsNode, key)
+			}
 			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
 			RemoveFQDNsFromModel(vsNode[0], sniHosts, key)
 		}

@@ -386,6 +386,7 @@ type AviVsNode struct {
 	Paths                 []string
 	IngressNames          []string
 	AnalyticsPolicy       *avimodels.AnalyticsPolicy
+	Dedicated             bool
 }
 
 // Implementing AviVsEvhSniModel
@@ -706,7 +707,6 @@ func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key
 	}
 	// If we have reached here it means we haven't found a match. Just append.
 	o.SSLKeyCertRefs = append(o.SSLKeyCertRefs, newSslNode)
-	return
 }
 
 func (o *AviVsNode) CheckHttpPolNameNChecksum(httpPolName, hppMapName string, checksum uint32) bool {

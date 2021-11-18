@@ -89,7 +89,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 		}
 		utils.AviLog.Debugf("key: %s, msg: VS create/update.", key)
 
-		if strings.Contains(name, "-EVH-") && lib.IsEvhEnabled() {
+		if strings.Contains(name, "-EVH") && lib.IsEvhEnabled() {
 			if len(avimodel.GetAviEvhVS()) != 1 {
 				utils.AviLog.Warnf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviEvhVS())
 				return
@@ -228,6 +228,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var sni_to_delete []avicache.NamespaceName
 	var httppol_to_delete []avicache.NamespaceName
 	var l4pol_to_delete []avicache.NamespaceName
+	var sslkey_cert_delete []avicache.NamespaceName
 	var vsvipErr error
 	var publishKey string
 
@@ -251,6 +252,13 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
 				return
 			}
+		}
+		if aviVsNode.Dedicated {
+			// CAcerts have to be created first, as they are referred by the keycerts
+			sslkey_cert_delete, rest_ops = rest.CACertCU(aviVsNode.CACertRefs, vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
+			// SSLKeyCertCollection which did not match cacerts are present in the list sslkey_cert_delete,
+			// which shuld be the new SSLKeyCertCollection
+			sslkey_cert_delete, rest_ops = rest.SSLKeyCertCU(aviVsNode.SSLKeyCertRefs, sslkey_cert_delete, namespace, rest_ops, key)
 		}
 		pools_to_delete, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, vs_cache_obj, namespace, rest_ops, key)
 		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
@@ -280,7 +288,10 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 				return
 			}
 		}
-
+		if aviVsNode.Dedicated {
+			_, rest_ops = rest.CACertCU(aviVsNode.CACertRefs, []avicache.NamespaceName{}, namespace, rest_ops, key)
+			_, rest_ops = rest.SSLKeyCertCU(aviVsNode.SSLKeyCertRefs, nil, namespace, rest_ops, key)
+		}
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
@@ -311,6 +322,9 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var rest_ops []*utils.RestOp
 	vsKey = avicache.NamespaceName{Namespace: namespace, Name: vsName}
 	rest_ops = rest.VSVipDelete(vsvip_to_delete, namespace, rest_ops, key)
+	if aviVsNode.Dedicated {
+		rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
+	}
 	rest_ops = rest.HTTPPolicyDelete(httppol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
