@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -58,6 +59,70 @@ var ShardSizeMap = map[string]uint32{
 var fqdnMap = map[string]string{
 	"default": AutoFQDNDefault,
 	"flat":    AutoFQDNFlat,
+}
+
+type CRDMetadata struct {
+	Type   string `json:"type"`
+	Value  string `json:"value"`
+	Status string `json:"status"`
+}
+
+type ServiceMetadataObj struct {
+	NamespaceIngressName  []string    `json:"namespace_ingress_name"`
+	IngressName           string      `json:"ingress_name"`
+	Namespace             string      `json:"namespace"`
+	HostNames             []string    `json:"hostnames"`
+	NamespaceServiceName  []string    `json:"namespace_svc_name"` // []string{ns/name}
+	CRDStatus             CRDMetadata `json:"crd_status"`
+	PoolRatio             int32       `json:"pool_ratio"`
+	PassthroughParentRef  string      `json:"passthrough_parent_ref"`
+	PassthroughChildRef   string      `json:"passthrough_child_ref"`
+	Gateway               string      `json:"gateway"` // ns/name
+	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
+}
+
+type ServiceMetadataMappingObjType string
+
+const (
+	GatewayVS            ServiceMetadataMappingObjType = "GATEWAY_VS"
+	ChildVS              ServiceMetadataMappingObjType = "CHILD_VS"
+	ServiceTypeLBVS      ServiceMetadataMappingObjType = "SERVICELB_VS"
+	GatewayPool          ServiceMetadataMappingObjType = "GATEWAY_POOL"
+	SNIInsecureOrEVHPool ServiceMetadataMappingObjType = "SNI_INSECURE_OR_EVH_POOL"
+)
+
+func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetadataMappingObjType {
+	if c.Gateway != "" {
+		// Check for `Gateway` in VS serviceMetadata. Present in case of
+		// 1) Advl4 VS
+		// 2) SvcApi VS
+		return GatewayVS
+	} else if len(c.NamespaceIngressName) > 0 {
+		// Check for `NamespaceIngressName` in VS serviceMetadata. Present in case of
+		// 1) SNI Secure VS
+		// 2) EVH Secure/Insecure VS
+		return ChildVS
+	} else if objType == "VS" && len(c.NamespaceServiceName) > 0 {
+		// Check for `NamesppaceServiceName` in VS serviceMetadata. Present in case of
+		// 1) Service TypeLB L4VSes
+		return ServiceTypeLBVS
+	} else if objType == "Pool" && len(c.NamespaceServiceName) > 0 {
+		// Check for `NamespaceServiceName` in Pool serviceMetadata. Present in case of
+		// 1) Advl4 Pools: without hostname information
+		// 2) SvcApi Pools: with hostname information
+		return GatewayPool
+	} else if c.Namespace != "" && c.IngressName != "" {
+		// Check for `Namespace` and `IngressName` in Pool serviceMetadata. Present in case of
+		// 1) Insecure Pools (SNI)
+		// 2) Secure/Insecure Pools (EVH)
+		return SNIInsecureOrEVHPool
+	}
+	return ""
+}
+
+type VSNameMetadata struct {
+	Name      string
+	Dedicated bool
 }
 
 var NamePrefix string
@@ -115,6 +180,40 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
+func GetFqdns(vsName, key string, subDomains []string) ([]string, string) {
+	var fqdns []string
+	var fqdn string
+	autoFQDN := true
+	if GetL4FqdnFormat() == AutoFQDNDisabled {
+		autoFQDN = false
+	}
+	if subDomains != nil && autoFQDN {
+		// honour defaultSubDomain from values.yaml if specified
+		defaultSubDomain := GetDomain()
+		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
+			subDomains = []string{defaultSubDomain}
+		}
+
+		// subDomains[0] would either have the defaultSubDomain value
+		// or would default to the first dns subdomain it gets from the dns profile
+		subdomain := subDomains[0]
+		if strings.HasPrefix(subDomains[0], ".") {
+			subdomain = strings.Replace(subDomains[0], ".", "", -1)
+		}
+		if GetL4FqdnFormat() == AutoFQDNDefault {
+			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
+			fqdn = vsName + "." + GetTenant() + "." + subdomain
+		} else if GetL4FqdnFormat() == AutoFQDNFlat {
+			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
+			fqdn = vsName + "-" + GetTenant() + "." + subdomain
+		}
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(GetTenant(), vsName))
+		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
+		fqdns = append(fqdns, fqdn)
+	}
+	return fqdns, fqdn
+}
+
 func SetDisableSync(state bool) {
 	DisableSync = state
 	utils.AviLog.Infof("Setting Disable Sync to: %v", state)
@@ -142,6 +241,24 @@ func SetGRBACSupport() {
 		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is less than %s.", controllerVersion, ControllerVersion2015)
 		gRBAC = false
 	}
+}
+
+func IsShardVS(vsName string) bool {
+	if GetshardSize() == 0 {
+		//Dedicated mode
+		return false
+	}
+	if IsEvhEnabled() {
+		if strings.Contains(vsName, ShardEVHVSPrefix) {
+			return true
+		}
+	} else {
+		//Second condition is for migration from evh -> sni
+		if strings.Contains(vsName, ShardVSPrefix) && !strings.Contains(vsName, ShardEVHVSPrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func GetGRBACSupport() bool {
@@ -285,7 +402,7 @@ func GetSniNodeName(infrasetting, sniHostName string) string {
 	return Encode(namePrefix+sniHostName, SNIVS)
 }
 
-func GetSniPoolName(ingName, namespace, host, path, infrasetting string, args ...string) string {
+func GetSniPoolName(ingName, namespace, host, path, infrasetting string, dedicatedVS bool, args ...string) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	var poolName string
 	if infrasetting != "" {
@@ -296,6 +413,9 @@ func GetSniPoolName(ingName, namespace, host, path, infrasetting string, args ..
 	if len(args) > 0 {
 		svcName := args[0]
 		poolName = poolName + "-" + svcName
+	}
+	if dedicatedVS {
+		poolName += DedicatedSuffix
 	}
 	CheckObjectNameLength(poolName, Pool)
 	return poolName
@@ -308,15 +428,21 @@ func GetSniHttpPolName(namespace, host, infrasetting string) string {
 	}
 	return Encode(NamePrefix+namespace+"-"+host, HTTPPS)
 }
-func GetSniHppMapName(ingName, namespace, host, path, infrasetting string) string {
+func GetSniHppMapName(ingName, namespace, host, path, infrasetting string, dedicatedVS bool) string {
 	path = strings.ReplaceAll(path, "/", "_")
+	hppmap := NamePrefix
 	if infrasetting != "" {
-		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host+path+"-"+ingName, HPPMAP)
+		hppmap += infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
+	} else {
+		hppmap += namespace + "-" + host + path + "-" + ingName
 	}
-	return Encode(NamePrefix+namespace+"-"+host+path+"-"+ingName, HPPMAP)
+	if dedicatedVS {
+		hppmap += DedicatedSuffix
+	}
+	return Encode(hppmap, HPPMAP)
 }
 
-func GetSniPGName(ingName, namespace, host, path, infrasetting string) string {
+func GetSniPGName(ingName, namespace, host, path, infrasetting string, dedicatedVS bool) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	var sniPGName string
 	if infrasetting != "" {
@@ -324,23 +450,29 @@ func GetSniPGName(ingName, namespace, host, path, infrasetting string) string {
 	} else {
 		sniPGName = NamePrefix + namespace + "-" + host + path + "-" + ingName
 	}
+	if dedicatedVS {
+		sniPGName += DedicatedSuffix
+	}
 	CheckObjectNameLength(sniPGName, PG)
 	return sniPGName
 }
 
 // evh child
-func GetEvhPoolName(ingName, namespace, host, path, infrasetting, svcName string) string {
-	poolName := GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName)
+func GetEvhPoolName(ingName, namespace, host, path, infrasetting, svcName string, dedicatedVS bool) string {
+	poolName := GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName, dedicatedVS)
 	return Encode(poolName, Pool)
 }
 
-func GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName string) string {
+func GetEvhPoolNameNoEncoding(ingName, namespace, host, path, infrasetting, svcName string, dedicatedVS bool) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	namePrefix := NamePrefix
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
 	}
 	poolName := namePrefix + namespace + "-" + host + path + "-" + ingName + "-" + svcName
+	if dedicatedVS {
+		poolName += DedicatedSuffix
+	}
 	return poolName
 }
 
@@ -351,13 +483,19 @@ func GetEvhNodeName(host, infrasetting string) string {
 	return Encode(NamePrefix+host, EVHVS)
 }
 
-func GetEvhPGName(ingName, namespace, host, path, infrasetting string) string {
+func GetEvhPGName(ingName, namespace, host, path, infrasetting string, dedicatedVs bool) string {
 	path = strings.ReplaceAll(path, "/", "_")
 
+	evhPG := NamePrefix
 	if infrasetting != "" {
-		return Encode(NamePrefix+infrasetting+"-"+namespace+"-"+host+path+"-"+ingName, PG)
+		evhPG += infrasetting + "-" + namespace + "-" + host + path + "-" + ingName
+	} else {
+		evhPG += namespace + "-" + host + path + "-" + ingName
 	}
-	return Encode(NamePrefix+namespace+"-"+host+path+"-"+ingName, PG)
+	if dedicatedVs {
+		evhPG += DedicatedSuffix
+	}
+	return Encode(evhPG, PG)
 }
 
 func GetTLSKeyCertNodeName(infrasetting, sniHostName string) string {

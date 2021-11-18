@@ -135,7 +135,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniMod
 // BuildPoolHTTPRule notes
 // when we get an ingress update and we are building the corresponding pools of that ingress
 // we need to get all httprules which match ingress's host/path
-func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key string, vsNode AviVsEvhSniModel, isSNI bool) {
+func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key string, vsNode AviVsEvhSniModel, isSNI, isDedicated bool) {
 	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
 	if !found {
 		utils.AviLog.Debugf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
@@ -205,7 +205,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 			// FOR EVH: Build poolname using marker fields.
 			if lib.IsEvhEnabled() && pool.AviMarkers.Namespace != "" {
 				poolName = lib.GetEvhPoolNameNoEncoding(pool.AviMarkers.IngressName[0], pool.AviMarkers.Namespace, pool.AviMarkers.Host,
-					pool.AviMarkers.Path[0], pool.AviMarkers.InfrasettingName, pool.AviMarkers.ServiceName)
+					pool.AviMarkers.Path[0], pool.AviMarkers.InfrasettingName, pool.AviMarkers.ServiceName, isDedicated)
 			} else {
 				poolName = pool.Name
 			}
@@ -273,5 +273,4 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 		}
 	}
 
-	return
 }

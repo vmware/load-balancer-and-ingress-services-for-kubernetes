@@ -230,17 +230,51 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 	return cache_sni_nodes, rest_ops
 }
 
+func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviEvhVsNode) {
+	var datascriptCollection []*avimodels.VSDataScripts
+	// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
+	if vs_meta.SSLKeyCertAviRef != "" {
+		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef)
+	} else {
+		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
+			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
+			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
+		}
+	}
+	vs.SslProfileRef = &vs_meta.SSLProfileRef
+	//set datascripts to VS from hostrule crd
+	for i, script := range vs_meta.VsDatascriptRefs {
+		j := int32(i)
+		datascript := script
+		datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
+		datascriptCollection = append(datascriptCollection, datascripts)
+	}
+	vs.VsDatascripts = datascriptCollection
+	if vs_meta.AppProfileRef != "" {
+		// hostrule ref overrides defaults
+		vs.ApplicationProfileRef = &vs_meta.AppProfileRef
+	}
+	vs.WafPolicyRef = &vs_meta.WafPolicyRef
+	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
+	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
+	vs.EastWestPlacement = proto.Bool(false)
+	vs.Enabled = vs_meta.Enabled
+	normal_vs_type := utils.VS_TYPE_NORMAL
+	vs.Type = &normal_vs_type
+}
+
 func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
 
 	if lib.CheckObjectNameLength(vs_meta.Name, lib.EVHVS) {
 		utils.AviLog.Warnf("key: %s not Processing EVHVS object", key)
 		return nil
 	}
-	if !vs_meta.EVHParent {
+
+	if !vs_meta.EVHParent && !vs_meta.Dedicated {
 		rest_ops := rest.AviVsChildEvhBuild(vs_meta, rest_method, cache_obj, key)
 		return rest_ops
 	} else {
-		// This is EVH Parent
+		// This is EVH Parent or dedicated VS
 		network_prof := "/api/networkprofile/?name=" + vs_meta.NetworkProfile
 		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
 		name := vs_meta.Name
@@ -263,7 +297,6 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			CloudRef:              &cloudRef,
 			ServiceMetadata:       &svc_mdata,
 			SeGroupRef:            &seGroupRef,
-			VhType:                proto.String(utils.VS_TYPE_VH_ENHANCED),
 		}
 		if lib.GetT1LRPath() == "" {
 			vs.VrfContextRef = &vrfContextRef
@@ -278,7 +311,11 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			vs.EnableRhi = &enableRhi
 		}
 		if lib.GetGRBACSupport() {
-			vs.Markers = lib.GetMarkers()
+			if vs_meta.SharedVS {
+				vs.Markers = lib.GetMarkers()
+			} else {
+				vs.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
+			}
 		}
 		if vs_meta.DefaultPoolGroup != "" {
 			pool_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
@@ -323,7 +360,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			vs.HTTPPolicies = httpPolicyCollection
 		}
 
-		if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
+		if vs_meta.TLSType != utils.TLS_PASSTHROUGH && !vs_meta.Dedicated {
 			//Append cert from hostrule
 			for _, evhNode := range vs_meta.EvhNodes {
 				if evhNode.SSLKeyCertAviRef != "" {
@@ -340,7 +377,12 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			}
 
 		}
-
+		//Dedicated VS
+		if vs_meta.Dedicated {
+			setDedicatedEvhVSNodeProperties(&vs, vs_meta)
+		} else {
+			vs.VhType = proto.String(utils.VS_TYPE_VH_ENHANCED)
+		}
 		if strings.Contains(*vs.Name, lib.PassthroughPrefix) && !strings.HasSuffix(*vs.Name, lib.PassthroughInsecure) {
 			// This is a passthrough secure VS, we want the VS to be down if all the pools are down.
 			vsDownOnPoolDown := true

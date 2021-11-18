@@ -150,3 +150,16 @@ func (h *HostNamePathStore) RemoveHostPathStore(host, path string, ing string) {
 func (h *HostNamePathStore) DeleteHostPathStore(host string) {
 	h.hostNamePathStore.Delete(host)
 }
+func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvcMap HostMetadata) {
+	hostMap := HostNamePathSecrets{paths: getPaths(pathsvcMap.ingressHPSvc), secretName: secretName}
+	found, ingressHostMap := SharedHostNameLister().Get(hostName)
+	if found {
+		// Replace the ingress map for this host.
+		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
+	} else {
+		// Create the map
+		ingressHostMap = NewSecureHostNameMapProp()
+		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
+	}
+	SharedHostNameLister().Save(hostName, ingressHostMap)
+}

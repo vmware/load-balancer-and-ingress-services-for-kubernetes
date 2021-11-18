@@ -479,8 +479,9 @@ func GetShardVSPrefix(key string) string {
 	return shardVsPrefix
 }
 
-func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) string {
+func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) lib.VSNameMetadata {
 	var vsNum uint32
+	var vsNameMeta lib.VSNameMetadata
 	extraPrefix := strings.Join(prefix, "-")
 
 	if shardSize != 0 {
@@ -488,22 +489,29 @@ func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) st
 		utils.AviLog.Debugf("key: %s, msg: VS number: %v", key, vsNum)
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: Processing dedicated VS", key)
+		vsNameMeta.Dedicated = true
 		//format: my-cluster--foo.com-dedicated for dedicated VS. This is to avoid any SNI naming conflicts
 		if extraPrefix != "" {
-			return lib.GetNamePrefix() + extraPrefix + "-" + s + "-dedicated"
+			vsNameMeta.Name = lib.GetNamePrefix() + extraPrefix + "-" + s + lib.DedicatedSuffix
+
+			return vsNameMeta
 		}
-		return lib.GetNamePrefix() + s + "-dedicated"
+		vsNameMeta.Name = lib.GetNamePrefix() + s + lib.DedicatedSuffix
+		return vsNameMeta
 	}
+	vsNameMeta.Dedicated = false
+
 	shardVsPrefix := GetShardVSPrefix(key)
 	if extraPrefix != "" {
 		shardVsPrefix += extraPrefix + "-"
 	}
 	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
-	return vsName
+	vsNameMeta.Name = vsName
+	return vsNameMeta
 }
 
 // returns old and new models if changed, else just the current one.
-func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (string, string) {
+func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (lib.VSNameMetadata, lib.VSNameMetadata) {
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
 	var newInfraPrefix, oldInfraPrefix string
 	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
@@ -534,6 +542,6 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 	}
 
 	oldVsName, newVsName := GetShardVSName(hostname, key, oldShardSize, oldInfraPrefix), GetShardVSName(hostname, key, newShardSize, newInfraPrefix)
-	utils.AviLog.Infof("key: %s, msg: ShardVSNames: %s %s", key, oldVsName, newVsName)
+	utils.AviLog.Infof("key: %s, msg: ShardVSNames: %v %v", key, oldVsName, newVsName)
 	return oldVsName, newVsName
 }
