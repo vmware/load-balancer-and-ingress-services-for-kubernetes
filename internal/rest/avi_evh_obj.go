@@ -346,6 +346,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			vsDownOnPoolDown := true
 			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
 		}
+		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
+
 		var rest_ops []*utils.RestOp
 
 		var rest_op utils.RestOp

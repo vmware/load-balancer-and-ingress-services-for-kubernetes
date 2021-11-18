@@ -180,6 +180,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			}
 			vs.L4Policies = l4Policies
 		}
+		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
 
 		var rest_ops []*utils.RestOp
 
