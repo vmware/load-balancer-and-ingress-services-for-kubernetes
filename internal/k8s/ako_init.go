@@ -914,12 +914,24 @@ func (c *AviController) FullSyncK8s() error {
 	}
 	syncNamespace := lib.GetNamespaceToSync()
 	for _, vsCacheKey := range vsKeys {
+		modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
+		ok, _ := objects.SharedAviGraphLister().Get(modelName)
+		if !ok {
+			utils.AviLog.Warnf("key: %s, msg: no model found for the key", modelName)
+			// In the case of L7 shared VS, the following condition check makes sure the
+			// VIPs persist over AKO reboot.
+			if lib.IsShardVS(modelName) {
+				// Save the model in the cache as it is required when the user
+				// sets the deleteconfig flag to `true`.
+				objects.SharedAviGraphLister().Save(modelName, nil)
+				continue
+			}
+		}
 		// Reverse map the model key from this.
 		if syncNamespace != "" {
 			shardVsPrefix := lib.ShardVSPrefix
 			if shardVsPrefix != "" {
 				if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
-					modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 					if utils.HasElem(allModels, modelName) {
 						allModels = utils.Remove(allModels, modelName)
 					}
@@ -929,7 +941,6 @@ func (c *AviController) FullSyncK8s() error {
 			}
 			// For namespace based syncs, the L4 VSes would be named: clusterName + "--" + namespace
 			if strings.HasPrefix(vsCacheKey.Name, lib.GetNamePrefix()+syncNamespace) {
-				modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 				if utils.HasElem(allModels, modelName) {
 					allModels = utils.Remove(allModels, modelName)
 				}
@@ -937,7 +948,6 @@ func (c *AviController) FullSyncK8s() error {
 				nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 			}
 		} else {
-			modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 			if utils.HasElem(allModels, modelName) {
 				allModels = utils.Remove(allModels, modelName)
 			}
