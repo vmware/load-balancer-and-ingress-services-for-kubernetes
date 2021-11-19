@@ -31,7 +31,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -960,48 +959,5 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 
 	TeardownAviInfraSetting(t, settingName1)
 	TeardownAviInfraSetting(t, settingName2)
-	TearDownTestForSvcLB(t, g)
-}
-
-func TestBootupServiceLBStatusPersistence(t *testing.T) {
-	// create service of type LB, sync service and check for status, remove status
-	// call SyncObjectStatuses to check if status remains the same
-
-	g := gomega.NewGomegaWithT(t)
-
-	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	svcExample := (FakeService{
-		Name:         SINGLEPORTSVC,
-		Namespace:    NAMESPACE,
-		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
-	}).Service()
-	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Service: %v", err)
-	}
-	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
-	PollForCompletion(t, SINGLEPORTMODEL, 5)
-
-	svcExample.ResourceVersion = "2"
-	svcExample.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{}
-	_, err = KubeClient.CoreV1().Services(NAMESPACE).UpdateStatus(context.TODO(), svcExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating Service Status: %v", err)
-	}
-
-	aviRestClientPool := cache.SharedAVIClients()
-	aviObjCache := cache.SharedAviObjCache()
-	restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
-	restlayer.SyncObjectStatuses()
-
-	g.Eventually(func() string {
-		svc, _ := KubeClient.CoreV1().Services(NAMESPACE).Get(context.TODO(), SINGLEPORTSVC, metav1.GetOptions{})
-		if len(svc.Status.LoadBalancer.Ingress) > 0 {
-			return svc.Status.LoadBalancer.Ingress[0].IP
-		}
-		return ""
-	}, 20*time.Second).Should(gomega.Equal("10.250.250.1"))
-
 	TearDownTestForSvcLB(t, g)
 }

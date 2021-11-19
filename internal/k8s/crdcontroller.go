@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 	"time"
 
 	istiov1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
@@ -510,19 +511,46 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 	foundHost, foundHR := objects.SharedCRDLister().GetFQDNToHostruleMapping(fqdn)
 	if foundHost && foundHR != hostrule.Namespace+"/"+hostrule.Name {
 		err = fmt.Errorf("duplicate fqdn %s found in %s", fqdn, foundHR)
-		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err
 	}
+
+	// If it is not a Shared VS but TCP Settings are provided, then we reject it since these
+	// TCP settings are not valid for the child VS.
+	if !strings.Contains(fqdn, lib.ShardVSSubstring) && hostrule.Spec.VirtualHost.TCPSettings != nil {
+		err = fmt.Errorf("Hostrule tcpSettings with fqdn %s cannot be applied to child Virtualservices", fqdn)
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+		return err
+	}
+
+	if hostrule.Spec.VirtualHost.TCPSettings != nil && hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
+		re := regexp.MustCompile(lib.IPRegex)
+		if !re.MatchString(hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP) {
+			err = fmt.Errorf("loadBalancerIP %s is not a valid IP", hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP)
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+	}
+
 	if hostrule.Spec.VirtualHost.Gslb.Fqdn != "" {
 		if fqdn == hostrule.Spec.VirtualHost.Gslb.Fqdn {
 			err = fmt.Errorf("GSLB FQDN and local FQDN are same")
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  err.Error(),
-			})
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+	}
+
+	if hostrule.Spec.VirtualHost.TCPSettings != nil {
+		sslEnabled := false
+		for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
+			if listener.EnableSSL {
+				sslEnabled = true
+				break
+			}
+		}
+		if !sslEnabled {
+			err = fmt.Errorf("Hosting parent virtualservice must have SSL enabled")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err
 		}
 	}
@@ -545,17 +573,11 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 	}
 
 	if err := checkRefsOnController(key, refData); err != nil {
-		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err
 	}
 
-	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
-		Status: lib.StatusAccepted,
-		Error:  "",
-	})
+	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
 	return nil
 }
 

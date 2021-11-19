@@ -193,7 +193,6 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 	var fqdn, oldFqdn string
 	var oldFound bool
 
-	utils.AviLog.Infof("%s %s", namespace, hrName)
 	hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrName)
 	if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted", key)
@@ -246,7 +245,20 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 			utils.AviLog.Infof("key: %s, msg: model not found for %s", key, modelName)
 		} else {
 			aviModelObject := aviModel.(*AviObjectGraph)
-			vsNode := aviModelObject.GetAviVS()[0]
+			var vsNode AviVsEvhSniModel
+			if lib.IsEvhEnabled() {
+				if nodes := aviModelObject.GetAviEvhVS(); len(nodes) == 0 {
+					continue
+				} else {
+					vsNode = nodes[0]
+				}
+			} else {
+				if nodes := aviModelObject.GetAviVS(); len(nodes) == 0 {
+					continue
+				} else {
+					vsNode = nodes[0]
+				}
+			}
 			if found, fqdn := objects.SharedCRDLister().GetSharedVSModelFQDNMapping(modelName); found {
 				BuildL7HostRule(fqdn, key, vsNode)
 				ok := saveAviModel(modelName, aviModelObject, key)

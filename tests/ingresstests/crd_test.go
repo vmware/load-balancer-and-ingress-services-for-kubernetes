@@ -16,6 +16,7 @@ package ingresstests
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
@@ -99,6 +100,94 @@ func TestCreateDeleteHostRule(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].SSLProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.Not(gomega.ContainElement("baz.com")))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestCreateDeleteSharedVSHostRule(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	hrname := "samplehr-foo"
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:               hrname,
+		Namespace:          "default",
+		Fqdn:               "cluster--Shared-L7-0.admin.com",
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+	}
+	hrCreate := hostrule.HostRule()
+	hrCreate.Spec.VirtualHost.TCPSettings = &v1alpha1.HostRuleTCPSettings{
+		Listeners: []v1alpha1.HostRuleTCPListeners{
+			{Port: 8081}, {Port: 8082}, {Port: 8083, EnableSSL: true},
+		},
+	}
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(nodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
+	g.Expect(nodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
+	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
+	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorprof"))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].HttpPolicySetRefs[0]).To(gomega.ContainSubstring("thisisaviref-httpps2"))
+	g.Expect(nodes[0].HttpPolicySetRefs[1]).To(gomega.ContainSubstring("thisisaviref-httpps1"))
+	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
+	g.Expect(nodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(3))
+	var ports []int
+	for _, port := range nodes[0].PortProto {
+		ports = append(ports, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).To(gomega.Equal(8083))
+		}
+	}
+	sort.Ints(ports)
+	g.Expect(ports[0]).To(gomega.Equal(8081))
+	g.Expect(ports[1]).To(gomega.Equal(8082))
+	g.Expect(ports[2]).To(gomega.Equal(8083))
+
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
+	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].WafPolicyRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].AppProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SSLProfileRef).To(gomega.Equal(""))
+	ports = []int{}
+	for _, port := range nodes[0].PortProto {
+		ports = append(ports, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).To(gomega.Equal(443))
+		}
+	}
+	sort.Ints(ports)
+	g.Expect(ports[0]).To(gomega.Equal(80))
+	g.Expect(ports[1]).To(gomega.Equal(443))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }

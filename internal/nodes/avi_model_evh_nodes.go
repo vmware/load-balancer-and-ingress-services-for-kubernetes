@@ -40,6 +40,11 @@ type AviVsEvhSniModel interface {
 	GetName() string
 	SetName(string)
 
+	IsSharedVS() bool
+
+	GetPortProtocols() []AviPortHostProtocol
+	SetPortProtocols([]AviPortHostProtocol)
+
 	GetPoolRefs() []*AviPoolNode
 	SetPoolRefs([]*AviPoolNode)
 
@@ -84,6 +89,9 @@ type AviVsEvhSniModel interface {
 
 	GetAnalyticsPolicy() *avimodels.AnalyticsPolicy
 	SetAnalyticsPolicy(*avimodels.AnalyticsPolicy)
+
+	GetVSVIPLoadBalancerIP() string
+	SetVSVIPLoadBalancerIP(string)
 }
 
 type AviEvhVsNode struct {
@@ -138,6 +146,18 @@ func (v *AviEvhVsNode) GetName() string {
 
 func (v *AviEvhVsNode) SetName(name string) {
 	v.Name = name
+}
+
+func (v *AviEvhVsNode) IsSharedVS() bool {
+	return v.SharedVS
+}
+
+func (v *AviEvhVsNode) GetPortProtocols() []AviPortHostProtocol {
+	return v.PortProto
+}
+
+func (v *AviEvhVsNode) SetPortProtocols(portProto []AviPortHostProtocol) {
+	v.PortProto = portProto
 }
 
 func (v *AviEvhVsNode) GetPoolRefs() []*AviPoolNode {
@@ -255,8 +275,22 @@ func (v *AviEvhVsNode) SetEnabled(Enabled *bool) {
 func (v *AviEvhVsNode) GetAnalyticsPolicy() *avimodels.AnalyticsPolicy {
 	return v.AnalyticsPolicy
 }
+
 func (v *AviEvhVsNode) SetAnalyticsPolicy(policy *avimodels.AnalyticsPolicy) {
 	v.AnalyticsPolicy = policy
+}
+
+func (v *AviEvhVsNode) GetVSVIPLoadBalancerIP() string {
+	if len(v.VSVIPRefs) > 0 {
+		return v.VSVIPRefs[0].IPAddress
+	}
+	return ""
+}
+
+func (v *AviEvhVsNode) SetVSVIPLoadBalancerIP(ip string) {
+	if len(v.VSVIPRefs) > 0 {
+		v.VSVIPRefs[0].IPAddress = ip
+	}
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -595,6 +629,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 
 	var fqdns []string
 	subDomains := GetDefaultSubDomain()
+	var configuredSharedVSFqdn string
 	autoFQDN := true
 	if lib.GetL4FqdnFormat() == lib.AutoFQDNDisabled {
 		autoFQDN = false
@@ -621,10 +656,9 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 			fqdn = vsName + "-" + lib.GetTenant() + "." + subdomain
 		}
 
-		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, lib.GetModelName(lib.GetTenant(), vsName))
-		BuildL7HostRule(fqdn, key, avi_vs_meta)
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
+		configuredSharedVSFqdn = fqdn
 	}
 
 	vsVipNode := &AviVSVIPNode{
@@ -648,6 +682,12 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
+
+	if configuredSharedVSFqdn != "" {
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(configuredSharedVSFqdn, lib.GetModelName(lib.GetTenant(), vsName))
+		BuildL7HostRule(configuredSharedVSFqdn, key, avi_vs_meta)
+	}
+
 	return avi_vs_meta
 }
 

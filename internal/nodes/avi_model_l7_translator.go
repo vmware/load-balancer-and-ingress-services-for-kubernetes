@@ -105,9 +105,11 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	o.AddModelNode(avi_vs_meta)
 	o.ConstructShardVsPGNode(vsName, key, avi_vs_meta)
 	o.ConstructHTTPDataScript(vsName, key, avi_vs_meta)
+
 	var fqdns []string
 	subDomains := GetDefaultSubDomain()
 	autoFQDN := true
+	var configuredSharedVSFqdn string
 	if lib.GetL4FqdnFormat() == lib.AutoFQDNDisabled {
 		autoFQDN = false
 	}
@@ -133,10 +135,9 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 			fqdn = vsName + "-" + lib.GetTenant() + "." + subdomain
 		}
 
-		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, lib.GetModelName(lib.GetTenant(), vsName))
-		BuildL7HostRule(fqdn, key, avi_vs_meta)
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
+		configuredSharedVSFqdn = fqdn
 	}
 
 	vsVipNode := &AviVSVIPNode{
@@ -160,6 +161,10 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
+	if configuredSharedVSFqdn != "" {
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(configuredSharedVSFqdn, lib.GetModelName(lib.GetTenant(), vsName))
+		BuildL7HostRule(configuredSharedVSFqdn, key, avi_vs_meta)
+	}
 	return avi_vs_meta
 }
 
