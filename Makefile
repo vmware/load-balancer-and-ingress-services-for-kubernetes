@@ -129,6 +129,15 @@ docker: glob-vars
 	$(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) $(BUILD_ARG_AKO_LDFLAGS) \
 	-f Dockerfile.ako .
 
+.PHONY: ako-infra-docker
+ako-infra-docker: glob-vars
+	sudo docker build \
+	-t $(BINARY_NAME_AKO_INFRA):latest \
+	--label "BUILD_TAG=$(BUILD_TAG)" \
+	--label "BUILD_TIME=$(BUILD_TIME)" \
+	$(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) $(BUILD_ARG_AKO_LDFLAGS) \
+	-f Dockerfile.ako-infra .
+
 .PHONY: ako-operator-docker
 ako-operator-docker: glob-vars
 	sudo docker build \

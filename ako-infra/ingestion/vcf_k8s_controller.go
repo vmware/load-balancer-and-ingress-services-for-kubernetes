@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
@@ -86,6 +85,10 @@ func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh
 			if lib.VCFInitialized {
 				return
 			}
+			data, ok := obj.(*corev1.Secret)
+			if !ok || data.Namespace != utils.GetAKONamespace() {
+				return
+			}
 			if c.ValidBootStrapData() && startSyncCh != nil {
 				err := c.CreateOrUpdateAviSecret()
 				if err != nil {
@@ -99,6 +102,10 @@ func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			if lib.VCFInitialized {
+				return
+			}
+			data, ok := obj.(*corev1.Secret)
+			if !ok || data.Namespace != utils.GetAKONamespace() {
 				return
 			}
 			if c.ValidBootStrapData() && startSyncCh != nil {
@@ -194,8 +201,9 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}, ctrlCh chan struct{}) string {
 	cs := c.informers.ClientSet
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
-	if err == nil {
-		ctrlIP := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+	ctrlIP := lib.GetControllerURLFromBootstrapCR()
+	if err == nil && ctrlIP != "" {
+		lib.SetControllerIP(ctrlIP)
 		authToken := aviSecret.Data["authtoken"]
 		username := aviSecret.Data["username"]
 		var transport *http.Transport
@@ -298,7 +306,8 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 		return false
 	}
 	authToken := ncpSecret.Data["authToken"]
-	ctrlIP := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+	ctrlIP := boostrapdata.AviURL
+	lib.SetControllerIP(ctrlIP)
 	var transport *http.Transport
 	_, err = clients.NewAviClient(
 		ctrlIP, boostrapdata.UserName, session.SetAuthToken(string(authToken)),

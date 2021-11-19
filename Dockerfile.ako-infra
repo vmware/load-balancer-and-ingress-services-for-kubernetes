@@ -1,0 +1,23 @@
+ARG golang_src_repo=golang:latest
+ARG photon_src_repo=photon:latest
+FROM ${golang_src_repo} as build
+ARG AKO_LDFLAGS=
+ENV BUILD_PATH="github.com/vmware/load-balancer-and-ingress-services-for-kubernetes"
+RUN mkdir -p $GOPATH/src/$BUILD_PATH
+
+COPY . $GOPATH/src/$BUILD_PATH
+WORKDIR $GOPATH/src/$BUILD_PATH
+
+RUN GOARCH=amd64 \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    go build -o $GOPATH/bin/ako-infra \
+    -ldflags "$AKO_LDFLAGS" \
+    -mod=vendor \
+    $BUILD_PATH/cmd/infra-main
+
+FROM ${photon_src_repo}
+RUN yum install -y tar.x86_64
+COPY --from=build /go/bin/ako-infra .
+EXPOSE 8080
+ENTRYPOINT ["./ako-infra"]

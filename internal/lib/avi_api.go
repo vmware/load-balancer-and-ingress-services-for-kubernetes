@@ -162,7 +162,7 @@ func NewAviRestClientWithToken(api_ep string, username string, authToken string)
 	var transport *http.Transport
 	var err error
 
-	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
+	ctrlIpAddress := GetControllerIP()
 	if username == "" || authToken == "" || ctrlIpAddress == "" {
 		var authTokenLog string
 		if authToken != "" {
