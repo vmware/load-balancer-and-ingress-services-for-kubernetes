@@ -96,6 +96,7 @@ spec:
                       logAllHeaders:
                         type: boolean
                         default: false
+                    type: object
                   tcpSettings:
                     properties:
                       listeners:
