@@ -960,15 +960,18 @@ func testIngressTypeWithReboot(t *testing.T, rebootType bool, ingType string) {
 func testMultipleIngressTypeWithReboot(t *testing.T, rebootType bool, ingTypes []string) {
 	SetupForTesting(t)
 	REBOOTON = false
+	var multipleIngressesCreated = map[string][]string{}
 	for _, ingType := range ingTypes {
 		ingressType = ingType
 		CreateIngressParallelWithReboot(t, rebootType)
+		multipleIngressesCreated[ingType] = ingressesCreated
 	}
 	REBOOTON = true
 	CheckReboot(t)
 
 	for _, ingType := range ingTypes {
 		ingressType = ingType
+		ingressesCreated = multipleIngressesCreated[ingType]
 		UpdateIngressParallelWithReboot(t, rebootType)
 	}
 
@@ -977,6 +980,7 @@ func testMultipleIngressTypeWithReboot(t *testing.T, rebootType bool, ingTypes [
 
 	for _, ingType := range ingTypes {
 		ingressType = ingType
+		ingressesCreated = multipleIngressesCreated[ingType]
 		DeleteIngressParallelWithReboot(t, rebootType)
 	}
 }
