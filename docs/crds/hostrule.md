@@ -156,6 +156,8 @@ The HostRule CRD can be used to configure analytics policies such as enable/disa
             throttle: HIGH
           logAllHeaders: true
 
+The `throttle` will be in effect only when `enabled` is set to `true`. The possible values of `throttle` are DISABLED (0), LOW (50), MEDIUM (30) and HIGH (10).
+
 The AKO sets the duration of logging the non-significant logs to infinity by default. It is the responsibility of the user to disable the non-significant logs when it is no longer required.
 
 #### Status Messages
