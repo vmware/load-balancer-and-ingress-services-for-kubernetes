@@ -32,6 +32,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
 	"github.com/Masterminds/semver"
 	routev1 "github.com/openshift/api/route/v1"
@@ -689,11 +690,18 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 	} else {
 		uri = "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
 	}
-
+	var result session.AviCollectionResult
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return err, ""
+		SetAdminTenant := session.SetTenant(GetAdminTenant())
+		SetTenant := session.SetTenant(GetTenant())
+		SetAdminTenant(client.AviSession)
+		defer SetTenant(client.AviSession)
+		result, err = AviGetCollectionRaw(client, uri)
+		if err != nil {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return err, ""
+		}
 	}
 
 	elems := make([]json.RawMessage, result.Count)
