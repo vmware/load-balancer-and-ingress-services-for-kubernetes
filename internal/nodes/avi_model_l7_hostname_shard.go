@@ -654,8 +654,11 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		if len(ingressHostMap.GetIngressesForHostName(sniHost)) == 0 {
 			if !isDedicated {
 				RemoveSniInModel(sniNode.Name, vsNode, key)
+				RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
+			} else {
+				DeleteDedicatedVSNode(vsNode[0], key)
 			}
-			RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
+			RemoveFQDNsFromModel(vsNode[0], sniHosts, key)
 		}
 	}
 }

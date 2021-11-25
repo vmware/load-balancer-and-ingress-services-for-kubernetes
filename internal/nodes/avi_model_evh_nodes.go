@@ -910,9 +910,9 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 
 	if isDedicated {
 		evhNode = vsNode[0]
-		vsNode[0].DeletSSLRefInDedicatedNode(key)
-		vsNode[0].DeleteSSLPort(key)
-		vsNode[0].DeleteSecureAppProfile(key)
+		evhNode.DeletSSLRefInDedicatedNode(key)
+		evhNode.DeleteSSLPort(key)
+		evhNode.DeleteSecureAppProfile(key)
 	} else {
 		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
 	}
@@ -1241,9 +1241,13 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		}
 		// Since the cert couldn't be built, check if this EVH is affected by only in ingress if so remove the EVH node from the model
 		if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
-			vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
-			RemoveEvhInModel(evhNode.Name, vsNode, key)
-			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
+			if vsNode[0].Dedicated {
+				DeleteDedicatedEvhVSNode(vsNode[0], key)
+			} else {
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+				RemoveEvhInModel(evhNode.Name, vsNode, key)
+				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
+			}
 		}
 
 	}
@@ -1814,7 +1818,13 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
 }
-
+func DeleteDedicatedEvhVSNode(vsNode *AviEvhVsNode, key string) {
+	vsNode.PoolGroupRefs = []*AviPoolGroupNode{}
+	vsNode.PoolRefs = []*AviPoolNode{}
+	vsNode.HttpPolicyRefs = []*AviHttpPolicySetNode{}
+	vsNode.DeletSSLRefInDedicatedNode(key)
+	utils.AviLog.Infof("key: %s, msg: Deleted Dedicated node vs: %s", key, vsNode.Name)
+}
 func manipulateEvhNodeForSSL(key string, vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {
 	oldSSLProfile := vsNode.GetSSLProfileRef()
 	newSSLProfile := evhNode.GetSSLProfileRef()
