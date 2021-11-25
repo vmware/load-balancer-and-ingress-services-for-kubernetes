@@ -199,7 +199,7 @@ func GetFqdns(vsName, key string, subDomains []string) ([]string, string) {
 		// or would default to the first dns subdomain it gets from the dns profile
 		subdomain := subDomains[0]
 		if strings.HasPrefix(subDomains[0], ".") {
-			subdomain = strings.Replace(subDomains[0], ".", "", -1)
+			subdomain = strings.Replace(subDomains[0], ".", "", 1)
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>

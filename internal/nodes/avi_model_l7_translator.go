@@ -549,6 +549,13 @@ func RemoveHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, hostname, key strin
 		}
 	}
 }
+func DeleteDedicatedVSNode(vsNode *AviVsNode, key string) {
+	vsNode.PoolGroupRefs = []*AviPoolGroupNode{}
+	vsNode.PoolRefs = []*AviPoolNode{}
+	vsNode.HttpPolicyRefs = []*AviHttpPolicySetNode{}
+	vsNode.DeletSSLRefInDedicatedNode(key)
+	utils.AviLog.Infof("key: %s, msg: Deleted Dedicated node vs: %s", key, vsNode.Name)
+}
 
 func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostnames []string, key string) {
 	policyName := lib.GetL7HttpRedirPolicy(vsNode.Name)
