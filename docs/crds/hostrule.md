@@ -32,6 +32,11 @@ A sample HostRule CRD looks like this:
         applicationProfile: avi-app-ref
         analyticsProfile: avi-analytics-ref
         errorPageProfile: avi-errorpage-ref
+        analyticsPolicy: # optional
+          fullClientLogs:
+            enabled: true
+            throttle: HIGH
+          logAllHeaders: true
 
 
 ### Specific usage of HostRule CRD
@@ -140,6 +145,20 @@ Use this flag if you would want traffic with a GSLB FQDN to get routed to a site
 DNS will arrive with the host header as foo.com to the VIP hosting foo.region1.com in region1. This CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`
 
 This knob is currently only supported with the SNI model and not with Enhanced Virtual Hosting model.
+
+#### Configure Analytics Policy
+
+The HostRule CRD can be used to configure analytics policies such as enable/disable non-significant logs, throttle the number of non-significant logs per second on each SE, enable/disable logging of all headers, etc.
+
+        analyticsPolicy:
+          fullClientLogs:
+            enabled: true
+            throttle: HIGH
+          logAllHeaders: true
+
+The `throttle` will be in effect only when `enabled` is set to `true`. The possible values of `throttle` are DISABLED (0), LOW (50), MEDIUM (30) and HIGH (10).
+
+The AKO sets the duration of logging the non-significant logs to infinity by default. It is the responsibility of the user to disable the non-significant logs when it is no longer required.
 
 #### Status Messages
 
