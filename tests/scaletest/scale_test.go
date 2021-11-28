@@ -73,7 +73,7 @@ var (
 	ingressType              string
 	numOfIng                 int
 	numOfLBSvc               int
-	numOfPodsForLBSvc        = 98
+	numOfPodsForLBSvc        = 100
 	numOfPaths               int
 	clusterName              string
 	evhEnabled               bool
@@ -646,7 +646,7 @@ func CreateIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 	wg.Wait()
 	g.Expect(ingressesCreated).To(gomega.HaveLen(numOfIng))
 	t.Logf("Created %d %s Ingresses Parallelly", numOfIng, ingressType)
-	t.Logf("Verifiying Avi objects ...")
+	t.Logf("Verifying Avi objects ...")
 	pollInterval, _ := time.ParseDuration(testPollInterval)
 	waitTimeIncr, _ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
 	// Verifies for Avi objects creation by checking every 'waitTime' seconds for 'testCaseTimeOut' seconds
@@ -700,7 +700,7 @@ func DeleteIngressesParallel(t *testing.T, numOfIng int, initialNumOfPools int) 
 		return len(ingressesDeleted)
 	}, testCaseTimeOut, testPollInterval).Should(gomega.Equal(numOfIng))
 	t.Logf("Deleted %d %s Ingresses", numOfIng, ingressType)
-	t.Logf("Verifiying Avi objects ...")
+	t.Logf("Verifying Avi objects ...")
 	g.Eventually(func() int {
 		pools := lib.FetchPools(t, AviClients[0])
 		return len(pools)
@@ -769,7 +769,7 @@ func CreateIngressesSerial(t *testing.T, numOfIng int, initialNumOfPools int) {
 	}
 	g.Expect(ingressesCreated).To(gomega.HaveLen(numOfIng))
 	t.Logf("Created %d %s Ingresses Serially", numOfIng, ingressType)
-	t.Logf("Verifiying Avi objects ...")
+	t.Logf("Verifying Avi objects ...")
 	pollInterval, _ := time.ParseDuration(testPollInterval)
 	waitTimeIncr, _ := strconv.Atoi(testPollInterval[:len(testPollInterval)-1])
 	verificationSuccessful := false
@@ -925,31 +925,31 @@ func HybridExecution(t *testing.T, numOfIng int, deletionStartPoint int) {
 	g.Expect(ingressesDeleted).To(gomega.HaveLen(numOfIng))
 }
 
-func CreateIngressParallelWithReboot(t *testing.T, rebootType bool) {
-	if rebootType == false {
-		rebootType = true
+func CreateIngressParallelWithReboot(t *testing.T, rebootType *bool) {
+	if *rebootType == false {
+		*rebootType = true
 	}
 	CreateIngressesParallel(t, numOfIng, initialNumOfPools)
-	rebootType = false
+	*rebootType = false
 }
 
-func UpdateIngressParallelWithReboot(t *testing.T, rebootType bool) {
-	if rebootType == false {
-		rebootType = true
+func UpdateIngressParallelWithReboot(t *testing.T, rebootType *bool) {
+	if *rebootType == false {
+		*rebootType = true
 	}
 	UpdateIngressesParallel(t, numOfIng)
-	rebootType = false
+	*rebootType = false
 }
 
-func DeleteIngressParallelWithReboot(t *testing.T, rebootType bool) {
-	if rebootType == false {
-		rebootType = true
+func DeleteIngressParallelWithReboot(t *testing.T, rebootType *bool) {
+	if *rebootType == false {
+		*rebootType = true
 	}
 	DeleteIngressesParallel(t, numOfIng, initialNumOfPools)
-	rebootType = false
+	*rebootType = false
 }
 
-func testIngressTypeWithReboot(t *testing.T, rebootType bool, ingType string) {
+func testIngressTypeWithReboot(t *testing.T, rebootType *bool, ingType string) {
 	SetupForTesting(t)
 	ingressType = ingType
 	CreateIngressParallelWithReboot(t, rebootType)
@@ -957,16 +957,25 @@ func testIngressTypeWithReboot(t *testing.T, rebootType bool, ingType string) {
 	DeleteIngressParallelWithReboot(t, rebootType)
 }
 
-func testMultipleIngressTypeWithReboot(t *testing.T, rebootType bool, ingTypes []string) {
+func testMultipleIngressTypeWithReboot(t *testing.T, rebootType *bool, ingTypes []string) {
 	SetupForTesting(t)
 	REBOOTON = false
+	if *rebootType == false {
+		*rebootType = true
+	}
+	CheckReboot(t)
+
 	var multipleIngressesCreated = map[string][]string{}
 	for _, ingType := range ingTypes {
 		ingressType = ingType
+		ingressHostNames = []string{}
 		CreateIngressParallelWithReboot(t, rebootType)
 		multipleIngressesCreated[ingType] = ingressesCreated
 	}
-	REBOOTON = true
+
+	if *rebootType == false {
+		*rebootType = true
+	}
 	CheckReboot(t)
 
 	for _, ingType := range ingTypes {
@@ -975,14 +984,18 @@ func testMultipleIngressTypeWithReboot(t *testing.T, rebootType bool, ingTypes [
 		UpdateIngressParallelWithReboot(t, rebootType)
 	}
 
-	REBOOTON = true
+	if *rebootType == false {
+		*rebootType = true
+	}
 	CheckReboot(t)
+	*rebootType = false
 
 	for _, ingType := range ingTypes {
 		ingressType = ingType
 		ingressesCreated = multipleIngressesCreated[ingType]
 		DeleteIngressParallelWithReboot(t, rebootType)
 	}
+	REBOOTON = true
 }
 
 func CreateServiceTypeLBWithApp(t *testing.T, numPods int, numOfServices int, appNameLB string, serviceNamePrefixLB string, aviObjPrefix string) []string {
@@ -1098,70 +1111,70 @@ func TestMain(t *testing.M) {
 }
 
 func TestInsecureParallelCreationUpdationDeletionWithoutReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTNONE, INSECURE)
+	testIngressTypeWithReboot(t, &REBOOTNONE, INSECURE)
 }
 
 func TestInsecureParallelCreationUpdationDeletionWithAkoReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTAKO, INSECURE)
+	testIngressTypeWithReboot(t, &REBOOTAKO, INSECURE)
 }
 
 func TestInsecureParallelCreationUpdationDeletionWithNodeReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTNODE, INSECURE)
+	testIngressTypeWithReboot(t, &REBOOTNODE, INSECURE)
 }
 
 func TestInsecureParallelCreationUpdationDeletionWithControllerReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTCONTROLLER, INSECURE)
+	testIngressTypeWithReboot(t, &REBOOTCONTROLLER, INSECURE)
 }
 
 func TestSecureParallelCreationUpdationDeletionWithoutReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTNONE, SECURE)
+	testIngressTypeWithReboot(t, &REBOOTNONE, SECURE)
 }
 
 func TestSecureParallelCreationUpdationDeletionWithAkoReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTAKO, SECURE)
+	testIngressTypeWithReboot(t, &REBOOTAKO, SECURE)
 }
 
 func TestSecureParallelCreationUpdationDeletionWithNodeReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTNODE, SECURE)
+	testIngressTypeWithReboot(t, &REBOOTNODE, SECURE)
 }
 
 func TestSecureParallelCreationUpdationDeletionWithControllerReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTCONTROLLER, SECURE)
+	testIngressTypeWithReboot(t, &REBOOTCONTROLLER, SECURE)
 }
 
 func TestMultiHostParallelCreationUpdationDeletionWithoutReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTNONE, MULTIHOST)
+	testIngressTypeWithReboot(t, &REBOOTNONE, MULTIHOST)
 }
 
 func TestMultiHostParallelCreationUpdationDeletionWithAkoReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTAKO, MULTIHOST)
+	testIngressTypeWithReboot(t, &REBOOTAKO, MULTIHOST)
 }
 
 func TestMultiHostParallelCreationUpdationDeletionWithNodeReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTNODE, MULTIHOST)
+	testIngressTypeWithReboot(t, &REBOOTNODE, MULTIHOST)
 }
 
 func TestMultiHostParallelCreationUpdationDeletionWithControllerReboot(t *testing.T) {
-	testIngressTypeWithReboot(t, REBOOTCONTROLLER, MULTIHOST)
+	testIngressTypeWithReboot(t, &REBOOTCONTROLLER, MULTIHOST)
 }
 
 func TestAllIngressParallelCreationUpdationDeletionWithoutReboot(t *testing.T) {
 	ingTypes := []string{INSECURE, SECURE, MULTIHOST}
-	testMultipleIngressTypeWithReboot(t, REBOOTNONE, ingTypes)
+	testMultipleIngressTypeWithReboot(t, &REBOOTNONE, ingTypes)
 }
 func TestAllIngressParallelCreationUpdationDeletionWithAkoReboot(t *testing.T) {
 	ingTypes := []string{INSECURE, SECURE, MULTIHOST}
-	testMultipleIngressTypeWithReboot(t, REBOOTAKO, ingTypes)
+	testMultipleIngressTypeWithReboot(t, &REBOOTAKO, ingTypes)
 }
 
 func TestAllIngressParallelCreationUpdationDeletionWithNodeReboot(t *testing.T) {
 	ingTypes := []string{INSECURE, SECURE, MULTIHOST}
-	testMultipleIngressTypeWithReboot(t, REBOOTNODE, ingTypes)
+	testMultipleIngressTypeWithReboot(t, &REBOOTNODE, ingTypes)
 }
 
 func TestAllIngressParallelCreationUpdationDeletionWithControllerReboot(t *testing.T) {
 	ingTypes := []string{INSECURE, SECURE, MULTIHOST}
-	testMultipleIngressTypeWithReboot(t, REBOOTCONTROLLER, ingTypes)
+	testMultipleIngressTypeWithReboot(t, &REBOOTCONTROLLER, ingTypes)
 }
 
 func TestInsecureHybridExecution(t *testing.T) {
