@@ -35,6 +35,40 @@ import (
 
 const VSVIP_NOTFOUND = "VsVip object not found"
 
+//TODO: convert it to generalized function to be used by evh and sni both.
+func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviVsNode) {
+	var datascriptCollection []*avimodels.VSDataScripts
+	// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
+	if vs_meta.SSLKeyCertAviRef != "" {
+		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef)
+	} else {
+		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
+			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
+			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
+		}
+	}
+	vs.SslProfileRef = &vs_meta.SSLProfileRef
+	//set datascripts to VS from hostrule crd
+	for i, script := range vs_meta.VsDatascriptRefs {
+		j := int32(i)
+		datascript := script
+		datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
+		datascriptCollection = append(datascriptCollection, datascripts)
+	}
+	vs.VsDatascripts = datascriptCollection
+	if vs_meta.AppProfileRef != "" {
+		// hostrule ref overrides defaults
+		vs.ApplicationProfileRef = &vs_meta.AppProfileRef
+	}
+	vs.WafPolicyRef = &vs_meta.WafPolicyRef
+	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
+	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
+	vs.EastWestPlacement = proto.Bool(false)
+	vs.Enabled = vs_meta.Enabled
+	normal_vs_type := utils.VS_TYPE_NORMAL
+	vs.Type = &normal_vs_type
+}
+
 func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
 	if lib.CheckObjectNameLength(vs_meta.Name, lib.SNIVS) {
 		utils.AviLog.Warnf("key: %s not processing VS object", key)
@@ -141,6 +175,10 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 				httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
 				httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 			}
+		}
+		//Dedicated VS
+		if vs_meta.Dedicated {
+			setDedicatedVSNodeProperties(&vs, vs_meta)
 		}
 
 		bufferLen := int32(len(httpPolicyCollection)) + internalPolicyIndexBuffer + 5

@@ -66,6 +66,7 @@ const (
 	ADMIN_NS                      = "admin"
 	TLS_PASSTHROUGH               = "TLS_PASSTHROUGH"
 	VS_TYPE_VH_PARENT             = "VS_TYPE_VH_PARENT"
+	VS_TYPE_NORMAL                = "VS_TYPE_NORMAL"
 	VS_TYPE_VH_CHILD              = "VS_TYPE_VH_CHILD"
 	VS_TYPE_VH_ENHANCED           = "VS_TYPE_VH_ENHANCED"
 	NodeObj                       = "Node"

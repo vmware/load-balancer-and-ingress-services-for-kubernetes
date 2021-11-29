@@ -70,6 +70,8 @@ const (
 	ShardVSSubstring                           = "Shared-"
 	ShardVSPrefix                              = "Shared-L7"
 	ShardEVHVSPrefix                           = "Shared-L7-EVH-"
+	DedicatedSuffix                            = "-L7-dedicated"
+	EVHSuffix                                  = "-EVH"
 	PassthroughPrefix                          = "Shared-Passthrough-"
 	PolicyAllow                                = "ALLOW"
 	PolicyNone                                 = "NONE"
@@ -159,6 +161,7 @@ const (
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
 	CRDActive                                  = "ACTIVE"
 	CRDInactive                                = "INACTIVE"
+	SSLPort                                    = 443
 
 	// AKO Event constants
 	AKOEventComponent  = "avi-kubernetes-operator"
