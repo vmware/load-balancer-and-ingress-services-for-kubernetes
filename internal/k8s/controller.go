@@ -143,22 +143,6 @@ func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 	return false
 }
 
-// Consider a route has been updated only if spec/annotation is updated
-func isRouteUpdated(oldRoute, newRoute *routev1.Route) bool {
-	if oldRoute.ResourceVersion == newRoute.ResourceVersion {
-		return false
-	}
-
-	oldSpecHash := utils.Hash(utils.Stringify(oldRoute.Spec))
-	newSpecHash := utils.Hash(utils.Stringify(newRoute.Spec))
-
-	if oldSpecHash != newSpecHash {
-		return true
-	}
-
-	return false
-}
-
 func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 	if oldNS.ResourceVersion == newNS.ResourceVersion {
 		return false
@@ -394,7 +378,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			oldRoute := old.(*routev1.Route)
 			newRoute := cur.(*routev1.Route)
-			if isRouteUpdated(oldRoute, newRoute) {
+			if oldRoute.ResourceVersion != newRoute.ResourceVersion || !reflect.DeepEqual(newRoute.Annotations, oldRoute.Annotations) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
 				if !utils.CheckIfNamespaceAccepted(namespace) {
 					utils.AviLog.Debugf("Route update event: Namespace: %s didn't qualify filter. Not updating route", namespace)
