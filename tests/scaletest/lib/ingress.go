@@ -218,7 +218,7 @@ func CreateInsecureIngress(ingressNamePrefix string, serviceName string, namespa
 		startInd = startIndex[0]
 	}
 	for i := startInd; i < num+startInd; i++ {
-		ingressName := ingressNamePrefix + strconv.Itoa(i)
+		ingressName := ingressNamePrefix + "-insecure-" + strconv.Itoa(i)
 		hostName := ingressName + SUBDOMAIN
 		ingress := &unstructured.Unstructured{
 			Object: map[string]interface{}{
@@ -261,7 +261,7 @@ func CreateSecureIngress(ingressNamePrefix string, serviceName string, namespace
 		startInd = startIndex[0]
 	}
 	for i := startInd; i < num+startInd; i++ {
-		ingressName := ingressNamePrefix + strconv.Itoa(i)
+		ingressName := ingressNamePrefix + "-secure-" + strconv.Itoa(i)
 		hostName := ingressName + SUBDOMAIN
 		ingress := &unstructured.Unstructured{
 			Object: map[string]interface{}{
