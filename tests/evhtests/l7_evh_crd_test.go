@@ -270,12 +270,17 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 		}
 		return []string{}
 	}, 10*time.Second).Should(gomega.ContainElement("baz.com"))
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[0].HttpPolicyRefs)
+	}, 10*time.Second).Should(gomega.Equal(2))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts).To(gomega.ContainElement("baz.com"))
-	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts).NotTo(gomega.ContainElement("bar.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Host).To(gomega.ContainElement("baz.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Host).NotTo(gomega.ContainElement("bar.com"))
+	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts).To(gomega.ContainElement("baz.com"))
+	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts).NotTo(gomega.ContainElement("bar.com"))
 
 	//Delete/Disable
 	hrUpdate = integrationtest.FakeHostRule{

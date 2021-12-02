@@ -271,6 +271,7 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 		}
 		return 0
 	}, 55*time.Second).Should(gomega.Equal(2))
+	time.Sleep(5 * time.Second)
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))

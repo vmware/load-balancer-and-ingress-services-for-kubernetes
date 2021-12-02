@@ -121,6 +121,13 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode, key string) {
 	var l4Policies []*AviL4PolicyNode
 	var portPoolSet []AviHostPathPortPoolPG
+
+	infraSetting, err := getL4InfraSetting(key, svcObj, nil)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
+		return
+	}
+
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
 		poolNode := &AviPoolNode{
@@ -130,11 +137,15 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			PortName:   portProto.Name,
 			VrfContext: lib.GetVrf(),
 		}
+
+		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+
 		if lib.GetT1LRPath() != "" {
 			poolNode.T1Lr = lib.GetT1LRPath()
 			// Unset the poolnode's vrfcontext.
 			poolNode.VrfContext = ""
 		}
+
 		serviceType := lib.GetServiceType()
 		if serviceType == lib.NodePortLocal {
 			if svcObj.Spec.Type == "NodePort" {
@@ -158,20 +169,23 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 				poolNode.Servers = servers
 			}
 		}
+
 		poolNode.AviMarkers = lib.PopulateL4PoolNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, strconv.Itoa(int(filterPort)))
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		portPool := AviHostPathPortPoolPG{Port: uint32(filterPort), Pool: pool_ref, Protocol: portProto.Protocol}
 		portPoolSet = append(portPoolSet, portPool)
 
+		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 	}
+
 	l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: lib.GetTenant(), PortPool: portPoolSet}
 	l4policyNode.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
 	l4Policies = append(l4Policies, l4policyNode)
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
-
 }
 
 func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {

@@ -816,12 +816,16 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key, infraSettingName string, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key string, infraSetting *akov1alpha1.AviInfraSetting, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var httppolname string
 	var policyNode *AviHttpPolicySetNode
 	pathSet := sets.NewString(childNode.Paths...)
 
+	var infraSettingName string
+	if infraSetting != nil {
+		infraSettingName = infraSetting.Name
+	}
 	ingressNameSet := sets.NewString(childNode.IngressNames...)
 	ingressNameSet.Insert(ingName)
 	// Update the VSVIP with the host information.
@@ -887,16 +891,21 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 				PoolRatio:   path.weight,
 			},
 		}
+
+		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+
 		if lib.GetT1LRPath() != "" {
 			poolNode.T1Lr = lib.GetT1LRPath()
 			// Unset the poolnode's vrfcontext.
 			poolNode.VrfContext = ""
 		}
+
 		poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hosts[0],
 			infraSettingName, path.ServiceName, []string{ingName}, []string{path.Path})
 		if tlsSettings != nil && tlsSettings.reencrypt {
 			o.BuildPoolSecurity(poolNode, *tlsSettings, key, poolNode.AviMarkers)
 		}
+
 		serviceType := lib.GetServiceType()
 		if serviceType == lib.NodePortLocal {
 			if servers := PopulateServersForNPL(poolNode, namespace, path.ServiceName, true, key); servers != nil {
@@ -911,6 +920,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 				poolNode.Servers = servers
 			}
 		}
+
+		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		ratio := path.weight
 		pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
@@ -922,6 +934,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			// Replace the poolNode.
 			childNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
+
 		if !pgfound {
 			pathSet.Insert(path.Path)
 			hppMapName := lib.GetSniHppMapName(ingName, namespace, hosts[0], path.Path, infraSettingName, vsNode[0].Dedicated)
@@ -946,11 +959,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 
 func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parsedIng IngressConfig, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before  processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
-	var infraSettingName string
-	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		infraSettingName = aviInfraSetting.Name
-	}
-
 	for host, pathsvcmap := range parsedIng.IngressHostMap {
 		// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
 		hostData, found := Storedhosts[host]
@@ -984,16 +992,17 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName.Name, key, routeIgrObj, shardVsName.Dedicated, false)
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
+		infraSetting := routeIgrObj.GetAviInfraSetting()
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
-			if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
+			if infraSetting != nil {
 				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
 
 		// Create one evh child per host and associate http policies for each path.
 		modelGraph := aviModel.(*AviObjectGraph)
-		modelGraph.BuildModelGraphForInsecureEVH(routeIgrObj, host, infraSettingName, key, pathsvcmap)
+		modelGraph.BuildModelGraphForInsecureEVH(routeIgrObj, host, infraSetting, key, pathsvcmap)
 
 		changedModel := saveAviModel(modelName, modelGraph, key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -1004,7 +1013,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
 }
 
-func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host, infraSettingName, key string, pathsvcmap HostMetadata) {
+func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host string, infraSetting *akov1alpha1.AviInfraSetting, key string, pathsvcmap HostMetadata) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var evhNode *AviEvhVsNode
@@ -1012,8 +1021,12 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	ingName := routeIgrObj.GetName()
 	namespace := routeIgrObj.GetNamespace()
 	isDedicated := vsNode[0].Dedicated
-	hostSlice := []string{host}
+	var infraSettingName string
+	if infraSetting != nil {
+		infraSettingName = infraSetting.Name
+	}
 
+	hostSlice := []string{host}
 	// Populate the hostmap with empty secret for insecure ingress
 	PopulateIngHostMap(namespace, host, ingName, "", pathsvcmap)
 	_, ingressHostMap := SharedHostNameLister().Get(host)
@@ -1088,7 +1101,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	// Remove the redirect for secure to insecure transition
 	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
 	// build poolgroup and pool
-	o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, pathsvcmap.ingressHPSvc, nil)
+	o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, pathsvcmap.ingressHPSvc, nil)
 	if !isDedicated {
 		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 		if !foundEvhModel {
@@ -1252,10 +1265,7 @@ func ProcessSecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parsedI
 
 func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) map[string][]IngressHostPathSvc {
 	hostPathSvcMap := make(map[string][]IngressHostPathSvc)
-	var infraSettingName string
-	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		infraSettingName = aviInfraSetting.Name
-	}
+	infraSetting := routeIgrObj.GetAviInfraSetting()
 
 	for host, paths := range tlssetting.Hosts {
 		var hosts []string
@@ -1286,13 +1296,13 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
-			if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
+			if infraSetting != nil {
 				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
 
 		modelGraph := aviModel.(*AviObjectGraph)
-		modelGraph.BuildModelGraphForSecureEVH(routeIgrObj, ingressHostMap, hosts, tlssetting, ingName, namespace, infraSettingName, host, key, paths)
+		modelGraph.BuildModelGraphForSecureEVH(routeIgrObj, ingressHostMap, hosts, tlssetting, ingName, namespace, infraSetting, host, key, paths)
 		// Only add this node to the list of models if the checksum has changed.
 		utils.AviLog.Debugf("key: %s, Saving Model: %v", key, utils.Stringify(vsNode))
 		modelChanged := saveAviModel(model_name, modelGraph, key)
@@ -1305,7 +1315,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	return hostPathSvcMap
 }
 
-func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, hosts []string, tlssetting TlsSettings, ingName, namespace, infraSettingName, host, key string, paths HostMetadata) {
+func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, hosts []string, tlssetting TlsSettings, ingName, namespace string, infraSetting *akov1alpha1.AviInfraSetting, host, key string, paths HostMetadata) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var evhNode *AviEvhVsNode
@@ -1316,6 +1326,11 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
 	if re.MatchString(evhSecretName) {
 		certsBuilt = true
+	}
+
+	var infraSettingName string
+	if infraSetting != nil {
+		infraSettingName = infraSetting.Name
 	}
 	if !isDedicated {
 		childVSName := lib.GetEvhNodeName(host, infraSettingName)
@@ -1398,7 +1413,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, paths.gslbHostHeader)
 			}
 		}
-		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, paths.ingressHPSvc, &tlssetting)
+
+		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, paths.ingressHPSvc, &tlssetting)
 		if !isDedicated {
 			foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 			if !foundEvhModel {

@@ -124,6 +124,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				Tenant:     lib.GetTenant(),
 				VrfContext: lib.GetVrf(),
 			}
+			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 			if lib.GetT1LRPath() != "" {
 				poolNode.T1Lr = lib.GetT1LRPath()
 				// Unset the poolnode's vrfcontext.
