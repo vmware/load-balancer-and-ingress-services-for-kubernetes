@@ -548,6 +548,14 @@ func (v *AviVsNode) SetVSVIPLoadBalancerIP(ip string) {
 	}
 }
 
+func (v *AviVsNode) GetVHDomainNames() []string {
+	return v.VHDomainNames
+}
+
+func (v *AviVsNode) SetVHDomainNames(domainNames []string) {
+	v.VHDomainNames = domainNames
+}
+
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
 	var aviVs []*AviVsNode
 	for _, model := range o.modelNodes {

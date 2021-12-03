@@ -93,6 +93,9 @@ type AviVsEvhSniModel interface {
 
 	GetVSVIPLoadBalancerIP() string
 	SetVSVIPLoadBalancerIP(string)
+
+	GetVHDomainNames() []string
+	SetVHDomainNames([]string)
 }
 
 type AviEvhVsNode struct {
@@ -297,6 +300,14 @@ func (v *AviEvhVsNode) SetVSVIPLoadBalancerIP(ip string) {
 	if len(v.VSVIPRefs) > 0 {
 		v.VSVIPRefs[0].IPAddress = ip
 	}
+}
+
+func (v *AviEvhVsNode) GetVHDomainNames() []string {
+	return v.VHDomainNames
+}
+
+func (v *AviEvhVsNode) SetVHDomainNames(domainNames []string) {
+	v.VHDomainNames = domainNames
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -980,6 +991,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	}
 	// build host rule for insecure ingress in evh
 	BuildL7HostRule(host, key, evhNode)
+	AddFQDNsAliasesToHTTPPolicy(host, key, evhNode)
 	if !isDedicated {
 		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 	}
@@ -1282,6 +1294,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		// Enable host rule
 		BuildL7HostRule(host, key, evhNode)
 		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
+		AddFQDNsAliasesToHTTPPolicy(host, key, evhNode)
 
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(host)

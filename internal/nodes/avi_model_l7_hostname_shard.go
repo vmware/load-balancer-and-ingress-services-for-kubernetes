@@ -94,7 +94,9 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 
 	o.BuildPoolPGPolicyForDedicatedVS(vsNode, namespace, ingName, hostname, infraSettingName, key, pathFQDNs, pathsvc, insecureEdgeTermAllow, isIngr)
 	BuildL7HostRule(hostname, namespace, vsNode[0])
+	AddFQDNsAliasesToHTTPPolicy(hostname, key, vsNode[0])
 }
+
 func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, namespace, ingName, hostname, infraSettingName, key string, pathFQDNs []string, paths []IngressHostPathSvc, insecureEdgeTermAllow, isIngr bool) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var policyNode *AviHttpPolicySetNode
@@ -639,6 +641,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			o.BuildPolicyRedirectForVS(vsNode, sniHosts, namespace, infraSettingName, sniHost, key)
 		}
 		BuildL7HostRule(sniHost, key, sniNode)
+		AddFQDNsAliasesToHTTPPolicy(sniHost, key, sniNode)
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		if hostMapOk {

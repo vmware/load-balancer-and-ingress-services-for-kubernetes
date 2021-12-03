@@ -63,6 +63,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsDatascripts := []string{}
 	var analyticsPolicy *models.AnalyticsPolicy
 
+	// Get the existing VH domain names and then manipulate it based on the aliases in Hosttule CRD.
+	VHDomainNames := vsNode.GetVHDomainNames()
+
 	portProtocols := []AviPortHostProtocol{
 		{Port: 80, Protocol: utils.HTTP},
 		{Port: 443, Protocol: utils.HTTP, EnableSSL: true},
@@ -147,6 +150,13 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			}
 		}
 
+		for _, alias := range hostrule.Spec.VirtualHost.Aliases {
+			if !utils.HasElem(VHDomainNames, alias) {
+				VHDomainNames = append(VHDomainNames, alias)
+			}
+		}
+
+		utils.AviLog.Infof("SWATHIN hostrule.Spec.VirtualHost.Aliases: --%v--", VHDomainNames) // TODO: remove this log
 		utils.AviLog.Infof("key: %s, Successfully attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 	} else {
 		if vsNode.GetServiceMetadata().CRDStatus.Value != "" {
@@ -170,6 +180,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetAnalyticsPolicy(analyticsPolicy)
 	vsNode.SetPortProtocols(portProtocols)
 	vsNode.SetVSVIPLoadBalancerIP(lbIP)
+	vsNode.SetVHDomainNames(VHDomainNames)
 
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus

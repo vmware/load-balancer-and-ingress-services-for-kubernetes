@@ -120,6 +120,10 @@ spec:
                       loadBalancerIP:
                         type: string
                     type: object
+                  aliases:
+                    items:
+                      type: string
+                    type: array
                 required:
                 - fqdn
                 - fqdnType
