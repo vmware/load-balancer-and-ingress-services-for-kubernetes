@@ -991,7 +991,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	}
 	// build host rule for insecure ingress in evh
 	BuildL7HostRule(host, key, evhNode)
-	AddFQDNsAliasesToHTTPPolicy(host, key, evhNode)
+	AddFQDNAliasesToHTTPPolicy(host, key, evhNode)
 	if !isDedicated {
 		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 	}
@@ -1294,7 +1294,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		// Enable host rule
 		BuildL7HostRule(host, key, evhNode)
 		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
-		AddFQDNsAliasesToHTTPPolicy(host, key, evhNode)
+		AddFQDNAliasesToHTTPPolicy(host, key, evhNode)
 
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(host)

@@ -624,21 +624,21 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 
 }
 
-func AddFQDNsAliasesToHTTPPolicy(host, key string, vsNode AviVsEvhSniModel) {
+func AddFQDNAliasesToHTTPPolicy(host, key string, vsNode AviVsEvhSniModel) {
 	VHDomainName := vsNode.GetVHDomainNames()
 	for _, httpPolicyRef := range vsNode.GetHttpPolicyRefs() {
 		for j := range httpPolicyRef.HppMap {
 			if utils.HasElem(httpPolicyRef.HppMap[j].Host, host) {
 				httpPolicyRef.HppMap[j].Host = make([]string, len(VHDomainName))
 				copy(httpPolicyRef.HppMap[j].Host, VHDomainName)
-				break //CHECK ME: Multiple policies ref possible?
+				break
 			}
 		}
 		for j := range httpPolicyRef.RedirectPorts {
 			if utils.HasElem(httpPolicyRef.RedirectPorts[j].Hosts, host) {
 				httpPolicyRef.RedirectPorts[j].Hosts = make([]string, len(VHDomainName))
 				copy(httpPolicyRef.RedirectPorts[j].Hosts, VHDomainName)
-				break //CHECK ME: Multiple redirect policy possible?
+				break
 			}
 		}
 	}
