@@ -156,7 +156,6 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			}
 		}
 
-		utils.AviLog.Infof("SWATHIN hostrule.Spec.VirtualHost.Aliases: --%v--", VHDomainNames) // TODO: remove this log
 		utils.AviLog.Infof("key: %s, Successfully attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 	} else {
 		if vsNode.GetServiceMetadata().CRDStatus.Value != "" {
