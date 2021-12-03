@@ -23,9 +23,11 @@ spec:
     namespaceSelector:
       labelKey: {{ .Values.AKOSettings.namespaceSelector.labelKey | quote }}
       labelValue: {{ .Values.AKOSettings.namespaceSelector.labelValue | quote }}
+    vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace }}
 
   networkSettings:
     enableRHI: {{ .Values.NetworkSettings.enableRHI }}
+    nsxtT1LR: {{ .Values.NetworkSettings.nsxtT1LR }}
 {{- with .Values.NetworkSettings.bgpPeerLabels }}
     bgpPeerLabels:
 {{- toYaml . | nindent 4 }}

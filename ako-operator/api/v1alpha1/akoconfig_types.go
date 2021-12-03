@@ -131,7 +131,7 @@ type ControllerSettings struct {
 	// CloudName is the name of the cloud to be used in Avi
 	CloudName string `json:"cloudName,omitempty"`
 	// ControllerIP is the IP address of the Avi Controller
-	ControllerIP string `json:"controllerHost,omitempty"`
+	ControllerIP string `json:"controllerIP,omitempty"`
 	// TenantsPerCluster if set to true, AKO will map each k8s cluster uniquely to a tenant
 	// in Avi
 	TenantsPerCluster bool `json:"tenantsPerCluster,omitempty"`

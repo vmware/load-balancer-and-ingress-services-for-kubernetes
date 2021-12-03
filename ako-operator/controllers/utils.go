@@ -62,7 +62,7 @@ const (
 	TenantsPerCluster      = "tenantsPerCluster"
 	TenantName             = "tenantName"
 	NoPGForSni             = "noPGForSni"
-	Nsxt1LR                = "nsxtT1LR"
+	NsxtT1LR               = "nsxtT1LR"
 )
 
 var SecretEnvVars = map[string]string{
@@ -101,7 +101,7 @@ var ConfigMapEnvVars = map[string]string{
 	"TENANTS_PER_CLUSTER":        TenantsPerCluster,
 	"NAMESPACE_SYNC_LABEL_KEY":   NSSyncLabelKey,
 	"NAMESPACE_SYNC_LABEL_VALUE": NSSyncLabelValue,
-	"NSXT_T1_LR":                 Nsxt1LR,
+	"NSXT_T1_LR":                 NsxtT1LR,
 }
 
 func getSFNamespacedName() types.NamespacedName {
@@ -284,6 +284,10 @@ func getEnvVars(ako akov1alpha1.AKOConfig, aviSecret v1.Secret) []v1.EnvVar {
 	envVars = append(envVars, v1.EnvVar{
 		Name:  "LOG_FILE_NAME",
 		Value: ako.Spec.LogFile,
+	})
+	envVars = append(envVars, v1.EnvVar{
+		Name:  "POD_NAMESPACE",
+		Value: AviSystemNS,
 	})
 	return envVars
 }

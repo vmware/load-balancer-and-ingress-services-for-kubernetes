@@ -93,6 +93,11 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 				Verbs:     []string{"get", "watch", "list"},
 			},
 			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"statefulsets", "statefulsets/status"},
+				Verbs:     []string{"get", "watch", "list"},
+			},
+			{
 				APIGroups: []string{"extensions", "networking.k8s.io"},
 				Resources: []string{"ingresses", "ingresses/status"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
@@ -104,8 +109,13 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 			},
 			{
 				APIGroups: []string{""},
-				Resources: []string{"services/status"},
+				Resources: []string{"services", "services/status", "secrets"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"events"},
+				Verbs:     []string{"create", "patch", "update"},
 			},
 			{
 				APIGroups: []string{"crd.projectcalico.org"},

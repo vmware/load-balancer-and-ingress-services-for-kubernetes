@@ -181,6 +181,7 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		enableRHI = "true"
 	}
 	cm.Data[EnableRHI] = enableRHI
+	cm.Data[NsxtT1LR] = ako.Spec.NetworkSettings.NsxtT1LR
 
 	var err error
 	type VipNetworkListRow struct {

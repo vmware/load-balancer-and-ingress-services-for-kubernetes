@@ -26,7 +26,8 @@ metadata:
                 "labelKey": "",
                 "labelValue": ""
               },
-              "servicesAPI": false
+              "servicesAPI": false,
+              vipPerNamespace: "false"
             },
             "controllerSettings": {
               "cloudName": "Default-Cloud",
@@ -90,7 +91,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.7.1+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: ako-operator.v1.5.2
+  name: ako-operator.v1.6.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -182,6 +183,14 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - events
+          verbs:
+          - create
+          - patch
+          - update
+        - apiGroups:
+          - ""
+          resources:
           - secrets
           - secrets/status
           verbs:
@@ -195,7 +204,8 @@ spec:
         - apiGroups:
           - ""
           resources:
-          - serviceaccounts
+          - services
+          - services/status
           verbs:
           - create
           - delete
@@ -207,7 +217,7 @@ spec:
         - apiGroups:
           - ""
           resources:
-          - services/status
+          - serviceaccounts
           verbs:
           - create
           - delete
@@ -292,6 +302,7 @@ spec:
           - apps
           resources:
           - statefulsets
+          - statefulsets/status
           verbs:
           - create
           - delete
@@ -325,6 +336,20 @@ spec:
           - list
           - patch
           - update
+          - watch
+        - apiGroups:
+          - extensions
+          - policy
+          resources:
+          - podsecuritypolicies
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - use
           - watch
         - apiGroups:
           - network.openshift.io
@@ -370,18 +395,6 @@ spec:
           - gatewayclasses/status
           - gateways
           - gateways/status
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - policy
-          resources:
-          - podsecuritypolicies
           verbs:
           - create
           - delete
@@ -444,7 +457,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.registry.vmware.com/ako/ako-operator:1.5.2
+                image: projects.registry.vmware.com/ako/ako-operator:1.6.1
                 name: ako-operator
                 resources:
                   limits:
@@ -510,4 +523,4 @@ spec:
   maturity: alpha
   provider:
     name: VMware
-  version: 1.5.2
+  version: 1.6.1

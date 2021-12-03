@@ -29,6 +29,14 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
   - secrets
   - secrets/status
   verbs:
@@ -42,7 +50,9 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - serviceaccounts
+  - secrets
+  - services
+  - services/status
   verbs:
   - create
   - delete
@@ -54,7 +64,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - services/status
+  - serviceaccounts
   verbs:
   - create
   - delete
@@ -139,6 +149,7 @@ rules:
   - apps
   resources:
   - statefulsets
+  - statefulsets/status
   verbs:
   - create
   - delete
