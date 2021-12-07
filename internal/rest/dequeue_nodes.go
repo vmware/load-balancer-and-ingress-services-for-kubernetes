@@ -69,6 +69,12 @@ func (rest *RestOperations) DequeueNodes(key string) {
 		}
 		if vs_cache_obj != nil {
 			utils.AviLog.Infof("key: %s, msg: nil model found, this is a vs deletion case", key)
+			// In the case of L7 shared VS, the following condition check makes sure the
+			// VIPs persist over AKO reboot.
+			if lib.IsShardVS(key) && !lib.DisableSync {
+				utils.AviLog.Infof("key: %s, VIPs needs to be retained, not performing vs deletion", key)
+				return
+			}
 			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false, false)
 		}
 	} else if ok && avimodelIntf != nil {
