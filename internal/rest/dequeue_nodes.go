@@ -72,6 +72,9 @@ func (rest *RestOperations) DequeueNodes(key string) {
 			// In the case of L7 shared VS, the following condition check makes sure the
 			// VIPs persist over AKO reboot.
 			if lib.IsShardVS(key) && !lib.DisableSync {
+				// Save the model in the cache as it is required when the user
+				// sets the deleteconfig flag to `true`.
+				objects.SharedAviGraphLister().Save(key, nil)
 				utils.AviLog.Infof("key: %s, VIPs needs to be retained, not performing vs deletion", key)
 				return
 			}
