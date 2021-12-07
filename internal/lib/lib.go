@@ -231,6 +231,11 @@ func GetAdvL4PoolName(svcName, namespace, gwName string, port int32) string {
 	return Encode(poolName, L4AdvPool)
 }
 
+func GetSvcApiL4PoolName(svcName, namespace, gwName, protocol string, port int32) string {
+	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "-" + protocol + "-" + strconv.Itoa(int(port))
+	return Encode(poolName, L4AdvPool)
+}
+
 // All L7 object names.
 func GetVsVipName(vsName string) string {
 	vsVipName := vsName
