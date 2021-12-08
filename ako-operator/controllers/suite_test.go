@@ -63,7 +63,7 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			DefaultIngController: true,
 			ShardVSSize:          akov1alpha1.VSSize("LARGE"),
 			ServiceType:          akov1alpha1.ServiceTypeStr("ClusterIP"),
-			PassthroughShardSize: akov1alpha1.VSSize("SMALL"),
+			PassthroughShardSize: akov1alpha1.PassthroughVSSize("SMALL"),
 			NoPGForSNI:           false,
 		},
 

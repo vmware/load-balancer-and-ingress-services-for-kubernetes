@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -47,6 +48,7 @@ var (
 // AKOConfigReconciler reconciles a AKOConfig object
 type AKOConfigReconciler struct {
 	client.Client
+	Config *rest.Config
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
@@ -81,14 +83,28 @@ func removeFinalizer(finalizers []string, key string) (result []string) {
 	return result
 }
 
+// +kubebuilder:rbac:groups="",resources=*,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets;secrets/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=akoconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=akoconfigs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=httprules;httprules/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=hostrules;hostrules/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=crd.projectcalico.org,resources=blockaffinities;blockaffinities/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="apiextensions.k8s.io",resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=extensions,resources=ingresses; ingresses/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=network.openshift.io,resources=hostsubnets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses;ingresses/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gatewayclasses;gatewayclasses/status;gateways;gateways/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy;extensions,resources=podsecuritypolicies,verbs=use;get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="policy",resources=podsecuritypolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/status,verbs=get;list;watch;create;update;patch;delete
 
 func (r *AKOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("ako-operator", req.NamespacedName)
@@ -167,6 +183,11 @@ func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako ako
 		return err
 	}
 
+	err = createCRDs(r.Config, log)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -217,6 +238,11 @@ func (r *AKOConfigReconciler) CleanupArtifacts(ctx context.Context, log logr.Log
 			log.Error(err, "error while deleting object")
 			return err
 		}
+	}
+	err := deleteCRDs(r.Config)
+	if err != nil {
+		log.Error(err, "error while deleting crds")
+		return err
 	}
 	return nil
 }

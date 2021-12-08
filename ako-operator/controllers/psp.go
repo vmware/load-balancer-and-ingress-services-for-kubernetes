@@ -54,6 +54,11 @@ func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOCon
 	if oldPSP.GetName() != "" {
 		if reflect.DeepEqual(oldPSP.Spec, psp.Spec) {
 			log.V(0).Info("no updates required for podsecuritypolicy")
+			// add this object in the global list
+			objList := getObjectList()
+			objList[types.NamespacedName{
+				Name: oldPSP.GetName(),
+			}] = &oldPSP
 			return nil
 		}
 		err := r.Update(ctx, &psp)
@@ -79,8 +84,7 @@ func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOCon
 	// update this object in the global list
 	objList := getObjectList()
 	objList[types.NamespacedName{
-		Name:      newPSP.GetName(),
-		Namespace: newPSP.GetNamespace(),
+		Name: newPSP.GetName(),
 	}] = &newPSP
 
 	return nil
