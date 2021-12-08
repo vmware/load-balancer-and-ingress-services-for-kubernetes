@@ -556,10 +556,6 @@ func (v *AviVsNode) SetVHDomainNames(domainNames []string) {
 	v.VHDomainNames = domainNames
 }
 
-func (v *AviVsNode) GetVSVIPRefs() []*AviVSVIPNode {
-	return v.VSVIPRefs
-}
-
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
 	var aviVs []*AviVsNode
 	for _, model := range o.modelNodes {
