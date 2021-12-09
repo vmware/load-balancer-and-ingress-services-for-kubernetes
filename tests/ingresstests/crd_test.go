@@ -716,6 +716,7 @@ func TestHostruleFQDNAliases(t *testing.T) {
 		g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 		g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
 		g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Host).Should(gomega.ContainElements(aliases))
+		g.Expect(node.SniNodes[0].HttpPolicyRefs[0].AviMarkers.Host).Should(gomega.ContainElements(aliases))
 	}
 
 	// Check default values.

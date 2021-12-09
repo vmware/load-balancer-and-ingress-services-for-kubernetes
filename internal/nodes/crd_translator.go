@@ -258,7 +258,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 			var poolName string
 			// FOR EVH: Build poolname using marker fields.
 			if lib.IsEvhEnabled() && pool.AviMarkers.Namespace != "" {
-				poolName = lib.GetEvhPoolNameNoEncoding(pool.AviMarkers.IngressName[0], pool.AviMarkers.Namespace, pool.AviMarkers.Host,
+				poolName = lib.GetEvhPoolNameNoEncoding(pool.AviMarkers.IngressName[0], pool.AviMarkers.Namespace, pool.AviMarkers.Host[0],
 					pool.AviMarkers.Path[0], pool.AviMarkers.InfrasettingName, pool.AviMarkers.ServiceName, isDedicated)
 			} else {
 				poolName = pool.Name

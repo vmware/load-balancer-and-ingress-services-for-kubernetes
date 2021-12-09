@@ -669,6 +669,8 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			}
 		}
 		vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
+		vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(sniHost, hostsToRemove, key)
+		sniNode.RemoveFQDNAliasesFromHTTPPolicy(sniHost, hostsToRemove, key)
 
 		// Add FQDN aliases in the hostrule CRD to parent and child VSes
 		vsNode[0].AddFQDNsToModel(sniNode.VHDomainNames, gsFqdn, key)

@@ -740,6 +740,13 @@ func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key 
 				break
 			}
 		}
+		if utils.HasElem(httpPolicyRef.AviMarkers.Host, host) {
+			for _, host := range hosts {
+				if !utils.HasElem(httpPolicyRef.AviMarkers.Host, host) {
+					httpPolicyRef.AviMarkers.Host = append(httpPolicyRef.AviMarkers.Host, host)
+				}
+			}
+		}
 	}
 
 	// Update the hppMap with the hosts
@@ -761,6 +768,34 @@ func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key 
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Added multiple FQDNs to HTTP policy for VS %s", key, o.Name)
+}
+
+func (o *AviVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
+
+	// Find the hppMap and redirectPorts that matches the host and delete the hosts from it
+	for _, httpPolicyRef := range o.HttpPolicyRefs {
+		for j := range httpPolicyRef.HppMap {
+			if utils.HasElem(httpPolicyRef.HppMap[j].Host, host) {
+				for _, host := range hosts {
+					httpPolicyRef.HppMap[j].Host = utils.Remove(httpPolicyRef.HppMap[j].Host, host)
+				}
+			}
+		}
+		for j := range httpPolicyRef.RedirectPorts {
+			if utils.HasElem(httpPolicyRef.RedirectPorts[j].Hosts, host) {
+				for _, host := range hosts {
+					httpPolicyRef.RedirectPorts[j].Hosts = utils.Remove(httpPolicyRef.RedirectPorts[j].Hosts, host)
+				}
+			}
+		}
+		if utils.HasElem(httpPolicyRef.AviMarkers.Host, host) {
+			for _, host := range hosts {
+				httpPolicyRef.AviMarkers.Host = utils.Remove(httpPolicyRef.AviMarkers.Host, host)
+			}
+		}
+	}
+
+	utils.AviLog.Debugf("key: %s, msg: Removed multiple FQDNs from HTTP policy for VS %s", key, o.Name)
 }
 
 func (o *AviVsNode) AddFQDNsToModel(hosts []string, gsFqdn, key string) {

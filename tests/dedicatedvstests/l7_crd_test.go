@@ -61,6 +61,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 				g.Expect(httpPolicyRef.RedirectPorts).To(gomega.HaveLen(1))
 				g.Expect(httpPolicyRef.RedirectPorts[0].Hosts).Should(gomega.ContainElements(aliases))
 			}
+			g.Expect(httpPolicyRef.AviMarkers.Host).Should(gomega.ContainElements(aliases))
 		}
 	}
 

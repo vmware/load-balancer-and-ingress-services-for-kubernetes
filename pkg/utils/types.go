@@ -202,7 +202,7 @@ type K8ValidNamespaces struct {
 
 type AviObjectMarkers struct {
 	Namespace        string
-	Host             string
+	Host             []string
 	InfrasettingName string
 	ServiceName      string
 	Path             []string

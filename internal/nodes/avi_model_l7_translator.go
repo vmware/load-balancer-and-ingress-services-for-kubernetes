@@ -440,7 +440,7 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 		Tenant: lib.GetTenant(),
 		CACert: tlsData.destCA,
 	}
-	pkiProfile.AviMarkers = lib.PopulatePoolNodeMarkers(aviMarkers.Namespace, aviMarkers.Host,
+	pkiProfile.AviMarkers = lib.PopulatePoolNodeMarkers(aviMarkers.Namespace, aviMarkers.Host[0],
 		aviMarkers.InfrasettingName, aviMarkers.ServiceName, aviMarkers.IngressName, aviMarkers.Path)
 	utils.AviLog.Infof("key: %s, Added pki profile %s for pool %s", pkiProfile.Name, poolNode.Name)
 	poolNode.PkiProfile = &pkiProfile
