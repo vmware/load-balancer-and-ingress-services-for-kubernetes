@@ -504,19 +504,39 @@ func (v *AviEvhVsNode) GetNodeType() string {
 
 func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
 
+	var hppMap *AviHostPathPortPoolPG
+	var redirectPorts *AviRedirectPort
+
+	// Find the hppMap and redirectPorts that matches the host
 	for _, httpPolicyRef := range o.HttpPolicyRefs {
 		for j := range httpPolicyRef.HppMap {
 			if utils.HasElem(httpPolicyRef.HppMap[j].Host, host) {
-				httpPolicyRef.HppMap[j].Host = make([]string, len(hosts))
-				copy(httpPolicyRef.HppMap[j].Host, hosts)
+				hppMap = &httpPolicyRef.HppMap[j]
 				break
 			}
 		}
 		for j := range httpPolicyRef.RedirectPorts {
 			if utils.HasElem(httpPolicyRef.RedirectPorts[j].Hosts, host) {
-				httpPolicyRef.RedirectPorts[j].Hosts = make([]string, len(hosts))
-				copy(httpPolicyRef.RedirectPorts[j].Hosts, hosts)
+				redirectPorts = &httpPolicyRef.RedirectPorts[j]
 				break
+			}
+		}
+	}
+
+	// Update the hppMap with the hosts
+	if hppMap != nil {
+		for _, host := range hosts {
+			if !utils.HasElem(hppMap.Host, host) {
+				hppMap.Host = append(hppMap.Host, host)
+			}
+		}
+	}
+
+	// Update the redirectPorts with the hosts
+	if redirectPorts != nil {
+		for _, host := range hosts {
+			if !utils.HasElem(redirectPorts.Hosts, host) {
+				redirectPorts.Hosts = append(redirectPorts.Hosts, host)
 			}
 		}
 	}

@@ -659,13 +659,13 @@ func TestHostruleFQDNAliasesForEvh(t *testing.T) {
 
 	// Common function that takes care of all validations
 	validateNode := func(node *avinodes.AviEvhVsNode, aliases []string) {
-		g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].VSVIPRefs[0].FQDNs).Should(gomega.ContainElements(aliases))
+		g.Expect(node.VSVIPRefs).To(gomega.HaveLen(1))
+		g.Expect(node.VSVIPRefs[0].FQDNs).Should(gomega.ContainElements(aliases))
 
-		g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].EvhNodes[0].VHDomainNames).Should(gomega.ContainElements(aliases))
-		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
-		for _, httpPolicyRef := range nodes[0].EvhNodes[0].HttpPolicyRefs {
+		g.Expect(node.EvhNodes).To(gomega.HaveLen(1))
+		g.Expect(node.EvhNodes[0].VHDomainNames).Should(gomega.ContainElements(aliases))
+		g.Expect(node.EvhNodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
+		for _, httpPolicyRef := range node.EvhNodes[0].HttpPolicyRefs {
 			if httpPolicyRef.HppMap != nil {
 				g.Expect(httpPolicyRef.HppMap).To(gomega.HaveLen(1))
 				g.Expect(httpPolicyRef.HppMap[0].Host).Should(gomega.ContainElements(aliases))
