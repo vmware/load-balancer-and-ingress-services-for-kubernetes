@@ -16,23 +16,21 @@ package dedicatedvstests
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	os.Setenv("SHARD_VS_SIZE", "DEDICATED")
-	defer os.Setenv("SHARD_VS_SIZE", "LARGE")
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "fqdn-aliases-hr-foo"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
