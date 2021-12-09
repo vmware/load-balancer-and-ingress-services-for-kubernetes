@@ -77,15 +77,6 @@ var sfJson = `
                                 }
                             },
                             {
-                                "name": "SYNC_NAMESPACE",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "syncNamespace",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
                                 "name": "SEG_NAME",
                                 "valueFrom": {
                                     "configMapKeyRef": {
@@ -135,15 +126,6 @@ var sfJson = `
                                 "valueFrom": {
                                     "configMapKeyRef": {
                                         "key": "fullSyncFrequency",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "ADVANCED_L4",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "advancedL4",
                                         "name": "avi-k8s-config"
                                     }
                                 }

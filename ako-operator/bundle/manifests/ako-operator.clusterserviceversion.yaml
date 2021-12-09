@@ -40,7 +40,6 @@ metadata:
             "imagePullPolicy": "IfNotPresent",
             "imageRepository": "projects.registry.vmware.com/ako/ako",
             "l4Settings": {
-              "advancedL4": false,
               "autoFQDN": "default",
               "defaultDomain": ""
             },

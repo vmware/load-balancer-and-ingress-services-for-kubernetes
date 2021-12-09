@@ -49,7 +49,6 @@ spec:
     noPGForSni: {{ .Values.L7Settings.noPGForSni }}
 
   l4Settings:
-    advancedL4: {{ .Values.L4Settings.advancedL4 }}
     defaultDomain: {{ .Values.L4Settings.defaultDomain | quote }}
     autoFQDN: {{ .Values.L4Settings.autoFQDN | quote }}
 

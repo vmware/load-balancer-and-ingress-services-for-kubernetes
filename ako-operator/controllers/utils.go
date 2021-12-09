@@ -48,9 +48,7 @@ const (
 	BgpPeerLabels          = "bgpPeerLabels"
 	LogLevel               = "logLevel"
 	DeleteConfig           = "deleteConfig"
-	AdvancedL4             = "advancedL4"
 	AutoFQDN               = "autoFQDN"
-	SyncNamespace          = "syncNamespace"
 	ServiceType            = "serviceType"
 	NodeKey                = "nodeKey"
 	NodeValue              = "nodeValue"
@@ -88,9 +86,7 @@ var ConfigMapEnvVars = map[string]string{
 	"DISABLE_STATIC_ROUTE_SYNC":  DisableStaticRouteSync,
 	"DEFAULT_ING_CONTROLLER":     DefaultIngController,
 	"VIP_NETWORK_LIST":           VipNetworkList,
-	"ADVANCED_L4":                AdvancedL4,
 	"AUTO_L4_FQDN":               AutoFQDN,
-	"SYNC_NAMESPACE":             SyncNamespace,
 	"SERVICE_TYPE":               ServiceType,
 	"NODE_KEY":                   NodeKey,
 	"NODE_VALUE":                 NodeValue,
