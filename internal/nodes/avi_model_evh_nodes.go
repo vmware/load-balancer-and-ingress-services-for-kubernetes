@@ -508,23 +508,23 @@ func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, k
 	var redirectPorts *AviRedirectPort
 
 	// Find the hppMap and redirectPorts that matches the host
-	for _, httpPolicyRef := range o.HttpPolicyRefs {
-		for j := range httpPolicyRef.HppMap {
-			if utils.HasElem(httpPolicyRef.HppMap[j].Host, host) {
-				hppMap = &httpPolicyRef.HppMap[j]
+	for _, policy := range o.HttpPolicyRefs {
+		for j := range policy.HppMap {
+			if utils.HasElem(policy.HppMap[j].Host, host) {
+				hppMap = &policy.HppMap[j]
 				break
 			}
 		}
-		for j := range httpPolicyRef.RedirectPorts {
-			if utils.HasElem(httpPolicyRef.RedirectPorts[j].Hosts, host) {
-				redirectPorts = &httpPolicyRef.RedirectPorts[j]
+		for j := range policy.RedirectPorts {
+			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
+				redirectPorts = &policy.RedirectPorts[j]
 				break
 			}
 		}
-		if utils.HasElem(httpPolicyRef.AviMarkers.Host, host) {
+		if utils.HasElem(policy.AviMarkers.Host, host) {
 			for _, host := range hosts {
-				if !utils.HasElem(httpPolicyRef.AviMarkers.Host, host) {
-					httpPolicyRef.AviMarkers.Host = append(httpPolicyRef.AviMarkers.Host, host)
+				if !utils.HasElem(policy.AviMarkers.Host, host) {
+					policy.AviMarkers.Host = append(policy.AviMarkers.Host, host)
 				}
 			}
 		}
@@ -554,24 +554,24 @@ func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, k
 func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
 
 	// Find the hppMap and redirectPorts that matches the host and remove the hosts
-	for _, httpPolicyRef := range o.HttpPolicyRefs {
-		for j := range httpPolicyRef.HppMap {
-			if utils.HasElem(httpPolicyRef.HppMap[j].Host, host) {
+	for _, policy := range o.HttpPolicyRefs {
+		for j := range policy.HppMap {
+			if utils.HasElem(policy.HppMap[j].Host, host) {
 				for _, host := range hosts {
-					httpPolicyRef.HppMap[j].Host = utils.Remove(httpPolicyRef.HppMap[j].Host, host)
+					policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
 				}
 			}
 		}
-		for j := range httpPolicyRef.RedirectPorts {
-			if utils.HasElem(httpPolicyRef.RedirectPorts[j].Hosts, host) {
+		for j := range policy.RedirectPorts {
+			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
 				for _, host := range hosts {
-					httpPolicyRef.RedirectPorts[j].Hosts = utils.Remove(httpPolicyRef.RedirectPorts[j].Hosts, host)
+					policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
 				}
 			}
 		}
-		if utils.HasElem(httpPolicyRef.AviMarkers.Host, host) {
+		if utils.HasElem(policy.AviMarkers.Host, host) {
 			for _, host := range hosts {
-				httpPolicyRef.AviMarkers.Host = utils.Remove(httpPolicyRef.AviMarkers.Host, host)
+				policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
 			}
 		}
 	}
