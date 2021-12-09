@@ -2607,10 +2607,18 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 	var result session.AviCollectionResult
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-		result, err = lib.AviGetCollectionRaw(client, uri)
-		if err != nil {
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			result, err = lib.AviGetCollectionRaw(client, uri)
+			if err != nil {
+				*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
+				return false
+			}
+
+		} else {
 			*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
 			return false
 		}
@@ -2658,10 +2666,17 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 		}
 		err := lib.AviPut(client, uri, seGroup, response)
 		if err != nil {
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			err := lib.AviPut(client, uri, seGroup, response)
-			if err != nil {
+			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
+				//SE in provider context
+				utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+				SetAdminTenant(client.AviSession)
+				defer SetTenant(client.AviSession)
+				err := lib.AviPut(client, uri, seGroup, response)
+				if err != nil {
+					return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+				}
+
+			} else {
 				return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
 			}
 		}
@@ -2712,10 +2727,18 @@ func DeConfigureSeGroupLabels() {
 
 	err = lib.AviPut(client, uri, seGroup, response)
 	if err != nil {
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-		err = lib.AviPut(client, uri, seGroup, response)
-		if err != nil {
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
+			//SE in provider context
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			err = lib.AviPut(client, uri, seGroup, response)
+			if err != nil {
+				utils.AviLog.Warnf("Deconfiguring SE Group labels failed on %v with error %v", segName, err.Error())
+				return
+
+			}
+		} else {
 			utils.AviLog.Warnf("Deconfiguring SE Group labels failed on %v with error %v", segName, err.Error())
 			return
 		}
@@ -2730,10 +2753,17 @@ func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEn
 	var result session.AviCollectionResult
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-		result, err = lib.AviGetCollectionRaw(client, uri)
-		if err != nil {
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			result, err = lib.AviGetCollectionRaw(client, uri)
+			if err != nil {
+				return nil, fmt.Errorf("Get uri %v returned err %v", uri, err)
+
+			}
+		} else {
 			return nil, fmt.Errorf("Get uri %v returned err %v", uri, err)
 		}
 	}

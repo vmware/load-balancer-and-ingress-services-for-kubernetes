@@ -148,12 +148,20 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	var result session.AviCollectionResult
 	result, err = lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
 	if err != nil {
-		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-		SetTenant := session.SetTenant(lib.GetTenant())
-		SetAdminTenant(a.AviRestClients.AviClient[0].AviSession)
-		defer SetTenant(a.AviRestClients.AviClient[0].AviSession)
-		result, err = lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
-		if err != nil {
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+			SetTenant := session.SetTenant(lib.GetTenant())
+			SetAdminTenant(a.AviRestClients.AviClient[0].AviSession)
+			defer SetTenant(a.AviRestClients.AviClient[0].AviSession)
+			result, err = lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return false
+			}
+
+		} else {
 			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 			return false
 		}
@@ -199,10 +207,18 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 
 	err := lib.AviPost(client, uri, seGroup, response)
 	if err != nil {
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-		err := lib.AviPost(client, uri, seGroup, response)
-		if err != nil {
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			err := lib.AviPost(client, uri, seGroup, response)
+			if err != nil {
+				utils.AviLog.Warnf("Error during POST call to create the SE group :%v", err.Error())
+				return false
+
+			}
+		} else {
 			utils.AviLog.Warnf("Error during POST call to create the SE group :%v", err.Error())
 			return false
 		}
@@ -219,12 +235,20 @@ func checkSeGroup(client *clients.AviClient, cloudName string) bool {
 	response := models.ServiceEngineGroupAPIResponse{}
 	err := lib.AviGet(client, uri, &response)
 	if err != nil {
-		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-		SetTenant := session.SetTenant(lib.GetTenant())
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-		err := lib.AviGet(client, uri, &response)
-		if err != nil {
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+			SetTenant := session.SetTenant(lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			err := lib.AviGet(client, uri, &response)
+			if err != nil {
+				utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
+				return false
+
+			}
+		} else {
 			utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
 			return false
 		}
