@@ -454,6 +454,7 @@ func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) (bool, stri
 			if diff == nil {
 				diff = proto.Bool(false)
 			}
+			beforeHost = status.Host
 			continue
 		}
 		ip := status.Conditions[0].Message
@@ -475,6 +476,7 @@ func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) (bool, stri
 		if !exists.Has(ip + ":" + status.Host + ":" + status.RouterName + ":" + reason) {
 			if diff == nil {
 				diff = proto.Bool(false)
+				afterHost = status.Host
 			}
 			continue
 		}

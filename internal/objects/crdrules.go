@@ -15,7 +15,10 @@
 package objects
 
 import (
+	"strings"
 	"sync"
+
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 )
 
 var CRDinstance *CRDLister
@@ -32,6 +35,7 @@ func SharedCRDLister() *CRDLister {
 			FqdnToGSFQDNCache:      NewObjectMapStore(),
 			FqdnSharedVSModelCache: NewObjectMapStore(),
 			SharedVSModelFqdnCache: NewObjectMapStore(),
+			FqdnFqdnTypeCache:      NewObjectMapStore(),
 		}
 	})
 	return CRDinstance
@@ -64,16 +68,58 @@ type CRDLister struct {
 
 	// Shared-VS-L7-1: shared-vs1-fqdn.com, SharedVS-L7-2: shared-vs2-fqdn.com
 	SharedVSModelFqdnCache *ObjectMapStore
+
+	// shared-vs1-fqdn: contains, foo.com: exact
+	FqdnFqdnTypeCache *ObjectMapStore
 }
 
 // FqdnHostRuleCache
-
 func (c *CRDLister) GetFQDNToHostruleMapping(fqdn string) (bool, string) {
 	found, hostrule := c.FqdnHostRuleCache.Get(fqdn)
 	if !found {
 		return false, ""
 	}
 	return true, hostrule.(string)
+}
+
+func (c *CRDLister) GetFQDNToHostruleMappingV2(fqdn string) (bool, string) {
+	// c.NSLock.Lock()
+	// defer c.NSLock.Unlock()
+
+	// not exact fqdns
+	allFqdns := c.FqdnHostRuleCache.GetAllKeys()
+	returnHostrules := []string{}
+	for _, mFqdn := range allFqdns {
+		oktype, fqdnType := c.FqdnFqdnTypeCache.Get(mFqdn)
+		if !oktype || fqdnType == "" {
+			fqdnType = string(akov1alpha1.Exact)
+		}
+
+		if fqdnType == string(akov1alpha1.Exact) && mFqdn == fqdn {
+			if found, hostrule := c.FqdnHostRuleCache.Get(mFqdn); found {
+				returnHostrules = append(returnHostrules, hostrule.(string))
+				break
+			}
+		} else if fqdnType == string(akov1alpha1.Contains) && strings.Contains(fqdn, mFqdn) {
+			if found, hostrule := c.FqdnHostRuleCache.Get(mFqdn); found {
+				returnHostrules = append(returnHostrules, hostrule.(string))
+				break
+			}
+		} else if fqdnType == string(akov1alpha1.Wildcard) && strings.HasPrefix(mFqdn, "*") {
+			wildcardFqdn := strings.Split(mFqdn, "*")[1]
+			if strings.HasSuffix(fqdn, wildcardFqdn) {
+				if found, hostrule := c.FqdnHostRuleCache.Get(mFqdn); found {
+					returnHostrules = append(returnHostrules, hostrule.(string))
+				}
+				break
+			}
+		}
+	}
+
+	if len(returnHostrules) > 0 {
+		return true, returnHostrules[0]
+	}
+	return false, ""
 }
 
 func (c *CRDLister) GetHostruleToFQDNMapping(hostrule string) (bool, string) {
@@ -128,6 +174,22 @@ func (c *CRDLister) UpdateFQDNHostruleMapping(fqdn string, hostrule string) {
 	c.HostRuleFQDNCache.AddOrUpdate(hostrule, fqdn)
 }
 
+func (c *CRDLister) GetFQDNFQDNTypeMapping(fqdn string) (bool, string) {
+	found, fqdnType := c.FqdnFqdnTypeCache.Get(fqdn)
+	if !found {
+		return false, ""
+	}
+	return true, fqdnType.(string)
+}
+
+func (c *CRDLister) DeleteFQDNFQDNTypeMapping(fqdn string) bool {
+	return c.FqdnFqdnTypeCache.Delete(fqdn)
+}
+
+func (c *CRDLister) UpdateFQDNFQDNTypeMapping(fqdn, fqdnType string) {
+	c.FqdnFqdnTypeCache.AddOrUpdate(fqdn, fqdnType)
+}
+
 // FqdnHTTPRulesCache
 
 func (c *CRDLister) GetFqdnHTTPRulesMapping(fqdn string) (bool, map[string]string) {
@@ -178,12 +240,37 @@ func (c *CRDLister) UpdateFqdnHTTPRulesMappings(fqdn, path, httprule string) {
 }
 
 // FqdnSharedVSModelCache/SharedVSModelFqdnCache
-func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn string) (bool, string) {
-	found, modelName := c.FqdnSharedVSModelCache.Get(fqdn)
-	if !found {
-		return false, ""
+func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn string) (bool, []string) {
+	// c.NSLock.Lock()
+	// defer c.NSLock.Unlock()
+	oktype, fqdnType := c.FqdnFqdnTypeCache.Get(fqdn)
+	if !oktype {
+		fqdnType = string(akov1alpha1.Exact)
 	}
-	return true, modelName.(string)
+
+	allFqdns := c.FqdnSharedVSModelCache.GetAllKeys()
+	returnModelNames := []string{}
+	for _, mFqdn := range allFqdns {
+		if fqdnType == string(akov1alpha1.Exact) && mFqdn == fqdn {
+			if found, modelName := c.FqdnSharedVSModelCache.Get(mFqdn); found {
+				returnModelNames = append(returnModelNames, modelName.(string))
+				break
+			}
+		} else if fqdnType == string(akov1alpha1.Contains) && strings.Contains(mFqdn, fqdn) {
+			if found, modelName := c.FqdnSharedVSModelCache.Get(mFqdn); found {
+				returnModelNames = append(returnModelNames, modelName.(string))
+			}
+		} else if fqdnType == string(akov1alpha1.Wildcard) && strings.HasPrefix(fqdn, "*") {
+			wildcardFqdn := strings.Split(fqdn, "*")[1]
+			if strings.HasSuffix(mFqdn, wildcardFqdn) {
+				if found, modelName := c.FqdnSharedVSModelCache.Get(mFqdn); found {
+					returnModelNames = append(returnModelNames, modelName.(string))
+				}
+			}
+		}
+	}
+
+	return true, returnModelNames
 }
 
 func (c *CRDLister) GetSharedVSModelFQDNMapping(modelName string) (bool, string) {

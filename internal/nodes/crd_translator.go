@@ -29,7 +29,9 @@ import (
 
 func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	// use host to find out HostRule CRD if it exists
-	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
+	// The host that comes here will have a proper FQDN, either from the Ingress/Route (foo.com)
+	// or the SharedVS FQDN (Shared-L7-1.com).
+	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMappingV2(host)
 	deleteCase := false
 	if !found {
 		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
