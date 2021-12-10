@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strings"
 	"time"
 
 	istiov1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
@@ -517,11 +516,12 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 
 	// If it is not a Shared VS but TCP Settings are provided, then we reject it since these
 	// TCP settings are not valid for the child VS.
-	if !strings.Contains(fqdn, lib.ShardVSSubstring) && hostrule.Spec.VirtualHost.TCPSettings != nil {
-		err = fmt.Errorf("Hostrule tcpSettings with fqdn %s cannot be applied to child Virtualservices", fqdn)
-		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-		return err
-	}
+	// TODO: move to translator?
+	// if !strings.Contains(fqdn, lib.ShardVSSubstring) && hostrule.Spec.VirtualHost.TCPSettings != nil {
+	// 	err = fmt.Errorf("Hostrule tcpSettings with fqdn %s cannot be applied to child Virtualservices", fqdn)
+	// 	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+	// 	return err
+	// }
 
 	if hostrule.Spec.VirtualHost.TCPSettings != nil && hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
 		re := regexp.MustCompile(lib.IPRegex)

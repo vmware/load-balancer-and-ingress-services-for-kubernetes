@@ -403,6 +403,10 @@ func (v *AviVsNode) IsSharedVS() bool {
 	return v.SharedVS
 }
 
+func (v *AviVsNode) IsDedicatedVS() bool {
+	return v.Dedicated
+}
+
 func (v *AviVsNode) GetPortProtocols() []AviPortHostProtocol {
 	return v.PortProto
 }

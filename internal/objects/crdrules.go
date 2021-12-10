@@ -82,10 +82,7 @@ func (c *CRDLister) GetFQDNToHostruleMapping(fqdn string) (bool, string) {
 	return true, hostrule.(string)
 }
 
-func (c *CRDLister) GetFQDNToHostruleMappingV2(fqdn string) (bool, string) {
-	// c.NSLock.Lock()
-	// defer c.NSLock.Unlock()
-
+func (c *CRDLister) GetFQDNToHostruleMappingWithType(fqdn string) (bool, string) {
 	// not exact fqdns
 	allFqdns := c.FqdnHostRuleCache.GetAllKeys()
 	returnHostrules := []string{}
@@ -241,10 +238,8 @@ func (c *CRDLister) UpdateFqdnHTTPRulesMappings(fqdn, path, httprule string) {
 
 // FqdnSharedVSModelCache/SharedVSModelFqdnCache
 func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn string) (bool, []string) {
-	// c.NSLock.Lock()
-	// defer c.NSLock.Unlock()
 	oktype, fqdnType := c.FqdnFqdnTypeCache.Get(fqdn)
-	if !oktype {
+	if !oktype || fqdnType == "" {
 		fqdnType = string(akov1alpha1.Exact)
 	}
 
@@ -270,7 +265,10 @@ func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn string) (bool, []string) 
 		}
 	}
 
-	return true, returnModelNames
+	if len(returnModelNames) > 0 {
+		return true, returnModelNames
+	}
+	return false, returnModelNames
 }
 
 func (c *CRDLister) GetSharedVSModelFQDNMapping(modelName string) (bool, string) {

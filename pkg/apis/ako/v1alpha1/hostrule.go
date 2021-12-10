@@ -116,7 +116,7 @@ type HostRuleGSLB struct {
 // HostRuleStatus holds the status of the HostRule
 type HostRuleStatus struct {
 	Status string `json:"status,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Error  string `json:"error"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
