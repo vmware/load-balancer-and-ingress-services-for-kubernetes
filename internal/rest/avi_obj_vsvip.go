@@ -505,6 +505,20 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 				vs_cache_obj.AddToVSVipKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if rest_op.Method == utils.RestPut {
+					if len(vs_cache_obj.SNIChildCollection) > 0 {
+						for _, childUuid := range vs_cache_obj.SNIChildCollection {
+							childKey, childFound := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(childUuid)
+							if childFound {
+								childVSKey := childKey.(avicache.NamespaceName)
+								childObj, _ := rest.cache.VsCacheMeta.AviCacheGet(childVSKey)
+								child_cache_obj, vs_found := childObj.(*avicache.AviVsCache)
+								if vs_found {
+									rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
+									rest.StatusUpdateForVS(child_cache_obj, key)
+								}
+							}
+						}
+					}
 					rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
 					rest.StatusUpdateForVS(vs_cache_obj, key)
 				}
@@ -516,6 +530,20 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v", key, vsKey,
 				vs_cache_obj))
 			if rest_op.Method == utils.RestPut {
+				if len(vs_cache_obj.SNIChildCollection) > 0 {
+					for _, childUuid := range vs_cache_obj.SNIChildCollection {
+						childKey, childFound := rest.cache.VsCacheMeta.AviCacheGetKeyByUuid(childUuid)
+						if childFound {
+							childVSKey := childKey.(avicache.NamespaceName)
+							childObj, _ := rest.cache.VsCacheMeta.AviCacheGet(childVSKey)
+							child_cache_obj, vs_found := childObj.(*avicache.AviVsCache)
+							if vs_found {
+								rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
+								rest.StatusUpdateForVS(child_cache_obj, key)
+							}
+						}
+					}
+				}
 				rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
 				rest.StatusUpdateForVS(vs_cache_obj, key)
 			}

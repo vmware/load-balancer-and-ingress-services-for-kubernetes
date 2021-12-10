@@ -407,7 +407,7 @@ func AviVsHttpPSAdd(vs_meta interface{}, isEVH bool) []*avimodels.HTTPPolicies {
 }
 
 func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_cache_obj *avicache.AviVsCache, key string) {
-	if restMethod == utils.RestPost || restMethod == utils.RestDelete {
+	if restMethod == utils.RestPost || restMethod == utils.RestDelete || restMethod == utils.RestPut {
 		for _, poolkey := range vs_cache_obj.PoolKeyCollection {
 			// Fetch the pool object from cache and check the service metadata
 			pool_cache, ok := rest.cache.PoolCache.AviCacheGet(poolkey)
