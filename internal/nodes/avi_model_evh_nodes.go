@@ -548,7 +548,7 @@ func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, k
 		}
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: Added multiple FQDNs to HTTP policy for VS %s", key, o.Name)
+	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for VS %s", key, hosts, o.Name)
 }
 
 func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
@@ -576,7 +576,7 @@ func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []stri
 		}
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: Removed multiple FQDNs from HTTP policy for VS %s", key, o.Name)
+	utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for VS %s", key, hosts, o.Name)
 }
 
 func (o *AviEvhVsNode) AddFQDNsToModel(hosts []string, gsFqdn, key string) {
@@ -589,7 +589,7 @@ func (o *AviEvhVsNode) AddFQDNsToModel(hosts []string, gsFqdn, key string) {
 			o.VSVIPRefs[0].FQDNs = append(o.VSVIPRefs[0].FQDNs, host)
 		}
 	}
-	utils.AviLog.Debugf("key: %s, msg: Added multiple FQDNs to model for VS %s", key, o.Name)
+	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to model for VS %s", key, hosts, o.Name)
 }
 
 func (o *AviEvhVsNode) RemoveFQDNsFromModel(hosts []string, key string) {
