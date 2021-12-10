@@ -308,6 +308,10 @@ func (c *CRDLister) GetFQDNToAliasesMapping(fqdn string) (bool, []string) {
 	return true, aliases.([]string)
 }
 
+func (c *CRDLister) GetAllFQDNToAliasesMapping() map[string]interface{} {
+	return c.FQDNToAliasesCache.GetAllObjectNames()
+}
+
 func (c *CRDLister) UpdateFQDNToAliasesMappings(fqdn string, aliases []string) {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()

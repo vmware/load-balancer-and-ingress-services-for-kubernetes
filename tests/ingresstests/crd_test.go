@@ -876,6 +876,27 @@ func TestValidationsOfHostruleFQDNAliases(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
+	// Create another host rule with same Aliases
+	newHostRule := integrationtest.FakeHostRule{
+		Name:      "new-fqdn-aliases-hr-foo",
+		Namespace: "default",
+		Fqdn:      "baz.com",
+	}.HostRule()
+	newHostRule.Spec.VirtualHost.Aliases = aliases
+	_, err = CRDClient.AkoV1alpha1().HostRules("default").Create(context.TODO(), newHostRule, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+
+	// creation of hostrule is taking some time. Hence adding a sleep of 5 seconds.
+	time.Sleep(5 * time.Second)
+
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), newHostRule.Name, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Rejected"))
+
+	integrationtest.TeardownHostRule(t, g, sniVSKey, newHostRule.Name)
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
