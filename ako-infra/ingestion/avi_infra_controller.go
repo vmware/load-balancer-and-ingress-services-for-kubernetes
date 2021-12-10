@@ -119,6 +119,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 }
 
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
+
 	err, seGroup := lib.FetchSEGroupWithMarkerSet(a.AviRestClients.AviClient[0])
 	if err == nil && seGroup != "" {
 		utils.AviLog.Infof("SE Group: %s already configured with the marker labels: %s", seGroup, lib.GetClusterID())
@@ -130,9 +131,11 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	}
 	utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
 	utils.SetCloudName(cloudName)
+
 	if checkSeGroup(a.AviRestClients.AviClient[0], cloudName) {
 		return true
 	}
+
 	var uri string
 	if segUuid == "" {
 		// The cloud does not have a SEG template set, use `Default-Group`
@@ -142,10 +145,26 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 		// The cloud does not have a SEG template set, use `Default-Group`
 		uri = "/api/serviceenginegroup/" + segUuid
 	}
-	result, err := lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
+	var result session.AviCollectionResult
+	result, err = lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
 	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return false
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+			SetTenant := session.SetTenant(lib.GetTenant())
+			SetAdminTenant(a.AviRestClients.AviClient[0].AviSession)
+			defer SetTenant(a.AviRestClients.AviClient[0].AviSession)
+			result, err = lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return false
+			}
+
+		} else {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return false
+		}
 	}
 	// Construct an SE group based on parameters in the `Default-Group`
 	elems := make([]json.RawMessage, result.Count)
@@ -178,18 +197,31 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 	// Add the labels.
 	seGroup.Labels = lib.GetLabels()
 	response := models.ServiceEngineGroupAPIResponse{}
+	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+	SetTenant := session.SetTenant(lib.GetTenant())
 	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
 	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-		SetTenant := session.SetTenant(lib.GetTenant())
 		SetAdminTenant(client.AviSession)
 		defer SetTenant(client.AviSession)
 	}
 
 	err := lib.AviPost(client, uri, seGroup, response)
 	if err != nil {
-		utils.AviLog.Warnf("Error during POST call to create the SE group :%v", err.Error())
-		return false
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			err := lib.AviPost(client, uri, seGroup, response)
+			if err != nil {
+				utils.AviLog.Warnf("Error during POST call to create the SE group :%v", err.Error())
+				return false
+
+			}
+		} else {
+			utils.AviLog.Warnf("Error during POST call to create the SE group :%v", err.Error())
+			return false
+		}
 	}
 	utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), *seGroup.Name)
 	return true
@@ -203,8 +235,23 @@ func checkSeGroup(client *clients.AviClient, cloudName string) bool {
 	response := models.ServiceEngineGroupAPIResponse{}
 	err := lib.AviGet(client, uri, &response)
 	if err != nil {
-		utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
-		return false
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+			SetTenant := session.SetTenant(lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			err := lib.AviGet(client, uri, &response)
+			if err != nil {
+				utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
+				return false
+
+			}
+		} else {
+			utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
+			return false
+		}
 	}
 	utils.AviLog.Infof("Found Service Engine Group :%v", segroupName)
 	return true

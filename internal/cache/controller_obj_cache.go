@@ -2599,12 +2599,29 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 	}
 	seGroupSet.Insert(lib.GetSEGName())
 
+	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+	SetTenant := session.SetTenant(lib.GetTenant())
+
 	// This assumes that a single cluster won't use more than 100 distinct SEGroups.
 	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName + "&name.in=" + strings.Join(seGroupSet.List(), ",")
+	var result session.AviCollectionResult
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
-		return false
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			result, err = lib.AviGetCollectionRaw(client, uri)
+			if err != nil {
+				*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
+				return false
+			}
+
+		} else {
+			*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
+			return false
+		}
 	}
 
 	elems := make([]json.RawMessage, result.Count)
@@ -2636,22 +2653,32 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEngineGroup) error {
 	labels := seGroup.Labels
 	segName := *seGroup.Name
-
+	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+	SetTenant := session.SetTenant(lib.GetTenant())
 	if len(labels) == 0 {
 		uri := "/api/serviceenginegroup/" + *seGroup.UUID
 		seGroup.Labels = lib.GetLabels()
 		response := models.ServiceEngineGroupAPIResponse{}
 		// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
 		if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-			SetTenant := session.SetTenant(lib.GetTenant())
 			SetAdminTenant(client.AviSession)
 			defer SetTenant(client.AviSession)
 		}
-
 		err := lib.AviPut(client, uri, seGroup, response)
 		if err != nil {
-			return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
+				//SE in provider context
+				utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+				SetAdminTenant(client.AviSession)
+				defer SetTenant(client.AviSession)
+				err := lib.AviPut(client, uri, seGroup, response)
+				if err != nil {
+					return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+				}
+
+			} else {
+				return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+			}
 		}
 		utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), segName)
 		return nil
@@ -2674,6 +2701,8 @@ func DeConfigureSeGroupLabels() {
 	clients := SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
 	client := clients.AviClient[aviClientLen-1]
+	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+	SetTenant := session.SetTenant(lib.GetTenant())
 	seGroup, err := GetAviSeGroup(client, segName)
 	if err != nil {
 		utils.AviLog.Error(err)
@@ -2689,27 +2718,54 @@ func DeConfigureSeGroupLabels() {
 	utils.AviLog.Infof("Updating the following labels: %v, on the SE Group", utils.Stringify(seGroup.Labels))
 	uri := "/api/serviceenginegroup/" + *seGroup.UUID
 	response := models.ServiceEngineGroupAPIResponse{}
+
 	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
 	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-		SetTenant := session.SetTenant(lib.GetTenant())
 		SetAdminTenant(client.AviSession)
 		defer SetTenant(client.AviSession)
 	}
 
 	err = lib.AviPut(client, uri, seGroup, response)
 	if err != nil {
-		utils.AviLog.Warnf("Deconfiguring SE Group labels failed on %v with error %v", segName, err.Error())
-		return
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
+			//SE in provider context
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			err = lib.AviPut(client, uri, seGroup, response)
+			if err != nil {
+				utils.AviLog.Warnf("Deconfiguring SE Group labels failed on %v with error %v", segName, err.Error())
+				return
+
+			}
+		} else {
+			utils.AviLog.Warnf("Deconfiguring SE Group labels failed on %v with error %v", segName, err.Error())
+			return
+		}
 	}
 	utils.AviLog.Infof("Successfully deconfigured SE Group labels  on %v", segName)
 }
 
 func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEngineGroup, error) {
+	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+	SetTenant := session.SetTenant(lib.GetTenant())
 	uri := "/api/serviceenginegroup/?include_name&name=" + segName + "&cloud_ref.name=" + utils.CloudName
+	var result session.AviCollectionResult
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		return nil, fmt.Errorf("Get uri %v returned err %v", uri, err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			result, err = lib.AviGetCollectionRaw(client, uri)
+			if err != nil {
+				return nil, fmt.Errorf("Get uri %v returned err %v", uri, err)
+
+			}
+		} else {
+			return nil, fmt.Errorf("Get uri %v returned err %v", uri, err)
+		}
 	}
 
 	if result.Count != 1 {

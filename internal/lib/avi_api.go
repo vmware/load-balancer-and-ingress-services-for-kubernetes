@@ -44,7 +44,9 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
-		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			return session.AviCollectionResult{}, err
+		}
 		return AviGetCollectionRaw(client, uri, retry+1)
 	}
 
@@ -67,6 +69,9 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			return err
+		}
 		return AviGet(client, uri, response, retry+1)
 	}
 
@@ -89,6 +94,9 @@ func AviGetRaw(client *clients.AviClient, uri string, retryNum ...int) ([]byte, 
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			return nil, err
+		}
 		return AviGetRaw(client, uri, retry+1)
 	}
 
@@ -111,6 +119,9 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 		utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
+			return err
+		}
 		return AviPut(client, uri, payload, response, retry+1)
 	}
 
@@ -133,6 +144,9 @@ func AviPost(client *clients.AviClient, uri string, payload interface{}, respons
 		utils.AviLog.Warnf("msg: Unable to execute Post on uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			return err
+		}
 		return AviPost(client, uri, payload, response, retry+1)
 	}
 
