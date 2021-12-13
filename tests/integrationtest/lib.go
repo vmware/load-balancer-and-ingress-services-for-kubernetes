@@ -1164,6 +1164,8 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AZURE"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AWS") {
 			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AWS"))
+		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NSXT") {
+			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT"))
 		} else {
 			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_VCENTER"))
 		}
@@ -1182,7 +1184,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		w.Write([]byte(`{"version": {"Version": "20.1.2"}}`))
 	} else if strings.Contains(url, "/api/cluster/runtime") {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"node_states": [{"name": "10.79.169.60","role": "CLUSTER_LEADER","up_since": "2020-10-28 04:58:48"}]}`))
+		w.Write([]byte(`{"node_states": [{"name": "10.79.169.60","role": "CLUSTER_LEADER","up_since": "2020-10-28 04:58:48"}],"cluster_state": {"state": "CLUSTER_UP_NO_HA"}}`))
+	} else if strings.Contains(url, "/api/systemconfiguration") {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"default_license_tier": "ENTERPRISE"}`))
 	}
 }
 

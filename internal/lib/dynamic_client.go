@@ -147,6 +147,10 @@ func NewVCFDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	return vcfDynamicClientSet, nil
 }
 
+func SetVCFVCFDynamicClientSet(dc dynamic.Interface) {
+	vcfDynamicClientSet = dc
+}
+
 func GetVCFDynamicClientSet() dynamic.Interface {
 	if vcfDynamicClientSet == nil {
 		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
@@ -195,9 +199,21 @@ func GetBootstrapCRData() (BootstrapCRData, bool) {
 	}
 
 	obj := crdList.Items[0]
-	spec := obj.Object["spec"].(map[string]interface{})
-	secretref := spec["albCredentialSecretRef"].(map[string]interface{})
-	albtoken := spec["albTokenProperty"].(map[string]interface{})
+	spec, ok := obj.Object["spec"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Errorf("spec is not found in NCP bootstrap object")
+		return boostrapdata, false
+	}
+	secretref, ok := spec["albCredentialSecretRef"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Errorf("albCredentialSecretRef is not found in NCP bootstrap object")
+		return boostrapdata, false
+	}
+	albtoken, ok := spec["albTokenProperty"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Errorf("albTokenProperty is not found in NCP bootstrap object")
+		return boostrapdata, false
+	}
 
 	secretName, ok := secretref["name"].(string)
 	if !ok {

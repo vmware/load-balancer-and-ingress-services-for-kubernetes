@@ -36,10 +36,10 @@ import (
 
 type AviControllerInfra struct {
 	AviRestClients *utils.AviRestClientPool
-	cs             *kubernetes.Clientset
+	cs             kubernetes.Interface
 }
 
-func NewAviControllerInfra(cs *kubernetes.Clientset) *AviControllerInfra {
+func NewAviControllerInfra(cs kubernetes.Interface) *AviControllerInfra {
 	PopulateControllerProperties(cs)
 	AviRestClientsPool := avicache.SharedAVIClients()
 	return &AviControllerInfra{AviRestClients: AviRestClientsPool, cs: cs}

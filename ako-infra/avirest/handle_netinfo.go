@@ -50,6 +50,11 @@ func SyncLSLRNetwork() {
 		return
 	}
 
+	if cloudModel.NsxtConfiguration == nil {
+		utils.AviLog.Warnf("NSX-T config not set in cloud, LS-LR mapping won't be updated")
+		return
+	}
+
 	if len(cloudModel.NsxtConfiguration.DataNetworkConfig.VlanSegments) != 0 {
 		utils.AviLog.Infof("NSX-T cloud is using Vlan Segments, LS-LR mapping won't be updated")
 		return
@@ -106,6 +111,12 @@ func AddSegment(obj interface{}) bool {
 		utils.AviLog.Fatalf("key: %s, Failed to get Cloud data from cache", objKey)
 		return false
 	}
+
+	if cloudModel.NsxtConfiguration == nil {
+		utils.AviLog.Warnf("key: %s, NSX-T config not set in cloud, segment won't be added", objKey)
+		return false
+	}
+
 	updateRequired, lslrList := addSegmentInCloud(cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs, lr, ls)
 	if updateRequired {
 		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = lslrList
@@ -156,6 +167,12 @@ func DeleteSegment(obj interface{}) {
 		utils.AviLog.Warnf("key: %s, Failed to get Cloud data from cache", objKey)
 		return
 	}
+
+	if cloudModel.NsxtConfiguration == nil {
+		utils.AviLog.Warnf("key: %s, NSX-T config not set in cloud, segment won't be deleted", objKey)
+		return
+	}
+
 	updateRequired, lslrList := delSegmentInCloud(cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs, lr, ls)
 	if updateRequired {
 		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = lslrList
