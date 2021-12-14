@@ -25,6 +25,7 @@ spec:
 
   networkSettings:
     enableRHI: {{ .Values.NetworkSettings.enableRHI }}
+    nsxtT1LR: {{ .Values.NetworkSettings.nsxtT1LR }}
 {{- with .Values.NetworkSettings.bgpPeerLabels }}
     bgpPeerLabels:
 {{- toYaml . | nindent 4 }}

@@ -215,7 +215,7 @@ var sfJson = `
                                 "name": "CTRL_IPADDRESS",
                                 "valueFrom": {
                                     "configMapKeyRef": {
-                                        "key": "controllerHost",
+                                        "key": "controllerIP",
                                         "name": "avi-k8s-config"
                                     }
                                 }
