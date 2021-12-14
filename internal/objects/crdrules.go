@@ -36,6 +36,7 @@ func SharedCRDLister() *CRDLister {
 			FqdnSharedVSModelCache: NewObjectMapStore(),
 			SharedVSModelFqdnCache: NewObjectMapStore(),
 			FqdnFqdnTypeCache:      NewObjectMapStore(),
+			FQDNToAliasesCache:     NewObjectMapStore(),
 		}
 	})
 	return CRDinstance
@@ -71,6 +72,9 @@ type CRDLister struct {
 
 	// shared-vs1-fqdn: contains, foo.com: exact
 	FqdnFqdnTypeCache *ObjectMapStore
+
+	// fqdn: alias1.com, alias2.com
+	FQDNToAliasesCache *ObjectMapStore
 }
 
 // FqdnHostRuleCache
@@ -292,4 +296,24 @@ func (c *CRDLister) DeleteFQDNSharedVSModelMapping(fqdn string) bool {
 
 func (c *CRDLister) DeleteSharedVSModelFQDNMapping(modelName string) bool {
 	return c.SharedVSModelFqdnCache.Delete(modelName)
+}
+
+// FQDNToAliasesCache
+
+func (c *CRDLister) GetFQDNToAliasesMapping(fqdn string) (bool, []string) {
+	found, aliases := c.FQDNToAliasesCache.Get(fqdn)
+	if !found {
+		return false, nil
+	}
+	return true, aliases.([]string)
+}
+
+func (c *CRDLister) UpdateFQDNToAliasesMappings(fqdn string, aliases []string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	c.FQDNToAliasesCache.AddOrUpdate(fqdn, aliases)
+}
+
+func (c *CRDLister) DeleteFQDNToAliasesMapping(fqdn string) bool {
+	return c.FQDNToAliasesCache.Delete(fqdn)
 }

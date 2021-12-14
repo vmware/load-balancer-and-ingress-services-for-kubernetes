@@ -555,6 +555,27 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		}
 	}
 
+	if hostrule.Spec.VirtualHost.Aliases != nil {
+		if utils.HasElem(hostrule.Spec.VirtualHost.Aliases, fqdn) {
+			err = fmt.Errorf("Aliases must not contain FQDN %s", fqdn)
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+
+		if utils.ContainsDuplicate(hostrule.Spec.VirtualHost.Aliases) {
+			err = fmt.Errorf("Aliases must be unique")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+
+		if hostrule.Spec.VirtualHost.Gslb.Fqdn != "" &&
+			utils.HasElem(hostrule.Spec.VirtualHost.Aliases, hostrule.Spec.VirtualHost.Gslb.Fqdn) {
+			err = fmt.Errorf("Aliases must not contain GSLB FQDN")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+	}
+
 	refData := map[string]string{
 		hostrule.Spec.VirtualHost.WAFPolicy:                  "WafPolicy",
 		hostrule.Spec.VirtualHost.ApplicationProfile:         "AppProfile",

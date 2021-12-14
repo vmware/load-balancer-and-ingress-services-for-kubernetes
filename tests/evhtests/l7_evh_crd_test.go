@@ -640,6 +640,127 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
+func TestHostruleFQDNAliasesForEvh(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetModelName("foo.com", "default")
+	hrname := "fqdn-aliases-hr-foo"
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/fqdn-aliases-hr-foo", true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	// Common function that takes care of all validations
+	validateNode := func(node *avinodes.AviEvhVsNode, aliases []string) {
+		g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].VSVIPRefs[0].FQDNs).Should(gomega.ContainElements(aliases))
+
+		g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
+		g.Expect(nodes[0].EvhNodes[0].VHDomainNames).Should(gomega.ContainElements(aliases))
+		g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
+		for _, httpPolicyRef := range nodes[0].EvhNodes[0].HttpPolicyRefs {
+			if httpPolicyRef.HppMap != nil {
+				g.Expect(httpPolicyRef.HppMap).To(gomega.HaveLen(1))
+				g.Expect(httpPolicyRef.HppMap[0].Host).Should(gomega.ContainElements(aliases))
+			}
+			if httpPolicyRef.RedirectPorts != nil {
+				g.Expect(httpPolicyRef.RedirectPorts).To(gomega.HaveLen(1))
+				g.Expect(httpPolicyRef.RedirectPorts[0].Hosts).Should(gomega.ContainElements(aliases))
+			}
+		}
+	}
+
+	// Check default values.
+	validateNode(nodes[0], []string{"foo.com"})
+
+	// Update host rule with a valid FQDN Aliases
+	hrUpdate := integrationtest.FakeHostRule{
+		Name:      hrname,
+		Namespace: "default",
+		Fqdn:      "foo.com",
+	}.HostRule()
+	aliases := []string{"alias1.com", "alias2.com"}
+	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
+	time.Sleep(5 * time.Second)
+
+	// Check whether the Aliases are properly added to Parent and Child VSes.
+	validateNode(nodes[0], aliases)
+
+	// Append one more alias and check whether it is getting added to parent and child VS.
+	aliases = append(aliases, "alias3.com")
+	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
+	time.Sleep(5 * time.Second)
+
+	// Check whether the Aliases are properly added to Parent and Child VSes.
+	validateNode(nodes[0], aliases)
+
+	// Remove one alias from hostrule and check whether its reference is removed properly.
+	aliases = aliases[1:]
+	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
+	time.Sleep(5 * time.Second)
+
+	// Check whether the Alias reference is properly removed from Parent and Child VSes.
+	validateNode(nodes[0], aliases)
+
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
 // HttpRule tests
 
 func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {

@@ -32,19 +32,6 @@ import (
 // TODO: Move to utils
 const tlsCert = "tls.crt"
 
-func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
-	if len(vsNode.VSVIPRefs) > 0 {
-		for i, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
-			if utils.HasElem(hosts, fqdn) {
-				// remove logic conainer-lib candidate
-				vsNode.VSVIPRefs[0].FQDNs[i] = vsNode.VSVIPRefs[0].FQDNs[len(vsNode.VSVIPRefs[0].FQDNs)-1]
-				vsNode.VSVIPRefs[0].FQDNs[len(vsNode.VSVIPRefs[0].FQDNs)-1] = ""
-				vsNode.VSVIPRefs[0].FQDNs = vsNode.VSVIPRefs[0].FQDNs[:len(vsNode.VSVIPRefs[0].FQDNs)-1]
-			}
-		}
-	}
-}
-
 func FindAndReplaceSniInModel(currentSniNode *AviVsNode, modelSniNodes []*AviVsNode, key string) bool {
 	for i, modelSniNode := range modelSniNodes[0].SniNodes {
 		if currentSniNode.Name == modelSniNode.Name {
@@ -622,25 +609,4 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
 
-}
-
-func AddFQDNAliasesToHTTPPolicy(host, key string, vsNode AviVsEvhSniModel) {
-	VHDomainName := vsNode.GetVHDomainNames()
-	for _, httpPolicyRef := range vsNode.GetHttpPolicyRefs() {
-		for j := range httpPolicyRef.HppMap {
-			if utils.HasElem(httpPolicyRef.HppMap[j].Host, host) {
-				httpPolicyRef.HppMap[j].Host = make([]string, len(VHDomainName))
-				copy(httpPolicyRef.HppMap[j].Host, VHDomainName)
-				break
-			}
-		}
-		for j := range httpPolicyRef.RedirectPorts {
-			if utils.HasElem(httpPolicyRef.RedirectPorts[j].Hosts, host) {
-				httpPolicyRef.RedirectPorts[j].Hosts = make([]string, len(VHDomainName))
-				copy(httpPolicyRef.RedirectPorts[j].Hosts, VHDomainName)
-				break
-			}
-		}
-	}
-	utils.AviLog.Debugf("key: %s, msg: Added multiple FQDNs to HTTP policy for VS %s", key, vsNode.GetName())
 }

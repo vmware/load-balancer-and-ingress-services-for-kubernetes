@@ -556,6 +556,10 @@ func (v *AviVsNode) SetVHDomainNames(domainNames []string) {
 	v.VHDomainNames = domainNames
 }
 
+func (v *AviVsNode) GetVSVIPRefs() []*AviVSVIPNode {
+	return v.VSVIPRefs
+}
+
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
 	var aviVs []*AviVsNode
 	for _, model := range o.modelNodes {
@@ -719,6 +723,57 @@ func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key
 	}
 	// If we have reached here it means we haven't found a match. Just append.
 	o.SSLKeyCertRefs = append(o.SSLKeyCertRefs, newSslNode)
+}
+
+func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
+
+	for _, httpPolicyRef := range o.HttpPolicyRefs {
+		for j := range httpPolicyRef.HppMap {
+			if utils.HasElem(httpPolicyRef.HppMap[j].Host, host) {
+				httpPolicyRef.HppMap[j].Host = make([]string, len(hosts))
+				copy(httpPolicyRef.HppMap[j].Host, hosts)
+				break
+			}
+		}
+		for j := range httpPolicyRef.RedirectPorts {
+			if utils.HasElem(httpPolicyRef.RedirectPorts[j].Hosts, host) {
+				httpPolicyRef.RedirectPorts[j].Hosts = make([]string, len(hosts))
+				copy(httpPolicyRef.RedirectPorts[j].Hosts, hosts)
+				break
+			}
+		}
+	}
+
+	utils.AviLog.Debugf("key: %s, msg: Added multiple FQDNs to HTTP policy for VS %s", key, o.Name)
+}
+
+func (o *AviVsNode) AddFQDNsToModel(hosts []string, gsFqdn, key string) {
+	if len(o.VSVIPRefs) == 0 {
+		return
+	}
+	for _, host := range hosts {
+		if host != gsFqdn &&
+			!utils.HasElem(o.VSVIPRefs[0].FQDNs, host) {
+			o.VSVIPRefs[0].FQDNs = append(o.VSVIPRefs[0].FQDNs, host)
+		}
+	}
+	utils.AviLog.Debugf("key: %s, msg: Added multiple FQDNs to model for VS %s", key, o.Name)
+}
+
+func (o *AviVsNode) RemoveFQDNsFromModel(hosts []string, key string) {
+	if len(o.VSVIPRefs) == 0 {
+		return
+	}
+	for i := 0; i < len(o.VSVIPRefs[0].FQDNs); i++ {
+		for _, host := range hosts {
+			if host == o.VSVIPRefs[0].FQDNs[i] {
+				o.VSVIPRefs[0].FQDNs = append(o.VSVIPRefs[0].FQDNs[:i], o.VSVIPRefs[0].FQDNs[i+1:]...)
+				i--
+				break
+			}
+		}
+	}
+	utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from VS %s", key, hosts, o.Name)
 }
 
 func (o *AviVsNode) CheckHttpPolNameNChecksum(httpPolName, hppMapName string, checksum uint32) bool {

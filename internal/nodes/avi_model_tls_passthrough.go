@@ -263,7 +263,7 @@ func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string
 
 	hosts := []string{hostname}
 	if removeFqdn {
-		RemoveFQDNsFromModel(vsNode[0], hosts, key)
+		vsNode[0].RemoveFQDNsFromModel(hosts, key)
 	}
 
 	if removeRedir {

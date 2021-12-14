@@ -63,7 +63,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsDatascripts := []string{}
 	var analyticsPolicy *models.AnalyticsPolicy
 
-	// Get the existing VH domain names and then manipulate it based on the aliases in Hosttule CRD.
+	// Get the existing VH domain names and then manipulate it based on the aliases in Hostrule CRD.
 	VHDomainNames := vsNode.GetVHDomainNames()
 
 	portProtocols := []AviPortHostProtocol{
