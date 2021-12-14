@@ -361,6 +361,10 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 	for _, objkey := range c.VSVIPCache.AviGetAllKeys() {
 		intf, _ := c.VSVIPCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviVSVIPCache); ok {
+			if lib.IsShardVS(obj.Name) {
+				utils.AviLog.Infof("Retaining the vsvip: %s", obj.Name)
+				continue
+			}
 			if obj.HasReference == false {
 				utils.AviLog.Infof("Reference Not found for vsvip: %s", objkey)
 				vsVipKeys = append(vsVipKeys, objkey)

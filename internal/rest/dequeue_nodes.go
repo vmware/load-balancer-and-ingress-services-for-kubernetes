@@ -69,7 +69,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 		}
 		if vs_cache_obj != nil {
 			utils.AviLog.Infof("key: %s, msg: nil model found, this is a vs deletion case", key)
-			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false, false)
+			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false, lib.IsShardVS(key))
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
