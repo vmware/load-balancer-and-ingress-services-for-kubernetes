@@ -54,7 +54,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	avi_vs_meta = &AviVsNode{
 		Name:   vsName,
 		Tenant: lib.GetTenant(),
-		ServiceMetadata: avicache.ServiceMetadataObj{
+		ServiceMetadata: lib.ServiceMetadataObj{
 			NamespaceServiceName: []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name},
 			HostNames:            fqdns,
 		},

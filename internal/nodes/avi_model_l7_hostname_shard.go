@@ -19,7 +19,6 @@ import (
 	"regexp"
 	"strings"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
@@ -94,7 +93,7 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	pathsvc := pathsvcMap.ingressHPSvc
 
 	o.BuildPoolPGPolicyForDedicatedVS(vsNode, namespace, ingName, hostname, infraSettingName, key, pathFQDNs, pathsvc, insecureEdgeTermAllow, isIngr)
-	BuildL7HostRule(hostname, namespace, vsNode[0])
+	BuildL7HostRule(hostname, key, vsNode[0])
 }
 func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, namespace, ingName, hostname, infraSettingName, key string, pathFQDNs []string, paths []IngressHostPathSvc, insecureEdgeTermAllow, isIngr bool) {
 	localPGList := make(map[string]*AviPoolGroupNode)
@@ -641,7 +640,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			}
 			o.BuildPolicyRedirectForVS(vsNode, sniHosts, namespace, infraSettingName, sniHost, key)
 		}
-		BuildL7HostRule(sniHost, namespace, ingName, key, sniNode)
+		BuildL7HostRule(sniHost, key, sniNode)
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		if hostMapOk {

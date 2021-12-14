@@ -19,14 +19,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniModel) {
+func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	// use host to find out HostRule CRD if it exists
 	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
 	deleteCase := false
@@ -53,7 +52,7 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniMod
 	// host specific
 	var vsWafPolicy, vsAppProfile, vsSslKeyCertificate, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile string
 	var vsEnabled *bool
-	var crdStatus cache.CRDMetadata
+	var crdStatus lib.CRDMetadata
 
 	// Initializing the values of vsHTTPPolicySets and vsDatascripts, using a nil value would impact the value of VS checksum
 	vsHTTPPolicySets := []string{}
@@ -103,15 +102,19 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniMod
 		}
 
 		vsEnabled = hostrule.Spec.VirtualHost.EnableVirtualHost
-		crdStatus = cache.CRDMetadata{
+		crdStatus = lib.CRDMetadata{
 			Type:   "HostRule",
 			Value:  hostrule.Namespace + "/" + hostrule.Name,
-			Status: "ACTIVE",
+			Status: lib.CRDActive,
 		}
+		utils.AviLog.Infof("key: %s, Successfully attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 	} else {
 		if vsNode.GetServiceMetadata().CRDStatus.Value != "" {
 			crdStatus = vsNode.GetServiceMetadata().CRDStatus
-			crdStatus.Status = "INACTIVE"
+			crdStatus.Status = lib.CRDInactive
+		}
+		if hrNamespaceName != "" {
+			utils.AviLog.Infof("key: %s, Successfully detached hostrule %s from vsNode %s", key, hrNamespaceName, vsNode.GetName())
 		}
 	}
 
@@ -128,8 +131,6 @@ func BuildL7HostRule(host, namespace, ingName, key string, vsNode AviVsEvhSniMod
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus
 	vsNode.SetServiceMetadata(serviceMetadataObj)
-
-	utils.AviLog.Infof("key: %s, Attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 }
 
 // BuildPoolHTTPRule notes
@@ -263,7 +264,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 						utils.AviLog.Warnf("key: %s, HostHeader is only applicable for LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER", key)
 					}
 				}
-				pool.ServiceMetadata.CRDStatus = cache.CRDMetadata{
+				pool.ServiceMetadata.CRDStatus = lib.CRDMetadata{
 					Type:   "HTTPRule",
 					Value:  rule,
 					Status: "ACTIVE",

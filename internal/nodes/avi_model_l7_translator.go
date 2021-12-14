@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"strings"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -370,7 +370,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				PriorityLabel: priorityLabel,
 				Port:          path.Port,
 				TargetPort:    path.TargetPort,
-				ServiceMetadata: avicache.ServiceMetadataObj{
+				ServiceMetadata: lib.ServiceMetadataObj{
 					IngressName: ingName,
 					Namespace:   namespace,
 					HostNames:   hostSlice,

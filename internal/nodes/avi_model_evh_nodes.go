@@ -23,7 +23,6 @@ import (
 	"strconv"
 	"strings"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
@@ -53,8 +52,8 @@ type AviVsEvhSniModel interface {
 	GetHttpPolicyRefs() []*AviHttpPolicySetNode
 	SetHttpPolicyRefs([]*AviHttpPolicySetNode)
 
-	GetServiceMetadata() avicache.ServiceMetadataObj
-	SetServiceMetadata(avicache.ServiceMetadataObj)
+	GetServiceMetadata() lib.ServiceMetadataObj
+	SetServiceMetadata(lib.ServiceMetadataObj)
 
 	GetSSLKeyCertAviRef() string
 	SetSSLKeyCertAviRef(string)
@@ -113,7 +112,7 @@ type AviEvhVsNode struct {
 	HttpPolicyRefs      []*AviHttpPolicySetNode
 	VSVIPRefs           []*AviVSVIPNode
 	TLSType             string
-	ServiceMetadata     avicache.ServiceMetadataObj
+	ServiceMetadata     lib.ServiceMetadataObj
 	VrfContext          string
 	WafPolicyRef        string
 	AppProfileRef       string
@@ -171,11 +170,11 @@ func (v *AviEvhVsNode) SetHttpPolicyRefs(httpPolicyRefs []*AviHttpPolicySetNode)
 	v.HttpPolicyRefs = httpPolicyRefs
 }
 
-func (v *AviEvhVsNode) GetServiceMetadata() avicache.ServiceMetadataObj {
+func (v *AviEvhVsNode) GetServiceMetadata() lib.ServiceMetadataObj {
 	return v.ServiceMetadata
 }
 
-func (v *AviEvhVsNode) SetServiceMetadata(serviceMetadata avicache.ServiceMetadataObj) {
+func (v *AviEvhVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj) {
 	v.ServiceMetadata = serviceMetadata
 }
 
@@ -711,7 +710,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			VrfContext: lib.GetVrf(),
 			Port:       path.Port,
 			TargetPort: path.TargetPort,
-			ServiceMetadata: avicache.ServiceMetadataObj{
+			ServiceMetadata: lib.ServiceMetadataObj{
 				IngressName: ingName,
 				Namespace:   namespace,
 				HostNames:   hostslice,
@@ -1228,8 +1227,10 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			o.BuildHTTPSecurityPolicyForVSForEvh(evhNode, hosts, namespace, ingName, key, infraSettingName)
 		}
 		// Enable host rule
-		BuildL7HostRule(host, namespace, ingName, key, evhNode)
-		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
+		BuildL7HostRule(host, key, evhNode)
+		if !isDedicated {
+			manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
+		}
 
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(host)

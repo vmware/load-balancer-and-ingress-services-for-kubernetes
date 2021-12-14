@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -207,7 +206,6 @@ func GetFqdns(vsName, key string, subDomains []string) ([]string, string) {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
 			fqdn = vsName + "-" + GetTenant() + "." + subdomain
 		}
-		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(GetTenant(), vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
 	}

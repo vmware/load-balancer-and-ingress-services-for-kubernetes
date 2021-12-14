@@ -22,7 +22,6 @@ import (
 	"strings"
 	"sync"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -373,7 +372,7 @@ type AviVsNode struct {
 	VHDomainNames         []string
 	TLSType               string
 	IsSNIChild            bool
-	ServiceMetadata       avicache.ServiceMetadataObj
+	ServiceMetadata       lib.ServiceMetadataObj
 	VrfContext            string
 	WafPolicyRef          string
 	AppProfileRef         string
@@ -432,11 +431,11 @@ func (v *AviVsNode) SetHttpPolicyRefs(httpPolicyRefs []*AviHttpPolicySetNode) {
 	v.HttpPolicyRefs = httpPolicyRefs
 }
 
-func (v *AviVsNode) GetServiceMetadata() avicache.ServiceMetadataObj {
+func (v *AviVsNode) GetServiceMetadata() lib.ServiceMetadataObj {
 	return v.ServiceMetadata
 }
 
-func (v *AviVsNode) SetServiceMetadata(serviceMetadata avicache.ServiceMetadataObj) {
+func (v *AviVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj) {
 	v.ServiceMetadata = serviceMetadata
 }
 
@@ -1237,7 +1236,7 @@ type AviPoolNode struct {
 	LbAlgoHostHeader       string
 	IngressName            string
 	PriorityLabel          string
-	ServiceMetadata        avicache.ServiceMetadataObj
+	ServiceMetadata        lib.ServiceMetadataObj
 	SniEnabled             bool
 	SslProfileRef          string
 	PkiProfile             *AviPkiProfileNode
