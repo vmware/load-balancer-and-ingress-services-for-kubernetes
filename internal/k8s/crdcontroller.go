@@ -556,6 +556,12 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 	}
 
 	if hostrule.Spec.VirtualHost.Aliases != nil {
+		if hostrule.Spec.VirtualHost.FqdnType != akov1alpha1.Exact {
+			err = fmt.Errorf("Aliases is supported only when FQDN type is set as Exact")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+
 		if utils.HasElem(hostrule.Spec.VirtualHost.Aliases, fqdn) {
 			err = fmt.Errorf("Duplicate entry found. Aliases field has same entry as the FQDN field")
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
