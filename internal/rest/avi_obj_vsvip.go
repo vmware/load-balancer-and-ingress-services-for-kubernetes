@@ -325,6 +325,22 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 	return &rest_op
 }
 
+func (rest *RestOperations) AviVsVipPut(vsvipObj *avimodels.VsVip, tenant string, key string) *utils.RestOp {
+	path := "/api/vsvip/" + *vsvipObj.UUID
+	rest_op := utils.RestOp{
+		ObjName: *vsvipObj.Name,
+		Path:    path,
+		Method:  utils.RestPut,
+		Obj:     vsvipObj,
+		Tenant:  tenant,
+		Model:   "VsVip",
+		Version: utils.CtrlVersion,
+	}
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP PUT Restop %v ", key,
+		utils.Stringify(rest_op)))
+	return &rest_op
+}
+
 func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		if rest_op.Message == "" {

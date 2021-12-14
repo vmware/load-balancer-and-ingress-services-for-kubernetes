@@ -69,7 +69,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 		}
 		if vs_cache_obj != nil {
 			utils.AviLog.Infof("key: %s, msg: nil model found, this is a vs deletion case", key)
-			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false, lib.IsShardVS(key))
+			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false, false)
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
@@ -1049,7 +1049,18 @@ func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
-			restOp := rest.AviVsVipDel(vsvip_cache_obj.Uuid, namespace, key)
+			var restOp *utils.RestOp
+			if lib.IsShardVS(del_vsvip.Name) {
+				vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, del_vsvip.Name)
+				if err != nil {
+					utils.AviLog.Errorf("key: %s, msg: failed to get VS VIP %s", key, del_vsvip.Name)
+					return rest_ops
+				}
+				vsvip_avi.DNSInfo = nil
+				restOp = rest.AviVsVipPut(vsvip_avi, namespace, key)
+			} else {
+				restOp = rest.AviVsVipDel(vsvip_cache_obj.Uuid, namespace, key)
+			}
 			restOp.ObjName = del_vsvip.Name
 			rest_ops = append(rest_ops, restOp)
 		}
