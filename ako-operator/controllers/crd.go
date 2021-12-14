@@ -135,6 +135,14 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 											},
 										},
 									},
+									"aliases": {
+										Type: "array",
+										Items: &apiextensionv1.JSONSchemaPropsOrArray{
+											Schema: &apiextensionv1.JSONSchemaProps{
+												Type: "string",
+											},
+										},
+									},
 								},
 							},
 						},
