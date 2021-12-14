@@ -729,6 +729,7 @@ func TestHostruleFQDNAliases(t *testing.T) {
 		Fqdn:      "foo.com",
 	}.HostRule()
 	aliases := []string{"alias1.com", "alias2.com"}
+	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Exact
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
@@ -842,6 +843,7 @@ func TestValidationsOfHostruleFQDNAliases(t *testing.T) {
 		GslbFqdn:  "bar.com",
 	}.HostRule()
 	aliases := []string{"alias1.com", "alias1.com"}
+	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Exact
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
@@ -866,6 +868,19 @@ func TestValidationsOfHostruleFQDNAliases(t *testing.T) {
 
 	// Update host rule with aliases that contains GSLB FQDN
 	aliases = []string{"bar.com", "alias1.com"}
+	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Rejected"))
+
+	// Update host rule with fqdn type other than Exact
+	aliases = []string{"bar.com", "alias1.com"}
+	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Contains
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {

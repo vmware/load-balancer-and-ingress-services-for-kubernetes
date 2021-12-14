@@ -114,22 +114,24 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			}
 		}
 
-		if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
-			portProtocols = []AviPortHostProtocol{}
-			for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
-				portProtocol := AviPortHostProtocol{
-					Port:     int32(listener.Port),
-					Protocol: utils.HTTP,
+		if hostrule.Spec.VirtualHost.TCPSettings != nil {
+			if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
+				portProtocols = []AviPortHostProtocol{}
+				for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
+					portProtocol := AviPortHostProtocol{
+						Port:     int32(listener.Port),
+						Protocol: utils.HTTP,
+					}
+					if listener.EnableSSL {
+						portProtocol.EnableSSL = listener.EnableSSL
+					}
+					portProtocols = append(portProtocols, portProtocol)
 				}
-				if listener.EnableSSL {
-					portProtocol.EnableSSL = listener.EnableSSL
-				}
-				portProtocols = append(portProtocols, portProtocol)
-			}
 
-			// L7 StaticIP
-			if hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
-				lbIP = hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP
+				// L7 StaticIP
+				if hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
+					lbIP = hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP
+				}
 			}
 		}
 

@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
 
@@ -75,6 +76,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 		Fqdn:      "foo.com",
 	}.HostRule()
 	aliases := []string{"alias1.com", "alias2.com"}
+	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Exact
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
