@@ -207,6 +207,7 @@ type AviObjectMarkers struct {
 	ServiceName      string
 	Path             []string
 	Port             string
+	Protocol         string
 	IngressName      []string
 	GatewayName      string
 }

@@ -339,7 +339,13 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 				poolNode.Servers = servers
 			}
 		}
-		poolNode.AviMarkers = lib.PopulateAdvL4PoolNodeMarkers(namespace, svcNSName[1], gwName, port)
+
+		if lib.UseServicesAPI() {
+			poolNode.AviMarkers = lib.PopulateSvcApiL4PoolNodeMarkers(namespace, svcNSName[1], gwName, portProto[0], port)
+		} else {
+			poolNode.AviMarkers = lib.PopulateAdvL4PoolNodeMarkers(namespace, svcNSName[1], gwName, port)
+		}
+
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		portPool := AviHostPathPortPoolPG{
 			Port:     uint32(port),

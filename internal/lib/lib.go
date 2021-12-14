@@ -867,6 +867,17 @@ func PopulateAdvL4PoolNodeMarkers(namespace, svcName, gatewayName string, port i
 	markers.Port = strconv.Itoa(port)
 	return markers
 }
+
+func PopulateSvcApiL4PoolNodeMarkers(namespace, svcName, gatewayName, protocol string, port int) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.GatewayName = gatewayName
+	markers.ServiceName = svcName
+	markers.Protocol = protocol
+	markers.Port = strconv.Itoa(port)
+	return markers
+}
+
 func PopulatePGNodeMarkers(namespace, host, infraSettingName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
