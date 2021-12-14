@@ -782,7 +782,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 		g.Eventually(func() string {
 			_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-			if len(nodes) > 0 && len(nodes[0].EvhNodes) > 0 && len(nodes[0].EvhNodes[0].PoolRefs) > 0 {
+			if len(nodes) > 0 && len(nodes[0].EvhNodes) > 0 && len(nodes[0].EvhNodes[0].PoolRefs) > 0 && len(nodes[0].EvhNodes[0].PoolRefs[0].Servers) > 0 {
 				return *nodes[0].EvhNodes[0].PoolRefs[0].Servers[0].Ip.Addr
 			}
 			return ""

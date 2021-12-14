@@ -442,6 +442,7 @@ func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) (bool, stri
 	// Route would essentially consist of single hosts.
 	var beforeHost, afterHost string
 	var diff *bool
+
 	for _, status := range oldStatus {
 		if status.RouterName != lib.AKOUser {
 			continue
@@ -480,6 +481,10 @@ func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) (bool, stri
 		}
 		afterHost = status.Host
 		break
+	}
+
+	if len(oldStatus) != len(newStatus) {
+		diff = proto.Bool(false)
 	}
 
 	if diff == nil {
@@ -550,7 +555,7 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 		}
 		// Check if this host is still present in the spec, if so - don't delete it
 		// NS migration case: if false -> ns invalid event happened so remove status
-		if mRoute.Spec.Host != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) {
+		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && (mRoute.Spec.Host != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace)) {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		} else {
 			utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the route: %v", key, svcMdataHostname)
