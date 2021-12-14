@@ -1057,7 +1057,7 @@ func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName
 					return rest_ops
 				}
 				vsvip_avi.DNSInfo = nil
-				restOp = rest.AviVsVipPut(vsvip_avi, namespace, key)
+				restOp = rest.AviVsVipPut(vsvip_cache_obj.Uuid, vsvip_avi, namespace, key)
 			} else {
 				restOp = rest.AviVsVipDel(vsvip_cache_obj.Uuid, namespace, key)
 			}

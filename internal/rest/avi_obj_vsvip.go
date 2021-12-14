@@ -325,10 +325,9 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 	return &rest_op
 }
 
-func (rest *RestOperations) AviVsVipPut(vsvipObj *avimodels.VsVip, tenant string, key string) *utils.RestOp {
-	path := "/api/vsvip/" + *vsvipObj.UUID
+func (rest *RestOperations) AviVsVipPut(uuid string, vsvipObj *avimodels.VsVip, tenant string, key string) *utils.RestOp {
+	path := "/api/vsvip/" + uuid
 	rest_op := utils.RestOp{
-		ObjName: *vsvipObj.Name,
 		Path:    path,
 		Method:  utils.RestPut,
 		Obj:     vsvipObj,
