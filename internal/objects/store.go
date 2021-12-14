@@ -123,6 +123,16 @@ func (o *ObjectMapStore) GetAllObjectNames() map[string]interface{} {
 
 }
 
+func (o *ObjectMapStore) GetAllKeys() []string {
+	o.ObjLock.RLock()
+	defer o.ObjLock.RUnlock()
+	allKeys := []string{}
+	for k := range o.ObjectMap {
+		allKeys = append(allKeys, k)
+	}
+	return allKeys
+}
+
 func (o *ObjectMapStore) CopyAllObjects() map[string]interface{} {
 	o.ObjLock.RLock()
 	defer o.ObjLock.RUnlock()

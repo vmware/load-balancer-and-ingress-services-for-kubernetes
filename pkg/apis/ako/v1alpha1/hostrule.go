@@ -38,6 +38,26 @@ type HostRuleSpec struct {
 	VirtualHost HostRuleVirtualHost `json:"virtualhost,omitempty"`
 }
 
+type FqdnType string
+
+const (
+	// Matches the string character by character to the VS FQDNs,
+	// in an exact match fashion.
+	Exact FqdnType = "Exact"
+
+	// Matches the string to multiple VS FQDNs, and matches the FQDNs
+	// with the provided string as the suffix. The string must start with
+	// a '*' to qualify for wildcard matching.
+	// fqdn: *.alb.vmware.com
+	Wildcard FqdnType = "Wildcard"
+
+	// Matches the string to multiple VS FQDNs, and matches the FQDNs
+	// with the provided string as a substring of any possible FQDNs
+	// programmed by AKO.
+	// fqdn: Shared-VS-1
+	Contains FqdnType = "Contains"
+)
+
 // HostRuleVirtualHost defines properties for a host
 type HostRuleVirtualHost struct {
 	AnalyticsProfile   string                   `json:"analyticsProfile,omitempty"`
@@ -46,6 +66,7 @@ type HostRuleVirtualHost struct {
 	EnableVirtualHost  *bool                    `json:"enableVirtualHost,omitempty"`
 	ErrorPageProfile   string                   `json:"errorPageProfile,omitempty"`
 	Fqdn               string                   `json:"fqdn,omitempty"`
+	FqdnType           FqdnType                 `json:"fqdnType,omitempty"`
 	HTTPPolicy         HostRuleHTTPPolicy       `json:"httpPolicy,omitempty"`
 	Gslb               HostRuleGSLB             `json:"gslb,omitempty"`
 	TLS                HostRuleTLS              `json:"tls,omitempty"`
@@ -95,7 +116,7 @@ type HostRuleGSLB struct {
 // HostRuleStatus holds the status of the HostRule
 type HostRuleStatus struct {
 	Status string `json:"status,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Error  string `json:"error"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

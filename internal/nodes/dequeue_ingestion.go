@@ -199,6 +199,7 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
 		if strings.Contains(fqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrName)
+			objects.SharedCRDLister().DeleteFQDNFQDNTypeMapping(fqdn)
 		}
 	} else if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v", key, err)
@@ -212,23 +213,24 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 			}
 			if strings.Contains(fqdn, lib.ShardVSSubstring) {
 				objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrName)
+				objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, string(hostrule.Spec.VirtualHost.FqdnType))
 			}
 		}
 	}
 
 	if strings.Contains(fqdn, lib.ShardVSSubstring) {
 		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(fqdn); !ok {
-			utils.AviLog.Debugf("key: %s, msg: Couldn't find Shared host info for host: %s", key, fqdn)
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s", key, fqdn)
 		} else {
-			allModels = append(allModels, obj)
+			allModels = append(allModels, obj...)
 		}
 	}
 
 	if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
 		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(oldFqdn); !ok {
-			utils.AviLog.Debugf("key: %s, msg: Couldn't find Shared host info for host: %s", key, oldFqdn)
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s", key, oldFqdn)
 		} else {
-			allModels = append(allModels, obj)
+			allModels = append(allModels, obj...)
 		}
 	}
 
@@ -237,7 +239,12 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 	}
 	utils.AviLog.Infof("key: %s, msg: Models retrieved from HostRule %v", key, utils.Stringify(allModels))
 
+	uniqueModelSet := make(map[string]bool)
 	for _, modelName := range allModels {
+		if _, ok := uniqueModelSet[modelName]; ok {
+			continue
+		}
+		uniqueModelSet[modelName] = true
 		// Try getting the SharedVS model, update with hostrule properties
 		// and publish to the rest layer.
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)

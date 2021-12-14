@@ -549,6 +549,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
 		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
+			objects.SharedCRDLister().DeleteFQDNFQDNTypeMapping(fqdn)
 		}
 	} else if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v", key, err)
@@ -564,6 +565,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		}
 		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrname)
+			objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, string(hostrule.Spec.VirtualHost.FqdnType))
 		}
 	}
 

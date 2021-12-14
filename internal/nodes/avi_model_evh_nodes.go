@@ -41,6 +41,7 @@ type AviVsEvhSniModel interface {
 	SetName(string)
 
 	IsSharedVS() bool
+	IsDedicatedVS() bool
 
 	GetPortProtocols() []AviPortHostProtocol
 	SetPortProtocols([]AviPortHostProtocol)
@@ -151,6 +152,10 @@ func (v *AviEvhVsNode) SetName(name string) {
 
 func (v *AviEvhVsNode) IsSharedVS() bool {
 	return v.SharedVS
+}
+
+func (v *AviEvhVsNode) IsDedicatedVS() bool {
+	return v.Dedicated
 }
 
 func (v *AviEvhVsNode) GetPortProtocols() []AviPortHostProtocol {
