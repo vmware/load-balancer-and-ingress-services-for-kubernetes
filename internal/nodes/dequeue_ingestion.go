@@ -141,8 +141,9 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if lib.GetAdvancedL4() || lib.UseServicesAPI() &&
-		(objType == utils.L4LBService || objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting) {
+	if (lib.GetAdvancedL4() && objType == utils.L4LBService) ||
+		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
+		((lib.GetAdvancedL4() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
 		if !valid && objType == utils.L4LBService {
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
 		}
@@ -449,13 +450,29 @@ func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.Work
 
 func isServiceDelete(svcName string, namespace string, key string) bool {
 	// If the service is not found we return true.
-	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: could not retrieve the object for service: %s", key, err)
 		if errors.IsNotFound(err) {
 			return true
 		}
 	}
+
+	var gwNameLabel, gwNamespaceLabel string
+	if lib.GetAdvancedL4() {
+		gwNameLabel = lib.GatewayNameLabelKey
+		gwNamespaceLabel = lib.GatewayNamespaceLabelKey
+	} else if lib.UseServicesAPI() {
+		gwNameLabel = lib.SvcApiGatewayNameLabelKey
+		gwNamespaceLabel = lib.SvcApiGatewayNamespaceLabelKey
+	}
+
+	_, nok := service.Labels[gwNameLabel]
+	_, nsok := service.Labels[gwNamespaceLabel]
+	if nsok || nok {
+		return true
+	}
+
 	return false
 }
 

@@ -231,6 +231,11 @@ func GetAdvL4PoolName(svcName, namespace, gwName string, port int32) string {
 	return Encode(poolName, L4AdvPool)
 }
 
+func GetSvcApiL4PoolName(svcName, namespace, gwName, protocol string, port int32) string {
+	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "-" + protocol + "-" + strconv.Itoa(int(port))
+	return Encode(poolName, L4AdvPool)
+}
+
 // All L7 object names.
 func GetVsVipName(vsName string) string {
 	vsVipName := vsName
@@ -862,6 +867,17 @@ func PopulateAdvL4PoolNodeMarkers(namespace, svcName, gatewayName string, port i
 	markers.Port = strconv.Itoa(port)
 	return markers
 }
+
+func PopulateSvcApiL4PoolNodeMarkers(namespace, svcName, gatewayName, protocol string, port int) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.GatewayName = gatewayName
+	markers.ServiceName = svcName
+	markers.Protocol = protocol
+	markers.Port = strconv.Itoa(port)
+	return markers
+}
+
 func PopulatePGNodeMarkers(namespace, host, infraSettingName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
