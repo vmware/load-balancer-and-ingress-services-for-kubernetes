@@ -73,6 +73,7 @@ type HostRuleVirtualHost struct {
 	WAFPolicy          string                   `json:"wafPolicy,omitempty"`
 	AnalyticsPolicy    *HostRuleAnalyticsPolicy `json:"analyticsPolicy,omitempty"`
 	TCPSettings        *HostRuleTCPSettings     `json:"tcpSettings,omitempty"`
+	Aliases            []string                 `json:"aliases,omitempty"`
 }
 
 // HostRuleTCPSettings allows for customizing TCP settings

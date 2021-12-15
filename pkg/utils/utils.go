@@ -503,3 +503,19 @@ func GetAuthtokenFromCache() (string, error) {
 	}
 	return ctrlAuthToken.(string), nil
 }
+
+func ContainsDuplicate(arr interface{}) bool {
+	arrV := reflect.ValueOf(arr)
+
+	if arrV.Kind() == reflect.Slice {
+		eleMap := make(map[interface{}]struct{})
+		for i := 0; i < arrV.Len(); i++ {
+			if _, ok := eleMap[arrV.Index(i).Interface()]; ok {
+				return true
+			}
+			eleMap[arrV.Index(i).Interface()] = struct{}{}
+		}
+	}
+
+	return false
+}

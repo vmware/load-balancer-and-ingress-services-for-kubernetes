@@ -965,7 +965,7 @@ func GetMarkersChecksum(markers utils.AviObjectMarkers) uint32 {
 		if vals.Field(i).Interface() != "" {
 			field := typeOfVals.Field(i).Name
 			var value string
-			if field == "Path" || field == "IngressName" {
+			if field == "Path" || field == "IngressName" || field == "Host" {
 				pathArr := vals.Field(i).Interface().([]string)
 				sort.Strings(pathArr)
 				value = strings.Join(pathArr, "-")
@@ -1050,7 +1050,7 @@ func GetAnalyticsPolicyChecksum(analyticsPolicy *models.AnalyticsPolicy) uint32 
 func PopulatePoolNodeMarkers(namespace, host, infraSettingName, serviceName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
-	markers.Host = host
+	markers.Host = []string{host}
 	markers.Path = path
 	markers.IngressName = ingName
 	markers.InfrasettingName = infraSettingName
@@ -1060,14 +1060,14 @@ func PopulatePoolNodeMarkers(namespace, host, infraSettingName, serviceName stri
 func PopulateVSNodeMarkers(namespace, host, infraSettingName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
-	markers.Host = host
+	markers.Host = []string{host}
 	markers.InfrasettingName = infraSettingName
 	return markers
 }
 func PopulateHTTPPolicysetNodeMarkers(namespace, host, infraSettingName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
-	markers.Host = host
+	markers.Host = []string{host}
 	markers.IngressName = ingName
 	markers.Path = path
 	markers.InfrasettingName = infraSettingName
@@ -1096,7 +1096,7 @@ func PopulateAdvL4PoolNodeMarkers(namespace, svcName, gatewayName string, port i
 func PopulatePGNodeMarkers(namespace, host, infraSettingName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
-	markers.Host = host
+	markers.Host = []string{host}
 	markers.Path = path
 	markers.IngressName = ingName
 	markers.InfrasettingName = infraSettingName
@@ -1104,7 +1104,7 @@ func PopulatePGNodeMarkers(namespace, host, infraSettingName string, ingName, pa
 }
 func PopulateTLSKeyCertNode(host, infraSettingName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
-	markers.Host = host
+	markers.Host = []string{host}
 	markers.InfrasettingName = infraSettingName
 	return markers
 }
@@ -1117,12 +1117,12 @@ func PopulateL4PoolNodeMarkers(namespace, svcName, port string) utils.AviObjectM
 }
 func PopulatePassthroughPGMarkers(host string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
-	markers.Host = host
+	markers.Host = []string{host}
 	return markers
 }
 func PopulatePassthroughPoolMarkers(host, svcName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
-	markers.Host = host
+	markers.Host = []string{host}
 	markers.ServiceName = svcName
 	return markers
 }
@@ -1328,7 +1328,7 @@ func GetAllMarkers(markers utils.AviObjectMarkers) []*models.RoleFilterMatchLabe
 		if vals.Field(i).Interface() != "" {
 			field := typeOfVals.Field(i).Name
 			value := vals.Field(i).Interface()
-			if field == "Path" || field == "IngressName" {
+			if field == "Path" || field == "IngressName" || field == "Host" {
 				values := value.([]string)
 				if len(values) == 0 {
 					continue

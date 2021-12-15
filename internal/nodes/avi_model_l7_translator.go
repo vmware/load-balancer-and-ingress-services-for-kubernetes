@@ -32,19 +32,6 @@ import (
 // TODO: Move to utils
 const tlsCert = "tls.crt"
 
-func RemoveFQDNsFromModel(vsNode *AviVsNode, hosts []string, key string) {
-	if len(vsNode.VSVIPRefs) > 0 {
-		for i, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
-			if utils.HasElem(hosts, fqdn) {
-				// remove logic conainer-lib candidate
-				vsNode.VSVIPRefs[0].FQDNs[i] = vsNode.VSVIPRefs[0].FQDNs[len(vsNode.VSVIPRefs[0].FQDNs)-1]
-				vsNode.VSVIPRefs[0].FQDNs[len(vsNode.VSVIPRefs[0].FQDNs)-1] = ""
-				vsNode.VSVIPRefs[0].FQDNs = vsNode.VSVIPRefs[0].FQDNs[:len(vsNode.VSVIPRefs[0].FQDNs)-1]
-			}
-		}
-	}
-}
-
 func FindAndReplaceSniInModel(currentSniNode *AviVsNode, modelSniNodes []*AviVsNode, key string) bool {
 	for i, modelSniNode := range modelSniNodes[0].SniNodes {
 		if currentSniNode.Name == modelSniNode.Name {
@@ -453,7 +440,7 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 		Tenant: lib.GetTenant(),
 		CACert: tlsData.destCA,
 	}
-	pkiProfile.AviMarkers = lib.PopulatePoolNodeMarkers(aviMarkers.Namespace, aviMarkers.Host,
+	pkiProfile.AviMarkers = lib.PopulatePoolNodeMarkers(aviMarkers.Namespace, aviMarkers.Host[0],
 		aviMarkers.InfrasettingName, aviMarkers.ServiceName, aviMarkers.IngressName, aviMarkers.Path)
 	utils.AviLog.Infof("key: %s, Added pki profile %s for pool %s", pkiProfile.Name, poolNode.Name)
 	poolNode.PkiProfile = &pkiProfile

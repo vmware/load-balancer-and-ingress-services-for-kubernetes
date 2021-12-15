@@ -94,7 +94,23 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 
 	o.BuildPoolPGPolicyForDedicatedVS(vsNode, namespace, ingName, hostname, infraSettingName, key, pathFQDNs, pathsvc, insecureEdgeTermAllow, isIngr)
 	BuildL7HostRule(hostname, namespace, vsNode[0])
+
+	// Compare and remove the deleted aliases from the FQDN list
+	var hostsToRemove []string
+	_, oldFQDNAliases := objects.SharedCRDLister().GetFQDNToAliasesMapping(hostname)
+	for _, host := range oldFQDNAliases {
+		if !utils.HasElem(vsNode[0].VHDomainNames, host) {
+			hostsToRemove = append(hostsToRemove, host)
+		}
+	}
+	vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
+
+	// Add FQDN aliases in the hostrule CRD to parent and child VSes
+	vsNode[0].AddFQDNsToModel(vsNode[0].VHDomainNames, gslbHostHeader, key)
+	vsNode[0].AddFQDNAliasesToHTTPPolicy(hostname, vsNode[0].VHDomainNames, key)
+	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VHDomainNames)
 }
+
 func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, namespace, ingName, hostname, infraSettingName, key string, pathFQDNs []string, paths []IngressHostPathSvc, insecureEdgeTermAllow, isIngr bool) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var policyNode *AviHttpPolicySetNode
@@ -249,7 +265,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 		// First retrieve the FQDNs from the cache and update the model
 		var storedHosts []string
 		storedHosts = append(storedHosts, hostname)
-		RemoveFQDNsFromModel(vsNode[0], storedHosts, key)
+		vsNode[0].RemoveFQDNsFromModel(storedHosts, key)
 		if pgNode != nil {
 			// Processsing insecure ingress
 			if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hostname) {
@@ -381,11 +397,14 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 		utils.AviLog.Infof("key: %s, msg: sni node to delete: %s", key, sniNodeName)
 		keepSni = o.ManipulateSniNode(sniNodeName, ingName, namespace, hostname, pathSvc, vsNode, key, isIngr, infraSettingName)
 	}
+	_, FQDNAliases := objects.SharedCRDLister().GetFQDNToAliasesMapping(hostname)
 	if removeFqdn && !keepSni {
 		var hosts []string
 		hosts = append(hosts, hostname)
+		hosts = append(hosts, FQDNAliases...)
+
 		// Remove these hosts from the overall FQDN list
-		RemoveFQDNsFromModel(vsNode[0], hosts, key)
+		vsNode[0].RemoveFQDNsFromModel(hosts, key)
 	}
 	if removeRedir && !keepSni {
 		var hostnames []string
@@ -394,6 +413,7 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 			hostnames = append(hostnames, gsFqdnCache)
 		}
 		hostnames = append(hostnames, hostname)
+		hostnames = append(hostnames, FQDNAliases...)
 		RemoveRedirectHTTPPolicyInModel(vsNode[0], hostnames, key)
 	}
 	if vsNode[0].Dedicated && !keepSni {
@@ -639,6 +659,24 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			o.BuildPolicyRedirectForVS(vsNode, sniHosts, namespace, infraSettingName, sniHost, key)
 		}
 		BuildL7HostRule(sniHost, key, sniNode)
+
+		// Compare and remove the deleted aliases from the FQDN list
+		var hostsToRemove []string
+		_, oldFQDNAliases := objects.SharedCRDLister().GetFQDNToAliasesMapping(sniHost)
+		for _, host := range oldFQDNAliases {
+			if !utils.HasElem(sniNode.VHDomainNames, host) {
+				hostsToRemove = append(hostsToRemove, host)
+			}
+		}
+		vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
+		vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(sniHost, hostsToRemove, key)
+		sniNode.RemoveFQDNAliasesFromHTTPPolicy(sniHost, hostsToRemove, key)
+
+		// Add FQDN aliases in the hostrule CRD to parent and child VSes
+		vsNode[0].AddFQDNsToModel(sniNode.VHDomainNames, gsFqdn, key)
+		vsNode[0].AddFQDNAliasesToHTTPPolicy(sniHost, sniNode.VHDomainNames, key)
+		sniNode.AddFQDNAliasesToHTTPPolicy(sniHost, sniNode.VHDomainNames, key)
+		objects.SharedCRDLister().UpdateFQDNToAliasesMappings(sniHost, sniNode.VHDomainNames)
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		if hostMapOk {
@@ -649,13 +687,14 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		}
 		// Since the cert couldn't be built, check if this SNI is affected by only in ingress if so remove the sni node from the model
 		if len(ingressHostMap.GetIngressesForHostName(sniHost)) == 0 {
+			sniHostToRemove = append(sniHostToRemove, sniNode.VHDomainNames...)
 			if !isDedicated {
 				RemoveSniInModel(sniNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
 			} else {
 				DeleteDedicatedVSNode(vsNode[0], key)
 			}
-			RemoveFQDNsFromModel(vsNode[0], sniHosts, key)
+			vsNode[0].RemoveFQDNsFromModel(sniHostToRemove, key)
 		}
 	}
 }

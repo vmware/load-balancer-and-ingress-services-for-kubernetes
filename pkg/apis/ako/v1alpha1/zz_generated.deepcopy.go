@@ -633,6 +633,11 @@ func (in *HostRuleVirtualHost) DeepCopyInto(out *HostRuleVirtualHost) {
 		*out = new(HostRuleTCPSettings)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Aliases != nil {
+		in, out := &in.Aliases, &out.Aliases
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

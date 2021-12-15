@@ -555,6 +555,47 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		}
 	}
 
+	if hostrule.Spec.VirtualHost.Aliases != nil {
+		if hostrule.Spec.VirtualHost.FqdnType != akov1alpha1.Exact {
+			err = fmt.Errorf("Aliases is supported only when FQDN type is set as Exact")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+
+		if utils.HasElem(hostrule.Spec.VirtualHost.Aliases, fqdn) {
+			err = fmt.Errorf("Duplicate entry found. Aliases field has same entry as the FQDN field")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+
+		if utils.ContainsDuplicate(hostrule.Spec.VirtualHost.Aliases) {
+			err = fmt.Errorf("Aliases must be unique")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+
+		if hostrule.Spec.VirtualHost.Gslb.Fqdn != "" &&
+			utils.HasElem(hostrule.Spec.VirtualHost.Aliases, hostrule.Spec.VirtualHost.Gslb.Fqdn) {
+			err = fmt.Errorf("Aliases must not contain GSLB FQDN")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+
+		for cachedFQDN, cachedAliases := range objects.SharedCRDLister().GetAllFQDNToAliasesMapping() {
+			if cachedFQDN == fqdn {
+				continue
+			}
+			aliases := cachedAliases.([]string)
+			for _, alias := range hostrule.Spec.VirtualHost.Aliases {
+				if utils.HasElem(aliases, alias) {
+					err = fmt.Errorf("%s is already in use", alias)
+					status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+					return err
+				}
+			}
+		}
+	}
+
 	refData := map[string]string{
 		hostrule.Spec.VirtualHost.WAFPolicy:                  "WafPolicy",
 		hostrule.Spec.VirtualHost.ApplicationProfile:         "AppProfile",

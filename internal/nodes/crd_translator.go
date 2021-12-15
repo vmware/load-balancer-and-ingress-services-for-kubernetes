@@ -63,6 +63,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsDatascripts := []string{}
 	var analyticsPolicy *models.AnalyticsPolicy
 
+	// Get the existing VH domain names and then manipulate it based on the aliases in Hostrule CRD.
+	VHDomainNames := vsNode.GetVHDomainNames()
+
 	portProtocols := []AviPortHostProtocol{
 		{Port: 80, Protocol: utils.HTTP},
 		{Port: 443, Protocol: utils.HTTP, EnableSSL: true},
@@ -111,22 +114,24 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			}
 		}
 
-		if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
-			portProtocols = []AviPortHostProtocol{}
-			for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
-				portProtocol := AviPortHostProtocol{
-					Port:     int32(listener.Port),
-					Protocol: utils.HTTP,
+		if hostrule.Spec.VirtualHost.TCPSettings != nil {
+			if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
+				portProtocols = []AviPortHostProtocol{}
+				for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
+					portProtocol := AviPortHostProtocol{
+						Port:     int32(listener.Port),
+						Protocol: utils.HTTP,
+					}
+					if listener.EnableSSL {
+						portProtocol.EnableSSL = listener.EnableSSL
+					}
+					portProtocols = append(portProtocols, portProtocol)
 				}
-				if listener.EnableSSL {
-					portProtocol.EnableSSL = listener.EnableSSL
-				}
-				portProtocols = append(portProtocols, portProtocol)
-			}
 
-			// L7 StaticIP
-			if hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
-				lbIP = hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP
+				// L7 StaticIP
+				if hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
+					lbIP = hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP
+				}
 			}
 		}
 
@@ -144,6 +149,12 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 					Throttle: lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle),
 				},
 				AllHeaders: hostrule.Spec.VirtualHost.AnalyticsPolicy.LogAllHeaders,
+			}
+		}
+
+		for _, alias := range hostrule.Spec.VirtualHost.Aliases {
+			if !utils.HasElem(VHDomainNames, alias) {
+				VHDomainNames = append(VHDomainNames, alias)
 			}
 		}
 
@@ -170,6 +181,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetAnalyticsPolicy(analyticsPolicy)
 	vsNode.SetPortProtocols(portProtocols)
 	vsNode.SetVSVIPLoadBalancerIP(lbIP)
+	vsNode.SetVHDomainNames(VHDomainNames)
 
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus
@@ -248,7 +260,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 			var poolName string
 			// FOR EVH: Build poolname using marker fields.
 			if lib.IsEvhEnabled() && pool.AviMarkers.Namespace != "" {
-				poolName = lib.GetEvhPoolNameNoEncoding(pool.AviMarkers.IngressName[0], pool.AviMarkers.Namespace, pool.AviMarkers.Host,
+				poolName = lib.GetEvhPoolNameNoEncoding(pool.AviMarkers.IngressName[0], pool.AviMarkers.Namespace, pool.AviMarkers.Host[0],
 					pool.AviMarkers.Path[0], pool.AviMarkers.InfrasettingName, pool.AviMarkers.ServiceName, isDedicated)
 			} else {
 				poolName = pool.Name
