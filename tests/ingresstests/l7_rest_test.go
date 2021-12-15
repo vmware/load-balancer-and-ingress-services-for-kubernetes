@@ -77,9 +77,17 @@ func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string) {
 	TearDownTestForIngress(t, modelName)
 }
 
+func CleanupCache(vsName string) {
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: vsName}
+	mcache.VsCacheMeta.AviCacheDelete(vsKey)
+}
+
 func TestCreateIngressCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var found bool
+
+	CleanupCache("cluster--Shared-L7-0")
 
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
