@@ -126,7 +126,6 @@ spec:
                     type: array
                 required:
                 - fqdn
-                - fqdnType
                 type: object
             required:
             - virtualhost
