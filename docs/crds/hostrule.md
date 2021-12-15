@@ -225,7 +225,7 @@ The Aliases field adds the ability to have multiple FQDNs configured under a spe
         - baz.com
 
 This list of FQDNs inherits all the properties of the root FQDN specified under the `virtualHost` section.
-DNS will arrive with the host header as bar.com to the VIP hosting foo.com and this CRD property would ensure that the request is routed appropriately to the backend service of `foo.com`.
+DNS will arrive with the host header as bar.com to the VIP hosting foo.region1.com and this CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`.
 
 Aliases field must contain unique FQDNs and must not contain GSLB FQDN or the root FQDN. Users must ensure that the `fqdnType` is set as `Exact` before setting this field.
 
