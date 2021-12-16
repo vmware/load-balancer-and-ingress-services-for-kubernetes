@@ -216,6 +216,7 @@ Where dedicated VSes are created corresponding to a single application, Shared V
         fqdnType: Contains
         tcpSetting:
           loadBalancerIP: 10.10.10.1
+
 #### Configure aliases for FQDN
 
 The Aliases field adds the ability to have multiple FQDNs configured under a specific route/ingress for the child VS instead of creating the route/ingress multiple times.
