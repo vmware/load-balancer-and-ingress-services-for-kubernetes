@@ -13,6 +13,7 @@ A sample HostRule CRD looks like this:
     spec:
       virtualhost:
         fqdn: foo.region1.com # mandatory
+        fqdnType: Exact
         enableVirtualHost: true
         tls: # optional
           sslKeyCertificate:
@@ -37,12 +38,36 @@ A sample HostRule CRD looks like this:
             enabled: true
             throttle: HIGH
           logAllHeaders: true
+        tcpSettings:
+          listeners:
+          - port: 8081
+          - port: 6443
+            enableSSL: true
+          loadBalancerIP: 10.10.10.1
 
 
 ### Specific usage of HostRule CRD
 
 HostRule CRD can be created in a given namespace where the operator desires to have more control. 
 The section below walks over the details and associated rules of using each field of the HostRule CRD.
+
+#### HostRule to VS matching using fqdn/fqdnType
+
+A given HostRule is applied to a virtualservice if the VS hosts the `fqdn` mentioned in the HostRule CRD. This `fdqn` must exactly match with the one the virtualservice is hosting. However, in order to simplify the user experience, and provide for an easy way to apply a HostRule to individual or multiple virtualservices, the `fqdnType` field can be employed, that provides greated flexibility when it comes to specifying the string in the `fqdn` field.
+
+One of 3 following matching criterias can be specified with `fqdnType`
+- `Exact`: Matches the string character by character to the VS FQDNs, in an exact match fashion.
+- `Wildcard`: Matches the string to multiple VS FQDNs, and matches the FQDNs with the provided string as the suffix. The string must start with a '*' to qualify for wildcard matching.
+
+        fqdn: *.alb.vmware.com
+        fqdnType: Wildcard
+
+- `Contains`: Matches the string to multiple VS FQDNs, and matches the FQDNs with the provided string as a substring of any possible FQDNs programmed by AKO.
+
+	      fqdn: Shared-VS-L7-1
+        fqdnType: Contains
+
+The `fqdnType` field defaults to `Exact`.
 
 #### Enable/Disable Virtual Host
 
@@ -91,6 +116,7 @@ prior to this CRD creation. The application profile should be of `TYPE` of `APPL
  The application profiles can be used for various HTTP/HTTP2 protocol settings.
 
 #### Express custom analytics profiles
+
 HostRule CRD can be used to express analytics profile references. The analytics profile reference should have been created in the Avi Controller prior to this CRD creation.
 
         analyticsProfile: avi-analytics-ref
@@ -99,6 +125,7 @@ HostRule CRD can be used to express analytics profile references. The analytics 
 
 
 #### Express custom error page profiles
+
 HostRule CRD can be used to express error page profile references. The error page profile reference should have been created in the Avi Controller prior to this CRD creation.
 
         errorPageProfile: avi-errorpage-ref
@@ -107,6 +134,7 @@ HostRule CRD can be used to express error page profile references. The error pag
 
 
 #### Express datascripts
+
 HostRule CRD can be used to express error datascript references. The datascript references should have been created in the Avi Controller prior to this CRD creation.
 
         datascripts:
@@ -159,6 +187,32 @@ The HostRule CRD can be used to configure analytics policies such as enable/disa
 The `throttle` will be in effect only when `enabled` is set to `true`. The possible values of `throttle` are DISABLED (0), LOW (50), MEDIUM (30) and HIGH (10).
 
 The AKO sets the duration of logging the non-significant logs to infinity by default. It is the responsibility of the user to disable the non-significant logs when it is no longer required.
+
+#### Configure TCP Settings
+
+The TCP Settings section is responsible for configuring Parent virtualservice specific parameters using the HostRule CRD. 
+The `tcpSettings` block, in addition to any other parameters provided in the HostRule, is only applied to Parent VSes and dedicated VSes. The `tcpSettings` block does not have any effect on child VSes.
+
+In order to consume TCP setting configurations for parent VSes, the HostRule must be matched to a Shared/Dedicated VS FQDN, using the existing `fqdn` field in HostRule. 
+Where dedicated VSes are created corresponding to a single application, Shared VSes would host multiple application FQDNs. Therefore, in order to apply a HostRule to a dedicated VS, users can simply provide the application FQDN in the HostRule `fqdn` field. For Shared VSes however, users can either provide the AKO programmed Shared VS FQDN (TODO: Provide link), or utilize the `fqdnType: Contains` parameter with the Shared VS name itself.
+
+        fqdn: foo.com     # dedicated VS
+        fqdnType: Exact
+        tcpSetting:
+          listeners:
+          - port: 6443
+            enableSSL: true
+
+
+        fqdn: Shared-VS-L7-1.admin.avi.com    # AKO configured Shared VS fqdn
+        fqdnType: Exact
+        tcpSetting:
+          loadBalancerIP: 10.10.10.1
+
+        fqdn: Shared-VS-L7-1      # bound for clusterName--Shared-VS-L7-1
+        fqdnType: Contains
+        tcpSetting:
+          loadBalancerIP: 10.10.10.1
 
 #### Status Messages
 
