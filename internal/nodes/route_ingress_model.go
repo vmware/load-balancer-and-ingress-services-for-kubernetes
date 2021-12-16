@@ -147,7 +147,7 @@ func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, cur
 }
 
 func (m *OshiftRouteModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
-	return m.infrasetting
+	return m.infrasetting.DeepCopy()
 }
 
 func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, bool) {
@@ -232,7 +232,7 @@ func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, curr
 }
 
 func (m *K8sIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
-	return m.infrasetting
+	return m.infrasetting.DeepCopy()
 }
 
 func getL7IngressInfraSetting(key string, ingClassName string) (*akov1alpha1.AviInfraSetting, error) {

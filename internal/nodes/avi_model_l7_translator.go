@@ -257,12 +257,17 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, infraSettingName, hostName string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, infraSetting *akov1alpha1.AviInfraSetting, hostName string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var sniFQDNs []string
 	var priorityLabel string
 	var policyNode *AviHttpPolicySetNode
 	pathSet := sets.NewString(tlsNode.Paths...)
+
+	var infraSettingName string
+	if infraSetting != nil {
+		infraSettingName = infraSetting.Name
+	}
 
 	ingressNameSet := sets.NewString(tlsNode.IngressNames...)
 	ingressNameSet.Insert(ingName)
@@ -365,16 +370,21 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				},
 				VrfContext: lib.GetVrf(),
 			}
+
+			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+
 			if lib.GetT1LRPath() != "" {
 				poolNode.T1Lr = lib.GetT1LRPath()
 				// Unset the poolnode's vrfcontext.
 				poolNode.VrfContext = ""
 			}
+
 			poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, host, infraSettingName,
 				path.ServiceName, []string{ingName}, []string{path.Path})
 			if hostpath.reencrypt {
 				o.BuildPoolSecurity(poolNode, hostpath, key, poolNode.AviMarkers)
 			}
+
 			serviceType := lib.GetServiceType()
 			if serviceType == lib.NodePortLocal {
 				if servers := PopulateServersForNPL(poolNode, namespace, path.ServiceName, true, key); servers != nil {
@@ -390,6 +400,8 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				}
 			}
 
+			buildPoolWithInfraSetting(key, poolNode, infraSetting)
+
 			if !lib.GetNoPGForSNI() || !isIngr {
 				pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 				ratio := path.weight
@@ -399,6 +411,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 					tlsNode.ReplaceSniPGInSNINode(pgNode, key)
 				}
 			}
+
 			if tlsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
 				// Replace the poolNode.
 				tlsNode.ReplaceSniPoolInSNINode(poolNode, key)
@@ -608,5 +621,20 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
+}
 
+func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov1alpha1.AviInfraSetting) {
+	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
+		if infraSetting.Spec.Network.NodeNetworks != nil && len(infraSetting.Spec.Network.NodeNetworks) > 0 {
+			nodeNetworkMap := make(map[string][]string)
+			for _, nodeNetwork := range infraSetting.Spec.Network.NodeNetworks {
+				nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetwork.Cidrs
+			}
+			pool.NetworkPlacementSettings = nodeNetworkMap
+		} else {
+			pool.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+		}
+
+		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over PoolNode %s", key, pool.Name)
+	}
 }

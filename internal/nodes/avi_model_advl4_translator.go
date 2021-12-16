@@ -20,6 +20,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
@@ -274,6 +275,21 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 	}
 
+	var infraSetting *v1alpha1.AviInfraSetting
+	if lib.UseServicesAPI() {
+		gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for services APIs : %s", err)
+			return
+		}
+		// configures VS and VsVip nodes using infraSetting object (via CRD).
+		infraSetting, err = getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
+			return
+		}
+	}
+
 	var portPoolSet []AviHostPathPortPoolPG
 	for listener, svc := range svcListeners {
 		if !utils.HasElem(gwListeners, listener) || len(svc) != 1 {
@@ -306,6 +322,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			},
 			VrfContext: lib.GetVrf(),
 		}
+		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 
 		if svcFQDN != "" {
 			poolNode.ServiceMetadata.HostNames = []string{svcFQDN}
@@ -338,7 +355,13 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 				poolNode.Servers = servers
 			}
 		}
-		poolNode.AviMarkers = lib.PopulateAdvL4PoolNodeMarkers(namespace, svcNSName[1], gwName, port)
+
+		if lib.UseServicesAPI() {
+			poolNode.AviMarkers = lib.PopulateSvcApiL4PoolNodeMarkers(namespace, svcNSName[1], gwName, portProto[0], port)
+		} else {
+			poolNode.AviMarkers = lib.PopulateAdvL4PoolNodeMarkers(namespace, svcNSName[1], gwName, port)
+		}
+
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		portPool := AviHostPathPortPoolPG{
 			Port:     uint32(port),
@@ -346,15 +369,20 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			Protocol: portProto[0],
 		}
 		portPoolSet = append(portPoolSet, portPool)
+
+		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 	}
+
 	l4policyNode := &AviL4PolicyNode{
-		Name:     vsNode.Name,
-		Tenant:   lib.GetTenant(),
-		PortPool: portPoolSet,
+		Name:       vsNode.Name,
+		Tenant:     lib.GetTenant(),
+		PortPool:   portPoolSet,
+		AviMarkers: lib.PopulateAdvL4VSNodeMarkers(namespace, gwName),
 	}
-	l4policyNode.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gwName)
+
 	l4Policies = append(l4Policies, l4policyNode)
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))

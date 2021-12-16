@@ -1377,29 +1377,30 @@ func (v *AviPkiProfileNode) CalculateCheckSum() {
 }
 
 type AviPoolNode struct {
-	Name                   string
-	Tenant                 string
-	CloudConfigCksum       uint32
-	Port                   int32
-	TargetPort             int32
-	PortName               string
-	Servers                []AviPoolMetaServer
-	Protocol               string
-	LbAlgorithm            string
-	LbAlgorithmHash        string
-	LbAlgoHostHeader       string
-	IngressName            string
-	PriorityLabel          string
-	ServiceMetadata        lib.ServiceMetadataObj
-	SniEnabled             bool
-	SslProfileRef          string
-	PkiProfile             *AviPkiProfileNode
-	HealthMonitors         []string
-	ApplicationPersistence string
-	VrfContext             string
-	T1Lr                   string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
-	AviMarkers             utils.AviObjectMarkers
-	AttachedWithSharedVS   bool
+	Name                     string
+	Tenant                   string
+	CloudConfigCksum         uint32
+	Port                     int32
+	TargetPort               int32
+	PortName                 string
+	Servers                  []AviPoolMetaServer
+	Protocol                 string
+	LbAlgorithm              string
+	LbAlgorithmHash          string
+	LbAlgoHostHeader         string
+	IngressName              string
+	PriorityLabel            string
+	ServiceMetadata          lib.ServiceMetadataObj
+	SniEnabled               bool
+	SslProfileRef            string
+	PkiProfile               *AviPkiProfileNode
+	NetworkPlacementSettings map[string][]string
+	HealthMonitors           []string
+	ApplicationPersistence   string
+	VrfContext               string
+	T1Lr                     string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
+	AviMarkers               utils.AviObjectMarkers
+	AttachedWithSharedVS     bool
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1413,8 +1414,9 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	sort.Slice(servers, func(i, j int) bool {
 		return *servers[i].Ip.Addr < *servers[j].Ip.Addr
 	})
+
 	// nodeNetworkMap is the placement nw details for the pool which is constant for the AKO instance.
-	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
+	// nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 
 	// A sum of fields for this Pool.
 	checksumStringSlice := []string{
@@ -1428,7 +1430,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		utils.Stringify(v.SniEnabled),
 		v.SslProfileRef,
 		v.PriorityLabel,
-		utils.Stringify(nodeNetworkMap),
+		utils.Stringify(v.NetworkPlacementSettings),
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {

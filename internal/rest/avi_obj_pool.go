@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -46,15 +48,11 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	svc_mdata := string(svc_mdata_json)
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	placementNetworks := []*avimodels.PlacementNetwork{}
-	nodeNetworkMap, _ := lib.GetNodeNetworkMap()
 
 	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER
-	if len(nodeNetworkMap) != 0 && lib.GetCloudType() == lib.CLOUD_VCENTER {
-		for network, cidrs := range nodeNetworkMap {
+	if len(pool_meta.NetworkPlacementSettings) != 0 && lib.GetCloudType() == lib.CLOUD_VCENTER {
+		for network, cidrs := range pool_meta.NetworkPlacementSettings {
 			for _, cidr := range cidrs {
-				placementNetwork := avimodels.PlacementNetwork{}
-				networkRef := "/api/network/?name=" + network
-				placementNetwork.NetworkRef = &networkRef
 				_, ipnet, err := net.ParseCIDR(cidr)
 				if err != nil {
 					utils.AviLog.Warnf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
@@ -74,8 +72,16 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 				}
 				int32Cidr := int32(intCidr)
 
-				placementNetwork.Subnet = &avimodels.IPAddrPrefix{IPAddr: &avimodels.IPAddr{Addr: &addr, Type: &atype}, Mask: &int32Cidr}
-				placementNetworks = append(placementNetworks, &placementNetwork)
+				placementNetworks = append(placementNetworks, &avimodels.PlacementNetwork{
+					NetworkRef: proto.String("/api/network/?name=" + network),
+					Subnet: &avimodels.IPAddrPrefix{
+						IPAddr: &avimodels.IPAddr{
+							Addr: &addr,
+							Type: &atype,
+						},
+						Mask: &int32Cidr,
+					},
+				})
 			}
 
 		}

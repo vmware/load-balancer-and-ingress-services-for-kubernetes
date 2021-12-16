@@ -1064,6 +1064,7 @@ func PopulateVSNodeMarkers(namespace, host, infraSettingName string) utils.AviOb
 	markers.InfrasettingName = infraSettingName
 	return markers
 }
+
 func PopulateHTTPPolicysetNodeMarkers(namespace, host, infraSettingName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
@@ -1073,18 +1074,21 @@ func PopulateHTTPPolicysetNodeMarkers(namespace, host, infraSettingName string, 
 	markers.InfrasettingName = infraSettingName
 	return markers
 }
+
 func PopulateL4VSNodeMarkers(namespace, serviceName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
 	markers.ServiceName = serviceName
 	return markers
 }
+
 func PopulateAdvL4VSNodeMarkers(namespace, gatewayName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
 	markers.GatewayName = gatewayName
 	return markers
 }
+
 func PopulateAdvL4PoolNodeMarkers(namespace, svcName, gatewayName string, port int) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
@@ -1093,6 +1097,17 @@ func PopulateAdvL4PoolNodeMarkers(namespace, svcName, gatewayName string, port i
 	markers.Port = strconv.Itoa(port)
 	return markers
 }
+
+func PopulateSvcApiL4PoolNodeMarkers(namespace, svcName, gatewayName, protocol string, port int) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.GatewayName = gatewayName
+	markers.ServiceName = svcName
+	markers.Protocol = protocol
+	markers.Port = strconv.Itoa(port)
+	return markers
+}
+
 func PopulatePGNodeMarkers(namespace, host, infraSettingName string, ingName, path []string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
@@ -1102,12 +1117,14 @@ func PopulatePGNodeMarkers(namespace, host, infraSettingName string, ingName, pa
 	markers.InfrasettingName = infraSettingName
 	return markers
 }
+
 func PopulateTLSKeyCertNode(host, infraSettingName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Host = []string{host}
 	markers.InfrasettingName = infraSettingName
 	return markers
 }
+
 func PopulateL4PoolNodeMarkers(namespace, svcName, port string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace
@@ -1115,17 +1132,20 @@ func PopulateL4PoolNodeMarkers(namespace, svcName, port string) utils.AviObjectM
 	markers.Port = port
 	return markers
 }
+
 func PopulatePassthroughPGMarkers(host string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Host = []string{host}
 	return markers
 }
+
 func PopulatePassthroughPoolMarkers(host, svcName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Host = []string{host}
 	markers.ServiceName = svcName
 	return markers
 }
+
 func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset) ([]string, error) {
 	var isOshift bool
 	allInformers := []string{
@@ -1164,6 +1184,7 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 	}
 	return allInformers, nil
 }
+
 func GetDiffPath(storedPathSvc map[string][]string, currentPathSvc map[string][]string) map[string][]string {
 	pathSvcCopy := make(map[string][]string)
 	for k, v := range storedPathSvc {
