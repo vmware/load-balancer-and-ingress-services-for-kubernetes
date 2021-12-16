@@ -44,6 +44,9 @@ A sample HostRule CRD looks like this:
           - port: 6443
             enableSSL: true
           loadBalancerIP: 10.10.10.1
+        aliases: # optional
+        -  bar.com
+        -  baz.com
 
 
 ### Specific usage of HostRule CRD
@@ -213,10 +216,22 @@ Where dedicated VSes are created corresponding to a single application, Shared V
         fqdnType: Contains
         tcpSetting:
           loadBalancerIP: 10.10.10.1
+#### Configure aliases for FQDN
+
+The Aliases field adds the ability to have multiple FQDNs configured under a specific route/ingress for the child VS instead of creating the route/ingress multiple times.
+
+        aliases:
+        - bar.com
+        - baz.com
+
+This list of FQDNs inherits all the properties of the root FQDN specified under the `virtualHost` section.
+DNS will arrive with the host header as bar.com to the VIP hosting foo.com and this CRD property would ensure that the request is routed appropriately to the backend service of `foo.com`.
+
+Aliases field must contain unique FQDNs and must not contain GSLB FQDN or the root FQDN. Users must ensure that the `fqdnType` is set as `Exact` before setting this field.
 
 #### Status Messages
 
-The status messages are used to give instanteneous feedback to the users about the reference objects specified in the HostRule CRD.
+The status messages are used to give instantaneous feedback to the users about the reference objects specified in the HostRule CRD.
 
 Following are some of the sample status messages:
 

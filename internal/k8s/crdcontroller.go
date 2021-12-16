@@ -588,7 +588,7 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 			aliases := cachedAliases.([]string)
 			for _, alias := range hostrule.Spec.VirtualHost.Aliases {
 				if utils.HasElem(aliases, alias) {
-					err = fmt.Errorf("%s is already in use", alias)
+					err = fmt.Errorf("%s is already in use by hostrule %s", alias, cachedFQDN)
 					status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 					return err
 				}
