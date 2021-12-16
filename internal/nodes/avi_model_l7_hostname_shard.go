@@ -69,7 +69,7 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	if gslbHostHeader != "" {
 		utils.AviLog.Debugf("key: %s, msg: GSLB host header: %v", key, gslbHostHeader)
 		if gsFqdnCache != gslbHostHeader {
-			RemoveGSFqdnFromVIP(vsNode[0], gsFqdnCache, key)
+			RemoveFqdnFromVIP(vsNode[0], key, []string{gsFqdnCache})
 		}
 		// check if the Domain is already added, if not add it.
 		if !utils.HasElem(pathFQDNs, gslbHostHeader) {
@@ -82,7 +82,7 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	} else {
 		if found {
 			objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(hostname)
-			RemoveGSFqdnFromVIP(vsNode[0], gsFqdnCache, key)
+			RemoveFqdnFromVIP(vsNode[0], key, []string{gsFqdnCache})
 		}
 	}
 
@@ -95,8 +95,7 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	pathsvc := pathsvcMap.ingressHPSvc
 
 	o.BuildPoolPGPolicyForDedicatedVS(vsNode, namespace, ingName, hostname, infraSetting, key, pathFQDNs, pathsvc, insecureEdgeTermAllow, isIngr)
-	BuildL7HostRule(hostname, namespace, vsNode[0])
-
+	BuildL7HostRule(hostname, key, vsNode[0])
 	// Compare and remove the deleted aliases from the FQDN list
 	var hostsToRemove []string
 	_, oldFQDNAliases := objects.SharedCRDLister().GetFQDNToAliasesMapping(hostname)
@@ -650,14 +649,14 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			sniHostToRemove = append(sniHostToRemove, gsFqdnCache)
 			objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(sniHost)
 			if vsNode[0].Dedicated {
-				RemoveGSFqdnFromVIP(vsNode[0], gsFqdnCache, key)
+				RemoveFqdnFromVIP(vsNode[0], key, []string{gsFqdnCache})
 			}
 		}
 	} else {
 		if gsFqdn != gsFqdnCache {
 			sniHostToRemove = append(sniHostToRemove, gsFqdnCache)
 			if vsNode[0].Dedicated {
-				RemoveGSFqdnFromVIP(vsNode[0], gsFqdnCache, key)
+				RemoveFqdnFromVIP(vsNode[0], key, []string{gsFqdnCache})
 			}
 		}
 		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(sniHost, gsFqdn)
@@ -718,7 +717,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 				RemoveSniInModel(sniNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
 			} else {
-				DeleteDedicatedVSNode(vsNode[0], key)
+				DeleteDedicatedVSNode(vsNode[0], sniHostToRemove, key)
 			}
 			vsNode[0].RemoveFQDNsFromModel(sniHostToRemove, key)
 		}

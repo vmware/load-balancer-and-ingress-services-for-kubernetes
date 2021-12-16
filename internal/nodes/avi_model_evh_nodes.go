@@ -1074,7 +1074,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 			hosts = append(hosts, pathsvcmap.gslbHostHeader)
 		}
 		if vsNode[0].Dedicated {
-			RemoveGSFqdnFromEVHVIP(vsNode[0], gsFqdnCache, key)
+			RemoveFqdnFromEVHVIP(vsNode[0], []string{gsFqdnCache}, key)
 		}
 		//Dedicated VS: add gslb fqdn as part of vsvip fqdn
 		if isDedicated && !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, pathsvcmap.gslbHostHeader) {
@@ -1085,7 +1085,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		if found {
 			objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(host)
 			if vsNode[0].Dedicated {
-				RemoveGSFqdnFromEVHVIP(vsNode[0], gsFqdnCache, key)
+				RemoveFqdnFromEVHVIP(vsNode[0], []string{gsFqdnCache}, key)
 			}
 		}
 	}
@@ -1376,7 +1376,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			hostsToRemove = append(hostsToRemove, gsFqdnCache)
 			objects.SharedCRDLister().DeleteLocalFqdnToGsFqdnMap(host)
 			if vsNode[0].Dedicated {
-				RemoveGSFqdnFromEVHVIP(vsNode[0], gsFqdnCache, key)
+				RemoveFqdnFromEVHVIP(vsNode[0], []string{gsFqdnCache}, key)
 			}
 		}
 	} else {
@@ -1384,7 +1384,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			hostsToRemove = append(hostsToRemove, gsFqdnCache)
 		}
 		if vsNode[0].Dedicated {
-			RemoveGSFqdnFromEVHVIP(vsNode[0], gsFqdnCache, key)
+			RemoveFqdnFromEVHVIP(vsNode[0], []string{gsFqdnCache}, key)
 		}
 		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(host, paths.gslbHostHeader)
 	}
@@ -1432,7 +1432,9 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		}
 		// Enable host rule
 		BuildL7HostRule(host, key, evhNode)
-		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
+		if !isDedicated {
+			manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
+		}
 
 		// Remove the deleted aliases from the FQDN list
 		var hostsToRemove []string
@@ -1464,7 +1466,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
 			hostsToRemove = append(hostsToRemove, evhNode.VHDomainNames...)
 			if vsNode[0].Dedicated {
-				DeleteDedicatedEvhVSNode(vsNode[0], key)
+				DeleteDedicatedEvhVSNode(vsNode[0], key, hostsToRemove)
 			} else {
 				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
@@ -1693,12 +1695,14 @@ func (o *AviObjectGraph) RemovePoolNodeRefsFromEvh(poolName string, evhNode *Avi
 	utils.AviLog.Debugf("After removing the pool ref nodes are: %s", utils.Stringify(evhNode.PoolRefs))
 
 }
-func RemoveGSFqdnFromEVHVIP(vsNode *AviEvhVsNode, gsFqdn, key string) {
+func RemoveFqdnFromEVHVIP(vsNode *AviEvhVsNode, hostsToRemove []string, key string) {
 	if len(vsNode.VSVIPRefs) > 0 {
-		for i, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
-			if fqdn == gsFqdn {
-				utils.AviLog.Debugf("key: %s, msg: Removed GSLB FQDN %s from vs node %s", key, gsFqdn, vsNode.Name)
-				vsNode.VSVIPRefs[0].FQDNs = append(vsNode.VSVIPRefs[0].FQDNs[:i], vsNode.VSVIPRefs[0].FQDNs[i+1:]...)
+		for _, fqdn := range hostsToRemove {
+			for i, vipFqdn := range vsNode.VSVIPRefs[0].FQDNs {
+				if vipFqdn == fqdn {
+					utils.AviLog.Debugf("key: %s, msg: Removed FQDN %s from vs node %s", key, fqdn, vsNode.Name)
+					vsNode.VSVIPRefs[0].FQDNs = append(vsNode.VSVIPRefs[0].FQDNs[:i], vsNode.VSVIPRefs[0].FQDNs[i+1:]...)
+				}
 			}
 		}
 	}
@@ -2030,11 +2034,12 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
 }
-func DeleteDedicatedEvhVSNode(vsNode *AviEvhVsNode, key string) {
+func DeleteDedicatedEvhVSNode(vsNode *AviEvhVsNode, key string, hostsToRemove []string) {
 	vsNode.PoolGroupRefs = []*AviPoolGroupNode{}
 	vsNode.PoolRefs = []*AviPoolNode{}
 	vsNode.HttpPolicyRefs = []*AviHttpPolicySetNode{}
 	vsNode.DeletSSLRefInDedicatedNode(key)
+	RemoveFqdnFromEVHVIP(vsNode, hostsToRemove, key)
 	utils.AviLog.Infof("key: %s, msg: Deleted Dedicated node vs: %s", key, vsNode.Name)
 }
 func manipulateEvhNodeForSSL(key string, vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {
