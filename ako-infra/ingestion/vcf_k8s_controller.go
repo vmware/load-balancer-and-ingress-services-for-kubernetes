@@ -198,7 +198,7 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 // AVI Controller. If there is any failure, we would look at Bootstrap CR used by NCP to communicate with AKO.
 // If Bootstrap CR is not found, AKO would wait for it to be created. If the authtoken from Bootstrap CR
 // can be used to connect to the AVI Controller, then avi-secret would be created with that token.
-func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}, ctrlCh chan struct{}) string {
+func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}, ctrlCh chan struct{}, skipAviClient ...bool) string {
 	cs := c.informers.ClientSet
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
 	ctrlIP := lib.GetControllerURLFromBootstrapCR()
@@ -212,7 +212,7 @@ func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struc
 			session.SetNoControllerStatusCheck, session.SetTransport(transport),
 			session.SetInsecure,
 		)
-		if err == nil {
+		if err == nil || len(skipAviClient) == 1 {
 			utils.AviLog.Infof("Successfully connected to AVI controller using existing AKO secret")
 			boostrapdata, ok := lib.GetBootstrapCRData()
 			if ok {
