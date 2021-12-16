@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	logr "github.com/go-logr/logr"
+	"google.golang.org/protobuf/proto"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 
@@ -65,6 +66,23 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 									},
 									"fqdn": {
 										Type: "string",
+									},
+									"fqdnType": {
+										Type: "string",
+										Enum: []apiextensionv1.JSON{
+											{
+												Raw: []byte("\"Exact\""),
+											},
+											{
+												Raw: []byte("\"Contains\""),
+											},
+											{
+												Raw: []byte("\"Wildcard\""),
+											},
+										},
+										Default: &apiextensionv1.JSON{
+											Raw: []byte("\"Exact\""),
+										},
 									},
 									"datascripts": {
 										Items: &apiextensionv1.JSONSchemaPropsOrArray{
@@ -132,6 +150,74 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 														Raw: []byte("\"edge\""),
 													},
 												},
+											},
+										},
+									},
+									"analyticsPolicy": {
+										Type: "object",
+										Properties: map[string]apiextensionv1.JSONSchemaProps{
+											"fullClientLogs": {
+												Type: "object",
+												Properties: map[string]apiextensionv1.JSONSchemaProps{
+													"enabled": {
+														Type: "boolean",
+														Default: &apiextensionv1.JSON{
+															Raw: []byte("\"false\""),
+														},
+													},
+													"throttle": {
+														Type: "string",
+														Enum: []apiextensionv1.JSON{
+															{
+																Raw: []byte("\"LOW\""),
+															},
+															{
+																Raw: []byte("\"MEDIUM\""),
+															},
+															{
+																Raw: []byte("\"HIGH\""),
+															},
+															{
+																Raw: []byte("\"DISABLED\""),
+															},
+														},
+														Default: &apiextensionv1.JSON{
+															Raw: []byte("\"HIGH\""),
+														},
+													},
+												},
+											},
+											"logAllHeaders": {
+												Type: "boolean",
+												Default: &apiextensionv1.JSON{
+													Raw: []byte("\"false\""),
+												},
+											},
+										},
+									},
+									"tcpSettings": {
+										Type: "object",
+										Properties: map[string]apiextensionv1.JSONSchemaProps{
+											"listeners": {
+												Type: "array",
+												Items: &apiextensionv1.JSONSchemaPropsOrArray{
+													Schema: &apiextensionv1.JSONSchemaProps{
+														Type: "object",
+														Properties: map[string]apiextensionv1.JSONSchemaProps{
+															"port": {
+																Type:    "integer",
+																Minimum: proto.Float64(1),
+																Maximum: proto.Float64(65535),
+															},
+															"enableSSL": {
+																Type: "boolean",
+															},
+														},
+													},
+												},
+											},
+											"loadBalancerIP": {
+												Type: "string",
 											},
 										},
 									},
@@ -428,6 +514,28 @@ func createAviInfraSettingCRD(clientset *apiextension.ApiextensionsV1Client, log
 														Type: "string",
 													},
 												},
+											},
+										},
+									},
+									"nodeNetworks": {
+										Type: "array",
+										Items: &apiextensionv1.JSONSchemaPropsOrArray{
+											Schema: &apiextensionv1.JSONSchemaProps{
+												Type: "object",
+												Properties: map[string]apiextensionv1.JSONSchemaProps{
+													"networkName": {
+														Type: "string",
+													},
+													"cidrs": {
+														Type: "array",
+														Items: &apiextensionv1.JSONSchemaPropsOrArray{
+															Schema: &apiextensionv1.JSONSchemaProps{
+																Type: "string",
+															},
+														},
+													},
+												},
+												Required: []string{"networkName"},
 											},
 										},
 									},

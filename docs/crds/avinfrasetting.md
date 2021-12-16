@@ -17,6 +17,10 @@ spec:
     vipNetworks:
       - networkName: vip-network-10-10-10-0-24
         cidr: 10.10.10.0/24
+    nodeNetworks:
+      - networkName: node-network-10-10-20-0-24
+        cidrs:
+        - 10.10.20.0/24
     enableRhi: true
     bgpPeerLabels:
       - peer1
@@ -114,6 +118,18 @@ AviInfraSetting CRD can be used to configure VIP networks for virtualservices cr
               cidr: 10.10.10.0/24
 
 Note that multiple networks names can be added to the CRD (only in case of AWS cloud). The Avi virtualservices will acquire a VIP from each of these specified networks. Failure in allocating even a single vip (for example, in case of IP exhaustion) **will** result in complete failure of entire request. *This is same as vip allocation failures in single vip.*
+
+#### Configure Pool Placement Networks
+
+AviInfraSetting CRD can be used to configure Pool Placement Settings on the AKO created Pools in order for the Service Engines to place the Pools on appropriate interfaces.
+
+        network:
+          nodeNetworks:
+            - networkName: node-network-10-10-20-0-24
+              cidrs:
+              - 10.10.20.0/24
+
+If two Kubernetes clusters have overlapping Pod CIDRs, the service engine needs to identify the right gateway for each of the overlapping CIDR groups. This is achieved by specifying the right placement network for the pools that helps the Service Engine place the pools appropriately.
 
 #### Enable/Disable Route Health Injection
 
