@@ -1455,10 +1455,10 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 		// Fetch the pools associated with the l4 policyset object
 		var pools []string
 		var ports []int64
-		var protocol string
+		var protocols []string
 		if l4pol.L4ConnectionPolicy != nil {
 			for _, rule := range l4pol.L4ConnectionPolicy.Rules {
-				protocol = *rule.Match.Protocol.Protocol
+				protocols = append(protocols, *rule.Match.Protocol.Protocol)
 				if rule.Action != nil {
 					poolUuid := ExtractUuid(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
 					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
@@ -1472,7 +1472,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 			}
 		}
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
-		cksum := lib.L4PolicyChecksum(ports, protocol, emptyIngestionMarkers, l4pol.Markers, true)
+		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4pol.Markers, true)
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
@@ -1667,11 +1667,17 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		// Fetch the pools associated with the l4 policyset object
 		var pools []string
 		var ports []int64
-		var protocol string
+		var protocols []string
 		if l4pol.L4ConnectionPolicy != nil {
 			for _, rule := range l4pol.L4ConnectionPolicy.Rules {
 				if rule.Action != nil {
-					protocol = *rule.Match.Protocol.Protocol
+					protocol := *rule.Match.Protocol.Protocol
+					if strings.Contains(protocol, utils.TCP) {
+						protocol = utils.TCP
+					} else {
+						protocol = utils.UDP
+					}
+					protocols = append(protocols, protocol)
 					poolUuid := ExtractUuid(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
 					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 					if found {
@@ -1683,13 +1689,9 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 				}
 			}
 		}
-		if strings.Contains(protocol, utils.TCP) {
-			protocol = utils.TCP
-		} else {
-			protocol = utils.UDP
-		}
+
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
-		cksum := lib.L4PolicyChecksum(ports, protocol, emptyIngestionMarkers, l4pol.Markers, true)
+		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4pol.Markers, true)
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Uuid:             *l4pol.UUID,
