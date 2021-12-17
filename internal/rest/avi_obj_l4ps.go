@@ -175,7 +175,7 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 		}
 
 		var l4policyset avimodels.L4PolicySet
-		var protocol string
+		var protocols []string
 		var ports []int64
 		var pools []string
 		switch rest_op.Obj.(type) {
@@ -186,14 +186,14 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 		}
 		for _, rule := range l4policyset.L4ConnectionPolicy.Rules {
 			// cannot create an external load balancer with mix protocol - hence just caching the protocol once
-			protocol = *rule.Match.Protocol.Protocol
+			protocols = append(protocols, *rule.Match.Protocol.Protocol)
 			ports = rule.Match.Port.Ports
 			pool := strings.TrimPrefix(*rule.Action.SelectPool.PoolRef, "/api/pool?name=")
 			pools = append(pools, pool)
 		}
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		//This is fetching data from response send at avi controller.
-		cksum := lib.L4PolicyChecksum(ports, protocol, emptyIngestionMarkers, l4policyset.Markers, true)
+		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4policyset.Markers, true)
 		l4_cache_obj := avicache.AviL4PolicyCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			LastModified:     lastModifiedStr,
