@@ -17,7 +17,6 @@ package rest
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -41,8 +40,12 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
 	cr := lib.AKOUser
 
-	hps := avimodels.L4PolicySet{Name: &name,
-		CreatedBy: &cr, TenantRef: &tenant}
+	hps := avimodels.L4PolicySet{
+		Name:      &name,
+		CreatedBy: &cr,
+		TenantRef: &tenant,
+	}
+
 	if lib.GetGRBACSupport() {
 		hps.Markers = lib.GetAllMarkers(hps_meta.AviMarkers)
 	}
@@ -52,7 +55,8 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	var l4rules []*avimodels.L4Rule
 	for _, hppmap := range hps_meta.PortPool {
 		if hppmap.Port != 0 {
-			ruleName := name + strconv.Itoa(int(hppmap.Port))
+			// Keep the l4 policy rule name similar to the Pool name it corresponds to.
+			ruleName := hppmap.Pool
 			if lib.CheckObjectNameLength(ruleName, lib.L4PSRule) {
 				utils.AviLog.Warnf("key: %s not adding L4 PolicyRule to Policyset object", key)
 				continue
