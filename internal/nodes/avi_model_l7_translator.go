@@ -549,10 +549,11 @@ func RemoveHeaderRewriteHTTPPolicyInModel(vsNode *AviVsNode, hostname, key strin
 		}
 	}
 }
-func DeleteDedicatedVSNode(vsNode *AviVsNode, key string) {
+func DeleteDedicatedVSNode(vsNode *AviVsNode, hostsToRemove []string, key string) {
 	vsNode.PoolGroupRefs = []*AviPoolGroupNode{}
 	vsNode.PoolRefs = []*AviPoolNode{}
 	vsNode.HttpPolicyRefs = []*AviHttpPolicySetNode{}
+	RemoveFqdnFromVIP(vsNode, key, hostsToRemove)
 	vsNode.DeletSSLRefInDedicatedNode(key)
 	utils.AviLog.Infof("key: %s, msg: Deleted Dedicated node vs: %s", key, vsNode.Name)
 }
@@ -575,12 +576,14 @@ func RemoveRedirectHTTPPolicyInModel(vsNode *AviVsNode, hostnames []string, key 
 		}
 	}
 }
-func RemoveGSFqdnFromVIP(vsNode *AviVsNode, gsFqdn, key string) {
+func RemoveFqdnFromVIP(vsNode *AviVsNode, key string, Fqdns []string) {
 	if len(vsNode.VSVIPRefs) > 0 {
-		for i, fqdn := range vsNode.VSVIPRefs[0].FQDNs {
-			if fqdn == gsFqdn {
-				utils.AviLog.Debugf("key: %s, msg: Removed GSLB FQDN %s from vs node %s", key, gsFqdn, vsNode.Name)
-				vsNode.VSVIPRefs[0].FQDNs = append(vsNode.VSVIPRefs[0].FQDNs[:i], vsNode.VSVIPRefs[0].FQDNs[i+1:]...)
+		for _, fqdn := range Fqdns {
+			for i, vipFqdn := range vsNode.VSVIPRefs[0].FQDNs {
+				if fqdn == vipFqdn {
+					utils.AviLog.Debugf("key: %s, msg: Removed FQDN %s from vs node %s", key, fqdn, vsNode.Name)
+					vsNode.VSVIPRefs[0].FQDNs = append(vsNode.VSVIPRefs[0].FQDNs[:i], vsNode.VSVIPRefs[0].FQDNs[i+1:]...)
+				}
 			}
 		}
 	}
