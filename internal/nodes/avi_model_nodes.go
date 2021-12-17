@@ -1415,9 +1415,6 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		return *servers[i].Ip.Addr < *servers[j].Ip.Addr
 	})
 
-	// nodeNetworkMap is the placement nw details for the pool which is constant for the AKO instance.
-	// nodeNetworkMap, _ := lib.GetNodeNetworkMap()
-
 	// A sum of fields for this Pool.
 	checksumStringSlice := []string{
 		v.Protocol,
