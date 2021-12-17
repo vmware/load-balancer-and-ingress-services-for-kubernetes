@@ -17,7 +17,6 @@ data:
   layer7Only: {{ .Values.AKOSettings.layer7Only | quote }}
   istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
   vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace | quote }}
-  tenantsPerCluster: {{ .Values.ControllerSettings.tenantsPerCluster | quote }}
   tenantName: {{ .Values.ControllerSettings.tenantName | quote }}
   defaultDomain: {{ .Values.L4Settings.defaultDomain | quote }}
   disableStaticRouteSync: {{ .Values.AKOSettings.disableStaticRouteSync | quote }}

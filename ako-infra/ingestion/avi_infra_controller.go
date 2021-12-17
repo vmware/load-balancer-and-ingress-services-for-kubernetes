@@ -199,11 +199,6 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 	response := models.ServiceEngineGroupAPIResponse{}
 	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
 	SetTenant := session.SetTenant(lib.GetTenant())
-	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
-	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-	}
 
 	err := lib.AviPost(client, uri, seGroup, response)
 	if err != nil {

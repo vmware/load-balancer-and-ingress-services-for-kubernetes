@@ -59,7 +59,6 @@ const (
 	APIServerPort          = "apiServerPort"
 	NSSyncLabelKey         = "nsSyncLabelKey"
 	NSSyncLabelValue       = "nsSyncLabelValue"
-	TenantsPerCluster      = "tenantsPerCluster"
 	TenantName             = "tenantName"
 	NoPGForSni             = "noPGForSni"
 	Nsxt1LR                = "nsxtT1LR"
@@ -98,7 +97,6 @@ var ConfigMapEnvVars = map[string]string{
 	"NODE_NETWORK_LIST":          NodeNetworkList,
 	"AKO_API_PORT":               APIServerPort,
 	"TENANT_NAME":                TenantName,
-	"TENANTS_PER_CLUSTER":        TenantsPerCluster,
 	"NAMESPACE_SYNC_LABEL_KEY":   NSSyncLabelKey,
 	"NAMESPACE_SYNC_LABEL_VALUE": NSSyncLabelValue,
 	"NSXT_T1_LR":                 Nsxt1LR,

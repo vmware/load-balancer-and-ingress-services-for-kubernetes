@@ -252,11 +252,6 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[NSSyncLabelKey] = ako.Spec.AKOSettings.NSSelector.LabelKey
 	cm.Data[NSSyncLabelValue] = ako.Spec.AKOSettings.NSSelector.LabelValue
 
-	tenantsPerCluster := "false"
-	if ako.Spec.ControllerSettings.TenantsPerCluster {
-		tenantsPerCluster = "true"
-	}
-	cm.Data[TenantsPerCluster] = tenantsPerCluster
 	cm.Data[TenantName] = ako.Spec.ControllerSettings.TenantName
 	cm.Data[AutoFQDN] = ako.Spec.L4Settings.AutoFQDN
 

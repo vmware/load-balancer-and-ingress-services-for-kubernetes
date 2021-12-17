@@ -183,15 +183,9 @@ IP address/FQDN. For example, if the controller is hosted on 8443, then controll
 This field is used to specify the name of the IaaS cloud in Avi controller. For example, if you have the VCenter cloud named as "Demo"
 then specify the `name` of the cloud name with this field. This helps AKO determine the IaaS cloud to create the service engines on.
 
-### ControllerSettings.tenantsPerCluster
-
-If this field is set to `true`, AKO will map each Kubernetes / OpenShift cluster uniquely to a tenant in AVI.
-If enabled, then tenant should be created in AVI to map to a cluster and needs to be specified in `ControllerSettings.tenantName` field.
-
 ### ControllerSettings.tenantName
 
-The `tenantName` field  is used to specify the name of the tenant where all the AKO objects will be created in AVI. This field is only required if `tenantsPerCluster` is set to `true`.
-The tenant in AVI needs to be created by the AVI controller admin before the AKO bootup.
+The `tenantName` field  is used to specify the name of the tenant where all the AKO objects will be created in AVI. The tenant in AVI needs to be created by the AVI controller admin before the AKO bootup.
 
 ### ControllerSettings.cloudName
 

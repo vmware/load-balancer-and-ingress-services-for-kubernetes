@@ -90,12 +90,8 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 	}
 
 	restOp := utils.RestOp{Path: path, Method: utils.RestPatch, PatchOp: patchOp, Obj: patchPayload,
-		Tenant: lib.GetTenant(), Model: "VrfContext", Version: utils.CtrlVersion}
+		Tenant: lib.GetAdminTenant(), Model: "VrfContext", Version: utils.CtrlVersion}
 
-	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
-	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-		restOp.Tenant = lib.GetAdminTenant()
-	}
 	return &restOp
 }
 
