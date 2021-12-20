@@ -96,6 +96,8 @@ avicredentials:
   password:
   authtoken:
   certificateAuthorityData:
+  existingSecret: # Determines whether to create the avi-secret or allow the secret to be created outside of the helm chart.
+  # existingSecret: true
 
 
 persistentVolumeClaim: ""
