@@ -176,3 +176,30 @@ All notable changes to this project will be documented in this file. The format 
  - Due to the use of Informers for Secrets, there is an adverse effect on bootup time in OpenShift based setups. AKO can further optimize bootup time on openshift setup by filtering out the Secrets on `avi-system` namespace. This feature will be added in 1.6.1
  - `ServiceType` of `NodePort` does not support multi-port `Services` with port number.
 
+
+ ## AKO-1.6.1
+
+ ### Added:
+ - AKO now claims support for Kubernetes 1.22.
+ - Support multi-port `Services` with port number for `ServiceType` of `NodePort` and `NodePortLocal`.
+ - AKO introduces support for broadcasting kubernetes `Events` in order to enhance the observability and monitoring aspects.
+ - Support custom port numbers for dedicated and shared virtual services through HostRule CR field.
+ - Support for enabling/disabling non-significant logs through HostRule CRD.
+ - Add autoFQDN to shared virtual services.
+ - Support for Analytical profile for virtual service through HostRule CRD.
+ - Support for Static IP for Shared and Dedicated virtual service through HostRule CRD.
+ - Tenant context support for SE group.
+ - Support for multiple alias FQDNs for a host through HostRule CRD.
+ - Support to configure `Pool Placement Setting` for child ingresses/routes/svclb through AviInfraSetting CRD.
+ - Allow adding custom Pod CIDR to Node mapping via annotation.
+ - Support for `Shared virtual service` fqdn in HostRule CRD.
+
+### Changed:
+- Update `annotation` instead of `status` field of AKO statefulset after avi object deletion through `deleteConfig` flag.
+- AKO will create single HTTP Policyset object at Avi Controller side for all paths of same host.
+
+### Known Issues:
+ - AviInfraSetting CR can not be applied to passthrough ingress/route.
+ - AKO is not updating the ingress status when annotation `passthrough.ako.vmware.com/enabled: "true"` is added to the ingress.
+ - There are issues when shardVS size changed through AviInfra CR or values.yaml. Recommended workflow is to first delete existing config using `deleteConfig` flag as described [here](docs/faq.md#how-do-i-clean-up-all-my-configs) and then change `shardVsSize`.
+
