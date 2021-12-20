@@ -17,7 +17,6 @@ package rest
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -41,8 +40,12 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
 	cr := lib.AKOUser
 
-	hps := avimodels.L4PolicySet{Name: &name,
-		CreatedBy: &cr, TenantRef: &tenant}
+	hps := avimodels.L4PolicySet{
+		Name:      &name,
+		CreatedBy: &cr,
+		TenantRef: &tenant,
+	}
+
 	if lib.GetGRBACSupport() {
 		hps.Markers = lib.GetAllMarkers(hps_meta.AviMarkers)
 	}
@@ -52,7 +55,8 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	var l4rules []*avimodels.L4Rule
 	for _, hppmap := range hps_meta.PortPool {
 		if hppmap.Port != 0 {
-			ruleName := name + strconv.Itoa(int(hppmap.Port))
+			// Keep the l4 policy rule name similar to the Pool name it corresponds to.
+			ruleName := hppmap.Pool
 			if lib.CheckObjectNameLength(ruleName, lib.L4PSRule) {
 				utils.AviLog.Warnf("key: %s not adding L4 PolicyRule to Policyset object", key)
 				continue
@@ -171,7 +175,7 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 		}
 
 		var l4policyset avimodels.L4PolicySet
-		var protocol string
+		var protocols []string
 		var ports []int64
 		var pools []string
 		switch rest_op.Obj.(type) {
@@ -182,14 +186,14 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 		}
 		for _, rule := range l4policyset.L4ConnectionPolicy.Rules {
 			// cannot create an external load balancer with mix protocol - hence just caching the protocol once
-			protocol = *rule.Match.Protocol.Protocol
+			protocols = append(protocols, *rule.Match.Protocol.Protocol)
 			ports = rule.Match.Port.Ports
 			pool := strings.TrimPrefix(*rule.Action.SelectPool.PoolRef, "/api/pool?name=")
 			pools = append(pools, pool)
 		}
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		//This is fetching data from response send at avi controller.
-		cksum := lib.L4PolicyChecksum(ports, protocol, emptyIngestionMarkers, l4policyset.Markers, true)
+		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4policyset.Markers, true)
 		l4_cache_obj := avicache.AviL4PolicyCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			LastModified:     lastModifiedStr,
