@@ -825,11 +825,14 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	var checksum uint32
 	var ports []int64
+	var protocols []string
+
 	for _, hpp := range v.PortPool {
 		ports = append(ports, int64(hpp.Port))
+		protocols = append(protocols, hpp.Protocol)
 	}
 	if len(v.PortPool) > 0 {
-		checksum = lib.L4PolicyChecksum(ports, v.PortPool[0].Protocol, v.AviMarkers, nil, false)
+		checksum = lib.L4PolicyChecksum(ports, protocols, v.AviMarkers, nil, false)
 	}
 	v.CloudConfigCksum = checksum
 }

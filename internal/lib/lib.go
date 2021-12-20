@@ -982,13 +982,14 @@ func SSLKeyCertChecksum(sslName, certificate, cacert string, ingestionMarkers ut
 	return checksum
 }
 
-func L4PolicyChecksum(ports []int64, protocol string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+func L4PolicyChecksum(ports []int64, protocols []string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	var portsInt []int
 	for _, port := range ports {
 		portsInt = append(portsInt, int(port))
 	}
 	sort.Ints(portsInt)
-	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(protocol)
+	sort.Strings(protocols)
+	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols))
 	if GetGRBACSupport() {
 		if populateCache {
 			if markers != nil {
