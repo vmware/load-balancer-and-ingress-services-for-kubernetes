@@ -69,8 +69,7 @@ ControllerSettings:
   controllerVersion: "" # The controller API version
   cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
   controllerHost: "" # IP address or Hostname of Avi Controller
-  tenantsPerCluster: "false" # If set to true, AKO will map each kubernetes cluster uniquely to a tenant in Avi
-  tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI. // Required only if tenantsPerCluster is set to True
+  tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI.
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""

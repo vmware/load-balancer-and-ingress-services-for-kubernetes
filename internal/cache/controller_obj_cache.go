@@ -2665,11 +2665,6 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 		uri := "/api/serviceenginegroup/" + *seGroup.UUID
 		seGroup.Labels = lib.GetLabels()
 		response := models.ServiceEngineGroupAPIResponse{}
-		// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
-		if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-		}
 		err := lib.AviPut(client, uri, seGroup, response)
 		if err != nil {
 			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
@@ -2724,12 +2719,6 @@ func DeConfigureSeGroupLabels() {
 	utils.AviLog.Infof("Updating the following labels: %v, on the SE Group", utils.Stringify(seGroup.Labels))
 	uri := "/api/serviceenginegroup/" + *seGroup.UUID
 	response := models.ServiceEngineGroupAPIResponse{}
-
-	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
-	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-	}
 
 	err = lib.AviPut(client, uri, seGroup, response)
 	if err != nil {
@@ -2799,12 +2788,10 @@ func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEn
 
 func checkTenant(client *clients.AviClient, returnError *error) bool {
 	uri := "/api/tenant/?name=" + lib.GetTenant()
-	if lib.GetTenantsPerCluster() {
-		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-		SetTenant := session.SetTenant(lib.GetTenant())
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-	}
+	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+	SetTenant := session.SetTenant(lib.GetTenant())
+	SetAdminTenant(client.AviSession)
+	defer SetTenant(client.AviSession)
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		*returnError = fmt.Errorf("Get uri %v returned err %v", uri, err)

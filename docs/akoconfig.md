@@ -44,7 +44,6 @@ spec:
     controllerVersion: "20.1.2"
     cloudName: "Default-Cloud"
     controllerIP: "10.10.10.11"
-    tenantsPerCluster: false
     tenantName: ""
 
   nodePortSelector: # only applicable if servicetype is nodePort
@@ -101,8 +100,7 @@ spec:
     * `controllerVersion`: The controller API version.
     * `cloudName`: The configured cloud name on the AVI controller.
     * `controllerIP`: The IP Address (URL) of the AVI Controller.
-    * `tenantsPerCluster`: If set to `true`, AKO controller will map each kubernetes cluster uniquely to a tenant in Avi.
-    * `tenantName`: Name of the tenant where the AKO controller will create objects in AVI. Required only if `controllerSettings.tenantsPerCluster` is set to `true`.
+    * `tenantName`: Name of the tenant where the AKO controller will create objects in AVI.
   - `nodePortSelector`: Only applicable if `l7Settings.serviceType` is set to `NodePort`.
     * `key`
     * `value`

@@ -134,7 +134,6 @@ The following table lists the configurable parameters of the AKO chart and their
 | `ControllerSettings.controllerVersion` | Avi Controller version | 18.2.10 |
 | `ControllerSettings.controllerHost` | Specify Avi controller IP or Hostname | `nil` |
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
-| `ControllerSettings.tenantsPerCluster` | Set to true if user want to map each kubernetes cluster uniquely to a tenant in Avi | false |
 | `ControllerSettings.tenantName` | Name of the tenant where all the AKO objects will be created in AVI. | admin |
 | `L7Settings.shardVSSize` | Shard VS size enum values: LARGE, MEDIUM, SMALL, DEDICATED | LARGE |
 | `AKOSettings.fullSyncFrequency` | Full sync frequency | 1800 |

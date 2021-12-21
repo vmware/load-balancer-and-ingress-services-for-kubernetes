@@ -563,14 +563,6 @@ func GetTenant() string {
 	return utils.ADMIN_NS
 }
 
-func GetTenantsPerCluster() bool {
-	tpc := os.Getenv("TENANTS_PER_CLUSTER")
-	if tpc == "true" {
-		return true
-	}
-	return false
-}
-
 func IsIstioEnabled() bool {
 	if ok, _ := strconv.ParseBool(os.Getenv("ISTIO_ENABLED")); ok {
 		utils.AviLog.Debugf("Istio is enabled")

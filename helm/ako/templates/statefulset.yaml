@@ -98,11 +98,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: tenantName
-          - name: TENANTS_PER_CLUSTER
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: tenantsPerCluster
           - name: CLUSTER_NAME
             valueFrom:
               configMapKeyRef:
