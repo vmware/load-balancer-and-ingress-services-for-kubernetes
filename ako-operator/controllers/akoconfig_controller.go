@@ -87,7 +87,7 @@ func removeFinalizer(finalizers []string, key string) (result []string) {
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets;secrets/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=services/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services;services/status;secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=akoconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=akoconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status,verbs=get;list;watch;create;update;patch;delete
@@ -95,7 +95,7 @@ func removeFinalizer(finalizers []string, key string) (result []string) {
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=hostrules;hostrules/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=crd.projectcalico.org,resources=blockaffinities;blockaffinities/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="apiextensions.k8s.io",resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="apps",resources=statefulsets;statefulsets/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=extensions,resources=ingresses; ingresses/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=network.openshift.io,resources=hostsubnets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses,verbs=get;list;watch;create;update;patch;delete

@@ -99,7 +99,7 @@ spec:
                     description: CloudName is the name of the cloud to be used in
                       Avi
                     type: string
-                  controllerHost:
+                  controllerIP:
                     description: ControllerIP is the IP address of the Avi Controller
                     type: string
                   controllerVersion:

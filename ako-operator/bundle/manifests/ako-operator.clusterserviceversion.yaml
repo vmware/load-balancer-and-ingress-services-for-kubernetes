@@ -195,7 +195,8 @@ spec:
         - apiGroups:
           - ""
           resources:
-          - serviceaccounts
+          - services
+          - services/status
           verbs:
           - create
           - delete
@@ -207,7 +208,7 @@ spec:
         - apiGroups:
           - ""
           resources:
-          - services/status
+          - serviceaccounts
           verbs:
           - create
           - delete
@@ -292,6 +293,7 @@ spec:
           - apps
           resources:
           - statefulsets
+          - statefulsets/status
           verbs:
           - create
           - delete
@@ -379,6 +381,7 @@ spec:
           - update
           - watch
         - apiGroups:
+          - extensions
           - policy
           resources:
           - podsecuritypolicies
@@ -389,6 +392,7 @@ spec:
           - list
           - patch
           - update
+          - use
           - watch
         - apiGroups:
           - rbac.authorization.k8s.io
