@@ -90,7 +90,7 @@ AKO version 1.6.1 support for Kubernetes, Openshift, Avi Controller is as below:
 | **Orchestrator/ Controller** | **Versions Supported** |
 | --------- | ----------- |
 | `Kubernetes` | 1.19 - 1.22 |
-| `Openshift` | 4.3 - 4.7 |
+| `Openshift` | 4.6 - 4.8 |
 | `Avi Controller` | 20.1.5 - 21.1.3 |
 
 ### FAQ
