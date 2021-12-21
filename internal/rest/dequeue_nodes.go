@@ -1056,7 +1056,13 @@ func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName
 					utils.AviLog.Errorf("key: %s, msg: failed to get VS VIP %s", key, del_vsvip.Name)
 					return rest_ops
 				}
-				vsvip_avi.DNSInfo = nil
+				// Retain the DNS info corresponding to the default FQDN.
+				for i := 0; i < len(vsvip_avi.DNSInfo); i++ {
+					if !strings.Contains(*vsvip_avi.DNSInfo[i].Fqdn, del_vsvip.Name) {
+						vsvip_avi.DNSInfo = append(vsvip_avi.DNSInfo[:i], vsvip_avi.DNSInfo[i+1:]...)
+						i--
+					}
+				}
 				restOp = rest.AviVsVipPut(vsvip_cache_obj.Uuid, vsvip_avi, namespace, key)
 			} else {
 				restOp = rest.AviVsVipDel(vsvip_cache_obj.Uuid, namespace, key)
