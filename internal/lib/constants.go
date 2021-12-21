@@ -163,6 +163,7 @@ const (
 	CRDInactive                                = "INACTIVE"
 	SSLPort                                    = 443
 	IPAMProviderInfoblox                       = "IPAMDNS_TYPE_INFOBLOX"
+	IPAMProviderCustom                         = "IPAMDNS_TYPE_CUSTOM"
 
 	// AKO Event constants
 	AKOEventComponent  = "avi-kubernetes-operator"

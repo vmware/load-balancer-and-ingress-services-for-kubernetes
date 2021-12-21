@@ -535,7 +535,6 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 	}
 
 	mRoute, err := utils.GetInformers().RouteInformer.Lister().Routes(option.ServiceMetadata.Namespace).Get(option.ServiceMetadata.IngressName)
-
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not get the Route object for DeleteStatus: %s", key, err)
 		return err

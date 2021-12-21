@@ -90,8 +90,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		vsvip.DNSInfo = dns_info_arr
 		vsvip.VsvipCloudConfigCksum = &cksumstr
 
-		// handling static IP and networkName (infraSetting) updates.
-		if GetIPAMProviderType() != lib.IPAMProviderInfoblox {
+		noVipUpdatesAllowedForIPAMTypes := []string{
+			lib.IPAMProviderInfoblox,
+			lib.IPAMProviderCustom,
+		}
+		if !utils.HasElem(noVipUpdatesAllowedForIPAMTypes, GetIPAMProviderType()) {
 			vip := &avimodels.Vip{
 				VipID:                  &vipId,
 				AutoAllocateIP:         &autoAllocate,
@@ -110,7 +113,13 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			} else {
 				// Set the IPAM network subnet for all clouds except AWS and Azure
 				if len(vsvip_meta.VipNetworks) != 0 {
-					if len(vsvip.Vip) == 1 && vsvip.Vip[0].IPAMNetworkSubnet == nil {
+					if len(vsvip.Vip) == 1 {
+						if vsvip.Vip[0].IPAMNetworkSubnet == nil {
+							vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+						} else {
+							vip.IPAMNetworkSubnet = vsvip.Vip[0].IPAMNetworkSubnet
+						}
+					} else {
 						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
 					}
 					networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName

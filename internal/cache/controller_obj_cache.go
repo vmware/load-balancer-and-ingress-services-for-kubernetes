@@ -2417,7 +2417,10 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	}
 	cloud_obj := &AviCloudPropertyCache{Name: cloudName, VType: vtype}
 
-	ipamType := c.AviIPAMPropertyPopulate(client, *cloud.IPAMProviderRef)
+	ipamType := ""
+	if cloud.IPAMProviderRef != nil && *cloud.IPAMProviderRef != "" {
+		ipamType = c.AviIPAMPropertyPopulate(client, *cloud.IPAMProviderRef)
+	}
 	cloud_obj.IPAMType = ipamType
 	utils.AviLog.Infof("IPAM Provider type configured as %s for Cloud %s", cloud_obj.IPAMType, cloud_obj.Name)
 
