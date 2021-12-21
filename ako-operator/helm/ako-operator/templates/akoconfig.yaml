@@ -23,9 +23,11 @@ spec:
     namespaceSelector:
       labelKey: {{ .Values.AKOSettings.namespaceSelector.labelKey | quote }}
       labelValue: {{ .Values.AKOSettings.namespaceSelector.labelValue | quote }}
+    vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace }}
 
   networkSettings:
     enableRHI: {{ .Values.NetworkSettings.enableRHI }}
+    nsxtT1LR: {{ .Values.NetworkSettings.nsxtT1LR }}
 {{- with .Values.NetworkSettings.bgpPeerLabels }}
     bgpPeerLabels:
 {{- toYaml . | nindent 4 }}
@@ -47,7 +49,6 @@ spec:
     noPGForSni: {{ .Values.L7Settings.noPGForSni }}
 
   l4Settings:
-    advancedL4: {{ .Values.L4Settings.advancedL4 }}
     defaultDomain: {{ .Values.L4Settings.defaultDomain | quote }}
     autoFQDN: {{ .Values.L4Settings.autoFQDN | quote }}
 

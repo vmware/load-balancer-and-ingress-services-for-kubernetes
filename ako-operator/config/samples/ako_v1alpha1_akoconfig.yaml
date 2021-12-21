@@ -34,7 +34,6 @@ spec:
     noPGForSNI: false
 
   l4Settings:
-    advancedL4: false
     defaultDomain: ""
     autoFQDN: "default"
 

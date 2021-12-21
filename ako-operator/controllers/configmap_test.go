@@ -37,7 +37,6 @@ var cmJson = `
 		"creationTimestamp": null
 	},
 	"data": {
-		"advancedL4": "false",
 		"apiServerPort": "8080",
 		"autoFQDN": "default",
 		"cloudName": "test-cloud",

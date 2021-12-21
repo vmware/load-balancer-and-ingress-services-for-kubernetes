@@ -170,17 +170,12 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	}
 	cm.Data[DeleteConfig] = deleteConfig
 
-	advancedL4 := "false"
-	if ako.Spec.L4Settings.AdvancedL4 {
-		advancedL4 = "true"
-	}
-	cm.Data[AdvancedL4] = advancedL4
-
 	enableRHI := "false"
 	if ako.Spec.NetworkSettings.EnableRHI {
 		enableRHI = "true"
 	}
 	cm.Data[EnableRHI] = enableRHI
+	cm.Data[NsxtT1LR] = ako.Spec.NetworkSettings.NsxtT1LR
 
 	var err error
 	type VipNetworkListRow struct {
@@ -241,7 +236,6 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		}
 	}
 	cm.Data[NodeNetworkList] = string(nwListBytes)
-	cm.Data[SyncNamespace] = ako.Spec.L7Settings.SyncNamespace
 
 	noPGForSni := "false"
 	if ako.Spec.L7Settings.NoPGForSNI {

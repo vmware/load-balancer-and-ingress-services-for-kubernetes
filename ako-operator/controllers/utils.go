@@ -48,9 +48,7 @@ const (
 	BgpPeerLabels          = "bgpPeerLabels"
 	LogLevel               = "logLevel"
 	DeleteConfig           = "deleteConfig"
-	AdvancedL4             = "advancedL4"
 	AutoFQDN               = "autoFQDN"
-	SyncNamespace          = "syncNamespace"
 	ServiceType            = "serviceType"
 	NodeKey                = "nodeKey"
 	NodeValue              = "nodeValue"
@@ -61,7 +59,7 @@ const (
 	NSSyncLabelValue       = "nsSyncLabelValue"
 	TenantName             = "tenantName"
 	NoPGForSni             = "noPGForSni"
-	Nsxt1LR                = "nsxtT1LR"
+	NsxtT1LR               = "nsxtT1LR"
 )
 
 var SecretEnvVars = map[string]string{
@@ -87,9 +85,7 @@ var ConfigMapEnvVars = map[string]string{
 	"DISABLE_STATIC_ROUTE_SYNC":  DisableStaticRouteSync,
 	"DEFAULT_ING_CONTROLLER":     DefaultIngController,
 	"VIP_NETWORK_LIST":           VipNetworkList,
-	"ADVANCED_L4":                AdvancedL4,
 	"AUTO_L4_FQDN":               AutoFQDN,
-	"SYNC_NAMESPACE":             SyncNamespace,
 	"SERVICE_TYPE":               ServiceType,
 	"NODE_KEY":                   NodeKey,
 	"NODE_VALUE":                 NodeValue,
@@ -99,7 +95,7 @@ var ConfigMapEnvVars = map[string]string{
 	"TENANT_NAME":                TenantName,
 	"NAMESPACE_SYNC_LABEL_KEY":   NSSyncLabelKey,
 	"NAMESPACE_SYNC_LABEL_VALUE": NSSyncLabelValue,
-	"NSXT_T1_LR":                 Nsxt1LR,
+	"NSXT_T1_LR":                 NsxtT1LR,
 }
 
 func getSFNamespacedName() types.NamespacedName {
@@ -282,6 +278,10 @@ func getEnvVars(ako akov1alpha1.AKOConfig, aviSecret v1.Secret) []v1.EnvVar {
 	envVars = append(envVars, v1.EnvVar{
 		Name:  "LOG_FILE_NAME",
 		Value: ako.Spec.LogFile,
+	})
+	envVars = append(envVars, v1.EnvVar{
+		Name:  "POD_NAMESPACE",
+		Value: AviSystemNS,
 	})
 	return envVars
 }
