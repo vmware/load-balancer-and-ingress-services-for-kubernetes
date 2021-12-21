@@ -710,21 +710,26 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				status.PublishToStatusQueue(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
 			case lib.ChildVS:
 				if !hostFoundInParentPool {
-					updateOptions := status.UpdateOptions{
-						ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
-						Key:             key,
-						VSName:          vs_cache_obj.Name,
+					// TODO: revisit
+					// updateOptions := status.UpdateOptions{
+					// 	ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
+					// 	Key:             key,
+					// 	VSName:          vs_cache_obj.Name,
+					// }
+					// statusOption := status.StatusOptions{
+					// 	ObjType: utils.Ingress,
+					// 	Op:      lib.DeleteStatus,
+					// 	IsVSDel: true,
+					// 	Options: &updateOptions,
+					// }
+					// if utils.GetInformers().RouteInformer != nil {
+					// 	statusOption.ObjType = utils.OshiftRoute
+					// }
+					// status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+
+					for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+						rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
 					}
-					statusOption := status.StatusOptions{
-						ObjType: utils.Ingress,
-						Op:      lib.DeleteStatus,
-						IsVSDel: true,
-						Options: &updateOptions,
-					}
-					if utils.GetInformers().RouteInformer != nil {
-						statusOption.ObjType = utils.OshiftRoute
-					}
-					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
 
 				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
@@ -775,7 +780,7 @@ func (rest *RestOperations) isHostPresentInSharedPool(hostname string, parentVs 
 		if poolCache, found := rest.cache.PoolCache.AviCacheGet(poolKey); found {
 			if pool, ok := poolCache.(*avicache.AviPoolCache); ok &&
 				utils.HasElem(pool.ServiceMetadataObj.HostNames, hostname) {
-				utils.AviLog.Debugf("key: %s, msg: hostname %v present in parentVS %s pool collection, will skip ingress status delete",
+				utils.AviLog.Debugf("key: %s, msg: hostname %v present in %s pool collection, will skip ingress status delete",
 					key, parentVs.Name, hostname)
 				return true
 			}
