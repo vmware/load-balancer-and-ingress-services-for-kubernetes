@@ -212,10 +212,35 @@ Where dedicated VSes are created corresponding to a single application, Shared V
         tcpSetting:
           loadBalancerIP: 10.10.10.1
 
+
         fqdn: Shared-VS-L7-1      # bound for clusterName--Shared-VS-L7-1
         fqdnType: Contains
         tcpSetting:
           loadBalancerIP: 10.10.10.1
+
+##### Custom Ports
+
+In order to overwrite the ports opened for VSes created by AKO, users can provide the port details under the `listeners` setting. The ports mentioned under this section overwrites the default open ports, 80 and 443 (SSL enabled). This is applicable only for Shared or Dedicated virtual services.
+
+        tcpSettings:
+          listeners:
+          - port: 80
+          - port: 8081
+          - port: 6443
+            enableSSL: true
+
+
+**Note**: It is required that one of the ports that are mentioned in the setting has `enableSSL` field set to `true`.
+
+##### L7 Static IP
+
+The `loadBalancerIP` field can be used to provide a valid preferred IPv4 address for L7 virtual services created for the Shared or Dedicated VS. The preferred IP must be part of the IPAM configured for the Cloud, and must not overlap with any other IP addresses already in use. In case of any misconfigurations whatsoever, AKO would fail to configure the virtual service appropriately throwing an ERROR log for the same.
+
+        tcpSettings:
+          loadBalancerIP: 10.10.10.199
+
+**Note**: The HostRule CRD is not aware of the misconfigurations while it is being created, therefore the HostRule will be `Accepted` nonetheless.
+
 
 #### Configure aliases for FQDN
 

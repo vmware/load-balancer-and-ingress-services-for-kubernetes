@@ -65,7 +65,7 @@ func validateSpecFromHostnameCache(key string, ingress *networkingv1.Ingress) bo
 			for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
 				found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
 				if found && len(val) > 1 && utils.HasElem(val, nsIngress) {
-					lib.AKOControlConfig().EventRecorder().Eventf(ingress, corev1.EventTypeWarning, lib.DuplicateHostPath, "Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", rule.Host, svcPath.Path, utils.Stringify(val))
+					lib.AKOControlConfig().EventRecorder().Eventf(ingress, corev1.EventTypeWarning, lib.DuplicateHostPath, "Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 				}
 			}
