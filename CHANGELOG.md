@@ -200,5 +200,5 @@ All notable changes to this project will be documented in this file. The format 
 ### Known Issues:
  - AviInfraSetting CR can not be applied to passthrough ingress/route.
  - AKO is not updating the ingress status when annotation `passthrough.ako.vmware.com/enabled: "true"` is added to the ingress.
- - There are issues when shardVS size changed through AviInfra CR or values.yaml. Recommended workflow is to first delete existing config using `deleteConfig` flag as described [here](docs/faq.md#how-do-i-clean-up-all-my-configs) and then `shardVS` size is changed through AviInfraSetting.
+ - There are issues when shardVS size changed through AviInfra CR or values.yaml. Recommended workflow is to first delete existing config using `deleteConfig` flag as described [here](docs/faq.md#how-do-i-clean-up-all-my-configs) and then change `shardVS` size through AviInfraSetting.
 

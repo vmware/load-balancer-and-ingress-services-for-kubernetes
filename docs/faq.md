@@ -30,6 +30,9 @@ After all relevant objects gets deleted from Avi, the reason is changed to objDe
 
 To re-create the objects in Avi, the configmap has to be edited to set deleteConfig: "false". After this, the condition in ako statefulset of type ako.vmware.com/ObjectDeletionInProgress is deleted automatically.
 
+**Note**: To cleanup the shared VS VIP that is retained, the user has to:
+1. Manually delete it from the controller UI or shell.
+2. Toggle the `enableEVH` flag in configmap and reboot the AKO.
 
 #### How is the Shared VS lifecycle controlled?
 
