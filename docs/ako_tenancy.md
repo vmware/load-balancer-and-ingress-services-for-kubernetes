@@ -1,6 +1,18 @@
 # Tenancy support in AKO
 
-This feature allows AKO to map each kubernetes / OpenShift cluster uniquely to a tenant in Avi. `ControllerSettings.tenantsPerCluster` needs to be set to `true` to enable this feature.
+This feature allows AKO to map each kubernetes / OpenShift cluster uniquely to a tenant in Avi. 
+
+## Tenant Context
+
+AVI non admin tenants primarily operate in 2 modes, **provider context** and **tenant context**.
+
+### Provider Context
+
+Service Engine Groups are shared with `admin` tenant. All the other objects like Virtual Services and Pools are created within the tenant. Requires `config_settings.se_in_provider_context` flag to be set to `True` when creating tenant. 
+
+### Tenant Context
+
+Service Engines are isolated from `admin` tenant. A new `Default-Group` is created within the tenant. All the objects including Service Engines are created in tenant context. Requires `config_settings.se_in_provider_context` flag to be set to `False` when creating tenant. 
 
 ## Steps to enable Tenancy in AKO
 
@@ -16,7 +28,7 @@ This feature allows AKO to map each kubernetes / OpenShift cluster uniquely to a
 ![Alt text](images/new_user.png?raw=true)
 * Assign [`ako-admin`](roles/ako-admin.json) and [`ako-tenant`](roles/ako-tenant.json) roles to admin and billing tenant respectively.
 ![Alt text](images/new_user_role.png?raw=true)
-* In **AKO**, Set the `ControllerSettings.tenantsPerCluster` to `true` and `ControllerSettings.tenantName` to the tenant created in the earlier steps.
+* In **AKO**, Set the `ControllerSettings.tenantName` to the tenant created in the earlier steps.
 * In **AKO**, Set the `avicredentials.username` and `avicredentials.password` to the user credentials created above.
 
 With the above settings AKO will map the `billing` cluster to the `billing` tenant and all the objects will be created in that tenant.
