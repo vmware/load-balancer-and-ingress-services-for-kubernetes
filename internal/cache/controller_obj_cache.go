@@ -2379,7 +2379,7 @@ func (c *AviObjCache) AviClusterStatusPopulate(client *clients.AviClient) error 
 }
 
 func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, cloudName string) error {
-	uri := "/api/cloud/?name=" + cloudName
+	uri := "/api/cloud/?include_name&name=" + cloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("CloudProperties Get uri %v returned err %v", uri, err)
@@ -2417,12 +2417,18 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	}
 	cloud_obj := &AviCloudPropertyCache{Name: cloudName, VType: vtype}
 
+	ipamType := ""
+	if cloud.IPAMProviderRef != nil && *cloud.IPAMProviderRef != "" {
+		ipamType = c.AviIPAMPropertyPopulate(client, *cloud.IPAMProviderRef)
+	}
+	cloud_obj.IPAMType = ipamType
+	utils.AviLog.Infof("IPAM Provider type configured as %s for Cloud %s", cloud_obj.IPAMType, cloud_obj.Name)
+
 	subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
 	if len(subdomains) == 0 {
 		utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
 		return nil
 	}
-
 	if subdomains != nil {
 		cloud_obj.NSIpamDNS = subdomains
 	}
@@ -2430,6 +2436,38 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	c.CloudKeyCache.AviCacheAdd(cloudName, cloud_obj)
 	utils.AviLog.Infof("Added CloudKeyCache cache key %v val %v", cloudName, cloud_obj)
 	return nil
+}
+
+func (c *AviObjCache) AviIPAMPropertyPopulate(client *clients.AviClient, ipamRef string) string {
+	ipamName := strings.Split(ipamRef, "#")[1]
+	uri := "/api/ipamdnsproviderprofile/?include_name&name=" + ipamName
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("IPAMProvider Get uri %v returned err %v", uri, err)
+		return ""
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return ""
+	}
+
+	if result.Count != 1 {
+		utils.AviLog.Errorf("IPAM details not found for cloud name: %s", ipamName)
+	}
+
+	ipam := models.IPAMDNSProviderProfile{}
+	if err = json.Unmarshal(elems[0], &ipam); err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal ipam provider data, err: %v", err)
+		return ""
+	}
+
+	if ipam.Type == nil {
+		return ""
+	}
+	return *ipam.Type
 }
 
 func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, cloudUUID string) []string {

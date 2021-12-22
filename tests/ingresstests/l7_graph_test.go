@@ -933,7 +933,10 @@ func TestUpdateBackendService(t *testing.T) {
 		g.Eventually(func() string {
 			_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			return *nodes[0].PoolRefs[0].Servers[0].Ip.Addr
+			if len(nodes) > 0 && len(nodes[0].PoolRefs) > 0 && len(nodes[0].PoolRefs[0].Servers) > 0 {
+				return *nodes[0].PoolRefs[0].Servers[0].Ip.Addr
+			}
+			return ""
 		}, 10*time.Second).Should(gomega.Equal("2.2.2.1"))
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))

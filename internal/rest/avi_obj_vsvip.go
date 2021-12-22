@@ -35,6 +35,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func GetIPAMProviderType() string {
+	cache := avicache.SharedAviObjCache()
+	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
+	if !ok || cloud == nil {
+		utils.AviLog.Warnf("Cloud object %s not found in cache", utils.CloudName)
+		return ""
+	}
+	cloudProperty, ok := cloud.(*avicache.AviCloudPropertyCache)
+	if !ok {
+		utils.AviLog.Warnf("Cloud property object not found")
+		return ""
+	}
+	return cloudProperty.IPAMType
+}
+
 func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCache *avicache.AviVsCache, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
 	if lib.CheckObjectNameLength(vsvip_meta.Name, lib.VIP) {
 		utils.AviLog.Warnf("key: %s not processing VSVIP object", key)
@@ -75,45 +90,57 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		vsvip.DNSInfo = dns_info_arr
 		vsvip.VsvipCloudConfigCksum = &cksumstr
 
-		// handling static IP and networkName (infraSetting) updates.
-		vip := &avimodels.Vip{
-			VipID:                  &vipId,
-			AutoAllocateIP:         &autoAllocate,
-			AutoAllocateFloatingIP: vsvip_meta.EnablePublicIP,
+		noVipUpdatesAllowedForIPAMTypes := []string{
+			lib.IPAMProviderInfoblox,
+			lib.IPAMProviderCustom,
 		}
+		if !utils.HasElem(noVipUpdatesAllowedForIPAMTypes, GetIPAMProviderType()) {
+			vip := &avimodels.Vip{
+				VipID:                  &vipId,
+				AutoAllocateIP:         &autoAllocate,
+				AutoAllocateFloatingIP: vsvip_meta.EnablePublicIP,
+			}
 
-		// This would throw an error for advl4 the error is propagated to the gateway status.
-		if vsvip_meta.IPAddress != "" {
-			vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
-		}
+			// This would throw an error for advl4 the error is propagated to the gateway status.
+			if vsvip_meta.IPAddress != "" {
+				vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+			}
 
-		if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
-			vips := networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
-			vsvip.Vip = []*avimodels.Vip{}
-			vsvip.Vip = append(vsvip.Vip, vips...)
-		} else {
-			// Set the IPAM network subnet for all clouds except AWS and Azure
-			if len(vsvip_meta.VipNetworks) != 0 {
-				if vip.IPAMNetworkSubnet == nil {
-					vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+			if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
+				vips := networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
+				vsvip.Vip = []*avimodels.Vip{}
+				vsvip.Vip = append(vsvip.Vip, vips...)
+			} else {
+				// Set the IPAM network subnet for all clouds except AWS and Azure
+				if len(vsvip_meta.VipNetworks) != 0 {
+					if len(vsvip.Vip) == 1 {
+						if vsvip.Vip[0].IPAMNetworkSubnet == nil {
+							vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+						} else {
+							vip.IPAMNetworkSubnet = vsvip.Vip[0].IPAMNetworkSubnet
+						}
+					} else {
+						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+					}
+					networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
+					vip.IPAMNetworkSubnet.NetworkRef = &networkRef
+					vsvip.Vip = []*avimodels.Vip{vip}
 				}
-				networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
-				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
-				vsvip.Vip = []*avimodels.Vip{vip}
+			}
+
+			if vsCache != nil && !vsCache.EnableRhi && len(vsvip_meta.BGPPeerLabels) > 0 {
+				err = fmt.Errorf("to use selective vip advertisement, %s VS must advertise vips via BGP. Please recreate the VS", vsCache.Name)
+				utils.AviLog.Error(err)
+				return nil, err
+			}
+
+			if len(vsvip_meta.BGPPeerLabels) > 0 {
+				vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
+			} else {
+				vsvip.BgpPeerLabels = nil
 			}
 		}
 
-		if vsCache != nil && !vsCache.EnableRhi && len(vsvip_meta.BGPPeerLabels) > 0 {
-			err = fmt.Errorf("to use selective vip advertisement, %s VS must advertise vips via BGP. Please recreate the VS", vsCache.Name)
-			utils.AviLog.Error(err)
-			return nil, err
-		}
-
-		if len(vsvip_meta.BGPPeerLabels) > 0 {
-			vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
-		} else {
-			vsvip.BgpPeerLabels = nil
-		}
 		if lib.GetGRBACSupport() {
 			vsvip.Markers = lib.GetMarkers()
 		}
@@ -590,6 +617,7 @@ func (rest *RestOperations) AviVsVipCacheDel(rest_op *utils.RestOp, vsKey avicac
 func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, enablePublicIP *bool) []*avimodels.Vip {
 	var vipList []*avimodels.Vip
 	autoAllocate := true
+
 	for vipIDInt, vipNetwork := range vipNetworks {
 		vipID := strconv.Itoa(vipIDInt + 1)
 		newVip := &avimodels.Vip{
@@ -600,5 +628,6 @@ func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, ena
 		newVip.SubnetUUID = proto.String(vipNetwork.NetworkName)
 		vipList = append(vipList, newVip)
 	}
+
 	return vipList
 }

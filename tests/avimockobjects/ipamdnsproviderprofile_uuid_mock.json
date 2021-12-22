@@ -30,5 +30,5 @@
   },
   "uuid": "ipamdnsproviderprofile-19a05809-a373-4892-a318-74702c2237ca",
   "type": "IPAMDNS_TYPE_INTERNAL_DNS",
-  "name": "avi-dns"
+  "name": "avi-ipam"
 }
