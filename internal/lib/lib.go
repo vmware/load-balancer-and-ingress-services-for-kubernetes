@@ -1468,9 +1468,9 @@ func IsAviLBDefaultIngressClass() (string, bool) {
 	return "", false
 }
 
-func IsAviLBDefaultIngressClassWithClient(kc kubernetes.Interface) (string, bool) {
-	ingClassObjs, _ := kc.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
-	for _, ingClass := range ingClassObjs.Items {
+func IsAviLBDefaultIngressClassWithClient() (string, bool) {
+	ingClassObjs, _ := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
+	for _, ingClass := range ingClassObjs {
 		if ingClass.Spec.Controller == AviIngressController {
 			annotations := ingClass.GetAnnotations()
 			isDefaultClass, ok := annotations[DefaultIngressClassAnnotation]

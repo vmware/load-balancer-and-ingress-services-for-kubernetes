@@ -61,9 +61,6 @@ func PopulateCache() error {
 		if err = avicache.SetControllerClusterUUID(avi_rest_client_pool); err != nil {
 			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
 		}
-		// once the l3 cache is populated, we can call the updatestatus functions from here
-		restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
-		restlayer.SyncObjectStatuses()
 	}
 
 	// Delete Stale objects by deleting model for dummy VS
@@ -478,6 +475,11 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		c.AddSvcApiIndexers()
 	}
 	c.Start(stopCh)
+
+	// once the l3 cache is populated, we can call the updatestatus functions from here
+	restlayer := rest.NewRestOperations(avicache.SharedAviObjCache(), avicache.SharedAVIClients())
+	restlayer.SyncObjectStatuses()
+
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)

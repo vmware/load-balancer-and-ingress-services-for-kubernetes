@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -166,7 +167,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 	}
 
 	if bulk {
-		routeList, err := utils.GetInformers().OshiftClient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		routeList, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -174,10 +175,10 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 				return getRoutes(routeNSNames, bulk, retry+1)
 			}
 		}
-		for i := range routeList.Items {
-			route := routeList.Items[i]
+		for i := range routeList {
+			route := routeList[i]
 			if utils.CheckIfNamespaceAccepted(route.Namespace) {
-				routeMap[route.Namespace+"/"+route.Name] = &route
+				routeMap[route.Namespace+"/"+route.Name] = route
 			}
 		}
 
@@ -190,7 +191,8 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 			utils.AviLog.Warnf("msg: namespaceName %s has wrong format", namespaceName)
 			continue
 		}
-		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
+
+		route, err := utils.GetInformers().RouteInformer.Lister().Routes(nsNameSplit[0]).Get(nsNameSplit[1])
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
