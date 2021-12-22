@@ -4,31 +4,21 @@ This document answers some of the frequently asked questions w.r.t AKO.
 
 #### How do I clean up all my configs?
 
-The key deleteConfig in the data section of AKO configmap can be used to clean up the setup. Edit AKO configmap and set deleteConfig: "true" to delete ako created objects in Avi. After the flag is set in configmap, a condition with type ako.vmware.com/ObjectDeletionInProgress is added in the status of AKO statefulset with reason as objDeletionStarted and status True. For example:
+The key deleteConfig in the data section of AKO configmap can be used to clean up the setup. Edit AKO configmap and set deleteConfig: "true" to delete ako created objects in Avi. After the flag is set in configmap, annotation `AviObjectDeletionStatus` is added in the AKO statefulset with the value as `Started`. 
 
 ```yaml
-  status:
-    conditions:
-    - lastTransitionTime: "2020-12-15T10:10:45Z"
-      message: Started deleting objects
-      reason: Started
-      status: "True"
-      type: ako.vmware.com/ObjectDeletionInProgress
+  annotations:
+    AviObjectDeletionStatus: Started
 ```
 
-After all relevant objects gets deleted from Avi, the reason is changed to objDeletionDone.
+After all relevant objects gets deleted from Avi, the value of the annotation is changed to `Done`.
 
 ```yaml
-  status:
-    conditions:
-    - lastTransitionTime: "2020-12-15T10:10:48Z"
-      message: Successfully deleted all objects
-      reason: Done
-      status: "False"
-      type: ako.vmware.com/ObjectDeletionInProgress
+  annotations:
+    AviObjectDeletionStatus: Done
 ```
 
-To re-create the objects in Avi, the configmap has to be edited to set deleteConfig: "false". After this, the condition in ako statefulset of type ako.vmware.com/ObjectDeletionInProgress is deleted automatically.
+To re-create the objects in Avi, the configmap has to be edited to set deleteConfig: "false".
 
 #### How is the Shared VS lifecycle controlled?
 
