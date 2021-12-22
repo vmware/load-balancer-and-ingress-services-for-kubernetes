@@ -4,9 +4,11 @@ This feature supports EVH VS creation from the AKO. `AKOSettings.enableEVH` need
 
 ## Overview
 
-AKO currently creates an SNI child VS (Virtual Service) to a parent shared VS for the secure hostname. The SNI VS is used to bind the hostname to a sslkeycert object. The sslkeycert object is used to terminate the secure traffic on Avi's service engine. On the SNI VS, AKO creates httppolicyset rules to route the terminated (insecure) traffic to the appropriate pool object using the host/path specified in the rules section of this ingress object.
+AKO currently creates an SNI child VS (Virtual Service) to a parent shared VS for the secure hostname when shard VS size is `LARGE` or `MEDIUM` or `SMALL`. The SNI VS is used to bind the hostname to a sslkeycert object. The sslkeycert object is used to terminate the secure traffic on Avi's service engine. On the SNI VS, AKO creates httppolicyset rules to route the terminated (insecure) traffic to the appropriate pool object using the host/path specified in the rules section of this ingress object.
 
-With EVH (Enhanced Virtual Hosting) support in AVI, virtual hosting on virtual service can be enabled irrespective of SNI. Also, the SNI can only handle HTTPS (HTTP over SSL) traffic whereas EVH children can handle both HTTP and HTTPS traffic. For each unique host, an EVH child virtualservice is created. This is applicable for both secure and insecure FQDNs. Layer 4 virtualservices and TLS passthrough works the same way as the SNI model .
+With EVH (Enhanced Virtual Hosting) support in AVI, virtual hosting on virtual service can be enabled irrespective of SNI. Also, the SNI can only handle HTTPS (HTTP over SSL) traffic whereas EVH children can handle both HTTP and HTTPS traffic. For each unique host in `LARGE` or `MEDIUM` or `SMALL` shard VS size, an EVH child virtualservice is created. This is applicable for both secure and insecure FQDNs. Layer 4 virtualservices and TLS passthrough works the same way as the SNI model .
+
+With `DEDICATED` shard VS size, AKO will create a normal VS (no virtual hosting enabled) for each unique host for secure/insecure ingress/route. AKO will apply all host rule specific settings, SSL profile, SSL KeyandCertificate on VS. Redirecting traffic to appropriate pool will be done using a httppolicyset object attached to VS. For secure ingress, there will httppolicyset attached to VS which will redirect traffic from port 80 to 443.
 
 With EVH enabled host rule CRD's can be applied to insecure ingress as well. 
 
@@ -28,9 +30,16 @@ ShardVSName = clusterName + "--Shared-L7-EVH-" + <shardNum>
 `shardNum` is the number of the shared VS generated based on hostname based shards.
 
 ##### EVH child VS names
+For shard VS size `LARGE`, `MEDIUM`, `SMALL`, child VS naming convention is:
 
 ```
 vsName = clusterName + "--" + encoded-value
+```
+
+For `DEDICATED` shard VS size, VS naming convention is:
+
+```
+vsName = clusterName + "--" + encoded-value + "-EVH"
 ```
 
 ##### EVH pool names

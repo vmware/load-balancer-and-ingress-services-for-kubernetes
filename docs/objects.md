@@ -78,12 +78,12 @@ spec:
             servicePort: 80
 ```
 
-For insecure host/path combinations, AKO uses a Sharded VS logic where based on the `hostname` value (`myhost.avi.internal`), a pool object is created on a Shared VS. A shared VS typically denotes a virtualservice in Avi that
-is shared across multiple ingresses. A priority label is associated on the poolgroup against it's member pool (that is created as a part of
+For insecure host/path combinations, AKO uses a Sharded VS logic where based on the `hostname` value (`myhost.avi.internal`), a pool object is created on a Shared VS when shard VS size is `LARGE` or `MEDIUM` or `SMALL`. A shared VS typically denotes a virtualservice in Avi that is shared across multiple ingresses. A priority label is associated on the poolgroup against it's member pool (that is created as a part of
 this ingress), with priority label of `myhost.avi.internal/foo`.
 
-An associated datascript object with this shared virtual service is used to interpret the host fqdn/path combination of the incoming
-request and the corresponding pool is chosen based on the priority label as mentioned above.
+An associated datascript object with this shared virtual service is used to interpret the host fqdn/path combination of the incoming request and the corresponding pool is chosen based on the priority label as mentioned above.
+
+With `DEDICATED` shard VS size, AKO will create a normal VS (no virtual hosting enabled) for each unique host for secure/insecure ingress/route. AKO will apply all host rule specific settings, SSL profile, SSL KeyandCertificate on VS. Redirecting traffic to appropriate pool will be done using a httppolicyset object attached to VS. For secure ingress, there will httppolicyset attached to VS which will redirect traffic from port 80 to 443.
 
 The paths specified are interpreted as `STARTSWITH` checks. This means for this particular host/path if pool X is created then, the matchrule can
 be interpreted as - If the host header equals `myhost.avi.internal` and path `STARTSWITH` `foo` then route the request to pool X.
@@ -114,7 +114,7 @@ spec:
 
 ##### SNI VS per secure hostname
 
-AKO creates an SNI child VS to a parent shared VS for the secure hostname. The SNI VS is used to bind the hostname to an sslkeycert object.
+When shard VS size is `LARGE` or `MEDIUM` or `SMALL`, AKO creates an SNI child VS to a parent shared VS for the secure hostname. The SNI VS is used to bind the hostname to an sslkeycert object.
 The sslkeycert object is used to terminate the secure traffic on Avi's service engine. In the above example the `secretName` field denotes the
 secret asssociated with the hostname `myhost.avi.internal`. AKO parses the attached secret object and appropriately creates the sslkeycert
 object in Avi. The SNI virtualservice does not get created if the secret object does not exist in Kubernetes corresponding to the
@@ -293,28 +293,45 @@ Name of the Shared VS Poolgroup is the same as the Shared VS name.
 
 ##### SNI child VS names
 
-The following is the formula to derive the SNI child VS names:
+The following is the formula to derive the SNI child VS names, for `LARGE`, `MEDIUM`, `SMALL` shard VS size:
 
 ```
 vsName = clusterName + "--" + sniHostName
 ```
 
+For `DEDICATED` shard VS size, VS name will be derived as:
+
+```
+vsName = clusterName + "--" + sniHostName + "-L7-dedicated"
+```
+
 ##### SNI pool names
 
-The formula to derive the SNI virtualservice's pools is as follows:
+The formula to derive the SNI virtualservice's pools, for `LARGE`, `MEDIUM`, `SMALL` shard VS size, is as follows:
 
 ```
 poolName = clusterName + "--" + namespace + "-" + host + "_" + path + "-" + ingName
+```
+
+For `DEDICATED` shard VS size, pool name will be derived as:
+
+```
+poolName = clusterName + "--" + namespace + "-" + host + "_" + path + "-" + ingName + "-L7-dedicated"
 ```
 
 Here the `host` and `path` variables denote the secure hosts' hostname and path specified in the ingress object.
 
 ##### SNI poolgroup names
 
-The formula to derive the SNI virtualservice's poolgroup is as follows:
+The formula to derive the SNI virtualservice's poolgroup, for `LARGE`, `MEDIUM`, `SMALL` shard VS size, is as follows:
 
 ```
 poolgroupname = clusterName + "--" + namespace + "-" + host + "_" + path + "-" + ingName
+```
+
+For `DEDICATED` shard VS size, poolgroup name will be derived as:
+```
+poolgroupname = clusterName + "--" + namespace + "-" + host + "_" + path + "-" + ingName + "-L7-dedicated"
 ```
 
 Some of these naming conventions can be used to debug/derive corresponding Avi object names that could prove as a tool for first level trouble shooting.
