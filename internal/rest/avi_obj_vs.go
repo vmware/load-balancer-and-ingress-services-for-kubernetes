@@ -434,6 +434,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 							Op:      lib.UpdateStatus,
 							Options: &updateOptions,
 						}
+						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
 						status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 					case lib.SNIInsecureOrEVHPool:
 						updateOptions := status.UpdateOptions{
@@ -451,6 +452,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 						if utils.GetInformers().RouteInformer != nil {
 							statusOption.ObjType = utils.OshiftRoute
 						}
+						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 					}
 				}
@@ -478,6 +480,7 @@ func (rest *RestOperations) StatusUpdateForVS(vsCacheObj *avicache.AviVsCache, k
 		if lib.UseServicesAPI() {
 			statusOption.ObjType = lib.SERVICES_API
 		}
+		utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
 		status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 	case lib.ServiceTypeLBVS:
 		updateOptions := status.UpdateOptions{
@@ -492,6 +495,7 @@ func (rest *RestOperations) StatusUpdateForVS(vsCacheObj *avicache.AviVsCache, k
 			Op:      lib.UpdateStatus,
 			Options: &updateOptions,
 		}
+		utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
 		status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 	case lib.ChildVS:
 		updateOptions := status.UpdateOptions{
@@ -509,6 +513,7 @@ func (rest *RestOperations) StatusUpdateForVS(vsCacheObj *avicache.AviVsCache, k
 		if utils.GetInformers().RouteInformer != nil {
 			statusOption.ObjType = utils.OshiftRoute
 		}
+		utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 		status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 	}
 }
@@ -689,6 +694,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					Op:      lib.DeleteStatus,
 					Options: &updateOptions,
 				}
+				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
 				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 				// The pools would have service metadata for backend services, corresponding to which
 				// statuses need to be deleted.
@@ -707,24 +713,30 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					Op:      lib.DeleteStatus,
 					Options: &updateOptions,
 				}
+				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", vs_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], utils.Stringify(statusOption))
 				status.PublishToStatusQueue(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
 			case lib.ChildVS:
 				if !hostFoundInParentPool {
-					updateOptions := status.UpdateOptions{
-						ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
-						Key:             key,
-						VSName:          vs_cache_obj.Name,
+					// TODO: revisit
+					// updateOptions := status.UpdateOptions{
+					// 	ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
+					// 	Key:             key,
+					// 	VSName:          vs_cache_obj.Name,
+					// }
+					// statusOption := status.StatusOptions{
+					// 	ObjType: utils.Ingress,
+					// 	Op:      lib.DeleteStatus,
+					// 	IsVSDel: true,
+					// 	Options: &updateOptions,
+					// }
+					// if utils.GetInformers().RouteInformer != nil {
+					// 	statusOption.ObjType = utils.OshiftRoute
+					// }
+					// status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+
+					for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+						rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
 					}
-					statusOption := status.StatusOptions{
-						ObjType: utils.Ingress,
-						Op:      lib.DeleteStatus,
-						IsVSDel: true,
-						Options: &updateOptions,
-					}
-					if utils.GetInformers().RouteInformer != nil {
-						statusOption.ObjType = utils.OshiftRoute
-					}
-					status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 				}
 
 				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
@@ -775,7 +787,7 @@ func (rest *RestOperations) isHostPresentInSharedPool(hostname string, parentVs 
 		if poolCache, found := rest.cache.PoolCache.AviCacheGet(poolKey); found {
 			if pool, ok := poolCache.(*avicache.AviPoolCache); ok &&
 				utils.HasElem(pool.ServiceMetadataObj.HostNames, hostname) {
-				utils.AviLog.Debugf("key: %s, msg: hostname %v present in parentVS %s pool collection, will skip ingress status delete",
+				utils.AviLog.Debugf("key: %s, msg: hostname %v present in %s pool collection, will skip ingress status delete",
 					key, parentVs.Name, hostname)
 				return true
 			}
