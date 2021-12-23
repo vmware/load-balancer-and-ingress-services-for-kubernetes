@@ -10,6 +10,7 @@ image:
 
 ### This section outlines the generic AKO settings
 AKOSettings:
+  enableEvents: "true" # Enables/disables Event broadcasting via AKO 
   logLevel: "WARN" # enum: INFO|DEBUG|WARN|ERROR
   fullSyncFrequency: "1800" # This frequency controls how often AKO polls the Avi controller to update itself with cloud configurations.
   apiServerPort: 8080 # Internal port for AKO's API server for the liveness probe of the AKO pod default=8080

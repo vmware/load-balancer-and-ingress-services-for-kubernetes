@@ -44,6 +44,8 @@ type NamespaceSelector struct {
 type AKOSettings struct {
 	// LogLevel defines the log level to be used by the AKO controller
 	LogLevel LogLevelType `json:"logLevel,omitempty"`
+	// EnableEvents controls whether AKO broadcasts Events in the cluster or not
+	EnableEvents bool `json:"enableEvents,omitempty"`
 	// FullSyncFrequency defines the interval at which full sync is carried out by the AKO controller
 	FullSyncFrequency string `json:"fullSyncFrequency,omitempty"`
 	// APIServerPort is the port at which the AKO API server runs
