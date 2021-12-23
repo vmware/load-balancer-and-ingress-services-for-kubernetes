@@ -64,17 +64,20 @@ func init() {
 
 type EventRecorder struct {
 	Recorder record.EventRecorder
+	Enabled  bool
 	Fake     bool
 }
 
 func (e *EventRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
-	if !e.Fake {
+	// EventTypeWarning Events are always broadcasted even if events are disbled.
+	if !e.Fake && (e.Enabled || (!e.Enabled && eventtype == corev1.EventTypeWarning)) {
 		e.Recorder.Eventf(object, eventtype, reason, messageFmt, args...)
 	}
 }
 
 func (e *EventRecorder) Event(object runtime.Object, eventtype, reason, messageFmt string) {
-	if !e.Fake {
+	// EventTypeWarning Events are always broadcasted even if events are disbled.
+	if !e.Fake && (e.Enabled || (!e.Enabled && eventtype == corev1.EventTypeWarning)) {
 		e.Recorder.Event(object, eventtype, reason, messageFmt)
 	}
 }
@@ -84,5 +87,5 @@ func NewEventRecorder(id string, kubeClient kubernetes.Interface, fake bool) *Ev
 	eventBroadcaster.StartLogging(AviLog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(EventScheme, corev1.EventSource{Component: id})
-	return &EventRecorder{Recorder: recorder, Fake: fake}
+	return &EventRecorder{Recorder: recorder, Fake: fake, Enabled: true}
 }

@@ -24,6 +24,7 @@ data:
   noPGForSNI: {{ .Values.L7Settings.noPGForSNI | quote }}
   enableRHI: {{ .Values.NetworkSettings.enableRHI | quote }}
   nsxtT1LR: {{ .Values.NetworkSettings.nsxtT1LR | quote }}
+  enableEvents: {{ .Values.AKOSettings.enableEvents | quote }}
   logLevel: {{ .Values.AKOSettings.logLevel | quote }}
   deleteConfig: {{ .Values.AKOSettings.deleteConfig | quote }}
   autoFQDN: {{ .Values.L4Settings.autoFQDN | quote }}

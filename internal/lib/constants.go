@@ -61,6 +61,7 @@ const (
 	IS_IN                                      = "IS_IN"
 	SLOW_SYNC_TIME                             = 90 // seconds
 	LOG_LEVEL                                  = "logLevel"
+	EnableEvents                               = "enableEvents"
 	LAYER7_ONLY                                = "layer7Only"
 	NO_PG_FOR_SNI                              = "noPGForSNI"
 	SERVICE_TYPE                               = "SERVICE_TYPE"

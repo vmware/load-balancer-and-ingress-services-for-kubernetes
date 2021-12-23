@@ -215,6 +215,16 @@ func (c *akoControlConfig) SetEventRecorder(id string, client kubernetes.Interfa
 	c.akoEventRecorder = utils.NewEventRecorder(id, client, fake)
 }
 
+func (c *akoControlConfig) EventsSetEnabled(enable string) {
+	if enable == "true" {
+		utils.AviLog.Infof("Enabling event broadcasting via AKO.")
+		c.akoEventRecorder.Enabled = true
+	} else {
+		utils.AviLog.Infof("Disabling event broadcasting via AKO.")
+		c.akoEventRecorder.Enabled = false
+	}
+}
+
 func (c *akoControlConfig) EventRecorder() *utils.EventRecorder {
 	return c.akoEventRecorder
 }
