@@ -202,6 +202,8 @@ const (
 	StaticRouteAnnotation          = "ako.vmware.com/pod-cidrs"
 	WCPSEGroup                     = "ako.vmware.com/wcp-se-group"
 	WCPCloud                       = "ako.vmware.com/wcp-cloud-name"
+	VSAnnotation                   = "ako.vmware.com/host-fqdn-vs-uuid-map"
+	ControllerAnnotation           = "ako.vmware.com/controller-cluster-uuid"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

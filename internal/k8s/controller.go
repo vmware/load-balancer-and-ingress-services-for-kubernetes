@@ -132,9 +132,19 @@ func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 	}
 
 	oldSpecHash := utils.Hash(utils.Stringify(oldIngress.Spec))
-	oldAnnotationHash := utils.Hash(utils.Stringify(oldIngress.Annotations))
 	newSpecHash := utils.Hash(utils.Stringify(newIngress.Spec))
-	newAnnotationHash := utils.Hash(utils.Stringify(newIngress.Annotations))
+
+	// Check for annotation change apart from the ones AKO fills in
+	// after status update
+	oldAnnotation := oldIngress.DeepCopy().Annotations
+	delete(oldAnnotation, lib.VSAnnotation)
+	delete(oldAnnotation, lib.ControllerAnnotation)
+	newAnnotation := newIngress.DeepCopy().Annotations
+	delete(newAnnotation, lib.VSAnnotation)
+	delete(newAnnotation, lib.ControllerAnnotation)
+
+	oldAnnotationHash := utils.Hash(utils.Stringify(oldAnnotation))
+	newAnnotationHash := utils.Hash(utils.Stringify(newAnnotation))
 
 	if oldSpecHash != newSpecHash || oldAnnotationHash != newAnnotationHash {
 		return true
