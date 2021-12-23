@@ -10,6 +10,10 @@ This field is used to set a frequency of consitency checks in AKO. Typically inc
 of band w.r.t AKO. For example, a pool is deleted by the user from the UI of the Avi Controller. The full sync frequency is used
 to ensure that the models are re-conciled and the corresponding Avi objects are restored to the original state.
 
+### AKOSettings.enableEvents *(editable)*
+
+This flag provides the ability to enable/disable Event broadcasting from AKO. The value specified here gets populated in the ConfigMap and can be edited at any time while AKO is running. AKO picks up the change in the param value and enables/disables Event broadcasting in the cluster at runtime, so AKO pod restart is not required.
+
 ### AKOSettings.logLevel *(editable)*
 
 This flag defines the logLevel for logging and can be set to one of `DEBUG`, `INFO`, `WARN`, `ERROR` (case sensitive).

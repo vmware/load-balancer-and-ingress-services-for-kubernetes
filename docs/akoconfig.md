@@ -13,6 +13,7 @@ spec:
   imageRepository: "ako:latest"
   imagePullPolicy: "IfNotPresent"
   akoSettings:
+    enableEvents: "true"
     logLevel: "WARN"
     fullSyncFrequency: "1800"
     apiServerPort: 8080

@@ -9,6 +9,7 @@ spec:
   imageRepository: {{ .Values.akoImage.repository }}
   imagePullPolicy: {{ .Values.akoImage.pullPolicy }}
   akoSettings:
+    enableEvents: {{ .Values.AKOSettings.enableEvents }}
     logLevel: {{ .Values.AKOSettings.logLevel }}
     fullSyncFrequency: {{ .Values.AKOSettings.fullSyncFrequency | quote }}
     apiServerPort: {{ .Values.AKOSettings.apiServerPort }}
