@@ -106,12 +106,16 @@ type L7Settings struct {
 	ShardVSSize VSSize `json:"shardVSSize,omitempty"`
 	// PassthroughShardSize specifies the number of shard VSs to be created for passthrough routes
 	PassthroughShardSize PassthroughVSSize `json:"passthroughShardSize,omitempty"`
+	// SyncNamespace takes in a namespace from which AKO will sync the objects
+	SyncNamespace string `json:"syncNamespace,omitempty"`
 	// NoPGForSNI removes Avi PoolGroups from SNI VSes
 	NoPGForSNI bool `json:"noPGForSNI,omitempty"`
 }
 
 // L4Settings defines the L4 configuration for the AKO controller
 type L4Settings struct {
+	// AdvancedL4 specifies whether the AKO controller should listen for the Gateway objects
+	AdvancedL4 bool `json:"advancedL4,omitempty"`
 	// DefaultDomain is the default domain
 	DefaultDomain string `json:"defaultDomain,omitempty"`
 	//Specifies the FQDN pattern - default, flat or disabled

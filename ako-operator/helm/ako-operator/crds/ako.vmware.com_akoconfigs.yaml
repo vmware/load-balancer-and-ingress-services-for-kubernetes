@@ -128,6 +128,10 @@ spec:
               l4Settings:
                 description: L4Settings defines the L4 configuration for the AKO controller
                 properties:
+                  advancedL4:
+                    description: AdvancedL4 specifies whether the AKO controller should
+                      listen for the Gateway objects
+                    type: boolean
                   autoFQDN:
                     description: Specifies the FQDN pattern - default, flat or disabled
                     type: string
@@ -169,6 +173,10 @@ spec:
                     - MEDIUM
                     - SMALL
                     - DEDICATED
+                    type: string
+                  syncNamespace:
+                    description: SyncNamespace takes in a namespace from which AKO
+                      will sync the objects
                     type: string
                 type: object
               logFile:
