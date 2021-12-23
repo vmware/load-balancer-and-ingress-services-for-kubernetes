@@ -386,7 +386,7 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 	}
 
 	vsAnnotations := make(map[string]string)
-	if value, ok := mRoute.Annotations[VSAnnotation]; ok {
+	if value, ok := mRoute.Annotations[lib.VSAnnotation]; ok {
 		if err := json.Unmarshal([]byte(value), &vsAnnotations); err != nil {
 			utils.AviLog.Errorf("key: %s, msg: error in unmarshalling route annotations: %v", key, err)
 			// nothing else to be done, invalid annotations will be taken care of in the update call
@@ -607,7 +607,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataO
 		}
 	}
 	existingAnnotations := make(map[string]string)
-	if annotations, exists := routeObj.Annotations[VSAnnotation]; exists {
+	if annotations, exists := routeObj.Annotations[lib.VSAnnotation]; exists {
 		if err := json.Unmarshal([]byte(annotations), &existingAnnotations); err != nil {
 			return fmt.Errorf("error in unmarshalling annotations %s, %v", annotations, err)
 		}
