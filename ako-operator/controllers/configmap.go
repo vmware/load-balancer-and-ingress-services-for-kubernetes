@@ -251,3 +251,13 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 
 	return cm, nil
 }
+
+func checkDeprecatedFields(ako akov1alpha1.AKOConfig, log logr.Logger) {
+	if ako.Spec.L4Settings.AdvancedL4 {
+		log.V(0).Info("", "WARN: ", "akoconfig.Spec.L4Settings.AdvancedL4 will be deprecated")
+	}
+
+	if ako.Spec.L7Settings.SyncNamespace != "" {
+		log.V(0).Info("", "WARN: ", "akoconfig.Spec.L7Settings.SyncNamespace will be deprecated")
+	}
+}
