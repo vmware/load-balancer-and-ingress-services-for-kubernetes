@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -544,6 +545,16 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
+				oldVsVipCache, oldVsVipFound := rest.cache.VSVIPCache.AviCacheGet(k)
+				var oldVsVips, oldVsFips []string
+				if oldVsVipFound {
+					oldVsVipCacheObj, ok := oldVsVipCache.(*avicache.AviVSVIPCache)
+					if ok {
+						oldVsVips = oldVsVipCacheObj.Vips
+						oldVsFips = oldVsVipCacheObj.Fips
+					}
+				}
+
 				vs_cache_obj.AddToVSVipKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if rest_op.Method == utils.RestPut {
@@ -555,14 +566,18 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 								childObj, _ := rest.cache.VsCacheMeta.AviCacheGet(childVSKey)
 								child_cache_obj, vs_found := childObj.(*avicache.AviVsCache)
 								if vs_found {
-									rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
-									rest.StatusUpdateForVS(child_cache_obj, key)
+									if !reflect.DeepEqual(vsvip_cache_obj.Vips, oldVsVips) || !reflect.DeepEqual(vsvip_cache_obj.Fips, oldVsFips) {
+										rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
+										// rest.StatusUpdateForVS(child_cache_obj, key)
+									}
 								}
 							}
 						}
 					}
-					rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
-					rest.StatusUpdateForVS(vs_cache_obj, key)
+					if !reflect.DeepEqual(vsvip_cache_obj.Vips, oldVsVips) || !reflect.DeepEqual(vsvip_cache_obj.Fips, oldVsFips) {
+						rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
+						// rest.StatusUpdateForVS(vs_cache_obj, key)
+					}
 				}
 			}
 
@@ -581,13 +596,13 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 							child_cache_obj, vs_found := childObj.(*avicache.AviVsCache)
 							if vs_found {
 								rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
-								rest.StatusUpdateForVS(child_cache_obj, key)
+								// rest.StatusUpdateForVS(child_cache_obj, key)
 							}
 						}
 					}
 				}
 				rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
-				rest.StatusUpdateForVS(vs_cache_obj, key)
+				// rest.StatusUpdateForVS(vs_cache_obj, key)
 			}
 		}
 		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v", key, k,

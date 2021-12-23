@@ -426,7 +426,7 @@ func handleL4Service(key string, fullsync bool) {
 					Namespace: namespace,
 					Key:       key,
 				}
-				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", name, utils.Stringify(statusOption))
+				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", name, utils.Stringify(statusOption))
 				status.PublishToStatusQueue(name, statusOption)
 				return
 			}

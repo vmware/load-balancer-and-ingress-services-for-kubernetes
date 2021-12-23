@@ -139,8 +139,8 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 	if len(annotations) == 0 {
 		annotations = map[string]string{}
 	}
-	annotations[VSAnnotation] = string(vsAnnotationsStr)
-	annotations[ControllerAnnotation] = avicache.GetControllerClusterUUID()
+	annotations[lib.VSAnnotation] = string(vsAnnotationsStr)
+	annotations[lib.ControllerAnnotation] = avicache.GetControllerClusterUUID()
 
 	patchPayload := map[string]interface{}{
 		"metadata": map[string]map[string]string{
@@ -189,8 +189,8 @@ func deleteSvcAnnotation(svc *corev1.Service) error {
 	payloadData := map[string]interface{}{
 		"metadata": map[string]map[string]*string{
 			"annotations": {
-				VSAnnotation:         nil,
-				ControllerAnnotation: nil,
+				lib.VSAnnotation:         nil,
+				lib.ControllerAnnotation: nil,
 			},
 		},
 	}

@@ -308,7 +308,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 							Op:      lib.UpdateStatus,
 							Options: &updateOptions,
 						}
-						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
+						utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
 						status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 					case lib.SNIInsecureOrEVHPool:
 						updateOptions := status.UpdateOptions{
@@ -326,7 +326,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 						if utils.GetInformers().RouteInformer != nil {
 							statusOption.ObjType = utils.OshiftRoute
 						}
-						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
+						utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 					}
 				}
@@ -387,7 +387,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					Op:      lib.DeleteStatus,
 					Options: &updateOptions,
 				}
-				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], utils.Stringify(statusOption))
+				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], utils.Stringify(statusOption))
 				status.PublishToStatusQueue(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
 			case lib.SNIInsecureOrEVHPool:
 				updateOptions := status.UpdateOptions{
@@ -404,7 +404,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 				if utils.GetInformers().RouteInformer != nil {
 					statusOption.ObjType = utils.OshiftRoute
 				}
-				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
+				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 				status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 			}
 		}
