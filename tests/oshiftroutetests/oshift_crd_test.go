@@ -539,6 +539,68 @@ func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 }
 
+func TestOshiftHTTPRuleCreateDeleteWithPkiRef(t *testing.T) {
+	// route secure foo.com/foo /bar
+	// create httprule /, httprule gets attached check on /foo /bar
+	// delete hostrule, httprule gets detached
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	rrname := "samplerr-foo"
+
+	SetUpTestForRoute(t, modelName)
+	routeExampleFoo := FakeRoute{Path: "/foo"}.SecureRoute()
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleFoo, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+	routeExampleBar := FakeRoute{Name: "foobar", Path: "/bar"}.SecureRoute()
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleBar, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_foo-foo-avisvc"}
+	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--default-foo.com_bar-foobar-avisvc"}
+	httpRulePath := "/"
+
+	httprule := integrationtest.FakeHTTPRule{
+		Name:      rrname,
+		Namespace: "default",
+		Fqdn:      "foo.com",
+		PathProperties: []integrationtest.FakeHTTPRulePath{{
+			Path:        httpRulePath,
+			PkiProfile:  "thisisaviref-pkiprofile",
+			LbAlgorithm: "LB_ALGORITHM_CONSISTENT_HASH",
+		}},
+	}
+
+	rrCreate := httprule.HTTPRule()
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HTTPRule: %v", err)
+	}
+
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].PkiProfileRef).To(gomega.ContainSubstring("thisisaviref-pkiprofile"))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
+
+	// delete httprule deletes refs as well
+	integrationtest.TeardownHTTPRule(t, rrname)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, false)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithm).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].PkiProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
+
+	VerifySecureRouteDeletion(t, g, modelName, 0, 1)
+	VerifySecureRouteDeletion(t, g, modelName, 0, 0, "default/foobar")
+	TearDownTestForRoute(t, defaultModelName)
+}
+
 func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 	// ingress foo.com/foo voo.com/foo
 	// hr1: foo.com (secure), hr2: voo.com (insecure)

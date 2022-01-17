@@ -237,6 +237,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 		for _, pool := range vsNode.GetPoolRefs() {
 			isPathSniEnabled := pool.SniEnabled
 			pathSslProfile := pool.SslProfileRef
+			pathPkiProfile := pool.PkiProfileRef
 			destinationCertNode := pool.PkiProfile
 			pathHMs := pool.HealthMonitors
 			if poolPath == "" && path == "/" {
@@ -286,6 +287,10 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 					} else {
 						destinationCertNode = nil
 					}
+
+					if httpRulePath.TLS.PKIProfile != "" {
+						pathPkiProfile = fmt.Sprintf("/api/pkiprofile?name=%s", httpRulePath.TLS.PKIProfile)
+					}
 				}
 
 				var persistenceProfile string
@@ -301,6 +306,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 
 				pool.SniEnabled = isPathSniEnabled
 				pool.SslProfileRef = pathSslProfile
+				pool.PkiProfileRef = pathPkiProfile
 				pool.PkiProfile = destinationCertNode
 				pool.HealthMonitors = pathHMs
 				pool.ApplicationPersistence = persistenceProfile

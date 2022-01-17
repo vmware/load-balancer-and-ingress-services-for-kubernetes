@@ -96,16 +96,20 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		ServiceMetadata:   &svc_mdata,
 		SniEnabled:        &pool_meta.SniEnabled,
 		SslProfileRef:     &pool_meta.SslProfileRef,
+		PkiProfileRef:     &pool_meta.PkiProfileRef,
 		PlacementNetworks: placementNetworks,
 	}
+
 	var vrfContextRef string
 	if pool_meta.VrfContext != "" {
 		vrfContextRef = "/api/vrfcontext?name=" + pool_meta.VrfContext
 		pool.VrfRef = &vrfContextRef
 	}
+
 	if pool_meta.T1Lr != "" {
 		pool.Tier1Lr = &pool_meta.T1Lr
 	}
+
 	if lib.GetGRBACSupport() {
 		if !pool_meta.AttachedWithSharedVS {
 			pool.Markers = lib.GetAllMarkers(pool_meta.AviMarkers)
@@ -113,6 +117,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 			pool.Markers = lib.GetMarkers()
 		}
 	}
+
 	if pool_meta.PkiProfile != nil {
 		pkiProfileName := "/api/pkiprofile?name=" + pool_meta.PkiProfile.Name
 		pool.PkiProfileRef = &pkiProfileName

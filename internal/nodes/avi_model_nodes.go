@@ -1396,6 +1396,7 @@ type AviPoolNode struct {
 	ServiceMetadata          lib.ServiceMetadataObj
 	SniEnabled               bool
 	SslProfileRef            string
+	PkiProfileRef            string
 	PkiProfile               *AviPkiProfileNode
 	NetworkPlacementSettings map[string][]string
 	HealthMonitors           []string
@@ -1431,6 +1432,10 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.SslProfileRef,
 		v.PriorityLabel,
 		utils.Stringify(v.NetworkPlacementSettings),
+	}
+
+	if v.PkiProfileRef != "" {
+		checksumStringSlice = append(checksumStringSlice, v.PkiProfileRef)
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {
