@@ -646,6 +646,7 @@ var refModelMap = map[string]string{
 	"VsDatascript":           "vsdatascriptset",
 	"HealthMonitor":          "healthmonitor",
 	"ApplicationPersistence": "applicationpersistenceprofile",
+	"PKIProfile":             "pkiprofile",
 	"ServiceEngineGroup":     "serviceenginegroup",
 	"Network":                "network",
 }
@@ -743,6 +744,9 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	for _, path := range httprule.Spec.Paths {
 		refData[path.TLS.SSLProfile] = "SslProfile"
 		refData[path.ApplicationPersistence] = "ApplicationPersistence"
+		if path.TLS.PKIProfile != "" {
+			refData[path.TLS.PKIProfile] = "PKIProfile"
+		}
 
 		for _, hm := range path.HealthMonitors {
 			refData[hm] = "HealthMonitor"
