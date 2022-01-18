@@ -228,7 +228,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 			}
 		}
 		for i := range serviceLBList {
-			svc := serviceLBList[i]
+			svc := serviceLBList[i].DeepCopy()
 			if !lib.UseServicesAPI() {
 				if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 					//Do not perform status update on service if namespace is not accepted.
@@ -258,7 +258,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 			continue
 		}
 
-		serviceMap[serviceLB.Namespace+"/"+serviceLB.Name] = serviceLB
+		serviceMap[serviceLB.Namespace+"/"+serviceLB.Name] = serviceLB.DeepCopy()
 	}
 	return serviceMap
 }

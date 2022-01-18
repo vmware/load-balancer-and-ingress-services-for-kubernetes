@@ -540,7 +540,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 			}
 
 			if returnIng {
-				ing := ingressList[i]
+				ing := ingressList[i].DeepCopy()
 				if utils.CheckIfNamespaceAccepted(ing.Namespace) {
 					ingressMap[ing.Namespace+"/"+ing.Name] = ing
 				}
@@ -563,7 +563,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 			continue
 		}
 
-		ingressMap[mIngress.Namespace+"/"+mIngress.Name] = mIngress
+		ingressMap[mIngress.Namespace+"/"+mIngress.Name] = mIngress.DeepCopy()
 	}
 
 	return ingressMap
