@@ -175,12 +175,12 @@ func (c *CRDLister) UpdateFQDNHostruleMapping(fqdn string, hostrule string) {
 	c.HostRuleFQDNCache.AddOrUpdate(hostrule, fqdn)
 }
 
-func (c *CRDLister) GetFQDNFQDNTypeMapping(fqdn string) (bool, string) {
+func (c *CRDLister) GetFQDNFQDNTypeMapping(fqdn string) string {
 	found, fqdnType := c.FqdnFqdnTypeCache.Get(fqdn)
 	if !found {
-		return false, ""
+		return string(akov1alpha1.Exact)
 	}
-	return true, fqdnType.(string)
+	return fqdnType.(string)
 }
 
 func (c *CRDLister) DeleteFQDNFQDNTypeMapping(fqdn string) bool {
@@ -241,12 +241,7 @@ func (c *CRDLister) UpdateFqdnHTTPRulesMappings(fqdn, path, httprule string) {
 }
 
 // FqdnSharedVSModelCache/SharedVSModelFqdnCache
-func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn string) (bool, []string) {
-	oktype, fqdnType := c.FqdnFqdnTypeCache.Get(fqdn)
-	if !oktype || fqdnType == "" {
-		fqdnType = string(akov1alpha1.Exact)
-	}
-
+func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn, fqdnType string) (bool, []string) {
 	allFqdns := c.FqdnSharedVSModelCache.GetAllKeys()
 	returnModelNames := []string{}
 	for _, mFqdn := range allFqdns {
