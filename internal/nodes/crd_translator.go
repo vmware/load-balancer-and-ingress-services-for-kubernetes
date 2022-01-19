@@ -72,7 +72,8 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	if !deleteCase {
-		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
+		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference &&
+			hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
 			vsSslKeyCertificate = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
 			vsNode.SetSSLKeyCertRefs([]*AviTLSKeyCertNode{})
 		}

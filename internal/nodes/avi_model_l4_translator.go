@@ -405,7 +405,7 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 	// or would default to the first dns subdomain it gets from the dns profile
 	subdomain := subDomains[0]
 	if strings.HasPrefix(subDomains[0], ".") {
-		subdomain = strings.Replace(subDomains[0], ".", "", -1)
+		subdomain = strings.Replace(subDomains[0], ".", "", 1)
 	}
 
 	if lib.GetL4FqdnFormat() == lib.AutoFQDNDefault {

@@ -188,13 +188,18 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 		secretNS = namespace
 	}
 
+	if isSecretK8sSecretRef(secretName) {
+		secretName = strings.Split(secretName, "/")[2]
+	}
+
 	certNode := &AviTLSKeyCertNode{
 		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, sniHost),
 		Tenant: lib.GetTenant(),
 		Type:   lib.CertTypeVS,
 	}
 	certNode.AviMarkers = lib.PopulateTLSKeyCertNode(sniHost, infraSettingName)
-	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route
+	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route.
+	// Routes can refer to secrets only in case of using default secret in ako NS or using hostrule secret.
 	if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
 		if tlsData.cert != "" && tlsData.key != "" {
 			certNode.Cert = []byte(tlsData.cert)

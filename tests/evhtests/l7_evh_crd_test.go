@@ -834,10 +834,6 @@ func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {
 }
 
 func TestHTTPRuleCreateDeleteWithPkiRefForEvh(t *testing.T) {
-	// ingress secure foo.com/foo /bar
-	// create httprule /foo, nothing happens
-	// create hostrule, httprule gets attached check on /foo /bar
-	// delete hostrule, httprule gets detached
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
