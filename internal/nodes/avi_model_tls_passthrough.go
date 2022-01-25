@@ -49,8 +49,11 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 
-	vrfcontext := lib.GetVrf()
-	avi_vs_meta.VrfContext = lib.GetVrf()
+	vrfcontext := ""
+	if lib.GetT1LRPath() == "" {
+		vrfcontext = lib.GetVrf()
+		avi_vs_meta.VrfContext = vrfcontext
+	}
 
 	o.AddModelNode(avi_vs_meta)
 	o.ConstructL4DataScript(vsName, key, avi_vs_meta)
@@ -64,6 +67,10 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
 		VipNetworks: lib.GetVipNetworkList(),
+	}
+
+	if lib.GetT1LRPath() != "" {
+		vsVipNode.T1Lr = lib.GetT1LRPath()
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -115,6 +122,10 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 
 	// store the Pools in the a temoprary list to be used for populating PG members
 	tmpPoolList := []*AviPoolNode{}
+	vrfContext := ""
+	if lib.GetT1LRPath() == "" {
+		vrfContext = lib.GetVrf()
+	}
 	for _, obj := range svclist {
 		poolName := lib.GetClusterName() + "--" + hostname + "-" + obj.ServiceName
 		poolNode := o.GetAviPoolNodeByName(poolName)
@@ -122,13 +133,11 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 			poolNode = &AviPoolNode{
 				Name:       poolName,
 				Tenant:     lib.GetTenant(),
-				VrfContext: lib.GetVrf(),
+				VrfContext: vrfContext,
 			}
 			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 			if lib.GetT1LRPath() != "" {
 				poolNode.T1Lr = lib.GetT1LRPath()
-				// Unset the poolnode's vrfcontext.
-				poolNode.VrfContext = ""
 			}
 			poolNode.AviMarkers = lib.PopulatePassthroughPoolMarkers(hostname, obj.ServiceName)
 		}
@@ -194,7 +203,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		passChildVS = &AviVsNode{
 			Name:               secureSharedVS.Name + lib.PassthroughInsecure,
 			Tenant:             lib.GetTenant(),
-			VrfContext:         lib.GetVrf(),
+			VrfContext:         vrfContext,
 			ServiceEngineGroup: lib.GetSEGName(),
 			ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
 			NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
