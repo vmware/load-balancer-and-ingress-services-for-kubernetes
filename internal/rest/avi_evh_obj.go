@@ -363,7 +363,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		if vs_meta.TLSType != utils.TLS_PASSTHROUGH && !vs_meta.Dedicated {
 			//Append cert from hostrule
 			for _, evhNode := range vs_meta.EvhNodes {
-				if evhNode.SSLKeyCertAviRef != "" {
+				if evhNode.SSLKeyCertAviRef != "" && !utils.HasElem(vs.SslKeyAndCertificateRefs, evhNode.SSLKeyCertAviRef) {
 					vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, evhNode.SSLKeyCertAviRef)
 				}
 			}

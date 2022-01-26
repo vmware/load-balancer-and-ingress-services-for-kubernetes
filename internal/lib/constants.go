@@ -94,6 +94,7 @@ const (
 	IstioDestinationRule                       = "DestinationRule"
 	IstioGateway                               = "IstioGateway"
 	DummySecret                                = "@avisslkeycertrefdummy"
+	DummySecretK8s                             = "@k8ssecretdummy"
 	StatusRejected                             = "Rejected"
 	StatusAccepted                             = "Accepted"
 	AllowedApplicationProfile                  = "APPLICATION_PROFILE_TYPE_HTTP"

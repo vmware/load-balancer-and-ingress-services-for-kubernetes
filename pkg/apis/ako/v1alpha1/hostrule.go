@@ -99,9 +99,16 @@ type HostRuleTLS struct {
 // HostRuleSecret is required to provide distinction between Avi SSLKeyCertificate
 // or K8s Secret Objects
 type HostRuleSecret struct {
-	Name string `json:"name,omitempty"`
-	Type string `json:"type,omitempty"`
+	Name string             `json:"name,omitempty"`
+	Type HostRuleSecretType `json:"type,omitempty"`
 }
+
+type HostRuleSecretType string
+
+const (
+	HostRuleSecretTypeAviReference    HostRuleSecretType = "ref"
+	HostRuleSecretTypeSecretReference HostRuleSecretType = "secret"
+)
 
 // HostRuleHTTPPolicy holds knobs and refs for httpPolicySets
 type HostRuleHTTPPolicy struct {

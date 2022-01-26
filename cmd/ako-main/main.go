@@ -190,6 +190,7 @@ func InitializeAKC() {
 	lib.NewVCFDynamicClientSet(cfg)
 	// In VCF environment, avi controller details have to be fetched from the Bootstrap CR
 	if lib.GetControllerIP() == "" {
+		utils.AviLog.Infof("Unable to find Avi Controller endpoint, trying to fetch from bootstrap Resource.")
 		ctrlIP := lib.GetControllerURLFromBootstrapCR()
 		if ctrlIP != "" {
 			lib.SetControllerIP(ctrlIP)

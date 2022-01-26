@@ -178,7 +178,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 		for i := range routeList {
 			route := routeList[i]
 			if utils.CheckIfNamespaceAccepted(route.Namespace) {
-				routeMap[route.Namespace+"/"+route.Name] = route
+				routeMap[route.Namespace+"/"+route.Name] = route.DeepCopy()
 			}
 		}
 
@@ -201,7 +201,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 			}
 			continue
 		}
-		routeMap[route.Namespace+"/"+route.Name] = route
+		routeMap[route.Namespace+"/"+route.Name] = route.DeepCopy()
 	}
 
 	return routeMap
@@ -541,6 +541,7 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 		utils.AviLog.Warnf("key: %s, msg: Could not get the Route object for DeleteStatus: %s", key, err)
 		return err
 	}
+	mRoute = mRoute.DeepCopy()
 
 	oldRouteStatus := mRoute.Status.DeepCopy()
 	if len(option.ServiceMetadata.HostNames) > 0 {

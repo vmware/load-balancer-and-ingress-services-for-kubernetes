@@ -16,7 +16,6 @@ package nodes
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -593,8 +592,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 
 	certsBuilt := false
 	sniSecretName := tlssetting.SecretName
-	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
-	if re.MatchString(sniSecretName) {
+	if isSecretAviCertRef(sniSecretName) {
 		sniSecretName = strings.Split(sniSecretName, "/")[1]
 		certsBuilt = true
 	}

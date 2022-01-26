@@ -1357,6 +1357,7 @@ type FakeHTTPRulePath struct {
 	Path           string
 	SslProfile     string
 	DestinationCA  string
+	PkiProfile     string
 	HealthMonitors []string
 	LbAlgorithm    string
 	Hash           string
@@ -1365,19 +1366,25 @@ type FakeHTTPRulePath struct {
 func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
 	var rrPaths []akov1alpha1.HTTPRulePaths
 	for _, p := range rr.PathProperties {
-		rrPaths = append(rrPaths, akov1alpha1.HTTPRulePaths{
+		rrForPath := akov1alpha1.HTTPRulePaths{
 			Target:         p.Path,
 			HealthMonitors: p.HealthMonitors,
 			TLS: akov1alpha1.HTTPRuleTLS{
-				Type:          "reencrypt",
-				SSLProfile:    p.SslProfile,
-				DestinationCA: p.DestinationCA,
+				Type:       "reencrypt",
+				SSLProfile: p.SslProfile,
 			},
 			LoadBalancerPolicy: akov1alpha1.HTTPRuleLBPolicy{
 				Algorithm: p.LbAlgorithm,
 				Hash:      p.Hash,
 			},
-		})
+		}
+		if p.DestinationCA != "" {
+			rrForPath.TLS.DestinationCA = p.DestinationCA
+		}
+		if p.PkiProfile != "" {
+			rrForPath.TLS.PKIProfile = p.PkiProfile
+		}
+		rrPaths = append(rrPaths, rrForPath)
 	}
 	return &akov1alpha1.HTTPRule{
 		ObjectMeta: metav1.ObjectMeta{

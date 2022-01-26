@@ -832,3 +832,72 @@ func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
+
+func TestHTTPRuleCreateDeleteWithPkiRefForEvh(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetModelName("foo.com", "default")
+	rrname := "samplerr-foo"
+
+	SetupDomain()
+	SetUpTestForIngress(t, modelName)
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	integrationtest.PollForCompletion(t, modelName, 5)
+	ingressObject := integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			"my-secret": {"foo.com"},
+		},
+	}
+
+	ingrFake := ingressObject.Ingress(true)
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_foo-foo-with-targets-avisvc", lib.Pool)}
+	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_bar-foo-with-targets-avisvc", lib.Pool)}
+	httpRulePath := "/"
+	httprule := integrationtest.FakeHTTPRule{
+		Name:      rrname,
+		Namespace: "default",
+		Fqdn:      "foo.com",
+		PathProperties: []integrationtest.FakeHTTPRulePath{{
+			Path:        httpRulePath,
+			PkiProfile:  "thisisaviref-pkiprofile",
+			LbAlgorithm: "LB_ALGORITHM_CONSISTENT_HASH",
+		}},
+	}
+
+	rrCreate := httprule.HTTPRule()
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HTTPRule: %v", err)
+	}
+
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].PkiProfileRef).To(gomega.ContainSubstring("thisisaviref-pkiprofile"))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
+
+	// delete httprule deletes refs as well
+	integrationtest.TeardownHTTPRule(t, rrname)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, false)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal(""))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].PkiProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}

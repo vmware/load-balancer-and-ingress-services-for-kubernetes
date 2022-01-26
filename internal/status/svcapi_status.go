@@ -133,7 +133,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 			if _, ok := aviGWClasses[gwList[i].Spec.GatewayClassName]; ok {
 				gw := gwList[i]
 				if utils.CheckIfNamespaceAccepted(gw.Namespace) {
-					gwMap[gw.Namespace+"/"+gw.Name] = gw
+					gwMap[gw.Namespace+"/"+gw.Name] = gw.DeepCopy()
 				}
 			}
 		}
@@ -151,7 +151,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 				return getSvcApiGateways(gwNSNames, bulk, retry+1)
 			}
 		} else {
-			gwMap[gw.Namespace+"/"+gw.Name] = gw
+			gwMap[gw.Namespace+"/"+gw.Name] = gw.DeepCopy()
 		}
 
 	}
@@ -166,6 +166,7 @@ func DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj lib.ServiceMeta
 		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
 		return err
 	}
+	gw = gw.DeepCopy()
 
 	if len(gw.Status.Addresses) == 0 ||
 		(len(gw.Status.Addresses) > 0 && gw.Status.Addresses[0].Value == "") {
@@ -193,6 +194,7 @@ func DeleteSvcApiStatus(key string, svcMetadataObj lib.ServiceMetadataObj) error
 		utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)
 		return err
 	}
+	gw = gw.DeepCopy()
 
 	if len(gw.Status.Addresses) == 0 ||
 		(len(gw.Status.Addresses) > 0 && gw.Status.Addresses[0].Value == "") {

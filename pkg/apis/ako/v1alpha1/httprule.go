@@ -57,6 +57,7 @@ type HTTPRuleLBPolicy struct {
 type HTTPRuleTLS struct {
 	Type          string `json:"type,omitempty"`
 	SSLProfile    string `json:"sslProfile,omitempty"`
+	PKIProfile    string `json:"pkiProfile,omitempty"`
 	DestinationCA string `json:"destinationCA,omitempty"`
 }
 
