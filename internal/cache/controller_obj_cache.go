@@ -2427,7 +2427,6 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
 	if len(subdomains) == 0 {
 		utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
-		return nil
 	}
 	if subdomains != nil {
 		cloud_obj.NSIpamDNS = subdomains
