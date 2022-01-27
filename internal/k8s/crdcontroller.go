@@ -43,15 +43,20 @@ func NewCRDInformers(cs akocrd.Interface) {
 	var akoInformerFactory akoinformers.SharedInformerFactory
 
 	akoInformerFactory = akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
-	hostRuleInformer := akoInformerFactory.Ako().V1alpha1().HostRules()
-	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
-	aviSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
 
-	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
-		HostRuleInformer:        hostRuleInformer,
-		HTTPRuleInformer:        httpRuleInformer,
-		AviInfraSettingInformer: aviSettingsInformer,
-	})
+	informers := &lib.AKOCrdInformers{
+		HostRuleInformer:        akoInformerFactory.Ako().V1alpha1().HostRules(),
+		HTTPRuleInformer:        akoInformerFactory.Ako().V1alpha1().HTTPRules(),
+		AviInfraSettingInformer: akoInformerFactory.Ako().V1alpha1().AviInfraSettings(),
+	}
+
+	// Add MCI and SI CRD informers if Multicluster Ingress is enabled.
+	if lib.IsMultiClusterIngressEnabled() {
+		informers.MultiClusterIngressInformer = akoInformerFactory.Ako().V1alpha1().MultiClusterIngresses()
+		informers.ServiceImportInformer = akoInformerFactory.Ako().V1alpha1().ServiceImports()
+	}
+
+	lib.AKOControlConfig().SetCRDInformers(informers)
 }
 
 func NewIstioCRDInformers(cs istiocrd.Interface) {
@@ -499,7 +504,136 @@ func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 
 	informer.GatewayInformer.Informer().AddEventHandler(gatewayEventHandler)
 
-	return
+}
+
+// SetupMultiClusterIngressEventHandlers handles setting up of MultiClusterIngress CRD event handlers
+func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32) {
+	utils.AviLog.Infof("Setting up MultiClusterIngress CRD Event handlers")
+
+	multiClusterIngressEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			mci := obj.(*akov1alpha1.MultiClusterIngress)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
+			key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
+			if err := validateMultiClusterIngressObj(key, mci); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Validation of MultiClusterIngress failed: %v", key, err)
+			}
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldObj := old.(*akov1alpha1.MultiClusterIngress)
+			mci := new.(*akov1alpha1.MultiClusterIngress)
+			if !reflect.DeepEqual(oldObj.Spec, mci.Spec) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
+				key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
+				if err := validateMultiClusterIngressObj(key, mci); err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Validation of MultiClusterIngress failed: %v", key, err)
+				}
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			mci, ok := obj.(*akov1alpha1.MultiClusterIngress)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				mci, ok = tombstone.Obj.(*akov1alpha1.MultiClusterIngress)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a MultiClusterIngress: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
+			key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			objects.SharedResourceVerInstanceLister().Delete(key)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+	informer := lib.AKOControlConfig().CRDInformers()
+	informer.MultiClusterIngressInformer.Informer().AddEventHandler(multiClusterIngressEventHandler)
+}
+
+// SetupServiceImportEventHandlers handles setting up of ServiceImport CRD event handlers
+func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
+	utils.AviLog.Infof("Setting up ServiceImport CRD Event handlers")
+
+	serviceImportEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			si := obj.(*akov1alpha1.ServiceImport)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
+			key := lib.ServiceImport + "/" + utils.ObjKey(si)
+			if err := validateServiceImportObj(key, si); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Validation of ServiceImport failed: %v", key, err)
+			}
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldObj := old.(*akov1alpha1.ServiceImport)
+			si := new.(*akov1alpha1.ServiceImport)
+			if !reflect.DeepEqual(oldObj.Spec, si.Spec) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
+				key := lib.ServiceImport + "/" + utils.ObjKey(si)
+				if err := validateServiceImportObj(key, si); err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Validation of ServiceImport failed: %v", key, err)
+				}
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			si, ok := obj.(*akov1alpha1.ServiceImport)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				si, ok = tombstone.Obj.(*akov1alpha1.ServiceImport)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a ServiceImport: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
+			key := lib.ServiceImport + "/" + utils.ObjKey(si)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			objects.SharedResourceVerInstanceLister().Delete(key)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+	informer := lib.AKOControlConfig().CRDInformers()
+	informer.ServiceImportInformer.Informer().AddEventHandler(serviceImportEventHandler)
 }
 
 // validateHostRuleObj would do validation checks
@@ -630,6 +764,23 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 	}
 
 	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
+	return nil
+}
+
+// validateMultiClusterIngressObj validates the MCI CRD changes before pushing it to ingestion
+func validateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error {
+
+	// TODO: validations
+	// call status.UpdateMultiClusterIngressStatus() to update the status
+	return nil
+}
+
+// validateServiceImportObj validates the SI CRD changes before pushing it to ingestion
+func validateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error {
+
+	// CHECK ME: AMKO creates this and validation required?
+	// TODO: validations needs a status field
+
 	return nil
 }
 

@@ -986,6 +986,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.SetupIstioCRDEventHandlers(numWorkers)
 	}
 
+	// Add MultiClusterIngress and ServiceImport CRD event handlers
+	if lib.IsMultiClusterIngressEnabled() {
+		c.SetupMultiClusterIngressEventHandlers(numWorkers)
+		c.SetupServiceImportEventHandlers(numWorkers)
+	}
+
 	//Add namespace event handler if migration is enabled and informer not nil
 	nsFilterObj := utils.GetGlobalNSFilter()
 	if nsFilterObj.EnableMigration && c.informers.NSInformer != nil {
@@ -1107,6 +1113,13 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().HasSynced)
 			go lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().HasSynced)
+		}
+
+		if lib.IsMultiClusterIngressEnabled() {
+			go lib.AKOControlConfig().CRDInformers().MultiClusterIngressInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().MultiClusterIngressInformer.Informer().HasSynced)
+			go lib.AKOControlConfig().CRDInformers().ServiceImportInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().ServiceImportInformer.Informer().HasSynced)
 		}
 	}
 

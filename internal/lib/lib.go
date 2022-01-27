@@ -1646,3 +1646,12 @@ func GetThrottle(key string) *int32 {
 	throttle := int32(throttle[key])
 	return &throttle
 }
+
+func IsMultiClusterIngressEnabled() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv(MCI_ENABLED)); ok {
+		utils.AviLog.Debugf("Multi-cluster ingress is enabled")
+		return true
+	}
+	utils.AviLog.Debugf("Multi-cluster ingress is not enabled")
+	return false
+}

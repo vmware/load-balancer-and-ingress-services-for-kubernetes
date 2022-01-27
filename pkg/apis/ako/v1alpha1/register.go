@@ -54,6 +54,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&HTTPRuleList{},
 		&AviInfraSetting{},
 		&AviInfraSettingList{},
+		&MultiClusterIngress{},
+		&MultiClusterIngressList{},
+		&ServiceImport{},
+		&ServiceImportList{},
 	)
 
 	scheme.AddKnownTypes(

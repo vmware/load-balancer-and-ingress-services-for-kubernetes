@@ -22,6 +22,14 @@ package v1alpha1
 // AviInfraSettingLister.
 type AviInfraSettingListerExpansion interface{}
 
+// ClusterSetListerExpansion allows custom methods to be added to
+// ClusterSetLister.
+type ClusterSetListerExpansion interface{}
+
+// ClusterSetNamespaceListerExpansion allows custom methods to be added to
+// ClusterSetNamespaceLister.
+type ClusterSetNamespaceListerExpansion interface{}
+
 // HTTPRuleListerExpansion allows custom methods to be added to
 // HTTPRuleLister.
 type HTTPRuleListerExpansion interface{}
@@ -37,3 +45,19 @@ type HostRuleListerExpansion interface{}
 // HostRuleNamespaceListerExpansion allows custom methods to be added to
 // HostRuleNamespaceLister.
 type HostRuleNamespaceListerExpansion interface{}
+
+// MultiClusterIngressListerExpansion allows custom methods to be added to
+// MultiClusterIngressLister.
+type MultiClusterIngressListerExpansion interface{}
+
+// MultiClusterIngressNamespaceListerExpansion allows custom methods to be added to
+// MultiClusterIngressNamespaceLister.
+type MultiClusterIngressNamespaceListerExpansion interface{}
+
+// ServiceImportListerExpansion allows custom methods to be added to
+// ServiceImportLister.
+type ServiceImportListerExpansion interface{}
+
+// ServiceImportNamespaceListerExpansion allows custom methods to be added to
+// ServiceImportNamespaceLister.
+type ServiceImportNamespaceListerExpansion interface{}

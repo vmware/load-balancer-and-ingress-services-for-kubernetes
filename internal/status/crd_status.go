@@ -66,6 +66,38 @@ func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus Upd
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the hostrule %s/%s status %+v", key, hr.Namespace, hr.Name, utils.Stringify(updateStatus))
 }
 
+// UpdateMultiClusterIngressStatus updates MultiClusterIngress' status
+func UpdateMultiClusterIngressStatus(key string, mci *akov1alpha1.MultiClusterIngress, status *akov1alpha1.MultiClusterIngressStatus, retryNum ...int) {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			utils.AviLog.Errorf("key: %s, msg: UpdateMultiClusterIngressStatus retried 3 times, aborting", key)
+			return
+		}
+	}
+
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": status,
+	})
+
+	_, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().MultiClusterIngresses(mci.Namespace).Patch(context.TODO(), mci.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the multicluster ingress status: %+v", key, err)
+		updatedMCI, err := lib.AKOControlConfig().CRDInformers().MultiClusterIngressInformer.Lister().MultiClusterIngresses(mci.Namespace).Get(mci.Name)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: multicluster ingress not found %v", key, err)
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				UpdateMultiClusterIngressStatus(key, updatedMCI, status, retry+1)
+			}
+			return
+		}
+		UpdateMultiClusterIngressStatus(key, updatedMCI, status, retry+1)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the multicluster ingress %s/%s status %+v", key, mci.Namespace, mci.Name, utils.Stringify(status))
+}
+
 // HostRuleEventBroadcast is responsible from broadcasting HostRule specific events when the VS Cache is Added/Updated/Deleted.
 func HostRuleEventBroadcast(vsName string, vsCacheMetadataOld, vsMetadataNew lib.CRDMetadata) {
 	if vsCacheMetadataOld.Value != vsMetadataNew.Value {

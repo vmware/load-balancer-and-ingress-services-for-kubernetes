@@ -93,6 +93,8 @@ const (
 	IstioVirtualService                        = "IstioVirtualService"
 	IstioDestinationRule                       = "DestinationRule"
 	IstioGateway                               = "IstioGateway"
+	MultiClusterIngress                        = "MultiClusterIngress"
+	ServiceImport                              = "ServiceImport"
 	DummySecret                                = "@avisslkeycertrefdummy"
 	DummySecretK8s                             = "@k8ssecretdummy"
 	StatusRejected                             = "Rejected"
@@ -165,6 +167,7 @@ const (
 	SSLPort                                    = 443
 	IPAMProviderInfoblox                       = "IPAMDNS_TYPE_INFOBLOX"
 	IPAMProviderCustom                         = "IPAMDNS_TYPE_CUSTOM"
+	MCI_ENABLED                                = "MCI_ENABLED"
 
 	// AKO Event constants
 	AKOEventComponent  = "avi-kubernetes-operator"
