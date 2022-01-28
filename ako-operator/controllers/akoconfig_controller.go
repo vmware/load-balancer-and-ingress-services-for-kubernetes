@@ -153,6 +153,9 @@ func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako ako
 		log.Error(err, "secret named avi-secret is must for starting AKO controller")
 		return err
 	}
+
+	checkDeprecatedFields(ako, log)
+
 	// reconcile all the required artifacts for AKO
 	err = createOrUpdateConfigMap(ctx, ako, log, r)
 	if err != nil {
