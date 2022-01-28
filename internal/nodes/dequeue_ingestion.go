@@ -191,15 +191,17 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 	_, namespace, hrName := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	var fqdn, oldFqdn string
+	var fqdnType, oldFqdnType string
 	var oldFound bool
 
 	hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrName)
 	if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted", key)
-		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
-		if strings.Contains(fqdn, lib.ShardVSSubstring) {
+		oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
+		if strings.Contains(oldFqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrName)
-			objects.SharedCRDLister().DeleteFQDNFQDNTypeMapping(fqdn)
+			oldFqdnType = objects.SharedCRDLister().GetFQDNFQDNTypeMapping(oldFqdn)
+			objects.SharedCRDLister().DeleteFQDNFQDNTypeMapping(oldFqdn)
 		}
 	} else if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v", key, err)
@@ -210,25 +212,30 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 			oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
 			if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
 				objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrName)
+				oldFqdnType = objects.SharedCRDLister().GetFQDNFQDNTypeMapping(oldFqdn)
 			}
 			if strings.Contains(fqdn, lib.ShardVSSubstring) {
 				objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrName)
-				objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, string(hostrule.Spec.VirtualHost.FqdnType))
+				fqdnType = string(hostrule.Spec.VirtualHost.FqdnType)
+				if fqdnType == "" {
+					fqdnType = string(akov1alpha1.Exact)
+				}
+				objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, fqdnType)
 			}
 		}
 	}
 
-	if strings.Contains(fqdn, lib.ShardVSSubstring) {
-		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(fqdn); !ok {
-			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s", key, fqdn)
+	if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
+		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(oldFqdn, oldFqdnType); !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s %s", key, oldFqdn, oldFqdnType)
 		} else {
 			allModels = append(allModels, obj...)
 		}
 	}
 
-	if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
-		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(oldFqdn); !ok {
-			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s", key, oldFqdn)
+	if strings.Contains(fqdn, lib.ShardVSSubstring) {
+		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(fqdn, fqdnType); !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s %s", key, fqdn, fqdnType)
 		} else {
 			allModels = append(allModels, obj...)
 		}
