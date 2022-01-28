@@ -15,10 +15,11 @@
 package nodes
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -98,6 +99,25 @@ func (h *HostNamePathStore) GetHostPathStore(host string) (bool, map[string][]st
 	return true, obj.(map[string][]string)
 }
 
+func (h *HostNamePathStore) GetHostsFromHostPathStore(host, fqdnMatchType string) []string {
+	allHosts := h.hostNamePathStore.GetAllKeys()
+	returnHosts := []string{}
+
+	for _, mHost := range allHosts {
+		if fqdnMatchType == string(akov1alpha1.Exact) && mHost == host {
+			returnHosts = append(returnHosts, mHost)
+		} else if fqdnMatchType == string(akov1alpha1.Contains) && strings.Contains(host, mHost) {
+			returnHosts = append(returnHosts, mHost)
+		} else if fqdnMatchType == string(akov1alpha1.Wildcard) && strings.HasPrefix(host, "*") {
+			wildcardFqdn := strings.Split(host, "*")[1]
+			if strings.HasSuffix(mHost, wildcardFqdn) {
+				returnHosts = append(returnHosts, mHost)
+			}
+		}
+	}
+	return returnHosts
+}
+
 func (h *HostNamePathStore) GetHostPathStoreIngresses(host, path string) (bool, []string) {
 	ok, obj := h.hostNamePathStore.Get(host)
 	if !ok {
@@ -150,6 +170,7 @@ func (h *HostNamePathStore) RemoveHostPathStore(host, path string, ing string) {
 func (h *HostNamePathStore) DeleteHostPathStore(host string) {
 	h.hostNamePathStore.Delete(host)
 }
+
 func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvcMap HostMetadata) {
 	hostMap := HostNamePathSecrets{paths: getPaths(pathsvcMap.ingressHPSvc), secretName: secretName}
 	found, ingressHostMap := SharedHostNameLister().Get(hostName)

@@ -164,8 +164,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			} else {
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 				vs_cache_obj.AddToSSLKeyCertCollection(k)
-				utils.AviLog.Info(spew.Sprintf("Added VS cache key during SSLKeyCert update %v val %v", vsKey,
-					vs_cache_obj))
+				utils.AviLog.Info("Added VS cache key during SSLKeyCert update %v val %v", vsKey, utils.Stringify(vs_cache_obj))
 			}
 			utils.AviLog.Info(spew.Sprintf("Added SSLKeyCert cache k %v val %v", k,
 				ssl_cache_obj))

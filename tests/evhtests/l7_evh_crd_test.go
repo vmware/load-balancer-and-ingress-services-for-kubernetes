@@ -305,7 +305,6 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(false))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].Enabled).To(gomega.BeNil())
@@ -385,7 +384,6 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(ports[2]).To(gomega.Equal(8083))
 
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
-	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())

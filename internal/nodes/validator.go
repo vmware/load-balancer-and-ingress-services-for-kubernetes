@@ -96,7 +96,7 @@ func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec rou
 
 func findHostRuleMappingForFqdn(key, host string) (bool, *v1alpha1.HostRule) {
 	// from host check if hostrule is present
-	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
+	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMappingWithType(host)
 	if !found {
 		utils.AviLog.Debugf("key: %s, msg: Couldn't find fqdn %s to hostrule mapping in cache", key, host)
 		return false, nil
