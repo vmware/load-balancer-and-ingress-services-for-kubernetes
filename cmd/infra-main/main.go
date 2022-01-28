@@ -113,6 +113,7 @@ func InitializeAKOInfra() {
 	avirest.SyncLSLRNetwork()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(informers, stopCh)
+	c.AddNSXNetworkConfigEventHandler(informers, stopCh)
 
 	<-stopCh
 	close(ctrlCh)

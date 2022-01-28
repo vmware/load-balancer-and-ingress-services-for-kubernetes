@@ -31,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -79,6 +80,7 @@ func (c *VCFK8sController) Run(stopCh <-chan struct{}) error {
 	utils.AviLog.Info("Shutting down the Kubernetes Controller")
 	return nil
 }
+
 func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
 	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -127,6 +129,79 @@ func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for NCP Secret informer")
+	}
+}
+
+func (c *VCFK8sController) AddNSXNetworkConfigEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
+	nsxNetworkConfigHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NSX Network Config ADD Event")
+			handleNSXNetworkConfigAdd()
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NSX Network Config Update Event")
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NSX Network Config Delete Event")
+			crd := obj.(*unstructured.Unstructured)
+			_, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+			if err != nil || !found {
+				utils.AviLog.Warnf("nsxnetworkconfiguration spec not found: %+v", err)
+				return
+			}
+			handleNSXNetworkConfigDelete()
+		},
+	}
+	c.dynamicInformers.NSXNetworkConfigInformer.Informer().AddEventHandler(nsxNetworkConfigHandler)
+
+	go c.dynamicInformers.NSXNetworkConfigInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NSXNetworkConfigInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for nsxnetworkconfiguration informer")
+	}
+}
+
+func handleNSXNetworkConfigAdd() {
+	dynamicClient := lib.GetVCFDynamicClientSet()
+	crdClient := dynamicClient.Resource(lib.NSXNetworkConfigGVR)
+	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Error(err)
+		return
+	}
+
+	if len(crdList.Items) == 1 {
+		utils.AviLog.Fatalf("First NSXNetworkConfigurations added in cluster. Rebooting AKO for infra configuration.")
+	}
+}
+
+func handleNSXNetworkConfigDelete() {
+	dynamicClient := lib.GetVCFDynamicClientSet()
+	crdClient := dynamicClient.Resource(lib.NSXNetworkConfigGVR)
+	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Error(err)
+		return
+	}
+
+	if len(crdList.Items) > 0 {
+		utils.AviLog.Infof("%d NSXNetworkConfigurations exist in the cluster. Skipping deconfiguration.", len(crdList.Items))
+		return
+	}
+
+	utils.AviLog.Infof("No NSXNetworkConfigurations exist, proceeding with Avi infra deconfiguraiton.")
+
+	// Fetch all service engines and delete them.
+	if err := avirest.DeleteServiceEngines(); err != nil {
+		utils.AviLog.Errorf("Unable to remove SEs %s", err.Error())
+		return
+	}
+
+	// Delete service engine group.
+	if err := avirest.DeleteServiceEngineGroup(); err != nil {
+		utils.AviLog.Errorf("Unable to remove SEG %s", err.Error())
+		return
 	}
 }
 
@@ -194,7 +269,7 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 	}
 }
 
-// HandleVCF checks if avi secret used by AKO is already present. If found, the it would try to connect to
+// HandleVCF checks if avi secret used by AKO is already present. If found, then it would try to connect to
 // AVI Controller. If there is any failure, we would look at Bootstrap CR used by NCP to communicate with AKO.
 // If Bootstrap CR is not found, AKO would wait for it to be created. If the authtoken from Bootstrap CR
 // can be used to connect to the AVI Controller, then avi-secret would be created with that token.

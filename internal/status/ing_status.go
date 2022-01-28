@@ -139,6 +139,12 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 		}
 	}
 
+	if len(mIngress.Status.LoadBalancer.Ingress) > 0 && mIngress.Status.LoadBalancer.Ingress[0].IP != "" {
+		lib.CheckAndSetIngressFinalizer(mIngress)
+	} else {
+		lib.RemoveIngressFinalizer(mIngress)
+	}
+
 	// we need hosts for which the IP is getting removed, and hosts for which it is being added/updated
 	sameStatus, hostsBefore, hostsAfter := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
 	var updatedIng *networkingv1.Ingress
@@ -365,6 +371,12 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 				utils.AviLog.Infof("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
 			}
 		}
+	}
+
+	if len(mIngress.Status.LoadBalancer.Ingress) > 0 && mIngress.Status.LoadBalancer.Ingress[0].IP != "" {
+		lib.CheckAndSetIngressFinalizer(mIngress)
+	} else {
+		lib.RemoveIngressFinalizer(mIngress)
 	}
 
 	sameStatus, hostsBefore, hostsAfter := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
