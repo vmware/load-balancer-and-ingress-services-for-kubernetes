@@ -1,3 +1,4 @@
+---
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
@@ -15,7 +16,7 @@ metadata:
             "akoSettings": {
               "apiServerPort": 8080,
               "clusterName": "my-cluster",
-              "cniPlugin": "",
+              "cniPlugin": "openshift",
               "deleteConfig": false,
               "disableStaticRouteSync": false,
               "enableEVH": false,
@@ -40,6 +41,7 @@ metadata:
             "imagePullPolicy": "IfNotPresent",
             "imageRepository": "projects.registry.vmware.com/ako/ako",
             "l4Settings": {
+              "advancedL4": false,
               "autoFQDN": "default",
               "defaultDomain": ""
             },
@@ -59,7 +61,7 @@ metadata:
                 {
                   "networkName": "",
                   "cidrs": []
-                }   
+                }
               ],
               "nsxtT1LR": "",
               "vipNetworkList": [
@@ -88,8 +90,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.7.1+git
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+    operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operatorframework.io/suggested-namespace: avi-system
+    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:c089d8c6bcc20db53cdca5b8e8dd575cb2e483b797af330bf0886757b08ecced
   name: ako-operator.v1.6.1
   namespace: placeholder
 spec:
@@ -145,6 +149,9 @@ spec:
       - description: rbac enables the pod security policy for AKO
         displayName: RBAC
         path: rbac
+      - description: PersistentVolumeClaim where the logs needs to be stored
+        displayName: PVC
+        path: pvc
       statusDescriptors:
       - description: Status of the AKO Operator deployment
         displayName: Deployed
@@ -498,14 +505,17 @@ spec:
         serviceAccountName: default
     strategy: deployment
   installModes:
-  - supported: false
-    type: OwnNamespace
-  - supported: false
-    type: SingleNamespace
-  - supported: false
-    type: MultiNamespace
-  - supported: true
-    type: AllNamespaces
+  - type: OwnNamespace
+    supported: true
+  - type: SingleNamespace
+    supported: true
+  - type: MultiNamespace
+    supported: false
+  - type: AllNamespaces
+    supported: false
+  relatedImages:
+  - name: ako-operator
+    image: projects.registry.vmware.com/ako/ako-operator@sha256:c089d8c6bcc20db53cdca5b8e8dd575cb2e483b797af330bf0886757b08ecced
   keywords:
   - AKO
   - AKO Operator
@@ -513,7 +523,11 @@ spec:
   - Ingress Controller
   links:
   - name: AKO Operator
+    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/master/ako-operator
+  - name: AKO Repository
     url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
+  - name: AKO
+    url: https://avinetworks.com/docs/ako/1.6/avi-kubernetes-operator/
   maintainers:
   - email: riyag@vmware.com
     name: Riya Ganiga

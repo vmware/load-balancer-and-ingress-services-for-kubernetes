@@ -1,3 +1,4 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -23,10 +24,10 @@ rules:
   verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
 - apiGroups: ["extensions", "networking.k8s.io"]
   resources: ["ingresses", "ingresses/status"]
-  verbs: ["create", "delete", "get","watch","list","patch", "update"]
+  verbs: ["create", "delete", "get", "watch", "list", "patch", "update"]
 - apiGroups: [""]
   resources: ["services/status"]
-  verbs: ["create","get","watch","list","patch", "update"]
+  verbs: ["create", "get", "watch", "list", "patch", "update"]
 - apiGroups: ["crd.projectcalico.org"]
   resources: ["blockaffinities", "blockaffinities/status"]
   verbs: ["get", "watch", "list"]
@@ -44,7 +45,7 @@ rules:
   verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
 - apiGroups: ["networking.x-k8s.io"]
   resources: ["gateways", "gateways/status", "gatewayclasses", "gatewayclasses/status"]
-  verbs: ["create", "delete", "get","watch","list","patch", "update"]
+  verbs: ["create", "delete", "get", "watch", "list", "patch", "update"]
 - apiGroups: [""]
   resources: ["*"]
   verbs: ['get', 'watch', 'list']
@@ -52,5 +53,5 @@ rules:
   resources: ["ingressclasses"]
   verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
 - apiGroups: [""]
-  resources: ["secrets","secrets/status"]
+  resources: ["secrets", "secrets/status"]
   verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
