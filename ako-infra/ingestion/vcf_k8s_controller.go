@@ -43,6 +43,8 @@ var ctrlonce sync.Once
 var tzonce sync.Once
 var transportZone string
 
+var NsxNetworkConfigCount int = 0
+
 type VCFK8sController struct {
 	worker_id        uint32
 	informers        *utils.Informers
@@ -133,6 +135,12 @@ func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh
 }
 
 func (c *VCFK8sController) AddNSXNetworkConfigEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
+	// Saves the initial nsx network config count during reboot,
+	// before the config handlers are started.
+	if err := addNSXNetworkConfigCount(); err != nil {
+		utils.AviLog.Fatalf("Unable to list NSXNetworkConfig: %s", err.Error())
+	}
+
 	nsxNetworkConfigHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NSX Network Config ADD Event")
@@ -162,6 +170,18 @@ func (c *VCFK8sController) AddNSXNetworkConfigEventHandler(k8sinfo K8sinformers,
 	}
 }
 
+func addNSXNetworkConfigCount() error {
+	dynamicClient := lib.GetVCFDynamicClientSet()
+	crdClient := dynamicClient.Resource(lib.NSXNetworkConfigGVR)
+	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	NsxNetworkConfigCount = len(crdList.Items)
+	return nil
+}
+
 func handleNSXNetworkConfigAdd() {
 	dynamicClient := lib.GetVCFDynamicClientSet()
 	crdClient := dynamicClient.Resource(lib.NSXNetworkConfigGVR)
@@ -171,9 +191,12 @@ func handleNSXNetworkConfigAdd() {
 		return
 	}
 
-	if len(crdList.Items) == 1 {
+	// Only when before the addition, the count was 0, (and now it becomes more than 0),
+	// we must reconfigure the SEG, by rebooting AKO. On reboot AKO ensures SEG configuration.
+	if NsxNetworkConfigCount == 0 && len(crdList.Items) > 0 {
 		utils.AviLog.Fatalf("First NSXNetworkConfigurations added in cluster. Rebooting AKO for infra configuration.")
 	}
+	NsxNetworkConfigCount = len(crdList.Items)
 }
 
 func handleNSXNetworkConfigDelete() {
@@ -185,6 +208,7 @@ func handleNSXNetworkConfigDelete() {
 		return
 	}
 
+	NsxNetworkConfigCount = len(crdList.Items)
 	if len(crdList.Items) > 0 {
 		utils.AviLog.Infof("%d NSXNetworkConfigurations exist in the cluster. Skipping deconfiguration.", len(crdList.Items))
 		return

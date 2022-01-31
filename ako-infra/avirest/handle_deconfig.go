@@ -15,6 +15,8 @@
 package avirest
 
 import (
+	"strings"
+
 	"github.com/vmware/alb-sdk/go/models"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -23,12 +25,16 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
 
-func DeleteServiceEngines() error {
+func DeleteServiceEngines(nextURI ...string) error {
 	client := avicache.SharedAVIClients().AviClient[0]
 	segName := lib.GetClusterID()
 	cloudName := utils.CloudName
 
 	seListUri := "/api/serviceengine/?page_size=100&include_name&se_group_ref.name=" + segName + "&cloud_ref.name=" + cloudName
+	if len(nextURI) > 0 {
+		seListUri = nextURI[0]
+	}
+
 	response := models.ServiceEngineAPIResponse{}
 	err := lib.AviGet(client, seListUri, &response)
 	if err != nil {
@@ -75,6 +81,17 @@ func DeleteServiceEngines() error {
 				}
 			} else {
 				utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", seUUID, err.Error())
+				return err
+			}
+		}
+	}
+
+	if response.Next != nil {
+		// The GET call response had a next page, let's recursively call the same method.
+		nextUri := strings.Split(*response.Next, "/api/serviceengine")
+		if len(nextUri) > 1 {
+			overrideUri := "/api/serviceengine" + nextUri[1]
+			if err := DeleteServiceEngines(overrideUri); err != nil {
 				return err
 			}
 		}
