@@ -226,7 +226,7 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 func checkSeGroup(client *clients.AviClient, cloudName string) bool {
 	segroupName := lib.GetClusterID()
 
-	uri := "/api/serviceenginegroup/?name=" + segroupName + "cloud_ref.name=" + cloudName
+	uri := "/api/serviceenginegroup/?name=" + segroupName + "&cloud_ref.name=" + cloudName
 	response := models.ServiceEngineGroupAPIResponse{}
 	err := lib.AviGet(client, uri, &response)
 	if err != nil {
