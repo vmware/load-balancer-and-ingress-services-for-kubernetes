@@ -66,6 +66,10 @@ spec:
                     description: Layer7Only enables AKO to do Layer 7 loadbalancing
                       only
                     type: boolean
+                  enableEvents:
+                    description: EnableEvents controls whether AKO broadcasts Events in 
+                      the cluster or not
+                    type: boolean
                   logLevel:
                     description: LogLevel defines the log level to be used by the
                       AKO controller

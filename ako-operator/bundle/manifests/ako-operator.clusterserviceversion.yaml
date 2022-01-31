@@ -23,6 +23,7 @@ metadata:
               "fullSyncFrequency": "1800",
               "layer7Only": false,
               "logLevel": "INFO",
+              "enableEvents": "true",
               "namespaceSelector": {
                 "labelKey": "",
                 "labelValue": ""

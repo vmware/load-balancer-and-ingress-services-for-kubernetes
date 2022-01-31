@@ -9,6 +9,7 @@ Avi Kubernetes Operator broadcasts events in order to -
 - use events for better error reporting, for support and engineering team to report issue after analyzing event timeline.
 - provide granular debugging on Ingress/Routes/SvcLB/Gateways and show their relationship with Avi virtual services, that AKO creates.
 
+AKO Event broadcasting can be controlled by setting the `enableEvents` flag in the ConfigMap appropriately. By default the Event broadcasting is enabled, but can be switched off by updating the ConfigMap, which comes into affect without rebooting AKO.
 
 ## Event Types
 
@@ -41,6 +42,8 @@ A few examples of a `Warning` events are:
 ```
 23s         Warning   AKOShutdown          pod/ako-0   Invalid user input [No user input detected for vipNetworkList]
 ```
+
+**Note**: Regardless of the `enableEvents` setting in the ConfigMap, Warning Events are always broadcasted via AKO.
 
 ## Event Categories
 

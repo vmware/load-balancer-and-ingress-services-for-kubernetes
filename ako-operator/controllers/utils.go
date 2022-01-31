@@ -46,6 +46,7 @@ const (
 	DefaultIngController   = "defaultIngController"
 	VipNetworkList         = "vipNetworkList"
 	BgpPeerLabels          = "bgpPeerLabels"
+	EnableEvents           = "enableEvents"
 	LogLevel               = "logLevel"
 	DeleteConfig           = "deleteConfig"
 	AutoFQDN               = "autoFQDN"

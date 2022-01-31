@@ -265,6 +265,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			}
 			utils.AviLog.Infof("avi k8s configmap created")
 			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+			lib.AKOControlConfig().EventsSetEnabled(cm.Data[lib.EnableEvents])
 			// Check if AKO is configured to only use Ingress. This value can be only set during bootup and can't be edited dynamically.
 			lib.SetLayer7Only(cm.Data[lib.LAYER7_ONLY])
 			// Check if we need to use PGs for SNIs or not.
@@ -296,6 +297,10 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			// if resourceversions and loglevel change, set new loglevel
 			if oldcm.Data[lib.LOG_LEVEL] != cm.Data[lib.LOG_LEVEL] {
 				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+			}
+
+			if oldcm.Data[lib.EnableEvents] != cm.Data[lib.EnableEvents] {
+				lib.AKOControlConfig().EventsSetEnabled(cm.Data[lib.EnableEvents])
 			}
 
 			if oldcm.Data[lib.DeleteConfig] == cm.Data[lib.DeleteConfig] {
