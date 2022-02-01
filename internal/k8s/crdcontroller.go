@@ -870,7 +870,7 @@ func checkRefOnController(key, refKey, refValue string) error {
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
 	if lib.IsPublicCloud() && refModelMap[refKey] == "network" {
-		if lib.GetCloudType() == lib.CLOUD_AWS {
+		if lib.GetCloudType() == lib.CLOUD_AWS || lib.GetCloudType() == lib.CLOUD_OPENSTACK {
 			var rest_response interface{}
 			utils.AviLog.Infof("Cloud is AWS, checking network ref using uuid")
 			uri := fmt.Sprintf("/api/%s/%s", refModelMap[refKey], refValue)

@@ -508,7 +508,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 							if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 								networkNames = append(networkNames, strings.Split(networkRef, "#")[1])
 							}
-							if lib.GetCloudType() == lib.CLOUD_AWS {
+							if lib.GetCloudType() == lib.CLOUD_AWS || lib.GetCloudType() == lib.CLOUD_OPENSTACK {
 								networkRefNameSplit := strings.Split(networkRef, "/")
 								networkNames = append(networkNames, networkRefNameSplit[len(networkRefNameSplit)-1])
 							}

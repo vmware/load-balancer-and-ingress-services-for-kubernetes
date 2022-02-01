@@ -738,7 +738,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 						networkNames = append(networkNames, networkRefName[1])
 					}
-					if lib.GetCloudType() == lib.CLOUD_AWS {
+					if lib.GetCloudType() == lib.CLOUD_AWS || lib.GetCloudType() == lib.CLOUD_OPENSTACK {
 						networkRefStr := strings.Split(networkRef, "/")
 						networkNames = append(networkNames, networkRefStr[len(networkRefStr)-1])
 					}
@@ -1323,7 +1323,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 						networkNames = append(networkNames, networkRefName[1])
 					}
-					if lib.GetCloudType() == lib.CLOUD_AWS {
+					if lib.GetCloudType() == lib.CLOUD_AWS || lib.GetCloudType() == lib.CLOUD_OPENSTACK {
 						networkRefStr := strings.Split(networkRef, "/")
 						networkNames = append(networkNames, networkRefStr[len(networkRefStr)-1])
 					}

@@ -1299,7 +1299,7 @@ func SetIsCloudInAdminTenant(isCloudInAdminTenant bool) {
 func IsPublicCloud() bool {
 	cloudType := GetCloudType()
 	if cloudType == CLOUD_AZURE || cloudType == CLOUD_AWS ||
-		cloudType == CLOUD_GCP {
+		cloudType == CLOUD_GCP || cloudType == CLOUD_OPENSTACK {
 		return true
 	}
 	return false
