@@ -202,3 +202,10 @@ All notable changes to this project will be documented in this file. The format 
  - AKO is not updating the ingress status when annotation `passthrough.ako.vmware.com/enabled: "true"` is added to the ingress.
  - There are issues when shardVS size changed through AviInfra CR or values.yaml. Recommended workflow is to first delete existing config using `deleteConfig` flag as described [here](docs/faq.md#how-do-i-clean-up-all-my-configs) and then change `shardVS` size through AviInfraSetting.
 
+
+## AKO-1.6.2
+
+### Bugs fixed
+ - Problem in creating VSVip for Passthrough routes.
+ - Problem in correctly saving ipamType in AKO when no DNS providers are set in the Cloud
+ - Fixes related to fqdnType Contains/Wildcard in HostRules.
