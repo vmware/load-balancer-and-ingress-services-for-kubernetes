@@ -172,6 +172,7 @@ var DisableSync bool
 var layer7Only bool
 var noPGForSNI, gRBAC bool
 var NsxTTzType string
+var deleteConfigMap bool
 
 func SetNSXTTransportZone(tzType string) {
 	NsxTTzType = tzType
@@ -220,7 +221,10 @@ func SetDisableSync(state bool) {
 	DisableSync = state
 	utils.AviLog.Infof("Setting Disable Sync to: %v", state)
 }
-
+func SetDeleteConfigMap(deleteCMFlag bool) {
+	deleteConfigMap = deleteCMFlag
+	utils.AviLog.Debugf("Setting deleteConfigMap flag to: [%v]", deleteConfigMap)
+}
 func SetLayer7Only(val string) {
 	if boolVal, err := strconv.ParseBool(val); err == nil {
 		layer7Only = boolVal
@@ -246,6 +250,10 @@ func SetGRBACSupport() {
 }
 
 func IsShardVS(vsName string) bool {
+	if deleteConfigMap {
+		//delete configmap is set, do not save anything
+		return false
+	}
 	if GetshardSize() == 0 {
 		//Dedicated mode
 		return false

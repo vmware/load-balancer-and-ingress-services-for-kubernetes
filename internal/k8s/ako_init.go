@@ -99,13 +99,15 @@ func PopulateControllerProperties(cs kubernetes.Interface) error {
 }
 
 func delConfigFromData(data map[string]string) bool {
+	var delConf bool
 	if val, ok := data[lib.DeleteConfig]; ok {
 		if val == "true" {
 			utils.AviLog.Infof("deleteConfig set in configmap, sync would be disabled")
-			return true
+			delConf = true
 		}
 	}
-	return false
+	lib.SetDeleteConfigMap(delConf)
+	return delConf
 }
 
 func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
@@ -311,10 +313,11 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 			}
-			c.DisableSync = !isValidUserInput || delConfigFromData(cm.Data)
+			delModels := delConfigFromData(cm.Data)
+			c.DisableSync = !isValidUserInput || delModels
 			lib.SetDisableSync(c.DisableSync)
 			if isValidUserInput {
-				if delConfigFromData(cm.Data) {
+				if delModels {
 					c.DeleteModels()
 					if lib.GetServiceType() == "ClusterIP" {
 						avicache.DeConfigureSeGroupLabels()
