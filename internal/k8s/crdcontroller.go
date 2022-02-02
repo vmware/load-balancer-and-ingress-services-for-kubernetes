@@ -870,9 +870,9 @@ func checkRefOnController(key, refKey, refValue string) error {
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
 	if lib.IsPublicCloud() && refModelMap[refKey] == "network" {
-		if lib.GetCloudType() == lib.CLOUD_AWS || lib.GetCloudType() == lib.CLOUD_OPENSTACK {
+		if lib.UsesNetworkRef() {
 			var rest_response interface{}
-			utils.AviLog.Infof("Cloud is AWS, checking network ref using uuid")
+			utils.AviLog.Infof("Cloud is  %s, checking network ref using uuid", lib.GetCloudType())
 			uri := fmt.Sprintf("/api/%s/%s", refModelMap[refKey], refValue)
 			err := lib.AviGet(clients.AviClient[aviClientLen], uri, &rest_response)
 			if err != nil {
@@ -885,9 +885,6 @@ func checkRefOnController(key, refKey, refValue string) error {
 				utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
 				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 			}
-		} else if lib.GetCloudType() == lib.CLOUD_AZURE {
-			utils.AviLog.Infof("key: %s, msg: Skipping network name check for Azure Cloud", key)
-			return nil
 		}
 	}
 

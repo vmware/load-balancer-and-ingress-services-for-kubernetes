@@ -554,7 +554,11 @@ func GetVrfUuid() string {
 
 func GetVrf() string {
 	if VRFContext == "" {
-		return utils.GlobalVRF
+		if GetTenant() == GetAdminTenant() {
+			return utils.GlobalVRF
+		} else {
+			return GetTenant() + "-default"
+		}
 	}
 	return VRFContext
 }
@@ -1300,6 +1304,15 @@ func IsPublicCloud() bool {
 	cloudType := GetCloudType()
 	if cloudType == CLOUD_AZURE || cloudType == CLOUD_AWS ||
 		cloudType == CLOUD_GCP || cloudType == CLOUD_OPENSTACK {
+		return true
+	}
+	return false
+}
+
+func UsesNetworkRef() bool {
+	cloudType := GetCloudType()
+	if cloudType == CLOUD_AWS || cloudType == CLOUD_OPENSTACK ||
+		cloudType == CLOUD_AZURE {
 		return true
 	}
 	return false
