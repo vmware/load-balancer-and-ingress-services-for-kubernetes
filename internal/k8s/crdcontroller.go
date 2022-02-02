@@ -43,20 +43,15 @@ func NewCRDInformers(cs akocrd.Interface) {
 	var akoInformerFactory akoinformers.SharedInformerFactory
 
 	akoInformerFactory = akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+	hostRuleInformer := akoInformerFactory.Ako().V1alpha1().HostRules()
+	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
+	aviSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
 
-	informers := &lib.AKOCrdInformers{
-		HostRuleInformer:        akoInformerFactory.Ako().V1alpha1().HostRules(),
-		HTTPRuleInformer:        akoInformerFactory.Ako().V1alpha1().HTTPRules(),
-		AviInfraSettingInformer: akoInformerFactory.Ako().V1alpha1().AviInfraSettings(),
-	}
-
-	// Add MCI and SI CRD informers if Multicluster Ingress is enabled.
-	if lib.IsMultiClusterIngressEnabled() {
-		informers.MultiClusterIngressInformer = akoInformerFactory.Ako().V1alpha1().MultiClusterIngresses()
-		informers.ServiceImportInformer = akoInformerFactory.Ako().V1alpha1().ServiceImports()
-	}
-
-	lib.AKOControlConfig().SetCRDInformers(informers)
+	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
+		HostRuleInformer:        hostRuleInformer,
+		HTTPRuleInformer:        httpRuleInformer,
+		AviInfraSettingInformer: aviSettingsInformer,
+	})
 }
 
 func NewIstioCRDInformers(cs istiocrd.Interface) {
@@ -520,6 +515,7 @@ func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32)
 			key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
 			if err := validateMultiClusterIngressObj(key, mci); err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Validation of MultiClusterIngress failed: %v", key, err)
+				return
 			}
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -536,6 +532,7 @@ func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32)
 				key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
 				if err := validateMultiClusterIngressObj(key, mci); err != nil {
 					utils.AviLog.Warnf("key: %s, msg: Validation of MultiClusterIngress failed: %v", key, err)
+					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -567,8 +564,7 @@ func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32)
 			c.workqueue[bkt].AddRateLimited(key)
 		},
 	}
-	informer := lib.AKOControlConfig().CRDInformers()
-	informer.MultiClusterIngressInformer.Informer().AddEventHandler(multiClusterIngressEventHandler)
+	c.informers.MultiClusterIngressInformer.Informer().AddEventHandler(multiClusterIngressEventHandler)
 }
 
 // SetupServiceImportEventHandlers handles setting up of ServiceImport CRD event handlers
@@ -585,6 +581,7 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 			key := lib.ServiceImport + "/" + utils.ObjKey(si)
 			if err := validateServiceImportObj(key, si); err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Validation of ServiceImport failed: %v", key, err)
+				return
 			}
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -601,6 +598,7 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 				key := lib.ServiceImport + "/" + utils.ObjKey(si)
 				if err := validateServiceImportObj(key, si); err != nil {
 					utils.AviLog.Warnf("key: %s, msg: Validation of ServiceImport failed: %v", key, err)
+					return
 				}
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -632,8 +630,7 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 			c.workqueue[bkt].AddRateLimited(key)
 		},
 	}
-	informer := lib.AKOControlConfig().CRDInformers()
-	informer.ServiceImportInformer.Informer().AddEventHandler(serviceImportEventHandler)
+	c.informers.ServiceImportInformer.Informer().AddEventHandler(serviceImportEventHandler)
 }
 
 // validateHostRuleObj would do validation checks

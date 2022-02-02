@@ -1173,6 +1173,12 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			allInformers = append(allInformers, utils.IngressInformer)
 			allInformers = append(allInformers, utils.IngressClassInformer)
 		}
+
+		// Add MultiClusterIngress and ServiceImport informers if enabled.
+		if utils.IsMultiClusterIngressEnabled() {
+			allInformers = append(allInformers, utils.MultiClusterIngressInformer)
+			allInformers = append(allInformers, utils.ServiceImportInformer)
+		}
 	}
 	return allInformers, nil
 }
@@ -1645,13 +1651,4 @@ var throttle = map[string]uint32{
 func GetThrottle(key string) *int32 {
 	throttle := int32(throttle[key])
 	return &throttle
-}
-
-func IsMultiClusterIngressEnabled() bool {
-	if ok, _ := strconv.ParseBool(os.Getenv(MCI_ENABLED)); ok {
-		utils.AviLog.Debugf("Multi-cluster ingress is enabled")
-		return true
-	}
-	utils.AviLog.Debugf("Multi-cluster ingress is not enabled")
-	return false
 }

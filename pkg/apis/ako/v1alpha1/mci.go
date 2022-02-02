@@ -67,7 +67,7 @@ type Service struct {
 // MultiClusterIngressStatus represents the current status of the MultiClusterIngress object
 type MultiClusterIngressStatus struct {
 	LoadBalancer LoadBalancer   `json:"loadBalancer,omitempty"`
-	Status       AcceptedStatus `json:status,omitempty`
+	Status       AcceptedStatus `json:"status,omitempty"`
 }
 
 // AcceptedStatus represents whether the MCI object was accepted or rejected. It also

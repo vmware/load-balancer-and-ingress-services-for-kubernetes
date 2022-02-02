@@ -44,11 +44,9 @@ type ServicesAPIInformers struct {
 }
 
 type AKOCrdInformers struct {
-	HostRuleInformer            akoinformer.HostRuleInformer
-	HTTPRuleInformer            akoinformer.HTTPRuleInformer
-	AviInfraSettingInformer     akoinformer.AviInfraSettingInformer
-	MultiClusterIngressInformer akoinformer.MultiClusterIngressInformer
-	ServiceImportInformer       akoinformer.ServiceImportInformer
+	HostRuleInformer        akoinformer.HostRuleInformer
+	HTTPRuleInformer        akoinformer.HTTPRuleInformer
+	AviInfraSettingInformer akoinformer.AviInfraSettingInformer
 }
 
 type IstioCRDInformers struct {

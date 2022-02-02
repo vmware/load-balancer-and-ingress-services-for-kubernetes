@@ -84,7 +84,7 @@ func UpdateMultiClusterIngressStatus(key string, mci *akov1alpha1.MultiClusterIn
 	_, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().MultiClusterIngresses(mci.Namespace).Patch(context.TODO(), mci.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the multicluster ingress status: %+v", key, err)
-		updatedMCI, err := lib.AKOControlConfig().CRDInformers().MultiClusterIngressInformer.Lister().MultiClusterIngresses(mci.Namespace).Get(mci.Name)
+		updatedMCI, err := utils.GetInformers().MultiClusterIngressInformer.Lister().MultiClusterIngresses(mci.Namespace).Get(mci.Name)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: multicluster ingress not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {

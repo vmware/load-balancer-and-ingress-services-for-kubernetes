@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
+	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	advl4 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
@@ -88,6 +89,7 @@ func InitializeAKC() {
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
 	var istioClient *istiocrd.Clientset
+	var akoClient *akocrd.Clientset
 	if lib.GetAdvancedL4() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
@@ -116,6 +118,13 @@ func InitializeAKC() {
 				utils.AviLog.Fatalf("Error building Istio CRD clientset: %s", err.Error())
 			}
 			akoControlConfig.SetIstioClientset(istioClient)
+		}
+
+		if utils.IsMultiClusterIngressEnabled() {
+			akoClient, err = akocrd.NewForConfig(cfg)
+			if err != nil {
+				utils.AviLog.Fatalf("Error building ako CRD clientset: %s", err.Error())
+			}
 		}
 	}
 
@@ -161,6 +170,7 @@ func InitializeAKC() {
 
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = oshiftClient
+	informersArg[utils.INFORMERS_AKO_CLIENT] = akoClient
 
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
