@@ -154,6 +154,31 @@ func AviPost(client *clients.AviClient, uri string, payload interface{}, respons
 	return nil
 }
 
+func AviDelete(client *clients.AviClient, uri string, retryNum ...int) error {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			err := errors.New("msg: AviDelete retried 3 times, aborting")
+			return err
+		}
+	}
+
+	err := client.AviSession.Delete(uri)
+	if err != nil {
+		utils.AviLog.Warnf("msg: Unable to execute Delete on uri %s %v", uri, err)
+		checkForInvalidCredentials(uri, err)
+		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			return err
+		}
+		return AviDelete(client, uri, retry+1)
+	}
+
+	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
+	return nil
+}
+
 func checkForInvalidCredentials(uri string, err error) {
 	if err == nil {
 		return

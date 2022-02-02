@@ -64,6 +64,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "namespacenetworkinfos",
 	}
+
+	NSXNetworkConfigGVR = schema.GroupVersionResource{
+		Group:    "nsx.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "nsxnetworkconfigurations",
+	}
 )
 
 type BootstrapCRData struct {
@@ -160,8 +166,9 @@ func GetVCFDynamicClientSet() dynamic.Interface {
 }
 
 type VCFDynamicInformers struct {
-	NCPBootstrapInformer informers.GenericInformer
-	NetworkInfoInformer  informers.GenericInformer
+	NCPBootstrapInformer     informers.GenericInformer
+	NetworkInfoInformer      informers.GenericInformer
+	NSXNetworkConfigInformer informers.GenericInformer
 }
 
 func NewVCFDynamicInformers(client dynamic.Interface) *VCFDynamicInformers {
@@ -170,6 +177,7 @@ func NewVCFDynamicInformers(client dynamic.Interface) *VCFDynamicInformers {
 
 	informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
 	informers.NetworkInfoInformer = f.ForResource(NetworkInfoGVR)
+	informers.NSXNetworkConfigInformer = f.ForResource(NSXNetworkConfigGVR)
 
 	vcfDynamicInformerInstance = informers
 	return vcfDynamicInformerInstance
