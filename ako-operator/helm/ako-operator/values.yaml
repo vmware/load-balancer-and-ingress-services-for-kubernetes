@@ -6,12 +6,12 @@ replicaCount: 1
 
 # AKO Operator image settings
 operatorImage:
-  repository: 10.79.172.11:5000/avi-buildops/ako-operator
+  repository: projects.registry.vmware.com/ako/ako-operator
   pullPolicy: IfNotPresent
 
 # AKO Controller image settings
 akoImage:
-  repository: "10.79.172.11:5000/avi-buildops/ako:2.1.1-5097"
+  repository: projects.registry.vmware.com/ako/ako:1.6.1
   pullPolicy: IfNotPresent
 
 ### This section outlines the generic AKO controller settings
