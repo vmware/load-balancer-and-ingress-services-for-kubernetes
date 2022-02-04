@@ -25,7 +25,7 @@ spec:
             type: object
             properties:
               cluster:
-                description: "Cluster from which this service was imported from"
+                description: "Cluster from which this service is imported from"
                 type: "string"
               namespace:
                 description: "namespace in the backend cluster where this service exists"

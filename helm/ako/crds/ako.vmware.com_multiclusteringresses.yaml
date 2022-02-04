@@ -62,18 +62,21 @@ spec:
                       type: "integer"
                       minimum: 1
                       maximum: 100
+            required:
+              - hostName
+              - config
           status:
             type: object
             properties:
               status:
-                description: "represents whether the MCI object was accepted/rejected and the reason for rejection"
+                description: "represents whether the MCI object is accepted/rejected and the reason for rejection"
                 type: object
                 properties:
                   accepted:
-                    description: "represents whether the MCI object was accepted/rejected"
+                    description: "represents whether the MCI object is accepted/rejected"
                     type: boolean
                   reason:
-                    description: "describes the reason, if the MCI object was rejected"
+                    description: "describes the reason, if the MCI object is rejected"
                     type: string
               loadBalancer:
                 description: "represents the load balancing properties of this object"
