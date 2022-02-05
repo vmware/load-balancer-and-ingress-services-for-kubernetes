@@ -94,6 +94,8 @@ const (
 	IstioVirtualService                        = "IstioVirtualService"
 	IstioDestinationRule                       = "DestinationRule"
 	IstioGateway                               = "IstioGateway"
+	MultiClusterIngress                        = "MultiClusterIngress"
+	ServiceImport                              = "ServiceImport"
 	DummySecret                                = "@avisslkeycertrefdummy"
 	DummySecretK8s                             = "@k8ssecretdummy"
 	StatusRejected                             = "Rejected"

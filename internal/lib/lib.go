@@ -1181,6 +1181,12 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			allInformers = append(allInformers, utils.IngressInformer)
 			allInformers = append(allInformers, utils.IngressClassInformer)
 		}
+
+		// Add MultiClusterIngress and ServiceImport informers if enabled.
+		if utils.IsMultiClusterIngressEnabled() {
+			allInformers = append(allInformers, utils.MultiClusterIngressInformer)
+			allInformers = append(allInformers, utils.ServiceImportInformer)
+		}
 	}
 	return allInformers, nil
 }

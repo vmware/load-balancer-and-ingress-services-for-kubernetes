@@ -44,6 +44,12 @@ rules:
   - apiGroups: ["networking.x-k8s.io"]
     resources: ["gateways","gateways/status","gatewayclasses","gatewayclasses/status"]
     verbs: ["get","watch","list","patch","update"]
+  - apiGroups: ["ako.vmware.com"]
+    resources: ["multiclusteringresses","serviceimports"]
+    verbs: ["get","watch","list"]
+  - apiGroups: ["ako.vmware.com"]
+    resources: ["multiclusteringresses/status","serviceimports/status"]
+    verbs: ["get","patch"]
 {{- if .Values.rbac.pspEnable }}
   - apiGroups:
     - policy

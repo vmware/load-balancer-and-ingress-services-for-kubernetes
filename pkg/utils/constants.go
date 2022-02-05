@@ -28,6 +28,8 @@ const (
 	NodeInformer                  = "NodeInformer"
 	EndpointInformer              = "EndpointInformer"
 	ConfigMapInformer             = "ConfigMapInformer"
+	MultiClusterIngressInformer   = "MultiClusterIngressInformer"
+	ServiceImportInformer         = "ServiceImportInformer"
 	K8S_TLS_SECRET_CERT           = "tls.cert"
 	K8S_TLS_SECRET_KEY            = "tls.key"
 	IngressInformer               = "IngressInformer"
@@ -83,6 +85,7 @@ const (
 	ENV_CTRL_IPADDRESS            = "CTRL_IPADDRESS"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
+	MCI_ENABLED                   = "MCI_ENABLED"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours

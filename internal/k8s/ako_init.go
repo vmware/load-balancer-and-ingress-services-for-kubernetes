@@ -934,6 +934,44 @@ func (c *AviController) FullSyncK8s() error {
 				nodes.DequeueIngestion(key, true)
 			}
 		}
+		if utils.IsMultiClusterIngressEnabled() {
+			mciObjs, err := utils.GetInformers().MultiClusterIngressInformer.Lister().MultiClusterIngresses(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the multi-cluster ingresses during full sync: %s", err)
+				return err
+			}
+			for _, mciObj := range mciObjs {
+				mciLabel := utils.ObjKey(mciObj)
+				ns := strings.Split(mciLabel, "/")
+				if utils.CheckIfNamespaceAccepted(ns[0]) {
+					key := lib.MultiClusterIngress + "/" + mciLabel
+					meta, err := meta.Accessor(mciObj)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					}
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+			siObjs, err := utils.GetInformers().ServiceImportInformer.Lister().ServiceImports(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the service imports during full sync: %s", err)
+				return err
+			}
+			for _, siObj := range siObjs {
+				siLabel := utils.ObjKey(siObj)
+				ns := strings.Split(siLabel, "/")
+				if utils.CheckIfNamespaceAccepted(ns[0]) {
+					key := lib.MultiClusterIngress + "/" + siLabel
+					meta, err := meta.Accessor(siObj)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					}
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+		}
 	} else {
 		//Gateway Section
 

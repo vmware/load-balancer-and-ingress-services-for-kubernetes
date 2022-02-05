@@ -161,6 +161,7 @@ func InitializeAKC() {
 
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = oshiftClient
+	informersArg[utils.INFORMERS_AKO_CLIENT] = crdClient
 
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()

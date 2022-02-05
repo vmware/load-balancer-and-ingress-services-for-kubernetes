@@ -27,8 +27,11 @@ import (
 type AkoV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	AviInfraSettingsGetter
+	ClusterSetsGetter
 	HTTPRulesGetter
 	HostRulesGetter
+	MultiClusterIngressesGetter
+	ServiceImportsGetter
 }
 
 // AkoV1alpha1Client is used to interact with features provided by the ako.vmware.com group.
@@ -40,12 +43,24 @@ func (c *AkoV1alpha1Client) AviInfraSettings() AviInfraSettingInterface {
 	return newAviInfraSettings(c)
 }
 
+func (c *AkoV1alpha1Client) ClusterSets(namespace string) ClusterSetInterface {
+	return newClusterSets(c, namespace)
+}
+
 func (c *AkoV1alpha1Client) HTTPRules(namespace string) HTTPRuleInterface {
 	return newHTTPRules(c, namespace)
 }
 
 func (c *AkoV1alpha1Client) HostRules(namespace string) HostRuleInterface {
 	return newHostRules(c, namespace)
+}
+
+func (c *AkoV1alpha1Client) MultiClusterIngresses(namespace string) MultiClusterIngressInterface {
+	return newMultiClusterIngresses(c, namespace)
+}
+
+func (c *AkoV1alpha1Client) ServiceImports(namespace string) ServiceImportInterface {
+	return newServiceImports(c, namespace)
 }
 
 // NewForConfig creates a new AkoV1alpha1Client for the given config.

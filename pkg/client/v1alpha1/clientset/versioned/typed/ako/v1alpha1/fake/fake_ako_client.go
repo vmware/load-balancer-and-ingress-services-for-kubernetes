@@ -32,12 +32,24 @@ func (c *FakeAkoV1alpha1) AviInfraSettings() v1alpha1.AviInfraSettingInterface {
 	return &FakeAviInfraSettings{c}
 }
 
+func (c *FakeAkoV1alpha1) ClusterSets(namespace string) v1alpha1.ClusterSetInterface {
+	return &FakeClusterSets{c, namespace}
+}
+
 func (c *FakeAkoV1alpha1) HTTPRules(namespace string) v1alpha1.HTTPRuleInterface {
 	return &FakeHTTPRules{c, namespace}
 }
 
 func (c *FakeAkoV1alpha1) HostRules(namespace string) v1alpha1.HostRuleInterface {
 	return &FakeHostRules{c, namespace}
+}
+
+func (c *FakeAkoV1alpha1) MultiClusterIngresses(namespace string) v1alpha1.MultiClusterIngressInterface {
+	return &FakeMultiClusterIngresses{c, namespace}
+}
+
+func (c *FakeAkoV1alpha1) ServiceImports(namespace string) v1alpha1.ServiceImportInterface {
+	return &FakeServiceImports{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
