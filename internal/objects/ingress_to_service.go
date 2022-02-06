@@ -69,6 +69,8 @@ type SvcLister struct {
 	secretHostNameStore *ObjectStore
 	ingClassStore       *ObjectStore
 	classIngStore       *ObjectStore
+	svcSIStore          *ObjectStore
+	SISvcStore          *ObjectStore
 }
 
 type SvcNSCache struct {
@@ -82,6 +84,7 @@ type SvcNSCache struct {
 	IngHostCache
 	SecretHostNameNSCache
 	IngClassNSCache
+	mciNSCache
 }
 
 // stores path/policies for a hostname

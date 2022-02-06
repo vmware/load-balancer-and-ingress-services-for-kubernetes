@@ -32,8 +32,8 @@ import (
 func DequeueIngestion(key string, fullsync bool) {
 	// The key format expected here is: objectType/Namespace/ObjKey
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
-	var ingressFound, routeFound bool
-	var ingressNames, routeNames []string
+	var ingressFound, routeFound, mciFound bool
+	var ingressNames, routeNames, mciNames []string
 	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
@@ -49,6 +49,10 @@ func DequeueIngestion(key string, fullsync bool) {
 			ingressNames, ingressFound = schema.GetParentIngresses(name, namespace, key)
 		} else if utils.GetInformers().RouteInformer != nil && schema.GetParentRoutes != nil {
 			routeNames, routeFound = schema.GetParentRoutes(name, namespace, key)
+		}
+		// CHECKME: both ingress and mci processing?
+		if utils.GetInformers().MultiClusterIngressInformer != nil && schema.GetParentMultiClusterIngresses != nil {
+			mciNames, mciFound = schema.GetParentMultiClusterIngresses(name, namespace, key)
 		}
 	}
 
@@ -85,6 +89,13 @@ func DequeueIngestion(key string, fullsync bool) {
 					}
 					handleRoute(svcl7Key, fullsync, filteredRouteNames)
 				}
+				if mciFound {
+					filteredMCIFound, filteredMCINames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).GetSvcToIng(svcName)
+					if !filteredMCIFound {
+						continue
+					}
+					handleMultiClusterIngress(svcl7Key, fullsync, filteredMCINames)
+				}
 			}
 		}
 		return
@@ -119,7 +130,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if !ingressFound && !lib.GetAdvancedL4() {
+	if !ingressFound && !lib.GetAdvancedL4() && !mciFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
@@ -145,6 +156,9 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	} else {
+		if mciFound {
+			handleMultiClusterIngress(key, fullsync, mciNames)
+		}
 		handleIngress(key, fullsync, ingressNames)
 	}
 
@@ -475,6 +489,17 @@ func handleIngress(key string, fullsync bool, ingressNames []string) {
 		nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
 		utils.AviLog.Debugf("key: %s, msg: processing ingress: %s", key, ingress)
 		HostNameShardAndPublish(utils.Ingress, nameing, nsing, key, fullsync, sharedQueue)
+	}
+}
+
+func handleMultiClusterIngress(key string, fullsync bool, ingressNames []string) {
+	objType, namespace, _ := lib.ExtractTypeNameNamespace(key)
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	// The only other shard scheme we support now is hostname sharding.
+	for _, ingress := range ingressNames {
+		nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
+		utils.AviLog.Debugf("key: %s, msg: processing multi-cluster ingress: %s", key, ingress)
+		HostNameShardAndPublish(lib.MultiClusterIngress, nameing, nsing, key, fullsync, sharedQueue)
 	}
 }
 
