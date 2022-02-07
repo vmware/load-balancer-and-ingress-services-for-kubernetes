@@ -634,19 +634,14 @@ func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName strin
 	var hostPathMapSvcList HostMetadata
 	var tlsConfigs []TlsSettings
 	for _, config := range ingSpec.Config {
-
-		// What to fill?
-		// tlsSettings
-		// hostpath host map
-
 		ingressHPSvc := IngressHostPathSvc{
-			ServiceName: config.Service.Name,
-			Path:        config.Path,
-			PathType:    networkingv1.PathTypeImplementationSpecific,
-			Port:        int32(config.Service.Port), // TODO: multi port support?
-			weight:      int32(config.Weight),
-			PortName:    v.findPortName(config.Service.Name, ns, int32(config.Service.Port), key),
-			// TargetPort: //TODO: get the target port
+			ServiceName:    config.Service.Name,
+			Path:           config.Path,
+			PathType:       networkingv1.PathTypeImplementationSpecific,
+			Port:           int32(config.Service.Port),
+			weight:         int32(config.Weight),
+			clusterContext: config.ClusterContext,
+			svcNamespace:   config.Service.Namespace,
 		}
 		hostPathMapSvcList.ingressHPSvc = append(hostPathMapSvcList.ingressHPSvc, ingressHPSvc)
 	}

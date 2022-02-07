@@ -375,11 +375,12 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	return pool_meta
 }
 
-func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, serviceName string, key string) []AviPoolMetaServer {
+func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, serviceNamespace, serviceName string, key string) []AviPoolMetaServer {
 	var servers []AviPoolMetaServer
-	success, siNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(ns).GetSvcToSI(serviceName)
+	svcName := generateMultiClusterKey(cluster, serviceNamespace, serviceName)
+	success, siNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(ns).GetSvcToSI(svcName)
 	if !success {
-		utils.AviLog.Errorf("key: %s, msg: failed to get service imports mapped to service with name: %v", key, serviceName)
+		utils.AviLog.Errorf("key: %s, msg: failed to get service imports mapped to service with name: %v", key, svcName)
 		return servers
 	}
 
