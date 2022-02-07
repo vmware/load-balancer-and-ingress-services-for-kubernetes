@@ -110,20 +110,26 @@ func ServiceImportToMultiClusterIng(siName string, namespace string, key string)
 	serviceImport, err := utils.GetInformers().ServiceImportInformer.Lister().ServiceImports(namespace).Get(siName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error getting service import with name: %s", key, siName)
-		// Detect a delete condition here.
-		if k8serrors.IsNotFound(err) {
-			found, svcNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).GetSIToSvc(siName)
-			if found {
-				objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).DeleteSvcToSIMapping(svcNames[0])
-			}
-			objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).DeleteSIToSvcMapping(siName)
+		// if it is not a delete condition, then do nothing.
+		if !k8serrors.IsNotFound(err) {
+			return []string{}, false
 		}
-		return []string{}, false
+		found, svcNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).GetSIToSvc(siName)
+		utils.AviLog.Debugf("key: %s, msg: services retrieved for service import with name: %s, services %s", key, siName, svcNames)
+		if !found {
+			return []string{}, false
+		}
+		svcName := svcNames[0]
+		objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).DeleteSvcToSIMapping(svcName)
+		objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).DeleteSIToSvcMapping(siName)
+		found, mciNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).GetSvcToIng(svcName)
+		utils.AviLog.Debugf("key: %s, msg: Multi-cluster ingresses retrieved for service with name: %s, multi-cluster ingresses", key, svcName, mciNames)
+		return mciNames, found
 	}
 
 	svcName := generateMultiClusterKey(serviceImport.Spec.Cluster, serviceImport.Spec.Namespace, serviceImport.Spec.Service)
 
-	// Add SI mapping
+	// Add SI mappings
 	objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).UpdateSvcToSIMapping(svcName, []string{siName})
 	objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).UpdateSIToSvcMapping(siName, []string{svcName})
 

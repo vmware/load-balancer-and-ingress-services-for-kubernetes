@@ -380,7 +380,7 @@ func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, s
 	svcName := generateMultiClusterKey(cluster, serviceNamespace, serviceName)
 	success, siNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(ns).GetSvcToSI(svcName)
 	if !success {
-		utils.AviLog.Errorf("key: %s, msg: failed to get service imports mapped to service with name: %v", key, svcName)
+		utils.AviLog.Warnf("key: %s, msg: failed to get service imports mapped to service with name: %v", key, svcName)
 		return servers
 	}
 

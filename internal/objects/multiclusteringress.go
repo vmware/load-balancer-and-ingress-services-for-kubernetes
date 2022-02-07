@@ -120,7 +120,7 @@ func (c *mciNSCache) GetSIToSvc(siName string) (bool, []string) {
 func (c *mciNSCache) DeleteSIToSvcMapping(siName string) bool {
 	c.Lock()
 	defer c.Unlock()
-	success := c.svcSICache.Delete(siName)
+	success := c.SISvcCache.Delete(siName)
 	utils.AviLog.Debugf("Deleted the service to service imports mappings for service import with name: %s", siName)
 	return success
 }
@@ -129,5 +129,5 @@ func (c *mciNSCache) UpdateSIToSvcMapping(siName string, svcList []string) {
 	c.Lock()
 	defer c.Unlock()
 	utils.AviLog.Debugf("Updated the service imports to service mappings for service import with name: %s, services: %s", siName, svcList)
-	c.svcSICache.AddOrUpdate(siName, svcList)
+	c.SISvcCache.AddOrUpdate(siName, svcList)
 }
