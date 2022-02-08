@@ -90,7 +90,7 @@ spec:
                       properties:
                         hostname:
                           description:  "host fqdn handled by this multi cluster ingress resource"
-                          type: "string"
+                          type: string
                         ip:
                           description: "virtual IP address assigned to this object by the load balancer"
                           type: string
@@ -99,3 +99,5 @@ spec:
         - spec
     served: true
     storage: true
+    subresources:
+      status: {}

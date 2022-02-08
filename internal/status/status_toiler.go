@@ -78,6 +78,12 @@ func DequeueStatus(objIntf interface{}) error {
 		} else if obj.Op == lib.DeleteStatus {
 			DeleteNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
 		}
+	case lib.MultiClusterIngress:
+		if obj.Op == lib.UpdateStatus {
+			UpdateMultiClusterIngressStatusAndAnnotation(obj.Key, obj.Options)
+		} else if obj.Op == lib.DeleteStatus {
+			DeleteMultiClusterIngressStatusAndAnnotation(obj.Key, obj.Options)
+		}
 	}
 	return nil
 }

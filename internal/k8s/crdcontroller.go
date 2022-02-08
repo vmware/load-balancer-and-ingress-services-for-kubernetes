@@ -791,11 +791,6 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 // validateMultiClusterIngressObj validates the MCI CRD changes before pushing it to ingestion
 func validateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error {
 
-	// AMKO might have updated the status hence returning.
-	if multiClusterIngress.Status.Status.Accepted {
-		return nil
-	}
-
 	var err error
 	statusToUpdate := &akov1alpha1.MultiClusterIngressStatus{}
 	defer func() {
@@ -812,6 +807,12 @@ func validateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1
 	// Currently, we support only NodePort ServiceType.
 	if !lib.IsNodePortMode() {
 		err = fmt.Errorf("ServiceType must be of type NodePort")
+		return err
+	}
+
+	// Currently, we support EVH mode only.
+	if !lib.IsEvhEnabled() {
+		err = fmt.Errorf("AKO must be in EVH mode")
 		return err
 	}
 
