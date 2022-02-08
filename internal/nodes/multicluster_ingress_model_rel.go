@@ -40,9 +40,7 @@ func MultiClusterIngressChanges(ingName string, namespace string, key string) ([
 			}
 			objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).DeleteIngToSvcMapping(ingName)
 			objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).RemoveIngressSecretMappings(ingName)
-			return ingresses, true
 		}
-		return ingresses, false
 	} else {
 
 		// TODO: Validation of host + path across MCIs

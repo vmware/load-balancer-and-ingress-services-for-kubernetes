@@ -910,11 +910,14 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			if servers := PopulateServersForNPL(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
 			}
-		} else if serviceType == lib.NodePort &&
-			modelType == lib.MultiClusterIngress {
-			// incase of multi-cluster ingress, the servers are created using service import CRD
-			if servers := PopulateServersForMultiClusterIngress(poolNode, namespace, path.clusterContext, path.svcNamespace, path.ServiceName, key); servers != nil {
-				poolNode.Servers = servers
+		} else if modelType == lib.MultiClusterIngress {
+			if serviceType == lib.NodePort {
+				// incase of multi-cluster ingress, the servers are created using service import CRD
+				if servers := PopulateServersForMultiClusterIngress(poolNode, namespace, path.clusterContext, path.svcNamespace, path.ServiceName, key); servers != nil {
+					poolNode.Servers = servers
+				}
+			} else {
+				utils.AviLog.Errorf("key: %s, msg: Multi-cluster ingress is only supported for serviceType NodePort, not adding the servers", key)
 			}
 		} else if serviceType == lib.NodePort {
 			if servers := PopulateServersForNodePort(poolNode, namespace, path.ServiceName, true, key); servers != nil {

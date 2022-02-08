@@ -387,7 +387,7 @@ func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, s
 	for _, siName := range siNames {
 		serviceImport, err := utils.GetInformers().ServiceImportInformer.Lister().ServiceImports(ns).Get(siName)
 		if err != nil {
-			utils.AviLog.Errorf("key: %s, msg: failed to get service imports with name: %v", key, siName)
+			utils.AviLog.Warnf("key: %s, msg: failed to get service imports with name: %v", key, siName)
 			continue
 		}
 		for _, backend := range serviceImport.Spec.SvcPorts {

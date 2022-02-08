@@ -607,26 +607,9 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	return ingressConfig
 }
 
-// ParseHostPathForMultiClusterIngress handling for hostrule: if the host has a hostrule, and that hostrule has a tls.sslkeycertref then
-// move that host in the tls.hosts, this should be only in case of hostname sharding
+// ParseHostPathForMultiClusterIngress extracts the information from multi-cluster ingress object and generates ingress configs required for creating the models.
 func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName string, ingSpec *v1alpha1.MultiClusterIngressSpec, key string) IngressConfig {
 	// Figure out the service names that are part of this ingress
-
-	// additionalSecureHostMap := make(IngressHostMap)
-	// secretHostsMap := make(map[string][]string)
-	// subDomains := GetDefaultSubDomain()
-
-	// var useDefaultSecret bool
-	// if val, found := annotations[lib.DefaultSecretEnabled]; found {
-	// 	useDefaultSecret = strings.EqualFold(val, "true")
-	// }
-
-	// var passthroughEnabled bool
-	// pass := PassthroughSettings{}
-	// passConfig := make(map[string]PassthroughSettings)
-	// if val, found := annotations[lib.PassthroughAnnotation]; found {
-	// 	passthroughEnabled = strings.EqualFold(val, "true")
-	// }
 
 	hostname := ingSpec.Hostname
 	secretName := ingSpec.SecretName
