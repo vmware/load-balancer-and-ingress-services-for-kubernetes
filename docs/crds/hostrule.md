@@ -93,9 +93,9 @@ The httppolicyset currently is only applicable for secure FQDNs and cannot be ap
 The order of evaluation of the httpolicyset rules is in the same order they appear in the CRD definition. The list of httpolicyset rules are
 always intepreted as an `AND` operation.
 
-AKO currently uses httppolicyset objects on the SNI virtualservices to route traffic based on host/path matches. These rules are always at
+AKO currently uses httppolicyset objects on the SNI/EVH virtualservices to route traffic based on host/path matches. These rules are always at
 a lower index than the httppolicyset objects specified in the CRD object. In case, a user would want to overwrite all httppolicyset objects
-on a SNI virtualservice with the ones specified in the HostRule CRD, the `overwrite` flag can be set to `true`. The default value  for  `overwrite` is `false`.
+on a virtualservice with the ones specified in the HostRule CRD, the `overwrite` flag can be set to `true`. The default value  for  `overwrite` is `false`.
 
 
 #### Express WAF policy object refs.
@@ -175,7 +175,6 @@ This additional FQDN inherits all the properties of the root FQDN specified unde
 Use this flag if you would want traffic with a GSLB FQDN to get routed to a site local FQDN. For example, in the above CRD, the client request from a GSLB
 DNS will arrive with the host header as foo.com to the VIP hosting foo.region1.com in region1. This CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`
 
-This knob is currently only supported with the SNI model and not with Enhanced Virtual Hosting model.
 
 #### Configure Analytics Policy
 
@@ -197,7 +196,7 @@ The TCP Settings section is responsible for configuring Parent virtualservice sp
 The `tcpSettings` block, in addition to any other parameters provided in the HostRule, is only applied to Parent VSes and dedicated VSes. The `tcpSettings` block does not have any effect on child VSes.
 
 In order to consume TCP setting configurations for parent VSes, the HostRule must be matched to a Shared/Dedicated VS FQDN, using the existing `fqdn` field in HostRule. 
-Where dedicated VSes are created corresponding to a single application, Shared VSes would host multiple application FQDNs. Therefore, in order to apply a HostRule to a dedicated VS, users can simply provide the application FQDN in the HostRule `fqdn` field. For Shared VSes however, users can either provide the AKO programmed Shared VS FQDN (TODO: Provide link), or utilize the `fqdnType: Contains` parameter with the Shared VS name itself.
+Where dedicated VSes are created corresponding to a single application, Shared VSes would host multiple application FQDNs. Therefore, in order to apply a HostRule to a dedicated VS, users can simply provide the application FQDN in the HostRule `fqdn` field. For Shared VSes however, users can either provide the AKO programmed Shared VS FQDN, or utilize the `fqdnType: Contains` parameter with the Shared VS name itself.
 
         fqdn: foo.com     # dedicated VS
         fqdnType: Exact
