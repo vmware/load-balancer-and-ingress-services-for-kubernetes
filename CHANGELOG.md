@@ -207,5 +207,6 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Bugs fixed
  - Problem in creating VSVip for Passthrough routes.
- - Problem in correctly saving ipamType in AKO when no DNS providers are set in the Cloud
+ - Problem in correctly saving ipamType in AKO when no DNS providers are set in the Cloud.
  - Fixes related to fqdnType Contains/Wildcard in HostRules.
+ - Fixes validation related to tcpSettings listener ports in HostRules.
