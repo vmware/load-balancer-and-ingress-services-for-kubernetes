@@ -97,6 +97,11 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			ServiceMetadata:       &svc_mdata,
 		}
 
+		if vs_meta.AppProfileRef != "" {
+			// hostrule ref overrides defaults
+			vs.ApplicationProfileRef = proto.String(vs_meta.AppProfileRef)
+		}
+
 		if lib.GetT1LRPath() != "" {
 			// Clear the vrfContextRef
 			vs.VrfContextRef = nil
@@ -165,6 +170,15 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vs.VsDatascripts = vsdatascripts
 		}
 
+		var datascriptCollection []*avimodels.VSDataScripts
+		for i, script := range vs_meta.VsDatascriptRefs {
+			j := int32(i)
+			datascript := script
+			datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
+			datascriptCollection = append(datascriptCollection, datascripts)
+		}
+		vs.VsDatascripts = datascriptCollection
+
 		var httpPolicyCollection []*avimodels.HTTPPolicies
 		internalPolicyIndexBuffer := int32(11)
 		if len(vs_meta.HttpPolicyRefs) > 0 {
@@ -176,6 +190,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 				httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 			}
 		}
+
 		//Dedicated VS
 		if vs_meta.Dedicated {
 			setDedicatedVSNodeProperties(&vs, vs_meta)

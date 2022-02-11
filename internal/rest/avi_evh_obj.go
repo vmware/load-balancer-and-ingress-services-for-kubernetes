@@ -277,6 +277,11 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		// This is EVH Parent or dedicated VS
 		network_prof := "/api/networkprofile/?name=" + vs_meta.NetworkProfile
 		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
+		if vs_meta.AppProfileRef != "" {
+			// hostrule ref overrides defaults
+			app_prof = vs_meta.AppProfileRef
+		}
+
 		name := vs_meta.Name
 		cksum := vs_meta.CloudConfigCksum
 		checksumstr := strconv.Itoa(int(cksum))
@@ -344,20 +349,37 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			vs.Services = append(vs.Services, &svc)
 		}
 
+		var httpPolicyCollection []*avimodels.HTTPPolicies
+		internalPolicyIndexBuffer := int32(11)
 		if len(vs_meta.HttpPolicyRefs) > 0 {
-			var i int32
-			i = 0
-			var httpPolicyCollection []*avimodels.HTTPPolicies
-			for _, http := range vs_meta.HttpPolicyRefs {
+			for i, http := range vs_meta.HttpPolicyRefs {
 				// Update them on the VS object
-				var j int32
-				j = i + 11
-				i = i + 1
+				j := int32(i) + internalPolicyIndexBuffer
 				httpPolicy := fmt.Sprintf("/api/httppolicyset/?name=%s", http.Name)
 				httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
 				httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
 			}
-			vs.HTTPPolicies = httpPolicyCollection
+		}
+
+		bufferLen := int32(len(httpPolicyCollection)) + internalPolicyIndexBuffer + 5
+		for i, policy := range vs_meta.HttpPolicySetRefs {
+			j := int32(i) + bufferLen
+			httpPolicy := policy
+			httpPolicies := &avimodels.HTTPPolicies{HTTPPolicySetRef: &httpPolicy, Index: &j}
+			httpPolicyCollection = append(httpPolicyCollection, httpPolicies)
+		}
+		vs.HTTPPolicies = httpPolicyCollection
+
+		// Datascripts from hostrule.
+		var datascriptCollection []*avimodels.VSDataScripts
+		for i, script := range vs_meta.VsDatascriptRefs {
+			j := int32(i)
+			datascript := script
+			datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
+			datascriptCollection = append(datascriptCollection, datascripts)
+		}
+		if len(datascriptCollection) > 0 {
+			vs.VsDatascripts = datascriptCollection
 		}
 
 		if vs_meta.TLSType != utils.TLS_PASSTHROUGH && !vs_meta.Dedicated {
