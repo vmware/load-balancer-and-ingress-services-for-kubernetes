@@ -45,11 +45,6 @@ type UpdateOptions struct {
 	VSName             string
 }
 
-const (
-	VSAnnotation         = "ako.vmware.com/host-fqdn-vs-uuid-map"
-	ControllerAnnotation = "ako.vmware.com/controller-cluster-uuid"
-)
-
 // VSUuidAnnotation is maps a hostname to the UUID of the virtual service where it is placed.
 
 func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
@@ -200,7 +195,7 @@ func updateIngAnnotations(ingObj *networkingv1.Ingress, hostnamesToBeUpdated []s
 	var err error
 	vsAnnotations := make(map[string]string)
 
-	if value, ok := ingObj.Annotations[VSAnnotation]; ok {
+	if value, ok := ingObj.Annotations[lib.VSAnnotation]; ok {
 		if err := json.Unmarshal([]byte(value), &vsAnnotations); err != nil {
 			// just print an error and continue, this will be taken care of during the update
 			utils.AviLog.Errorf("key: %s, error in unmarshalling Ingress %s/%s annotations for VS: %v",
@@ -240,7 +235,7 @@ func updateIngAnnotations(ingObj *networkingv1.Ingress, hostnamesToBeUpdated []s
 }
 
 func isAnnotationsUpdateRequired(ingAnnotations map[string]string, newVSAnnotations map[string]string) bool {
-	oldVSAnnotationsStr, ok := ingAnnotations[VSAnnotation]
+	oldVSAnnotationsStr, ok := ingAnnotations[lib.VSAnnotation]
 	if !ok {
 		if len(newVSAnnotations) > 0 {
 			return true
@@ -285,8 +280,8 @@ func getAnnotationsPayload(vsAnnotations map[string]string, existingAnnotations 
 	patchPayload := map[string]interface{}{
 		"metadata": map[string]map[string]*string{
 			"annotations": {
-				VSAnnotation:         vsAnnotationVal,
-				ControllerAnnotation: ctrlAnnotationVal,
+				lib.VSAnnotation:         vsAnnotationVal,
+				lib.ControllerAnnotation: ctrlAnnotationVal,
 			},
 		},
 	}
@@ -368,7 +363,7 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 			if !lib.ValidateIngressForClass(key, mIngress) || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) || !utils.HasElem(hostListIng, host) || isVSDelete {
 				mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 			} else {
-				utils.AviLog.Infof("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
+				utils.AviLog.Debugf("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
 			}
 		}
 	}
@@ -428,7 +423,7 @@ func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta lib.ServiceMe
 		}
 	}
 	existingAnnotations := make(map[string]string)
-	if annotations, exists := ingObj.Annotations[VSAnnotation]; exists {
+	if annotations, exists := ingObj.Annotations[lib.VSAnnotation]; exists {
 		if err := json.Unmarshal([]byte(annotations), &existingAnnotations); err != nil {
 			return fmt.Errorf("error in unmarshalling annotations for ingress: %v", err)
 		}
