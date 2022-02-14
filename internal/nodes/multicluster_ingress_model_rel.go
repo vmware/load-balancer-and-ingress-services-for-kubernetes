@@ -34,9 +34,9 @@ func MultiClusterIngressChanges(ingName string, namespace string, key string) ([
 		// Detect a delete condition here.
 		if k8serrors.IsNotFound(err) {
 			// Garbage collect the service if no ingress references exist
-			_, ingresses := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).GetIngToSvc(ingName)
-			if len(ingresses) == 0 {
-				objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).DeleteIngToSvcMapping(ingName)
+			_, svcNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).GetIngToSvc(ingName)
+			for _, svcName := range svcNames {
+				objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).RemoveSvcFromIngressMappings(ingName, svcName)
 			}
 			objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).DeleteIngToSvcMapping(ingName)
 			objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).RemoveIngressSecretMappings(ingName)
