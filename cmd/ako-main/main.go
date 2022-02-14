@@ -83,7 +83,8 @@ func InitializeAKC() {
 
 	// Initialize akoControlConfig
 	akoControlConfig := lib.AKOControlConfig()
-
+	//Use this AKO_ID to set vrf context, static routes
+	lib.SetAKOID()
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset

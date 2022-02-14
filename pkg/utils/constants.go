@@ -75,6 +75,7 @@ const (
 	GlobalVRF                     = "global"
 	VRF_CONTEXT                   = "VRF_CONTEXT"
 	FULL_SYNC_INTERVAL            = "FULL_SYNC_INTERVAL"
+	AKO_ID                        = "AKO_ID"
 	DEFAULT_FILE_SUFFIX           = "avi.log"
 	K8S_ETIMEDOUT                 = "timed out"
 	ADVANCED_L4                   = "ADVANCED_L4"

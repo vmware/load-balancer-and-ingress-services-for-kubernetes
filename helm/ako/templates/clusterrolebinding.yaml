@@ -1,7 +1,11 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  {{- if eq .Values.AKOSettings.akoID 1 }}
   name: ako-crb
+  {{- else }}
+  name: ako-crb-{{ .Values.AKOSettings.akoID }}
+  {{- end }}
   labels:
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 roleRef:

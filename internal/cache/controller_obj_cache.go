@@ -1752,6 +1752,11 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		utils.AviLog.Infof("Static route sync disabled in NodePort Mode")
 		return nil
 	}
+	ako_id := lib.GetAKOID()
+	if ako_id != "1" {
+		utils.AviLog.Warnf("AKO id is: [%v], not populating vrf cache.", ako_id)
+		return nil
+	}
 	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -3096,6 +3101,10 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		// Need not set VRFContext for public clouds.
 		return true
 	}
+	if lib.IsNodePortMode() {
+		utils.AviLog.Infof("Using global VRF for NodePort mode")
+		return true
+	}
 
 	networkList := lib.GetVipNetworkList()
 	if len(networkList) == 0 {
@@ -3135,10 +3144,6 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		return false
 	}
 
-	if lib.IsNodePortMode() {
-		utils.AviLog.Infof("Using global VRF for NodePort mode")
-		return true
-	}
 	if lib.GetCloudType() == lib.CLOUD_NSXT &&
 		lib.GetServiceType() == "ClusterIP" &&
 		lib.GetCNIPlugin() != lib.NCP_CNI &&

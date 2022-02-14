@@ -670,31 +670,36 @@ func (c *AviController) FullSyncK8s() error {
 	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
-		lib.SetStaticRouteSyncHandler()
-		nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
-		for _, node := range nodeObjects {
-			key := utils.NodeObj + "/" + node.Name
-			meta, err := meta.Accessor(node)
-			if err == nil {
-				resVer := meta.GetResourceVersion()
-				objects.SharedResourceVerInstanceLister().Save(key, resVer)
+		ako_id := lib.GetAKOID()
+		if ako_id == "1" {
+			lib.SetStaticRouteSyncHandler()
+			nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
+			for _, node := range nodeObjects {
+				key := utils.NodeObj + "/" + node.Name
+				meta, err := meta.Accessor(node)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				nodes.DequeueIngestion(key, true)
 			}
-			nodes.DequeueIngestion(key, true)
-		}
-		// Publish vrfcontext model now, this has to be processed first
-		vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
-		utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
-		nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
-		timeout := make(chan bool, 1)
-		go func() {
-			time.Sleep(20 * time.Second)
-			timeout <- true
-		}()
-		select {
-		case <-lib.StaticRouteSyncChan:
-			utils.AviLog.Infof("Processing done for VRF")
-		case <-timeout:
-			utils.AviLog.Warnf("Timed out while waiting for rest layer to respond, moving on with bootup")
+			// Publish vrfcontext model now, this has to be processed first
+			vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
+			utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
+			nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
+			timeout := make(chan bool, 1)
+			go func() {
+				time.Sleep(20 * time.Second)
+				timeout <- true
+			}()
+			select {
+			case <-lib.StaticRouteSyncChan:
+				utils.AviLog.Infof("Processing done for VRF")
+			case <-timeout:
+				utils.AviLog.Warnf("Timed out while waiting for rest layer to respond, moving on with bootup")
+			}
+		} else {
+			utils.AviLog.Warnf("AKO id is: [%v], skipping vrf context publish in full sync.", ako_id)
 		}
 	}
 

@@ -4,6 +4,7 @@ metadata:
   name: avi-k8s-config
   namespace: {{ .Release.Namespace }}
 data:
+  akoID: {{ .Values.AKOSettings.akoID | quote }}
   controllerIP: {{ .Values.ControllerSettings.controllerHost | quote }}
   controllerVersion: {{ .Values.ControllerSettings.controllerVersion | quote }}
   cniPlugin: {{ .Values.AKOSettings.cniPlugin | quote }}

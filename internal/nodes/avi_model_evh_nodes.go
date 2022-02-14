@@ -1653,8 +1653,12 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		}
 		newInfraPrefix = newSetting.Name
 	}
+	var akoID string
+	if lib.GetAKOID() != "1" {
+		akoID = lib.AKOSuffix + lib.GetAKOID() + "-"
+	}
 
-	shardVsPrefix := lib.GetNamePrefix() + lib.ShardEVHVSPrefix
+	shardVsPrefix := lib.GetNamePrefix() + lib.ShardEVHVSPrefix + akoID
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
 	if oldInfraPrefix != "" {
 		oldVsName += oldInfraPrefix + "-"

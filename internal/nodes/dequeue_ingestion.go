@@ -67,7 +67,12 @@ func DequeueIngestion(key string, fullsync bool) {
 	// if in NodePort Mode we update pool servers
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
-		processNodeObj(key, name, sharedQueue, fullsync)
+		akoID := lib.GetAKOID()
+		if akoID == "1" {
+			processNodeObj(key, name, sharedQueue, fullsync)
+		} else {
+			utils.AviLog.Infof("key: %s, msg: ako id is: %s. Not procesing node objects.", key, akoID)
+		}
 		if lib.IsNodePortMode() && !fullsync {
 			svcl4Keys, svcl7Keys := lib.GetSvcKeysForNodeCRUD()
 			for _, svcl4Key := range svcl4Keys {
@@ -624,7 +629,11 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 
 func GetShardVSPrefix(key string) string {
 	// sample prefix: clusterName--Shared-L7-
-	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-"
+	var akoID string
+	if lib.GetAKOID() != "1" {
+		akoID = "-" + lib.AKOSuffix + lib.GetAKOID()
+	}
+	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + akoID + "-"
 	utils.AviLog.Debugf("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }

@@ -10,6 +10,7 @@ image:
 
 ### This section outlines the generic AKO settings
 AKOSettings:
+  akoID: "1" # Defines unique ID of AKO instance. If multiple AKOs are running in a cluster, this ID should be different for each AKO instance. Default value: 1.
   enableEvents: "true" # Enables/disables Event broadcasting via AKO 
   logLevel: "WARN" # enum: INFO|DEBUG|WARN|ERROR
   fullSyncFrequency: "1800" # This frequency controls how often AKO polls the Avi controller to update itself with cloud configurations.

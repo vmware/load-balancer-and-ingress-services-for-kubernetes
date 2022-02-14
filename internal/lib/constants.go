@@ -72,6 +72,7 @@ const (
 	ShardVSSubstring                           = "Shared-"
 	ShardVSPrefix                              = "Shared-L7"
 	ShardEVHVSPrefix                           = "Shared-L7-EVH-"
+	AKOSuffix                                  = "ako-"
 	DedicatedSuffix                            = "-L7-dedicated"
 	EVHSuffix                                  = "-EVH"
 	PassthroughPrefix                          = "Shared-Passthrough-"
@@ -164,6 +165,7 @@ const (
 	AutoFQDNDisabled                           = "Disabled"
 	VCF_NETWORK                                = "vcf-ako-net"
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
+	AKO_ID                                     = "AKO_ID"
 	CRDActive                                  = "ACTIVE"
 	CRDInactive                                = "INACTIVE"
 	SSLPort                                    = 443
