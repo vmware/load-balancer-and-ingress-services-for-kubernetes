@@ -10,44 +10,53 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: "ako:latest"
+  imageRepository: projects.registry.vmware.com/ako/ako:1.6.1
   imagePullPolicy: "IfNotPresent"
   akoSettings:
-    enableEvents: "true"
+    enableEvents: true
     logLevel: "WARN"
     fullSyncFrequency: "1800"
-    apiServerPort: 8080
+    apiServerPort: 8080 
     deleteConfig: false
     disableStaticRouteSync: false
-    clusterName: "k8s-cluster"
-    cniPlugin: "antrea"
+    clusterName: "my-cluster"
+    cniPlugin: ""
+    enableEVH: false
+    layer7Only: false
     namespaceSelector:
       labelKey: ""
       labelValue: ""
+    servicesAPI: false
+    vipPerNamespace: false
 
   networkSettings:
+    nodeNetworkList: []
+    enableRHI: false
+    nsxtT1LR: ""
+    bgpPeerLabels: []
     vipNetworkList:
-      - networkName: "vcd-ns"
-        cidr: "10.10.0.0/16"
+     - networkName: net1
+       cidr: 100.1.1.0/24
 
   l7Settings:
     defaultIngController: true
-    serviceType: "ClusterIP"
-    shardVSSize: "LARGE" #enum
-    passthroughShardSize: "SMALL"   #enum
+    noPGForSNI: false
+    serviceType: ClusterIP
+    shardVSSize: "LARGE"
+    passthroughShardSize: "SMALL"
 
   l4Settings:
-    advancedL4: false
     defaultDomain: ""
+    autoFQDN: "default"
 
   controllerSettings:
     serviceEngineGroupName: "Default-Group"
-    controllerVersion: "20.1.2"
+    controllerVersion: ""
     cloudName: "Default-Cloud"
-    controllerIP: "10.10.10.11"
-    tenantName: ""
+    controllerIP: ""
+    tenantName: "admin"
 
-  nodePortSelector: # only applicable if servicetype is nodePort
+  nodePortSelector:
     key: ""
     value: ""
 
@@ -59,37 +68,42 @@ spec:
       cpu: "100m"
       memory: "200Mi"
 
-  podSecurityContext: {}
-
   rbac:
     pspEnable: false
 
-  service:
-    type: "ClusterIP"
-    port: 80
-
+  pvc: ""
   mountPath: "/log"
   logFile: "avi.log"
   ```
 
   - `metadata.finalizers`: Used for garbage collection. This field must have this element: `ako.vmware.com/cleanup`. Whenever, the AKOConfig object is deleted, the ako operator takes care of removing all the AKO related artifacts because of this finalizer.
-  - `metadata.name`: Name of the AKOConfig object. With `helm install`, the name of the default AKOConfig object is `avi-config`.
+  - `metadata.name`: Name of the AKOConfig object. With `helm install`, the name of the default AKOConfig object is `ako-config`.
   - `metadata.namespace`: The namespace in which the AKOConfig object (and hence, the ako-operator) will be created. Only `avi-system` namespace is allowed for the ako-operator.
   - `spec.imageRepository`: The image repository for the ako-operator.
   - `spec.akoSettings`: Settings for the AKO Controller.
+    * `enableEvents`: Enables/disables Event broadcasting via AKO 
     * `logLevel`: Log level for the AKO controller. Supported enum values: `INFO`, `DEBUG`, `WARN`, `ERROR`.
     * `fullSyncFrequency`: Interval at which the AKO controller does a full sync of all the objects.
     * `apiServerPort`: The port at which the AKO API Server is available.
     * `deleteConfig`: Set to true if user wants to delete AKO created objects from Avi. Default value is `false`.
     * `disableStaticRouteSync`: Disables static route syncing if set to `true`. Default value is `false`.
     * `clusterName`: Unique identifier for the running AKO controller instance. The AKO controller identifies objects, which it created on Avi Controller using the `clusterName` param.
-    * `cniPlugin`: CNI Plugin being used in kubernetes cluster. Specify one of: `calico`, `canal`, `flannel`.
+    * `cniPlugin`: Set the string if your CNI is calico or openshift. Specify one of: `calico`, `canal`, `flannel`, `openshift`, `antrea`, `ncp`.
+    * `enableEVH`: This enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services
+    * `layer7Only`: If this flag is switched on, then AKO will only do layer 7 loadbalancing.
     * `namespaceSelector.labelKey`: Set the key of a namespace's label, if the requirement is to sync k8s objects from that namespace.
     * `namespaceSelector.labelValue`: Set the value of a namespace's label, if the requirement is to sync k8s objects from that namespace.
-  - `networkSettings`: Data network settings
+    * `servicesAPI`: Flag that enables AKO in services API mode: https://kubernetes-sigs.github.io/service-apis/. Currently implemented only for L4. This flag uses the upstream GA APIs which are not backward compatible with the advancedL4 APIs which uses a fork and a version of v1alpha1pre1
+    * `vipPerNamespace`: # Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
+  - `networkSettings`: Data network setting
+    * `nodeNetworkList`: This list of network and cidrs are used in pool placement network for vcenter cloud. Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
+    * `enableRHI`: This is a cluster wide setting for BGP peering.
+    * `nsxtT1LR`: T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
+    * `bgpPeerLabels`: Select BGP peers using bgpPeerLabels, for selective VsVip advertisement.
     * `vipNetworkList`: List of Network Names and Subnet Information for VIP network, multiple networks allowed only for AWS Cloud.
   - `l7Settings`: Settings for L7 Virtual Services
     * `defaultIngController`: Set to `true` if AKO controller is the default Ingress controller on the cluster.
+    * `noPGForSNI`: Switching this knob to true, will get rid of poolgroups from SNI VSes. Do not use this flag, if you don't want http caching. This will be deprecated once the controller support caching on PGs.
     * `serviceType`: Type of services that we want to configure: Valid values: `ClusterIP` and `NodePort`.
     * `shardVSSize`: Use this to control the Avi Virtual service numbers. This applies to both secure/insecure VSes but does not apply for passthrough. Valud values: `LARGE`, `MEDIUM` and `SMALL`.
     * `passthroughShardSize`: Use this to control the passthrough virtualservice numbers. Valid values: `LARGE`, `MEDIUM` and `SMALL`.
@@ -108,6 +122,7 @@ spec:
   - `resources`: Specify the resources for the AKO Controller's statefulset.
   - `rbac`: Enable a pod security policy for the AKO Controller.
     * `pspEnable`: Set to `true` to create a pod security policy for the AKO controller's statefulset.
+  - `pvc`: Persistent Volume Claim name which AKO controller will use to store its logs.
   - `mountPath`: Mount path for the logs.
   - `logFile`: Log file name where the AKO controller will add it's logs.
 

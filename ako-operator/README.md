@@ -1,41 +1,158 @@
-## An operator for AKO
+# AKO Operator
 
-This operator takes care of deploying, managing and removing AKO from openshift/kubernetes clusters. It takes the AKO installation/deployment configuration from a CRD called `AKOConfig`.
+AKO operator takes care of deploying, managing and removing AKO from openshift/kubernetes clusters. It takes the AKO installation/deployment configuration from a CRD called `AKOConfig`.
 
-### Pre-reqs before deploying the operator
-- CRD for `AKOConfig` must be installed.
-- A secret called `avi-secret` must be installed. This contains the username
-  and password for the Avi controller in base64 encoding (edit [secret.yaml](config/secrets/secret.yaml)).
-- And, CRD definitions for `HostRule` and `HttpRule` must be installed
-  (Currently, not enforced).
+## Installing the operator
 
-Run `make install` to install the above definitions.
+### 1. Install using Helm CLI
 
-### Installing the operator
-#### Out of cluster execution
-To run the operator outside of a cluster, first build the binary:
+To install the Operator using Helm refer [here](../docs/install/operator.md)
+
+### 2. Install on Openshift cluster from OperatorHub using Web Console
+
+<i>**Step 1**</i>: Login to the web console of your Openshift cluster.
+
+<i>**Step 2**</i>: Navigate in the web console to the **Operators** → **OperatorHub** page.
+
+<i>**Step 3**</i>: Find `AKO Operator` provided by VMware. 
+
+<i>**Step 4**</i>: Click `install` and select the 1.6.2 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+
+<i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace. 
+
+> **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
+
+### 3. Manual Installation
+### 3.1 Out of cluster execution:
+<i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
+
+<i>**Step 2**</i>: Go to the operator directory
 ```
-cd ako-operator
+cd load-balancer-and-ingress-services-for-kubernetes/ako-operator
+```
+
+<i>**Step 3**</i>: To run the operator outside of a cluster, build the binary:
+```
 make ako-operator
 ```
-And then from `ako-operator` directory, run it using:
+
+<i>**Step 4**</i>: Execute the binary:
 ```
-bin/ako-operator
+./bin/ako-operator
 ```
-#### In-cluster execution
-First build the docker image:
+
+<i>**Step 5**</i>: Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
 ```
-make docker-build
+kubectl apply -f config/secrets/secret.yaml
 ```
-And then, use the following to deploy it on a k8s cluster.
+
+> **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
+
+### 3.2 In-cluster execution
+
+<i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
+
+<i>**Step 2**</i>: Build the docker image:
+```
+cd load-balancer-and-ingress-services-for-kubernetes
+make ako-operator-docker
+```
+<i>**Step 3**</i>: Go to the operator directory:
+```
+cd ako-operator
+```
+
+<i>**Step 4**</i>: Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
+```
+kubectl apply -f config/secrets/secret.yaml
+```
+
+<i>**Step 5**</i>: Use the following to deploy it on the cluster.
 ```
 make deploy
 ```
 
-### Configuration values
-Create an `AKOConfig` on the cluster. A sample file is present in [samples](config/samples/ako_v1alpha1_akoconfig.yaml).
+> **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
+
+### Upgrading the operator using Helm CLI
+
+<i>**Step 1**</i>: Run this command to update local AKO chart information from the chart repository:
+```
+helm repo update
+```
+
+<i>**Step 2**</i>: Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to upgrade the CRDs:
+```
+helm template ako/ako-operator --version 1.6.2 --include-crds --output-dir <output_dir>
+```
+
+<i>**Step 3**</i>: This will save the helm files to an output directory which will contain the CRDs corresponding to the Operator version. Install CRDs using:
+```
+kubectl apply -f <output_dir>/ako-operator/crds/
+```
+
+<i>**Step 4**</i>: List the release as shown below:
+```
+helm list -n avi-system
+```
+
+<i>**Step 5**</i>: Update the helm repo URL:
+```
+helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/ako
+
+"ako" has been added to your repositories
+```
+
+<i>**Step 6**</i>: Get the values.yaml for the latest Operator version:
+```
+helm show values ako/ako-operator --version 1.6.2 > values.yaml
+```
+Edit the file according to your setup.
+
+<i>**Step 7**</i>: Upgrade the helm chart:
+
+```
+helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.6.2 --namespace=avi-system
+```
+
+
+## <a id="ako-config">AKOConfig Custom Resource
+
+AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](../docs/akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
+
+#### Deploying the AKO Controller
+
+If the AKO operator was installed using helm, a default `AKOConfig` object called `ako-config` is already added and hence, this step is not required for helm based installation.
+**Note**: If the AKO operator was installed manually, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
+
+A sample of akoconfig is present [here](config/samples/ako_v1alpha1_akoconfig.yaml). Edit this file according to your setup.
 
 ```
 kubectl create -f config/samples/ako_v1alpha1_akoconfig.yaml
 ```
-The operator has now started syncing the AKO controller.
+
+#### Tweaking/Manage the AKO Controller
+
+If the user needs to change any properties of the AKO Controller, they can change the `AKOConfig` object and the changes will take effect once it is saved.
+
+    kubectl edit akoconfig -n avi-system ako-config
+
+**Note** that if the user edits the AKO controller's configmap/statefulset out-of-band, the changes will be overwritten by the AKO operator.
+
+#### Removing the AKO Controller
+
+To remove the AKO Controller, simply delete the `AKOConfig` object:
+
+```
+kubectl delete akoconfig -n avi-system ako-config
+```
+
+> **Troubleshooting**: If the Operator isn't running when akoconfig is deleted, the akoconfig will be stuck in terminating state. <br>
+If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-config` and remove the `finalizers` part. 
+
+
+### Versioning
+| **Operator version** | **Supported AKO Version** |
+| --------- | ----------- |
+| 1.5.3 | 1.5.2 |
+| 1.6.2 | 1.6.1 |
