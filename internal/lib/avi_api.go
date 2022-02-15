@@ -209,5 +209,10 @@ func NewAviRestClientWithToken(api_ep string, username string, authToken string)
 		utils.AviLog.Warnf("NewAviClient returned err %v", err)
 		return nil
 	}
+	controllerVersion := GetControllerVersion()
+	SetTenant := session.SetTenant(GetTenant())
+	SetTenant(aviClient.AviSession)
+	SetVersion := session.SetVersion(controllerVersion)
+	SetVersion(aviClient.AviSession)
 	return aviClient
 }
