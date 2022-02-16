@@ -32,6 +32,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -43,7 +44,8 @@ var ctrlonce sync.Once
 var tzonce sync.Once
 var transportZone string
 
-var NsxNetworkConfigCount int = 0
+var WorkloadNamespaceCount int = 0
+var countLock sync.RWMutex
 
 type VCFK8sController struct {
 	worker_id        uint32
@@ -134,87 +136,84 @@ func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh
 	}
 }
 
-func (c *VCFK8sController) AddNSXNetworkConfigEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
-	// Saves the initial nsx network config count during reboot,
+func (c *VCFK8sController) AddNamespaceEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
+	// Saves the initial workload namespace count during reboot,
 	// before the config handlers are started.
-	if err := addNSXNetworkConfigCount(); err != nil {
-		utils.AviLog.Fatalf("Unable to list NSXNetworkConfig: %s", err.Error())
+	if err := c.addWorkloadNamespaceCount(); err != nil {
+		utils.AviLog.Fatalf("Unable to list Namespaces: %s", err.Error())
 	}
 
-	nsxNetworkConfigHandler := cache.ResourceEventHandlerFuncs{
+	namespaceHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NSX Network Config ADD Event")
-			handleNSXNetworkConfigAdd()
+			utils.AviLog.Infof("Namespace ADD Event")
+			c.handleNamespaceAdd()
 		},
 		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Infof("NSX Network Config Update Event")
+			utils.AviLog.Infof("Namespace Update Event")
 		},
 		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NSX Network Config Delete Event")
+			utils.AviLog.Infof("Namespace Delete Event")
 			crd := obj.(*unstructured.Unstructured)
 			_, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
 			if err != nil || !found {
-				utils.AviLog.Warnf("nsxnetworkconfiguration spec not found: %+v", err)
+				utils.AviLog.Warnf("Namespace spec not found: %+v", err)
 				return
 			}
-			handleNSXNetworkConfigDelete()
+			c.handleNamespaceDelete()
 		},
 	}
-	c.dynamicInformers.NSXNetworkConfigInformer.Informer().AddEventHandler(nsxNetworkConfigHandler)
+	c.informers.NSInformer.Informer().AddEventHandler(namespaceHandler)
 
-	go c.dynamicInformers.NSXNetworkConfigInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NSXNetworkConfigInformer.Informer().HasSynced) {
+	go c.informers.NSInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for nsxnetworkconfiguration informer")
+		utils.AviLog.Info("Caches synced for Namespace informer")
 	}
 }
 
-func addNSXNetworkConfigCount() error {
-	dynamicClient := lib.GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(lib.NSXNetworkConfigGVR)
-	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+func (c *VCFK8sController) addWorkloadNamespaceCount() error {
+	count, err := c.getWorkloadNamespaceCount()
 	if err != nil {
 		return err
 	}
-
-	NsxNetworkConfigCount = len(crdList.Items)
+	WorkloadNamespaceCount = count
 	return nil
 }
 
-func handleNSXNetworkConfigAdd() {
-	dynamicClient := lib.GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(lib.NSXNetworkConfigGVR)
-	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+func (c *VCFK8sController) handleNamespaceAdd() {
+	countLock.Lock()
+	defer countLock.Unlock()
+	count, err := c.getWorkloadNamespaceCount()
 	if err != nil {
-		utils.AviLog.Error(err)
 		return
 	}
 
 	// Only when before the addition, the count was 0, (and now it becomes more than 0),
 	// we must reconfigure the SEG, by rebooting AKO. On reboot AKO ensures SEG configuration.
-	if NsxNetworkConfigCount == 0 && len(crdList.Items) > 0 {
-		utils.AviLog.Fatalf("First NSXNetworkConfigurations added in cluster. Rebooting AKO for infra configuration.")
+	if WorkloadNamespaceCount == 0 && count > 0 {
+		utils.AviLog.Fatalf("First Workload Namespace added in cluster. Rebooting AKO for infra configuration.")
 	}
-	NsxNetworkConfigCount = len(crdList.Items)
+	WorkloadNamespaceCount = count
 }
 
-func handleNSXNetworkConfigDelete() {
-	dynamicClient := lib.GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(lib.NSXNetworkConfigGVR)
-	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+func (c *VCFK8sController) handleNamespaceDelete() {
+	countLock.Lock()
+	count, err := c.getWorkloadNamespaceCount()
 	if err != nil {
-		utils.AviLog.Error(err)
+		countLock.Unlock()
 		return
 	}
 
-	NsxNetworkConfigCount = len(crdList.Items)
-	if len(crdList.Items) > 0 {
-		utils.AviLog.Infof("%d NSXNetworkConfigurations exist in the cluster. Skipping deconfiguration.", len(crdList.Items))
+	WorkloadNamespaceCount = count
+	if count > 0 {
+		utils.AviLog.Infof("%d Workload Namespace exist in the cluster. Skipping deconfiguration.", count)
+		countLock.Unlock()
 		return
 	}
+	countLock.Unlock()
 
-	utils.AviLog.Infof("No NSXNetworkConfigurations exist, proceeding with Avi infra deconfiguraiton.")
+	utils.AviLog.Infof("No Workload Namespace exist, proceeding with Avi infra deconfiguraiton.")
 
 	// Fetch all service engines and delete them.
 	if err := avirest.DeleteServiceEngines(); err != nil {
@@ -227,6 +226,24 @@ func handleNSXNetworkConfigDelete() {
 		utils.AviLog.Errorf("Unable to remove SEG %s", err.Error())
 		return
 	}
+}
+
+// Gets number of only the Workload Namespaces. Only the Workload Namespaces
+// have the label with key vSphereClusterID in them, which is how we differentiate.
+func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
+	nsList, err := c.informers.NSInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Error(err)
+		return 0, err
+	}
+
+	count := 0
+	for _, ns := range nsList {
+		if _, ok := ns.Labels[VSphereClusterIDLabelKey]; ok {
+			count += 1
+		}
+	}
+	return count, nil
 }
 
 func (c *VCFK8sController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {

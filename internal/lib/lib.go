@@ -1150,7 +1150,7 @@ func PopulatePassthroughPoolMarkers(host, svcName string) utils.AviObjectMarkers
 	return markers
 }
 
-func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset) ([]string, error) {
+func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset, akoInfra bool) ([]string, error) {
 	var isOshift bool
 	allInformers := []string{
 		utils.ServiceInformer,
@@ -1192,6 +1192,11 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			allInformers = append(allInformers, utils.ServiceImportInformer)
 		}
 	}
+
+	if akoInfra {
+		allInformers = append(allInformers, utils.NSInformer)
+	}
+
 	return allInformers, nil
 }
 

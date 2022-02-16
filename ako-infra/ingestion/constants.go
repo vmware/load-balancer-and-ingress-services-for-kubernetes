@@ -15,5 +15,6 @@
 package ingestion
 
 const (
-	AVI_ENTERPRISE = "ENTERPRISE"
+	AVI_ENTERPRISE           = "ENTERPRISE"
+	VSphereClusterIDLabelKey = "vSphereClusterID"
 )
