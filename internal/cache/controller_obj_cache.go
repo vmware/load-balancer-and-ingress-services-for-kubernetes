@@ -738,7 +738,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 						networkNames = append(networkNames, networkRefName[1])
 					}
-					if lib.GetCloudType() == lib.CLOUD_AWS {
+					if lib.UsesNetworkRef() {
 						networkRefStr := strings.Split(networkRef, "/")
 						networkNames = append(networkNames, networkRefStr[len(networkRefStr)-1])
 					}
@@ -1323,7 +1323,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 						networkNames = append(networkNames, networkRefName[1])
 					}
-					if lib.GetCloudType() == lib.CLOUD_AWS {
+					if lib.UsesNetworkRef() {
 						networkRefStr := strings.Split(networkRef, "/")
 						networkNames = append(networkNames, networkRefStr[len(networkRefStr)-1])
 					}
@@ -1753,7 +1753,6 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		return nil
 	}
 	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
-
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
