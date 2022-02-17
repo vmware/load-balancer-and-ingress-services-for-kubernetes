@@ -723,78 +723,68 @@ func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key
 
 func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
 
-	var hppMap *AviHostPathPortPoolPG
-	var redirectPorts *AviRedirectPort
-	// Find the hppMap and redirectPorts that matches the host
+	// Update the hosts in the hppMap of child VS
+	if o.IsSNIChild {
+		for _, policy := range o.HttpPolicyRefs {
+			for j := range policy.HppMap {
+				policy.HppMap[j].Host = make([]string, len(hosts))
+				copy(policy.HppMap[j].Host, hosts)
+			}
+			policy.AviMarkers.Host = make([]string, len(hosts))
+			copy(policy.AviMarkers.Host, hosts)
+		}
+		utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for child VS %s", key, hosts, o.Name)
+		return
+	}
+
+	// Update the hosts in the redirect policy of parent VS
 	for _, policy := range o.HttpPolicyRefs {
-		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				hppMap = &policy.HppMap[j]
-				break
-			}
-		}
 		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				redirectPorts = &policy.RedirectPorts[j]
-				break
+			uniqueHosts := make(map[string]struct{})
+			for _, host := range policy.RedirectPorts[j].Hosts {
+				uniqueHosts[host] = struct{}{}
 			}
-		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
 			for _, host := range hosts {
-				if !utils.HasElem(policy.AviMarkers.Host, host) {
-					policy.AviMarkers.Host = append(policy.AviMarkers.Host, host)
-				}
+				uniqueHosts[host] = struct{}{}
+			}
+			policy.RedirectPorts[j].Hosts = make([]string, len(uniqueHosts))
+			var index int
+			for host := range uniqueHosts {
+				policy.RedirectPorts[j].Hosts[index] = host
+				index++
 			}
 		}
 	}
 
-	// Update the hppMap with the hosts
-	if hppMap != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(hppMap.Host, host) {
-				hppMap.Host = append(hppMap.Host, host)
-			}
-		}
-	}
-
-	// Update the redirectPorts with the hosts
-	if redirectPorts != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(redirectPorts.Hosts, host) {
-				redirectPorts.Hosts = append(redirectPorts.Hosts, host)
-			}
-		}
-	}
-
-	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for VS %s", key, hosts, o.Name)
+	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for parent VS %s", key, hosts, o.Name)
 }
 
 func (o *AviVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
 
-	// Find the hppMap and redirectPorts that matches the host and delete the hosts from it
-	for _, policy := range o.HttpPolicyRefs {
-		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				for _, host := range hosts {
+	// Find the hppMap for the child and delete the hosts from it
+	if o.IsSNIChild {
+		for _, host := range hosts {
+			for _, policy := range o.HttpPolicyRefs {
+				for j := range policy.HppMap {
 					policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
 				}
-			}
-		}
-		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				for _, host := range hosts {
-					policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
-				}
-			}
-		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
 				policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
+			}
+		}
+		utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for child VS %s", key, hosts, o.Name)
+		return
+	}
+
+	// Find the redirect policies of parent and delete the hosts from it
+	for _, policy := range o.HttpPolicyRefs {
+		for j := range policy.RedirectPorts {
+			for _, host := range hosts {
+				policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
 			}
 		}
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for VS %s", key, hosts, o.Name)
+	utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for parent VS %s", key, hosts, o.Name)
 }
 
 func (o *AviVsNode) AddFQDNsToModel(hosts []string, gsFqdn, key string) {

@@ -108,6 +108,7 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	// Add FQDN aliases in the hostrule CRD to parent and child VSes
 	vsNode[0].AddFQDNsToModel(vsNode[0].VHDomainNames, gslbHostHeader, key)
 	vsNode[0].AddFQDNAliasesToHTTPPolicy(hostname, vsNode[0].VHDomainNames, key)
+	vsNode[0].AviMarkers.Host = vsNode[0].VHDomainNames
 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VHDomainNames)
 }
 
@@ -699,6 +700,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		vsNode[0].AddFQDNsToModel(sniNode.VHDomainNames, gsFqdn, key)
 		vsNode[0].AddFQDNAliasesToHTTPPolicy(sniHost, sniNode.VHDomainNames, key)
 		sniNode.AddFQDNAliasesToHTTPPolicy(sniHost, sniNode.VHDomainNames, key)
+		sniNode.AviMarkers.Host = sniNode.VHDomainNames
 		objects.SharedCRDLister().UpdateFQDNToAliasesMappings(sniHost, sniNode.VHDomainNames)
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)
