@@ -815,7 +815,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key string, infraSetting *akov1alpha1.AviInfraSetting, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key string, infraSetting *akov1alpha1.AviInfraSetting, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings, modelType string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var httppolname string
 	var policyNode *AviHttpPolicySetNode
@@ -909,6 +909,15 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		if serviceType == lib.NodePortLocal {
 			if servers := PopulateServersForNPL(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
+			}
+		} else if modelType == lib.MultiClusterIngress {
+			if serviceType == lib.NodePort {
+				// incase of multi-cluster ingress, the servers are created using service import CRD
+				if servers := PopulateServersForMultiClusterIngress(poolNode, namespace, path.clusterContext, path.svcNamespace, path.ServiceName, key); servers != nil {
+					poolNode.Servers = servers
+				}
+			} else {
+				utils.AviLog.Errorf("key: %s, msg: Multi-cluster ingress is only supported for serviceType NodePort, not adding the servers", key)
 			}
 		} else if serviceType == lib.NodePort {
 			if servers := PopulateServersForNodePort(poolNode, namespace, path.ServiceName, true, key); servers != nil {
@@ -1100,7 +1109,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	// Remove the redirect for secure to insecure transition
 	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
 	// build poolgroup and pool
-	o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, pathsvcmap.ingressHPSvc, nil)
+	o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, pathsvcmap.ingressHPSvc, nil, routeIgrObj.GetType())
 	if !isDedicated {
 		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 		if !foundEvhModel {
@@ -1417,7 +1426,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			}
 		}
 
-		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, paths.ingressHPSvc, &tlssetting)
+		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, paths.ingressHPSvc, &tlssetting, routeIgrObj.GetType())
 		if !isDedicated {
 			foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 			if !foundEvhModel {

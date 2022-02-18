@@ -1527,13 +1527,15 @@ type AviPoolMetaServer struct {
 }
 
 type IngressHostPathSvc struct {
-	ServiceName string
-	Path        string
-	PathType    networkingv1.PathType
-	Port        int32
-	weight      int32 //required for alternate backends in openshift route
-	PortName    string
-	TargetPort  int32
+	ServiceName    string
+	Path           string
+	PathType       networkingv1.PathType
+	Port           int32
+	weight         int32 //required for alternate backends in openshift route
+	PortName       string
+	TargetPort     int32
+	clusterContext string // required for Multi-cluster ingress
+	svcNamespace   string // required for Multi-cluster ingress
 }
 
 type IngressHostMap map[string]HostMetadata

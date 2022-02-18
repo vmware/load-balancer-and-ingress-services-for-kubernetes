@@ -606,3 +606,52 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	utils.AviLog.Infof("key: %s, msg: host path config from routes: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig
 }
+
+// ParseHostPathForMultiClusterIngress extracts the information from multi-cluster ingress object and generates ingress configs required for creating the models.
+func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName string, ingSpec *v1alpha1.MultiClusterIngressSpec, key string) IngressConfig {
+	// Figure out the service names that are part of this ingress
+
+	hostname := ingSpec.Hostname
+	secretName := ingSpec.SecretName
+
+	var hostPathMapSvcList HostMetadata
+	var tlsConfigs []TlsSettings
+	for _, config := range ingSpec.Config {
+		ingressHPSvc := IngressHostPathSvc{
+			ServiceName:    config.Service.Name,
+			Path:           config.Path,
+			PathType:       networkingv1.PathTypeImplementationSpecific,
+			Port:           int32(config.Service.Port),
+			weight:         int32(config.Weight),
+			clusterContext: config.ClusterContext,
+			svcNamespace:   config.Service.Namespace,
+		}
+		hostPathMapSvcList.ingressHPSvc = append(hostPathMapSvcList.ingressHPSvc, ingressHPSvc)
+	}
+	hostMap := make(IngressHostMap, 1)
+	hostMap[hostname] = hostPathMapSvcList
+	tls := TlsSettings{
+		SecretName: secretName,
+		SecretNS:   ns,
+		key:        key,
+		Hosts:      hostMap,
+		// Always add http -> https redirect rule for secure ingress
+		redirect: true,
+	}
+	tlsConfigs = append(tlsConfigs, tls)
+
+	// If svc for an multi-cluster ingress gets processed before the ingress itself,
+	// then secret mapping may not be updated, update it here.
+	if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
+		objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(ns, ingName, secretName)
+		objects.SharedSvcLister().IngressMappings(ns).AddSecretsToIngressMappings(ns, ingName, secretName)
+	}
+
+	// TODO: default secret, passthrough, additionalTLS config, subdomain and target port
+
+	ingressConfig := IngressConfig{}
+	ingressConfig.TlsCollection = tlsConfigs
+	ingressConfig.IngressHostMap = hostMap
+	utils.AviLog.Infof("key: %s, msg: host path config from multi-cluster ingress: %+v", key, utils.Stringify(ingressConfig))
+	return ingressConfig
+}

@@ -55,7 +55,7 @@ type OshiftRouteModel struct {
 	annotations  map[string]string
 }
 
-// K8sIngressModel : Model for openshift routes with default service lister
+// K8sIngressModel : Model for kubernetes ingresses with default service lister
 type K8sIngressModel struct {
 	key          string
 	name         string
@@ -63,6 +63,15 @@ type K8sIngressModel struct {
 	spec         networkingv1.IngressSpec
 	infrasetting *akov1alpha1.AviInfraSetting
 	annotations  map[string]string
+}
+
+// multiClusterIngressModel : Model for multi-cluster ingresses with default service lister
+type multiClusterIngressModel struct {
+	key         string
+	name        string
+	namespace   string
+	spec        *akov1alpha1.MultiClusterIngressSpec
+	annotations map[string]string
 }
 
 func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error, bool) {
@@ -284,4 +293,83 @@ func getL7RouteInfraSetting(key string, routeAnnotations map[string]string) (*ak
 	}
 
 	return infraSetting, nil
+}
+
+func GetMultiClusterIngressModel(name, namespace, key string) (RouteIngressModel, error, bool) {
+	mciModel := &multiClusterIngressModel{
+		key:       key,
+		name:      name,
+		namespace: namespace,
+	}
+	processObj := utils.CheckIfNamespaceAccepted(namespace)
+
+	ingObj, err := utils.GetInformers().MultiClusterIngressInformer.Lister().MultiClusterIngresses(namespace).Get(name)
+	if err != nil {
+		return mciModel, err, processObj
+	}
+	mciModel.spec = &ingObj.Spec
+	mciModel.annotations = ingObj.GetAnnotations()
+	return mciModel, err, processObj
+}
+
+func (mciModel *multiClusterIngressModel) GetName() string {
+	return mciModel.name
+}
+
+func (mciModel *multiClusterIngressModel) GetNamespace() string {
+	return mciModel.namespace
+}
+
+func (mciModel *multiClusterIngressModel) GetAnnotations() map[string]string {
+	return mciModel.annotations
+}
+
+func (mciModel *multiClusterIngressModel) GetType() string {
+	return lib.MultiClusterIngress
+}
+
+func (mciModel *multiClusterIngressModel) GetSvcLister() *objects.SvcLister {
+	return objects.SharedMultiClusterIngressSvcLister()
+}
+
+func (mciModel *multiClusterIngressModel) GetSpec() interface{} {
+	return mciModel.spec
+}
+
+func (mciModel *multiClusterIngressModel) ParseHostPath() IngressConfig {
+	o := NewNodesValidator()
+	return o.ParseHostPathForMultiClusterIngress(mciModel.namespace, mciModel.name, mciModel.spec, mciModel.key)
+}
+
+func (mciModel *multiClusterIngressModel) Exists() bool {
+	return mciModel.spec != nil
+}
+
+func (mciModel *multiClusterIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, currentPathSvc []IngressHostPathSvc, checkSvc bool) map[string][]string {
+	pathSvcCopy := make(map[string][]string)
+	for k, v := range storedPathSvc {
+		pathSvcCopy[k] = v
+	}
+	currPathSvcMap := make(map[string][]string)
+	for _, val := range currentPathSvc {
+		currPathSvcMap[val.Path] = append(currPathSvcMap[val.Path], val.ServiceName)
+	}
+	for path, services := range currPathSvcMap {
+		storedServices, ok := pathSvcCopy[path]
+		if ok {
+			if checkSvc {
+				pathSvcCopy[path] = lib.Difference(storedServices, services)
+				if len(pathSvcCopy[path]) == 0 {
+					delete(pathSvcCopy, path)
+				}
+			} else {
+				delete(pathSvcCopy, path)
+			}
+		}
+	}
+	return pathSvcCopy
+}
+
+func (mciModel *multiClusterIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
+	return nil
 }

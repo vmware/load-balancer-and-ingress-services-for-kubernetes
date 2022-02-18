@@ -39,10 +39,11 @@ import (
 
 var (
 	Service = GraphSchema{
-		Type:               "Service",
-		GetParentIngresses: SvcToIng,
-		GetParentRoutes:    SvcToRoute,
-		GetParentGateways:  SvcToGateway,
+		Type:                           "Service",
+		GetParentIngresses:             SvcToIng,
+		GetParentRoutes:                SvcToRoute,
+		GetParentGateways:              SvcToGateway,
+		GetParentMultiClusterIngresses: SvcToMultiClusterIng,
 	}
 	Ingress = GraphSchema{
 		Type:               "Ingress",
@@ -68,10 +69,11 @@ var (
 		GetParentRoutes:    NodeToRoute,
 	}
 	Secret = GraphSchema{
-		Type:               "Secret",
-		GetParentIngresses: SecretToIng,
-		GetParentRoutes:    SecretToRoute,
-		GetParentGateways:  SecretToGateway,
+		Type:                           "Secret",
+		GetParentIngresses:             SecretToIng,
+		GetParentRoutes:                SecretToRoute,
+		GetParentGateways:              SecretToGateway,
+		GetParentMultiClusterIngresses: SecretToMultiClusterIng,
 	}
 	Route = GraphSchema{
 		Type:            utils.OshiftRoute,
@@ -102,6 +104,14 @@ var (
 		GetParentServices:  AviSettingToSvc,
 		GetParentRoutes:    AviSettingToRoute,
 	}
+	MultiClusterIngress = GraphSchema{
+		Type:                           lib.MultiClusterIngress,
+		GetParentMultiClusterIngresses: MultiClusterIngressChanges,
+	}
+	ServiceImport = GraphSchema{
+		Type:                           lib.ServiceImport,
+		GetParentMultiClusterIngresses: ServiceImportToMultiClusterIng,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		IngressClass,
@@ -116,15 +126,18 @@ var (
 		Gateway,
 		GatewayClass,
 		AviInfraSetting,
+		MultiClusterIngress,
+		ServiceImport,
 	}
 )
 
 type GraphSchema struct {
-	Type               string
-	GetParentIngresses func(string, string, string) ([]string, bool)
-	GetParentRoutes    func(string, string, string) ([]string, bool)
-	GetParentGateways  func(string, string, string) ([]string, bool)
-	GetParentServices  func(string, string, string) ([]string, bool)
+	Type                           string
+	GetParentIngresses             func(string, string, string) ([]string, bool)
+	GetParentRoutes                func(string, string, string) ([]string, bool)
+	GetParentGateways              func(string, string, string) ([]string, bool)
+	GetParentServices              func(string, string, string) ([]string, bool)
+	GetParentMultiClusterIngresses func(string, string, string) ([]string, bool)
 }
 
 type GraphDescriptor []GraphSchema

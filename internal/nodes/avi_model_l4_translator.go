@@ -375,6 +375,45 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	return pool_meta
 }
 
+func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, serviceNamespace, serviceName string, key string) []AviPoolMetaServer {
+	var servers []AviPoolMetaServer
+	svcName := generateMultiClusterKey(cluster, serviceNamespace, serviceName)
+	success, siNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(ns).GetSvcToSI(svcName)
+	if !success {
+		utils.AviLog.Warnf("key: %s, msg: failed to get service imports mapped to service with name: %v", key, svcName)
+		return servers
+	}
+
+	for _, siName := range siNames {
+		serviceImport, err := utils.GetInformers().ServiceImportInformer.Lister().ServiceImports(ns).Get(siName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: failed to get service imports with name: %v", key, siName)
+			continue
+		}
+		for _, backend := range serviceImport.Spec.SvcPorts {
+			for _, ep := range backend.Endpoints {
+				addr := ep.IP
+				var addrType string
+				if utils.IsV4(addr) {
+					addrType = "V4"
+				} else {
+					addrType = "V6"
+				}
+				Ip := avimodels.IPAddr{
+					Addr: &addr,
+					Type: &addrType,
+				}
+				server := AviPoolMetaServer{
+					Port: ep.Port,
+					Ip:   Ip,
+				}
+				servers = append(servers, server)
+			}
+		}
+	}
+	return servers
+}
+
 func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()

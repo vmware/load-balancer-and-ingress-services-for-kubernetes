@@ -41,7 +41,12 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 			return
 		}
 		routeIgrObj, err, processObj = GetOshiftRouteModel(objname, namespace, key)
-
+	case lib.MultiClusterIngress:
+		if utils.GetInformers().MultiClusterIngressInformer == nil {
+			utils.AviLog.Warnf("key: %s, multi-cluster informer is not initialized for object type: %s", key, objType)
+			return
+		}
+		routeIgrObj, err, processObj = GetMultiClusterIngressModel(objname, namespace, key)
 	default:
 		utils.AviLog.Infof("key: %s, starting unsupported object type: %s", key, objType)
 		return
