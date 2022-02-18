@@ -467,7 +467,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 						if utils.GetInformers().RouteInformer != nil {
 							statusOption.ObjType = utils.OshiftRoute
 						}
-						if updateOptions.ServiceMetadata.IsMCIIngress {
+						if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
 							statusOption.ObjType = lib.MultiClusterIngress
 						}
 						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
