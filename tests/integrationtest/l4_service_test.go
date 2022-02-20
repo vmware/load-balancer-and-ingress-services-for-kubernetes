@@ -88,7 +88,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("AUTO_L4_FQDN", "disable")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-
+	os.Setenv("AKO_ID", "1")
+	lib.SetAKOID()
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()

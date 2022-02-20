@@ -95,6 +95,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("MCI_ENABLED", "true")
+	os.Setenv("AKO_ID", "1")
+	lib.SetAKOID()
 
 	data := map[string][]byte{
 		"username": []byte("admin"),
