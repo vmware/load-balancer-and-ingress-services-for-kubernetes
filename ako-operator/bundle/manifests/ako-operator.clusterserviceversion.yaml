@@ -29,7 +29,7 @@ metadata:
                 "labelValue": ""
               },
               "servicesAPI": false,
-              vipPerNamespace: "false"
+              "vipPerNamespace": "false"
             },
             "controllerSettings": {
               "cloudName": "Default-Cloud",
@@ -40,7 +40,7 @@ metadata:
               "tenantName": "admin"
             },
             "imagePullPolicy": "IfNotPresent",
-            "imageRepository": "projects.registry.vmware.com/ako/ako",
+            "imageRepository": "projects.registry.vmware.com/ako/ako-operator@sha256:ae215384004f6e13f0bfe184820a329400c49ef158d13ca6b308784c2589985d",
             "l4Settings": {
               "advancedL4": false,
               "autoFQDN": "default",
@@ -94,8 +94,8 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
-    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:c089d8c6bcc20db53cdca5b8e8dd575cb2e483b797af330bf0886757b08ecced
-  name: ako-operator.v1.6.1
+    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:ae215384004f6e13f0bfe184820a329400c49ef158d13ca6b308784c2589985d
+  name: ako-operator.v1.6.2-beta
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -464,7 +464,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.registry.vmware.com/ako/ako-operator:1.6.1
+                image: projects.registry.vmware.com/ako/ako-operator@sha256:ae215384004f6e13f0bfe184820a329400c49ef158d13ca6b308784c2589985d
                 name: ako-operator
                 resources:
                   limits:
@@ -516,7 +516,7 @@ spec:
     supported: false
   relatedImages:
   - name: ako-operator
-    image: projects.registry.vmware.com/ako/ako-operator@sha256:c089d8c6bcc20db53cdca5b8e8dd575cb2e483b797af330bf0886757b08ecced
+    image: projects.registry.vmware.com/ako/ako-operator@sha256:ae215384004f6e13f0bfe184820a329400c49ef158d13ca6b308784c2589985d
   keywords:
   - AKO
   - AKO Operator
@@ -537,4 +537,4 @@ spec:
   maturity: alpha
   provider:
     name: VMware
-  version: 1.6.1
+  version: 1.6.2-beta
