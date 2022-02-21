@@ -88,7 +88,20 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	if !isTCP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
-		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		uri := "/api/systemconfiguration"
+		response := models.SystemConfiguration{}
+		client := avicache.SharedAVIClients()
+		err := lib.AviGet(client.AviClient[0], uri, &response)
+
+		if err != nil {
+			utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
+		}
+
+		if *response.DefaultLicenseTier == "ENTERPRISE" {
+			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
+		} else {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		}
 	}
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
