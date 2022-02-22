@@ -1645,3 +1645,81 @@ func ClearAllCache(cacheObj *cache.AviObjCache) {
 	}
 
 }
+
+// Fake multi-cluster ingress
+type FakeMultiClusterIngress struct {
+	HostName     string
+	Name         string
+	annotations  map[string]string
+	Clusters     []string
+	Weights      []int
+	Paths        []string
+	ServiceNames []string
+	Ports        []int
+	Namespaces   []string
+	SecretName   string
+}
+
+func (mci FakeMultiClusterIngress) Create() *akov1alpha1.MultiClusterIngress {
+	ingr := &akov1alpha1.MultiClusterIngress{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   utils.GetAKONamespace(),
+			Name:        mci.Name,
+			Annotations: mci.annotations,
+		},
+		Spec: akov1alpha1.MultiClusterIngressSpec{
+			Hostname:   mci.HostName,
+			SecretName: mci.SecretName,
+		},
+	}
+
+	backendConfigs := make([]akov1alpha1.BackendConfig, len(mci.Paths))
+	for i := range mci.Paths {
+		backendConfigs[i] = akov1alpha1.BackendConfig{
+			Path:           mci.Paths[i],
+			ClusterContext: mci.Clusters[i],
+			Weight:         mci.Weights[i],
+			Service: akov1alpha1.Service{
+				Name:      mci.ServiceNames[i],
+				Port:      mci.Ports[i],
+				Namespace: mci.Namespaces[i],
+			},
+		}
+	}
+	ingr.Spec.Config = backendConfigs
+	return ingr
+}
+
+// Fake service import
+type FakeServiceImport struct {
+	Name          string
+	Cluster       string
+	Namespace     string
+	ServiceName   string
+	EndPointIPs   []string
+	EndPointPorts []int32
+}
+
+func (si FakeServiceImport) Create() *akov1alpha1.ServiceImport {
+	siObj := &akov1alpha1.ServiceImport{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: utils.GetAKONamespace(),
+			Name:      si.Name,
+		},
+		Spec: akov1alpha1.ServiceImportSpec{
+			Cluster:   si.Cluster,
+			Namespace: si.Namespace,
+			Service:   si.ServiceName,
+		},
+	}
+
+	backendPort := akov1alpha1.BackendPort{}
+	for i := range si.EndPointIPs {
+		backendPort.Endpoints = append(backendPort.Endpoints, akov1alpha1.IPPort{
+			IP:   si.EndPointIPs[i],
+			Port: si.EndPointPorts[i],
+		})
+	}
+	siObj.Spec.SvcPorts = append(siObj.Spec.SvcPorts, backendPort)
+	return siObj
+}

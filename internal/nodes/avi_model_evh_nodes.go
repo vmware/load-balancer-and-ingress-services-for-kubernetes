@@ -912,6 +912,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			}
 		} else if modelType == lib.MultiClusterIngress {
 			if serviceType == lib.NodePort {
+				poolNode.ServiceMetadata.IsMCIIngress = true
 				// incase of multi-cluster ingress, the servers are created using service import CRD
 				if servers := PopulateServersForMultiClusterIngress(poolNode, namespace, path.clusterContext, path.svcNamespace, path.ServiceName, key); servers != nil {
 					poolNode.Servers = servers

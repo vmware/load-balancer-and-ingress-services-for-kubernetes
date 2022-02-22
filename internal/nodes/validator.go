@@ -615,7 +615,6 @@ func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName strin
 	secretName := ingSpec.SecretName
 
 	var hostPathMapSvcList HostMetadata
-	var tlsConfigs []TlsSettings
 	for _, config := range ingSpec.Config {
 		ingressHPSvc := IngressHostPathSvc{
 			ServiceName:    config.Service.Name,
@@ -630,15 +629,18 @@ func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName strin
 	}
 	hostMap := make(IngressHostMap, 1)
 	hostMap[hostname] = hostPathMapSvcList
-	tls := TlsSettings{
-		SecretName: secretName,
-		SecretNS:   ns,
-		key:        key,
-		Hosts:      hostMap,
-		// Always add http -> https redirect rule for secure ingress
-		redirect: true,
+	var tlsConfigs []TlsSettings
+	if secretName != "" {
+		tls := TlsSettings{
+			SecretName: secretName,
+			SecretNS:   ns,
+			key:        key,
+			Hosts:      hostMap,
+			// Always add http -> https redirect rule for secure ingress
+			redirect: true,
+		}
+		tlsConfigs = append(tlsConfigs, tls)
 	}
-	tlsConfigs = append(tlsConfigs, tls)
 
 	// If svc for an multi-cluster ingress gets processed before the ingress itself,
 	// then secret mapping may not be updated, update it here.
