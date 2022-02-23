@@ -94,6 +94,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
+	os.Setenv("MCI_ENABLED", "true")
 
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -117,8 +118,12 @@ func TestMain(m *testing.M) {
 		utils.NSInformer,
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
+		utils.MultiClusterIngressInformer,
+		utils.ServiceImportInformer,
 	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers)
+	args := make(map[string]interface{})
+	args[utils.INFORMERS_AKO_CLIENT] = crdClient
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, args)
 	k8s.NewCRDInformers(crdClient)
 	integrationtest.InitializeFakeAKOAPIServer()
 
@@ -333,4 +338,59 @@ func TestNode(t *testing.T) {
 		t.Fatalf("error in Deleting Node: %v", err)
 	}
 	waitAndverify(t, utils.NodeObj+"/testnode")
+}
+
+func TestMultiClusterIngress(t *testing.T) {
+
+	os.Setenv("ENABLE_EVH", "true")
+	os.Setenv("SERVICE_TYPE", "NodePort")
+	defer func() {
+		os.Setenv("ENABLE_EVH", "false")
+		os.Setenv("SERVICE_TYPE", "ClusterIP")
+	}()
+	ingressObject := integrationtest.FakeMultiClusterIngress{
+		Name:       "MCI-01",
+		HostName:   "foo.com",
+		SecretName: "my-secret",
+	}
+	cluster := "cluster-01"
+	weight := 50
+	serviceName := "service-01"
+	ingressObject.Namespaces = append(ingressObject.Namespaces, "default")
+	ingressObject.Ports = append(ingressObject.Ports, 8080)
+	ingressObject.Clusters = append(ingressObject.Clusters, cluster)
+	ingressObject.Weights = append(ingressObject.Weights, weight)
+	ingressObject.Paths = append(ingressObject.Paths, "bar")
+	ingressObject.ServiceNames = append(ingressObject.ServiceNames, serviceName)
+
+	fakeMCI := ingressObject.Create()
+	_, err := crdClient.AkoV1alpha1().MultiClusterIngresses("avi-system").Create(context.TODO(), fakeMCI, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Multi-cluster ingress: %v", err)
+	}
+	waitAndverify(t, "MultiClusterIngress/avi-system/MCI-01")
+}
+
+func TestServiceImport(t *testing.T) {
+
+	os.Setenv("ENABLE_EVH", "true")
+	os.Setenv("SERVICE_TYPE", "NodePort")
+	defer func() {
+		os.Setenv("ENABLE_EVH", "false")
+		os.Setenv("SERVICE_TYPE", "ClusterIP")
+	}()
+	siObj := integrationtest.FakeServiceImport{
+		Name:          "SI-01",
+		Cluster:       "cluster-01",
+		Namespace:     "default",
+		ServiceName:   "service-01",
+		EndPointIPs:   []string{"100.1.1.1", "100.1.1.2"},
+		EndPointPorts: []int32{31030, 31030},
+	}
+	fakeSI := siObj.Create()
+	_, err := crdClient.AkoV1alpha1().ServiceImports("avi-system").Create(context.TODO(), fakeSI, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service Import: %v", err)
+	}
+	waitAndverify(t, "ServiceImport/avi-system/SI-01")
 }
