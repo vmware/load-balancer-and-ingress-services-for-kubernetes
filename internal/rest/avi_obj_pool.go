@@ -170,8 +170,14 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/pool/" + cache_obj.Uuid
-		rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: pool,
-			Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			ObjName: name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     pool,
+			Tenant:  pool_meta.Tenant,
+			Model:   "Pool",
+		}
 	} else {
 		// Patch an existing pool if it exists in the cache but not associated with this VS.
 		pool_key := avicache.NamespaceName{Namespace: pool_meta.Tenant, Name: name}
@@ -179,12 +185,24 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		if ok {
 			pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
 			path = "/api/pool/" + pool_cache_obj.Uuid
-			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: pool,
-				Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				ObjName: name,
+				Path:    path,
+				Method:  utils.RestPut,
+				Obj:     pool,
+				Tenant:  pool_meta.Tenant,
+				Model:   "Pool",
+			}
 		} else {
 			path = "/api/pool/"
-			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPost, Obj: pool,
-				Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				ObjName: name,
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     pool,
+				Tenant:  pool_meta.Tenant,
+				Model:   "Pool",
+			}
 		}
 	}
 
@@ -195,8 +213,12 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 
 func (rest *RestOperations) AviPoolDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/pool/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "Pool", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "Pool",
+	}
 	utils.AviLog.Info(spew.Sprintf("key: %s, msg: pool DELETE Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op

@@ -244,13 +244,25 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		// Do a POST call in that case
 		if rest_method == utils.RestPut && cache_obj.Uuid != "" {
 			path = "/api/virtualservice/" + cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: vs,
-				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion, ObjName: *vs.Name}
+			rest_op = utils.RestOp{
+				Path:    path,
+				Method:  rest_method,
+				Obj:     vs,
+				Tenant:  vs_meta.Tenant,
+				Model:   "VirtualService",
+				ObjName: *vs.Name,
+			}
 			rest_ops = append(rest_ops, &rest_op)
 		} else {
 			path = "/api/virtualservice/"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: vs,
-				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion, ObjName: *vs.Name}
+			rest_op = utils.RestOp{
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     vs,
+				Tenant:  vs_meta.Tenant,
+				Model:   "VirtualService",
+				ObjName: *vs.Name,
+			}
 			rest_ops = append(rest_ops, &rest_op)
 		}
 		return rest_ops
@@ -343,14 +355,24 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	if rest_method == utils.RestPut {
 
 		path = "/api/virtualservice/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: sniChild,
-			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: rest_method,
+			Obj:    sniChild,
+			Tenant: vs_meta.Tenant,
+			Model:  "VirtualService",
+		}
 		rest_ops = append(rest_ops, &rest_op)
 
 	} else {
 		path = "/api/virtualservice"
-		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: sniChild,
-			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: rest_method,
+			Obj:    sniChild,
+			Tenant: vs_meta.Tenant,
+			Model:  "VirtualService",
+		}
 		rest_ops = append(rest_ops, &rest_op)
 	}
 
@@ -776,8 +798,12 @@ func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) (*u
 		return nil, false
 	}
 	path := "/api/virtualservice/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "VirtualService",
+	}
 	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v ",
 		key, utils.Stringify(rest_op)))
 	return &rest_op, true

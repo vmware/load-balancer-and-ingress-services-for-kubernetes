@@ -63,8 +63,13 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/vsdatascriptset/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsdatascriptset,
-			Tenant: ds_meta.Tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: utils.RestPut,
+			Obj:    vsdatascriptset,
+			Tenant: ds_meta.Tenant,
+			Model:  "VSDataScriptSet",
+		}
 	} else {
 		// Patch an existing ds if it exists in the cache but not associated with this VS.
 		ds_key := avicache.NamespaceName{Namespace: ds_meta.Tenant, Name: ds_meta.Name}
@@ -72,12 +77,22 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 		if ok {
 			ds_cache_obj, _ := ds_cache.(*avicache.AviDSCache)
 			path = "/api/vsdatascriptset/" + ds_cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: vsdatascriptset,
-				Tenant: ds_meta.Tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: utils.RestPut,
+				Obj:    vsdatascriptset,
+				Tenant: ds_meta.Tenant,
+				Model:  "VSDataScriptSet",
+			}
 		} else {
 			path = "/api/vsdatascriptset"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: vsdatascriptset,
-				Tenant: ds_meta.Tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: utils.RestPost,
+				Obj:    vsdatascriptset,
+				Tenant: ds_meta.Tenant,
+				Model:  "VSDataScriptSet",
+			}
 		}
 	}
 
@@ -88,8 +103,12 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 
 func (rest *RestOperations) AviDSDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/vsdatascriptset/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "VSDataScriptSet", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "VSDataScriptSet",
+	}
 	utils.AviLog.Info(spew.Sprintf("key: %s, msg: DS DELETE Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
