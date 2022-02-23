@@ -246,8 +246,13 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/httppolicyset/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
-			Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: utils.RestPut,
+			Obj:    hps,
+			Tenant: hps_meta.Tenant,
+			Model:  "HTTPPolicySet",
+		}
 
 	} else {
 		// Patch an existing http policy set object if it exists in the cache but not associated with this VS.
@@ -256,12 +261,22 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		if ok {
 			hps_cache_obj, _ := hps_cache.(*avicache.AviHTTPPolicyCache)
 			path = "/api/httppolicyset/" + hps_cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
-				Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: utils.RestPut,
+				Obj:    hps,
+				Tenant: hps_meta.Tenant,
+				Model:  "HTTPPolicySet",
+			}
 		} else {
 			path = "/api/httppolicyset/"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: hps,
-				Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: utils.RestPost,
+				Obj:    hps,
+				Tenant: hps_meta.Tenant,
+				Model:  "HTTPPolicySet",
+			}
 		}
 	}
 
@@ -272,8 +287,12 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 
 func (rest *RestOperations) AviHttpPolicyDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/httppolicyset/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "HTTPPolicySet",
+	}
 	utils.AviLog.Debug(spew.Sprintf("HTTP Policy Set DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op

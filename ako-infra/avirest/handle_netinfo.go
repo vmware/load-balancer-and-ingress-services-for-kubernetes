@@ -67,8 +67,14 @@ func SyncLSLRNetwork() {
 	if !matched {
 		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = constructLsLrInCloud(lslrmap)
 		path := "/api/cloud/" + *cloudModel.UUID
-		restOp := utils.RestOp{ObjName: utils.CloudName, Path: path, Method: utils.RestPut, Obj: &cloudModel,
-			Tenant: "admin", Model: "cloud", Version: utils.CtrlVersion}
+		restOp := utils.RestOp{
+			ObjName: utils.CloudName,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     &cloudModel,
+			Tenant:  "admin",
+			Model:   "cloud",
+		}
 		executeRestOp("fullsync", client, &restOp)
 	} else {
 		utils.AviLog.Infof("LS LR update not required in cloud: %s", utils.CloudName)
@@ -121,8 +127,14 @@ func AddSegment(obj interface{}) bool {
 	if updateRequired {
 		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = lslrList
 		path := "/api/cloud/" + *cloudModel.UUID
-		restOp := utils.RestOp{ObjName: utils.CloudName, Path: path, Method: utils.RestPut, Obj: &cloudModel,
-			Tenant: "admin", Model: "cloud", Version: utils.CtrlVersion}
+		restOp := utils.RestOp{
+			ObjName: utils.CloudName,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     &cloudModel,
+			Tenant:  "admin",
+			Model:   "cloud",
+		}
 		executeRestOp(objKey, client, &restOp)
 	} else {
 		utils.AviLog.Infof("key: %s, LSLR update not required in cloud: %s", objKey, utils.CloudName)
@@ -177,8 +189,14 @@ func DeleteSegment(obj interface{}) {
 	if updateRequired {
 		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = lslrList
 		path := "/api/cloud/" + *cloudModel.UUID
-		restOp := utils.RestOp{ObjName: utils.CloudName, Path: path, Method: utils.RestPut, Obj: &cloudModel,
-			Tenant: "admin", Model: "cloud", Version: utils.CtrlVersion}
+		restOp := utils.RestOp{
+			ObjName: utils.CloudName,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     &cloudModel,
+			Tenant:  "admin",
+			Model:   "cloud",
+		}
 		executeRestOp(objKey, client, &restOp)
 	} else {
 		utils.AviLog.Infof("key: %s, LSLR update not required in cloud: %s", objKey, utils.CloudName)
@@ -300,8 +318,14 @@ func addNetworkInCloud(objKey string, cidrs map[string]struct{}, replaceAll bool
 		netModel.ConfiguredSubnets = append(netModel.ConfiguredSubnets, &subnet)
 
 	}
-	restOp := utils.RestOp{ObjName: utils.CloudName, Path: path, Method: method, Obj: &netModel,
-		Tenant: "admin", Model: "network", Version: utils.CtrlVersion}
+	restOp := utils.RestOp{
+		ObjName: utils.CloudName,
+		Path:    path,
+		Method:  method,
+		Obj:     &netModel,
+		Tenant:  "admin",
+		Model:   "network",
+	}
 
 	utils.AviLog.Debugf("key: %s, executing restop to add/update vcf network: %v", objKey, restOp)
 	executeRestOp(objKey, client, &restOp)
@@ -343,8 +367,14 @@ func delCIDRFromNetwork(objKey string, cidrs map[string]struct{}) {
 	path = "/api/network/" + *netModel.UUID
 
 	utils.AviLog.Infof("key: %s, list of CIDRs to be deleted: %v", objKey, cidrs)
-	restOp := utils.RestOp{ObjName: utils.CloudName, Path: path, Method: method, Obj: &netModel,
-		Tenant: "admin", Model: "network", Version: utils.CtrlVersion}
+	restOp := utils.RestOp{
+		ObjName: utils.CloudName,
+		Path:    path,
+		Method:  method,
+		Obj:     &netModel,
+		Tenant:  "admin",
+		Model:   "network",
+	}
 
 	utils.AviLog.Debugf("key: %s, executing restop to delete CIDR from vcf network: %v", objKey, restOp)
 	executeRestOp(objKey, client, &restOp)

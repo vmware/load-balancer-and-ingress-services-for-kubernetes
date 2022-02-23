@@ -421,15 +421,25 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		// Do a POST call in that case
 		if rest_method == utils.RestPut && cache_obj.Uuid != "" {
 			path = "/api/virtualservice/" + cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: vs,
-				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: rest_method,
+				Obj:    vs,
+				Tenant: vs_meta.Tenant,
+				Model:  "VirtualService",
+			}
 			rest_ops = append(rest_ops, &rest_op)
 
 		} else {
 			rest_method = utils.RestPost
 			path = "/api/virtualservice/"
-			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: vs,
-				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: rest_method,
+				Obj:    vs,
+				Tenant: vs_meta.Tenant,
+				Model:  "VirtualService",
+			}
 			rest_ops = append(rest_ops, &rest_op)
 
 		}
@@ -532,14 +542,24 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	if rest_method == utils.RestPut {
 
 		path = "/api/virtualservice/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: evhChild,
-			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: rest_method,
+			Obj:    evhChild,
+			Tenant: vs_meta.Tenant,
+			Model:  "VirtualService",
+		}
 		rest_ops = append(rest_ops, &rest_op)
 
 	} else {
 		path = "/api/virtualservice"
-		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: evhChild,
-			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: rest_method,
+			Obj:    evhChild,
+			Tenant: vs_meta.Tenant,
+			Model:  "VirtualService",
+		}
 		rest_ops = append(rest_ops, &rest_op)
 
 	}
