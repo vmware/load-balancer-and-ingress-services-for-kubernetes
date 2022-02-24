@@ -76,6 +76,19 @@ spec:
                         - name
                         - type
                         type: object
+                      sslKeyCertificateEC:
+                        properties:
+                          name:
+                            type: string
+                          type:
+                            enum:
+                            - ref
+                            - secret
+                            type: string
+                        required:
+                        - name
+                        - type
+                        type: object
                       termination:
                         enum:
                         - edge

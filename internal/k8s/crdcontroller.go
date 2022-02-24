@@ -758,13 +758,23 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		hostrule.Spec.VirtualHost.AnalyticsProfile:   "AnalyticsProfile",
 		hostrule.Spec.VirtualHost.ErrorPageProfile:   "ErrorPageProfile",
 	}
-
 	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
 		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name] = "SslKeyCert"
 	}
 
 	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
 		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
+		if err != nil {
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+	}
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Name] = "SslKeyCert"
+	}
+
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Name)
 		if err != nil {
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err

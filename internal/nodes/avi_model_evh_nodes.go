@@ -60,8 +60,8 @@ type AviVsEvhSniModel interface {
 	GetServiceMetadata() lib.ServiceMetadataObj
 	SetServiceMetadata(lib.ServiceMetadataObj)
 
-	GetSSLKeyCertAviRef() string
-	SetSSLKeyCertAviRef(string)
+	GetSSLKeyCertAviRef() []string
+	SetSSLKeyCertAviRef([]string)
 
 	GetWafPolicyRef() string
 	SetWafPolicyRef(string)
@@ -135,7 +135,7 @@ type AviEvhVsNode struct {
 	HttpPolicySetRefs   []string
 	VsDatascriptRefs    []string
 	SSLProfileRef       string
-	SSLKeyCertAviRef    string
+	SSLKeyCertAviRef    []string
 	Paths               []string
 	IngressNames        []string
 	AnalyticsPolicy     *avimodels.AnalyticsPolicy
@@ -208,11 +208,11 @@ func (v *AviEvhVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviEvhVsNode) GetSSLKeyCertAviRef() string {
+func (v *AviEvhVsNode) GetSSLKeyCertAviRef() []string {
 	return v.SSLKeyCertAviRef
 }
 
-func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef string) {
+func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
 	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
@@ -640,8 +640,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	for _, evhnode := range v.EvhNodes {
 		checksumStringSlice = append(checksumStringSlice, "EVHNode"+evhnode.Name)
-		if evhnode.SSLKeyCertAviRef != "" {
-			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhnode.SSLKeyCertAviRef)
+		if len(evhnode.SSLKeyCertAviRef) != 0 {
+			for _, evhcert := range evhnode.SSLKeyCertAviRef {
+				checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhcert)
+			}
 		}
 	}
 

@@ -381,7 +381,7 @@ type AviVsNode struct {
 	HttpPolicySetRefs     []string
 	SSLProfileRef         string
 	VsDatascriptRefs      []string
-	SSLKeyCertAviRef      string
+	SSLKeyCertAviRef      []string
 	AviMarkers            utils.AviObjectMarkers
 	Paths                 []string
 	IngressNames          []string
@@ -455,11 +455,11 @@ func (v *AviVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj) {
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviVsNode) GetSSLKeyCertAviRef() string {
+func (v *AviVsNode) GetSSLKeyCertAviRef() []string {
 	return v.SSLKeyCertAviRef
 }
 
-func (v *AviVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef string) {
+func (v *AviVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
 	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
