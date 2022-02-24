@@ -3042,8 +3042,8 @@ func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 }
 
 func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
-	// Not applicable for NodePort mode and non vcenter clouds
-	if lib.IsNodePortMode() || lib.GetCloudType() != lib.CLOUD_VCENTER {
+	// Not applicable for NodePort mode and non vcenter and nsx-t clouds
+	if lib.IsNodePortMode() || !lib.IsNodeNetworkAllowedCloud() {
 		utils.AviLog.Infof("Skipping the check for Node Network ")
 		return true
 	}
