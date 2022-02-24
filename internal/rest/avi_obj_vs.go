@@ -158,24 +158,26 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 		vs.NetworkProfileRef = proto.String("/api/networkprofile/?name=" + vs_meta.NetworkProfile)
 
+		var datascriptCollection []*avimodels.VSDataScripts
 		if vs_meta.SharedVS {
 			// This is a shared VS - which should have a datascript
-			var vsdatascripts []*avimodels.VSDataScripts
 			for i, ds := range vs_meta.HTTPDSrefs {
 				j := int32(i)
 				dsRef := "/api/vsdatascriptset/?name=" + ds.Name
 				vsdatascript := &avimodels.VSDataScripts{Index: &j, VsDatascriptSetRef: &dsRef}
-				vsdatascripts = append(vsdatascripts, vsdatascript)
+				datascriptCollection = append(datascriptCollection, vsdatascript)
 			}
-			vs.VsDatascripts = vsdatascripts
 		}
 
-		var datascriptCollection []*avimodels.VSDataScripts
-		for i, script := range vs_meta.VsDatascriptRefs {
-			j := int32(i)
-			datascript := script
-			datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
-			datascriptCollection = append(datascriptCollection, datascripts)
+		// Overwrite datascript policies from hostrule to the Parent VS.
+		if len(vs_meta.VsDatascriptRefs) > 0 {
+			datascriptCollection = make([]*avimodels.VSDataScripts, len(vs_meta.VsDatascriptRefs))
+			for i, script := range vs_meta.VsDatascriptRefs {
+				j := int32(i)
+				datascript := script
+				datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
+				datascriptCollection = append(datascriptCollection, datascripts)
+			}
 		}
 		vs.VsDatascripts = datascriptCollection
 
