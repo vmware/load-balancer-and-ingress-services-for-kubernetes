@@ -97,8 +97,14 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 		opTenant = lib.GetTenant()
 	}
 
-	restOp := utils.RestOp{Path: path, Method: utils.RestPatch, PatchOp: patchOp, Obj: patchPayload,
-		Tenant: opTenant, Model: "VrfContext", Version: utils.CtrlVersion}
+	restOp := utils.RestOp{
+		Path:    path,
+		Method:  utils.RestPatch,
+		PatchOp: patchOp,
+		Obj:     patchPayload,
+		Tenant:  opTenant,
+		Model:   "VrfContext",
+	}
 
 	return &restOp
 }

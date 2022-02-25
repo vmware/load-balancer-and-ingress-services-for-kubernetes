@@ -56,8 +56,13 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/poolgroup/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pg,
-			Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: utils.RestPut,
+			Obj:    pg,
+			Tenant: pg_meta.Tenant,
+			Model:  "PoolGroup",
+		}
 	} else {
 		// Patch an existing pg if it exists in the cache but not associated with this VS.
 		pg_key := avicache.NamespaceName{Namespace: pg_meta.Tenant, Name: name}
@@ -65,12 +70,22 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 		if ok {
 			pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
 			path = "/api/poolgroup/" + pg_cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pg,
-				Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: utils.RestPut,
+				Obj:    pg,
+				Tenant: pg_meta.Tenant,
+				Model:  "PoolGroup",
+			}
 		} else {
 			path = "/api/poolgroup/"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: pg,
-				Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: utils.RestPost,
+				Obj:    pg,
+				Tenant: pg_meta.Tenant,
+				Model:  "PoolGroup",
+			}
 		}
 	}
 
@@ -98,10 +113,13 @@ func (rest *RestOperations) SanitizePGMembers(Members []*avimodels.PoolGroupMemb
 
 func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/poolgroup/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: PG DELETE Restop %v ", key,
-		utils.Stringify(rest_op)))
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "PoolGroup",
+	}
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: PG DELETE Restop %v ", key, utils.Stringify(rest_op)))
 	return &rest_op
 }
 
