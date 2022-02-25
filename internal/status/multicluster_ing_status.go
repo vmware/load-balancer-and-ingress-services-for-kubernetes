@@ -41,6 +41,11 @@ func DeleteMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOpti
 	mciObj = mciObj.DeepCopy()
 	mciObj.Status.LoadBalancer.Ingress = nil
 	UpdateMultiClusterIngressStatus(key, mciObj, &mciObj.Status)
+
+	vsAnnotations := make(map[string]string)
+	if err := UpdateMultiClusterIngressAnnotations(mciObj, vsAnnotations, key); err != nil {
+		utils.AviLog.Warnf("key: %s, msg: could not delete the Multi-cluster ingress object's annotation: err %s, %s/%s", key, err, mciObj.Namespace, mciObj.Name)
+	}
 }
 
 // UpdateMultiClusterIngressStatusAndAnnotation is a wrapper function which gets the Multi-cluster ingress object and updates the
@@ -64,7 +69,7 @@ func UpdateMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOpti
 	vsAnnotations := make(map[string]string)
 	vsAnnotations[mciObj.Spec.Hostname] = option.VirtualServiceUUID
 
-	if err := patchMultiClusterIngressAnnotations(mciObj, vsAnnotations, key); err != nil {
+	if err := UpdateMultiClusterIngressAnnotations(mciObj, vsAnnotations, key); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not update the Multi-cluster ingress object's annotation: err %s, %s/%s", key, err, mciObj.Namespace, mciObj.Name)
 	}
 }
@@ -102,7 +107,7 @@ func UpdateMultiClusterIngressStatus(key string, mci *akov1alpha1.MultiClusterIn
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the multicluster ingress %s/%s status %+v", key, mci.Namespace, mci.Name, utils.Stringify(status))
 }
 
-func patchMultiClusterIngressAnnotations(mci *akov1alpha1.MultiClusterIngress, vsAnnotations map[string]string, key string) error {
+func UpdateMultiClusterIngressAnnotations(mci *akov1alpha1.MultiClusterIngress, vsAnnotations map[string]string, key string) error {
 
 	// compare the vs annotations for this object
 	required := isAnnotationsUpdateRequired(mci.GetAnnotations(), vsAnnotations)
