@@ -67,20 +67,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 			return nil
 		}
 
-		controllerVersion := utils.CtrlVersion
-		// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
-		if lib.CompareVersions(controllerVersion, ">", lib.GetAviMaxSupportedVersion()) {
-			utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", lib.GetAviMaxSupportedVersion())
-			controllerVersion = lib.GetAviMaxSupportedVersion()
-		}
-		if lib.CompareVersions(controllerVersion, "<", lib.GetAviMinSupportedVersion()) {
-			lib.AKOControlConfig().PodEventf(
-				corev1.EventTypeWarning,
-				lib.AKOShutdown, "AKO is running with unsupported Avi version %s",
-				controllerVersion,
-			)
-			utils.AviLog.Fatalf("AKO is not supported for the Avi version %s, Avi must be %s or more", controllerVersion, lib.GetAviMinSupportedVersion())
-		}
+		controllerVersion := lib.GetControllerVersion()
 		utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
 
 		// set the tenant and controller version in avisession obj

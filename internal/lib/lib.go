@@ -39,6 +39,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/vmware/alb-sdk/go/models"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1611,6 +1612,24 @@ func GetK8sMinSupportedVersion() string {
 
 func GetK8sMaxSupportedVersion() string {
 	return k8sMaxVersion
+}
+
+func GetControllerVersion() string {
+	controllerVersion := utils.CtrlVersion
+	// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
+	if CompareVersions(controllerVersion, ">", GetAviMaxSupportedVersion()) {
+		utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", GetAviMaxSupportedVersion())
+		controllerVersion = GetAviMaxSupportedVersion()
+	}
+	if CompareVersions(controllerVersion, "<", GetAviMinSupportedVersion()) {
+		AKOControlConfig().PodEventf(
+			corev1.EventTypeWarning,
+			AKOShutdown, "AKO is running with unsupported Avi version %s",
+			controllerVersion,
+		)
+		utils.AviLog.Fatalf("AKO is not supported for the Avi version %s, Avi must be %s or more", controllerVersion, GetAviMinSupportedVersion())
+	}
+	return controllerVersion
 }
 
 func VIPPerNamespace() bool {
