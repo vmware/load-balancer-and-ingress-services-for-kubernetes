@@ -51,9 +51,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "DEDICATED")
 	os.Setenv("AUTO_L4_FQDN", "default")
 
-	os.Setenv("AKO_ID", "1")
-	lib.SetAKOID()
 	akoControlConfig := lib.AKOControlConfig()
+	akoControlConfig.SetAKOInstanceFlag(true)
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)

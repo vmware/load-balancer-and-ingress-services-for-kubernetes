@@ -47,12 +47,11 @@ func TestMain(m *testing.M) {
 	os.Setenv("ADVANCED_L4", "true")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("AKO_ID", "1")
-	lib.SetAKOID()
 
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	AdvL4Client = advl4fake.NewSimpleClientset()
+	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetAdvL4Clientset(AdvL4Client)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{

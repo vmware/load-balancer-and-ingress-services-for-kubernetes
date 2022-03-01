@@ -123,14 +123,13 @@ func TestMain(m *testing.M) {
 	os.Setenv("NODE_NETWORK_LIST", `[{"networkName":"net123","cidrs":["10.79.168.0/22"]}]`)
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("AKO_ID", "1")
-	lib.SetAKOID()
 
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	akoControlConfig.SetAKOInstanceFlag(true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),

@@ -165,7 +165,7 @@ const (
 	AutoFQDNDisabled                           = "Disabled"
 	VCF_NETWORK                                = "vcf-ako-net"
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
-	AKO_ID                                     = "AKO_ID"
+	PRIMARY_AKO_FLAG                           = "PRIMARY_AKO_FLAG"
 	CRDActive                                  = "ACTIVE"
 	CRDInactive                                = "INACTIVE"
 	SSLPort                                    = 443

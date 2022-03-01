@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -83,8 +84,9 @@ func InitializeAKC() {
 
 	// Initialize akoControlConfig
 	akoControlConfig := lib.AKOControlConfig()
-	//Use this AKO_ID to set vrf context, static routes
-	lib.SetAKOID()
+	//Used to set vrf context, static routes
+	isPrimaryAKO, _ := strconv.ParseBool(os.Getenv("PRIMARY_AKO_FLAG"))
+	akoControlConfig.SetAKOInstanceFlag(isPrimaryAKO)
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset

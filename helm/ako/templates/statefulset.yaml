@@ -83,11 +83,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: fullSyncFrequency
-          - name: AKO_ID
+          - name: PRIMARY_AKO_FLAG
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: akoID
+                key: primaryInstance
           - name: CLOUD_NAME
             valueFrom:
               configMapKeyRef:

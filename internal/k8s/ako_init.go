@@ -670,8 +670,8 @@ func (c *AviController) FullSyncK8s() error {
 	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
-		ako_id := lib.GetAKOID()
-		if ako_id == "1" {
+		isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+		if isPrimaryAKO {
 			lib.SetStaticRouteSyncHandler()
 			nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
 			for _, node := range nodeObjects {
@@ -699,7 +699,7 @@ func (c *AviController) FullSyncK8s() error {
 				utils.AviLog.Warnf("Timed out while waiting for rest layer to respond, moving on with bootup")
 			}
 		} else {
-			utils.AviLog.Warnf("AKO id is: [%v], skipping vrf context publish in full sync.", ako_id)
+			utils.AviLog.Warnf("AKO is not primary instance, skipping vrf context publish in full sync.")
 		}
 	}
 

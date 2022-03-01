@@ -286,30 +286,18 @@ func GetLayer7Only() bool {
 }
 
 var AKOUser string
-var AKOID string
 
 func SetAKOUser() {
 	AKOUser = "ako-" + GetClusterName()
-	if GetAKOID() != "1" {
-		AKOUser = AKOUser + "-" + AKOID
+	isPrimaryAKO := akoControlConfigInstance.GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		AKOUser = AKOUser + "-" + os.Getenv("POD_NAMESPACE")
 	}
 	utils.AviLog.Infof("Setting AKOUser: %s for Avi Objects", AKOUser)
 }
 
 func GetAKOUser() string {
 	return AKOUser
-}
-
-func SetAKOID() {
-	AKOID = os.Getenv("AKO_ID")
-	if AKOID == "" {
-		utils.AviLog.Warn("Setting AKO ID to 1")
-		AKOID = "1"
-	}
-}
-
-func GetAKOID() string {
-	return AKOID
 }
 
 var enableCtrl2014Features bool

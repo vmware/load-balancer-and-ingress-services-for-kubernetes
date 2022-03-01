@@ -238,8 +238,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("SERVICE_TYPE", "NodePort")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("AKO_ID", "1")
-	lib.SetAKOID()
 
 	akoControlConfig := lib.AKOControlConfig()
 	kubeClient = k8sfake.NewSimpleClientset()
@@ -253,6 +251,7 @@ func TestMain(m *testing.M) {
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
 	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
 	k8s.NewCRDInformers(crdClient)

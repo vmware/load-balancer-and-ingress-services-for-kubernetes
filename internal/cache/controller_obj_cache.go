@@ -1752,9 +1752,9 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		utils.AviLog.Infof("Static route sync disabled in NodePort Mode")
 		return nil
 	}
-	ako_id := lib.GetAKOID()
-	if ako_id != "1" {
-		utils.AviLog.Warnf("AKO id is: [%v], not populating vrf cache.", ako_id)
+	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		utils.AviLog.Warnf("AKO is not primary instance, not populating vrf cache.")
 		return nil
 	}
 	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
