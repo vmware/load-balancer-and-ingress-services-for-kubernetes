@@ -82,6 +82,7 @@ type ServiceMetadataObj struct {
 	PassthroughChildRef   string      `json:"passthrough_child_ref"`
 	Gateway               string      `json:"gateway"` // ns/name
 	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
+	IsMCIIngress          bool        `json:"is_mci_ingress"`
 }
 
 type ServiceMetadataMappingObjType string

@@ -74,7 +74,7 @@ type MultiClusterIngressStatus struct {
 // includes the reason for rejection.
 type AcceptedStatus struct {
 	Accepted bool   `json:"accepted,omitempty"`
-	Reason   string `json:"reason,omitempty"`
+	Reason   string `json:"reason"`
 }
 
 // LoadBalancer status is updated by AKO in the MultiClusterIngress object. It contains the
@@ -85,7 +85,7 @@ type LoadBalancer struct {
 
 // IngressStatus contains the ingress details required for the traffic
 type IngressStatus struct {
-	Hostname string `json:"hostName,omitempty"`
+	Hostname string `json:"hostname,omitempty"`
 	IP       string `json:"ip,omitempty"`
 }
 

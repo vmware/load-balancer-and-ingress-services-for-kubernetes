@@ -46,7 +46,7 @@ rules:
     verbs: ["get","watch","list","patch","update"]
   - apiGroups: ["ako.vmware.com"]
     resources: ["multiclusteringresses","serviceimports"]
-    verbs: ["get","watch","list"]
+    verbs: ["get","watch","list","patch"]
   - apiGroups: ["ako.vmware.com"]
     resources: ["multiclusteringresses/status","serviceimports/status"]
     verbs: ["get","patch"]
