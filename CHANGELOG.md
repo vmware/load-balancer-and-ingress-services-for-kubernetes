@@ -208,5 +208,9 @@ All notable changes to this project will be documented in this file. The format 
 ### Bugs fixed
  - Problem in creating VSVip for Passthrough routes.
  - Problem in correctly saving ipamType in AKO when no DNS providers are set in the Cloud.
- - Fixes related to fqdnType Contains/Wildcard in HostRules.
- - Fixes validation related to tcpSettings listener ports in HostRules.
+ - Fixes around fqdnType Contains/Wildcard settings in HostRules.
+ - Fix validations related to tcpSettings listener ports in HostRules.
+ - Issue #611: AKO must not sync service fqdn via External DNS if autoFqdn is disabled.
+ - Fix for attaching applicationProfile, datascripts, httpPolicies to Parent VS via HostRule.
+ - Set non-significant log duration to infinite, when configuring analyticsPolicy via HostRule.
+ - Fix for auth-token renewal after token expiration.
