@@ -108,7 +108,7 @@ Please make sure that the SEGs have no member Service Engines deployed, before s
 
 #### Configure VIP Networks
 
-**Note**: AKO 1.5.1 updates the schema to provide VIP network information in AviInfraSetting CRD. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
+**Note**: AKO 1.5.1 and above updates the schema to provide VIP network information in AviInfraSetting CRD. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
 
 AviInfraSetting CRD can be used to configure VIP networks for virtualservices created corresponding to Services/Ingresses/Openshift Routes. The Networks must be present in the Avi Controller prior to this CRD creation.
 
