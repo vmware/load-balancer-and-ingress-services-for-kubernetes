@@ -72,19 +72,19 @@ spec:
                             - ref
                             - secret
                             type: string
-                        required:
-                        - name
-                        - type
-                        type: object
-                      sslKeyCertificateEC:
-                        properties:
-                          name:
-                            type: string
-                          type:
-                            enum:
-                            - ref
-                            - secret
-                            type: string
+                          alternateCertificate:
+                            properties:
+                              name:
+                                type: string
+                              type:
+                                enum:
+                                - ref
+                                - secret
+                                type: string
+                            required:
+                            - name
+                            - type
+                            type: object
                         required:
                         - name
                         - type

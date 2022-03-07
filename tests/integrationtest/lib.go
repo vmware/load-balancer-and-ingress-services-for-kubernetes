@@ -1272,7 +1272,7 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 			VirtualHost: akov1alpha1.HostRuleVirtualHost{
 				Fqdn: hr.Fqdn,
 				TLS: akov1alpha1.HostRuleTLS{
-					SSLKeyCertificate: akov1alpha1.HostRuleSecret{
+					SSLKeyCertificate: akov1alpha1.HostRuleSSLKeyCertificate{
 						Name: hr.SslKeyCertificate,
 						Type: "ref",
 					},

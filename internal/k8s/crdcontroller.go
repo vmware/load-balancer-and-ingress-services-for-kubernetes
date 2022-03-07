@@ -769,12 +769,12 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 			return err
 		}
 	}
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Type == akov1alpha1.HostRuleSecretTypeAviReference {
-		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Name] = "SslKeyCert"
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name] = "SslKeyCert"
 	}
 
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
-		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Name)
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
 		if err != nil {
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err

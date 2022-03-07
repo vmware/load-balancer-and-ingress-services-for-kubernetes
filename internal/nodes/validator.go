@@ -130,13 +130,13 @@ func sslKeyCertHostRulePresent(hostRuleObj *v1alpha1.HostRule, key string) (bool
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
 		}
 	}
-	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Name != "" {
-		utils.AviLog.Infof("key: %s, msg: secret %s found for host %s in hostrule.ako.vmware.com %s",
-			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Name, hostRuleObj.Spec.VirtualHost.Fqdn, hostRuleObj.Name)
-		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
-			sslKeyCerts = append(sslKeyCerts, lib.DummySecretK8s+"/"+hostRuleObj.Namespace+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Name)
-		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Type == akov1alpha1.HostRuleSecretTypeAviReference {
-			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificateEC.Name)
+	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name != "" {
+		utils.AviLog.Infof("key: %s, msg: alternate secret %s found for host %s in hostrule.ako.vmware.com %s",
+			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name, hostRuleObj.Spec.VirtualHost.Fqdn, hostRuleObj.Name)
+		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+			sslKeyCerts = append(sslKeyCerts, lib.DummySecretK8s+"/"+hostRuleObj.Namespace+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
+		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
 		}
 	}
 	if len(sslKeyCerts) != 0 {
