@@ -599,8 +599,6 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 				}
 				tlsConfigs = append(tlsConfigs, tls)
 			}
-
-			ingressConfig.TlsCollection = tlsConfigs
 			if !useHostRuleSSL {
 				// If svc for a route gets processed before the route itself,
 				// then secret mapping may not be updated, update it here.
@@ -611,6 +609,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 				}
 			}
 		}
+		ingressConfig.TlsCollection = tlsConfigs
 	}
 
 	if len(secretNames) == 0 || (routeSpec.TLS != nil && routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow) {

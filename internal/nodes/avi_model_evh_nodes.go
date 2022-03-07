@@ -640,10 +640,9 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	for _, evhnode := range v.EvhNodes {
 		checksumStringSlice = append(checksumStringSlice, "EVHNode"+evhnode.Name)
-		if len(evhnode.SSLKeyCertAviRef) != 0 {
-			for _, evhcert := range evhnode.SSLKeyCertAviRef {
-				checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhcert)
-			}
+		for _, evhcert := range evhnode.SSLKeyCertAviRef {
+			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhcert)
+
 		}
 	}
 
