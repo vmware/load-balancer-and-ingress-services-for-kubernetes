@@ -91,9 +91,9 @@ type HostRuleTCPListeners struct {
 
 // HostRuleTLS holds secure host specific properties
 type HostRuleTLS struct {
-	SSLKeyCertificate HostRuleSecret `json:"sslKeyCertificate,omitempty"`
-	SSLProfile        string         `json:"sslProfile,omitempty"`
-	Termination       string         `json:"termination,omitempty"`
+	SSLKeyCertificate HostRuleSSLKeyCertificate `json:"sslKeyCertificate,omitempty"`
+	SSLProfile        string                    `json:"sslProfile,omitempty"`
+	Termination       string                    `json:"termination,omitempty"`
 }
 
 // HostRuleSecret is required to provide distinction between Avi SSLKeyCertificate
@@ -101,6 +101,11 @@ type HostRuleTLS struct {
 type HostRuleSecret struct {
 	Name string             `json:"name,omitempty"`
 	Type HostRuleSecretType `json:"type,omitempty"`
+}
+type HostRuleSSLKeyCertificate struct {
+	Name                 string             `json:"name,omitempty"`
+	Type                 HostRuleSecretType `json:"type,omitempty"`
+	AlternateCertificate HostRuleSecret     `json:"alternateCertificate,omitempty"`
 }
 
 type HostRuleSecretType string

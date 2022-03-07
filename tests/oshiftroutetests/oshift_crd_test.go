@@ -55,7 +55,8 @@ func TestRouteCreateDeleteHostRule(t *testing.T) {
 	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
 	g.Expect(nodes[0].SniNodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
@@ -93,7 +94,7 @@ func TestRouteCreateDeleteHostRule(t *testing.T) {
 	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", false)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].SniNodes[0].AppProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].SniNodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
@@ -129,8 +130,8 @@ func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			if len(nodes[0].SniNodes) == 1 {
-				return nodes[0].SniNodes[0].SSLKeyCertAviRef
+			if len(nodes[0].SniNodes) == 1 && len(nodes[0].SniNodes[0].SSLKeyCertAviRef) == 1 {
+				return nodes[0].SniNodes[0].SSLKeyCertAviRef[0]
 			}
 		}
 		return ""
@@ -142,8 +143,8 @@ func TestOshiftCreateHostRuleBeforeIngress(t *testing.T) {
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			if len(nodes[0].SniNodes) == 1 {
-				return nodes[0].SniNodes[0].SSLKeyCertAviRef
+			if len(nodes[0].SniNodes) == 1 && len(nodes[0].SniNodes[0].SSLKeyCertAviRef) == 1 {
+				return nodes[0].SniNodes[0].SSLKeyCertAviRef[0]
 			}
 		}
 		return ""
@@ -192,7 +193,8 @@ func TestOShiftRouteInsecureToSecureHostRule(t *testing.T) {
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
@@ -239,7 +241,8 @@ func TestOshiftMultiRouteToSecureHostRule(t *testing.T) {
 	}, 90*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
@@ -371,8 +374,8 @@ func TestOshiftGoodToBadHostRule(t *testing.T) {
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			if len(nodes[0].SniNodes) == 1 {
-				return nodes[0].SniNodes[0].SSLKeyCertAviRef
+			if len(nodes[0].SniNodes) == 1 && len(nodes[0].SniNodes[0].SSLKeyCertAviRef) == 1 {
+				return nodes[0].SniNodes[0].SSLKeyCertAviRef[0]
 			}
 		}
 		return ""

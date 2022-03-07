@@ -19,6 +19,9 @@ A sample HostRule CRD looks like this:
           sslKeyCertificate:
             name: avi-ssl-key-cert
             type: ref
+            alternateCertificate:
+              name: avi-ssl-key-cert2
+              type: ref
           sslProfile: avi-ssl-profile
           termination: edge
         gslb:
@@ -154,6 +157,9 @@ If the kubernetes operator wants to control the TLS termination from a privilege
           sslKeyCertificate:
             name: avi-ssl-key-cert
             type: ref
+            alternateCertificate:
+              name: avi-ssl-key-cert2
+              type: ref
           sslProfile: avi-ssl-profile
           termination: edge
 
