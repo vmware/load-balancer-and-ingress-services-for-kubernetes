@@ -822,6 +822,12 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 // addSeGroupLabel configures SEGroup with appropriate labels, during AviInfraSetting
 // creation/updates after ingestion
 func addSeGroupLabel(key, segName string) {
+	// No need to configure labels if static route sync is disabled globally.
+	if lib.GetDisableStaticRoute() {
+		utils.AviLog.Infof("Skipping the check for SE group labels for SEG %s", segName)
+		return
+	}
+
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
