@@ -95,7 +95,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
     containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:ae215384004f6e13f0bfe184820a329400c49ef158d13ca6b308784c2589985d
-  name: ako-operator.v1.6.2-beta
+  name: ako-operator.v1.6.2-stable
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -179,6 +179,7 @@ spec:
           - ""
           resources:
           - configmaps
+          - configmaps/finalizers
           verbs:
           - create
           - delete
@@ -200,6 +201,7 @@ spec:
           resources:
           - secrets
           - secrets/status
+          - secrets/finalizers
           verbs:
           - create
           - delete
@@ -225,6 +227,7 @@ spec:
           - ""
           resources:
           - serviceaccounts
+          - serviceaccounts/finalizers
           verbs:
           - create
           - delete
@@ -237,6 +240,7 @@ spec:
           - ako.vmware.com
           resources:
           - akoconfigs
+          - akoconfigs/finalizers
           verbs:
           - create
           - delete
@@ -258,6 +262,7 @@ spec:
           resources:
           - aviinfrasettings
           - aviinfrasettings/status
+          - aviinfrasettings/finalizers
           verbs:
           - create
           - delete
@@ -271,6 +276,7 @@ spec:
           resources:
           - hostrules
           - hostrules/status
+          - hostrules/finalizers
           verbs:
           - create
           - delete
@@ -284,6 +290,7 @@ spec:
           resources:
           - httprules
           - httprules/status
+          - httprules/finalizers
           verbs:
           - create
           - delete
@@ -297,6 +304,7 @@ spec:
           resources:
           - customresourcedefinitions
           - customresourcedefinitions/status
+          - customresourcedefinitions/finalizers
           verbs:
           - create
           - delete
@@ -310,6 +318,7 @@ spec:
           resources:
           - statefulsets
           - statefulsets/status
+          - statefulsets/finalizers
           verbs:
           - create
           - delete
@@ -349,6 +358,7 @@ spec:
           - policy
           resources:
           - podsecuritypolicies
+          - podsecuritypolicies/finalizers
           verbs:
           - create
           - delete
@@ -374,6 +384,7 @@ spec:
           - networking.k8s.io
           resources:
           - ingressclasses
+          - ingressclasses/finalizers
           verbs:
           - create
           - delete
@@ -400,8 +411,10 @@ spec:
           resources:
           - gatewayclasses
           - gatewayclasses/status
+          - gatewayclasses/finalizers
           - gateways
           - gateways/status
+          - gateways/finalizers
           verbs:
           - create
           - delete
@@ -414,6 +427,7 @@ spec:
           - rbac.authorization.k8s.io
           resources:
           - clusterrolebindings
+          - clusterrolebindings/finalizers
           verbs:
           - create
           - delete
@@ -426,6 +440,7 @@ spec:
           - rbac.authorization.k8s.io
           resources:
           - clusterroles
+          - clusterroles/finalizers
           verbs:
           - create
           - delete
@@ -532,9 +547,7 @@ spec:
   maintainers:
   - email: riyag@vmware.com
     name: Riya Ganiga
-  - email: hshaw@vmware.com
-    name: Hemant Shaw
-  maturity: alpha
+  maturity: stable
   provider:
     name: VMware
-  version: 1.6.2-beta
+  version: 1.6.2
