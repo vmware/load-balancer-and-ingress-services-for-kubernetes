@@ -182,7 +182,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 
 				// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
 				if vipNetwork.Cidr == "" {
-					utils.AviLog.Warnf("Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip")
+					utils.AviLog.Warnf("key: %s, msg: Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip", key)
 				} else {
 					ipPrefixSlice := strings.Split(vipNetwork.Cidr, "/")
 					mask, _ := strconv.Atoi(ipPrefixSlice[1])
