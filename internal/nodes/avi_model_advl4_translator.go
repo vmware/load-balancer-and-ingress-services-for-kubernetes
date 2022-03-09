@@ -175,8 +175,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 				services := listenerSvcMapping[fmt.Sprintf("%s/%d", listener.Protocol, listener.Port)]
 				for _, service := range services {
 					svcNsName := strings.Split(service, "/")
-					fqdn := getAutoFQDNForService(svcNsName[0], svcNsName[1])
-					fqdns = append(fqdns, fqdn)
+					if fqdn := getAutoFQDNForService(svcNsName[0], svcNsName[1]); fqdn != "" {
+						fqdns = append(fqdns, fqdn)
+					}
 				}
 			}
 		}
