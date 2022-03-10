@@ -48,7 +48,9 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	subDomains := GetDefaultSubDomain()
 	if subDomains != nil && autoFQDN {
-		fqdns = append(fqdns, getAutoFQDNForService(svcObj.Namespace, svcObj.Name))
+		if fqdn := getAutoFQDNForService(svcObj.Namespace, svcObj.Name); fqdn != "" {
+			fqdns = append(fqdns, fqdn)
+		}
 	}
 
 	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
