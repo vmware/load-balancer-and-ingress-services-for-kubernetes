@@ -187,7 +187,7 @@ const (
 	DefaultIngressClassAnnotation  = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation          = "external-dns.alpha.kubernetes.io/hostname"
 	GatewayFinalizer               = "gateway.ako.vmware.com"
-	IngressFinalizer               = "ingress.ako.vmware.com"
+	IngressFinalizer               = "ingress.ako.vmware.com/finalizer"
 	AkoGroup                       = "ako.vmware.com"
 	AviIngressController           = "ako.vmware.com/avi-lb"
 	AKOConditionType               = "ako.vmware.com/ObjectDeletionInProgress"
