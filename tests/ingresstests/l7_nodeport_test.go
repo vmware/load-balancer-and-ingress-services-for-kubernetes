@@ -716,7 +716,7 @@ func TestMultiPortServiceIngressInNodePort(t *testing.T) {
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo"},
 		ServiceName: "avisvc",
-	}).Ingress(true)
+	}).IngressMultiPort()
 
 	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
 	if err != nil {

@@ -197,7 +197,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 
 	targetPorts := make(map[int]bool)
 	for _, port := range svcObj.Spec.Ports {
-		if port.Name != poolNode.PortName && len(svcObj.Spec.Ports) != 1 {
+		if port.Name != poolNode.PortName && len(svcObj.Spec.Ports) > 1 {
 			// continue only if port name does not match and it is multiport svcobj
 			continue
 		}
