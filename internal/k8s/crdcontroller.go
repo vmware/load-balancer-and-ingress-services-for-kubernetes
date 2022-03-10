@@ -98,7 +98,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 				if err := validateHostRuleObj(key, hostrule); err != nil {
-					utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
+					utils.AviLog.Warnf("key: %s, msg: Error retrieved during validation of HostRule: %v", key, err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -114,7 +114,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 					key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 					if err := validateHostRuleObj(key, hostrule); err != nil {
-						utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
+						utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 					bkt := utils.Bkt(namespace, numWorkers)
@@ -310,6 +310,16 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 			Error:  err.Error(),
 		})
 		return err
+	}
+	if hostrule.Spec.VirtualHost.Gslb.Fqdn != "" {
+		if fqdn == hostrule.Spec.VirtualHost.Gslb.Fqdn {
+			err = fmt.Errorf("GSLB FQDN and local FQDN are same")
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
+				Status: lib.StatusRejected,
+				Error:  err.Error(),
+			})
+			return err
+		}
 	}
 
 	refData := map[string]string{

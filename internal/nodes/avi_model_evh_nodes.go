@@ -826,7 +826,9 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	// Remove the redirect for secure to insecure transition
 	hosts := []string{host}
 	if pathsvcmap.gslbHostHeader != "" {
-		hosts = append(hosts, pathsvcmap.gslbHostHeader)
+		if !utils.HasElem(hosts, pathsvcmap.gslbHostHeader) {
+			hosts = append(hosts, pathsvcmap.gslbHostHeader)
+		}
 	}
 	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
 	vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
@@ -1099,7 +1101,9 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	if certsBuilt {
 		hosts := []string{host}
 		if paths.gslbHostHeader != "" {
-			hosts = append(hosts, paths.gslbHostHeader)
+			if !utils.HasElem(hosts, paths.gslbHostHeader) {
+				hosts = append(hosts, paths.gslbHostHeader)
+			}
 		}
 		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, paths.ingressHPSvc, &tlssetting)
 		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
