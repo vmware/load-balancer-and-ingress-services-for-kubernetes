@@ -55,3 +55,4 @@ rules:
 - apiGroups: [""]
   resources: ["secrets", "secrets/status", "secrets/finalizers"]
   verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  
