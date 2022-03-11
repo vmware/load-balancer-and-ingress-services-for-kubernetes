@@ -28,6 +28,9 @@ rules:
 - apiGroups: [""]
   resources: ["services", "services/status"]
   verbs: ["create", "get", "watch", "list", "patch", "update"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch", "update"]
 - apiGroups: ["crd.projectcalico.org"]
   resources: ["blockaffinities", "blockaffinities/status"]
   verbs: ["get", "watch", "list"]
@@ -55,4 +58,3 @@ rules:
 - apiGroups: [""]
   resources: ["secrets", "secrets/status", "secrets/finalizers"]
   verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
-  
