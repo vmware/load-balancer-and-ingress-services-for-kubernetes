@@ -41,11 +41,6 @@ make ako-operator
 ./bin/ako-operator
 ```
 
-<i>**Step 5**</i>: Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
-```
-kubectl apply -f config/secrets/secret.yaml
-```
-
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
 ### 3.2 In-cluster execution
@@ -62,12 +57,7 @@ make ako-operator-docker
 cd ako-operator
 ```
 
-<i>**Step 4**</i>: Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
-```
-kubectl apply -f config/secrets/secret.yaml
-```
-
-<i>**Step 5**</i>: Use the following to deploy it on the cluster.
+<i>**Step 4**</i>: Use the following to deploy it on the cluster.
 ```
 make deploy
 ```
@@ -120,6 +110,13 @@ helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1
 
 AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](../docs/akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
 
+#### Create a secret with Avi Controller details 
+
+Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
+```
+kubectl apply -f config/secrets/secret.yaml
+```
+
 #### Deploying the AKO Controller
 
 If the AKO operator was installed using helm, a default `AKOConfig` object called `ako-config` is already added and hence, this step is not required for helm based installation.
@@ -155,4 +152,4 @@ If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-c
 | **Operator version** | **Supported AKO Version** |
 | --------- | ----------- |
 | 1.5.3 | 1.5.2 |
-| 1.6.2 | 1.6.1 |
+| 1.6.2 | 1.6.2 |
