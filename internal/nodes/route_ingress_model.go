@@ -371,5 +371,15 @@ func (mciModel *multiClusterIngressModel) GetDiffPathSvc(storedPathSvc map[strin
 }
 
 func (mciModel *multiClusterIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
-	return nil
+	enablePublicIP := true
+	return &akov1alpha1.AviInfraSetting{
+		Spec: akov1alpha1.AviInfraSettingSpec{
+			Network: akov1alpha1.AviInfraSettingNetwork{
+				EnablePublicIP: &enablePublicIP,
+			},
+		},
+		Status: akov1alpha1.AviInfraSettingStatus{
+			Status: lib.StatusAccepted,
+		},
+	}
 }
