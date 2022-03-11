@@ -69,7 +69,7 @@ spec:
                       will only do layer 7 loadbalancing
                     type: boolean
                   enableEvents:
-                    description: EnableEvents controls whether AKO broadcasts Events in 
+                    description: EnableEvents controls whether AKO broadcasts Events in
                       the cluster or not
                     type: boolean
                   logLevel:
