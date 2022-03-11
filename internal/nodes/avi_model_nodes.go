@@ -721,7 +721,7 @@ func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key
 	o.SSLKeyCertRefs = append(o.SSLKeyCertRefs, newSslNode)
 }
 
-func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 
 	// Update the hosts in the hppMap of child VS
 	if o.IsSNIChild {
@@ -759,7 +759,7 @@ func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key 
 	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for parent VS %s", key, hosts, o.Name)
 }
 
-func (o *AviVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviVsNode) RemoveFQDNAliasesFromHTTPPolicy(hosts []string, key string) {
 
 	// Find the hppMap for the child and delete the hosts from it
 	if o.IsSNIChild {

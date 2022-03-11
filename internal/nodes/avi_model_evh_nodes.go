@@ -501,7 +501,7 @@ func (v *AviEvhVsNode) GetNodeType() string {
 	return "VirtualServiceNode"
 }
 
-func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 
 	// Find the hppMap and redirectPorts that matches the host
 	for _, policy := range o.HttpPolicyRefs {
@@ -520,7 +520,7 @@ func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, k
 	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for VS %s", key, hosts, o.Name)
 }
 
-func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(hosts []string, key string) {
 
 	for _, host := range hosts {
 		// Find the hppMap and redirectPorts that matches the host and remove the hosts
@@ -1093,11 +1093,11 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		}
 	}
 	vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-	evhNode.RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
+	evhNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 	// Add FQDN aliases in the hostrule CRD to parent and child VSes
 	vsNode[0].AddFQDNsToModel(evhNode.VHDomainNames, pathsvcmap.gslbHostHeader, key)
-	evhNode.AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
+	evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
 	evhNode.AviMarkers.Host = evhNode.VHDomainNames
 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
 }
@@ -1418,11 +1418,11 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			}
 		}
 		vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-		evhNode.RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
+		evhNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 		// Add FQDN aliases in the hostrule CRD to parent and child VSes
 		vsNode[0].AddFQDNsToModel(evhNode.VHDomainNames, paths.gslbHostHeader, key)
-		evhNode.AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
+		evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
 		evhNode.AviMarkers.Host = evhNode.VHDomainNames
 		objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
 
