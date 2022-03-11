@@ -251,6 +251,7 @@ func TestMain(m *testing.M) {
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
 	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
 	k8s.NewCRDInformers(crdClient)

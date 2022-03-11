@@ -93,6 +93,9 @@ type akoControlConfig struct {
 	// httpRuleEnabled is set to true if the cluster has
 	// HTTPRule CRD installed.
 	httpRuleEnabled bool
+	// primaryaAKO is set to true/false if as per primaryaAKO value
+	//in values.yaml
+	primaryaAKO bool
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -102,6 +105,13 @@ func AKOControlConfig() *akoControlConfig {
 		akoControlConfigInstance = &akoControlConfig{}
 	}
 	return akoControlConfigInstance
+}
+
+func (c *akoControlConfig) SetAKOInstanceFlag(flag bool) {
+	c.primaryaAKO = flag
+}
+func (c *akoControlConfig) GetAKOInstanceFlag() bool {
+	return c.primaryaAKO
 }
 
 func (c *akoControlConfig) SetAdvL4Clientset(cs advl4crd.Interface) {

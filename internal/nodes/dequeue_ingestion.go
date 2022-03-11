@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"encoding/json"
+	"os"
 	"strconv"
 	"strings"
 
@@ -68,6 +69,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, fullsync)
+
 		if lib.IsNodePortMode() && !fullsync {
 			svcl4Keys, svcl7Keys := lib.GetSvcKeysForNodeCRUD()
 			for _, svcl4Key := range svcl4Keys {
@@ -558,6 +560,12 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	if lib.IsNodePortMode() {
 		return
 	}
+
+	// Do not process VRF for non primary AKO
+	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		return
+	}
 	aviModel := NewAviObjectGraph()
 	aviModel.IsVrf = true
 	vrfcontext := lib.GetVrf()
@@ -609,7 +617,12 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 
 func GetShardVSPrefix(key string) string {
 	// sample prefix: clusterName--Shared-L7-
-	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-"
+	var akoID string
+	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		akoID = os.Getenv("POD_NAMESPACE") + "-"
+	}
+	shardVsPrefix := lib.GetNamePrefix() + akoID + lib.ShardVSPrefix + "-"
 	utils.AviLog.Debugf("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }

@@ -289,6 +289,10 @@ var AKOUser string
 
 func SetAKOUser() {
 	AKOUser = "ako-" + GetClusterName()
+	isPrimaryAKO := akoControlConfigInstance.GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		AKOUser = AKOUser + "-" + os.Getenv("POD_NAMESPACE")
+	}
 	utils.AviLog.Infof("Setting AKOUser: %s for Avi Objects", AKOUser)
 }
 
