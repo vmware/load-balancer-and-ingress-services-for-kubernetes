@@ -980,6 +980,10 @@ func TestHostruleFQDNAliasesForMultiPathIngress(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 
 	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].Hosts).To(gomega.HaveLen(len(aliases) + 1)) // aliases + host
+	g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].Hosts).Should(gomega.ContainElements(aliases))
 	g.Expect(nodes[0].SniNodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].SniNodes[0].VHDomainNames).Should(gomega.ContainElements(aliases))
 	g.Expect(nodes[0].SniNodes[0].AviMarkers).ShouldNot(gomega.BeNil())

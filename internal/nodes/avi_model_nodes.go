@@ -28,6 +28,7 @@ import (
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 /*
@@ -724,7 +725,7 @@ func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key
 func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 
 	// Update the hosts in the hppMap of child VS
-	if o.IsSNIChild {
+	if o.IsSNIChild || o.Dedicated {
 		for _, policy := range o.HttpPolicyRefs {
 			for j := range policy.HppMap {
 				policy.HppMap[j].Host = make([]string, len(hosts))
@@ -733,26 +734,19 @@ func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 			policy.AviMarkers.Host = make([]string, len(hosts))
 			copy(policy.AviMarkers.Host, hosts)
 		}
-		utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for child VS %s", key, hosts, o.Name)
-		return
+		if o.IsSNIChild {
+			utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for child VS %s", key, hosts, o.Name)
+			return
+		}
 	}
 
 	// Update the hosts in the redirect policy of parent VS
 	for _, policy := range o.HttpPolicyRefs {
 		for j := range policy.RedirectPorts {
-			uniqueHosts := make(map[string]struct{})
-			for _, host := range policy.RedirectPorts[j].Hosts {
-				uniqueHosts[host] = struct{}{}
-			}
-			for _, host := range hosts {
-				uniqueHosts[host] = struct{}{}
-			}
-			policy.RedirectPorts[j].Hosts = make([]string, len(uniqueHosts))
-			var index int
-			for host := range uniqueHosts {
-				policy.RedirectPorts[j].Hosts[index] = host
-				index++
-			}
+			uniqueHosts := sets.NewString(policy.RedirectPorts[j].Hosts...)
+			uniqueHosts.Insert(hosts...)
+			policy.RedirectPorts[j].Hosts = make([]string, uniqueHosts.Len())
+			copy(policy.RedirectPorts[j].Hosts, uniqueHosts.UnsortedList())
 		}
 	}
 
@@ -762,7 +756,7 @@ func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 func (o *AviVsNode) RemoveFQDNAliasesFromHTTPPolicy(hosts []string, key string) {
 
 	// Find the hppMap for the child and delete the hosts from it
-	if o.IsSNIChild {
+	if o.IsSNIChild || o.Dedicated {
 		for _, host := range hosts {
 			for _, policy := range o.HttpPolicyRefs {
 				for j := range policy.HppMap {
@@ -771,8 +765,10 @@ func (o *AviVsNode) RemoveFQDNAliasesFromHTTPPolicy(hosts []string, key string) 
 				policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
 			}
 		}
-		utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for child VS %s", key, hosts, o.Name)
-		return
+		if o.IsSNIChild {
+			utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for child VS %s", key, hosts, o.Name)
+			return
+		}
 	}
 
 	// Find the redirect policies of parent and delete the hosts from it
