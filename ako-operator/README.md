@@ -4,11 +4,17 @@ AKO operator takes care of deploying, managing and removing AKO from openshift/k
 
 ## Installing the operator
 
+<!--
+
+Commenting this out as helm release is not available currently
+
 ### 1. Install using Helm CLI
 
 To install the Operator using Helm refer [here](../docs/install/operator.md)
 
-### 2. Install on Openshift cluster from OperatorHub using Web Console
+-->
+
+### 1. Install on Openshift cluster from OperatorHub using Web Console
 
 <i>**Step 1**</i>: Login to the web console of your Openshift cluster.
 
@@ -22,8 +28,8 @@ To install the Operator using Helm refer [here](../docs/install/operator.md)
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
-### 3. Manual Installation
-### 3.1 Out of cluster execution:
+### 2. Manual Installation
+### 2.1 Out of cluster execution:
 <i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
 
 <i>**Step 2**</i>: Go to the operator directory
@@ -43,7 +49,7 @@ make ako-operator
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
-### 3.2 In-cluster execution
+### 2.2 In-cluster execution
 
 <i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
 
@@ -64,7 +70,11 @@ make deploy
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
-### Upgrading the operator using Helm CLI
+<!-- 
+
+Commenting this out as helm release is not available currently
+
+Upgrading the operator using Helm CLI
 
 <i>**Step 1**</i>: Run this command to update local AKO chart information from the chart repository:
 ```
@@ -105,6 +115,7 @@ Edit the file according to your setup.
 helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.6.2 --namespace=avi-system
 ```
 
+--> 
 
 ## <a id="ako-config">AKOConfig Custom Resource
 
