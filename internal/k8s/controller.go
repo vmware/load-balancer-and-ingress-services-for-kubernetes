@@ -149,7 +149,9 @@ func isRouteUpdated(oldRoute, newRoute *routev1.Route) bool {
 	if oldSpecHash != newSpecHash {
 		return true
 	}
-
+	if !reflect.DeepEqual(newRoute.Annotations, oldRoute.Annotations) {
+		return true
+	}
 	return false
 }
 
