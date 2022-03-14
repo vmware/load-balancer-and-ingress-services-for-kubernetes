@@ -34,7 +34,7 @@ type AviRestClientPool struct {
 
 var AviClientInstance *AviRestClientPool
 
-func NewAviRestClientWithToken(api_ep string, username string, authToken string) *clients.AviClient {
+func NewAviRestClientWithToken(api_ep string, username string, authToken string, tenant string, controllerVersion string) *clients.AviClient {
 	var aviClient *clients.AviClient
 	var transport *http.Transport
 	var err error
@@ -63,6 +63,10 @@ func NewAviRestClientWithToken(api_ep string, username string, authToken string)
 		AviLog.Warnf("NewAviClient returned err %v", err)
 		return nil
 	}
+	SetTenant := session.SetTenant(tenant)
+	SetTenant(aviClient.AviSession)
+	SetVersion := session.SetVersion(controllerVersion)
+	SetVersion(aviClient.AviSession)
 	return aviClient
 }
 
