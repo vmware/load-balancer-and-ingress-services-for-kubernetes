@@ -1360,5 +1360,6 @@ func SetControllerVersion() string {
 		utils.AviLog.Fatal("AKO is not supported for the following Avi version %s, Avi must be %s or more", controllerVersion, GetAviMinSupportedVersion())
 	}
 	utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
+	utils.CtrlVersion = controllerVersion
 	return controllerVersion
 }

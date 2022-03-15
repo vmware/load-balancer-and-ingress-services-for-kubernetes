@@ -49,7 +49,7 @@ func UpdateNPLAnnotation(key, namespace, name string) {
 		return
 	}
 	if service.Spec.Type == corev1.ServiceTypeNodePort {
-		utils.AviLog.Infof("key: %s, returning without updating NPL annotation for Service type NodePort")
+		utils.AviLog.Infof("key: %s, returning without updating NPL annotation for Service type NodePort", key)
 		return
 	}
 	ann := service.GetAnnotations()

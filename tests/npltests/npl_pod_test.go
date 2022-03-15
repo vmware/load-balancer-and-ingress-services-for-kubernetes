@@ -1201,9 +1201,12 @@ func TestNPLSvcNodePort(t *testing.T) {
 		return false
 	}, 20*time.Second).Should(gomega.Equal(false))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+	if err == nil {
+		err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+		if err != nil {
+			t.Fatalf("Couldn't DELETE the Ingress %v", err)
+		}
 	}
 }
 
@@ -1256,10 +1259,12 @@ func TestIngressAddPodWithMultiportSvc(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(40001)))
 	g.Expect(*nodes[0].PoolRefs[1].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(nodes[0].PoolRefs[1].Servers[0].Port).To(gomega.Equal(int32(40002)))
-
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	_, err = KubeClient.NetworkingV1beta1().Ingresses("default").Get(context.TODO(), "foo-with-targets", metav1.GetOptions{})
+	if err == nil {
+		err = KubeClient.NetworkingV1beta1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+		if err != nil {
+			t.Fatalf("Couldn't DELETE the Ingress %v", err)
+		}
 	}
 	verifyIngressDeletion(t, g, aviModel, 0)
 }
