@@ -4,11 +4,17 @@ AKO operator takes care of deploying, managing and removing AKO from openshift/k
 
 ## Installing the operator
 
+<!--
+
+Commenting this out as helm release is not available currently
+
 ### 1. Install using Helm CLI
 
 To install the Operator using Helm refer [here](../docs/install/operator.md)
 
-### 2. Install on Openshift cluster from OperatorHub using Web Console
+-->
+
+### 1. Install on Openshift cluster from OperatorHub using Web Console
 
 <i>**Step 1**</i>: Login to the web console of your Openshift cluster.
 
@@ -22,8 +28,8 @@ To install the Operator using Helm refer [here](../docs/install/operator.md)
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
-### 3. Manual Installation
-### 3.1 Out of cluster execution:
+### 2. Manual Installation
+### 2.1 Out of cluster execution:
 <i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
 
 <i>**Step 2**</i>: Go to the operator directory
@@ -41,14 +47,9 @@ make ako-operator
 ./bin/ako-operator
 ```
 
-<i>**Step 5**</i>: Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
-```
-kubectl apply -f config/secrets/secret.yaml
-```
-
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
-### 3.2 In-cluster execution
+### 2.2 In-cluster execution
 
 <i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
 
@@ -62,19 +63,18 @@ make ako-operator-docker
 cd ako-operator
 ```
 
-<i>**Step 4**</i>: Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
-```
-kubectl apply -f config/secrets/secret.yaml
-```
-
-<i>**Step 5**</i>: Use the following to deploy it on the cluster.
+<i>**Step 4**</i>: Use the following to deploy it on the cluster.
 ```
 make deploy
 ```
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
-### Upgrading the operator using Helm CLI
+<!-- 
+
+Commenting this out as helm release is not available currently
+
+Upgrading the operator using Helm CLI
 
 <i>**Step 1**</i>: Run this command to update local AKO chart information from the chart repository:
 ```
@@ -115,10 +115,18 @@ Edit the file according to your setup.
 helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.6.2 --namespace=avi-system
 ```
 
+--> 
 
 ## <a id="ako-config">AKOConfig Custom Resource
 
 AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](../docs/akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
+
+#### Create a secret with Avi Controller details 
+
+Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
+```
+kubectl apply -f config/secrets/secret.yaml
+```
 
 #### Deploying the AKO Controller
 
@@ -155,4 +163,4 @@ If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-c
 | **Operator version** | **Supported AKO Version** |
 | --------- | ----------- |
 | 1.5.3 | 1.5.2 |
-| 1.6.2 | 1.6.1 |
+| 1.6.2 | 1.6.2 |

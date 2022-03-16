@@ -8,6 +8,7 @@ rules:
   - ""
   resources:
   - configmaps
+  - configmaps/finalizers
   verbs:
   - get
   - list
