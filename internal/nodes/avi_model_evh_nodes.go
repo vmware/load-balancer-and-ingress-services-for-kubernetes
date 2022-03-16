@@ -502,77 +502,37 @@ func (v *AviEvhVsNode) GetNodeType() string {
 	return "VirtualServiceNode"
 }
 
-func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
-
-	var hppMap *AviHostPathPortPoolPG
-	var redirectPorts *AviRedirectPort
+func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 
 	// Find the hppMap and redirectPorts that matches the host
 	for _, policy := range o.HttpPolicyRefs {
 		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				hppMap = &policy.HppMap[j]
-				break
-			}
+			policy.HppMap[j].Host = make([]string, len(hosts))
+			copy(policy.HppMap[j].Host, hosts)
 		}
 		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				redirectPorts = &policy.RedirectPorts[j]
-				break
-			}
+			policy.RedirectPorts[j].Hosts = make([]string, len(hosts))
+			copy(policy.RedirectPorts[j].Hosts, hosts)
 		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
-				if !utils.HasElem(policy.AviMarkers.Host, host) {
-					policy.AviMarkers.Host = append(policy.AviMarkers.Host, host)
-				}
-			}
-		}
-	}
-
-	// Update the hppMap with the hosts
-	if hppMap != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(hppMap.Host, host) {
-				hppMap.Host = append(hppMap.Host, host)
-			}
-		}
-	}
-
-	// Update the redirectPorts with the hosts
-	if redirectPorts != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(redirectPorts.Hosts, host) {
-				redirectPorts.Hosts = append(redirectPorts.Hosts, host)
-			}
-		}
+		policy.AviMarkers.Host = make([]string, len(hosts))
+		copy(policy.AviMarkers.Host, hosts)
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for VS %s", key, hosts, o.Name)
 }
 
-func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(hosts []string, key string) {
 
-	// Find the hppMap and redirectPorts that matches the host and remove the hosts
-	for _, policy := range o.HttpPolicyRefs {
-		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				for _, host := range hosts {
-					policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
-				}
+	for _, host := range hosts {
+		// Find the hppMap and redirectPorts that matches the host and remove the hosts
+		for _, policy := range o.HttpPolicyRefs {
+			for j := range policy.HppMap {
+				policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
 			}
-		}
-		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				for _, host := range hosts {
-					policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
-				}
+			for j := range policy.RedirectPorts {
+				policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
 			}
-		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
-				policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
-			}
+			policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
 		}
 	}
 
@@ -1123,13 +1083,12 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		}
 	}
 	vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-	vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
-	evhNode.RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
+	evhNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 	// Add FQDN aliases in the hostrule CRD to parent and child VSes
 	vsNode[0].AddFQDNsToModel(evhNode.VHDomainNames, pathsvcmap.gslbHostHeader, key)
-	vsNode[0].AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
-	evhNode.AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
+	evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
+	evhNode.AviMarkers.Host = evhNode.VHDomainNames
 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
 }
 
@@ -1445,13 +1404,12 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			}
 		}
 		vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-		vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
-		evhNode.RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
+		evhNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 		// Add FQDN aliases in the hostrule CRD to parent and child VSes
 		vsNode[0].AddFQDNsToModel(evhNode.VHDomainNames, paths.gslbHostHeader, key)
-		vsNode[0].AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
-		evhNode.AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
+		evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
+		evhNode.AviMarkers.Host = evhNode.VHDomainNames
 		objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
 
 	} else {
