@@ -1256,7 +1256,8 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
 	ctrlIpAddress := os.Getenv(utils.ENV_CTRL_IPADDRESS)
 
-	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
+	controllerVersion := SetControllerVersion()
+	aviClient := utils.NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken, GetTenant(), controllerVersion)
 	if aviClient == nil {
 		utils.AviLog.Errorf("Failed to initialize AVI client")
 		return
@@ -1347,4 +1348,18 @@ func GetK8sMinSupportedVersion() string {
 
 func GetK8sMaxSupportedVersion() string {
 	return k8sMaxVersion
+}
+
+func SetControllerVersion() string {
+	controllerVersion := utils.CtrlVersion
+	// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
+	if CompareVersions(controllerVersion, ">", GetAviMaxSupportedVersion()) {
+		controllerVersion = GetAviMaxSupportedVersion()
+	}
+	if CompareVersions(controllerVersion, "<", GetAviMinSupportedVersion()) {
+		utils.AviLog.Fatal("AKO is not supported for the following Avi version %s, Avi must be %s or more", controllerVersion, GetAviMinSupportedVersion())
+	}
+	utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
+	utils.CtrlVersion = controllerVersion
+	return controllerVersion
 }

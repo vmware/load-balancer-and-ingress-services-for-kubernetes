@@ -243,6 +243,10 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 					PortName:    path.Backend.ServicePort.StrVal,
 					TargetPort:  v.findTargetPort(path.Backend.ServiceName, ns, path.Backend.ServicePort.IntVal, key),
 				}
+				if hostPathMapSvc.PortName == "" {
+					// fill the port name as the port name is not given in the ingress
+					hostPathMapSvc.PortName = v.findPortName(path.Backend.ServiceName, ns, path.Backend.ServicePort.IntVal, key)
+				}
 				if hostPathMapSvc.Port == 0 {
 					// Default to port 80 if not set in the ingress object
 					hostPathMapSvc.Port = 80
@@ -357,10 +361,26 @@ func (v *Validator) findTargetPort(serviceName, ns string, servicePort int32, ke
 			utils.AviLog.Infof("key: %s, msg: Found targetPort %v for Port: %v", key, port.TargetPort.IntVal, servicePort)
 			return port.TargetPort.IntVal
 		}
-
 	}
 	return 0
+}
 
+func (v *Validator) findPortName(serviceName, ns string, servicePort int32, key string) string {
+	// Query the service and obtain the port name
+	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(ns).Get(serviceName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: error while fetching service object: %s", key, err)
+		return ""
+	}
+	for _, port := range svcObj.Spec.Ports {
+		// Iterate the ports and find the match for targetPort
+		if servicePort == port.Port {
+			utils.AviLog.Debugf("key: %s, msg: Found port name %s for Port: %v", key, port.Name, servicePort)
+			return port.Name
+		}
+	}
+	utils.AviLog.Warnf("key: %s, msg: Port name not found in service obj: %v", key, svcObj)
+	return ""
 }
 
 func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec routev1.RouteSpec, key string) IngressConfig {

@@ -826,7 +826,9 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	// Remove the redirect for secure to insecure transition
 	hosts := []string{host}
 	if pathsvcmap.gslbHostHeader != "" {
-		hosts = append(hosts, pathsvcmap.gslbHostHeader)
+		if !utils.HasElem(hosts, pathsvcmap.gslbHostHeader) {
+			hosts = append(hosts, pathsvcmap.gslbHostHeader)
+		}
 	}
 	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
 	vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
@@ -1099,7 +1101,9 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	if certsBuilt {
 		hosts := []string{host}
 		if paths.gslbHostHeader != "" {
-			hosts = append(hosts, paths.gslbHostHeader)
+			if !utils.HasElem(hosts, paths.gslbHostHeader) {
+				hosts = append(hosts, paths.gslbHostHeader)
+			}
 		}
 		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSettingName, hosts, paths.ingressHPSvc, &tlssetting)
 		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
@@ -1132,12 +1136,28 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
 			RemoveEvhInModel(evhNode.Name, vsNode, key)
 			RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
+			vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
 		}
 
 	}
 }
 
 // Util functions
+func (o *AviEvhVsNode) RemoveFQDNsFromModel(hosts []string, key string) {
+	if len(o.VSVIPRefs) == 0 {
+		return
+	}
+	for i := 0; i < len(o.VSVIPRefs[0].FQDNs); i++ {
+		for _, host := range hosts {
+			if host == o.VSVIPRefs[0].FQDNs[i] {
+				o.VSVIPRefs[0].FQDNs = append(o.VSVIPRefs[0].FQDNs[:i], o.VSVIPRefs[0].FQDNs[i+1:]...)
+				i--
+				break
+			}
+		}
+	}
+	utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from VS %s", key, hosts, o.Name)
+}
 
 func FindAndReplaceEvhInModel(currentEvhNode *AviEvhVsNode, modelEvhNodes []*AviEvhVsNode, key string) bool {
 	for i, modelEvhNode := range modelEvhNodes[0].EvhNodes {

@@ -353,7 +353,7 @@ func TestOshiftGoodToBadHostRule(t *testing.T) {
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:               hrname,
 		Namespace:          "default",
-		Fqdn:               "voo.com",
+		Fqdn:               "foo.com",
 		WafPolicy:          "thisisBADaviref",
 		ApplicationProfile: "thisisaviref-appprof",
 	}.HostRule()
