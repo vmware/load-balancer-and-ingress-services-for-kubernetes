@@ -181,7 +181,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
  - Support for multi-port Services with port number for ServiceType NodePort and NodePortLocal.
  - Host rule rejection if GSLB FQDN and local FQDN in hostrule is same.
- - Optimize bootup time on openshift setup by filtering out the Secrets on `avi-system`
+ - Optimize bootup time on openshift setup by only working on the Secrets present on a namespace where AKO is installed.
 
 ### Bugs fixed
  - Add tenant and api version for fetching authtoken
