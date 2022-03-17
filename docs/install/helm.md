@@ -75,10 +75,18 @@ Follow these steps if you are upgrading from an older AKO release.
 
 *Step1*
 
+Update the helm repo with the following command:
+
+```
+helm repo update ako
+```
+
+*Step2*
+
 Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to download and upgrade the CRDs:
 
 ```
-helm template ako/ako --version 1.4.2 --include-crds --output-dir <output_dir>
+helm template ako/ako --version 1.5.3 --include-crds --output-dir <output_dir>
 ```
 
 This will save the helm files to an output directory which will contain the CRDs corresponding to the AKO version.
@@ -88,7 +96,7 @@ To install the CRDs:
 kubectl apply -f <output_dir>/ako/crds/
 ```
 
-*Step2*
+*Step3*
 
 ```
 helm list -n avi-system
@@ -97,7 +105,7 @@ NAME          	NAMESPACE 	REVISION	UPDATED                             	    STAT
 ako-1593523840	avi-system	1       	2020-09-16 13:44:31.609195757 +0000 UTC	    deployed	ako-1.3.1	1.3.1
 ```
 
-*Step3*
+*Step4*
 
 Update the helm repo URL
 
@@ -109,19 +117,19 @@ helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/
 ```
 > **Note**: From AKO 1.3.3, we are migrating our charts repo to VMWare's harbor repository and hence a force update of the repo URL is required for a successful upgrade process from 1.3.3
 
-*Step4*
+*Step5*
 
 Get the values.yaml for the latest AKO version
 
 ```
-helm show values ako/ako --version 1.4.2 > values.yaml
+helm show values ako/ako --version 1.5.3 > values.yaml
 
 ```
 
 Upgrade the helm chart
 
 ```
-helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.4.2 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
+helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.5.3 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 
 ```
 
@@ -163,7 +171,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `avicredentials.authtoken` | Avi controller authentication token | empty |
 | `image.repository` | Specify docker-registry that has the AKO image | avinetworks/ako |
 
-> AKO 1.5.1 deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
+> AKO, with version 1.5.1 and above, deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
 
 > `vipNetworkList` is a required field which is used for allocating  VirtualService IP by IPAM Provider module
 

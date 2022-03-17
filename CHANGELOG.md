@@ -176,3 +176,14 @@ All notable changes to this project will be documented in this file. The format 
  - Due to the use of Informers for Secrets, there is an adverse effect on bootup time in OpenShift based setups. AKO can further optimize bootup time on openshift setup by filtering out the Secrets on `avi-system` namespace. This feature will be added in 1.6.1
  - `ServiceType` of `NodePort` does not support multi-port `Services` with port number.
 
+## AKO-1.5.3
+
+### Added
+ - Support for multi-port Services with port number for ServiceType NodePort and NodePortLocal.
+ - Host rule rejection if GSLB FQDN and local FQDN in hostrule is same.
+ - Optimize bootup time on openshift setup by only working on the Secrets present on a namespace where AKO is installed.
+
+### Bugs fixed
+ - Add tenant and api version for fetching authtoken
+ - AKO is not updating the pool members correctly in case of duplicate path present for the host.
+
