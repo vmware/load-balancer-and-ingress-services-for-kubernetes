@@ -86,7 +86,7 @@ Please refer to this [page](cc_to_ako.md) for details on how to migrate workload
 
 ### AKO Compatibility Guide
 
-AKO version 1.5.1 support for Kubernetes, Openshift, Avi Controller is as below:
+AKO version 1.5.3 support for Kubernetes, Openshift, Avi Controller is as below:
 
 | **Orchestrator/ Controller** | **Versions Supported** |
 | --------- | ----------- |
