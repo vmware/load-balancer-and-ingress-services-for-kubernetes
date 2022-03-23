@@ -131,6 +131,10 @@ func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 		return false
 	}
 
+	if newIngress.GetDeletionTimestamp() != nil {
+		return true
+	}
+
 	oldSpecHash := utils.Hash(utils.Stringify(oldIngress.Spec))
 	newSpecHash := utils.Hash(utils.Stringify(newIngress.Spec))
 
