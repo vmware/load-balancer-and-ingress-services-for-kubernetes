@@ -1,6 +1,6 @@
 # Upgrade Notes
 
-This document mentions Notes around upgrading to AKO 1.6.3 from any prior AKO releases. These steps are in addition to the `helm upgrade` steps mentioned in the [installation guide](../install/helm.md). It is highly recommended to go through this document before upgrading to AKO 1.6.3
+This document mentions Notes around upgrading to AKO 1.6.4 from any prior AKO releases. These steps are in addition to the `helm upgrade` steps mentioned in the [installation guide](../install/helm.md). It is highly recommended to go through this document before upgrading to AKO 1.6.4
 
 ## Refactored VIP Network inputs
 From AKO 1.5.1, fields `subnetIP` and `subnetPrefix` in `values.yaml` have been deprecated (used during helm installation), and allows specifying the information via the `cidr` field within `vipNetworkList` ([explained here in detail](../values.md#networksettingsvipnetworklist)). This is done in favor of providing consistency to the VIP Network related user interfaces exposed via values.yaml / AviInfraSetting CRD / AKO Config (ako-operator).
