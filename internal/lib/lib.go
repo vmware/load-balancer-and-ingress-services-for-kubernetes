@@ -519,7 +519,29 @@ func GetEvhPGName(ingName, namespace, host, path, infrasetting string, dedicated
 	return Encode(evhPG, PG)
 }
 
-func GetTLSKeyCertNodeName(infrasetting, sniHostName string) string {
+func IsSecretK8sSecretRef(secret string) bool {
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecretK8s))
+	if re.MatchString(secret) {
+		return true
+	}
+	return false
+}
+
+func IsSecretAviCertRef(secret string) bool {
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecret))
+	if re.MatchString(secret) {
+		return true
+	}
+	return false
+}
+
+func GetTLSKeyCertNodeName(infrasetting, sniHostName, secretName string) string {
+	if IsSecretK8sSecretRef(secretName) {
+		secretName = strings.Split(secretName, "/")[2]
+		if secretName == GetDefaultSecretForRoutes() || secretName == GetAltDefaultSecretForRoutes() {
+			return Encode(secretName, TLSKeyCert)
+		}
+	}
 	namePrefix := NamePrefix
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
@@ -1450,6 +1472,10 @@ func ContainsFinalizer(o metav1.Object, finalizer string) bool {
 
 func GetDefaultSecretForRoutes() string {
 	return DefaultRouteCert
+}
+
+func GetAltDefaultSecretForRoutes() string {
+	return AltDefaultRouteCert
 }
 
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {

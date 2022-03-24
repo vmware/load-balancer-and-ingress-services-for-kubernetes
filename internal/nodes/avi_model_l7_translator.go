@@ -188,12 +188,12 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 		secretNS = namespace
 	}
 
-	if isSecretK8sSecretRef(secretName) {
+	if lib.IsSecretK8sSecretRef(secretName) {
 		secretName = strings.Split(secretName, "/")[2]
 	}
 
 	certNode := &AviTLSKeyCertNode{
-		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, sniHost),
+		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, sniHost, tlsData.SecretName),
 		Tenant: lib.GetTenant(),
 		Type:   lib.CertTypeVS,
 	}
@@ -250,7 +250,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 		utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	}
 	// If this SSLCertRef is already present don't add it.
-	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, sniHost), certNode.GetCheckSum()) {
+	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, sniHost, tlsData.SecretName), certNode.GetCheckSum()) {
 		if len(tlsNode.SSLKeyCertRefs) == 1 {
 			// Overwrite if the secrets are different.
 			tlsNode.SSLKeyCertRefs[0] = certNode

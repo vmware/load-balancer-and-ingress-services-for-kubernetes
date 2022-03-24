@@ -1067,7 +1067,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		evhNode.DeleteSSLPort(key)
 		evhNode.DeleteSecureAppProfile(key)
 	} else {
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, ""), key)
 	}
 	// Remove the redirect for secure to insecure transition
 	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
@@ -1130,12 +1130,12 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 		secretNS = namespace
 	}
 
-	if isSecretK8sSecretRef(secretName) {
+	if lib.IsSecretK8sSecretRef(secretName) {
 		secretName = strings.Split(secretName, "/")[2]
 	}
 
 	certNode := &AviTLSKeyCertNode{
-		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host),
+		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName),
 		Tenant: lib.GetTenant(),
 		Type:   lib.CertTypeVS,
 	}
@@ -1192,7 +1192,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 		utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	}
 	// If this SSLCertRef is already present don't add it.
-	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host), certNode.GetCheckSum()) {
+	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName), certNode.GetCheckSum()) {
 		tlsNode.ReplaceEvhSSLRefInEVHNode(certNode, key)
 	}
 
@@ -1298,7 +1298,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	isDedicated := vsNode[0].Dedicated
 	certsBuilt := false
 	evhSecretName := tlssetting.SecretName
-	if isSecretAviCertRef(evhSecretName) {
+	if lib.IsSecretAviCertRef(evhSecretName) {
 		certsBuilt = true
 	}
 
@@ -1372,7 +1372,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			//Openshift: Remove CA cert if present
 			vsNode[0].DeleteCACertRefInEVHNode(lib.GetCACertNodeName(infraSettingName, host), key)
 		}
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName), key)
 	}
 	if isDedicated {
 		evhNode = vsNode[0]
@@ -1441,7 +1441,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			if vsNode[0].Dedicated {
 				DeleteDedicatedEvhVSNode(vsNode[0], key, hostsToRemove)
 			} else {
-				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 			}
@@ -1804,7 +1804,7 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 	}
 	if !keepEvh {
 		// Delete the cert ref for the host
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, hostname), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, hostname, ""), key)
 	}
 	_, FQDNAliases := objects.SharedCRDLister().GetFQDNToAliasesMapping(hostname)
 	if removeFqdn && !keepEvh {

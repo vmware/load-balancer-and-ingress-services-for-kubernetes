@@ -15,8 +15,6 @@
 package nodes
 
 import (
-	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -143,22 +141,6 @@ func sslKeyCertHostRulePresent(hostRuleObj *v1alpha1.HostRule, key string) (bool
 		return true, sslKeyCerts
 	}
 	return false, sslKeyCerts
-}
-
-func isSecretAviCertRef(secret string) bool {
-	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
-	if re.MatchString(secret) {
-		return true
-	}
-	return false
-}
-
-func isSecretK8sSecretRef(secret string) bool {
-	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecretK8s))
-	if re.MatchString(secret) {
-		return true
-	}
-	return false
 }
 
 func getGslbFqdnFromHostRule(hostRuleObj *v1alpha1.HostRule) (bool, string) {
@@ -322,12 +304,21 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 				Hosts:      defaultTLSHostSvcMap,
 				redirect:   true,
 			}
+			altDefaultTLS := TlsSettings{
+				SecretName: lib.GetAltDefaultSecretForRoutes(),
+				SecretNS:   utils.GetAKONamespace(),
+				Hosts:      defaultTLSHostSvcMap,
+				redirect:   true,
+			}
 
 			tlsConfigs = append(tlsConfigs, defaultTLS)
+			tlsConfigs = append(tlsConfigs, altDefaultTLS)
 			if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
 				akoNS := utils.GetAKONamespace()
 				objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(akoNS, ingName, defaultTLS.SecretName)
 				objects.SharedSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(ns, ingName, defaultTLS.SecretName)
+				objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(akoNS, ingName, altDefaultTLS.SecretName)
+				objects.SharedSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(ns, ingName, altDefaultTLS.SecretName)
 			}
 		} else {
 			hostMap[hostName] = hostPathMapSvcList
@@ -372,7 +363,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 
 	for aviSecret, securedHostNames := range secretHostsMap {
 		isCertRef := false
-		if isSecretAviCertRef(aviSecret) {
+		if lib.IsSecretAviCertRef(aviSecret) {
 			isCertRef = true
 		}
 
@@ -519,6 +510,9 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	}
 	if routeSpec.TLS != nil && !useHostRuleSSL {
 		secretNames = []string{lib.RouteSecretsPrefix + routeName}
+		if routeSpec.TLS.Certificate == "" || routeSpec.TLS.Key == "" {
+			secretNames = []string{lib.GetDefaultSecretForRoutes(), lib.GetAltDefaultSecretForRoutes()}
+		}
 	}
 
 	if routeSpec.TLS != nil && routeSpec.TLS.Termination == routev1.TLSTerminationPassthrough {
@@ -540,7 +534,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 			}
 
 			isCertRef := false
-			if isSecretAviCertRef(secretName) {
+			if lib.IsSecretAviCertRef(secretName) {
 				isCertRef = true
 			}
 			if useHostRuleSSL {
@@ -570,7 +564,6 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 				if routeSpec.TLS.Termination == routev1.TLSTerminationEdge ||
 					routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
 					if routeSpec.TLS.Certificate == "" || routeSpec.TLS.Key == "" {
-						secretName = lib.GetDefaultSecretForRoutes()
 						tls.SecretName = secretName
 						tls.SecretNS = utils.GetAKONamespace()
 					} else {
