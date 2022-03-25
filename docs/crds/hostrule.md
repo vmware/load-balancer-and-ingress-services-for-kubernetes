@@ -26,6 +26,7 @@ A sample HostRule CRD looks like this:
           termination: edge
         gslb:
           fqdn: foo.com
+          includeAliases: false
         httpPolicy: 
           policySets:
           - avi-secure-policy-ref
@@ -176,12 +177,19 @@ A GSLB FQDN can be specified within the HostRule CRD. This is only used if AKO i
 
         gslb:
           fqdn: foo.com
+          includeAliases: false
 
 This additional FQDN inherits all the properties of the root FQDN specified under the the `virtualHost` section.
 Use this flag if you would want traffic with a GSLB FQDN to get routed to a site local FQDN. For example, in the above CRD, the client request from a GSLB
 DNS will arrive with the host header as foo.com to the VIP hosting foo.region1.com in region1. This CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`
 
 This knob is currently only supported with the SNI model and not with Enhanced Virtual Hosting model.
+
+The `includeAliases` is used by AMKO. Whenever a GSLB FQDN is provided and the `useCustomGlobalFqdn` is set to true in AMKO, a GSLB Service is created for the GSLB FQDN instead of the local FQDN(hostname). [Refer this](https://github.com/vmware/global-load-balancing-services-for-kubernetes/blob/master/docs/local_and_global_fqdn.md)
+
+When this flag is set to `false` the Domain Name of the GSLB Service is set to the GSLB FQDN. 
+
+When this flag is set to `true` in addition to the GSLB FQDN, AMKO adds the FQDNs mentioned under [aliases](#aliases) to domain names of the GSLB Service. 
 
 #### Configure Analytics Policy
 
@@ -248,7 +256,7 @@ The `loadBalancerIP` field can be used to provide a valid preferred IPv4 address
 **Note**: The HostRule CRD is not aware of the misconfigurations while it is being created, therefore the HostRule will be `Accepted` nonetheless.
 
 
-#### Configure aliases for FQDN
+#### <a id="aliases"> Configure aliases for FQDN
 
 The Aliases field adds the ability to have multiple FQDNs configured under a specific route/ingress for the child VS instead of creating the route/ingress multiple times.
 

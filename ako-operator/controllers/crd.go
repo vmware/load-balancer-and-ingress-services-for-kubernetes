@@ -114,6 +114,12 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 											"fqdn": {
 												Type: "string",
 											},
+											"includeAliases": {
+												Type: "boolean",
+												Default: &apiextensionv1.JSON{
+													Raw: []byte("false"),
+												},
+											},
 										},
 									},
 									"wafPolicy": {

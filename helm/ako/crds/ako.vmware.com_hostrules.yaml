@@ -58,6 +58,9 @@ spec:
                     properties:
                       fqdn:
                         type: string
+                      includeAliases:
+                        type: boolean
+                        default: false
                     type: object
                   tls:
                     properties:

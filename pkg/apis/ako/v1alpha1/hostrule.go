@@ -123,7 +123,8 @@ type HostRuleHTTPPolicy struct {
 
 // HostRuleHTTPPolicy holds knobs and refs for httpPolicySets
 type HostRuleGSLB struct {
-	Fqdn string `json:"fqdn,omitempty"`
+	Fqdn           string `json:"fqdn,omitempty"`
+	IncludeAliases bool   `json:"includeAliases,omitempty"`
 }
 
 // HostRuleStatus holds the status of the HostRule
