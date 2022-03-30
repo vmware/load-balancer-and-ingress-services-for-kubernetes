@@ -21,6 +21,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -38,8 +39,18 @@ func SharedNodeLister() *K8sNodeStore {
 	return &K8sNodeStore{nodesStoreInstance}
 }
 
-func (o *K8sNodeStore) PopulateAllNodes(cs *kubernetes.Clientset) {
-	allNodes, _ := cs.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+func (o *K8sNodeStore) PopulateAllNodes(cs *kubernetes.Clientset, isNodePort bool, nodeLabels map[string]string) {
+	lOpt := metav1.ListOptions{}
+	if isNodePort {
+		if len(nodeLabels) == 2 && nodeLabels["key"] != "" {
+			map1 := make(map[string]string)
+			map1[nodeLabels["key"]] = nodeLabels["value"]
+			str := labels.Set(map1).String()
+			lOpt.LabelSelector = str
+		}
+	}
+	//filter out nodes if labels are set for nodeport mode
+	allNodes, _ := cs.CoreV1().Nodes().List(context.TODO(), lOpt)
 	utils.AviLog.Infof("Got %d nodes", len(allNodes.Items))
 	for i, node := range allNodes.Items {
 		o.AddOrUpdate(node.Name, &allNodes.Items[i])

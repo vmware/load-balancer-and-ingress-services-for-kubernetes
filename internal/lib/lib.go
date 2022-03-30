@@ -1292,6 +1292,20 @@ func GetNodePortsSelector() map[string]string {
 	return nodePortsSelectorLabels
 }
 
+func IsValidLabelOnNode(labels map[string]string, key string) bool {
+	nodeFilter := GetNodePortsSelector()
+	//If nodefilter is not mentioned or key is empty in values.yaml, node is valid
+	if len(nodeFilter) != 2 || nodeFilter["key"] == "" {
+		return true
+	}
+	val, ok := labels[nodeFilter["key"]]
+	if !ok || val != nodeFilter["value"] {
+		utils.AviLog.Debugf("key: %s, msg: node does not have valid label", key)
+		return false
+	}
+	return true
+}
+
 var CloudType string
 
 func SetCloudType(cloudType string) {

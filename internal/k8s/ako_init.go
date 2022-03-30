@@ -85,7 +85,12 @@ func PopulateCache() error {
 
 func PopulateNodeCache(cs *kubernetes.Clientset) {
 	nodeCache := objects.SharedNodeLister()
-	nodeCache.PopulateAllNodes(cs)
+	var nodeLabels map[string]string
+	isNodePortMode := lib.IsNodePortMode()
+	if isNodePortMode {
+		nodeLabels = lib.GetNodePortsSelector()
+	}
+	nodeCache.PopulateAllNodes(cs, isNodePortMode, nodeLabels)
 }
 
 func PopulateControllerProperties(cs kubernetes.Interface) error {
@@ -673,7 +678,16 @@ func (c *AviController) FullSyncK8s() error {
 		isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
 		if isPrimaryAKO {
 			lib.SetStaticRouteSyncHandler()
-			nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
+			var labelSelectorMap map[string]string
+			//Apply filter to nodes in NodePort mode
+			if lib.IsNodePortMode() {
+				nodeLabels := lib.GetNodePortsSelector()
+				if len(nodeLabels) == 2 && nodeLabels["key"] != "" {
+					labelSelectorMap = make(map[string]string)
+					labelSelectorMap[nodeLabels["key"]] = nodeLabels["value"]
+				}
+			}
+			nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(labelSelectorMap).AsSelector())
 			for _, node := range nodeObjects {
 				key := utils.NodeObj + "/" + node.Name
 				meta, err := meta.Accessor(node)

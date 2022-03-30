@@ -908,6 +908,13 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			node := obj.(*corev1.Node)
 			key := utils.NodeObj + "/" + node.Name
+			if lib.IsNodePortMode() {
+				if !lib.IsValidLabelOnNode(node.GetLabels(), key) {
+					utils.AviLog.Debugf("key: %s, msg: no valid labels on a node", key)
+					return
+				}
+			}
+
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == node.ResourceVersion {
@@ -935,6 +942,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			}
 			key := utils.NodeObj + "/" + node.Name
+			if lib.IsNodePortMode() {
+				if !lib.IsValidLabelOnNode(node.GetLabels(), key) {
+					utils.AviLog.Debugf("key: %s, msg: no valid labels on a node", key)
+					return
+				}
+			}
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -947,6 +960,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			oldobj := old.(*corev1.Node)
 			node := cur.(*corev1.Node)
 			key := utils.NodeObj + "/" + node.Name
+			if lib.IsNodePortMode() {
+				if !lib.IsValidLabelOnNode(node.GetLabels(), key) {
+					utils.AviLog.Debugf("key: %s, msg: no valid labels on a node", key)
+					return
+				}
+			}
 			if isNodeUpdated(oldobj, node) {
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
