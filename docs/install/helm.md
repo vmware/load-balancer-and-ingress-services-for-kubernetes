@@ -30,7 +30,7 @@ ako/ako              	1.4.2        	    1.4.2      	        A helm chart for Avi
 Use the `values.yaml` from this chart to edit values related to Avi configuration. To get the values.yaml for a release, run the following command
 
 ```
-helm show values ako/ako --version 1.4.2 > values.yaml
+helm show values ako/ako --version 1.6.4 > values.yaml
 
 ```
 
@@ -39,7 +39,7 @@ Values and their corresponding index can be found [here](#parameters)
 Step 4: Install AKO
 
 ```
-helm install  ako/ako  --generate-name --version 1.4.2 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
+helm install  ako/ako  --generate-name --version 1.6.4 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
 ```
 
 Step 5: Check the installation
@@ -78,7 +78,7 @@ Follow these steps if you are upgrading from an older AKO release.
 Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to download and upgrade the CRDs:
 
 ```
-helm template ako/ako --version 1.6.3 --include-crds --output-dir <output_dir>
+helm template ako/ako --version 1.6.4 --include-crds --output-dir <output_dir>
 ```
 
 This will save the helm files to an output directory which will contain the CRDs corresponding to the AKO version.
@@ -114,14 +114,14 @@ helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/
 Get the values.yaml for the latest AKO version
 
 ```
-helm show values ako/ako --version 1.6.3 > values.yaml
+helm show values ako/ako --version 1.6.4 > values.yaml
 
 ```
 
 Upgrade the helm chart
 
 ```
-helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.6.3 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
+helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.6.4 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 
 ```
 
