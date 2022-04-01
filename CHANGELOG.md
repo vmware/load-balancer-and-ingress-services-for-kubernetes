@@ -214,3 +214,12 @@ All notable changes to this project will be documented in this file. The format 
  - Fix for attaching applicationProfile, datascripts, httpPolicies to Parent VS via HostRule.
  - Set non-significant log duration to infinite, when configuring analyticsPolicy via HostRule.
  - Fix for auth-token renewal after token expiration.
+
+## AKO-1.6.4
+
+### Bugs fixed
+ - Problem in creating LoadBalancer Service with named ports.
+ - Issue: FQDN aliases not getting added to all the HTTP policies.
+ - Fixes improper dedicated VS creation of Service of type LB when Gateways and ServiceLB used at the same time.
+ - Fixes an issue of an empty string fqdn programming in L4 VSVIP when autoFqdn is disabled and no subDomains are configured in the dnsProfile.
+ - Fixes an issue of SEG label configuration during AviInfraSetting validation if static route sync is disabled.
