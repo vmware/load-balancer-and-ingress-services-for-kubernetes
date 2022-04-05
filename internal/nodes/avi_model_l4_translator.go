@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
@@ -75,7 +76,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	isTCP := false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
-		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol), Name: port.Name}
+		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol), Name: port.Name, TargetPort: port.TargetPort}
 		portProtocols = append(portProtocols, pp)
 		if port.Protocol == "" || port.Protocol == utils.TCP {
 			isTCP = true
@@ -136,6 +137,8 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			Tenant:     lib.GetTenant(),
 			Protocol:   portProto.Protocol,
 			PortName:   portProto.Name,
+			Port:       portProto.Port,
+			TargetPort: portProto.TargetPort,
 			VrfContext: lib.GetVrf(),
 		}
 
@@ -197,27 +200,13 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			return nil
 		}
 	}
-	pods := lib.GetPodsFromService(ns, serviceName)
+	pods, targetPort := lib.GetPodsFromService(ns, serviceName, poolNode.TargetPort)
 	if len(pods) == 0 {
 		utils.AviLog.Infof("key: %s, msg: got no Pod for Service %s", key, serviceName)
 		return make([]AviPoolMetaServer, 0)
 	}
 
 	var poolMeta []AviPoolMetaServer
-	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(ns).Get(serviceName)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, serviceName)
-		return poolMeta
-	}
-
-	targetPorts := make(map[int]bool)
-	for _, port := range svcObj.Spec.Ports {
-		if port.Name != poolNode.PortName && len(svcObj.Spec.Ports) > 1 {
-			// continue only if port name does not match and it is multiport svcobj
-			continue
-		}
-		targetPorts[port.TargetPort.IntValue()] = true
-	}
 
 	for _, pod := range pods {
 		var annotations []lib.NPLAnnotation
@@ -233,7 +222,8 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			} else {
 				atype = "V6"
 			}
-			if _, ok := targetPorts[a.PodPort]; ok {
+			if (poolNode.TargetPort.Type == intstr.Int && a.PodPort == poolNode.TargetPort.IntValue()) ||
+				a.PodPort == int(targetPort) {
 				server := AviPoolMetaServer{
 					Port: int32(a.NodePort),
 					Ip: models.IPAddr{
@@ -244,7 +234,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			}
 		}
 	}
-	utils.AviLog.Infof("key: %s, msg: servers for port: %v, are: %v", key, poolNode.Port, utils.Stringify(poolMeta))
+	utils.AviLog.Infof("key: %s, msg: servers for port: %v (%v), are: %v", key, poolNode.Port, poolNode.PortName, utils.Stringify(poolMeta))
 	return poolMeta
 }
 
@@ -341,7 +331,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	for _, ss := range epObj.Subsets {
 		port_match := false
 		for _, epp := range ss.Ports {
-			if poolNode.PortName == epp.Name || poolNode.TargetPort == epp.Port {
+			if poolNode.PortName == epp.Name || int32(poolNode.TargetPort.IntValue()) == epp.Port {
 				port_match = true
 				poolNode.Port = epp.Port
 				break
