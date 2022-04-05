@@ -96,6 +96,9 @@ type akoControlConfig struct {
 	// primaryaAKO is set to true/false if as per primaryaAKO value
 	//in values.yaml
 	primaryaAKO bool
+
+	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
+	licenseType string
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -251,4 +254,17 @@ func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatAr
 			c.EventRecorder().Event(&v1.Pod{ObjectMeta: *c.akoPodObjectMeta}, eventType, reason, message)
 		}
 	}
+}
+
+func (c *akoControlConfig) SetLicenseType() {
+	response, err := utils.LicenseTypeFromURI()
+	if err != nil {
+		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
+	}
+
+	c.licenseType = *response.DefaultLicenseTier
+}
+
+func (c *akoControlConfig) GetLicenseType() string {
+	return c.licenseType
 }

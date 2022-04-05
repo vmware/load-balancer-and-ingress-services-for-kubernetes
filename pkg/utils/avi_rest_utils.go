@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/vmware/alb-sdk/go/models"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
@@ -214,4 +216,9 @@ func DeleteAuthTokenWithRetry(c *clients.AviClient, tokenID string, retryCount i
 		AviLog.Warnf("Failed to delete authtoken, retry count:%d, err: %+v", retry, err)
 	}
 	return err
+}
+
+func LicenseTypeFromURI() (models.SystemConfiguration, error) {
+	response, err := rest.GetLicenseTypeFromURI()
+	return response, err
 }
