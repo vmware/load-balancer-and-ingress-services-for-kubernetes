@@ -4,6 +4,7 @@ metadata:
   name: avi-k8s-config
   namespace: {{ .Release.Namespace }}
 data:
+  primaryInstance: {{ .Values.AKOSettings.primaryInstance | quote }}
   controllerIP: {{ .Values.ControllerSettings.controllerHost | quote }}
   controllerVersion: {{ .Values.ControllerSettings.controllerVersion | quote }}
   cniPlugin: {{ .Values.AKOSettings.cniPlugin | quote }}
@@ -15,7 +16,6 @@ data:
   servicesAPI: {{ .Values.AKOSettings.servicesAPI | quote }}
   enableEVH: {{ .Values.AKOSettings.enableEVH | quote }}
   layer7Only: {{ .Values.AKOSettings.layer7Only | quote }}
-  istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
   vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace | quote }}
   tenantName: {{ .Values.ControllerSettings.tenantName | quote }}
   defaultDomain: {{ .Values.L4Settings.defaultDomain | quote }}

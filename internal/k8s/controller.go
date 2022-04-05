@@ -131,6 +131,10 @@ func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 		return false
 	}
 
+	if newIngress.GetDeletionTimestamp() != nil {
+		return true
+	}
+
 	oldSpecHash := utils.Hash(utils.Stringify(oldIngress.Spec))
 	newSpecHash := utils.Hash(utils.Stringify(newIngress.Spec))
 
@@ -1023,6 +1027,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
+		//For all AKO, node event handler can be enabled.
 		c.informers.NodeInformer.Informer().AddEventHandler(nodeEventHandler)
 	}
 

@@ -25,12 +25,18 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type NPLAnnotation struct {
 	PodPort  int    `json:"podPort"`
 	NodeIP   string `json:"nodeIP"`
 	NodePort int    `json:"nodePort"`
+}
+
+type PodsWithTargetPort struct {
+	Pods       []utils.NamespaceName
+	TargetPort int32
 }
 
 func ExtractTypeNameNamespace(key string) (string, string, string) {
@@ -95,38 +101,53 @@ func GetSvcKeysForNodeCRUD() (svcl4Keys []string, svcl7Keys []string) {
 
 }
 
-func GetPodsFromService(namespace, serviceName string) []utils.NamespaceName {
+func GetPodsFromService(namespace, serviceName string, targetPortName intstr.IntOrString) ([]utils.NamespaceName, int32) {
 	var pods []utils.NamespaceName
+	var targetPort int32
 	svcKey := namespace + "/" + serviceName
 	svc, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(serviceName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return pods
+			return pods, targetPort
 		}
 		if found, podsIntf := objects.SharedSvcToPodLister().Get(svcKey); found {
-			savedPods, ok := podsIntf.([]utils.NamespaceName)
+			savedPods, ok := podsIntf.(PodsWithTargetPort)
 			if ok {
-				return savedPods
+				return savedPods.Pods, savedPods.TargetPort
 			}
 		}
-		return pods
+		return pods, targetPort
 	}
 
 	if len(svc.Spec.Selector) == 0 {
-		return pods
+		return pods, targetPort
 	}
 
 	podList, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).List(labels.SelectorFromSet(labels.Set(svc.Spec.Selector)))
 	if err != nil {
 		utils.AviLog.Warnf("Got error while listing Pods with selector %v: %v", svc.Spec.Selector, err)
-		return pods
+		return pods, targetPort
+	}
+	targetPortFound := false
+	if targetPortName.Type == intstr.Int {
+		targetPortFound = true
+		targetPort = int32(targetPortName.IntValue())
 	}
 	for _, pod := range podList {
+		if !targetPortFound {
+			for _, pc := range pod.Spec.Containers {
+				for _, pp := range pc.Ports {
+					if pp.Name == targetPortName.String() {
+						targetPort = pp.ContainerPort
+					}
+				}
+			}
+		}
 		pods = append(pods, utils.NamespaceName{Namespace: pod.Namespace, Name: pod.Name})
 	}
 
-	objects.SharedSvcToPodLister().Save(svcKey, pods)
-	return pods
+	objects.SharedSvcToPodLister().Save(svcKey, PodsWithTargetPort{Pods: pods, TargetPort: targetPort})
+	return pods, targetPort
 }
 
 func GetServicesForPod(pod *corev1.Pod) ([]string, []string) {

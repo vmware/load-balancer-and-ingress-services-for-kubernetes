@@ -39,8 +39,8 @@ const VSVIP_NOTFOUND = "VsVip object not found"
 func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviVsNode) {
 	var datascriptCollection []*avimodels.VSDataScripts
 	// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-	if vs_meta.SSLKeyCertAviRef != "" {
-		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef)
+	if len(vs_meta.SSLKeyCertAviRef) != 0 {
+		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef...)
 	} else {
 		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
@@ -158,24 +158,26 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 		vs.NetworkProfileRef = proto.String("/api/networkprofile/?name=" + vs_meta.NetworkProfile)
 
+		var datascriptCollection []*avimodels.VSDataScripts
 		if vs_meta.SharedVS {
 			// This is a shared VS - which should have a datascript
-			var vsdatascripts []*avimodels.VSDataScripts
 			for i, ds := range vs_meta.HTTPDSrefs {
 				j := int32(i)
 				dsRef := "/api/vsdatascriptset/?name=" + ds.Name
 				vsdatascript := &avimodels.VSDataScripts{Index: &j, VsDatascriptSetRef: &dsRef}
-				vsdatascripts = append(vsdatascripts, vsdatascript)
+				datascriptCollection = append(datascriptCollection, vsdatascript)
 			}
-			vs.VsDatascripts = vsdatascripts
 		}
 
-		var datascriptCollection []*avimodels.VSDataScripts
-		for i, script := range vs_meta.VsDatascriptRefs {
-			j := int32(i)
-			datascript := script
-			datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
-			datascriptCollection = append(datascriptCollection, datascripts)
+		// Overwrite datascript policies from hostrule to the Parent VS.
+		if len(vs_meta.VsDatascriptRefs) > 0 {
+			datascriptCollection = make([]*avimodels.VSDataScripts, len(vs_meta.VsDatascriptRefs))
+			for i, script := range vs_meta.VsDatascriptRefs {
+				j := int32(i)
+				datascript := script
+				datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
+				datascriptCollection = append(datascriptCollection, datascripts)
+			}
 		}
 		vs.VsDatascripts = datascriptCollection
 
@@ -244,13 +246,25 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		// Do a POST call in that case
 		if rest_method == utils.RestPut && cache_obj.Uuid != "" {
 			path = "/api/virtualservice/" + cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: vs,
-				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion, ObjName: *vs.Name}
+			rest_op = utils.RestOp{
+				Path:    path,
+				Method:  rest_method,
+				Obj:     vs,
+				Tenant:  vs_meta.Tenant,
+				Model:   "VirtualService",
+				ObjName: *vs.Name,
+			}
 			rest_ops = append(rest_ops, &rest_op)
 		} else {
 			path = "/api/virtualservice/"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: vs,
-				Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion, ObjName: *vs.Name}
+			rest_op = utils.RestOp{
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     vs,
+				Tenant:  vs_meta.Tenant,
+				Model:   "VirtualService",
+				ObjName: *vs.Name,
+			}
 			rest_ops = append(rest_ops, &rest_op)
 		}
 		return rest_ops
@@ -326,8 +340,8 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
 		// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-		if vs_meta.SSLKeyCertAviRef != "" {
-			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef)
+		if len(vs_meta.SSLKeyCertAviRef) != 0 {
+			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef...)
 		} else {
 			for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 				certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
@@ -343,14 +357,24 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	if rest_method == utils.RestPut {
 
 		path = "/api/virtualservice/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: sniChild,
-			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: rest_method,
+			Obj:    sniChild,
+			Tenant: vs_meta.Tenant,
+			Model:  "VirtualService",
+		}
 		rest_ops = append(rest_ops, &rest_op)
 
 	} else {
 		path = "/api/virtualservice"
-		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: sniChild,
-			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: rest_method,
+			Obj:    sniChild,
+			Tenant: vs_meta.Tenant,
+			Model:  "VirtualService",
+		}
 		rest_ops = append(rest_ops, &rest_op)
 	}
 
@@ -467,7 +491,10 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 						if utils.GetInformers().RouteInformer != nil {
 							statusOption.ObjType = utils.OshiftRoute
 						}
-						utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
+						if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
+							statusOption.ObjType = lib.MultiClusterIngress
+						}
+						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 					}
 				}
@@ -776,8 +803,12 @@ func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) (*u
 		return nil, false
 	}
 	path := "/api/virtualservice/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "VirtualService", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "VirtualService",
+	}
 	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v ",
 		key, utils.Stringify(rest_op)))
 	return &rest_op, true

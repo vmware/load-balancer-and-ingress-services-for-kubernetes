@@ -105,8 +105,13 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/l4policyset/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
-			Tenant: hps_meta.Tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			Path:   path,
+			Method: utils.RestPut,
+			Obj:    hps,
+			Tenant: hps_meta.Tenant,
+			Model:  "L4PolicySet",
+		}
 
 	} else {
 		// Patch an existing l4 policy set object if it exists in the cache but not associated with this VS.
@@ -115,12 +120,22 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		if ok {
 			hps_cache_obj, _ := hps_cache.(*avicache.AviL4PolicyCache)
 			path = "/api/l4policyset/" + hps_cache_obj.Uuid
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
-				Tenant: hps_meta.Tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: utils.RestPut,
+				Obj:    hps,
+				Tenant: hps_meta.Tenant,
+				Model:  "L4PolicySet",
+			}
 		} else {
 			path = "/api/l4policyset/"
-			rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: hps,
-				Tenant: hps_meta.Tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				Path:   path,
+				Method: utils.RestPost,
+				Obj:    hps,
+				Tenant: hps_meta.Tenant,
+				Model:  "L4PolicySet",
+			}
 		}
 	}
 
@@ -131,8 +146,12 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 
 func (rest *RestOperations) AviL4PolicyDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/l4policyset/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "L4PolicySet",
+	}
 	utils.AviLog.Infof(spew.Sprintf("L4 Policy Set DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op

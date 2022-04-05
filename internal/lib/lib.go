@@ -82,6 +82,7 @@ type ServiceMetadataObj struct {
 	PassthroughChildRef   string      `json:"passthrough_child_ref"`
 	Gateway               string      `json:"gateway"` // ns/name
 	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
+	IsMCIIngress          bool        `json:"is_mci_ingress"`
 }
 
 type ServiceMetadataMappingObjType string
@@ -288,6 +289,10 @@ var AKOUser string
 
 func SetAKOUser() {
 	AKOUser = "ako-" + GetClusterName()
+	isPrimaryAKO := akoControlConfigInstance.GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		AKOUser = AKOUser + "-" + os.Getenv("POD_NAMESPACE")
+	}
 	utils.AviLog.Infof("Setting AKOUser: %s for Avi Objects", AKOUser)
 }
 

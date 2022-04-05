@@ -170,6 +170,9 @@ func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, b
 	if err != nil {
 		return &ingrModel, err, processObj
 	}
+	if ingObj.GetDeletionTimestamp() != nil {
+		return &ingrModel, err, processObj
+	}
 	processObj = lib.ValidateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace)
 	ingrModel.spec = ingObj.Spec
 	ingrModel.annotations = ingObj.GetAnnotations()
@@ -371,5 +374,15 @@ func (mciModel *multiClusterIngressModel) GetDiffPathSvc(storedPathSvc map[strin
 }
 
 func (mciModel *multiClusterIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
-	return nil
+	enablePublicIP := true
+	return &akov1alpha1.AviInfraSetting{
+		Spec: akov1alpha1.AviInfraSettingSpec{
+			Network: akov1alpha1.AviInfraSettingNetwork{
+				EnablePublicIP: &enablePublicIP,
+			},
+		},
+		Status: akov1alpha1.AviInfraSettingStatus{
+			Status: lib.StatusAccepted,
+		},
+	}
 }

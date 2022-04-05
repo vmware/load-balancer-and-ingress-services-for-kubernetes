@@ -84,27 +84,28 @@ func removeFinalizer(finalizers []string, key string) (result []string) {
 }
 
 // +kubebuilder:rbac:groups="",resources=*,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=secrets;secrets/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=services;services/status;secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=configmaps;configmaps/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets;secrets/status;secrets/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=serviceaccounts;serviceaccounts/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services;services/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;update;patch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=akoconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=akoconfigs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ako.vmware.com,resources=httprules;httprules/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ako.vmware.com,resources=hostrules;hostrules/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=akoconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status;aviinfrasettings/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=httprules;httprules/status;httprules/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=hostrules;hostrules/status;hostrules/finalizers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=crd.projectcalico.org,resources=blockaffinities;blockaffinities/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="apiextensions.k8s.io",resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="apps",resources=statefulsets;statefulsets/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="apiextensions.k8s.io",resources=customresourcedefinitions;customresourcedefinitions/status;customresourcedefinitions/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="apps",resources=statefulsets;statefulsets/status;statefulsets/finalizers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=extensions,resources=ingresses; ingresses/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=network.openshift.io,resources=hostsubnets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses;ingressclasses/finalizers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses;ingresses/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gatewayclasses;gatewayclasses/status;gateways;gateways/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=policy;extensions,resources=podsecuritypolicies,verbs=use;get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gatewayclasses;gatewayclasses/status;gatewayclasses/finalizers;gateways;gateways/status;gateways/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy;extensions,resources=podsecuritypolicies;podsecuritypolicies/finalizers,verbs=use;get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterroles/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterrolebindings;clusterrolebindings/finalizers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/status,verbs=get;list;watch;create;update;patch;delete
 
 func (r *AKOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

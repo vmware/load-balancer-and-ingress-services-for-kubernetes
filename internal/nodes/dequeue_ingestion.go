@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"encoding/json"
+	"os"
 	"strconv"
 	"strings"
 
@@ -68,6 +69,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, fullsync)
+
 		if lib.IsNodePortMode() && !fullsync {
 			svcl4Keys, svcl7Keys := lib.GetSvcKeysForNodeCRUD()
 			for _, svcl4Key := range svcl4Keys {
@@ -558,6 +560,12 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	if lib.IsNodePortMode() {
 		return
 	}
+
+	// Do not process VRF for non primary AKO
+	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		return
+	}
 	aviModel := NewAviObjectGraph()
 	aviModel.IsVrf = true
 	vrfcontext := lib.GetVrf()
@@ -583,27 +591,12 @@ func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.Work
 
 func isServiceDelete(svcName string, namespace string, key string) bool {
 	// If the service is not found we return true.
-	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: could not retrieve the object for service: %s", key, err)
 		if errors.IsNotFound(err) {
 			return true
 		}
-	}
-
-	var gwNameLabel, gwNamespaceLabel string
-	if lib.GetAdvancedL4() {
-		gwNameLabel = lib.GatewayNameLabelKey
-		gwNamespaceLabel = lib.GatewayNamespaceLabelKey
-	} else if lib.UseServicesAPI() {
-		gwNameLabel = lib.SvcApiGatewayNameLabelKey
-		gwNamespaceLabel = lib.SvcApiGatewayNamespaceLabelKey
-	}
-
-	_, nok := service.Labels[gwNameLabel]
-	_, nsok := service.Labels[gwNamespaceLabel]
-	if nsok || nok {
-		return true
 	}
 
 	return false
@@ -624,7 +617,12 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 
 func GetShardVSPrefix(key string) string {
 	// sample prefix: clusterName--Shared-L7-
-	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-"
+	var akoID string
+	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		akoID = os.Getenv("POD_NAMESPACE") + "-"
+	}
+	shardVsPrefix := lib.GetNamePrefix() + akoID + lib.ShardVSPrefix + "-"
 	utils.AviLog.Debugf("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }

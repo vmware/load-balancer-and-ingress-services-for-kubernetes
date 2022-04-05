@@ -63,11 +63,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: cniPlugin
-          - name: ISTIO_ENABLED
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: istioEnabled
           - name: VIP_PER_NAMESPACE
             valueFrom:
               configMapKeyRef:
@@ -88,6 +83,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: fullSyncFrequency
+          - name: PRIMARY_AKO_FLAG
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: primaryInstance
           - name: CLOUD_NAME
             valueFrom:
               configMapKeyRef:

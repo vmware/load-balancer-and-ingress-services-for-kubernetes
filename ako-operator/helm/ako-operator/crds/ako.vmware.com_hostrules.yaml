@@ -58,6 +58,9 @@ spec:
                     properties:
                       fqdn:
                         type: string
+                      includeAliases:
+                        type: boolean
+                        default: false
                     type: object
                   tls:
                     properties:
@@ -72,6 +75,19 @@ spec:
                             - ref
                             - secret
                             type: string
+                          alternateCertificate:
+                            properties:
+                              name:
+                                type: string
+                              type:
+                                enum:
+                                - ref
+                                - secret
+                                type: string
+                            required:
+                            - name
+                            - type
+                            type: object
                         required:
                         - name
                         - type

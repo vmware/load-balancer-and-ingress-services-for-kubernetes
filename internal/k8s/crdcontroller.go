@@ -758,13 +758,23 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		hostrule.Spec.VirtualHost.AnalyticsProfile:   "AnalyticsProfile",
 		hostrule.Spec.VirtualHost.ErrorPageProfile:   "ErrorPageProfile",
 	}
-
 	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
 		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name] = "SslKeyCert"
 	}
 
 	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
 		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
+		if err != nil {
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+	}
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name] = "SslKeyCert"
+	}
+
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
 		if err != nil {
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err
@@ -791,11 +801,6 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 // validateMultiClusterIngressObj validates the MCI CRD changes before pushing it to ingestion
 func validateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error {
 
-	// AMKO might have updated the status hence returning.
-	if multiClusterIngress.Status.Status.Accepted {
-		return nil
-	}
-
 	var err error
 	statusToUpdate := &akov1alpha1.MultiClusterIngressStatus{}
 	defer func() {
@@ -812,6 +817,12 @@ func validateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1
 	// Currently, we support only NodePort ServiceType.
 	if !lib.IsNodePortMode() {
 		err = fmt.Errorf("ServiceType must be of type NodePort")
+		return err
+	}
+
+	// Currently, we support EVH mode only.
+	if !lib.IsEvhEnabled() {
+		err = fmt.Errorf("AKO must be in EVH mode")
 		return err
 	}
 
@@ -1033,6 +1044,12 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 // addSeGroupLabel configures SEGroup with appropriate labels, during AviInfraSetting
 // creation/updates after ingestion
 func addSeGroupLabel(key, segName string) {
+	// No need to configure labels if static route sync is disabled globally.
+	if lib.GetDisableStaticRoute() {
+		utils.AviLog.Infof("Skipping the check for SE group labels for SEG %s", segName)
+		return
+	}
+
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()

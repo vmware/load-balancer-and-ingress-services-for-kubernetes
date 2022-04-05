@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -60,8 +62,8 @@ type AviVsEvhSniModel interface {
 	GetServiceMetadata() lib.ServiceMetadataObj
 	SetServiceMetadata(lib.ServiceMetadataObj)
 
-	GetSSLKeyCertAviRef() string
-	SetSSLKeyCertAviRef(string)
+	GetSSLKeyCertAviRef() []string
+	SetSSLKeyCertAviRef([]string)
 
 	GetWafPolicyRef() string
 	SetWafPolicyRef(string)
@@ -135,7 +137,7 @@ type AviEvhVsNode struct {
 	HttpPolicySetRefs   []string
 	VsDatascriptRefs    []string
 	SSLProfileRef       string
-	SSLKeyCertAviRef    string
+	SSLKeyCertAviRef    []string
 	Paths               []string
 	IngressNames        []string
 	AnalyticsPolicy     *avimodels.AnalyticsPolicy
@@ -208,11 +210,11 @@ func (v *AviEvhVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviEvhVsNode) GetSSLKeyCertAviRef() string {
+func (v *AviEvhVsNode) GetSSLKeyCertAviRef() []string {
 	return v.SSLKeyCertAviRef
 }
 
-func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef string) {
+func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
 	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
@@ -501,77 +503,37 @@ func (v *AviEvhVsNode) GetNodeType() string {
 	return "VirtualServiceNode"
 }
 
-func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
-
-	var hppMap *AviHostPathPortPoolPG
-	var redirectPorts *AviRedirectPort
+func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 
 	// Find the hppMap and redirectPorts that matches the host
 	for _, policy := range o.HttpPolicyRefs {
 		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				hppMap = &policy.HppMap[j]
-				break
-			}
+			policy.HppMap[j].Host = make([]string, len(hosts))
+			copy(policy.HppMap[j].Host, hosts)
 		}
 		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				redirectPorts = &policy.RedirectPorts[j]
-				break
-			}
+			policy.RedirectPorts[j].Hosts = make([]string, len(hosts))
+			copy(policy.RedirectPorts[j].Hosts, hosts)
 		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
-				if !utils.HasElem(policy.AviMarkers.Host, host) {
-					policy.AviMarkers.Host = append(policy.AviMarkers.Host, host)
-				}
-			}
-		}
-	}
-
-	// Update the hppMap with the hosts
-	if hppMap != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(hppMap.Host, host) {
-				hppMap.Host = append(hppMap.Host, host)
-			}
-		}
-	}
-
-	// Update the redirectPorts with the hosts
-	if redirectPorts != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(redirectPorts.Hosts, host) {
-				redirectPorts.Hosts = append(redirectPorts.Hosts, host)
-			}
-		}
+		policy.AviMarkers.Host = make([]string, len(hosts))
+		copy(policy.AviMarkers.Host, hosts)
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for VS %s", key, hosts, o.Name)
 }
 
-func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(hosts []string, key string) {
 
-	// Find the hppMap and redirectPorts that matches the host and remove the hosts
-	for _, policy := range o.HttpPolicyRefs {
-		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				for _, host := range hosts {
-					policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
-				}
+	for _, host := range hosts {
+		// Find the hppMap and redirectPorts that matches the host and remove the hosts
+		for _, policy := range o.HttpPolicyRefs {
+			for j := range policy.HppMap {
+				policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
 			}
-		}
-		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				for _, host := range hosts {
-					policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
-				}
+			for j := range policy.RedirectPorts {
+				policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
 			}
-		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
-				policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
-			}
+			policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
 		}
 	}
 
@@ -640,8 +602,9 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	for _, evhnode := range v.EvhNodes {
 		checksumStringSlice = append(checksumStringSlice, "EVHNode"+evhnode.Name)
-		if evhnode.SSLKeyCertAviRef != "" {
-			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhnode.SSLKeyCertAviRef)
+		for _, evhcert := range evhnode.SSLKeyCertAviRef {
+			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhcert)
+
 		}
 	}
 
@@ -882,7 +845,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
 			Port:       path.Port,
-			TargetPort: path.TargetPort,
+			TargetPort: intstr.FromInt(int(path.TargetPort)),
 			ServiceMetadata: lib.ServiceMetadataObj{
 				IngressName: ingName,
 				Namespace:   namespace,
@@ -912,6 +875,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			}
 		} else if modelType == lib.MultiClusterIngress {
 			if serviceType == lib.NodePort {
+				poolNode.ServiceMetadata.IsMCIIngress = true
 				// incase of multi-cluster ingress, the servers are created using service import CRD
 				if servers := PopulateServersForMultiClusterIngress(poolNode, namespace, path.clusterContext, path.svcNamespace, path.ServiceName, key); servers != nil {
 					poolNode.Servers = servers
@@ -1131,13 +1095,12 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		}
 	}
 	vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-	vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
-	evhNode.RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
+	evhNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 	// Add FQDN aliases in the hostrule CRD to parent and child VSes
 	vsNode[0].AddFQDNsToModel(evhNode.VHDomainNames, pathsvcmap.gslbHostHeader, key)
-	vsNode[0].AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
-	evhNode.AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
+	evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
+	evhNode.AviMarkers.Host = evhNode.VHDomainNames
 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
 }
 
@@ -1457,13 +1420,12 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			}
 		}
 		vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-		vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
-		evhNode.RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
+		evhNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 		// Add FQDN aliases in the hostrule CRD to parent and child VSes
 		vsNode[0].AddFQDNsToModel(evhNode.VHDomainNames, paths.gslbHostHeader, key)
-		vsNode[0].AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
-		evhNode.AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
+		evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
+		evhNode.AviMarkers.Host = evhNode.VHDomainNames
 		objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
 
 	} else {
@@ -1651,8 +1613,13 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		}
 		newInfraPrefix = newSetting.Name
 	}
+	var akoID string
+	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		akoID = os.Getenv("POD_NAMESPACE") + "-"
+	}
 
-	shardVsPrefix := lib.GetNamePrefix() + lib.ShardEVHVSPrefix
+	shardVsPrefix := lib.GetNamePrefix() + akoID + lib.ShardEVHVSPrefix
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
 	if oldInfraPrefix != "" {
 		oldVsName += oldInfraPrefix + "-"

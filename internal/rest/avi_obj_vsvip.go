@@ -152,7 +152,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			Obj:     vsvip,
 			Tenant:  vsvip_meta.Tenant,
 			Model:   "VsVip",
-			Version: utils.CtrlVersion,
 		}
 	} else {
 		var vips []*avimodels.Vip
@@ -183,7 +182,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 
 				// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
 				if vipNetwork.Cidr == "" {
-					utils.AviLog.Warnf("Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip")
+					utils.AviLog.Warnf("key: %s, msg: Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip", key)
 				} else {
 					ipPrefixSlice := strings.Split(vipNetwork.Cidr, "/")
 					mask, _ := strconv.Atoi(ipPrefixSlice[1])
@@ -260,8 +259,13 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 					// Clear the cache for this key
 					rest.cache.VSVIPCache.AviCacheDelete(vsvip_key)
 					utils.AviLog.Warnf("key: %s, Removed the vsvip object from the cache", key)
-					rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: vsvip,
-						Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
+					rest_op = utils.RestOp{
+						Path:   path,
+						Method: utils.RestPost,
+						Obj:    vsvip,
+						Tenant: vsvip_meta.Tenant,
+						Model:  "VsVip",
+					}
 					return &rest_op, nil
 				}
 				// If it's not nil, return an error.
@@ -300,7 +304,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				Obj:     vsvip_avi,
 				Tenant:  vsvip_meta.Tenant,
 				Model:   "VsVip",
-				Version: utils.CtrlVersion,
 			}
 		} else {
 			rest_op = utils.RestOp{
@@ -310,7 +313,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				Obj:     vsvip,
 				Tenant:  vsvip_meta.Tenant,
 				Model:   "VsVip",
-				Version: utils.CtrlVersion,
 			}
 		}
 	}
@@ -346,8 +348,12 @@ func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVi
 
 func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/vsvip/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "VsVip", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "VsVip",
+	}
 	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
@@ -356,12 +362,11 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 func (rest *RestOperations) AviVsVipPut(uuid string, vsvipObj *avimodels.VsVip, tenant string, key string) *utils.RestOp {
 	path := "/api/vsvip/" + uuid
 	rest_op := utils.RestOp{
-		Path:    path,
-		Method:  utils.RestPut,
-		Obj:     vsvipObj,
-		Tenant:  tenant,
-		Model:   "VsVip",
-		Version: utils.CtrlVersion,
+		Path:   path,
+		Method: utils.RestPut,
+		Obj:    vsvipObj,
+		Tenant: tenant,
+		Model:  "VsVip",
 	}
 	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP PUT Restop %v ", key,
 		utils.Stringify(rest_op)))
