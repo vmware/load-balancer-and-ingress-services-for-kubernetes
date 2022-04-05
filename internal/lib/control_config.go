@@ -93,6 +93,9 @@ type akoControlConfig struct {
 	// httpRuleEnabled is set to true if the cluster has
 	// HTTPRule CRD installed.
 	httpRuleEnabled bool
+
+	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
+	licenseType string
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -241,4 +244,17 @@ func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatAr
 			c.EventRecorder().Event(&v1.Pod{ObjectMeta: *c.akoPodObjectMeta}, eventType, reason, message)
 		}
 	}
+}
+
+func (c *akoControlConfig) SetLicenseType() {
+	response, err := utils.LicenseTypeFromURI()
+	if err != nil {
+		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
+	}
+
+	c.licenseType = *response.DefaultLicenseTier
+}
+
+func (c *akoControlConfig) GetLicenseType() string {
+	return c.licenseType
 }
