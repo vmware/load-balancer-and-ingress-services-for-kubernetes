@@ -26,7 +26,7 @@ To install the Operator using Helm refer [here](../docs/install/operator.md)
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace. 
 
-> **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
+> **Note**: Refer [akoconfig](#ako-config) to start the AKO controller. Refer [known issues](#known-issues) to update the akoconfig CRD to the latest version. 
 
 ### 2. Manual Installation
 ### 2.1 Out of cluster execution:
@@ -158,9 +158,18 @@ kubectl delete akoconfig -n avi-system ako-config
 > **Troubleshooting**: If the Operator isn't running when akoconfig is deleted, the akoconfig will be stuck in terminating state. <br>
 If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-config` and remove the `finalizers` part. 
 
+### <a id="known-issues">Known issues 
+
+The akoconfig CRD installed by OperatorHub is not updated. The user will need to upgrade the CRD to the latest version using the following command. 
+
+```
+kubectl apply -f https://raw.githubusercontent.com/vmware/load-balancer-and-ingress-services-for-kubernetes/release-1.6.2-operator/ako-operator/config/crd/bases/ako.vmware.com_akoconfigs.yaml
+```
+This issue is fixed in operator v1.6.3. Openshift customers are adviced to upgrade to v1.6.3. 
+
 
 ### Versioning
 | **Operator version** | **Supported AKO Version** |
 | --------- | ----------- |
-| 1.5.3 | 1.5.2 |
 | 1.6.2 | 1.6.2 |
+| 1.6.3 | 1.6.3 |
