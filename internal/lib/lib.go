@@ -771,7 +771,6 @@ func GetDomain() string {
 func GetAdvancedL4() bool {
 	advanceL4 := os.Getenv(ADVANCED_L4)
 	if advanceL4 == "true" {
-
 		return true
 	}
 	return false
@@ -1188,6 +1187,7 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		utils.EndpointInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
+		utils.NSInformer,
 	}
 
 	if GetServiceType() == NodePortLocal {
@@ -1195,7 +1195,6 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 	}
 
 	if !GetAdvancedL4() {
-		allInformers = append(allInformers, utils.NSInformer)
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
@@ -1221,10 +1220,6 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			allInformers = append(allInformers, utils.MultiClusterIngressInformer)
 			allInformers = append(allInformers, utils.ServiceImportInformer)
 		}
-	}
-
-	if akoInfra {
-		allInformers = append(allInformers, utils.NSInformer)
 	}
 
 	return allInformers, nil
@@ -1701,7 +1696,7 @@ func GetK8sMaxSupportedVersion() string {
 }
 
 func GetControllerVersion() string {
-	controllerVersion := utils.CtrlVersion
+	controllerVersion := AKOControlConfig().ControllerVersion()
 	// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
 	if CompareVersions(controllerVersion, ">", GetAviMaxSupportedVersion()) {
 		utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", GetAviMaxSupportedVersion())
