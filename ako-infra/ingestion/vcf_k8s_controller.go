@@ -315,33 +315,6 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 // If Bootstrap CR is not found, AKO would wait for it to be created. If the authtoken from Bootstrap CR
 // can be used to connect to the AVI Controller, then avi-secret would be created with that token.
 func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}, ctrlCh chan struct{}, skipAviClient ...bool) string {
-	cs := c.informers.ClientSet
-	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
-	ctrlIP := lib.GetControllerURLFromBootstrapCR()
-	if err == nil && ctrlIP != "" {
-		lib.SetControllerIP(ctrlIP)
-		authToken := aviSecret.Data["authtoken"]
-		username := aviSecret.Data["username"]
-		var transport *http.Transport
-		_, err = clients.NewAviClient(
-			ctrlIP, string(username), session.SetAuthToken(string(authToken)),
-			session.SetNoControllerStatusCheck, session.SetTransport(transport),
-			session.SetInsecure,
-		)
-		if err == nil || len(skipAviClient) == 1 {
-			utils.AviLog.Infof("Successfully connected to AVI controller using existing AKO secret")
-			boostrapdata, ok := lib.GetBootstrapCRData()
-			if ok {
-				return boostrapdata.TZPath
-			}
-			utils.AviLog.Warnf("Failed to fetch transportzone from bootstrap CR status")
-		} else {
-			utils.AviLog.Errorf("AVI controller initialization failed with err: %v", err)
-		}
-	} else {
-		utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)
-	}
-
 	if !c.ValidBootStrapData() {
 		utils.AviLog.Infof("Running in a VCF Cluster, but valid Bootstrap CR not found, waiting .. ")
 		startSyncCh := make(chan struct{})
@@ -382,7 +355,7 @@ func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
 	var aviSecret corev1.Secret
 	aviSecret.ObjectMeta.Name = lib.AviSecret
 	aviSecret.Data = make(map[string][]byte)
-	aviSecret.Data["authtoken"] = []byte(ncpSecret.Data["authToken"])
+	aviSecret.Data["authtoken"] = ncpSecret.Data["authToken"]
 	aviSecret.Data["username"] = []byte(boostrapdata.UserName)
 
 	_, err = cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
@@ -414,27 +387,41 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 	}
 	utils.AviLog.Infof("Got data from Bootstrap CR, secretName: %s, namespace: %s, username: %s, tansportzone: %s", boostrapdata.SecretName, boostrapdata.SecretNamespace, boostrapdata.UserName, boostrapdata.TZPath)
 	setTranzportZone(boostrapdata.TZPath)
-	var ncpSecret *corev1.Secret
-	var err error
-	ncpSecret, err = cs.CoreV1().Secrets(boostrapdata.SecretNamespace).Get(context.TODO(), boostrapdata.SecretName, metav1.GetOptions{})
+
+	ncpSecret, err := cs.CoreV1().Secrets(boostrapdata.SecretNamespace).Get(context.TODO(), boostrapdata.SecretName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get secret, got err: %v", err)
 		return false
 	}
-	authToken := ncpSecret.Data["authToken"]
+
+	authToken := string(ncpSecret.Data["authToken"])
 	ctrlIP := boostrapdata.AviURL
 	lib.SetControllerIP(ctrlIP)
+
 	var transport *http.Transport
-	_, err = clients.NewAviClient(
+	aviClient, err := clients.NewAviClient(
 		ctrlIP, boostrapdata.UserName, session.SetAuthToken(string(authToken)),
 		session.SetNoControllerStatusCheck, session.SetTransport(transport),
 		session.SetInsecure,
 	)
 	if err != nil {
-		utils.AviLog.Infof("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
+		utils.AviLog.Errorf("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
 		c.deleteNCPSecret(boostrapdata.SecretName, boostrapdata.SecretNamespace)
 		return false
 	}
+
+	ctrlVersion := lib.GetControllerVersion()
+	if ctrlVersion == "" {
+		version, err := aviClient.AviSession.GetControllerVersion()
+		if err == nil {
+			utils.AviLog.Infof("Setting the client version to the current controller version %v", version)
+			ctrlVersion = version
+		}
+	}
+	SetVersion := session.SetVersion(ctrlVersion)
+	SetVersion(aviClient.AviSession)
+
+	avirest.InfraAviClientInstance(aviClient)
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
 	return true
 }

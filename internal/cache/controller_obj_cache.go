@@ -2968,7 +2968,8 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		ipam := models.IPAMDNSProviderProfile{}
 		ipamRef := strings.SplitAfter(*ipamRefUri, "/api/")
 		ipamRefWithoutName := strings.Split(ipamRef[1], "#")[0]
-		if err := lib.AviGet(client, "/api/"+ipamRefWithoutName+"/?include_name", &ipam); err != nil {
+		ipamURI := "/api/" + ipamRefWithoutName + "/?include_name"
+		if err := lib.AviGet(client, ipamURI, &ipam); err != nil {
 			return false, fmt.Errorf("Get uri %v returned err %v", ipamRef, err)
 		}
 

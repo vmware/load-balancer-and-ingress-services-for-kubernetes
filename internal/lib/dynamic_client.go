@@ -236,12 +236,7 @@ func GetBootstrapCRData() (BootstrapCRData, bool) {
 		utils.AviLog.Errorf("Status not found in bootstrap CR")
 		return boostrapdata, false
 	}
-	tzone, ok := status["transportZone"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("transportZone not found in status of bootstrap CR")
-		return boostrapdata, false
-	}
-	tzPath, ok := tzone["path"].(string)
+	tzPath, ok := status["transportZone"].(string)
 	if !ok {
 		utils.AviLog.Errorf("transportZone path not found in status of bootstrap CR")
 		return boostrapdata, false
@@ -310,6 +305,11 @@ func GetNetinfoCRData() (map[string]string, map[string]struct{}) {
 	crList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
+		return lslrMap, cidrs
+	}
+
+	if len(crList.Items) == 0 {
+		utils.AviLog.Infof("No Networkinfo CRs found.")
 		return lslrMap, cidrs
 	}
 
