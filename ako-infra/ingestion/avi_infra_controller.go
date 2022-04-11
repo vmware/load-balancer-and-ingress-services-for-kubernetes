@@ -21,11 +21,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
+	avimodels "github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -34,22 +38,22 @@ import (
 )
 
 type AviControllerInfra struct {
-	AviRestClients *utils.AviRestClientPool
-	cs             kubernetes.Interface
+	AviRestClient *clients.AviClient
+	cs            kubernetes.Interface
 }
 
 func NewAviControllerInfra(cs kubernetes.Interface) *AviControllerInfra {
 	PopulateControllerProperties(cs)
-	AviRestClientsPool := avicache.SharedAVIClients()
-	return &AviControllerInfra{AviRestClients: AviRestClientsPool, cs: cs}
+	aviClient := avirest.InfraAviClientInstance()
+	return &AviControllerInfra{AviRestClient: aviClient, cs: cs}
 }
 
 func (a *AviControllerInfra) InitInfraController() {
-	if a.AviRestClients == nil {
+	if a.AviRestClient == nil {
 		utils.AviLog.Fatalf("Avi client not initialized during Infra bootup")
 	}
 
-	if a.AviRestClients != nil && !avicache.IsAviClusterActive(a.AviRestClients.AviClient[0]) {
+	if a.AviRestClient != nil && !avicache.IsAviClusterActive(a.AviRestClient) {
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO infa container")
 	}
 
@@ -63,7 +67,7 @@ func (a *AviControllerInfra) InitInfraController() {
 func (a *AviControllerInfra) VerifyAviControllerLicense() error {
 	uri := "/api/systemconfiguration"
 	response := models.SystemConfiguration{}
-	err := lib.AviGet(a.AviRestClients.AviClient[0], uri, &response)
+	err := lib.AviGet(a.AviRestClient, uri, &response)
 	if err != nil {
 		utils.AviLog.Warnf("System config Get uri %v returned err %v", uri, err)
 		return err
@@ -81,7 +85,7 @@ func (a *AviControllerInfra) VerifyAviControllerLicense() error {
 func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, string, string) {
 	// This method queries the Avi controller for all available cloud and then returns the cloud that matches the supplied transport zone
 	uri := "/api/cloud/"
-	result, err := lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
+	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 		return err, "", ""
@@ -102,137 +106,102 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		}
 		vtype := *cloud.Vtype
 		if vtype == lib.CLOUD_NSXT && cloud.NsxtConfiguration != nil {
-			// Commenting out code as it is taken care by another PR.
-			/*
-				//cloud.NsxtConfiguration.TransportZone field is deprecated in 20.1.5
-				// As AKO deals with configuration of data plane, dataNetworkConfig is used.
-				if cloud.NsxtConfiguration.DataNetworkConfig != nil && cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != nil && *cloud.NsxtConfiguration.DataNetworkConfig.TransportZone == tz {
-					utils.AviLog.Infof("Found NSX-T cloud :%s match Transport Zone : %s", *cloud.Name, tz)
-					if *cloud.SeGroupTemplateRef != "" {
-						tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
-						if len(tokenized) == 2 {
-							return nil, *cloud.Name, tokenized[1]
-						}
+			if cloud.NsxtConfiguration.ManagementNetworkConfig != nil &&
+				cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone != nil &&
+				*cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == tz {
+				utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
+				if cloud.SeGroupTemplateRef != nil &&
+					*cloud.SeGroupTemplateRef != "" {
+					tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
+					if len(tokenized) == 2 {
+						return nil, *cloud.Name, tokenized[1]
 					}
 				}
-			*/
-			return nil, *cloud.Name, ""
+			}
+
+			// fetch Default-SEGroup uuid
+			uri = "/api/serviceenginegroup/?include_name&cloud_ref.name=" + *cloud.Name + "&name=Default-Group"
+			result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return err, *cloud.Name, ""
+			}
+
+			elems := make([]json.RawMessage, result.Count)
+			err = json.Unmarshal(result.Results, &elems)
+			if err != nil {
+				utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+				return err, *cloud.Name, ""
+			}
+
+			if len(elems) == 0 {
+				utils.AviLog.Errorf("No ServiceEngine Group with name Default-Group found.")
+				return errors.New("No ServiceEngine Group with name Default-Group found."), *cloud.Name, ""
+			}
+
+			defaultSEG := models.ServiceEngineGroup{}
+			err = json.Unmarshal(elems[0], &defaultSEG)
+			if err != nil {
+				utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+				return err, *cloud.Name, ""
+			}
+			return nil, *cloud.Name, *defaultSEG.UUID
 		}
 	}
 	return errors.New("Cloud not found"), "", ""
 }
 
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
-
-	err, seGroup := lib.FetchSEGroupWithMarkerSet(a.AviRestClients.AviClient[0])
-	if err == nil && seGroup != "" {
-		utils.AviLog.Infof("SE Group: %s already configured with the marker labels: %s", seGroup, lib.GetClusterID())
-	}
-	// This method checks if the cloud in Avi has a SE Group template configured or not. If has the SEG template then it returns true, else false
-	err, cloudName, segUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
+	err, cloudName, segTemplateUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
 	if err != nil {
 		return false
 	}
 	utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
 	utils.SetCloudName(cloudName)
 
-	if checkSeGroup(a.AviRestClients.AviClient[0], cloudName) {
-		return true
+	clusterName := lib.GetClusterID()
+	err, configuredSEGroup := fetchSEGroup(a.AviRestClient)
+	seGroupExists := false
+	if err == nil && configuredSEGroup != nil {
+		seGroupExists = true
+		if len(configuredSEGroup.Markers) == 1 &&
+			*configuredSEGroup.Markers[0].Key == lib.ClusterNameLabelKey &&
+			len(configuredSEGroup.Markers[0].Values) == 1 &&
+			configuredSEGroup.Markers[0].Values[0] == clusterName {
+			utils.AviLog.Infof("SE Group: %s already configured with the markers: %s", *configuredSEGroup.Name, utils.Stringify(configuredSEGroup.Markers))
+			cloudName := strings.Split(*configuredSEGroup.CloudRef, "#")[1]
+			utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
+			utils.SetCloudName(cloudName)
+			return true
+		}
 	}
 
-	var uri string
-	if segUuid == "" {
-		// The cloud does not have a SEG template set, use `Default-Group`
-		uri = "/api/serviceenginegroup/?include_name&cloud_ref.name=" + cloudName + "&name=Default-Group"
-	} else {
-		// se group template exists, use the same to fetch the SE group details and use it to create the new SE group
-		// The cloud does not have a SEG template set, use `Default-Group`
-		uri = "/api/serviceenginegroup/" + segUuid
-	}
-	var result session.AviCollectionResult
-	result, err = lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
-	if err != nil {
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			//SE in provider context no read access
-			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-			SetTenant := session.SetTenant(lib.GetTenant())
-			SetAdminTenant(a.AviRestClients.AviClient[0].AviSession)
-			defer SetTenant(a.AviRestClients.AviClient[0].AviSession)
-			result, err = lib.AviGetCollectionRaw(a.AviRestClients.AviClient[0], uri)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return false
-			}
-
-		} else {
+	// This method checks if the cloud in Avi has a SE Group template configured or not. If has the SEG template then it returns true, else false
+	if configuredSEGroup == nil {
+		uri := "/api/serviceenginegroup/" + segTemplateUuid
+		err = lib.AviGet(a.AviRestClient, uri, &configuredSEGroup)
+		if err != nil {
 			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
 			return false
 		}
 	}
-	// Construct an SE group based on parameters in the `Default-Group`
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+
+	if !ConfigureSeGroup(a.AviRestClient, configuredSEGroup, seGroupExists) {
 		return false
 	}
 
-	for _, elem := range elems {
-		seg := models.ServiceEngineGroup{}
-		if err := json.Unmarshal(elem, &seg); err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			continue
-		}
-
-		if !ConfigureSeGroup(a.AviRestClients.AviClient[0], &seg) {
-			return false
-		}
-	}
 	return true
 }
 
-// ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the labels.
-func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGroup) bool {
-	// Change the name of the SE group
-	*seGroup.Name = lib.GetClusterID()
-
-	uri := "/api/serviceenginegroup/"
-	// Add the labels.
-	seGroup.Labels = lib.GetLabels()
-	response := models.ServiceEngineGroupAPIResponse{}
-	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-	SetTenant := session.SetTenant(lib.GetTenant())
-
-	err := lib.AviPost(client, uri, seGroup, response)
-	if err != nil {
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			//SE in provider context
-			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			err := lib.AviPost(client, uri, seGroup, response)
-			if err != nil {
-				utils.AviLog.Warnf("Error during POST call to create the SE group :%v", err.Error())
-				return false
-
-			}
-		} else {
-			utils.AviLog.Warnf("Error during POST call to create the SE group :%v", err.Error())
-			return false
-		}
+func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error, *models.ServiceEngineGroup) {
+	var uri string
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].Next_uri
+	} else {
+		uri = "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
 	}
-	utils.AviLog.Infof("labels: %v set on Service Engine Group :%v", utils.Stringify(lib.GetLabels()), *seGroup.Name)
-	return true
-
-}
-
-func checkSeGroup(client *clients.AviClient, cloudName string) bool {
-	segroupName := lib.GetClusterID()
-
-	uri := "/api/serviceenginegroup/?name=" + segroupName + "&cloud_ref.name=" + cloudName
-	response := models.ServiceEngineGroupAPIResponse{}
-	err := lib.AviGet(client, uri, &response)
+	var result session.AviCollectionResult
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			//SE in provider context no read access
@@ -241,18 +210,80 @@ func checkSeGroup(client *clients.AviClient, cloudName string) bool {
 			SetTenant := session.SetTenant(lib.GetTenant())
 			SetAdminTenant(client.AviSession)
 			defer SetTenant(client.AviSession)
-			err := lib.AviGet(client, uri, &response)
+			result, err = lib.AviGetCollectionRaw(client, uri)
 			if err != nil {
-				utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
-				return false
-
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return err, nil
 			}
 		} else {
-			utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
-			return false
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return err, nil
 		}
 	}
-	utils.AviLog.Infof("Found Service Engine Group :%v", segroupName)
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return err, nil
+	}
+
+	// Using clusterID for advl4.
+	clusterName := lib.GetClusterID()
+	for _, elem := range elems {
+		seg := models.ServiceEngineGroup{}
+		err = json.Unmarshal(elem, &seg)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
+
+		if *seg.Name == clusterName {
+			return nil, &seg
+		}
+	}
+
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/serviceenginegroup")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/serviceenginegroup" + next_uri[1]
+			nextPage := lib.NextPage{Next_uri: overrideUri}
+			return fetchSEGroup(client, nextPage)
+		}
+	}
+
+	utils.AviLog.Infof("No Service Engine Group found for Cluster.")
+	return nil, nil
+}
+
+// ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the markers.
+func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGroup, segExists bool) bool {
+	// Change the name of the SE group, and add markers
+	*seGroup.Name = lib.GetClusterID()
+	markers := []*avimodels.RoleFilterMatchLabel{{
+		Key:    proto.String(lib.ClusterNameLabelKey),
+		Values: []string{lib.GetClusterID()},
+	}}
+	seGroup.Markers = markers
+
+	response := models.ServiceEngineGroupAPIResponse{}
+	var err error
+	var uri string
+	if segExists {
+		uri = "/api/serviceenginegroup/" + *seGroup.UUID
+		err = lib.AviPut(client, uri, seGroup, response)
+	} else {
+		uri = "/api/serviceenginegroup/"
+		err = lib.AviPost(client, uri, seGroup, response)
+	}
+
+	if err != nil {
+		utils.AviLog.Warnf("Error during API call to CreateOrUpdate the SE group :%v", err.Error())
+		return false
+	}
+
+	utils.AviLog.Infof("Markers: %v set on Service Engine Group: %v", utils.Stringify(markers), *seGroup.Name)
 	return true
 }
 

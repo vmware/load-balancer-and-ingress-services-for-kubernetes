@@ -67,6 +67,17 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 	err := client.AviSession.Get(uri, &response)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			utils.AviLog.Debugf("Switching to admin context from %s", GetTenant())
+			SetAdminTenant := session.SetTenant(GetAdminTenant())
+			SetTenant := session.SetTenant(GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			if err := AviGet(client, uri, response); err != nil {
+				utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v after context switch", uri, err)
+				return err
+			}
+		}
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
@@ -120,6 +131,17 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 	err := client.AviSession.Put(uri, payload, &response)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v", uri, err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			utils.AviLog.Debugf("Switching to admin context from %s", GetTenant())
+			SetAdminTenant := session.SetTenant(GetAdminTenant())
+			SetTenant := session.SetTenant(GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			if err := AviPut(client, uri, payload, response); err != nil {
+				utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v after context switch", uri, err)
+				return err
+			}
+		}
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
@@ -145,6 +167,17 @@ func AviPost(client *clients.AviClient, uri string, payload interface{}, respons
 	err := client.AviSession.Post(uri, payload, &response)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to execute Post on uri %s %v", uri, err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			utils.AviLog.Debugf("Switching to admin context from %s", GetTenant())
+			SetAdminTenant := session.SetTenant(GetAdminTenant())
+			SetTenant := session.SetTenant(GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			if err := AviPost(client, uri, payload, response); err != nil {
+				utils.AviLog.Warnf("msg: Unable to execute Post on uri %s %v after context switch", uri, err)
+				return err
+			}
+		}
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
@@ -170,6 +203,17 @@ func AviDelete(client *clients.AviClient, uri string, retryNum ...int) error {
 	err := client.AviSession.Delete(uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to execute Delete on uri %s %v", uri, err)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			utils.AviLog.Debugf("Switching to admin context from %s", GetTenant())
+			SetAdminTenant := session.SetTenant(GetAdminTenant())
+			SetTenant := session.SetTenant(GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			if err := AviDelete(client, uri); err != nil {
+				utils.AviLog.Warnf("msg: Unable to execute Post on uri %s %v after context switch", uri, err)
+				return err
+			}
+		}
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
@@ -196,7 +240,6 @@ func checkForInvalidCredentials(uri string, err error) {
 			}
 		}
 	}
-	return
 }
 
 func NewAviRestClientWithToken(api_ep string, username string, authToken string) *clients.AviClient {

@@ -19,14 +19,12 @@ import (
 
 	"github.com/vmware/alb-sdk/go/models"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
 
 func DeleteServiceEngines(nextURI ...string) error {
-	client := avicache.SharedAVIClients().AviClient[0]
+	client := InfraAviClientInstance()
 	segName := lib.GetClusterID()
 	cloudName := utils.CloudName
 
@@ -38,21 +36,8 @@ func DeleteServiceEngines(nextURI ...string) error {
 	response := models.ServiceEngineAPIResponse{}
 	err := lib.AviGet(client, seListUri, &response)
 	if err != nil {
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			//SE in provider context no read access
-			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-			SetTenant := session.SetTenant(lib.GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			if err := lib.AviGet(client, seListUri, &response); err != nil {
-				utils.AviLog.Warnf("Error during Get call for the SEs: %v", err.Error())
-				return err
-			}
-		} else {
-			utils.AviLog.Warnf("Error during Get call for the SEs: %v", err.Error())
-			return err
-		}
+		utils.AviLog.Warnf("Error during Get call for the SEs: %v", err.Error())
+		return err
 	}
 
 	if len(response.Results) == 0 {
@@ -68,21 +53,8 @@ func DeleteServiceEngines(nextURI ...string) error {
 	for _, seUUID := range seUUIDs {
 		deleteUri := "/api/serviceengine/" + seUUID
 		if err := lib.AviDelete(client, deleteUri); err != nil {
-			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-				// SE in provider context no delete access
-				utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-				SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-				SetTenant := session.SetTenant(lib.GetTenant())
-				SetAdminTenant(client.AviSession)
-				defer SetTenant(client.AviSession)
-				if err := lib.AviDelete(client, deleteUri); err != nil {
-					utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", seUUID, err.Error())
-					return err
-				}
-			} else {
-				utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", seUUID, err.Error())
-				return err
-			}
+			utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", seUUID, err.Error())
+			return err
 		}
 	}
 
@@ -100,7 +72,7 @@ func DeleteServiceEngines(nextURI ...string) error {
 }
 
 func DeleteServiceEngineGroup() error {
-	client := avicache.SharedAVIClients().AviClient[0]
+	client := InfraAviClientInstance()
 	segName := lib.GetClusterID()
 	cloudName := utils.CloudName
 
@@ -108,21 +80,8 @@ func DeleteServiceEngineGroup() error {
 	response := models.ServiceEngineGroupAPIResponse{}
 	err := lib.AviGet(client, segListUri, &response)
 	if err != nil {
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			//SE in provider context no read access
-			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-			SetTenant := session.SetTenant(lib.GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			if err := lib.AviGet(client, segListUri, &response); err != nil {
-				utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
-				return err
-			}
-		} else {
-			utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
-			return err
-		}
+		utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
+		return err
 	}
 
 	if len(response.Results) == 0 {
@@ -133,23 +92,8 @@ func DeleteServiceEngineGroup() error {
 	segUuid := *response.Results[0].UUID
 	deleteSEGUri := "/api/serviceenginegroup/" + segUuid
 	if err := lib.AviDelete(client, deleteSEGUri); err != nil {
-		if err := lib.AviDelete(client, deleteSEGUri); err != nil {
-			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-				// SE in provider context no delete access
-				utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-				SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-				SetTenant := session.SetTenant(lib.GetTenant())
-				SetAdminTenant(client.AviSession)
-				defer SetTenant(client.AviSession)
-				if err := lib.AviDelete(client, deleteSEGUri); err != nil {
-					utils.AviLog.Errorf("Error during Delete call for the SEG: %s, %s", segUuid, err.Error())
-					return err
-				}
-			} else {
-				utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", segUuid, err.Error())
-				return err
-			}
-		}
+		utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", segUuid, err.Error())
+		return err
 	}
 
 	return nil

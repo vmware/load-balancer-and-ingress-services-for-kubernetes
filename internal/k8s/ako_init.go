@@ -51,16 +51,16 @@ import (
 
 func PopulateCache() error {
 	var err error
-	avi_rest_client_pool := avicache.SharedAVIClients()
-	avi_obj_cache := avicache.SharedAviObjCache()
+	aviRestClientPool := avicache.SharedAVIClients()
+	aviObjCache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
-	if avi_rest_client_pool != nil && len(avi_rest_client_pool.AviClient) > 0 {
-		_, _, err = avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient, utils.CtrlVersion, utils.CloudName)
+	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
+		_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, utils.CtrlVersion, utils.CloudName)
 		if err != nil {
 			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 			return err
 		}
-		if err = avicache.SetControllerClusterUUID(avi_rest_client_pool); err != nil {
+		if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
 			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
 		}
 	}
@@ -176,7 +176,7 @@ func (c *AviController) SetSEGroupCloudName() bool {
 	client := avicache.SharedAVIClients().AviClient[0]
 	var err error
 	// 2. Marker based (only advancedL4)
-	if seGroupToUse == "" && lib.GetAdvancedL4() {
+	if seGroupToUse == "" && lib.GetAdvancedL4() && !utils.IsVCFCluster() {
 		err, seGroupToUse = lib.FetchSEGroupWithMarkerSet(client)
 		if err != nil {
 			utils.AviLog.Infof("Setting SEGroup with markerset and no SEGroup found from env")
@@ -196,7 +196,7 @@ func (c *AviController) SetSEGroupCloudName() bool {
 	}
 
 	nsName := utils.GetAKONamespace()
-	nsObj, err := c.informers.NSInformer.Lister().Get(nsName)
+	nsObj, err := c.informers.ClientSet.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the namespace %s details due to the following error: %v", nsName, err.Error())
 		return false
@@ -700,16 +700,16 @@ func (c *AviController) addIndexers() {
 
 func (c *AviController) FullSync() {
 
-	avi_rest_client_pool := avicache.SharedAVIClients()
-	avi_obj_cache := avicache.SharedAviObjCache()
+	aviRestClientPool := avicache.SharedAVIClients()
+	aviObjCache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
-	if len(avi_rest_client_pool.AviClient) > 0 {
-		avi_obj_cache.AviClusterStatusPopulate(avi_rest_client_pool.AviClient[0])
+	if len(aviRestClientPool.AviClient) > 0 {
+		aviObjCache.AviClusterStatusPopulate(aviRestClientPool.AviClient[0])
 		if !lib.GetAdvancedL4() {
-			avi_obj_cache.AviCacheRefresh(avi_rest_client_pool.AviClient[0], utils.CloudName)
+			aviObjCache.AviCacheRefresh(aviRestClientPool.AviClient[0], utils.CloudName)
 		} else {
 			// In this case we just sync the Gateway status to the LB status
-			restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
+			restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
 			restlayer.SyncObjectStatuses()
 		}
 		allModelsMap := objects.SharedAviGraphLister().GetAll()
