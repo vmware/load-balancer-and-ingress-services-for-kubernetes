@@ -301,23 +301,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 	return
 }
 
-func (c *AviController) AddCrdIndexer() {
-	informer := lib.AKOControlConfig().CRDInformers()
-	if lib.AKOControlConfig().AviInfraSettingEnabled() {
-		informer.AviInfraSettingInformer.Informer().AddIndexers(
-			cache.Indexers{
-				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
-					infraSetting, ok := obj.(*akov1alpha1.AviInfraSetting)
-					if !ok {
-						return []string{}, nil
-					}
-					return []string{infraSetting.Spec.SeGroup.Name}, nil
-				},
-			},
-		)
-	}
-}
-
 // SetupIstioCRDEventHandlers handles setting up of Istio CRD event handlers
 func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up AKO Istio CRD Event handlers")

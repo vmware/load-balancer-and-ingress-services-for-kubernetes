@@ -767,18 +767,14 @@ func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName
 }
 
 func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, key string) {
-	var bkt uint32
-	bkt = 0
 	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
-	fastRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
+	fastRetryQueue.Workqueue[0].AddRateLimited(parentVsKey)
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, parentVsKey)
 }
 
 func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, key string) {
-	var bkt uint32
-	bkt = 0
 	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
-	slowRetryQueue.Workqueue[bkt].AddRateLimited(parentVsKey)
+	slowRetryQueue.Workqueue[0].AddRateLimited(parentVsKey)
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, parentVsKey)
 }
 
