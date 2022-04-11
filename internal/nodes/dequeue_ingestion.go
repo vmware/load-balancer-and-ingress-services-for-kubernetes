@@ -690,7 +690,6 @@ func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.Work
 	bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 	sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
 	utils.AviLog.Infof("key: %s, msg: Published key with modelName: %s", key, modelName)
-
 }
 
 func isServiceDelete(svcName string, namespace string, key string) bool {
