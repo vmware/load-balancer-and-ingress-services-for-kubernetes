@@ -538,7 +538,7 @@ func IsSecretAviCertRef(secret string) bool {
 func GetTLSKeyCertNodeName(infrasetting, sniHostName, secretName string) string {
 	if IsSecretK8sSecretRef(secretName) {
 		secretName = strings.Split(secretName, "/")[2]
-		if secretName == GetDefaultSecretForRoutes() || secretName == GetAltDefaultSecretForRoutes() {
+		if secretName == GetDefaultSecretForRoutes() {
 			return Encode(secretName, TLSKeyCert)
 		}
 	}
@@ -1472,10 +1472,6 @@ func ContainsFinalizer(o metav1.Object, finalizer string) bool {
 
 func GetDefaultSecretForRoutes() string {
 	return DefaultRouteCert
-}
-
-func GetAltDefaultSecretForRoutes() string {
-	return AltDefaultRouteCert
 }
 
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {

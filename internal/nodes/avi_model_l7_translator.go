@@ -29,9 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-// TODO: Move to utils
-const tlsCert = "tls.crt"
-
 func FindAndReplaceSniInModel(currentSniNode *AviVsNode, modelSniNodes []*AviVsNode, key string) bool {
 	for i, modelSniNode := range modelSniNodes[0].SniNodes {
 		if currentSniNode.Name == modelSniNode.Name {
@@ -191,7 +188,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 	if lib.IsSecretK8sSecretRef(secretName) {
 		secretName = strings.Split(secretName, "/")[2]
 	}
-
+	var altCertNode *AviTLSKeyCertNode
 	certNode := &AviTLSKeyCertNode{
 		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, sniHost, tlsData.SecretName),
 		Tenant: lib.GetTenant(),
@@ -233,7 +230,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 			return false
 		}
 		keycertMap := secretObj.Data
-		cert, ok := keycertMap[tlsCert]
+		cert, ok := keycertMap[utils.K8S_TLS_SECRET_CERT]
 		if ok {
 			certNode.Cert = cert
 		} else {
@@ -247,6 +244,20 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 			utils.AviLog.Infof("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
 			return false
 		}
+		altCert, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+		if ok {
+			altKey, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+			if ok {
+				altCertNode = &AviTLSKeyCertNode{
+					Name:       lib.GetTLSKeyCertNodeName(infraSettingName, sniHost, tlsData.SecretName+"-alt"),
+					Tenant:     lib.GetTenant(),
+					Type:       lib.CertTypeVS,
+					AviMarkers: certNode.AviMarkers,
+					Cert:       altCert,
+					Key:        altKey,
+				}
+			}
+		}
 		utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	}
 	// If this SSLCertRef is already present don't add it.
@@ -258,6 +269,9 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 		} else {
 			tlsNode.ReplaceSniSSLRefInSNINode(certNode, key)
 		}
+	}
+	if altCertNode != nil && tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, sniHost, tlsData.SecretName+"-alt"), altCertNode.GetCheckSum()) {
+		tlsNode.ReplaceSniSSLRefInSNINode(altCertNode, key)
 	}
 	return true
 }

@@ -1133,7 +1133,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 	if lib.IsSecretK8sSecretRef(secretName) {
 		secretName = strings.Split(secretName, "/")[2]
 	}
-
+	var altCertNode *AviTLSKeyCertNode
 	certNode := &AviTLSKeyCertNode{
 		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName),
 		Tenant: lib.GetTenant(),
@@ -1175,7 +1175,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 			return false
 		}
 		keycertMap := secretObj.Data
-		cert, ok := keycertMap[tlsCert]
+		cert, ok := keycertMap[utils.K8S_TLS_SECRET_CERT]
 		if ok {
 			certNode.Cert = cert
 		} else {
@@ -1189,11 +1189,28 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 			utils.AviLog.Infof("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
 			return false
 		}
+		altCert, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+		if ok {
+			altKey, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+			if ok {
+				altCertNode = &AviTLSKeyCertNode{
+					Name:       lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"),
+					Tenant:     lib.GetTenant(),
+					Type:       lib.CertTypeVS,
+					AviMarkers: certNode.AviMarkers,
+					Cert:       altCert,
+					Key:        altKey,
+				}
+			}
+		}
 		utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	}
 	// If this SSLCertRef is already present don't add it.
 	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName), certNode.GetCheckSum()) {
 		tlsNode.ReplaceEvhSSLRefInEVHNode(certNode, key)
+	}
+	if altCertNode != nil && tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"), altCertNode.GetCheckSum()) {
+		tlsNode.ReplaceEvhSSLRefInEVHNode(altCertNode, key)
 	}
 
 	return true
@@ -1373,6 +1390,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			vsNode[0].DeleteCACertRefInEVHNode(lib.GetCACertNodeName(infraSettingName, host), key)
 		}
 		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName+"-alt"), key)
 	}
 	if isDedicated {
 		evhNode = vsNode[0]
@@ -1442,6 +1460,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 				DeleteDedicatedEvhVSNode(vsNode[0], key, hostsToRemove)
 			} else {
 				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName), key)
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName+"-alt"), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 			}

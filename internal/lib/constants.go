@@ -122,7 +122,6 @@ const (
 	ObjectDeletionDoneStatus                   = "Done"
 	ObjectDeletionTimeoutStatus                = "Timeout"
 	DefaultRouteCert                           = "router-certs-default"
-	AltDefaultRouteCert                        = "alt-router-certs-default"
 	autoAnnotateService                        = "AUTO_ANNOTATE_SERVICE"
 	ClusterNameLabelKey                        = "clustername"
 	UpdateStatus                               = "UpdateStatus"

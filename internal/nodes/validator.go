@@ -304,21 +304,12 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 				Hosts:      defaultTLSHostSvcMap,
 				redirect:   true,
 			}
-			altDefaultTLS := TlsSettings{
-				SecretName: lib.GetAltDefaultSecretForRoutes(),
-				SecretNS:   utils.GetAKONamespace(),
-				Hosts:      defaultTLSHostSvcMap,
-				redirect:   true,
-			}
 
 			tlsConfigs = append(tlsConfigs, defaultTLS)
-			tlsConfigs = append(tlsConfigs, altDefaultTLS)
 			if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
 				akoNS := utils.GetAKONamespace()
 				objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(akoNS, ingName, defaultTLS.SecretName)
 				objects.SharedSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(ns, ingName, defaultTLS.SecretName)
-				objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(akoNS, ingName, altDefaultTLS.SecretName)
-				objects.SharedSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(ns, ingName, altDefaultTLS.SecretName)
 			}
 		} else {
 			hostMap[hostName] = hostPathMapSvcList
@@ -511,7 +502,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	if routeSpec.TLS != nil && !useHostRuleSSL {
 		secretNames = []string{lib.RouteSecretsPrefix + routeName}
 		if routeSpec.TLS.Certificate == "" || routeSpec.TLS.Key == "" {
-			secretNames = []string{lib.GetDefaultSecretForRoutes(), lib.GetAltDefaultSecretForRoutes()}
+			secretNames = []string{lib.GetDefaultSecretForRoutes()}
 		}
 	}
 
