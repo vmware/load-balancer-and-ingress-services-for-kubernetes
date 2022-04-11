@@ -44,8 +44,7 @@ var CtrlVersion string
 var runtimeScheme = k8sruntime.NewScheme()
 
 func init() {
-	//Setting the package-wide version
-	CtrlVersion = os.Getenv("CTRL_VERSION")
+	// Setting the package-wide version
 	networkingv1.AddToScheme(runtimeScheme)
 }
 
