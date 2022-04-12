@@ -363,7 +363,7 @@ func InitializeNSSync(labelKey, labelVal string) {
 	globalNSFilterObj.EnableMigration = true
 	globalNSFilterObj.nsFilter.key = labelKey
 	globalNSFilterObj.nsFilter.value = labelVal
-	globalNSFilterObj.validNSList.nsList = make(map[string]bool)
+	globalNSFilterObj.validNSList.nsList = make(map[string]struct{})
 }
 
 //Get namespace label filter key and value
@@ -382,13 +382,19 @@ func GetNSFilter(obj *K8ValidNamespaces) (string, string) {
 func AddNamespaceToFilter(namespace string) {
 	globalNSFilterObj.validNSList.lock.Lock()
 	defer globalNSFilterObj.validNSList.lock.Unlock()
-	globalNSFilterObj.validNSList.nsList[namespace] = true
+	globalNSFilterObj.validNSList.nsList[namespace] = struct{}{}
 }
 
 func DeleteNamespaceFromFilter(namespace string) {
 	globalNSFilterObj.validNSList.lock.Lock()
 	defer globalNSFilterObj.validNSList.lock.Unlock()
 	delete(globalNSFilterObj.validNSList.nsList, namespace)
+}
+
+func GetAllNamespacesInFilter() map[string]struct{} {
+	globalNSFilterObj.validNSList.lock.Lock()
+	defer globalNSFilterObj.validNSList.lock.Unlock()
+	return globalNSFilterObj.validNSList.nsList
 }
 
 func CheckIfNamespaceAccepted(namespace string, opts ...interface{}) bool {

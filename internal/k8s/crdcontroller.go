@@ -794,6 +794,11 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		return err
 	}
 
+	// No need to update status of hostrule object as accepted since it was accepted before.
+	if hostrule.Status.Status == lib.StatusAccepted {
+		return nil
+	}
+
 	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
 	return nil
 }
@@ -979,6 +984,11 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 		return err
 	}
 
+	// No need to update status of httprule object as accepted since it was accepted before.
+	if httprule.Status.Status == lib.StatusAccepted {
+		return nil
+	}
+
 	status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
 		Status: lib.StatusAccepted,
 		Error:  "",
@@ -1032,6 +1042,11 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 	// step before this.
 	if infraSetting.Spec.SeGroup.Name != "" {
 		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+	}
+
+	// No need to update status of infra setting object as accepted since it was accepted before.
+	if infraSetting.Status.Status == lib.StatusAccepted {
+		return nil
 	}
 
 	status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
