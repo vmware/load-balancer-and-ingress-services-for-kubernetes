@@ -49,14 +49,20 @@ import (
 )
 
 func PopulateCache() error {
+	var parentKeys []avicache.NamespaceName
+	var err error
 	avi_rest_client_pool := avicache.SharedAVIClients()
 	avi_obj_cache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if avi_rest_client_pool != nil && len(avi_rest_client_pool.AviClient) > 0 {
-		_, _, err := avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient, utils.CtrlVersion, utils.CloudName)
+		_, parentKeys, err = avi_obj_cache.AviObjCachePopulate(avi_rest_client_pool.AviClient, utils.CtrlVersion, utils.CloudName)
 		if err != nil {
 			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 			return err
+		}
+		if lib.GetDeleteConfigMap() {
+			go SetDeleteSyncChannel()
+			deleteAviObjects(parentKeys, avi_obj_cache, avi_rest_client_pool)
 		}
 		if err = avicache.SetControllerClusterUUID(avi_rest_client_pool); err != nil {
 			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
@@ -80,7 +86,36 @@ func PopulateCache() error {
 		}
 		avi_obj_cache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 	}
+
+	vsKeysPending := avi_obj_cache.VsCacheMeta.AviGetAllKeys()
+	if lib.GetDeleteConfigMap() {
+		//Delete NPL annotations
+		DeleteNPLAnnotations()
+	}
+
+	if lib.GetDeleteConfigMap() && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
+		close(lib.ConfigDeleteSyncChan)
+		lib.ConfigDeleteSyncChan = nil
+	}
+
 	return nil
+}
+
+func deleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avicache.AviObjCache, avi_rest_client_pool *utils.AviRestClientPool) {
+	for _, pvsKey := range parentVSKeys {
+		// Fetch the parent VS cache and update the SNI child
+		vsObj, parentFound := avi_obj_cache.VsCacheMeta.AviCacheGet(pvsKey)
+		if parentFound {
+			// Parent cache is already populated, just append the SNI key
+			vs_cache_obj, foundvs := vsObj.(*avicache.AviVsCache)
+			if foundvs {
+				key := pvsKey.Namespace + "/" + pvsKey.Name
+				namespace, _ := utils.ExtractNamespaceObjectName(key)
+				restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
+				restlayer.DeleteVSOper(pvsKey, vs_cache_obj, namespace, key, false, false)
+			}
+		}
+	}
 }
 
 func PopulateNodeCache(cs *kubernetes.Clientset) {
@@ -326,7 +361,9 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			if isValidUserInput {
 				if delModels {
 					c.DeleteModels()
-					if lib.GetServiceType() == "ClusterIP" {
+					SetDeleteSyncChannel()
+					isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+					if isPrimaryAKO && lib.GetServiceType() == "ClusterIP" {
 						avicache.DeConfigureSeGroupLabels()
 					}
 				} else {
@@ -469,7 +506,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
 	numGraphWorkers := lib.GetshardSize()
 	if numGraphWorkers == 0 {
-		// For dedicated VSes - we will have 8 layer 3 threads
+		// For dedicated VSes - we will have 8 threads layer 3
 		numGraphWorkers = 8
 	}
 	graphQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.GraphLayer}
@@ -1103,24 +1140,30 @@ func (c *AviController) DeleteModels() {
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
 	}
 
+	DeleteNPLAnnotations()
+}
+
+func SetDeleteSyncChannel() {
 	// Wait for maximum 30 minutes for the sync to get completed
-	timeout := make(chan bool, 1)
-	go func() {
-		time.Sleep(lib.AviObjDeletionTime * time.Minute)
-		timeout <- true
-	}()
-	lib.SetConfigDeleteSyncChan()
+	if lib.ConfigDeleteSyncChan == nil {
+		lib.SetConfigDeleteSyncChan()
+	}
+
 	select {
 	case <-lib.ConfigDeleteSyncChan:
 		status.AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
 		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigDone, "AKO has removed all objects from Avi Controller")
-	case <-timeout:
+
+	case <-time.After(lib.AviObjDeletionTime * time.Minute):
 		status.AddStatefulSetAnnotation(lib.ObjectDeletionTimeoutStatus)
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigTimeout, "Timed out while waiting for rest layer to respond for delete config")
 	}
 
+}
+
+func DeleteNPLAnnotations() {
 	if !lib.AutoAnnotateNPLSvc() {
 		return
 	}

@@ -270,6 +270,9 @@ func GetNoPGForSNI() bool {
 func GetLayer7Only() bool {
 	return layer7Only
 }
+func GetDeleteConfigMap() bool {
+	return deleteConfigMap
+}
 
 var AKOUser string
 

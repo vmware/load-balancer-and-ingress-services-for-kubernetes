@@ -47,7 +47,7 @@ func (rest *RestOperations) CleanupVS(key string, skipVS bool) {
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
 	utils.AviLog.Infof("key: %s, msg: cleanup mode, removing all stale objects", key)
-	rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, skipVS, false)
+	rest.DeleteVSOper(vsKey, vs_cache_obj, namespace, key, skipVS, false)
 	utils.AviLog.Infof("key: %s, msg: cleanup mode, stale object removal done", key)
 }
 
@@ -69,7 +69,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 		}
 		if vs_cache_obj != nil {
 			utils.AviLog.Infof("key: %s, msg: nil model found, this is a vs deletion case", key)
-			rest.deleteVSOper(vsKey, vs_cache_obj, namespace, key, false, false)
+			rest.DeleteVSOper(vsKey, vs_cache_obj, namespace, key, false, false)
 		}
 	} else if ok && avimodelIntf != nil {
 		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
@@ -421,7 +421,7 @@ func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key stri
 	return nil
 }
 
-func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string, skipVS, skipVSVip bool) bool {
+func (rest *RestOperations) DeleteVSOper(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, namespace string, key string, skipVS, skipVSVip bool) bool {
 	var rest_ops []*utils.RestOp
 	if vs_cache_obj != nil {
 		sni_vs_keys := make([]string, len(vs_cache_obj.SNIChildCollection))
@@ -435,7 +435,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 				Name:      passthroughChild,
 			}
 			passthroughChildCache := rest.getVsCacheObj(passthroughChildKey, key)
-			if success := rest.deleteVSOper(passthroughChildKey, passthroughChildCache, namespace, key, skipVS, true); !success {
+			if success := rest.DeleteVSOper(passthroughChildKey, passthroughChildCache, namespace, key, skipVS, true); !success {
 				return false
 			}
 		}

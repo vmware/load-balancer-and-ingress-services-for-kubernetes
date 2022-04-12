@@ -150,6 +150,10 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 	if err != nil {
 		return vsCacheCopy, allVsKeys, err
 	}
+	if lib.GetDeleteConfigMap() {
+		allParentVsKeys := c.VsCacheMeta.AviCacheGetAllParentVSKeys()
+		return vsCacheCopy, allParentVsKeys, err
+	}
 	//vsCacheCopy at this time, is left with only the deleted keys
 	return vsCacheCopy, allVsKeys, nil
 }
@@ -2742,7 +2746,11 @@ func DeConfigureSeGroupLabels() {
 	segName := lib.GetSEGName()
 	clients := SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
-	client := clients.AviClient[aviClientLen-1]
+	var index uint32
+	if aviClientLen != 0 {
+		index = aviClientLen - 1
+	}
+	client := clients.AviClient[index]
 	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
 	SetTenant := session.SetTenant(lib.GetTenant())
 	seGroup, err := GetAviSeGroup(client, segName)
