@@ -1134,12 +1134,33 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 		secretName = strings.Split(secretName, "/")[2]
 	}
 	var altCertNode *AviTLSKeyCertNode
-	certNode := &AviTLSKeyCertNode{
-		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName),
-		Tenant: lib.GetTenant(),
-		Type:   lib.CertTypeVS,
+	var certNode *AviTLSKeyCertNode
+
+	//for default cert, use existing node if it exists
+	foundTLSKeyCertNode := false
+	if tlsData.SecretName == lib.GetDefaultSecretForRoutes() {
+		for _, ssl := range tlsNode.SSLKeyCertRefs {
+			if ssl.Name == lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName) {
+				certNode = ssl
+				foundTLSKeyCertNode = true
+				break
+			}
+		}
+		if foundTLSKeyCertNode {
+			keyCertRefsSet := sets.NewString(certNode.AviMarkers.Host...)
+			keyCertRefsSet.Insert(host)
+			certNode.AviMarkers.Host = keyCertRefsSet.List()
+		}
 	}
-	certNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
+	if !foundTLSKeyCertNode {
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName),
+			Tenant: lib.GetTenant(),
+			Type:   lib.CertTypeVS,
+		}
+		certNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
+	}
+
 	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route.
 	// Routes can refer to secrets only in case of using default secret in ako NS or using hostrule secret.
 	if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
@@ -1193,13 +1214,24 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 		if ok {
 			altKey, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
 			if ok {
-				altCertNode = &AviTLSKeyCertNode{
-					Name:       lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"),
-					Tenant:     lib.GetTenant(),
-					Type:       lib.CertTypeVS,
-					AviMarkers: certNode.AviMarkers,
-					Cert:       altCert,
-					Key:        altKey,
+				foundTLSKeyCertNode := false
+				for _, ssl := range tlsNode.SSLKeyCertRefs {
+					if ssl.Name == lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt") {
+						altCertNode = ssl
+						altCertNode.AviMarkers = certNode.AviMarkers
+						foundTLSKeyCertNode = true
+						break
+					}
+				}
+				if !foundTLSKeyCertNode {
+					altCertNode = &AviTLSKeyCertNode{
+						Name:       lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"),
+						Tenant:     lib.GetTenant(),
+						Type:       lib.CertTypeVS,
+						AviMarkers: certNode.AviMarkers,
+						Cert:       altCert,
+						Key:        altKey,
+					}
 				}
 			}
 		}
@@ -1208,9 +1240,11 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 	// If this SSLCertRef is already present don't add it.
 	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName), certNode.GetCheckSum()) {
 		tlsNode.ReplaceEvhSSLRefInEVHNode(certNode, key)
+
 	}
 	if altCertNode != nil && tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"), altCertNode.GetCheckSum()) {
 		tlsNode.ReplaceEvhSSLRefInEVHNode(altCertNode, key)
+
 	}
 
 	return true
