@@ -134,10 +134,13 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 		}
 	}
 
-	if len(mIngress.Status.LoadBalancer.Ingress) > 0 && mIngress.Status.LoadBalancer.Ingress[0].IP != "" {
-		lib.CheckAndSetIngressFinalizer(mIngress)
-	} else {
-		lib.RemoveIngressFinalizer(mIngress)
+	// Add/Remove Ingress finalizers only when operating in a VCF Cluster.
+	if utils.IsVCFCluster() {
+		if len(mIngress.Status.LoadBalancer.Ingress) > 0 && mIngress.Status.LoadBalancer.Ingress[0].IP != "" {
+			lib.CheckAndSetIngressFinalizer(mIngress)
+		} else {
+			lib.RemoveIngressFinalizer(mIngress)
+		}
 	}
 
 	// we need hosts for which the IP is getting removed, and hosts for which it is being added/updated
@@ -360,7 +363,11 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 			if status.Hostname != host {
 				continue
 			}
-			if !lib.ValidateIngressForClass(key, mIngress) || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) || !utils.HasElem(hostListIng, host) || isVSDelete {
+			if !lib.ValidateIngressForClass(key, mIngress) ||
+				!utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) ||
+				!utils.HasElem(hostListIng, host) ||
+				isVSDelete ||
+				mIngress.GetDeletionTimestamp() != nil {
 				mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
 			} else {
 				utils.AviLog.Debugf("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
@@ -368,10 +375,13 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 		}
 	}
 
-	if len(mIngress.Status.LoadBalancer.Ingress) > 0 && mIngress.Status.LoadBalancer.Ingress[0].IP != "" {
-		lib.CheckAndSetIngressFinalizer(mIngress)
-	} else {
-		lib.RemoveIngressFinalizer(mIngress)
+	// Add/Remove Ingress finalizers only when operating in a VCF Cluster.
+	if utils.IsVCFCluster() {
+		if len(mIngress.Status.LoadBalancer.Ingress) > 0 && mIngress.Status.LoadBalancer.Ingress[0].IP != "" {
+			lib.CheckAndSetIngressFinalizer(mIngress)
+		} else {
+			lib.RemoveIngressFinalizer(mIngress)
+		}
 	}
 
 	sameStatus, hostsBefore, hostsAfter := compareLBStatus(oldIngressStatus, &mIngress.Status.LoadBalancer)
