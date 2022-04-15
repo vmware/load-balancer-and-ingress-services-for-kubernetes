@@ -291,8 +291,8 @@ func addNetworkInCloud(objKey string, cidrs map[string]struct{}, replaceAll bool
 			continue
 		}
 		startIP, endIP := gocidr.AddressRange(ipnet)
-		startIPStr := startIP.String()
-		endIPStr := endIP.String()
+		startIPStr := gocidr.Inc(startIP).String()
+		endIPStr := gocidr.Dec(endIP).String()
 		ipStr := ipnet.IP.String()
 		addrType := "V4"
 		if !utils.IsV4(ipStr) {
