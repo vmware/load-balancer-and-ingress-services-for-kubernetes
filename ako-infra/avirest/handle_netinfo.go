@@ -359,7 +359,7 @@ func addNetworkInIPAM(key string) {
 		len(ipam.InternalProfile.UsableNetworks) > 0 {
 		exists := false
 		for _, ntw := range ipam.InternalProfile.UsableNetworks {
-			if strings.Contains(*ntw.NwRef, networkRef) {
+			if strings.Contains(*ntw.NwRef, netName) {
 				exists = true
 			}
 		}
@@ -444,9 +444,9 @@ func delSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lr, ls string)
 }
 
 func matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) bool {
-	if len(lslrMap) != len(lslrList) {
-		return false
-	}
+	// if len(lslrMap) != len(lslrList) {
+	// 	return false
+	// }
 	for i := range lslrList {
 		if lslrMap[*lslrList[i].SegmentID] != *lslrList[i].Tier1LrID {
 			return false

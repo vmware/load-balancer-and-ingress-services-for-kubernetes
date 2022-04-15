@@ -18,6 +18,7 @@ import (
 	"context"
 	"os"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -120,7 +121,7 @@ var akoControlConfigInstance *akoControlConfig
 func AKOControlConfig() *akoControlConfig {
 	if akoControlConfigInstance == nil {
 		akoControlConfigInstance = &akoControlConfig{
-			controllerVersion: os.Getenv("CTRL_VERSION"),
+			controllerVersion: initControllerVersion(),
 		}
 	}
 	return akoControlConfigInstance
@@ -219,6 +220,34 @@ func (c *akoControlConfig) HttpRuleEnabled() bool {
 
 func (c *akoControlConfig) ControllerVersion() string {
 	return c.controllerVersion
+}
+
+func (c *akoControlConfig) SetControllerVersion(v string) {
+	c.controllerVersion = v
+}
+
+func initControllerVersion() string {
+	version := os.Getenv("CTRL_VERSION")
+	if version != "" {
+		return version
+	}
+
+	// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
+	if CompareVersions(version, ">", GetAviMaxSupportedVersion()) {
+		utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", GetAviMaxSupportedVersion())
+		version = GetAviMaxSupportedVersion()
+		return version
+	}
+
+	if CompareVersions(version, "<", GetAviMinSupportedVersion()) {
+		AKOControlConfig().PodEventf(
+			corev1.EventTypeWarning,
+			AKOShutdown, "AKO is running with unsupported Avi version %s",
+			version,
+		)
+		utils.AviLog.Fatalf("AKO is not supported for the Avi version %s, Avi must be %s or more", version, GetAviMinSupportedVersion())
+	}
+	return ""
 }
 
 func (c *akoControlConfig) SetIstioClientset(cs istiocrd.Interface) {
