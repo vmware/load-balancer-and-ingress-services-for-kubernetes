@@ -152,7 +152,7 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	script := &DataScript{Script: scriptStr, Evt: evt}
 	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: lib.GetTenant(), DataScript: script, PoolGroupRefs: poolGroupRefs}
 	if len(dsScriptNode.PoolGroupRefs) > 0 {
-		dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "POOLGROUP", dsScriptNode.PoolGroupRefs[0], 1)
+		dsScriptNode.Script = fmt.Sprintf(dsScriptNode.Script, dsScriptNode.PoolGroupRefs[0])
 	}
 	vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
 	o.AddModelNode(dsScriptNode)

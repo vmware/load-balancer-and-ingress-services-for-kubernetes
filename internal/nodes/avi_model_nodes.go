@@ -1016,10 +1016,7 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	var checksum uint32
 	for _, hpp := range v.HppMap {
-		sort.Strings(hpp.Path)
-		sort.Strings(hpp.Host)
-		checksum = checksum + utils.Hash(utils.Stringify(hpp))
-
+		checksum += hpp.GetCheckSum()
 	}
 	for _, redir := range v.RedirectPorts {
 		sort.Strings(redir.Hosts)
@@ -1036,14 +1033,6 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	v.CloudConfigCksum = checksum
-}
-func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
-	var checksum uint32
-	sort.Strings(v.Path)
-	sort.Strings(v.Host)
-	checksum = checksum + utils.Hash(utils.Stringify(v))
-	v.Checksum = checksum
-
 }
 
 func (v *AviHttpPolicySetNode) GetNodeType() string {
@@ -1075,6 +1064,20 @@ type AviHostPathPortPoolPG struct {
 	MatchCriteria string
 	Protocol      string
 	IngName       string
+}
+
+func (v *AviHostPathPortPoolPG) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.Checksum
+}
+
+func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
+	var checksum uint32
+	sort.Strings(v.Path)
+	v.Host = nil // Host in http policy is no longer required. TODO: complete removal of its reference from everywhere.
+	checksum = checksum + utils.Hash(utils.Stringify(v))
+	v.Checksum = checksum
 }
 
 type AviRedirectPort struct {
@@ -1302,7 +1305,9 @@ func (v *AviHTTPDataScriptNode) GetCheckSum() uint32 {
 func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	checksum := lib.DSChecksum(v.PoolGroupRefs, nil, false)
-	checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
+	if len(v.PoolGroupRefs) == 1 {
+		checksum += utils.Hash(fmt.Sprintf(utils.HTTP_DS_SCRIPT_MODIFIED, v.PoolGroupRefs[0]))
+	}
 	v.CloudConfigCksum = checksum
 }
 
