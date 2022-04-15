@@ -78,15 +78,20 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	}
 
 	avi_vs_meta := &AviVsNode{
-		Name:       vsName,
-		Tenant:     lib.GetTenant(),
-		VrfContext: lib.GetVrf(),
+		Name:   vsName,
+		Tenant: lib.GetTenant(),
 		ServiceMetadata: lib.ServiceMetadataObj{
 			NamespaceServiceName: serviceNSNames,
 			Gateway:              namespace + "/" + gatewayName,
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
+	}
+
+	var vrfcontext string
+	if lib.GetT1LRPath() == "" {
+		vrfcontext = lib.GetVrf()
+		avi_vs_meta.VrfContext = vrfcontext
 	}
 
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gatewayName)
@@ -124,8 +129,12 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetL4VSVipName(gatewayName, namespace),
 		Tenant:      lib.GetTenant(),
-		VrfContext:  lib.GetVrf(),
+		VrfContext:  vrfcontext,
 		VipNetworks: lib.GetVipNetworkList(),
+	}
+
+	if lib.GetT1LRPath() != "" {
+		vsVipNode.T1Lr = lib.GetT1LRPath()
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -192,15 +201,20 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	}
 
 	avi_vs_meta := &AviVsNode{
-		Name:       vsName,
-		Tenant:     lib.GetTenant(),
-		VrfContext: lib.GetVrf(),
+		Name:   vsName,
+		Tenant: lib.GetTenant(),
 		ServiceMetadata: lib.ServiceMetadataObj{
 			Gateway:   namespace + "/" + gatewayName,
 			HostNames: fqdns,
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
+	}
+
+	var vrfcontext string
+	if lib.GetT1LRPath() == "" {
+		vrfcontext = lib.GetVrf()
+		avi_vs_meta.VrfContext = vrfcontext
 	}
 
 	isTCP, isUDP := false, false
@@ -237,9 +251,13 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetL4VSVipName(gatewayName, namespace),
 		Tenant:      lib.GetTenant(),
-		VrfContext:  lib.GetVrf(),
+		VrfContext:  vrfcontext,
 		FQDNs:       fqdns,
 		VipNetworks: lib.GetVipNetworkList(),
+	}
+
+	if lib.GetT1LRPath() != "" {
+		vsVipNode.T1Lr = lib.GetT1LRPath()
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -330,6 +348,13 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			},
 			VrfContext: lib.GetVrf(),
 		}
+
+		if lib.GetT1LRPath() != "" {
+			poolNode.T1Lr = lib.GetT1LRPath()
+			// Unset the poolnode's vrfcontext.
+			poolNode.VrfContext = ""
+		}
+
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 
 		if svcFQDN != "" {
