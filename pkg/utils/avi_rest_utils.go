@@ -34,8 +34,8 @@ type AviRestClientPool struct {
 
 var AviClientInstance *AviRestClientPool
 
-func NewAviRestClientPool(num uint32, api_ep string, username string,
-	password string, authToken string) (*AviRestClientPool, error) {
+func NewAviRestClientPool(num uint32, api_ep, username,
+	password, authToken, controllerVersion string) (*AviRestClientPool, string, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
@@ -95,7 +95,7 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	wg.Wait()
 
 	// Get the controller version if it is not present in env variable.
-	if CtrlVersion == "" {
+	if controllerVersion == "" {
 		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
 		if err == nil {
 			AviLog.Infof("Setting the client version to the current controller version %v", version)
@@ -108,10 +108,10 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	}
 
 	if globalErr != nil {
-		return &clientPool, globalErr
+		return &clientPool, controllerVersion, globalErr
 	}
 
-	return &clientPool, nil
+	return &clientPool, controllerVersion, nil
 }
 
 func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*RestOp) error {
