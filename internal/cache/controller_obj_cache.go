@@ -2936,6 +2936,14 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		return true, nil
 	}
 
+	if utils.IsVCFCluster() {
+		vipNetList := akov1alpha1.AviInfraSettingVipNetwork{
+			NetworkName: lib.GetVCFNetworkName(),
+		}
+		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{vipNetList})
+		return true, nil
+	}
+
 	// 2. Marker based (only advancedL4)
 	var err error
 	markerNetworkFound := ""
@@ -2976,14 +2984,6 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 3. Empty VipNetworkList
 	if lib.GetAdvancedL4() && markerNetworkFound == "" {
 		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
-		return true, nil
-	}
-
-	if utils.IsVCFCluster() {
-		vipNetList := akov1alpha1.AviInfraSettingVipNetwork{
-			NetworkName: lib.GetVCFNetworkName(),
-		}
-		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{vipNetList})
 		return true, nil
 	}
 
