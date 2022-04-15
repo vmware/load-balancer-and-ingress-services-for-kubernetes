@@ -53,13 +53,17 @@ func SharedAVIClients() *utils.AviRestClientPool {
 
 	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
 		// Always create 9 clients irrespective of shard size
-		AviClientInstance, err = utils.NewAviRestClientPool(
+		var currentControllerVersion string
+		ctrlVersion := lib.AKOControlConfig().ControllerVersion()
+		AviClientInstance, currentControllerVersion, err = utils.NewAviRestClientPool(
 			9,
 			ctrlIpAddress,
 			ctrlUsername,
 			ctrlPassword,
 			ctrlAuthToken,
+			ctrlVersion,
 		)
+
 		connectionStatus = utils.AVIAPI_CONNECTED
 		if err != nil {
 			connectionStatus = utils.AVIAPI_DISCONNECTED
@@ -67,15 +71,16 @@ func SharedAVIClients() *utils.AviRestClientPool {
 			return nil
 		}
 
-		controllerVersion := lib.GetControllerVersion()
-		utils.AviLog.Infof("Setting the client version to %s", controllerVersion)
-
+		if ctrlVersion == "" {
+			lib.AKOControlConfig().SetControllerVersion(currentControllerVersion)
+			ctrlVersion = currentControllerVersion
+		}
 		// set the tenant and controller version in avisession obj
 		for _, client := range AviClientInstance.AviClient {
 			SetTenant := session.SetTenant(lib.GetTenant())
 			SetTenant(client.AviSession)
 
-			SetVersion := session.SetVersion(controllerVersion)
+			SetVersion := session.SetVersion(ctrlVersion)
 			SetVersion(client.AviSession)
 		}
 	}

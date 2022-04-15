@@ -40,7 +40,6 @@ import (
 	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 )
 
-var CtrlVersion string
 var runtimeScheme = k8sruntime.NewScheme()
 
 func init() {
