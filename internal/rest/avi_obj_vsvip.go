@@ -589,8 +589,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToVSVipKeyCollection(k)
-			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v", key, vsKey,
-				vs_cache_obj))
+			utils.AviLog.Infof("key: %s, msg: added VS cache key during vsvip update %v val %v", key, vsKey, utils.Stringify(vs_cache_obj))
 			if rest_op.Method == utils.RestPut {
 				if len(vs_cache_obj.SNIChildCollection) > 0 {
 					for _, childUuid := range vs_cache_obj.SNIChildCollection {

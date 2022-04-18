@@ -25,6 +25,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -133,13 +134,23 @@ func DequeueIngestion(key string, fullsync bool) {
 
 	if !ingressFound && !lib.GetAdvancedL4() && !mciFound {
 		// If ingress is not found, let's do the other checks.
-		if objType == utils.L4LBService {
+		if objType == lib.SharedVipServiceKey {
+			sharedVipKeys, keysFound := schema.GetParentServices(name, namespace, key)
+			if keysFound && utils.CheckIfNamespaceAccepted(namespace) {
+				for _, sharedVipKey := range sharedVipKeys {
+					handleL4SharedVipService(sharedVipKey, key, fullsync)
+				}
+			}
+		} else if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
 			handleL4Service(key, fullsync)
 		} else if objType == utils.Endpoints {
 			svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 			if err != nil {
 				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
+				return
+			}
+			if val, ok := svcObj.Annotations[lib.SharedVipSvcLBAnnotation]; ok && val != "" {
 				return
 			}
 			//Do not handle service update if it belongs to unaccepted namespace
@@ -421,6 +432,62 @@ func handleRoute(key string, fullsync bool, routeNames []string) {
 	}
 }
 
+/*
+to test
+1. 	key1 svc1 svc2 ; key2 svc3
+	change key from key1 to key2 in svc2
+	key 1 svc1 ; key2 svc3 svc2
+
+2.	key1 svc1
+	change service type to clusterip
+	deletes key1 VS
+	change servie type to lb
+	recreates key1 VS
+
+3. 	key1 svc1	ingress /bar svc1
+	change service type to clusterip
+	deletes key1 VS, adds to pool in ingress /bar
+	change service type to lb
+	creates key1 VS, deletes pool of ingress /bar
+*/
+/*
+validations
+1.	annotations must not be on service of type non LB
+2. 	port/protocol must be unique among all services with annotation key
+3. 	preferred IP must be same in all services with annotation key
+*/
+func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
+	if lib.GetLayer7Only() {
+		// If the layer 7 only flag is set, then we shouldn't handling layer 4 VSes.
+		utils.AviLog.Debugf("key: %s, msg: not handling service of type loadbalancer since AKO is configured to run in layer 7 mode only", key)
+		return
+	}
+
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	_, namespace, _ := lib.ExtractTypeNameNamespace(key)
+	modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
+
+	found, services := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
+	isShareVipKeyDelete := !found || len(services) == 0
+	if isShareVipKeyDelete {
+		// Check if a model corresponding to the gateway exists or not in memory.
+		if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
+			objects.SharedAviGraphLister().Save(modelName, nil)
+			if !fullsync {
+				PublishKeyToRestLayer(modelName, key, sharedQueue)
+			}
+		}
+	} else {
+		aviModelGraph := NewAviObjectGraph()
+		vipKey := strings.Split(namespacedVipKey, "/")[1]
+		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key)
+		ok := saveAviModel(modelName, aviModelGraph, key)
+		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
+			PublishKeyToRestLayer(modelName, key, sharedQueue)
+		}
+	}
+}
+
 func handleL4Service(key string, fullsync bool) {
 	if lib.GetLayer7Only() {
 		// If the layer 7 only flag is set, then we shouldn't handling layer 4 VSes.
@@ -429,8 +496,7 @@ func handleL4Service(key string, fullsync bool) {
 	}
 	_, namespace, name := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
-	if !isServiceDelete(name, namespace, key) && utils.CheckIfNamespaceAccepted(namespace) {
+	if deleteCase, _ := isServiceDelete(name, namespace, key); !deleteCase && utils.CheckIfNamespaceAccepted(namespace) {
 		// If Service is Not Annotated with NPL annotation, annotate the service and return.
 		if lib.AutoAnnotateNPLSvc() {
 			if !status.CheckNPLSvcAnnotation(key, namespace, name) {
@@ -518,28 +584,28 @@ func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, st
 	return namespace, nsname
 }
 
-func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool {
-	utils.AviLog.Debugf("key: %s, msg: Evaluating model :%s", key, model_name)
+func saveAviModel(modelName string, aviGraph *AviObjectGraph, key string) bool {
+	utils.AviLog.Debugf("key: %s, msg: Evaluating model :%s", key, modelName)
 	if lib.DisableSync {
 		// Note: This is not thread safe, however locking is expensive and the condition for locking should happen rarely
-		utils.AviLog.Infof("key: %s, msg: Disable Sync is True, model %s can not be saved", key, model_name)
+		utils.AviLog.Infof("key: %s, msg: Disable Sync is True, model %s can not be saved", key, modelName)
 		return false
 	}
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found && aviModel != nil {
 		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
-		utils.AviLog.Debugf("key: %s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
+		utils.AviLog.Debugf("key: %s, msg: the model: %s has a previous checksum: %v", key, modelName, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
-		utils.AviLog.Debugf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
+		utils.AviLog.Debugf("key: %s, msg: the model: %s has a present checksum: %v", key, modelName, presentChecksum)
 		if prevChecksum == presentChecksum {
-			utils.AviLog.Debugf("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
+			utils.AviLog.Debugf("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, modelName, presentChecksum)
 			return false
 		}
 	}
 	// Right before saving the model, let's reset the retry counter for the graph.
 	aviGraph.SetRetryCounter()
 	aviGraph.CalculateCheckSum()
-	objects.SharedAviGraphLister().Save(model_name, aviGraph)
+	objects.SharedAviGraphLister().Save(modelName, aviGraph)
 	return true
 }
 
@@ -588,17 +654,23 @@ func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.Work
 
 }
 
-func isServiceDelete(svcName string, namespace string, key string) bool {
+func isServiceDelete(svcName string, namespace string, key string) (bool, *v1.Service) {
 	// If the service is not found we return true.
-	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	svc, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: could not retrieve the object for service: %s", key, err)
 		if errors.IsNotFound(err) {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	// The annotation for sharedVip might have been added, in which case we should delete the L4
+	// dedicated virtual service.
+	if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+		return false, nil
+	}
+
+	return false, svc
 }
 
 func ConfigDescriptor() GraphDescriptor {

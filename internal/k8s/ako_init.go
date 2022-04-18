@@ -783,12 +783,12 @@ func (c *AviController) FullSyncK8s() error {
 			isSvcLb := isServiceLBType(svcObj)
 			var key string
 			if isSvcLb && !lib.GetLayer7Only() {
-				/*
-					Key added to Ingestion queue if
-					1. Advance L4 enabled or
-					2. Namespace is valid
-				*/
 				key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
+				if svcObj.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+					// mark the object type as ShareVipSvc
+					// to separate these out from regulare clusterip, svclb services
+					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
+				}
 			} else {
 				if lib.GetAdvancedL4() {
 					continue

@@ -115,6 +115,7 @@ func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetada
 		// Check for `NamespaceServiceName` in Pool serviceMetadata. Present in case of
 		// 1) Advl4 Pools: without hostname information
 		// 2) SvcApi Pools: with hostname information
+		// 3) SharedVip SvcLB Pools: with hostname information
 		return GatewayPool
 	} else if c.Namespace != "" && c.IngressName != "" {
 		// Check for `Namespace` and `IngressName` in Pool serviceMetadata. Present in case of
