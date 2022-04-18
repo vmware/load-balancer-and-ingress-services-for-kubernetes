@@ -286,7 +286,7 @@ func (c *VCFK8sController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, sto
 }
 
 func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
-	NetworkinfoHandler := cache.ResourceEventHandlerFuncs{
+	NetworkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info ADD Event")
 			avirest.AddSegment(obj)
@@ -300,13 +300,29 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 			avirest.DeleteSegment(obj)
 		},
 	}
-	c.dynamicInformers.NetworkInfoInformer.Informer().AddEventHandler(NetworkinfoHandler)
-
+	c.dynamicInformers.NetworkInfoInformer.Informer().AddEventHandler(NetworkInfoHandler)
 	go c.dynamicInformers.NetworkInfoInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NetworkInfoInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+
+	ClusterNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info ADD Event")
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info Update Event")
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info Delete Event")
+		},
+	}
+	c.dynamicInformers.ClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)
+	go c.dynamicInformers.ClusterNetworkInformer.Informer().Run(stopCh)
+
+	if !cache.WaitForCacheSync(stopCh,
+		c.dynamicInformers.NetworkInfoInformer.Informer().HasSynced,
+		c.dynamicInformers.ClusterNetworkInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for cluster/namespace network info caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for networkinfo informer")
+		utils.AviLog.Info("Caches synced for cluster/namespace network info informer")
 	}
 }
 

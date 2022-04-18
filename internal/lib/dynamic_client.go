@@ -64,6 +64,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "namespacenetworkinfos",
 	}
+
+	ClusterNetworkGVR = schema.GroupVersionResource{
+		Group:    "nsx.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "clusternetworkinfos",
+	}
 )
 
 type BootstrapCRData struct {
@@ -160,8 +166,9 @@ func GetVCFDynamicClientSet() dynamic.Interface {
 }
 
 type VCFDynamicInformers struct {
-	NCPBootstrapInformer informers.GenericInformer
-	NetworkInfoInformer  informers.GenericInformer
+	NCPBootstrapInformer   informers.GenericInformer
+	NetworkInfoInformer    informers.GenericInformer
+	ClusterNetworkInformer informers.GenericInformer
 }
 
 func NewVCFDynamicInformers(client dynamic.Interface) *VCFDynamicInformers {
@@ -170,6 +177,7 @@ func NewVCFDynamicInformers(client dynamic.Interface) *VCFDynamicInformers {
 
 	informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
 	informers.NetworkInfoInformer = f.ForResource(NetworkInfoGVR)
+	informers.ClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
 
 	vcfDynamicInformerInstance = informers
 	return vcfDynamicInformerInstance
@@ -297,12 +305,11 @@ func GetControllerURLFromBootstrapCR() string {
 	return hostUrl
 }
 
-func GetNetinfoCRData() (map[string]string, map[string]struct{}) {
+func GetNetworkInfoCRData() (map[string]string, map[string]struct{}) {
 	lslrMap := make(map[string]string)
 	cidrs := make(map[string]struct{})
-	dynamicClient := GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(NetworkInfoGVR)
-	crList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+
+	crList, err := GetVCFDynamicClientSet().Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
 		return lslrMap, cidrs
@@ -329,15 +336,42 @@ func GetNetinfoCRData() (map[string]string, map[string]struct{}) {
 		cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 		if !ok {
 			utils.AviLog.Infof("cidr not found in networkinfo object")
-			continue
-		} else {
-			for _, cidr := range cidrIntf {
-				cidrs[cidr.(string)] = struct{}{}
+			// If not found, try fetching from cluster network info CRD
+			var clusterNetworkCIDRFound bool
+			if cidrIntf, clusterNetworkCIDRFound = GetClusterNetworkInfoCRData(); !clusterNetworkCIDRFound {
+				continue
 			}
+			utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
+		}
+		for _, cidr := range cidrIntf {
+			cidrs[cidr.(string)] = struct{}{}
 		}
 	}
 
 	return lslrMap, cidrs
+}
+
+func GetClusterNetworkInfoCRData() ([]interface{}, bool) {
+	var cidrs []interface{}
+	crList, err := GetVCFDynamicClientSet().Resource(ClusterNetworkGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting Cluster Network Info CR %v", err)
+		return cidrs, false
+	}
+
+	if len(crList.Items) == 0 {
+		utils.AviLog.Error("No Cluster Network Info CRs found.")
+		return cidrs, false
+	}
+
+	crObj := crList.Items[0]
+	spec := crObj.Object["topology"].(map[string]interface{})
+	cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
+	if !ok {
+		utils.AviLog.Infof("cidr not found in Cluster Network Info object")
+		return cidrs, false
+	}
+	return cidrIntf, true
 }
 
 // GetPodCIDR returns the node's configured PodCIDR
