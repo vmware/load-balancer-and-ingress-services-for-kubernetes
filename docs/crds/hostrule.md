@@ -164,8 +164,14 @@ If the kubernetes operator wants to control the TLS termination from a privilege
           sslProfile: avi-ssl-profile
           termination: edge
 
-The `name` field refers to an Avi object if `type` specifies the value as `ref`. Alternatively in the future, we will be able to support a kubernetes
-`Secret` as a `type` where the sslkeyandcertificate object can be created by AKO using the Secret. 
+The `name` field refers to an Avi object if `type` specifies the value as `ref`. Alternatively, we also support a kubernetes
+`Secret` to be specified where the sslkeyandcertificate object is created by AKO using the Secret. 
+
+        tls:
+          sslKeyCertificate:
+            name: k8s-app-secret
+            type: secret
+          termination: edge
 
 `sslProfile`, additionally, can be used to determine the set of SSL versions and ciphers to accept for SSL/TLS terminated connections. If the `sslProfile` is not defined, AKO defaults to the sslProfile `System-Standard-PFS` defined in Avi.
 
