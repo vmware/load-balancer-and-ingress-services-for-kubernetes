@@ -16,7 +16,6 @@ package nodes
 
 import (
 	"encoding/json"
-	"os"
 	"strconv"
 	"strings"
 
@@ -617,12 +616,7 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 
 func GetShardVSPrefix(key string) string {
 	// sample prefix: clusterName--Shared-L7-
-	var akoID string
-	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
-	if !isPrimaryAKO {
-		akoID = os.Getenv("POD_NAMESPACE") + "-"
-	}
-	shardVsPrefix := lib.GetNamePrefix() + akoID + lib.ShardVSPrefix + "-"
+	shardVsPrefix := lib.GetNamePrefix() + lib.GetAKOIDPrefix() + lib.ShardVSPrefix + "-"
 	utils.AviLog.Debugf("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }

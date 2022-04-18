@@ -1337,11 +1337,19 @@ func PassthroughShardSize() uint32 {
 	}
 	return 1
 }
-
+func GetAKOIDPrefix() string {
+	var akoID string
+	isPrimaryAKO := AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		akoID = os.Getenv("POD_NAMESPACE") + "-"
+	}
+	return akoID
+}
 func GetPassthroughShardVSName(s string, key string) string {
 	var vsNum uint32
 	shardSize := PassthroughShardSize()
-	shardVsPrefix := GetClusterName() + "--" + PassthroughPrefix
+
+	shardVsPrefix := GetClusterName() + "--" + GetAKOIDPrefix() + PassthroughPrefix
 	vsNum = utils.Bkt(s, shardSize)
 	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
 	utils.AviLog.Infof("key: %s, msg: Passthrough ShardVSName: %s", key, vsName)
