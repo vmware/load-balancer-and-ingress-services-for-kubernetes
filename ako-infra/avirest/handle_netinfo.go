@@ -42,7 +42,7 @@ var IPAMCache *models.IPAMDNSProviderProfile
 // and updates the cloud if any LS-LR data is missing. It also creates or updates the VCF network with the CIDRs
 // Provided in the Networkinfo objects.
 func SyncLSLRNetwork() {
-	lslrmap, cidrs := lib.GetNetinfoCRData()
+	lslrmap, cidrs := lib.GetNetworkInfoCRData()
 	utils.AviLog.Infof("Got data LS LR Map: %v, from NetworkInfo CR", lslrmap)
 
 	client := InfraAviClientInstance()
@@ -68,9 +68,9 @@ func SyncLSLRNetwork() {
 	}
 
 	if len(lslrmap) > 0 {
-		matched := matchSegmentInCloud(cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs, lslrmap)
-		if !matched {
-			cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = constructLsLrInCloud(lslrmap)
+		dataNetworkTier1Lrs := cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs
+		if !matchSegmentInCloud(dataNetworkTier1Lrs, lslrmap) {
+			cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = constructLsLrInCloud(dataNetworkTier1Lrs, lslrmap)
 			path := "/api/cloud/" + *cloudModel.UUID
 			restOp := utils.RestOp{
 				ObjName: utils.CloudName,
@@ -109,12 +109,16 @@ func AddSegment(obj interface{}) bool {
 	cidrs := make(map[string]struct{})
 	cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 	if !ok {
-		utils.AviLog.Infof("key: %s, cidr not found from NetInfo CR", objKey)
-		return false
-	} else {
-		for _, cidr := range cidrIntf {
-			cidrs[cidr.(string)] = struct{}{}
+		utils.AviLog.Infof("cidr not found in networkinfo object")
+		// If not found, try fetching from cluster network info CRD
+		var clusterNetworkCIDRFound bool
+		if cidrIntf, clusterNetworkCIDRFound = lib.GetClusterNetworkInfoCRData(); !clusterNetworkCIDRFound {
+			return false
 		}
+		utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
+	}
+	for _, cidr := range cidrIntf {
+		cidrs[cidr.(string)] = struct{}{}
 	}
 
 	utils.AviLog.Infof("key: %s, Adding LR %s, LS %s from networkinfo CR", objKey, lr, ls)
@@ -335,7 +339,7 @@ func addNetworkInCloud(objKey string, cidrs map[string]struct{}, replaceAll bool
 		Model:   "network",
 	}
 
-	utils.AviLog.Infof("key: %s, Adding/Updating VCF network: %v", objKey, restOp)
+	utils.AviLog.Infof("key: %s, Adding/Updating VCF network: %v", objKey, utils.Stringify(restOp))
 	executeRestOp(objKey, client, &restOp)
 }
 
@@ -346,7 +350,8 @@ func addNetworkInIPAM(key string) {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
 		return
 	}
-	found, ipam := getAviIPAMFromCache(client, *cloudModel.IPAMProviderRef)
+
+	found, ipam := getAviIPAMFromCache(client, strings.Split(*cloudModel.IPAMProviderRef, "#")[1])
 	if !found {
 		utils.AviLog.Warnf("Failed to get IPAM data from cache")
 		return
@@ -409,7 +414,7 @@ func delCIDRFromNetwork(objKey string, cidrs map[string]struct{}) {
 		Model:   "network",
 	}
 
-	utils.AviLog.Debugf("key: %s, executing restop to delete CIDR from vcf network: %v", objKey, restOp)
+	utils.AviLog.Debugf("key: %s, executing restop to delete CIDR from vcf network: %v", objKey, utils.Stringify(restOp))
 	executeRestOp(objKey, client, &restOp)
 }
 
@@ -444,27 +449,37 @@ func delSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lr, ls string)
 }
 
 func matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) bool {
-	// if len(lslrMap) != len(lslrList) {
-	// 	return false
-	// }
+	cloudLSLRMap := make(map[string]string)
 	for i := range lslrList {
-		if lslrMap[*lslrList[i].SegmentID] != *lslrList[i].Tier1LrID {
+		cloudLSLRMap[*lslrList[i].SegmentID] = *lslrList[i].Tier1LrID
+	}
+
+	for ls, lr := range lslrMap {
+		if val, ok := cloudLSLRMap[ls]; !ok || (ok && val != lr) {
 			return false
 		}
 	}
 	return true
 }
 
-func constructLsLrInCloud(lslrMap map[string]string) []*models.Tier1LogicalRouterInfo {
-	var lslrList []*models.Tier1LogicalRouterInfo
+func constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) []*models.Tier1LogicalRouterInfo {
+	var cloudLSLRList []*models.Tier1LogicalRouterInfo
+	cloudLSLRMap := make(map[string]string)
+	for i := range lslrList {
+		cloudLSLRMap[*lslrList[i].SegmentID] = *lslrList[i].Tier1LrID
+	}
 	for ls, lr := range lslrMap {
-		lslr := models.Tier1LogicalRouterInfo{
+		if val, ok := cloudLSLRMap[ls]; !ok || (ok && val != lr) {
+			cloudLSLRMap[ls] = lr
+		}
+	}
+	for ls, lr := range cloudLSLRMap {
+		cloudLSLRList = append(lslrList, &models.Tier1LogicalRouterInfo{
 			SegmentID: &ls,
 			Tier1LrID: &lr,
-		}
-		lslrList = append(lslrList, &lslr)
+		})
 	}
-	return lslrList
+	return cloudLSLRList
 }
 
 func getAviCloudFromCache(client *clients.AviClient, cloudName string) (bool, models.Cloud) {
@@ -485,11 +500,9 @@ func getAviNetFromCache(client *clients.AviClient, netName string) (bool, models
 	return true, *NetCache
 }
 
-func getAviIPAMFromCache(client *clients.AviClient, ipamRef string) (bool, models.IPAMDNSProviderProfile) {
+func getAviIPAMFromCache(client *clients.AviClient, ipamName string) (bool, models.IPAMDNSProviderProfile) {
 	if IPAMCache == nil {
-		ipamRefStr := strings.Split(ipamRef, "/")
-		ipamUuid := ipamRefStr[len(ipamRefStr)-1]
-		if AviIPAMCachePopulate(client, ipamUuid) != nil {
+		if AviIPAMCachePopulate(client, ipamName) != nil {
 			return false, models.IPAMDNSProviderProfile{}
 		}
 	}
@@ -498,7 +511,7 @@ func getAviIPAMFromCache(client *clients.AviClient, ipamRef string) (bool, model
 
 // AviCloudCachePopulate queries avi rest api to get cloud data and stores in CloudCache
 func AviCloudCachePopulate(client *clients.AviClient, cloudName string) error {
-	uri := "/api/cloud/?name=" + cloudName
+	uri := "/api/cloud/?include_name&name=" + cloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Cloud Get uri %v returned err %v", uri, err)
@@ -522,12 +535,14 @@ func AviCloudCachePopulate(client *clients.AviClient, cloudName string) error {
 		utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
 		return err
 	}
+
+	AviIPAMCachePopulate(client, strings.Split(*CloudCache.IPAMProviderRef, "#")[1])
 	return nil
 }
 
 // AviNetCachePopulate queries avi rest api to get network data for vcf and stores in NetCache
 func AviNetCachePopulate(client *clients.AviClient, netName, cloudName string) error {
-	uri := "/api/network/?name=" + netName + "&cloud_ref.name=" + cloudName
+	uri := "/api/network/?include_name&name=" + netName + "&cloud_ref.name=" + cloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Cloud Get uri %v returned err %v", uri, err)
@@ -555,30 +570,36 @@ func AviNetCachePopulate(client *clients.AviClient, netName, cloudName string) e
 }
 
 // AviIPAMCachePopulate queries avi rest api to get IPAM data and stores in IPAMCache
-func AviIPAMCachePopulate(client *clients.AviClient, ipamUuid string) error {
-	uri := "/api/ipamdnsproviderprofile/" + ipamUuid
-	result, err := lib.AviGetRaw(client, uri)
+func AviIPAMCachePopulate(client *clients.AviClient, ipamName string) error {
+	uri := "/api/ipamdnsproviderprofile/?include_name&name=" + ipamName
+	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Cloud Get uri %v returned err %v", uri, err)
 		return err
 	}
 
-	var data json.RawMessage
-	err = json.Unmarshal(result, &data)
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
 		return err
 	}
 
-	if err = json.Unmarshal(data, &IPAMCache); err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+	if result.Count != 1 {
+		utils.AviLog.Infof("Expected one IPAM with name: %s, found: %d", ipamName, result.Count)
+		return fmt.Errorf("Expected one IPAM with name: %s, found: %d", ipamName, result.Count)
+	}
+
+	IPAMCache = &models.IPAMDNSProviderProfile{}
+	if err = json.Unmarshal(elems[0], &IPAMCache); err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal IPAM data, err: %v", err)
 		return err
 	}
 	return nil
 }
 
 func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, retryNum ...int) {
-	utils.AviLog.Debugf("key: %s, Executing rest operation to sync object in cloud: %v", key, *restOp)
+	utils.AviLog.Debugf("key: %s, Executing rest operation to sync object in cloud: %v", key, utils.Stringify(restOp))
 	retry := 0
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("key: %s, Retrying to execute rest request", key)
@@ -607,11 +628,12 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 	}
 	switch restOp.Model {
 	case "cloud":
+	case "ipamdnsproviderprofile":
 		AviCloudCachePopulate(client, utils.CloudName)
 	case "network":
 		AviNetCachePopulate(client, lib.GetVCFNetworkName(), utils.CloudName)
 	}
-	utils.AviLog.Infof("key: %s, Successfully executed rest operation to sync object: %v", key, *restOp)
+	utils.AviLog.Infof("key: %s, Successfully executed rest operation to sync object: %v", key, utils.Stringify(restOp))
 }
 
 func checkAndRetry(key string, err error) bool {

@@ -307,7 +307,7 @@ func InitializeAKC() {
 		}
 	} else {
 		lib.NewVCFDynamicClientSet(cfg)
-		lslrMap, _ := lib.GetNetinfoCRData()
+		lslrMap, _ := lib.GetNetworkInfoCRData()
 		for _, lr := range lslrMap {
 			lib.SetT1LRPath(lr)
 			break
