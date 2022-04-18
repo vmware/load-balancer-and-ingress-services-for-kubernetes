@@ -106,11 +106,12 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 	if cache_obj != nil {
 		path = "/api/l4policyset/" + cache_obj.Uuid
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: utils.RestPut,
-			Obj:    hps,
-			Tenant: hps_meta.Tenant,
-			Model:  "L4PolicySet",
+			ObjName: hps_meta.Name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     hps,
+			Tenant:  hps_meta.Tenant,
+			Model:   "L4PolicySet",
 		}
 
 	} else {
@@ -121,20 +122,22 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 			hps_cache_obj, _ := hps_cache.(*avicache.AviL4PolicyCache)
 			path = "/api/l4policyset/" + hps_cache_obj.Uuid
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPut,
-				Obj:    hps,
-				Tenant: hps_meta.Tenant,
-				Model:  "L4PolicySet",
+				ObjName: hps_meta.Name,
+				Path:    path,
+				Method:  utils.RestPut,
+				Obj:     hps,
+				Tenant:  hps_meta.Tenant,
+				Model:   "L4PolicySet",
 			}
 		} else {
 			path = "/api/l4policyset/"
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPost,
-				Obj:    hps,
-				Tenant: hps_meta.Tenant,
-				Model:  "L4PolicySet",
+				ObjName: hps_meta.Name,
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     hps,
+				Tenant:  hps_meta.Tenant,
+				Model:   "L4PolicySet",
 			}
 		}
 	}

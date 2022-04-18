@@ -247,11 +247,12 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	if cache_obj != nil {
 		path = "/api/httppolicyset/" + cache_obj.Uuid
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: utils.RestPut,
-			Obj:    hps,
-			Tenant: hps_meta.Tenant,
-			Model:  "HTTPPolicySet",
+			ObjName: hps_meta.Name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     hps,
+			Tenant:  hps_meta.Tenant,
+			Model:   "HTTPPolicySet",
 		}
 
 	} else {
@@ -262,20 +263,22 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			hps_cache_obj, _ := hps_cache.(*avicache.AviHTTPPolicyCache)
 			path = "/api/httppolicyset/" + hps_cache_obj.Uuid
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPut,
-				Obj:    hps,
-				Tenant: hps_meta.Tenant,
-				Model:  "HTTPPolicySet",
+				ObjName: hps_meta.Name,
+				Path:    path,
+				Method:  utils.RestPut,
+				Obj:     hps,
+				Tenant:  hps_meta.Tenant,
+				Model:   "HTTPPolicySet",
 			}
 		} else {
 			path = "/api/httppolicyset/"
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPost,
-				Obj:    hps,
-				Tenant: hps_meta.Tenant,
-				Model:  "HTTPPolicySet",
+				ObjName: hps_meta.Name,
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     hps,
+				Tenant:  hps_meta.Tenant,
+				Model:   "HTTPPolicySet",
 			}
 		}
 	}

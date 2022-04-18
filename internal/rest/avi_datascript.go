@@ -64,11 +64,12 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	if cache_obj != nil {
 		path = "/api/vsdatascriptset/" + cache_obj.Uuid
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: utils.RestPut,
-			Obj:    vsdatascriptset,
-			Tenant: ds_meta.Tenant,
-			Model:  "VSDataScriptSet",
+			ObjName: *vsdatascriptset.Name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     vsdatascriptset,
+			Tenant:  ds_meta.Tenant,
+			Model:   "VSDataScriptSet",
 		}
 	} else {
 		// Patch an existing ds if it exists in the cache but not associated with this VS.
@@ -78,20 +79,22 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 			ds_cache_obj, _ := ds_cache.(*avicache.AviDSCache)
 			path = "/api/vsdatascriptset/" + ds_cache_obj.Uuid
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPut,
-				Obj:    vsdatascriptset,
-				Tenant: ds_meta.Tenant,
-				Model:  "VSDataScriptSet",
+				ObjName: *vsdatascriptset.Name,
+				Path:    path,
+				Method:  utils.RestPut,
+				Obj:     vsdatascriptset,
+				Tenant:  ds_meta.Tenant,
+				Model:   "VSDataScriptSet",
 			}
 		} else {
 			path = "/api/vsdatascriptset"
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPost,
-				Obj:    vsdatascriptset,
-				Tenant: ds_meta.Tenant,
-				Model:  "VSDataScriptSet",
+				ObjName: *vsdatascriptset.Name,
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     vsdatascriptset,
+				Tenant:  ds_meta.Tenant,
+				Model:   "VSDataScriptSet",
 			}
 		}
 	}

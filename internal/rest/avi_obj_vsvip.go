@@ -260,11 +260,12 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 					rest.cache.VSVIPCache.AviCacheDelete(vsvip_key)
 					utils.AviLog.Warnf("key: %s, Removed the vsvip object from the cache", key)
 					rest_op = utils.RestOp{
-						Path:   path,
-						Method: utils.RestPost,
-						Obj:    vsvip,
-						Tenant: vsvip_meta.Tenant,
-						Model:  "VsVip",
+						ObjName: name,
+						Path:    path,
+						Method:  utils.RestPost,
+						Obj:     vsvip,
+						Tenant:  vsvip_meta.Tenant,
+						Model:   "VsVip",
 					}
 					return &rest_op, nil
 				}
