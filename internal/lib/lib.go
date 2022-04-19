@@ -698,17 +698,8 @@ func GetGlobalBgpPeerLabels() []string {
 	return bgpPeerLabels
 }
 
-var t1LrPath string
-
-func SetT1LRPath(lr string) {
-	t1LrPath = lr
-}
-
 func GetT1LRPath() string {
-	if t1LrPath == "" {
-		t1LrPath = os.Getenv("NSXT_T1_LR")
-	}
-	return t1LrPath
+	return os.Getenv("NSXT_T1_LR")
 }
 
 var SEGroupName string

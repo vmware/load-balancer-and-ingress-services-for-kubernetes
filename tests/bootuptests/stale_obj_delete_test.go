@@ -38,7 +38,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 
-	utils.CtrlVersion = "20.1.1"
 	restChan = make(chan bool)
 	uuidMap = make(map[string]bool)
 
@@ -48,6 +47,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.SetCRDClientset(CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	lib.AKOControlConfig().SetControllerVersion("20.1.1")
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
