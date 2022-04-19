@@ -44,6 +44,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -259,10 +260,10 @@ func (c *AviController) AddBootupNSEventHandler(k8sinfo K8sinformers, stopCh <-c
 	}
 }
 
-func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+func (c *AviController) AddNCPBootstrapEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
 	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NCP Bootstrap ADD Event")
+			utils.AviLog.Infof("NCP Bootstrap Add Event")
 			ctrlIP := lib.GetControllerURLFromBootstrapCR()
 			if ctrlIP != "" && startSyncCh != nil {
 				lib.SetControllerIP(ctrlIP)
@@ -280,10 +281,10 @@ func (c *AviController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh
 			}
 		},
 	}
-	c.dynamicInformers.NCPBootstrapInformer.Informer().AddEventHandler(NCPBootstrapHandler)
+	c.dynamicInformers.VCFNCPBootstrapInformer.Informer().AddEventHandler(NCPBootstrapHandler)
 
-	go c.dynamicInformers.NCPBootstrapInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NCPBootstrapInformer.Informer().HasSynced) {
+	go c.dynamicInformers.VCFNCPBootstrapInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.VCFNCPBootstrapInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for NCP Bootstrap informer")
@@ -477,6 +478,117 @@ func (c *AviController) ValidAviSecret() bool {
 		utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)
 	}
 	return false
+}
+
+func (c *AviController) InitVCFHandlers(informers K8sinformers, kubeClient kubernetes.Interface, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
+	// In VCF environment, avi controller details have to be fetched from the Bootstrap CR
+	if lib.GetControllerIP() == "" {
+		utils.AviLog.Infof("Unable to find Avi Controller endpoint, trying to fetch from bootstrap Resource.")
+		ctrlIP := lib.GetControllerURLFromBootstrapCR()
+		if ctrlIP != "" {
+			lib.SetControllerIP(ctrlIP)
+		} else {
+			utils.AviLog.Infof("Valid Avi Controller details not found, waiting .. ")
+			startSyncCh := make(chan struct{})
+			c.AddNCPBootstrapEventHandler(stopCh, startSyncCh)
+		L1:
+			for {
+				select {
+				case <-startSyncCh:
+					break L1
+				case <-ctrlCh:
+					return
+				}
+			}
+		}
+	}
+
+	if !c.ValidAviSecret() {
+		utils.AviLog.Infof("Valid Avi Secret not found, waiting .. ")
+		startSyncCh := make(chan struct{})
+		c.AddBootupSecretEventHandler(informers, stopCh, startSyncCh)
+	L2:
+		for {
+			select {
+			case <-startSyncCh:
+				lib.AviSecretInitialized = true
+				break L2
+			case <-ctrlCh:
+				return
+			}
+		}
+	}
+	utils.AviLog.Infof("Valid Avi Secret found, continuing .. ")
+
+	err := PopulateControllerProperties(kubeClient)
+	if err != nil {
+		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
+		lib.ShutdownApi()
+	}
+
+	if !c.SetSEGroupCloudName() {
+		utils.AviLog.Infof("SEgroup name not found, waiting ..")
+		startSyncCh := make(chan struct{})
+		c.AddBootupNSEventHandler(informers, stopCh, startSyncCh)
+	L3:
+		for {
+			select {
+			case <-startSyncCh:
+				lib.AviSEInitialized = true
+				break L3
+			case <-ctrlCh:
+				return
+			}
+		}
+	}
+	utils.AviLog.Infof("SEgroup name found, continuing ..")
+
+	c.AddNetworkInfoEventHandlers(ctrlCh, stopCh)
+}
+
+func (c *AviController) AddNetworkInfoEventHandlers(ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
+	fetchNST1LR := func(obj interface{}) (string, string, bool) {
+		var ns, t1lr string
+		resourceObj := obj.(*unstructured.Unstructured)
+		ns = resourceObj.Object["metadata"].(map[string]string)["namespace"]
+		topology, ok := resourceObj.Object["topology"]
+		if !ok {
+			utils.AviLog.Errorf("topology key not found in namespace network info object.")
+			return "", "", false
+		}
+		t1lr, ok = topology.(map[string]string)["gatewayPath"]
+		if !ok || t1lr == "" {
+			utils.AviLog.Errorf("invalid gatewayPath found in namespace network info object.")
+			return "", "", false
+		}
+		return ns, t1lr, true
+	}
+
+	namespaceNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if ns, t1lr, found := fetchNST1LR(obj); found {
+				objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
+			}
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			if ns, t1lr, found := fetchNST1LR(obj); found {
+				objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			namespace := obj.(*unstructured.Unstructured).Object["metadata"].(map[string]string)["namespace"]
+			objects.SharedWCPLister().RemoveNamespaceTier1LrCache(namespace)
+		},
+	}
+	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(namespaceNetworkInfoHandler)
+
+	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh,
+		c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for Cluster/Namepsace network info CRs.")
+	}
 }
 
 func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {

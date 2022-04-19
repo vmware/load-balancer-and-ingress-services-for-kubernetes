@@ -220,68 +220,15 @@ func InitializeAKC() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
-	lib.NewVCFDynamicClientSet(cfg)
-	// In VCF environment, avi controller details have to be fetched from the Bootstrap CR
-	if lib.GetControllerIP() == "" {
-		utils.AviLog.Infof("Unable to find Avi Controller endpoint, trying to fetch from bootstrap Resource.")
-		ctrlIP := lib.GetControllerURLFromBootstrapCR()
-		if ctrlIP != "" {
-			lib.SetControllerIP(ctrlIP)
-		} else {
-			utils.AviLog.Infof("Valid Avi Controller details not found, waiting .. ")
-			startSyncCh := make(chan struct{})
-			c.AddNCPBootstrapEventHandler(informers, stopCh, startSyncCh)
-		L1:
-			for {
-				select {
-				case <-startSyncCh:
-					break L1
-				case <-ctrlCh:
-					return
-				}
-			}
-		}
-	}
-
-	if !c.ValidAviSecret() {
-		utils.AviLog.Infof("Valid Avi Secret not found, waiting .. ")
-		startSyncCh := make(chan struct{})
-		c.AddBootupSecretEventHandler(informers, stopCh, startSyncCh)
-	L2:
-		for {
-			select {
-			case <-startSyncCh:
-				lib.AviSecretInitialized = true
-				break L2
-			case <-ctrlCh:
-				return
-			}
-		}
-	}
-	utils.AviLog.Infof("Valid Avi Secret found, continuing .. ")
-
-	err = k8s.PopulateControllerProperties(kubeClient)
-	if !c.SetSEGroupCloudName() {
-		utils.AviLog.Infof("SEgroup name not found, waiting ..")
-		startSyncCh := make(chan struct{})
-		c.AddBootupNSEventHandler(informers, stopCh, startSyncCh)
-	L3:
-		for {
-			select {
-			case <-startSyncCh:
-				lib.AviSEInitialized = true
-				break L3
-			case <-ctrlCh:
-				return
-			}
-		}
-	}
-	utils.AviLog.Infof("SEgroup name found, continuing ..")
-
+	// if utils.IsVCFCluster() {
+	vcfDynamicClient, err := lib.NewVCFDynamicClientSet(cfg)
 	if err != nil {
-		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
-		lib.ShutdownApi()
+		utils.AviLog.Fatalf("Error creating VCF dynamic clientset: %s", err.Error())
 	}
+
+	lib.NewVCFDynamicInformers(vcfDynamicClient)
+	c.InitVCFHandlers(informers, kubeClient, ctrlCh, stopCh)
+	// }
 
 	aviRestClientPool := avicache.SharedAVIClients()
 	if aviRestClientPool == nil {
@@ -301,17 +248,8 @@ func InitializeAKC() {
 		return
 	}
 
-	if !utils.IsVCFCluster() {
-		if _, err := lib.GetVipNetworkListEnv(); err != nil {
-			utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
-		}
-	} else {
-		lib.NewVCFDynamicClientSet(cfg)
-		lslrMap, _ := lib.GetNetworkInfoCRData()
-		for _, lr := range lslrMap {
-			lib.SetT1LRPath(lr)
-			break
-		}
+	if _, err := lib.GetVipNetworkListEnv(); !utils.IsVCFCluster() && err != nil {
+		utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
 	}
 
 	c.InitializeNamespaceSync()

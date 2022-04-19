@@ -737,7 +737,9 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 			avi_vs_meta.ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE
 		}
 	}
-	if lib.GetT1LRPath() == "" {
+
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
+	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
 	}
@@ -755,8 +757,8 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		VipNetworks: lib.GetVipNetworkList(),
 	}
 
-	if lib.GetT1LRPath() != "" {
-		vsVipNode.T1Lr = lib.GetT1LRPath()
+	if t1lr != "" {
+		vsVipNode.T1Lr = t1lr
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -851,9 +853,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
-
-		if lib.GetT1LRPath() != "" {
-			poolNode.T1Lr = lib.GetT1LRPath()
+		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+		if t1lr != "" {
+			poolNode.T1Lr = t1lr
 			// Unset the poolnode's vrfcontext.
 			poolNode.VrfContext = ""
 		}
