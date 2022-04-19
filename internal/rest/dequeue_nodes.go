@@ -455,10 +455,7 @@ func (rest *RestOperations) deleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 			}
 		}
 		if !skipVSVip {
-			// Delete the vsvip explicitly if controller version is >= 20.1.1
-			if lib.VSVipDelRequired() {
-				rest_ops = rest.VSVipDelete(vs_cache_obj.VSVipKeyCollection, namespace, rest_ops, key)
-			}
+			rest_ops = rest.VSVipDelete(vs_cache_obj.VSVipKeyCollection, namespace, rest_ops, key)
 		}
 		rest_ops = rest.DataScriptDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)

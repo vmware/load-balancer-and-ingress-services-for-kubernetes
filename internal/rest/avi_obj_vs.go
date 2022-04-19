@@ -212,13 +212,13 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vsDownOnPoolDown := true
 			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
 		}
-		if lib.GetGRBACSupport() {
-			if vs_meta.SharedVS {
-				vs.Markers = lib.GetMarkers()
-			} else {
-				vs.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
-			}
+
+		if vs_meta.SharedVS {
+			vs.Markers = lib.GetMarkers()
+		} else {
+			vs.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
 		}
+
 		if len(vs_meta.L4PolicyRefs) > 0 {
 			vsDownOnPoolDown := true
 			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
@@ -320,9 +320,9 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	sniChild.VhDomainName = vs_meta.VHDomainNames
 	ignPool := false
 	sniChild.IgnPoolNetReach = &ignPool
-	if lib.GetGRBACSupport() {
-		sniChild.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
-	}
+
+	sniChild.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
+
 	if vs_meta.DefaultPool != "" {
 		pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool
 		sniChild.PoolRef = &pool_ref
@@ -717,7 +717,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 			// try to delete the vsvip from cache only if the vs is not of type insecure passthrough
 			// and if controller version is >= 20.1.1
 			if vs_cache_obj.ServiceMetadataObj.PassthroughParentRef == "" {
-				if lib.VSVipDelRequired() && len(vs_cache_obj.VSVipKeyCollection) > 0 {
+				if len(vs_cache_obj.VSVipKeyCollection) > 0 {
 					vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
 					vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
 					utils.AviLog.Infof("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)

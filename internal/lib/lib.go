@@ -172,7 +172,7 @@ func IsNameEncoded(name string) bool {
 
 var DisableSync bool
 var layer7Only bool
-var noPGForSNI, gRBAC bool
+var noPGForSNI bool
 var NsxTTzType string
 var deleteConfigMap bool
 
@@ -241,16 +241,6 @@ func SetNoPGForSNI(val string) {
 	utils.AviLog.Infof("Setting the value for the noPGForSNI flag %v", noPGForSNI)
 }
 
-func SetGRBACSupport() {
-	controllerVersion := utils.CtrlVersion
-	gRBAC = true
-	if CompareVersions(controllerVersion, "<", ControllerVersion2015) {
-		// GRBAC is supported from 20.1.5 and above
-		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is less than %s.", controllerVersion, ControllerVersion2015)
-		gRBAC = false
-	}
-}
-
 func IsShardVS(vsName string) bool {
 	if deleteConfigMap {
 		//delete configmap is set, do not save anything
@@ -271,10 +261,6 @@ func IsShardVS(vsName string) bool {
 		}
 	}
 	return false
-}
-
-func GetGRBACSupport() bool {
-	return gRBAC
 }
 
 func GetNoPGForSNI() bool {
@@ -298,16 +284,6 @@ func SetAKOUser() {
 
 func GetAKOUser() string {
 	return AKOUser
-}
-
-var enableCtrl2014Features bool
-
-func SetEnableCtrl2014Features(controllerVersion string) {
-	enableCtrl2014Features = CompareVersions(controllerVersion, ">=", ControllerVersion2014)
-}
-
-func GetEnableCtrl2014Features() bool {
-	return enableCtrl2014Features
 }
 
 func GetshardSize() uint32 {
@@ -951,12 +927,10 @@ var clusterKey string
 var clusterValue string
 
 func SetClusterLabelChecksum() {
-	if GetEnableCtrl2014Features() {
-		labels := GetLabels()
-		clusterKey = *labels[0].Key
-		clusterValue = *labels[0].Value
-		clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
-	}
+	labels := GetLabels()
+	clusterKey = *labels[0].Key
+	clusterValue = *labels[0].Value
+	clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
 }
 
 func GetClusterLabelChecksum() uint32 {
@@ -1041,15 +1015,13 @@ func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
 func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	sort.Strings(pgrefs)
 	checksum := utils.Hash(utils.Stringify(pgrefs))
-	if GetGRBACSupport() {
-		if populateCache {
-			if markers != nil {
-				checksum += ObjectLabelChecksum(markers)
-			}
-			return checksum
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
 		}
-		checksum += GetClusterLabelChecksum()
+		return checksum
 	}
+	checksum += GetClusterLabelChecksum()
 	return checksum
 }
 
@@ -1227,15 +1199,13 @@ func GetDiffPath(storedPathSvc map[string][]string, currentPathSvc map[string][]
 
 func SSLKeyCertChecksum(sslName, certificate, cacert string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	checksum := utils.Hash(sslName + certificate + cacert)
-	if GetGRBACSupport() {
-		if populateCache {
-			if markers != nil {
-				checksum += ObjectLabelChecksum(markers)
-			}
-			return checksum
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
 		}
-		checksum += GetMarkersChecksum(ingestionMarkers)
+		return checksum
 	}
+	checksum += GetMarkersChecksum(ingestionMarkers)
 	return checksum
 }
 
@@ -1247,15 +1217,13 @@ func L4PolicyChecksum(ports []int64, protocols []string, ingestionMarkers utils.
 	sort.Ints(portsInt)
 	sort.Strings(protocols)
 	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols))
-	if GetGRBACSupport() {
-		if populateCache {
-			if markers != nil {
-				checksum += ObjectLabelChecksum(markers)
-			}
-			return checksum
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
 		}
-		checksum += GetMarkersChecksum(ingestionMarkers)
+		return checksum
 	}
+	checksum += GetMarkersChecksum(ingestionMarkers)
 	return checksum
 }
 
@@ -1433,17 +1401,6 @@ func HasValidBackends(routeSpec routev1.RouteSpec, routeName, namespace, key str
 		svcList[altBackend.Name] = true
 	}
 	return true
-}
-
-func VSVipDelRequired() bool {
-	c, err := semver.NewConstraint(">= " + VSVIPDELCTRLVER)
-	if err == nil {
-		currVersion, verErr := semver.NewVersion(utils.CtrlVersion)
-		if verErr == nil && c.Check(currVersion) {
-			return true
-		}
-	}
-	return false
 }
 
 func ContainsFinalizer(o metav1.Object, finalizer string) bool {

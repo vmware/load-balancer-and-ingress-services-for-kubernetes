@@ -857,7 +857,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 			PoolGroups: pgs,
 		}
 		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
-		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
+		if len(ds.Datascript) == 1 {
 			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
 		}
 		dsCacheObj.CloudConfigCksum = checksum
@@ -1202,7 +1202,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 			PoolGroups: pgs,
 		}
 		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
-		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
+		if len(ds.Datascript) == 1 {
 			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
 		}
 		dsCacheObj.CloudConfigCksum = checksum

@@ -75,7 +75,6 @@ func SharedAVIClients() *utils.AviRestClientPool {
 			SetTenant := session.SetTenant(lib.GetTenant())
 			SetTenant(client.AviSession)
 
-			lib.SetEnableCtrl2014Features(controllerVersion)
 			SetVersion := session.SetVersion(controllerVersion)
 			SetVersion(client.AviSession)
 		}
