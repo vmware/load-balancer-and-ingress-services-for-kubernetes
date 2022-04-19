@@ -322,6 +322,8 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 	}
 
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+
 	var portPoolSet []AviHostPathPortPoolPG
 	for listener, svc := range svcListeners {
 		if !utils.HasElem(gwListeners, listener) || len(svc) != 1 {
@@ -355,9 +357,9 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			VrfContext: lib.GetVrf(),
 		}
 
-		if lib.GetT1LRPath() != "" {
-			poolNode.T1Lr = lib.GetT1LRPath()
-			// Unset the poolnode's vrfcontext.
+		// Unset the poolnode's vrfcontext.
+		if t1lr != "" {
+			poolNode.T1Lr = t1lr
 			poolNode.VrfContext = ""
 		}
 
