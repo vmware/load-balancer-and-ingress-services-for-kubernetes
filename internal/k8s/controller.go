@@ -961,7 +961,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			node := cur.(*corev1.Node)
 			key := utils.NodeObj + "/" + node.Name
 			if lib.IsNodePortMode() {
-				if !lib.IsValidLabelOnNode(node.GetLabels(), key) {
+				if !lib.IsValidLabelOnNode(node.GetLabels(), key) && !lib.IsValidLabelOnNode(oldobj.GetLabels(), key) {
 					utils.AviLog.Debugf("key: %s, msg: no valid labels on a node", key)
 					return
 				}

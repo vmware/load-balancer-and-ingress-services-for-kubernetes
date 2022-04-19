@@ -40,17 +40,17 @@ func SharedNodeLister() *K8sNodeStore {
 }
 
 func (o *K8sNodeStore) PopulateAllNodes(cs *kubernetes.Clientset, isNodePort bool, nodeLabels map[string]string) {
-	lOpt := metav1.ListOptions{}
+	lableOption := metav1.ListOptions{}
 	if isNodePort {
 		if len(nodeLabels) == 2 && nodeLabels["key"] != "" {
-			map1 := make(map[string]string)
-			map1[nodeLabels["key"]] = nodeLabels["value"]
-			str := labels.Set(map1).String()
-			lOpt.LabelSelector = str
+			nodeLabelSelector := make(map[string]string)
+			nodeLabelSelector[nodeLabels["key"]] = nodeLabels["value"]
+			str := labels.Set(nodeLabelSelector).String()
+			lableOption.LabelSelector = str
 		}
 	}
 	//filter out nodes if labels are set for nodeport mode
-	allNodes, _ := cs.CoreV1().Nodes().List(context.TODO(), lOpt)
+	allNodes, _ := cs.CoreV1().Nodes().List(context.TODO(), lableOption)
 	utils.AviLog.Infof("Got %d nodes", len(allNodes.Items))
 	for i, node := range allNodes.Items {
 		o.AddOrUpdate(node.Name, &allNodes.Items[i])
