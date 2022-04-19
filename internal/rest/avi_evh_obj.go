@@ -293,8 +293,6 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
 
-		vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
-
 		seGroupRef := "/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup
 		vs := avimodels.VirtualService{
 			Name:                  &name,
@@ -306,9 +304,11 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			ServiceMetadata:       &svc_mdata,
 			SeGroupRef:            &seGroupRef,
 		}
-		if lib.GetT1LRPath() == "" {
-			vs.VrfContextRef = &vrfContextRef
+
+		if vs_meta.VrfContext != "" {
+			vs.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 		}
+
 		var enableRhi bool
 		if vs_meta.EnableRhi != nil {
 			enableRhi = *vs_meta.EnableRhi
@@ -471,7 +471,6 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
-	vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 	seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
@@ -492,8 +491,9 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		Enabled:               vs_meta.Enabled,
 		VhType:                proto.String(utils.VS_TYPE_VH_ENHANCED),
 	}
-	if lib.GetT1LRPath() == "" {
-		evhChild.VrfContextRef = &vrfContextRef
+
+	if vs_meta.VrfContext != "" {
+		evhChild.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 	}
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
 	vh_type := utils.VS_TYPE_VH_CHILD

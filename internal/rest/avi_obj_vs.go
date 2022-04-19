@@ -87,7 +87,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)),
 			ApplicationProfileRef: proto.String("/api/applicationprofile/?name=" + vs_meta.ApplicationProfile),
 			SeGroupRef:            proto.String("/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup),
-			VrfContextRef:         proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext),
 			WafPolicyRef:          &vs_meta.WafPolicyRef,
 			AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
 			ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
@@ -100,10 +99,10 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vs.ApplicationProfileRef = proto.String(vs_meta.AppProfileRef)
 		}
 
-		if lib.GetT1LRPath() != "" {
-			// Clear the vrfContextRef
-			vs.VrfContextRef = nil
+		if vs_meta.VrfContext != "" {
+			vs.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 		}
+
 		var enableRhi bool
 		if vs_meta.EnableRhi != nil {
 			enableRhi = *vs_meta.EnableRhi
@@ -284,7 +283,6 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
-	vrfContextRef := "/api/vrfcontext?name=" + vs_meta.VrfContext
 	seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
@@ -296,7 +294,6 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		ApplicationProfileRef: &app_prof,
 		EastWestPlacement:     proto.Bool(false),
 		CloudRef:              &cloudRef,
-		VrfContextRef:         &vrfContextRef,
 		SeGroupRef:            &seGroupRef,
 		ServiceMetadata:       &svc_mdata,
 		WafPolicyRef:          &vs_meta.WafPolicyRef,
@@ -306,9 +303,8 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		Enabled:               vs_meta.Enabled,
 	}
 	sniChild.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
-	if lib.GetT1LRPath() != "" {
-		// Clear the vrfContextRef
-		sniChild.VrfContextRef = nil
+	if vs_meta.VrfContext != "" {
+		sniChild.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 	}
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
 	vh_type := utils.VS_TYPE_VH_CHILD

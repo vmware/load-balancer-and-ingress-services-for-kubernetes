@@ -721,10 +721,7 @@ func SetT1LRPath(lr string) {
 }
 
 func GetT1LRPath() string {
-	if t1LrPath == "" {
-		t1LrPath = os.Getenv("NSXT_T1_LR")
-	}
-	return t1LrPath
+	return os.Getenv("NSXT_T1_LR")
 }
 
 var SEGroupName string

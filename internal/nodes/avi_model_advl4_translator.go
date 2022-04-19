@@ -89,7 +89,8 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	}
 
 	var vrfcontext string
-	if lib.GetT1LRPath() == "" {
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
 	}
@@ -141,8 +142,8 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		VipNetworks: lib.GetVipNetworkList(),
 	}
 
-	if lib.GetT1LRPath() != "" {
-		vsVipNode.T1Lr = lib.GetT1LRPath()
+	if t1lr != "" {
+		vsVipNode.T1Lr = t1lr
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -220,7 +221,8 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	}
 
 	var vrfcontext string
-	if lib.GetT1LRPath() == "" {
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
 	}
@@ -270,6 +272,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		VrfContext:  vrfcontext,
 		FQDNs:       fqdns,
 		VipNetworks: lib.GetVipNetworkList(),
+	}
+	if t1lr != "" {
+		vsVipNode.T1Lr = t1lr
 	}
 
 	if lib.GetT1LRPath() != "" {
@@ -332,6 +337,8 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 	}
 
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+
 	var portPoolSet []AviHostPathPortPoolPG
 	for listener, svc := range svcListeners {
 		if !utils.HasElem(gwListeners, listener) || len(svc) != 1 {
@@ -366,9 +373,9 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			VrfContext: lib.GetVrf(),
 		}
 
-		if lib.GetT1LRPath() != "" {
-			poolNode.T1Lr = lib.GetT1LRPath()
-			// Unset the poolnode's vrfcontext.
+		// Unset the poolnode's vrfcontext.
+		if t1lr != "" {
+			poolNode.T1Lr = t1lr
 			poolNode.VrfContext = ""
 		}
 
