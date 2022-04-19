@@ -79,7 +79,7 @@ type BootstrapCRData struct {
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && !utils.IsVCFCluster() {
+	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
 		return nil, nil
 	}
 
@@ -107,7 +107,9 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
-	NCPBootstrapInformer        informers.GenericInformer
+	VCFNCPBootstrapInformer     informers.GenericInformer
+	VCFNetworkInfoInformer      informers.GenericInformer
+	VCFClusterNetworkInformer   informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -125,7 +127,9 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 	}
 
 	if utils.IsVCFCluster() {
-		informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
+		informers.VCFNCPBootstrapInformer = f.ForResource(BootstrapGVR)
+		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
+		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
 	}
 
 	dynamicInformerInstance = informers
