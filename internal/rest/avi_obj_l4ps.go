@@ -111,6 +111,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		if ok {
 			hps_cache_obj, _ := hps_cache.(*avicache.AviL4PolicyCache)
 			path = "/api/l4policyset/" + hps_cache_obj.Uuid
+
 			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
 				Tenant: hps_meta.Tenant, Model: "L4PolicySet", Version: utils.CtrlVersion}
 		} else {

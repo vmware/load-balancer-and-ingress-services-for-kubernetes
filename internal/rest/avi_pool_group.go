@@ -65,6 +65,7 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 		if ok {
 			pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
 			path = "/api/poolgroup/" + pg_cache_obj.Uuid
+
 			rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pg,
 				Tenant: pg_meta.Tenant, Model: "PoolGroup", Version: utils.CtrlVersion}
 		} else {

@@ -219,6 +219,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/httppolicyset/" + cache_obj.Uuid
+
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: hps,
 			Tenant: hps_meta.Tenant, Model: "HTTPPolicySet", Version: utils.CtrlVersion}
 

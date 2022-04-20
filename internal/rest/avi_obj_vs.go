@@ -290,6 +290,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	if rest_method == utils.RestPut {
 
 		path = "/api/virtualservice/" + cache_obj.Uuid
+
 		rest_op = utils.RestOp{Path: path, Method: rest_method, Obj: sniChild,
 			Tenant: vs_meta.Tenant, Model: "VirtualService", Version: utils.CtrlVersion}
 		rest_ops = append(rest_ops, &rest_op)
