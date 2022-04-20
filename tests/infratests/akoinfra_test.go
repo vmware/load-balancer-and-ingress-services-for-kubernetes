@@ -70,7 +70,7 @@ func initInfraTest(testData []*unstructured.Unstructured) {
 	dynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind, testData[0], testData[1])
 	dynamicClient.Resource(lib.BootstrapGVR).Namespace("default").Create(context.TODO(), testData[0], v1.CreateOptions{})
 	dynamicClient.Resource(lib.NetworkInfoGVR).Namespace("default").Create(context.TODO(), testData[1], v1.CreateOptions{})
-	lib.SetVCFVCFDynamicClientSet(dynamicClient)
+	lib.SetDynamicClientSet(dynamicClient)
 
 	registeredInformers := []string{
 		utils.SecretInformer,
@@ -78,8 +78,7 @@ func initInfraTest(testData []*unstructured.Unstructured) {
 	informersArg := make(map[string]interface{})
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
-	lib.NewVCFDynamicInformers(dynamicClient)
-
+	lib.NewDynamicInformers(dynamicClient, true)
 }
 
 // TestBoostrapNoALBEndpoint adds an akobootstrapconditions object with no albEndpoint.

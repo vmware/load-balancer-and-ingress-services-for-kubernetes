@@ -63,7 +63,7 @@ func InitializeAKOInfra() {
 		}
 	}
 
-	dynamicClient, err := lib.NewVCFDynamicClientSet(cfg)
+	dynamicClient, err := lib.NewDynamicClientSet(cfg)
 	if err != nil {
 		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
 	}
@@ -83,7 +83,7 @@ func InitializeAKOInfra() {
 	informersArg := make(map[string]interface{})
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
-	lib.NewVCFDynamicInformers(dynamicClient)
+	lib.NewDynamicInformers(dynamicClient, true)
 
 	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := ingestion.SharedVCFK8sController()
