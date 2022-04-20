@@ -80,7 +80,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 			}
 
 		}
-		if success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
+		if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
 			return
 		}
 	} else {
@@ -104,7 +104,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		}
 		utils.AviLog.Debugf("POST key: %s, vsKey: %s", key, vsKey)
 		utils.AviLog.Debugf("POST restops %s", utils.Stringify(rest_ops))
-		if success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
+		if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
 			return
 		}
 	}
@@ -126,7 +126,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
-	if success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
+	if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
 		return
 	}
 
@@ -140,8 +140,11 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		} else {
 			_, evh_rest_ops = rest.EvhNodeCU(evhNode, nil, namespace, sni_to_delete, evh_rest_ops, key)
 		}
-		if success := rest.ExecuteRestAndPopulateCache(evh_rest_ops, vsKey, avimodel, key, true); !success {
-			return
+		if success, processNextChild := rest.ExecuteRestAndPopulateCache(evh_rest_ops, vsKey, avimodel, key, true); !success {
+			if !processNextChild {
+				utils.AviLog.Infof("key: %s, msg: Failure in processing EVH node: %s. Not processing other child nodes.", key, evhNode.Name)
+				return
+			}
 		}
 	}
 
@@ -151,7 +154,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		var rest_ops []*utils.RestOp
 		for _, del_sni := range sni_to_delete {
 			rest.SNINodeDelete(del_sni, namespace, rest_ops, avimodel, key)
-			if success := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
+			if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
 				return
 			}
 		}
@@ -426,11 +429,12 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		if rest_method == utils.RestPut && cache_obj.Uuid != "" {
 			path = "/api/virtualservice/" + cache_obj.Uuid
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: rest_method,
-				Obj:    vs,
-				Tenant: vs_meta.Tenant,
-				Model:  "VirtualService",
+				ObjName: vs_meta.Name,
+				Path:    path,
+				Method:  rest_method,
+				Obj:     vs,
+				Tenant:  vs_meta.Tenant,
+				Model:   "VirtualService",
 			}
 			rest_ops = append(rest_ops, &rest_op)
 
@@ -438,11 +442,12 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			rest_method = utils.RestPost
 			path = "/api/virtualservice/"
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: rest_method,
-				Obj:    vs,
-				Tenant: vs_meta.Tenant,
-				Model:  "VirtualService",
+				ObjName: vs_meta.Name,
+				Path:    path,
+				Method:  rest_method,
+				Obj:     vs,
+				Tenant:  vs_meta.Tenant,
+				Model:   "VirtualService",
 			}
 			rest_ops = append(rest_ops, &rest_op)
 
@@ -547,22 +552,24 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 		path = "/api/virtualservice/" + cache_obj.Uuid
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: rest_method,
-			Obj:    evhChild,
-			Tenant: vs_meta.Tenant,
-			Model:  "VirtualService",
+			ObjName: vs_meta.Name,
+			Path:    path,
+			Method:  rest_method,
+			Obj:     evhChild,
+			Tenant:  vs_meta.Tenant,
+			Model:   "VirtualService",
 		}
 		rest_ops = append(rest_ops, &rest_op)
 
 	} else {
 		path = "/api/virtualservice"
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: rest_method,
-			Obj:    evhChild,
-			Tenant: vs_meta.Tenant,
-			Model:  "VirtualService",
+			ObjName: vs_meta.Name,
+			Path:    path,
+			Method:  rest_method,
+			Obj:     evhChild,
+			Tenant:  vs_meta.Tenant,
+			Model:   "VirtualService",
 		}
 		rest_ops = append(rest_ops, &rest_op)
 
