@@ -229,7 +229,7 @@ func (c *AviController) SetSEGroupCloudName() bool {
 	return true
 }
 
-func (c *AviController) AddBootupNSEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
 	NSHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if lib.AviSEInitialized {
@@ -264,7 +264,7 @@ func (c *AviController) AddNCPBootstrapEventHandler(stopCh <-chan struct{}, star
 	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Bootstrap Add Event")
-			ctrlIP := lib.GetControllerURLFromBootstrapCR()
+			ctrlIP := lib.GetControllerURLFromBootstrapCR(lib.GetDynamicClientSet())
 			if ctrlIP != "" && startSyncCh != nil {
 				lib.SetControllerIP(ctrlIP)
 				startSyncCh <- struct{}{}
@@ -273,7 +273,7 @@ func (c *AviController) AddNCPBootstrapEventHandler(stopCh <-chan struct{}, star
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("NCP Bootstrap Update Event")
-			ctrlIP := lib.GetControllerURLFromBootstrapCR()
+			ctrlIP := lib.GetControllerURLFromBootstrapCR(lib.GetDynamicClientSet())
 			if ctrlIP != "" && startSyncCh != nil {
 				lib.SetControllerIP(ctrlIP)
 				startSyncCh <- struct{}{}
@@ -409,7 +409,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	return nil
 }
 
-func (c *AviController) AddBootupSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
+func (c *AviController) AddBootupSecretEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
 	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if lib.AviSecretInitialized {
@@ -480,11 +480,11 @@ func (c *AviController) ValidAviSecret() bool {
 	return false
 }
 
-func (c *AviController) InitVCFHandlers(informers K8sinformers, kubeClient kubernetes.Interface, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
+func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
 	// In VCF environment, avi controller details have to be fetched from the Bootstrap CR
 	if lib.GetControllerIP() == "" {
 		utils.AviLog.Infof("Unable to find Avi Controller endpoint, trying to fetch from bootstrap Resource.")
-		ctrlIP := lib.GetControllerURLFromBootstrapCR()
+		ctrlIP := lib.GetControllerURLFromBootstrapCR(lib.GetDynamicClientSet())
 		if ctrlIP != "" {
 			lib.SetControllerIP(ctrlIP)
 		} else {
@@ -506,7 +506,7 @@ func (c *AviController) InitVCFHandlers(informers K8sinformers, kubeClient kuber
 	if !c.ValidAviSecret() {
 		utils.AviLog.Infof("Valid Avi Secret not found, waiting .. ")
 		startSyncCh := make(chan struct{})
-		c.AddBootupSecretEventHandler(informers, stopCh, startSyncCh)
+		c.AddBootupSecretEventHandler(stopCh, startSyncCh)
 	L2:
 		for {
 			select {
@@ -529,7 +529,7 @@ func (c *AviController) InitVCFHandlers(informers K8sinformers, kubeClient kuber
 	if !c.SetSEGroupCloudName() {
 		utils.AviLog.Infof("SEgroup name not found, waiting ..")
 		startSyncCh := make(chan struct{})
-		c.AddBootupNSEventHandler(informers, stopCh, startSyncCh)
+		c.AddBootupNSEventHandler(stopCh, startSyncCh)
 	L3:
 		for {
 			select {
@@ -543,20 +543,20 @@ func (c *AviController) InitVCFHandlers(informers K8sinformers, kubeClient kuber
 	}
 	utils.AviLog.Infof("SEgroup name found, continuing ..")
 
-	c.AddNetworkInfoEventHandlers(ctrlCh, stopCh)
+	c.AddNetworkInfoEventHandlers(stopCh)
 }
 
-func (c *AviController) AddNetworkInfoEventHandlers(ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
+func (c *AviController) AddNetworkInfoEventHandlers(stopCh <-chan struct{}) {
 	fetchNST1LR := func(obj interface{}) (string, string, bool) {
 		var ns, t1lr string
 		resourceObj := obj.(*unstructured.Unstructured)
-		ns = resourceObj.Object["metadata"].(map[string]string)["namespace"]
+		ns = resourceObj.Object["metadata"].(map[string]interface{})["namespace"].(string)
 		topology, ok := resourceObj.Object["topology"]
 		if !ok {
 			utils.AviLog.Errorf("topology key not found in namespace network info object.")
 			return "", "", false
 		}
-		t1lr, ok = topology.(map[string]string)["gatewayPath"]
+		t1lr, ok = topology.(map[string]interface{})["gatewayPath"].(string)
 		if !ok || t1lr == "" {
 			utils.AviLog.Errorf("invalid gatewayPath found in namespace network info object.")
 			return "", "", false
@@ -566,28 +566,30 @@ func (c *AviController) AddNetworkInfoEventHandlers(ctrlCh <-chan struct{}, stop
 
 	namespaceNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			utils.AviLog.Debugf("Namespace NetworkInfo Add")
 			if ns, t1lr, found := fetchNST1LR(obj); found {
 				objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
 			}
 		},
 		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Debugf("Namespace NetworkInfo Update")
 			if ns, t1lr, found := fetchNST1LR(obj); found {
 				objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			namespace := obj.(*unstructured.Unstructured).Object["metadata"].(map[string]string)["namespace"]
+			utils.AviLog.Debugf("Namespace NetworkInfo Delete")
+			namespace := obj.(*unstructured.Unstructured).Object["metadata"].(map[string]interface{})["namespace"].(string)
 			objects.SharedWCPLister().RemoveNamespaceTier1LrCache(namespace)
 		},
 	}
 	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(namespaceNetworkInfoHandler)
 
 	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh,
-		c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for Cluster/Namepsace network info CRs.")
+		utils.AviLog.Info("Caches synced for Namepsace NetworkInfo CRs.")
 	}
 }
 
@@ -602,7 +604,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	}
 	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
-	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient)
+	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient, false)
 	var ingestionwg *sync.WaitGroup
 	var graphwg *sync.WaitGroup
 	var fastretrywg *sync.WaitGroup
