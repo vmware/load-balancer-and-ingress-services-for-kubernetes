@@ -50,7 +50,7 @@ var countLock sync.RWMutex
 type VCFK8sController struct {
 	worker_id        uint32
 	informers        *utils.Informers
-	dynamicInformers *lib.VCFDynamicInformers
+	dynamicInformers *lib.DynamicInformers
 	//workqueue        []workqueue.RateLimitingInterface
 	DisableSync bool
 }
@@ -65,7 +65,7 @@ func SharedVCFK8sController() *VCFK8sController {
 		controllerInstance = &VCFK8sController{
 			worker_id:        (uint32(1) << utils.NumWorkersIngestion) - 1,
 			informers:        utils.GetInformers(),
-			dynamicInformers: lib.GetVCFDynamicInformers(),
+			dynamicInformers: lib.GetDynamicInformers(),
 			DisableSync:      true,
 		}
 	})
@@ -247,7 +247,7 @@ func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
 }
 
 func (c *VCFK8sController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
+	ncpBootstrapHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Bootstrap ADD Event")
 			if c.ValidBootStrapData() && startSyncCh != nil {
@@ -275,10 +275,10 @@ func (c *VCFK8sController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, sto
 			}
 		},
 	}
-	c.dynamicInformers.NCPBootstrapInformer.Informer().AddEventHandler(NCPBootstrapHandler)
+	c.dynamicInformers.VCFNCPBootstrapInformer.Informer().AddEventHandler(ncpBootstrapHandler)
 
-	go c.dynamicInformers.NCPBootstrapInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NCPBootstrapInformer.Informer().HasSynced) {
+	go c.dynamicInformers.VCFNCPBootstrapInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.VCFNCPBootstrapInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for NCP Bootstrap informer")
@@ -286,7 +286,7 @@ func (c *VCFK8sController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, sto
 }
 
 func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
-	NetworkInfoHandler := cache.ResourceEventHandlerFuncs{
+	networkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info ADD Event")
 			avirest.AddSegment(obj)
@@ -300,9 +300,10 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 			avirest.DeleteSegment(obj)
 		},
 	}
-	c.dynamicInformers.NetworkInfoInformer.Informer().AddEventHandler(NetworkInfoHandler)
-	go c.dynamicInformers.NetworkInfoInformer.Informer().Run(stopCh)
+	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(networkInfoHandler)
+	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
 
+	go c.dynamicInformers.VCFClusterNetworkInformer.Informer().Run(stopCh)
 	ClusterNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Cluster Network Info ADD Event")
@@ -314,12 +315,10 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 			utils.AviLog.Infof("NCP Cluster Network Info Delete Event")
 		},
 	}
-	c.dynamicInformers.ClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)
-	go c.dynamicInformers.ClusterNetworkInformer.Informer().Run(stopCh)
-
+	c.dynamicInformers.VCFClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)
 	if !cache.WaitForCacheSync(stopCh,
-		c.dynamicInformers.NetworkInfoInformer.Informer().HasSynced,
-		c.dynamicInformers.ClusterNetworkInformer.Informer().HasSynced) {
+		c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced,
+		c.dynamicInformers.VCFClusterNetworkInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for cluster/namespace network info caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for cluster/namespace network info informer")
@@ -352,7 +351,7 @@ func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struc
 }
 
 func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
-	boostrapdata, ok := lib.GetBootstrapCRData()
+	boostrapdata, ok := lib.GetBootstrapCRData(lib.GetDynamicClientSet())
 	if !ok {
 		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR")
 		return errors.New("Empty field in Bootstrap CR")
@@ -396,7 +395,7 @@ func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
 func (c *VCFK8sController) ValidBootStrapData() bool {
 	utils.AviLog.Infof("Validating NCP Boostrap data for AKO")
 	cs := c.informers.ClientSet
-	boostrapdata, ok := lib.GetBootstrapCRData()
+	boostrapdata, ok := lib.GetBootstrapCRData(lib.GetDynamicClientSet())
 	if !ok {
 		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR")
 		return false
