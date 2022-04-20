@@ -36,8 +36,6 @@ import (
 var dynamicInformerInstance *DynamicInformers
 var dynamicClientSet dynamic.Interface
 
-var vcfDynamicInformerInstance *VCFDynamicInformers
-var vcfDynamicClientSet dynamic.Interface
 var (
 	// CalicoBlockaffinityGVR : Calico's BlockAffinity CRD resource identifier
 	CalicoBlockaffinityGVR = schema.GroupVersionResource{
@@ -79,7 +77,7 @@ type BootstrapCRData struct {
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
+	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
 		return nil, nil
 	}
 
@@ -94,10 +92,15 @@ func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	return dynamicClientSet, nil
 }
 
+// SetDynamicClientSet is used for Unit tests.
+func SetDynamicClientSet(c dynamic.Interface) {
+	dynamicClientSet = c
+}
+
 // GetDynamicClientSet returns dynamic client set instance
 func GetDynamicClientSet() dynamic.Interface {
 	if dynamicClientSet == nil {
-		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
+		utils.AviLog.Warn("Cannot retrieve the dynamic clientset since it's not initialized yet.")
 		return nil
 	}
 	return dynamicClientSet
@@ -107,13 +110,14 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
-	VCFNCPBootstrapInformer     informers.GenericInformer
-	VCFNetworkInfoInformer      informers.GenericInformer
-	VCFClusterNetworkInformer   informers.GenericInformer
+
+	VCFNCPBootstrapInformer   informers.GenericInformer
+	VCFNetworkInfoInformer    informers.GenericInformer
+	VCFClusterNetworkInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
-func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
+func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInformers {
 	informers := &DynamicInformers{}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
 
@@ -123,13 +127,15 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 	case OPENSHIFT_CNI:
 		informers.HostSubnetInformer = f.ForResource(HostSubnetGVR)
 	default:
-		utils.AviLog.Infof("Skipped initializing dynamic informers %s ", GetCNIPlugin())
+		utils.AviLog.Infof("Skipped initializing dynamic informers for cniPlugin %s", GetCNIPlugin())
 	}
 
 	if utils.IsVCFCluster() {
 		informers.VCFNCPBootstrapInformer = f.ForResource(BootstrapGVR)
 		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
-		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
+		if akoInfra {
+			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
+		}
 	}
 
 	dynamicInformerInstance = informers
@@ -145,60 +151,9 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func NewVCFDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	ds, err := dynamic.NewForConfig(config)
-	if err != nil {
-		utils.AviLog.Infof("Error while creating dynamic client %v", err)
-		return nil, err
-	}
-	if vcfDynamicClientSet == nil {
-		vcfDynamicClientSet = ds
-	}
-	return vcfDynamicClientSet, nil
-}
-
-func SetVCFVCFDynamicClientSet(dc dynamic.Interface) {
-	vcfDynamicClientSet = dc
-}
-
-func GetVCFDynamicClientSet() dynamic.Interface {
-	if vcfDynamicClientSet == nil {
-		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
-		return nil
-	}
-	return vcfDynamicClientSet
-}
-
-type VCFDynamicInformers struct {
-	NCPBootstrapInformer   informers.GenericInformer
-	NetworkInfoInformer    informers.GenericInformer
-	ClusterNetworkInformer informers.GenericInformer
-}
-
-func NewVCFDynamicInformers(client dynamic.Interface) *VCFDynamicInformers {
-	informers := &VCFDynamicInformers{}
-	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
-
-	informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
-	informers.NetworkInfoInformer = f.ForResource(NetworkInfoGVR)
-	informers.ClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
-
-	vcfDynamicInformerInstance = informers
-	return vcfDynamicInformerInstance
-}
-
-func GetVCFDynamicInformers() *VCFDynamicInformers {
-	if vcfDynamicInformerInstance == nil {
-		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
-		return nil
-	}
-	return vcfDynamicInformerInstance
-}
-
-func GetBootstrapCRData() (BootstrapCRData, bool) {
+func GetBootstrapCRData(clientSet dynamic.Interface) (BootstrapCRData, bool) {
 	var boostrapdata BootstrapCRData
-	dynamicClient := GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(BootstrapGVR)
+	crdClient := clientSet.Resource(BootstrapGVR)
 	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting CRD %v", err)
@@ -273,9 +228,8 @@ func GetBootstrapCRData() (BootstrapCRData, bool) {
 	return boostrapdata, true
 }
 
-func GetControllerURLFromBootstrapCR() string {
-	dynamicClient := GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(BootstrapGVR)
+func GetControllerURLFromBootstrapCR(clientSet dynamic.Interface) string {
+	crdClient := clientSet.Resource(BootstrapGVR)
 	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting CRD %v", err)
@@ -309,11 +263,11 @@ func GetControllerURLFromBootstrapCR() string {
 	return hostUrl
 }
 
-func GetNetworkInfoCRData() (map[string]string, map[string]struct{}) {
+func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]struct{}) {
 	lslrMap := make(map[string]string)
 	cidrs := make(map[string]struct{})
 
-	crList, err := GetVCFDynamicClientSet().Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
+	crList, err := clientSet.Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
 		return lslrMap, cidrs
@@ -342,7 +296,7 @@ func GetNetworkInfoCRData() (map[string]string, map[string]struct{}) {
 			utils.AviLog.Infof("cidr not found in networkinfo object")
 			// If not found, try fetching from cluster network info CRD
 			var clusterNetworkCIDRFound bool
-			if cidrIntf, clusterNetworkCIDRFound = GetClusterNetworkInfoCRData(); !clusterNetworkCIDRFound {
+			if cidrIntf, clusterNetworkCIDRFound = GetClusterNetworkInfoCRData(clientSet); !clusterNetworkCIDRFound {
 				continue
 			}
 			utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
@@ -355,9 +309,9 @@ func GetNetworkInfoCRData() (map[string]string, map[string]struct{}) {
 	return lslrMap, cidrs
 }
 
-func GetClusterNetworkInfoCRData() ([]interface{}, bool) {
+func GetClusterNetworkInfoCRData(clientSet dynamic.Interface) ([]interface{}, bool) {
 	var cidrs []interface{}
-	crList, err := GetVCFDynamicClientSet().Resource(ClusterNetworkGVR).List(context.TODO(), metav1.ListOptions{})
+	crList, err := clientSet.Resource(ClusterNetworkGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Cluster Network Info CR %v", err)
 		return cidrs, false

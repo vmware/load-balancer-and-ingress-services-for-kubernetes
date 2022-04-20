@@ -174,7 +174,7 @@ func InitializeAKC() {
 	}
 	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
-	lib.NewDynamicInformers(dynamicClient)
+	lib.NewDynamicInformers(dynamicClient, false)
 	if lib.GetAdvancedL4() {
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
@@ -220,15 +220,7 @@ func InitializeAKC() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
-	// if utils.IsVCFCluster() {
-	vcfDynamicClient, err := lib.NewVCFDynamicClientSet(cfg)
-	if err != nil {
-		utils.AviLog.Fatalf("Error creating VCF dynamic clientset: %s", err.Error())
-	}
-
-	lib.NewVCFDynamicInformers(vcfDynamicClient)
-	c.InitVCFHandlers(informers, kubeClient, ctrlCh, stopCh)
-	// }
+	c.InitVCFHandlers(kubeClient, ctrlCh, stopCh)
 
 	aviRestClientPool := avicache.SharedAVIClients()
 	if aviRestClientPool == nil {

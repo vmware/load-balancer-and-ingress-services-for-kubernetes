@@ -42,7 +42,7 @@ var IPAMCache *models.IPAMDNSProviderProfile
 // and updates the cloud if any LS-LR data is missing. It also creates or updates the VCF network with the CIDRs
 // Provided in the Networkinfo objects.
 func SyncLSLRNetwork() {
-	lslrmap, cidrs := lib.GetNetworkInfoCRData()
+	lslrmap, cidrs := lib.GetNetworkInfoCRData(lib.GetDynamicClientSet())
 	utils.AviLog.Infof("Got data LS LR Map: %v, from NetworkInfo CR", lslrmap)
 
 	client := InfraAviClientInstance()
@@ -112,7 +112,7 @@ func AddSegment(obj interface{}) bool {
 		utils.AviLog.Infof("cidr not found in networkinfo object")
 		// If not found, try fetching from cluster network info CRD
 		var clusterNetworkCIDRFound bool
-		if cidrIntf, clusterNetworkCIDRFound = lib.GetClusterNetworkInfoCRData(); !clusterNetworkCIDRFound {
+		if cidrIntf, clusterNetworkCIDRFound = lib.GetClusterNetworkInfoCRData(lib.GetDynamicClientSet()); !clusterNetworkCIDRFound {
 			return false
 		}
 		utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
