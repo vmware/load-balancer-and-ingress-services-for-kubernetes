@@ -272,7 +272,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			lib.SetLayer7Only(cm.Data[lib.LAYER7_ONLY])
 			// Check if we need to use PGs for SNIs or not.
 			lib.SetNoPGForSNI(cm.Data[lib.NO_PG_FOR_SNI])
-			lib.SetGRBACSupport()
+
 			delModels := delConfigFromData(cm.Data)
 			if !delModels {
 				status.ResetStatefulSetAnnotation()

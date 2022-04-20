@@ -52,9 +52,9 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 		TenantRef:     &tenant_ref,
 		PoolGroupRefs: poolgroupref,
 	}
-	if lib.GetGRBACSupport() {
-		vsdatascriptset.Markers = lib.GetMarkers()
-	}
+
+	vsdatascriptset.Markers = lib.GetMarkers()
+
 	if len(ds_meta.ProtocolParsers) > 0 {
 		vsdatascriptset.ProtocolParserRefs = ds_meta.ProtocolParsers
 	}
@@ -159,9 +159,7 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 
 		// Datascript should not have a checksum
 		checksum := lib.DSChecksum(ds_cache_obj.PoolGroups, nil, false)
-		if lib.GetEnableCtrl2014Features() {
-			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
-		}
+		checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
 		ds_cache_obj.CloudConfigCksum = checksum
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}

@@ -46,9 +46,8 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		TenantRef: &tenant,
 	}
 
-	if lib.GetGRBACSupport() {
-		hps.Markers = lib.GetAllMarkers(hps_meta.AviMarkers)
-	}
+	hps.Markers = lib.GetAllMarkers(hps_meta.AviMarkers)
+
 	var idx int32
 	idx = 0
 	var l4Policy avimodels.L4ConnectionPolicy

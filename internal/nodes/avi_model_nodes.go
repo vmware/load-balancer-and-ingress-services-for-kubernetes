@@ -920,9 +920,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
@@ -1035,9 +1033,7 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 		checksum = checksum + utils.Hash(utils.Stringify(v.HeaderReWrite))
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	v.CloudConfigCksum = checksum
 }
@@ -1207,9 +1203,8 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)
 	}
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetClusterLabelChecksum()
-	}
+
+	checksum += lib.GetClusterLabelChecksum()
 
 	v.CloudConfigCksum = checksum
 }
@@ -1255,9 +1250,7 @@ func (v *AviPoolGroupNode) CalculateCheckSum() {
 		return *pgMembers[i].PoolRef < *pgMembers[j].PoolRef
 	})
 	checksum := utils.Hash(utils.Stringify(pgMembers))
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	v.CloudConfigCksum = checksum
 }
 
@@ -1309,9 +1302,7 @@ func (v *AviHTTPDataScriptNode) GetCheckSum() uint32 {
 func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	checksum := lib.DSChecksum(v.PoolGroupRefs, nil, false)
-	if lib.GetEnableCtrl2014Features() {
-		checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
-	}
+	checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
 	v.CloudConfigCksum = checksum
 }
 
@@ -1452,9 +1443,8 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksum += utils.Hash(v.ApplicationPersistence)
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
+
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)
 	}

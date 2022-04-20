@@ -142,9 +142,8 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			}
 		}
 
-		if lib.GetGRBACSupport() {
-			vsvip.Markers = lib.GetMarkers()
-		}
+		vsvip.Markers = lib.GetMarkers()
+
 		rest_op = utils.RestOp{
 			ObjName: name,
 			Path:    "/api/vsvip/" + cache_obj.Uuid,
@@ -243,9 +242,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		if len(vsvip_meta.BGPPeerLabels) > 0 {
 			vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
 		}
-		if lib.GetGRBACSupport() {
-			vsvip.Markers = lib.GetMarkers()
-		}
+
+		vsvip.Markers = lib.GetMarkers()
+
 		path = "/api/vsvip"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
@@ -293,9 +292,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			} else {
 				vsvip_avi.BgpPeerLabels = nil
 			}
-			if lib.GetGRBACSupport() {
-				vsvip.Markers = lib.GetMarkers()
-			}
+
+			vsvip.Markers = lib.GetMarkers()
+
 			vsvip_avi.VsvipCloudConfigCksum = &cksumstr
 			path = "/api/vsvip/" + vsvip_cache_obj.Uuid
 			rest_op = utils.RestOp{

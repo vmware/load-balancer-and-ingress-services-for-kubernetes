@@ -644,9 +644,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
