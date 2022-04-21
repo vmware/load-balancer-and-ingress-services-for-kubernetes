@@ -196,7 +196,7 @@ type NamespaceFilter struct {
 
 //Stores list of valid namespaces with lock
 type K8NamespaceList struct {
-	nsList map[string]bool
+	nsList map[string]struct{}
 	lock   sync.RWMutex
 }
 type K8ValidNamespaces struct {

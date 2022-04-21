@@ -50,9 +50,8 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 		Type:        &certType,
 	}
 
-	if lib.GetGRBACSupport() {
-		sslkeycert.Markers = lib.GetAllMarkers(ssl_node.AviMarkers)
-	}
+	sslkeycert.Markers = lib.GetAllMarkers(ssl_node.AviMarkers)
+
 	if ssl_node.CACert != "" {
 		cacertRef := "/api/sslkeyandcertificate/?name=" + ssl_node.CACert
 		caName := ssl_node.CACert
@@ -234,29 +233,30 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 			Certificate: &caCert,
 		}),
 	}
-	if lib.GetGRBACSupport() {
-		pkiobject.Markers = lib.GetAllMarkers(pki_node.AviMarkers)
-	}
+
+	pkiobject.Markers = lib.GetAllMarkers(pki_node.AviMarkers)
 
 	var path string
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/pkiprofile/" + cache_obj.Uuid
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: utils.RestPut,
-			Obj:    pkiobject,
-			Tenant: pki_node.Tenant,
-			Model:  "PKIprofile",
+			ObjName: pki_node.Name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     pkiobject,
+			Tenant:  pki_node.Tenant,
+			Model:   "PKIprofile",
 		}
 	} else {
 		path = "/api/pkiprofile/"
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: utils.RestPost,
-			Obj:    pkiobject,
-			Tenant: pki_node.Tenant,
-			Model:  "PKIprofile",
+			ObjName: pki_node.Name,
+			Path:    path,
+			Method:  utils.RestPost,
+			Obj:     pkiobject,
+			Tenant:  pki_node.Tenant,
+			Model:   "PKIprofile",
 		}
 	}
 	return &rest_op

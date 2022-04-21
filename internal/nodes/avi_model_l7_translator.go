@@ -146,10 +146,7 @@ func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNod
 }
 
 func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
-	scriptStr := utils.HTTP_DS_SCRIPT
-	if lib.GetEnableCtrl2014Features() {
-		scriptStr = utils.HTTP_DS_SCRIPT_MODIFIED
-	}
+	scriptStr := utils.HTTP_DS_SCRIPT_MODIFIED
 	evt := utils.VS_DATASCRIPT_EVT_HTTP_REQ
 	var poolGroupRefs []string
 	pgName := lib.GetL7SharedPGName(vsName)

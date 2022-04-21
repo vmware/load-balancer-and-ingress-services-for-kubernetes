@@ -52,9 +52,9 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 		TenantRef:     &tenant_ref,
 		PoolGroupRefs: poolgroupref,
 	}
-	if lib.GetGRBACSupport() {
-		vsdatascriptset.Markers = lib.GetMarkers()
-	}
+
+	vsdatascriptset.Markers = lib.GetMarkers()
+
 	if len(ds_meta.ProtocolParsers) > 0 {
 		vsdatascriptset.ProtocolParserRefs = ds_meta.ProtocolParsers
 	}
@@ -64,11 +64,12 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	if cache_obj != nil {
 		path = "/api/vsdatascriptset/" + cache_obj.Uuid
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: utils.RestPut,
-			Obj:    vsdatascriptset,
-			Tenant: ds_meta.Tenant,
-			Model:  "VSDataScriptSet",
+			ObjName: *vsdatascriptset.Name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     vsdatascriptset,
+			Tenant:  ds_meta.Tenant,
+			Model:   "VSDataScriptSet",
 		}
 	} else {
 		// Patch an existing ds if it exists in the cache but not associated with this VS.
@@ -78,20 +79,22 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 			ds_cache_obj, _ := ds_cache.(*avicache.AviDSCache)
 			path = "/api/vsdatascriptset/" + ds_cache_obj.Uuid
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPut,
-				Obj:    vsdatascriptset,
-				Tenant: ds_meta.Tenant,
-				Model:  "VSDataScriptSet",
+				ObjName: *vsdatascriptset.Name,
+				Path:    path,
+				Method:  utils.RestPut,
+				Obj:     vsdatascriptset,
+				Tenant:  ds_meta.Tenant,
+				Model:   "VSDataScriptSet",
 			}
 		} else {
 			path = "/api/vsdatascriptset"
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPost,
-				Obj:    vsdatascriptset,
-				Tenant: ds_meta.Tenant,
-				Model:  "VSDataScriptSet",
+				ObjName: *vsdatascriptset.Name,
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     vsdatascriptset,
+				Tenant:  ds_meta.Tenant,
+				Model:   "VSDataScriptSet",
 			}
 		}
 	}
@@ -156,9 +159,7 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 
 		// Datascript should not have a checksum
 		checksum := lib.DSChecksum(ds_cache_obj.PoolGroups, nil, false)
-		if lib.GetEnableCtrl2014Features() {
-			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
-		}
+		checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
 		ds_cache_obj.CloudConfigCksum = checksum
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}

@@ -85,7 +85,12 @@ func PopulateCache() error {
 
 func PopulateNodeCache(cs *kubernetes.Clientset) {
 	nodeCache := objects.SharedNodeLister()
-	nodeCache.PopulateAllNodes(cs)
+	var nodeLabels map[string]string
+	isNodePortMode := lib.IsNodePortMode()
+	if isNodePortMode {
+		nodeLabels = lib.GetNodePortsSelector()
+	}
+	nodeCache.PopulateAllNodes(cs, isNodePortMode, nodeLabels)
 }
 
 func PopulateControllerProperties(cs kubernetes.Interface) error {
@@ -272,7 +277,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			lib.SetLayer7Only(cm.Data[lib.LAYER7_ONLY])
 			// Check if we need to use PGs for SNIs or not.
 			lib.SetNoPGForSNI(cm.Data[lib.NO_PG_FOR_SNI])
-			lib.SetGRBACSupport()
+
 			delModels := delConfigFromData(cm.Data)
 			if !delModels {
 				status.ResetStatefulSetAnnotation()
@@ -673,7 +678,16 @@ func (c *AviController) FullSyncK8s() error {
 		isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
 		if isPrimaryAKO {
 			lib.SetStaticRouteSyncHandler()
-			nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(nil).AsSelector())
+			var labelSelectorMap map[string]string
+			//Apply filter to nodes in NodePort mode
+			if lib.IsNodePortMode() {
+				nodeLabels := lib.GetNodePortsSelector()
+				if len(nodeLabels) == 2 && nodeLabels["key"] != "" {
+					labelSelectorMap = make(map[string]string)
+					labelSelectorMap[nodeLabels["key"]] = nodeLabels["value"]
+				}
+			}
+			nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(labelSelectorMap).AsSelector())
 			for _, node := range nodeObjects {
 				key := utils.NodeObj + "/" + node.Name
 				meta, err := meta.Accessor(node)
@@ -703,39 +717,38 @@ func (c *AviController) FullSyncK8s() error {
 		}
 	}
 
-	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
-		return err
-	}
-	for _, svcObj := range svcObjs {
+	acceptedNamespaces := utils.GetAllNamespacesInFilter()
 
-		isSvcLb := isServiceLBType(svcObj)
-		var key string
-		svcLabel := utils.ObjKey(svcObj)
-		ns := strings.Split(svcLabel, "/")
-		if isSvcLb && !lib.GetLayer7Only() {
-			/*
-				Key added to Ingestion queue if
-				1. Advance L4 enabled or
-				2. Namespace is valid
-			*/
-			if !utils.IsServiceNSValid(ns[0]) {
-				continue
-			}
-			key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
-		} else {
-			if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(ns[0]) {
-				continue
-			}
-			key = utils.Service + "/" + utils.ObjKey(svcObj)
+	for namespace := range acceptedNamespaces {
+		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
+			return err
 		}
-		meta, err := meta.Accessor(svcObj)
-		if err == nil {
-			resVer := meta.GetResourceVersion()
-			objects.SharedResourceVerInstanceLister().Save(key, resVer)
+
+		for _, svcObj := range svcObjs {
+			isSvcLb := isServiceLBType(svcObj)
+			var key string
+			if isSvcLb && !lib.GetLayer7Only() {
+				/*
+					Key added to Ingestion queue if
+					1. Advance L4 enabled or
+					2. Namespace is valid
+				*/
+				key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
+			} else {
+				if lib.GetAdvancedL4() {
+					continue
+				}
+				key = utils.Service + "/" + utils.ObjKey(svcObj)
+			}
+			meta, err := meta.Accessor(svcObj)
+			if err == nil {
+				resVer := meta.GetResourceVersion()
+				objects.SharedResourceVerInstanceLister().Save(key, resVer)
+			}
+			nodes.DequeueIngestion(key, true)
 		}
-		nodes.DequeueIngestion(key, true)
 	}
 
 	if lib.GetServiceType() == lib.NodePortLocal {
@@ -859,14 +872,12 @@ func (c *AviController) FullSyncK8s() error {
 
 		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
-			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-			if err != nil {
-				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-			} else {
-				for _, ingObj := range ingObjs {
-					ingLabel := utils.ObjKey(ingObj)
-					ns := strings.Split(ingLabel, "/")
-					if utils.CheckIfNamespaceAccepted(ns[0]) {
+			for namespace := range acceptedNamespaces {
+				ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+				if err != nil {
+					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+				} else {
+					for _, ingObj := range ingObjs {
 						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
 						meta, err := meta.Accessor(ingObj)
 						if err == nil {
@@ -876,7 +887,6 @@ func (c *AviController) FullSyncK8s() error {
 						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
 						nodes.DequeueIngestion(key, true)
 					}
-
 				}
 			}
 		}
@@ -887,19 +897,17 @@ func (c *AviController) FullSyncK8s() error {
 				utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
 			} else {
 				for _, routeObj := range routeObjs {
-					// to do move to container-lib
-					routeLabel := utils.ObjKey(routeObj)
-					ns := strings.Split(routeLabel, "/")
-					if utils.CheckIfNamespaceAccepted(ns[0]) {
-						key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
-						meta, err := meta.Accessor(routeObj)
-						if err == nil {
-							resVer := meta.GetResourceVersion()
-							objects.SharedResourceVerInstanceLister().Save(key, resVer)
-						}
-						utils.AviLog.Debugf("Dequeue for route key: %v", key)
-						nodes.DequeueIngestion(key, true)
+					if _, ok := acceptedNamespaces[routeObj.Namespace]; !ok {
+						continue
 					}
+					key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
+					meta, err := meta.Accessor(routeObj)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					}
+					utils.AviLog.Debugf("Dequeue for route key: %v", key)
+					nodes.DequeueIngestion(key, true)
 				}
 			}
 		}

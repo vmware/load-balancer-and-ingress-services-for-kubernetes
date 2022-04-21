@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -645,9 +644,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
@@ -1613,13 +1610,7 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		}
 		newInfraPrefix = newSetting.Name
 	}
-	var akoID string
-	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
-	if !isPrimaryAKO {
-		akoID = os.Getenv("POD_NAMESPACE") + "-"
-	}
-
-	shardVsPrefix := lib.GetNamePrefix() + akoID + lib.ShardEVHVSPrefix
+	shardVsPrefix := lib.GetNamePrefix() + lib.GetAKOIDPrefix() + lib.ShardEVHVSPrefix
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
 	if oldInfraPrefix != "" {
 		oldVsName += oldInfraPrefix + "-"

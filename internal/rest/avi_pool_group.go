@@ -44,12 +44,10 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	pg := avimodels.PoolGroup{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &pg_meta.ImplicitPriorityLabel}
 
-	if lib.GetGRBACSupport() {
-		if !pg_meta.AttachedToSharedVS {
-			pg.Markers = lib.GetAllMarkers(pg_meta.AviMarkers)
-		} else {
-			pg.Markers = lib.GetMarkers()
-		}
+	if !pg_meta.AttachedToSharedVS {
+		pg.Markers = lib.GetAllMarkers(pg_meta.AviMarkers)
+	} else {
+		pg.Markers = lib.GetMarkers()
 	}
 
 	var path string
@@ -57,11 +55,12 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	if cache_obj != nil {
 		path = "/api/poolgroup/" + cache_obj.Uuid
 		rest_op = utils.RestOp{
-			Path:   path,
-			Method: utils.RestPut,
-			Obj:    pg,
-			Tenant: pg_meta.Tenant,
-			Model:  "PoolGroup",
+			ObjName: pg_meta.Name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     pg,
+			Tenant:  pg_meta.Tenant,
+			Model:   "PoolGroup",
 		}
 	} else {
 		// Patch an existing pg if it exists in the cache but not associated with this VS.
@@ -71,20 +70,22 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 			pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
 			path = "/api/poolgroup/" + pg_cache_obj.Uuid
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPut,
-				Obj:    pg,
-				Tenant: pg_meta.Tenant,
-				Model:  "PoolGroup",
+				ObjName: pg_meta.Name,
+				Path:    path,
+				Method:  utils.RestPut,
+				Obj:     pg,
+				Tenant:  pg_meta.Tenant,
+				Model:   "PoolGroup",
 			}
 		} else {
 			path = "/api/poolgroup/"
 			rest_op = utils.RestOp{
-				Path:   path,
-				Method: utils.RestPost,
-				Obj:    pg,
-				Tenant: pg_meta.Tenant,
-				Model:  "PoolGroup",
+				ObjName: pg_meta.Name,
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     pg,
+				Tenant:  pg_meta.Tenant,
+				Model:   "PoolGroup",
 			}
 		}
 	}
