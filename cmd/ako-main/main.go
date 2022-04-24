@@ -264,6 +264,8 @@ func InitializeAKC() {
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 
+	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[0])
+
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
 		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")

@@ -26,9 +26,11 @@ import (
 	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
 	svcInformer "sigs.k8s.io/service-apis/pkg/client/informers/externalversions/apis/v1alpha1"
 
+	"github.com/vmware/alb-sdk/go/models"
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	advl4crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
 	advl4informer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis/v1alpha1pre1"
 )
@@ -256,15 +258,29 @@ func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatAr
 	}
 }
 
-func (c *akoControlConfig) SetLicenseType() {
-	response, err := utils.LicenseTypeFromURI()
+func GetLicenseTypeFromURI(client *clients.AviClient) (models.SystemConfiguration, error) {
+	uri := "/api/systemconfiguration"
+	response := models.SystemConfiguration{}
+	//client := AviCache.SharedAVIClients()
+	err := AviGet(client, uri, &response)
+
 	if err != nil {
 		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
 	}
 
-	c.licenseType = *response.DefaultLicenseTier
+	return response, err
 }
 
 func (c *akoControlConfig) GetLicenseType() string {
 	return c.licenseType
+}
+
+func (c *akoControlConfig) SetLicenseType(client *clients.AviClient) {
+	response, err := GetLicenseTypeFromURI(client)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
+		return
+	}
+
+	c.licenseType = *response.DefaultLicenseTier
 }
