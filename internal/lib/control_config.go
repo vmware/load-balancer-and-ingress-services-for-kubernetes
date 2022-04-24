@@ -95,12 +95,13 @@ type akoControlConfig struct {
 	// httpRuleEnabled is set to true if the cluster has
 	// HTTPRule CRD installed.
 	httpRuleEnabled bool
-	// primaryaAKO is set to true/false if as per primaryaAKO value
-	//in values.yaml
-	primaryaAKO bool
 
 	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
 	licenseType string
+
+	// primaryaAKO is set to true/false if as per primaryaAKO value
+	//in values.yaml
+	primaryaAKO bool
 }
 
 var akoControlConfigInstance *akoControlConfig
