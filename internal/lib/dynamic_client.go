@@ -51,12 +51,6 @@ var (
 		Resource: "hostsubnets",
 	}
 
-	BootstrapGVR = schema.GroupVersionResource{
-		Group:    "ncp.vmware.com",
-		Version:  "v1alpha1",
-		Resource: "akobootstrapconditions",
-	}
-
 	NetworkInfoGVR = schema.GroupVersionResource{
 		Group:    "nsx.vmware.com",
 		Version:  "v1alpha1",
@@ -111,7 +105,6 @@ type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
 
-	VCFNCPBootstrapInformer   informers.GenericInformer
 	VCFNetworkInfoInformer    informers.GenericInformer
 	VCFClusterNetworkInformer informers.GenericInformer
 }
@@ -131,7 +124,6 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 	}
 
 	if utils.IsVCFCluster() {
-		informers.VCFNCPBootstrapInformer = f.ForResource(BootstrapGVR)
 		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
 		if akoInfra {
 			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
@@ -149,118 +141,6 @@ func GetDynamicInformers() *DynamicInformers {
 		return nil
 	}
 	return dynamicInformerInstance
-}
-
-func GetBootstrapCRData(clientSet dynamic.Interface) (BootstrapCRData, bool) {
-	var boostrapdata BootstrapCRData
-	crdClient := clientSet.Resource(BootstrapGVR)
-	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utils.AviLog.Errorf("Error getting CRD %v", err)
-		return boostrapdata, false
-	}
-
-	if len(crdList.Items) != 1 {
-		utils.AviLog.Errorf("Expected only one object for NCP bootstrap but found: %d", len(crdList.Items))
-		return boostrapdata, false
-	}
-
-	obj := crdList.Items[0]
-	spec, ok := obj.Object["spec"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("spec is not found in NCP bootstrap object")
-		return boostrapdata, false
-	}
-	secretref, ok := spec["albCredentialSecretRef"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("albCredentialSecretRef is not found in NCP bootstrap object")
-		return boostrapdata, false
-	}
-	albtoken, ok := spec["albTokenProperty"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("albTokenProperty is not found in NCP bootstrap object")
-		return boostrapdata, false
-	}
-
-	secretName, ok := secretref["name"].(string)
-	if !ok {
-		utils.AviLog.Errorf("secretName is not of type string")
-		return boostrapdata, false
-	}
-	secretNamespace, ok := secretref["namespace"].(string)
-	if !ok {
-		utils.AviLog.Errorf("secretNamespace is not of type string")
-		return boostrapdata, false
-	}
-	userName, ok := albtoken["userName"].(string)
-	if !ok {
-		utils.AviLog.Errorf("userName is not of type string")
-		return boostrapdata, false
-	}
-
-	status, ok := obj.Object["status"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("Status not found in bootstrap CR")
-		return boostrapdata, false
-	}
-	tzPath, ok := status["transportZone"].(string)
-	if !ok {
-		utils.AviLog.Errorf("transportZone path not found in status of bootstrap CR")
-		return boostrapdata, false
-	}
-
-	albEndpoint, ok := status["albEndpoint"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("albEndpoint not found in status of bootstrap CR")
-		return boostrapdata, false
-	}
-	hostUrl, ok := albEndpoint["hostUrl"].(string)
-	if !ok {
-		utils.AviLog.Errorf("hostUrl path not found in status of bootstrap CR")
-		return boostrapdata, false
-	}
-	boostrapdata.SecretName = secretName
-	boostrapdata.SecretNamespace = secretNamespace
-	boostrapdata.UserName = userName
-	boostrapdata.TZPath = tzPath
-	boostrapdata.AviURL = hostUrl
-
-	return boostrapdata, true
-}
-
-func GetControllerURLFromBootstrapCR(clientSet dynamic.Interface) string {
-	crdClient := clientSet.Resource(BootstrapGVR)
-	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utils.AviLog.Errorf("Error getting CRD %v", err)
-		return ""
-	}
-
-	if len(crdList.Items) != 1 {
-		utils.AviLog.Errorf("Expected only one object for NCP bootstrap but found: %d", len(crdList.Items))
-		return ""
-	}
-
-	obj := crdList.Items[0]
-
-	status, ok := obj.Object["status"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("Status not found in bootstrap CR")
-		return ""
-	}
-
-	albEndpoint, ok := status["albEndpoint"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("albEndpoint not found in status of bootstrap CR")
-		return ""
-	}
-	hostUrl, ok := albEndpoint["hostUrl"].(string)
-	if !ok {
-		utils.AviLog.Errorf("hostUrl path not found in status of bootstrap CR")
-		return ""
-	}
-
-	return hostUrl
 }
 
 func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]struct{}) {

@@ -179,30 +179,8 @@ func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 	return true
 }
 
-func (c *AviController) SetSEGroupCloudName() bool {
-	seGroupToUse := lib.GetSEGNameEnv()
-	client := avicache.SharedAVIClients().AviClient[0]
-	var err error
-	// 2. Marker based (only advancedL4)
-	if seGroupToUse == "" && lib.GetAdvancedL4() && !utils.IsVCFCluster() {
-		err, seGroupToUse = lib.FetchSEGroupWithMarkerSet(client)
-		if err != nil {
-			utils.AviLog.Infof("Setting SEGroup with markerset and no SEGroup found from env")
-			return false
-		}
-	}
-
-	// 3. Default-SEGroup
-	if seGroupToUse == "" {
-		utils.AviLog.Infof("Setting SEGroup %s for VS placement.", lib.DEFAULT_SE_GROUP)
-		seGroupToUse = lib.DEFAULT_SE_GROUP
-	}
-
-	if !utils.IsVCFCluster() {
-		lib.SetSEGName(seGroupToUse)
-		return true
-	}
-
+func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
+	var seGroup, cloudName string
 	nsName := utils.GetAKONamespace()
 	nsObj, err := c.informers.ClientSet.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
 	if err != nil {
@@ -210,22 +188,23 @@ func (c *AviController) SetSEGroupCloudName() bool {
 		return false
 	}
 
+	var ok bool
 	annotations := nsObj.GetAnnotations()
-	segroup, ok := annotations[lib.WCPSEGroup]
+	seGroup, ok = annotations[lib.WCPSEGroup]
 	if !ok {
 		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
 		return false
 	}
 
-	cloud, ok := annotations[lib.WCPCloud]
+	cloudName, ok = annotations[lib.WCPCloud]
 	if !ok {
 		utils.AviLog.Warnf("Failed to get cloud name from annotation in namespace")
 		return false
 	}
-	utils.AviLog.Infof("Setting SEGroup %s, cloud %s for VS placement.", segroup, cloud)
-	lib.SetSEGName(segroup)
-	utils.SetCloudName(cloud)
 
+	lib.SetSEGName(seGroup)
+	utils.SetCloudName(cloudName)
+	utils.AviLog.Infof("Setting SEGroup %s, cloud %s for VS placement.", seGroup, cloudName)
 	return true
 }
 
@@ -235,7 +214,7 @@ func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyn
 			if lib.AviSEInitialized {
 				return
 			}
-			if c.SetSEGroupCloudName() {
+			if c.SetSEGroupCloudNameFromNSAnnotations() {
 				startSyncCh <- struct{}{}
 				startSyncCh = nil
 			}
@@ -244,7 +223,7 @@ func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyn
 			if lib.AviSEInitialized {
 				return
 			}
-			if c.SetSEGroupCloudName() {
+			if c.SetSEGroupCloudNameFromNSAnnotations() {
 				startSyncCh <- struct{}{}
 				startSyncCh = nil
 			}
@@ -254,40 +233,40 @@ func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyn
 
 	go c.informers.NSInformer.Informer().Run(stopCh)
 	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for NS informer")
 	}
 }
 
-func (c *AviController) AddNCPBootstrapEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
+func (c *AviController) AddConfigMapEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
+	configmapHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NCP Bootstrap Add Event")
-			ctrlIP := lib.GetControllerURLFromBootstrapCR(lib.GetDynamicClientSet())
-			if ctrlIP != "" && startSyncCh != nil {
-				lib.SetControllerIP(ctrlIP)
+			utils.AviLog.Infof("ConfigMap Add")
+			cm := obj.(*corev1.ConfigMap)
+			if controllerIP := cm.Data["controllerIP"]; controllerIP != "" && startSyncCh != nil {
+				lib.SetControllerIP(controllerIP)
 				startSyncCh <- struct{}{}
 				startSyncCh = nil
 			}
 		},
 		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Infof("NCP Bootstrap Update Event")
-			ctrlIP := lib.GetControllerURLFromBootstrapCR(lib.GetDynamicClientSet())
-			if ctrlIP != "" && startSyncCh != nil {
-				lib.SetControllerIP(ctrlIP)
+			utils.AviLog.Infof("ConfigMap Update")
+			cm := obj.(*corev1.ConfigMap)
+			if controllerIP := cm.Data["controllerIP"]; controllerIP != "" && startSyncCh != nil {
+				lib.SetControllerIP(controllerIP)
 				startSyncCh <- struct{}{}
 				startSyncCh = nil
 			}
 		},
 	}
-	c.dynamicInformers.VCFNCPBootstrapInformer.Informer().AddEventHandler(NCPBootstrapHandler)
 
-	go c.dynamicInformers.VCFNCPBootstrapInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.VCFNCPBootstrapInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	c.informers.ConfigMapInformer.Informer().AddEventHandler(configmapHandler)
+	go c.informers.ConfigMapInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.informers.ConfigMapInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for NCP Bootstrap informer")
+		utils.AviLog.Info("Caches synced for ConfigMap informer")
 	}
 }
 
@@ -397,55 +376,15 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	}
 
 	c.informers.ConfigMapInformer.Informer().AddEventHandler(configMapEventHandler)
-
 	go c.informers.ConfigMapInformer.Informer().Run(stopCh)
 	if !cache.WaitForCacheSync(stopCh,
 		c.informers.ConfigMapInformer.Informer().HasSynced,
 	) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced")
 	}
 	return nil
-}
-
-func (c *AviController) AddBootupSecretEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if lib.AviSecretInitialized {
-				return
-			}
-			data, ok := obj.(*corev1.Secret)
-			if !ok || data.Namespace != utils.GetAKONamespace() {
-				return
-			}
-			if c.ValidAviSecret() {
-				startSyncCh <- struct{}{}
-				startSyncCh = nil
-			}
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			if lib.AviSecretInitialized {
-				return
-			}
-			data, ok := obj.(*corev1.Secret)
-			if !ok || data.Namespace != utils.GetAKONamespace() {
-				return
-			}
-			if c.ValidAviSecret() {
-				startSyncCh <- struct{}{}
-				startSyncCh = nil
-			}
-		},
-	}
-	c.informers.SecretInformer.Informer().AddEventHandler(NCPSecretHandler)
-
-	go c.informers.SecretInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.informers.SecretInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-	} else {
-		utils.AviLog.Info("Caches synced for Avi Secret informer")
-	}
 }
 
 func (c *AviController) ValidAviSecret() bool {
@@ -481,67 +420,46 @@ func (c *AviController) ValidAviSecret() bool {
 }
 
 func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh <-chan struct{}, stopCh <-chan struct{}) {
-	// In VCF environment, avi controller details have to be fetched from the Bootstrap CR
-	if lib.GetControllerIP() == "" {
-		utils.AviLog.Infof("Unable to find Avi Controller endpoint, trying to fetch from bootstrap Resource.")
-		ctrlIP := lib.GetControllerURLFromBootstrapCR(lib.GetDynamicClientSet())
-		if ctrlIP != "" {
-			lib.SetControllerIP(ctrlIP)
-		} else {
-			utils.AviLog.Infof("Valid Avi Controller details not found, waiting .. ")
-			startSyncCh := make(chan struct{})
-			c.AddNCPBootstrapEventHandler(stopCh, startSyncCh)
-		L1:
-			for {
-				select {
-				case <-startSyncCh:
-					break L1
-				case <-ctrlCh:
-					return
-				}
-			}
-		}
-	}
-
-	if !c.ValidAviSecret() {
-		utils.AviLog.Infof("Valid Avi Secret not found, waiting .. ")
-		startSyncCh := make(chan struct{})
-		c.AddBootupSecretEventHandler(stopCh, startSyncCh)
-	L2:
-		for {
-			select {
-			case <-startSyncCh:
-				lib.AviSecretInitialized = true
-				break L2
-			case <-ctrlCh:
-				return
-			}
-		}
-	}
-	utils.AviLog.Infof("Valid Avi Secret found, continuing .. ")
-
-	err := PopulateControllerProperties(kubeClient)
-	if err != nil {
-		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
-		lib.ShutdownApi()
-	}
-
-	if !c.SetSEGroupCloudName() {
-		utils.AviLog.Infof("SEgroup name not found, waiting ..")
+	if !c.SetSEGroupCloudNameFromNSAnnotations() {
+		utils.AviLog.Infof("SEgroup/CloudName name not found, waiting ..")
 		startSyncCh := make(chan struct{})
 		c.AddBootupNSEventHandler(stopCh, startSyncCh)
-	L3:
+	L1:
 		for {
 			select {
 			case <-startSyncCh:
 				lib.AviSEInitialized = true
-				break L3
+				break L1
 			case <-ctrlCh:
 				return
 			}
 		}
 	}
 	utils.AviLog.Infof("SEgroup name found, continuing ..")
+
+	configmap, err := c.informers.ClientSet.CoreV1().ConfigMaps("vmware-system-ako").Get(context.TODO(), "avi-k8s-config", metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Failed to get ConfigMap, got err: %v", err)
+	}
+
+	controllerIP := configmap.Data["controllerIP"]
+	if controllerIP != "" {
+		lib.SetControllerIP(controllerIP)
+	} else {
+		utils.AviLog.Fatalf("Avi controllerIP not found.")
+	}
+
+	if !c.ValidAviSecret() {
+		c.informers.ClientSet.CoreV1().Secrets("vmware-system-ako").Delete(context.TODO(), "avi-init-secret", metav1.DeleteOptions{})
+		utils.AviLog.Fatalf("Valid Avi Secret not found, removing init-secret and stopping AKO.")
+	}
+	utils.AviLog.Infof("Valid Avi Secret found, continuing ..")
+
+	err = PopulateControllerProperties(kubeClient)
+	if err != nil {
+		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
+		lib.ShutdownApi()
+	}
 
 	c.AddNetworkInfoEventHandlers(stopCh)
 }
@@ -587,7 +505,7 @@ func (c *AviController) AddNetworkInfoEventHandlers(stopCh <-chan struct{}) {
 
 	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
 	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for Namepsace NetworkInfo CRs.")
 	}

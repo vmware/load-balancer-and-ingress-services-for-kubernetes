@@ -909,7 +909,7 @@ func GetDisableStaticRoute() bool {
 }
 
 func GetClusterName() string {
-	if GetAdvancedL4() {
+	if utils.IsVCFCluster() || GetAdvancedL4() {
 		return GetClusterIDSplit()
 	}
 	clusterName := os.Getenv(CLUSTER_NAME)

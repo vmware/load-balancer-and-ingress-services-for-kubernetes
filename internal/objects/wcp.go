@@ -39,14 +39,14 @@ type WCPLister struct {
 }
 
 func (w *WCPLister) UpdateNamespaceTier1LrCache(namespace, t1lr string) {
-	w.NamespaceTier1LrCache.ObjLock.Lock()
-	defer w.NamespaceTier1LrCache.ObjLock.Unlock()
+	// w.NamespaceTier1LrCache.ObjLock.Lock()
+	// defer w.NamespaceTier1LrCache.ObjLock.Unlock()
 	w.NamespaceTier1LrCache.AddOrUpdate(namespace, t1lr)
 }
 
 func (w *WCPLister) RemoveNamespaceTier1LrCache(namespace string) {
-	w.NamespaceTier1LrCache.ObjLock.Lock()
-	defer w.NamespaceTier1LrCache.ObjLock.Unlock()
+	// w.NamespaceTier1LrCache.ObjLock.Lock()
+	// defer w.NamespaceTier1LrCache.ObjLock.Unlock()
 	w.NamespaceTier1LrCache.Delete(namespace)
 }
 
