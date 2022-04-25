@@ -261,8 +261,7 @@ func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatAr
 	}
 }
 
-func GetLicenseTypeFromURI(client *clients.AviClient) (models.SystemConfiguration, error) {
-	uri := "/api/systemconfiguration"
+func GetResponseFromURI(client *clients.AviClient, uri string) (models.SystemConfiguration, error) {
 	response := models.SystemConfiguration{}
 	err := AviGet(client, uri, &response)
 
@@ -278,7 +277,8 @@ func (c *akoControlConfig) GetLicenseType() string {
 }
 
 func (c *akoControlConfig) SetLicenseType(client *clients.AviClient) {
-	response, err := GetLicenseTypeFromURI(client)
+	uri := "/api/systemconfiguration"
+	response, err := GetResponseFromURI(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
 		return
