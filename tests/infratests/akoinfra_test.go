@@ -65,10 +65,8 @@ func waitAndverify(t *testing.T, expectTimeout bool) {
 func initInfraTest(testData []*unstructured.Unstructured) {
 	gvrToKind := make(map[schema.GroupVersionResource]string)
 	gvrToKind[lib.NetworkInfoGVR] = "namespacenetworkinfosList"
-	gvrToKind[lib.BootstrapGVR] = "akobootstrapconditionsList"
 
 	dynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind, testData[0], testData[1])
-	dynamicClient.Resource(lib.BootstrapGVR).Namespace("default").Create(context.TODO(), testData[0], v1.CreateOptions{})
 	dynamicClient.Resource(lib.NetworkInfoGVR).Namespace("default").Create(context.TODO(), testData[1], v1.CreateOptions{})
 	lib.SetDynamicClientSet(dynamicClient)
 

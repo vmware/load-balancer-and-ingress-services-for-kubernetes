@@ -377,13 +377,14 @@ func isGatewayDelete(gatewayKey, key string) bool {
 
 		// check if deletiontimesttamp is present to see intended delete
 		if gateway.GetDeletionTimestamp() != nil {
-			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
+			utils.AviLog.Infof("key: %s, msg: deletionTimestamp set on gateway, will be deleting VS", key)
 			return true
 		}
 
 		// Check if the gateway has a valid gateway class
 		err = validateGatewayForClass(key, gateway)
 		if err != nil {
+			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gateway)
 			return true
 		}
 	} else if lib.UseServicesAPI() {
@@ -406,6 +407,7 @@ func isGatewayDelete(gatewayKey, key string) bool {
 		// Check if the gateway has a valid gateway class
 		err = validateSvcApiGatewayForClass(key, gateway)
 		if err != nil {
+			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gateway)
 			return true
 		}
 	}
