@@ -262,7 +262,6 @@ func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatAr
 func GetLicenseTypeFromURI(client *clients.AviClient) (models.SystemConfiguration, error) {
 	uri := "/api/systemconfiguration"
 	response := models.SystemConfiguration{}
-	//client := AviCache.SharedAVIClients()
 	err := AviGet(client, uri, &response)
 
 	if err != nil {

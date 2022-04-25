@@ -17,10 +17,6 @@ package rest
 import (
 	"regexp"
 
-	"github.com/vmware/alb-sdk/go/models"
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -40,17 +36,4 @@ func ExtractVsName(word string) string {
 		return result[0][1:]
 	}
 	return ""
-}
-
-func GetLicenseTypeFromURI() (models.SystemConfiguration, error) {
-	uri := "/api/systemconfiguration"
-	response := models.SystemConfiguration{}
-	client := avicache.SharedAVIClients()
-	err := lib.AviGet(client.AviClient[0], uri, &response)
-
-	if err != nil {
-		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
-	}
-
-	return response, err
 }
