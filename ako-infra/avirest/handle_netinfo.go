@@ -86,8 +86,8 @@ func SyncLSLRNetwork() {
 		}
 	}
 
-	addNetworkInCloud("fullsync", cidrs, true)
-	addNetworkInIPAM("fullsync")
+	addNetworkInCloud("fullsync", cidrs, client)
+	addNetworkInIPAM("fullsync", client)
 }
 
 func AddSegment(obj interface{}) bool {
@@ -151,8 +151,8 @@ func AddSegment(obj interface{}) bool {
 		utils.AviLog.Infof("key: %s, LSLR update not required in cloud: %s", objKey, utils.CloudName)
 	}
 
-	addNetworkInCloud(objKey, cidrs, false)
-	addNetworkInIPAM(objKey)
+	addNetworkInCloud(objKey, cidrs, client)
+	addNetworkInIPAM(objKey, client)
 	return true
 }
 
@@ -254,8 +254,12 @@ func findAndRemoveCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struc
 	return subnetsCopy, false
 }
 
-func addNetworkInCloud(objKey string, cidrs map[string]struct{}, replaceAll bool) {
-	client := InfraAviClientInstance()
+func addNetworkInCloud(objKey string, cidrs map[string]struct{}, client *clients.AviClient) {
+	replaceAll := false
+	if objKey == "fullsync" {
+		replaceAll = true
+	}
+
 	netName := lib.GetVCFNetworkName()
 	method := utils.RestPost
 	path := "/api/network/"
@@ -343,8 +347,7 @@ func addNetworkInCloud(objKey string, cidrs map[string]struct{}, replaceAll bool
 	executeRestOp(objKey, client, &restOp)
 }
 
-func addNetworkInIPAM(key string) {
-	client := InfraAviClientInstance()
+func addNetworkInIPAM(key string, client *clients.AviClient) {
 	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
