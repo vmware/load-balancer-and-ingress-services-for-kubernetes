@@ -29,12 +29,11 @@ import (
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
 
-func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName string, key string) {
+func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace, gatewayName, key string, sharedVipOnSvcLBUsecase bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var vsNode *AviVsNode
 
-	sharedVipOnSvcLBUsecase := strings.Contains(key, lib.SharedVipServiceKey)
 	if sharedVipOnSvcLBUsecase {
 		vsNode = o.ConstructSharedVipSvcLBNode(gatewayName, namespace, key)
 	} else if lib.UseServicesAPI() {
@@ -43,13 +42,11 @@ func (o *AviObjectGraph) BuildAdvancedL4Graph(namespace string, gatewayName stri
 		vsNode = o.ConstructAdvL4VsNode(gatewayName, namespace, key)
 	}
 	if vsNode != nil {
-		if sharedVipOnSvcLBUsecase {
-			o.ConstructSharedVipPolPoolNodes(vsNode, gatewayName, namespace, key)
-		} else {
+		if !sharedVipOnSvcLBUsecase {
 			o.ConstructAdvL4PolPoolNodes(vsNode, gatewayName, namespace, key)
 		}
 		o.AddModelNode(vsNode)
-		utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, vsNode.GetCheckSum())
+		utils.AviLog.Infof("key: %s, msg: checksum for AVI VS object %v", key, vsNode.GetCheckSum())
 	}
 }
 
@@ -433,12 +430,17 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	isTCP, isUDP := false, false
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, sharedVipKey)
 	var portProtocols []AviPortHostProtocol
-	for _, serviceNSName := range serviceNSNames {
+	var sharedPreferredVIP string
+	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
 			return nil
+		}
+
+		if i == 0 {
+			sharedPreferredVIP = svcObj.Spec.LoadBalancerIP
 		}
 
 		for _, listener := range svcObj.Spec.Ports {
@@ -472,6 +474,10 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 		VipNetworks: lib.GetVipNetworkList(),
 	}
 
+	if sharedPreferredVIP != "" {
+		vsVipNode.IPAddress = sharedPreferredVIP
+	}
+
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
@@ -486,6 +492,8 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	// }
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
+
+	o.ConstructSharedVipPolPoolNodes(avi_vs_meta, sharedVipKey, namespace, key)
 	return avi_vs_meta
 }
 

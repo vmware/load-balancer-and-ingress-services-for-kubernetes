@@ -25,7 +25,6 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -150,14 +149,16 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
 				return
 			}
-			if val, ok := svcObj.Annotations[lib.SharedVipSvcLBAnnotation]; ok && val != "" {
-				return
-			}
-			//Do not handle service update if it belongs to unaccepted namespace
+
+			// Do not handle service update if it belongs to unaccepted namespace
 			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() && utils.CheckIfNamespaceAccepted(namespace) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
-				aviModelGraph.BuildL4LBGraph(namespace, name, key)
+				if sharedVipKey, ok := svcObj.Annotations[lib.SharedVipSvcLBAnnotation]; ok && sharedVipKey != "" {
+					aviModelGraph.BuildAdvancedL4Graph(namespace, sharedVipKey, key, true)
+				} else {
+					aviModelGraph.BuildL4LBGraph(namespace, name, key)
+				}
 				if len(aviModelGraph.GetOrderedNodes()) > 0 {
 					model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
 					ok := saveAviModel(model_name, aviModelGraph, key)
@@ -201,7 +202,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					}
 				} else {
 					aviModelGraph := NewAviObjectGraph()
-					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key)
+					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key, false)
 					ok := saveAviModel(modelName, aviModelGraph, key)
 					if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 						PublishKeyToRestLayer(modelName, key, sharedQueue)
@@ -467,8 +468,34 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 	_, namespace, _ := lib.ExtractTypeNameNamespace(key)
 	modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
 
-	found, services := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
-	isShareVipKeyDelete := !found || len(services) == 0
+	found, serviceNSNames := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
+	isShareVipKeyDelete := !found || len(serviceNSNames) == 0
+
+	// Check whether all Services have the same preferred VIP setting. If not, delete the VS altogether,
+	// assuming bad configuration.
+	var sharedVipLBIP string
+	for i, serviceNSName := range serviceNSNames {
+		svcNSName := strings.Split(serviceNSName, "/")
+		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
+		if err != nil {
+			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
+			isShareVipKeyDelete = true
+			break
+		}
+
+		// Initializing the preferred VIP from the first Service we get, so any other Service
+		// that wishes for static IP allocation differently conflicts with this.
+		if i == 0 {
+			sharedVipLBIP = svcObj.Spec.LoadBalancerIP
+		}
+
+		if svcObj.Spec.LoadBalancerIP != sharedVipLBIP {
+			utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Spec.LoadBalancerIP, serviceNSNames[0], sharedVipLBIP)
+			isShareVipKeyDelete = true
+			break
+		}
+	}
+
 	if isShareVipKeyDelete {
 		// Check if a model corresponding to the gateway exists or not in memory.
 		if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
@@ -480,7 +507,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 	} else {
 		aviModelGraph := NewAviObjectGraph()
 		vipKey := strings.Split(namespacedVipKey, "/")[1]
-		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key)
+		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key, true)
 		ok := saveAviModel(modelName, aviModelGraph, key)
 		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 			PublishKeyToRestLayer(modelName, key, sharedQueue)
@@ -496,7 +523,7 @@ func handleL4Service(key string, fullsync bool) {
 	}
 	_, namespace, name := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	if deleteCase, _ := isServiceDelete(name, namespace, key); !deleteCase && utils.CheckIfNamespaceAccepted(namespace) {
+	if deleteCase := isServiceDelete(name, namespace, key); !deleteCase && utils.CheckIfNamespaceAccepted(namespace) {
 		// If Service is Not Annotated with NPL annotation, annotate the service and return.
 		if lib.AutoAnnotateNPLSvc() {
 			if !status.CheckNPLSvcAnnotation(key, namespace, name) {
@@ -654,23 +681,23 @@ func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.Work
 
 }
 
-func isServiceDelete(svcName string, namespace string, key string) (bool, *v1.Service) {
+func isServiceDelete(svcName string, namespace string, key string) bool {
 	// If the service is not found we return true.
 	svc, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: could not retrieve the object for service: %s", key, err)
 		if errors.IsNotFound(err) {
-			return true, nil
+			return true
 		}
 	}
 
 	// The annotation for sharedVip might have been added, in which case we should delete the L4
 	// dedicated virtual service.
 	if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
-		return false, nil
+		return false
 	}
 
-	return false, svc
+	return false
 }
 
 func ConfigDescriptor() GraphDescriptor {
