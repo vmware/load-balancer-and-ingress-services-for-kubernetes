@@ -49,8 +49,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	placementNetworks := []*avimodels.PlacementNetwork{}
 
-	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER
-	if len(pool_meta.NetworkPlacementSettings) != 0 && lib.GetCloudType() == lib.CLOUD_VCENTER {
+	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER or CLOUD_NSXT
+	if len(pool_meta.NetworkPlacementSettings) != 0 && lib.IsNodeNetworkAllowedCloud() {
 		for network, cidrs := range pool_meta.NetworkPlacementSettings {
 			for _, cidr := range cidrs {
 				_, ipnet, err := net.ParseCIDR(cidr)

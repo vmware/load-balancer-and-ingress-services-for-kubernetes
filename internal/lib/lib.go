@@ -1305,6 +1305,14 @@ func IsPublicCloud() bool {
 	return false
 }
 
+func IsNodeNetworkAllowedCloud() bool {
+	cloudType := GetCloudType()
+	if cloudType == CLOUD_NSXT || cloudType == CLOUD_VCENTER {
+		return true
+	}
+	return false
+}
+
 func UsesNetworkRef() bool {
 	cloudType := GetCloudType()
 	if cloudType == CLOUD_AWS || cloudType == CLOUD_OPENSTACK ||
