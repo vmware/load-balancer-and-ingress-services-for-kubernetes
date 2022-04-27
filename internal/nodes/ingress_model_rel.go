@@ -161,11 +161,11 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 			objects.OshiftRouteSvcLister().IngressMappings(namespace).UpdateIngressMappings(routeName, svc)
 		}
 		if routeObj.Spec.TLS != nil {
+			akoNS := utils.GetAKONamespace()
 			secret := lib.RouteSecretsPrefix + routeName
 			if routeObj.Spec.TLS.Certificate == "" || routeObj.Spec.TLS.Key == "" {
 				secret = lib.GetDefaultSecretForRoutes()
 			}
-			akoNS := utils.GetAKONamespace()
 			objects.OshiftRouteSvcLister().IngressMappings(namespace).AddIngressToSecretsMappings(akoNS, routeName, secret)
 			objects.OshiftRouteSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(namespace, routeName, secret)
 		}
