@@ -391,12 +391,6 @@ func DeleteNamespaceFromFilter(namespace string) {
 	delete(globalNSFilterObj.validNSList.nsList, namespace)
 }
 
-func GetAllNamespacesInFilter() map[string]struct{} {
-	globalNSFilterObj.validNSList.lock.Lock()
-	defer globalNSFilterObj.validNSList.lock.Unlock()
-	return globalNSFilterObj.validNSList.nsList
-}
-
 func CheckIfNamespaceAccepted(namespace string, opts ...interface{}) bool {
 	//Return true if there is no migration labels mentioned
 	if !globalNSFilterObj.EnableMigration {

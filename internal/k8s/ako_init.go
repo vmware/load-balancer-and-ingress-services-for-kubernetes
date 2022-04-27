@@ -717,7 +717,17 @@ func (c *AviController) FullSyncK8s() error {
 		}
 	}
 
-	acceptedNamespaces := utils.GetAllNamespacesInFilter()
+	acceptedNamespaces := make(map[string]struct{})
+	allNamespaces, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error in getting all namespaces: %v", err.Error())
+		return err
+	}
+	for _, ns := range allNamespaces.Items {
+		if utils.CheckIfNamespaceAccepted(ns.GetName(), ns.GetLabels(), false) {
+			acceptedNamespaces[ns.GetName()] = struct{}{}
+		}
+	}
 
 	for namespace := range acceptedNamespaces {
 		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
