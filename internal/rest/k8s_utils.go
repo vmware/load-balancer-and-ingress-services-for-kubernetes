@@ -147,6 +147,8 @@ func (rest *RestOperations) SyncObjectStatuses() {
 			status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 		}
 	}
+
 	utils.AviLog.Infof("Status syncing completed")
 	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, lib.StatusSync, "Status syncing completed")
+
 }
