@@ -270,6 +270,9 @@ func GetNoPGForSNI() bool {
 func GetLayer7Only() bool {
 	return layer7Only
 }
+func GetDeleteConfigMap() bool {
+	return deleteConfigMap
+}
 
 var AKOUser string
 
@@ -495,7 +498,29 @@ func GetEvhPGName(ingName, namespace, host, path, infrasetting string, dedicated
 	return Encode(evhPG, PG)
 }
 
-func GetTLSKeyCertNodeName(infrasetting, sniHostName string) string {
+func IsSecretK8sSecretRef(secret string) bool {
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecretK8s))
+	if re.MatchString(secret) {
+		return true
+	}
+	return false
+}
+
+func IsSecretAviCertRef(secret string) bool {
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecret))
+	if re.MatchString(secret) {
+		return true
+	}
+	return false
+}
+
+func GetTLSKeyCertNodeName(infrasetting, sniHostName, secretName string) string {
+	if IsSecretK8sSecretRef(secretName) {
+		secretName = strings.Split(secretName, "/")[2]
+		if secretName == GetDefaultSecretForRoutes() {
+			return Encode(secretName, TLSKeyCert)
+		}
+	}
 	namePrefix := NamePrefix
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
@@ -1297,6 +1322,14 @@ func IsPublicCloud() bool {
 	cloudType := GetCloudType()
 	if cloudType == CLOUD_AZURE || cloudType == CLOUD_AWS ||
 		cloudType == CLOUD_GCP || cloudType == CLOUD_OPENSTACK {
+		return true
+	}
+	return false
+}
+
+func IsNodeNetworkAllowedCloud() bool {
+	cloudType := GetCloudType()
+	if cloudType == CLOUD_NSXT || cloudType == CLOUD_VCENTER {
 		return true
 	}
 	return false

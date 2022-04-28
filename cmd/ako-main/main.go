@@ -268,7 +268,7 @@ func InitializeAKC() {
 
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
-		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")
+		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
 		return
 	}
 

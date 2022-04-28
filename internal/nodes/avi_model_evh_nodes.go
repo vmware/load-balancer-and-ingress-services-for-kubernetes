@@ -1065,7 +1065,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		evhNode.DeleteSSLPort(key)
 		evhNode.DeleteSecureAppProfile(key)
 	} else {
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, ""), key)
 	}
 	// Remove the redirect for secure to insecure transition
 	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
@@ -1128,16 +1128,37 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 		secretNS = namespace
 	}
 
-	if isSecretK8sSecretRef(secretName) {
+	if lib.IsSecretK8sSecretRef(secretName) {
 		secretName = strings.Split(secretName, "/")[2]
 	}
+	var altCertNode *AviTLSKeyCertNode
+	var certNode *AviTLSKeyCertNode
 
-	certNode := &AviTLSKeyCertNode{
-		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host),
-		Tenant: lib.GetTenant(),
-		Type:   lib.CertTypeVS,
+	//for default cert, use existing node if it exists
+	foundTLSKeyCertNode := false
+	if tlsData.SecretName == lib.GetDefaultSecretForRoutes() {
+		for _, ssl := range tlsNode.SSLKeyCertRefs {
+			if ssl.Name == lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName) {
+				certNode = ssl
+				foundTLSKeyCertNode = true
+				break
+			}
+		}
+		if foundTLSKeyCertNode {
+			keyCertRefsSet := sets.NewString(certNode.AviMarkers.Host...)
+			keyCertRefsSet.Insert(host)
+			certNode.AviMarkers.Host = keyCertRefsSet.List()
+		}
 	}
-	certNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
+	if !foundTLSKeyCertNode {
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName),
+			Tenant: lib.GetTenant(),
+			Type:   lib.CertTypeVS,
+		}
+		certNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
+	}
+
 	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route.
 	// Routes can refer to secrets only in case of using default secret in ako NS or using hostrule secret.
 	if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
@@ -1173,7 +1194,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 			return false
 		}
 		keycertMap := secretObj.Data
-		cert, ok := keycertMap[tlsCert]
+		cert, ok := keycertMap[utils.K8S_TLS_SECRET_CERT]
 		if ok {
 			certNode.Cert = cert
 		} else {
@@ -1187,11 +1208,41 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 			utils.AviLog.Infof("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
 			return false
 		}
+		altCert, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+		if ok {
+			altKey, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+			if ok {
+				foundTLSKeyCertNode := false
+				for _, ssl := range tlsNode.SSLKeyCertRefs {
+					if ssl.Name == lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt") {
+						altCertNode = ssl
+						altCertNode.AviMarkers = certNode.AviMarkers
+						foundTLSKeyCertNode = true
+						break
+					}
+				}
+				if !foundTLSKeyCertNode {
+					altCertNode = &AviTLSKeyCertNode{
+						Name:       lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"),
+						Tenant:     lib.GetTenant(),
+						Type:       lib.CertTypeVS,
+						AviMarkers: certNode.AviMarkers,
+						Cert:       altCert,
+						Key:        altKey,
+					}
+				}
+			}
+		}
 		utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	}
 	// If this SSLCertRef is already present don't add it.
-	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host), certNode.GetCheckSum()) {
+	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName), certNode.GetCheckSum()) {
 		tlsNode.ReplaceEvhSSLRefInEVHNode(certNode, key)
+
+	}
+	if altCertNode != nil && tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"), altCertNode.GetCheckSum()) {
+		tlsNode.ReplaceEvhSSLRefInEVHNode(altCertNode, key)
+
 	}
 
 	return true
@@ -1296,7 +1347,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	isDedicated := vsNode[0].Dedicated
 	certsBuilt := false
 	evhSecretName := tlssetting.SecretName
-	if isSecretAviCertRef(evhSecretName) {
+	if lib.IsSecretAviCertRef(evhSecretName) {
 		certsBuilt = true
 	}
 
@@ -1370,7 +1421,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			//Openshift: Remove CA cert if present
 			vsNode[0].DeleteCACertRefInEVHNode(lib.GetCACertNodeName(infraSettingName, host), key)
 		}
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName+"-alt"), key)
 	}
 	if isDedicated {
 		evhNode = vsNode[0]
@@ -1439,7 +1491,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			if vsNode[0].Dedicated {
 				DeleteDedicatedEvhVSNode(vsNode[0], key, hostsToRemove)
 			} else {
-				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName), key)
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName+"-alt"), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 			}
@@ -1796,7 +1849,7 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 	}
 	if !keepEvh {
 		// Delete the cert ref for the host
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, hostname), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, hostname, ""), key)
 	}
 	_, FQDNAliases := objects.SharedCRDLister().GetFQDNToAliasesMapping(hostname)
 	if removeFqdn && !keepEvh {

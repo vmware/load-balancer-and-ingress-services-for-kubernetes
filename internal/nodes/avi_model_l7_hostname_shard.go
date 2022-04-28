@@ -594,7 +594,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 
 	certsBuilt := false
 	sniSecretName := tlssetting.SecretName
-	if isSecretAviCertRef(sniSecretName) {
+	if lib.IsSecretAviCertRef(sniSecretName) {
 		sniSecretName = strings.Split(sniSecretName, "/")[1]
 		certsBuilt = true
 	}
