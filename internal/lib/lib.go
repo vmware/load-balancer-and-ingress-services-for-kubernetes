@@ -101,10 +101,11 @@ func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetada
 		// 1) Advl4 VS
 		// 2) SvcApi VS
 		return GatewayVS
-	} else if len(c.NamespaceIngressName) > 0 {
+	} else if len(c.NamespaceIngressName) > 0 || c.PassthroughChildRef != "" {
 		// Check for `NamespaceIngressName` in VS serviceMetadata. Present in case of
 		// 1) SNI Secure VS
 		// 2) EVH Secure/Insecure VS
+		// or Check Passthrough VS using child ref
 		return ChildVS
 	} else if objType == "VS" && len(c.NamespaceServiceName) > 0 {
 		// Check for `NamesppaceServiceName` in VS serviceMetadata. Present in case of
