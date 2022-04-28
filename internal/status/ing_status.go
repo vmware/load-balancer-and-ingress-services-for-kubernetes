@@ -359,8 +359,8 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 	}
 
 	for _, host := range option.ServiceMetadata.HostNames {
-		for i, status := range mIngress.Status.LoadBalancer.Ingress {
-			if status.Hostname != host {
+		for i := len(mIngress.Status.LoadBalancer.Ingress) - 1; i >= 0; i-- {
+			if mIngress.Status.LoadBalancer.Ingress[i].Hostname != host {
 				continue
 			}
 			if !lib.ValidateIngressForClass(key, mIngress) ||
