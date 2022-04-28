@@ -88,7 +88,13 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	if !isTCP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
-		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		license := lib.AKOControlConfig().GetLicenseType()
+
+		if license == "ENTERPRISE" {
+			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
+		} else {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		}
 	}
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)

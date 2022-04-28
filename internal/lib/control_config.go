@@ -26,9 +26,13 @@ import (
 	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
 	svcInformer "sigs.k8s.io/service-apis/pkg/client/informers/externalversions/apis/v1alpha1"
 
+	"github.com/vmware/alb-sdk/go/models"
+
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+
 	advl4crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
 	advl4informer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis/v1alpha1pre1"
 )
@@ -93,6 +97,10 @@ type akoControlConfig struct {
 	// httpRuleEnabled is set to true if the cluster has
 	// HTTPRule CRD installed.
 	httpRuleEnabled bool
+
+	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
+	licenseType string
+
 	// primaryaAKO is set to true/false if as per primaryaAKO value
 	//in values.yaml
 	primaryaAKO bool
@@ -251,4 +259,30 @@ func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatAr
 			c.EventRecorder().Event(&v1.Pod{ObjectMeta: *c.akoPodObjectMeta}, eventType, reason, message)
 		}
 	}
+}
+
+func GetResponseFromURI(client *clients.AviClient, uri string) (models.SystemConfiguration, error) {
+	response := models.SystemConfiguration{}
+	err := AviGet(client, uri, &response)
+
+	if err != nil {
+		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
+	}
+
+	return response, err
+}
+
+func (c *akoControlConfig) GetLicenseType() string {
+	return c.licenseType
+}
+
+func (c *akoControlConfig) SetLicenseType(client *clients.AviClient) {
+	uri := "/api/systemconfiguration"
+	response, err := GetResponseFromURI(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
+		return
+	}
+
+	c.licenseType = *response.DefaultLicenseTier
 }
