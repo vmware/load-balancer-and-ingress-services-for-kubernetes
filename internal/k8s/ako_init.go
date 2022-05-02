@@ -59,7 +59,7 @@ func PopulateCache() error {
 	aviObjCache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-		_, parentKeys, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, utils.CtrlVersion, utils.CloudName)
+		_, parentKeys, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName)
 		if err != nil {
 			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 			return err
