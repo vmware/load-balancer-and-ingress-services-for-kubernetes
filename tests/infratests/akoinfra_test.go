@@ -128,7 +128,6 @@ func TestBoostrapNoALBEndpoint(t *testing.T) {
 	})
 
 	initInfraTest(testData)
-	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := ingestion.SharedVCFK8sController()
 	stopCh := make(chan struct{})
 	ctrlCh := make(chan struct{})
@@ -137,7 +136,7 @@ func TestBoostrapNoALBEndpoint(t *testing.T) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	go func() {
-		_ = c.HandleVCF(informers, stopCh, ctrlCh, true)
+		_ = c.HandleVCF(stopCh, ctrlCh, true)
 
 		lib.VCFInitialized = true
 		keyChan <- true
@@ -194,7 +193,6 @@ func TestBoostrapNoTransportZone(t *testing.T) {
 	})
 
 	initInfraTest(testData)
-	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := ingestion.SharedVCFK8sController()
 	stopCh := make(chan struct{})
 
@@ -204,7 +202,7 @@ func TestBoostrapNoTransportZone(t *testing.T) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	go func() {
-		_ = c.HandleVCF(informers, stopCh, ctrlCh, true)
+		_ = c.HandleVCF(stopCh, ctrlCh, true)
 
 		lib.VCFInitialized = true
 		keyChan <- true
@@ -261,7 +259,6 @@ func TestBoostrapNoSecretRef(t *testing.T) {
 	})
 
 	initInfraTest(testData)
-	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := ingestion.SharedVCFK8sController()
 	stopCh := make(chan struct{})
 
@@ -271,7 +268,7 @@ func TestBoostrapNoSecretRef(t *testing.T) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	go func() {
-		_ = c.HandleVCF(informers, stopCh, ctrlCh, true)
+		_ = c.HandleVCF(stopCh, ctrlCh, true)
 
 		lib.VCFInitialized = true
 		keyChan <- true
@@ -328,7 +325,6 @@ func TestBoostrapNoUserName(t *testing.T) {
 	})
 
 	initInfraTest(testData)
-	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := ingestion.SharedVCFK8sController()
 	stopCh := make(chan struct{})
 
@@ -338,7 +334,7 @@ func TestBoostrapNoUserName(t *testing.T) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	go func() {
-		_ = c.HandleVCF(informers, stopCh, ctrlCh, true)
+		_ = c.HandleVCF(stopCh, ctrlCh, true)
 
 		lib.VCFInitialized = true
 		keyChan <- true
@@ -393,7 +389,6 @@ func TestValidBootstrapData(t *testing.T) {
 	})
 
 	initInfraTest(testData)
-	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := ingestion.SharedVCFK8sController()
 	stopCh := make(chan struct{})
 
@@ -403,7 +398,7 @@ func TestValidBootstrapData(t *testing.T) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	go func() {
-		_ = c.HandleVCF(informers, stopCh, ctrlCh, true)
+		_ = c.HandleVCF(stopCh, ctrlCh, true)
 
 		lib.VCFInitialized = true
 		keyChan <- true
