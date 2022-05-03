@@ -119,16 +119,6 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			continue
 		}
 		match_target := avimodels.MatchTarget{}
-		if len(hppmap.Host) > 0 {
-			var host []string
-			host = hppmap.Host
-			match_crit := "HDR_EQUALS"
-			host_hdr_match := avimodels.HostHdrMatch{
-				MatchCriteria: &match_crit,
-				Value:         host,
-			}
-			match_target.HostHdr = &host_hdr_match
-		}
 
 		if len(hppmap.Path) > 0 {
 			match_crit := hppmap.MatchCriteria

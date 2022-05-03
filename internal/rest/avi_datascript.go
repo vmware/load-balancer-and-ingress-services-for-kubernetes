@@ -159,7 +159,9 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 
 		// Datascript should not have a checksum
 		checksum := lib.DSChecksum(ds_cache_obj.PoolGroups, nil, false)
-		checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
+		if len(ds_cache_obj.PoolGroups) == 1 {
+			checksum += utils.Hash(fmt.Sprintf(utils.HTTP_DS_SCRIPT_MODIFIED, ds_cache_obj.PoolGroups[0]))
+		}
 		ds_cache_obj.CloudConfigCksum = checksum
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
