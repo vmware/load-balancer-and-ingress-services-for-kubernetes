@@ -923,6 +923,25 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 
+		// IngressClass Section
+		if utils.GetInformers().IngressClassInformer != nil {
+			ingClassObjs, err := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the ingress classess during full sync: %s", err)
+			} else {
+				for _, ingClass := range ingClassObjs {
+					key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
+					meta, err := meta.Accessor(ingClass)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					}
+					utils.AviLog.Debugf("Dequeue for ingressClass key: %v", key)
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+		}
+
 		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
 			for namespace := range acceptedNamespaces {
