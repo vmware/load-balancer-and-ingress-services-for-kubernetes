@@ -139,7 +139,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
 		poolNode := &AviPoolNode{
-			Name:       lib.GetL4PoolName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace, filterPort),
+			Name:       lib.GetL4PoolName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace, portProto.Protocol, filterPort),
 			Tenant:     lib.GetTenant(),
 			Protocol:   portProto.Protocol,
 			PortName:   portProto.Name,

@@ -639,9 +639,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
-				if lib.GetAdvancedL4() {
-					checkSvcForGatewayPortConflict(svc, key)
-				}
 				if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
 					// mark the object type as ShareVipSvc
 					// to separate these out from regulare clusterip, svclb services
@@ -692,21 +689,23 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 
 				bkt := utils.Bkt(namespace, numWorkers)
+				var oldKey string
 				if isSvcLb &&
 					!lib.GetLayer7Only() &&
 					oldobj.Annotations[lib.SharedVipSvcLBAnnotation] != svc.Annotations[lib.SharedVipSvcLBAnnotation] {
-					// Handles annotation -> no-annotation transition, old pool needs to be deleted.
-					// Handles no-annotation -> annotation transition too, old L4 VS is deleted.
 					if oldobj.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
-						key = lib.SharedVipServiceKey + "/" + utils.ObjKey(oldobj)
+						// Handles annotation -> no-annotation transition, old pool needs to be deleted.
+						oldKey = lib.SharedVipServiceKey + "/" + utils.ObjKey(oldobj)
 					} else {
-						key = utils.L4LBService + "/" + utils.ObjKey(oldobj)
+						// Handles no-annotation -> annotation transition too, old L4 VS is deleted.
+						oldKey = utils.L4LBService + "/" + utils.ObjKey(oldobj)
 					}
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				} else {
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				if oldKey != "" && key != oldKey {
+					c.workqueue[bkt].AddRateLimited(oldKey)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", oldKey)
 				}
 			}
 		},

@@ -694,7 +694,7 @@ func isServiceDelete(svcName string, namespace string, key string) bool {
 	// The annotation for sharedVip might have been added, in which case we should delete the L4
 	// dedicated virtual service.
 	if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
-		return false
+		return true
 	}
 
 	return false
