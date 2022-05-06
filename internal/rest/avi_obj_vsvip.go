@@ -192,7 +192,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 								Mask:   proto.Int32(int32(mask)),
 							},
 						}
-					} else if !lib.GetAdvancedL4() {
+					} else if !lib.IsWCP() {
 						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
 							Subnet: &avimodels.IPAddrPrefix{
 								IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &ipPrefixSlice[0]},
@@ -385,7 +385,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found && vs_cache_obj.ServiceMetadataObj.Gateway != "" {
 				gwNSName := strings.Split(vs_cache_obj.ServiceMetadataObj.Gateway, "/")
-				if lib.GetAdvancedL4() {
+				if lib.IsWCP() {
 					gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 					if err != nil {
 						utils.AviLog.Warnf("key: %s, msg: Gateway object not found, skippig status update %v", key, err)
