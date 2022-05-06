@@ -113,7 +113,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vs.EnableRhi = &enableRhi
 		}
 
-		if lib.GetAdvancedL4() {
+		if lib.IsWCP() {
 			vs.IgnPoolNetReach = proto.Bool(true)
 		}
 
