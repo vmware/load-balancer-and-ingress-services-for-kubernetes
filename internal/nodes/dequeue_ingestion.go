@@ -131,7 +131,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if !ingressFound && !lib.GetAdvancedL4() && !mciFound {
+	if !ingressFound && !lib.IsWCP() && !mciFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == lib.SharedVipServiceKey {
 			sharedVipKeys, keysFound := schema.GetParentServices(name, namespace, key)
@@ -176,9 +176,9 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if (lib.GetAdvancedL4() && objType == utils.L4LBService) ||
+	if (lib.IsWCP() && objType == utils.L4LBService) ||
 		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
-		((lib.GetAdvancedL4() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
+		((lib.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
 		if !valid && objType == utils.L4LBService {
 			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
@@ -374,7 +374,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 func isGatewayDelete(gatewayKey, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && errors.IsNotFound(err) {
 			return true
@@ -417,11 +417,7 @@ func isGatewayDelete(gatewayKey, key string) bool {
 		}
 	}
 	found, _ := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
-	if !found {
-		return true
-	}
-
-	return false
+	return !found
 }
 
 func handleRoute(key string, fullsync bool, routeNames []string) {

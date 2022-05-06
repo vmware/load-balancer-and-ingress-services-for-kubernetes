@@ -134,9 +134,10 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		}
 	}
 
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		status.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
 		status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+		status.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
 	} else {
 		if lib.UseServicesAPI() {
 			status.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
@@ -150,5 +151,4 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 	utils.AviLog.Infof("Status syncing completed")
 	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, lib.StatusSync, "Status syncing completed")
-
 }

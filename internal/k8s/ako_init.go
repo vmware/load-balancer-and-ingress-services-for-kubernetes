@@ -506,7 +506,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
+	if lib.IsWCP() {
+		informersArg[utils.INFORMERS_ADVANCED_L4] = true
+	}
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
 	c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient, false)
 	var ingestionwg *sync.WaitGroup
@@ -567,7 +569,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		// Set the error to nil
 		err = nil
 		interval = 300 // seconds, hardcoded for now.
@@ -752,13 +754,13 @@ func (c *AviController) addIndexers() {
 }
 
 func (c *AviController) FullSync() {
-
 	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
+
 	// Randomly pickup a client.
 	if len(aviRestClientPool.AviClient) > 0 {
 		aviObjCache.AviClusterStatusPopulate(aviRestClientPool.AviClient[0])
-		if !lib.GetAdvancedL4() {
+		if !lib.IsWCP() {
 			aviObjCache.AviCacheRefresh(aviRestClientPool.AviClient[0], utils.CloudName)
 		} else {
 			// In this case we just sync the Gateway status to the LB status
@@ -868,7 +870,7 @@ func (c *AviController) FullSyncK8s() error {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
 				}
 			} else {
-				if lib.GetAdvancedL4() {
+				if lib.IsWCP() {
 					continue
 				}
 				key = utils.Service + "/" + utils.ObjKey(svcObj)
@@ -946,7 +948,28 @@ func (c *AviController) FullSyncK8s() error {
 		}
 
 	}
-	if !lib.GetAdvancedL4() {
+
+	if utils.GetInformers().IngressInformer != nil {
+		for namespace := range acceptedNamespaces {
+			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+			} else {
+				for _, ingObj := range ingObjs {
+					key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+					meta, err := meta.Accessor(ingObj)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					}
+					utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+		}
+	}
+
+	if !lib.IsWCP() {
 		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
@@ -1020,26 +1043,6 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 
-		// Ingress Section
-		if utils.GetInformers().IngressInformer != nil {
-			for namespace := range acceptedNamespaces {
-				ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
-				if err != nil {
-					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-				} else {
-					for _, ingObj := range ingObjs {
-						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-						meta, err := meta.Accessor(ingObj)
-						if err == nil {
-							resVer := meta.GetResourceVersion()
-							objects.SharedResourceVerInstanceLister().Save(key, resVer)
-						}
-						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
-						nodes.DequeueIngestion(key, true)
-					}
-				}
-			}
-		}
 		//Route Section
 		if utils.GetInformers().RouteInformer != nil {
 			routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
