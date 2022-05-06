@@ -221,6 +221,7 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/pkiprofile/" + cache_obj.Uuid
+
 		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pkiobject,
 			Tenant: pki_node.Tenant, Model: "PKIprofile", Version: utils.CtrlVersion}
 	} else {
