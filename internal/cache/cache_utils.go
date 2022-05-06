@@ -291,7 +291,7 @@ type AviPkiProfileCache struct {
 }
 
 type NextPage struct {
-	Next_uri   string
+	NextURI    string
 	Collection interface{}
 }
 

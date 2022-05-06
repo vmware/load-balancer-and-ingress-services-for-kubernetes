@@ -102,8 +102,8 @@ func InitializeAKC() {
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
-
-	if lib.GetAdvancedL4() {
+	var istioClient *istiocrd.Clientset
+	if lib.IsWCP() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
@@ -172,10 +172,16 @@ func InitializeAKC() {
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
+
+	// Namespace bound Secret informers should be initialized for AKO in VDS,
+	// For AKO in VCF, we will need to watch on Secrets across all namespaces.
+	if !utils.IsVCFCluster() && lib.GetAdvancedL4() {
+		informersArg[utils.INFORMERS_ADVANCED_L4] = true
+	}
+
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers(crdClient)
@@ -184,6 +190,8 @@ func InitializeAKC() {
 		}
 	}
 	istioUpdateCh := make(chan struct{})
+
+	// Set Istio Informers.
 	if lib.IsIstioEnabled() {
 		lib.SetIstioInitialized(false)
 		akoControlConfig.PodEventf(corev1.EventTypeNormal, "IstioEnabled", "Adding certificate watcher for Istio")

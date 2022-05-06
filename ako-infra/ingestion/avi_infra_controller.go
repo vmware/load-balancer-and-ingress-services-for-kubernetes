@@ -196,7 +196,7 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error, *models.ServiceEngineGroup) {
 	var uri string
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
 	}
@@ -248,7 +248,7 @@ func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error
 		next_uri := strings.Split(result.Next, "/api/serviceenginegroup")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/serviceenginegroup" + next_uri[1]
-			nextPage := lib.NextPage{Next_uri: overrideUri}
+			nextPage := lib.NextPage{NextURI: overrideUri}
 			return fetchSEGroup(client, nextPage)
 		}
 	}
