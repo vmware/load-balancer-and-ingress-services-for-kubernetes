@@ -1301,9 +1301,14 @@ func IsValidLabelOnNode(labels map[string]string, key string) bool {
 }
 
 var CloudType string
+var CloudUUID string
 
 func SetCloudType(cloudType string) {
 	CloudType = cloudType
+}
+
+func SetCloudUUID(cloudUUID string) {
+	CloudUUID = cloudUUID
 }
 
 func GetCloudType() string {
@@ -1311,6 +1316,10 @@ func GetCloudType() string {
 		return CLOUD_VCENTER
 	}
 	return CloudType
+}
+
+func GetCloudUUID() string {
+	return CloudUUID
 }
 
 var IsCloudInAdminTenant = true
