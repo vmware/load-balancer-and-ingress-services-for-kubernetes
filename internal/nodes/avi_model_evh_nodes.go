@@ -919,7 +919,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 	childNode.Paths = pathSet.List()
 	childNode.IngressNames = ingressNameSet.List()
 	for _, path := range paths {
-		BuildPoolHTTPRule(hosts[0], path.Path, ingName, namespace, infraSettingName, key, childNode, true, vsNode[0].Dedicated)
+		BuildPoolHTTPRule(hosts[0], path.Path, ingName, namespace, infraSettingName, key, childNode, true, vsNode[0].Dedicated, modelType == utils.Ingress)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: added pools and poolgroups. childNodeChecksum for childNode :%s is :%v", key, childNode.Name, childNode.GetCheckSum())

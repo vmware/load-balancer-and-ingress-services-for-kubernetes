@@ -201,7 +201,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 // BuildPoolHTTPRule notes
 // when we get an ingress update and we are building the corresponding pools of that ingress
 // we need to get all httprules which match ingress's host/path
-func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key string, vsNode AviVsEvhSniModel, isSNI, isDedicated bool) {
+func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key string, vsNode AviVsEvhSniModel, isSNI, isDedicated, isIngr bool) {
 	found, pathRules := objects.SharedCRDLister().GetFqdnHTTPRulesMapping(host)
 	if !found {
 		utils.AviLog.Debugf("key: %s, msg: HTTPRules for fqdn %s not found", key, host)
@@ -260,13 +260,26 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 			// then cluster--namespace-host_-ingName should qualify for both pools
 			// basic path prefix regex: ^<path_entered>.*
 			pathPrefix := strings.ReplaceAll(path, "/", "_")
-			// sni poolname match regex
-			secureRgx := regexp.MustCompile(fmt.Sprintf(`^%s%s-%s.*-%s`, lib.GetNamePrefix(), rrNamespace, host+pathPrefix, ingName))
-			// sharedvs poolname match regex
-			insecureRgx := regexp.MustCompile(fmt.Sprintf(`^%s%s.*-%s-%s`, lib.GetNamePrefix(), host+pathPrefix, rrNamespace, ingName))
+			var secureRgx, insecureRgx *regexp.Regexp
+			if isIngr {
+				// sni poolname match regex
+				secureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s-%s.*-%s`, lib.GetNamePrefix(), rrNamespace, host+pathPrefix, ingName))
+				// sharedvs poolname match regex
+				insecureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s.*-%s-%s`, lib.GetNamePrefix(), host+pathPrefix, rrNamespace, ingName))
+			} else {
+				// in case of route, the poolName for secure and insecure ends with service name.
+				secureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s-%s.*-%s-%s`, lib.GetNamePrefix(), rrNamespace, host+pathPrefix, ingName, pool.AviMarkers.ServiceName))
+				insecureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s.*-%s-%s-%s`, lib.GetNamePrefix(), host+pathPrefix, rrNamespace, ingName, pool.AviMarkers.ServiceName))
+			}
 			if infraSettingName != "" {
-				secureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s-%s-%s.*-%s`, lib.GetNamePrefix(), infraSettingName, rrNamespace, host+pathPrefix, ingName))
-				insecureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s-%s.*-%s-%s`, lib.GetNamePrefix(), infraSettingName, host+pathPrefix, rrNamespace, ingName))
+				if isIngr {
+					secureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s-%s-%s.*-%s`, lib.GetNamePrefix(), infraSettingName, rrNamespace, host+pathPrefix, ingName))
+					insecureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s-%s.*-%s-%s`, lib.GetNamePrefix(), infraSettingName, host+pathPrefix, rrNamespace, ingName))
+				} else {
+					// in case of route, the poolName for secure and insecure ends with service name.
+					secureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s-%s.*-%s-%s`, lib.GetNamePrefix(), rrNamespace, host+pathPrefix, ingName, pool.AviMarkers.ServiceName))
+					insecureRgx = regexp.MustCompile(fmt.Sprintf(`^%s%s.*-%s-%s-%s`, lib.GetNamePrefix(), host+pathPrefix, rrNamespace, ingName, pool.AviMarkers.ServiceName))
+				}
 			}
 			var poolName string
 			// FOR EVH: Build poolname using marker fields.

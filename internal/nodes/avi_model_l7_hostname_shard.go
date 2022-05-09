@@ -209,7 +209,7 @@ func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, na
 				vsNode[0].ReplaceSniHTTPRefInSNINode(httpPGPath, httpPolName, key)
 			}
 		}
-		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], true, vsNode[0].Dedicated)
+		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], true, vsNode[0].Dedicated, isIngr)
 	}
 	vsNode[0].Paths = pathSet.List()
 	vsNode[0].IngressNames = ingressNameSet.List()
@@ -287,7 +287,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 
 	}
 	for _, obj := range pathsvc {
-		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], false, vsNode[0].Dedicated)
+		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], false, vsNode[0].Dedicated, routeIgrObj.GetType() == utils.Ingress)
 	}
 
 	// Reset the PG Node members and rebuild them
