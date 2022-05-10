@@ -34,6 +34,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
 	var ingressFound, routeFound, mciFound bool
 	var ingressNames, routeNames, mciNames []string
+	var aviModelGraph *AviObjectGraph
 	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
@@ -145,10 +146,17 @@ func DequeueIngestion(key string, fullsync bool) {
 			//Do not handle service update if it belongs to unaccepted namespace
 			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() && utils.CheckIfNamespaceAccepted(namespace) {
 				// This endpoint update affects a LB service.
-				aviModelGraph := NewAviObjectGraph()
+				vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
+				model_name := lib.GetModelName(lib.GetTenant(), vsName)
+				found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+				if !found || aviModel == nil {
+					aviModelGraph = NewAviObjectGraph()
+				} else {
+					aviModelGraph = aviModel.(*AviObjectGraph)
+				}
 				aviModelGraph.BuildL4LBGraph(namespace, name, key)
 				if len(aviModelGraph.GetOrderedNodes()) > 0 {
-					model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+					//model_name := lib.GetModelName(lib.GetTenant(), vsName)
 					ok := saveAviModel(model_name, aviModelGraph, key)
 					if ok && !fullsync {
 						PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -427,6 +435,7 @@ func handleL4Service(key string, fullsync bool) {
 		utils.AviLog.Debugf("key: %s, msg: not handling service of type loadbalancer since AKO is configured to run in layer 7 mode only", key)
 		return
 	}
+	var aviModelGraph *AviObjectGraph
 	_, namespace, name := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
@@ -447,20 +456,28 @@ func handleL4Service(key string, fullsync bool) {
 			}
 		}
 		utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
-		aviModelGraph := NewAviObjectGraph()
+		vsName := lib.GetL4VSName(name, namespace)
+		model_name := lib.GetModelName(lib.GetTenant(), vsName)
+		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+		if !found || aviModel == nil {
+			aviModelGraph = NewAviObjectGraph()
+		} else {
+			aviModelGraph = aviModel.(*AviObjectGraph)
+		}
+		//aviModelGraph := NewAviObjectGraph()
 		aviModelGraph.BuildL4LBGraph(namespace, name, key)
 
 		// Save the LB service in memory
 		objects.SharedlbLister().Save(namespace+"/"+name, name)
 		if len(aviModelGraph.GetOrderedNodes()) > 0 {
-			model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+			//model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
 			ok := saveAviModel(model_name, aviModelGraph, key)
 			if ok && !fullsync {
 				PublishKeyToRestLayer(model_name, key, sharedQueue)
 			}
 		}
 
-		found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
+		found, _ = objects.SharedClusterIpLister().Get(namespace + "/" + name)
 		if found {
 			// This is transition from clusterIP to service of type LB
 			objects.SharedClusterIpLister().Delete(namespace + "/" + name)
