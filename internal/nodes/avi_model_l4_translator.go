@@ -35,9 +35,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
+func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) (*AviVsNode, bool) {
 	var avi_vs_meta *AviVsNode
+	var vsVipNode *AviVSVIPNode
 	var fqdns []string
+	var vrfcontext string
+	var isNewNode bool
 	autoFQDN := true
 	if lib.GetL4FqdnFormat() == lib.AutoFQDNDisabled {
 		autoFQDN = false
@@ -55,24 +58,33 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
-	avi_vs_meta = &AviVsNode{
-		Name:   vsName,
-		Tenant: lib.GetTenant(),
-		ServiceMetadata: lib.ServiceMetadataObj{
-			NamespaceServiceName: []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name},
-			HostNames:            fqdns,
-		},
-		ServiceEngineGroup: lib.GetSEGName(),
-		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
+	vsNodes := o.GetAviVS()
+	if len(vsNodes) == 0 || vsNodes[0].Name != vsName {
+		avi_vs_meta = &AviVsNode{
+			Name:   vsName,
+			Tenant: lib.GetTenant(),
+			ServiceMetadata: lib.ServiceMetadataObj{
+				NamespaceServiceName: []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name},
+				HostNames:            fqdns,
+			},
+			ServiceEngineGroup: lib.GetSEGName(),
+			EnableRhi:          proto.Bool(lib.GetEnableRHI()),
+		}
+		// Default case.
+		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+		isNewNode = true
+	} else {
+		avi_vs_meta = vsNodes[0]
+		avi_vs_meta.ServiceMetadata.NamespaceServiceName = []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name}
+		avi_vs_meta.ServiceMetadata.HostNames = fqdns
 	}
 
-	vrfcontext := lib.GetVrf()
-	if lib.GetT1LRPath() != "" {
-		vrfcontext = ""
-	} else {
+	if lib.GetT1LRPath() == "" {
+		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
 	}
 	avi_vs_meta.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
+
 	isTCP := false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
@@ -83,13 +95,11 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		}
 	}
 	avi_vs_meta.PortProto = portProtocols
-	// Default case.
-	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+
 	if !isTCP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
 		license := lib.AKOControlConfig().GetLicenseType()
-
 		if license == "ENTERPRISE" {
 			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 		} else {
@@ -98,12 +108,16 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
-	vsVipNode := &AviVSVIPNode{
-		Name:        vsVipName,
-		Tenant:      lib.GetTenant(),
-		FQDNs:       fqdns,
-		VrfContext:  vrfcontext,
-		VipNetworks: lib.GetVipNetworkList(),
+	vsVipNode = avi_vs_meta.findVSVIPNode(vsVipName)
+	if vsVipNode == nil {
+		vsVipNode = &AviVSVIPNode{
+			Name:        vsVipName,
+			Tenant:      lib.GetTenant(),
+			FQDNs:       fqdns,
+			VrfContext:  vrfcontext,
+			VipNetworks: lib.GetVipNetworkList(),
+		}
+		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	}
 	if lib.GetT1LRPath() != "" {
 		vsVipNode.T1Lr = lib.GetT1LRPath()
@@ -122,13 +136,25 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		vsVipNode.IPAddress = svcObj.Spec.LoadBalancerIP
 	}
 
-	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
-	return avi_vs_meta
+	//avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
+	return avi_vs_meta, isNewNode
 }
 
+func (o *AviVsNode) findVSVIPNode(vipName string) *AviVSVIPNode {
+	for _, vipNode := range o.VSVIPRefs {
+		if vipNode.Name == vipName {
+			return vipNode
+		}
+	}
+	return nil
+}
 func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode, key string) {
 	var l4Policies []*AviL4PolicyNode
 	var portPoolSet []AviHostPathPortPoolPG
+	var poolNode *AviPoolNode
+	var l4policyNode *AviL4PolicyNode
+
+	poolNodeMap := make(map[string]struct{})
 
 	infraSetting, err := getL4InfraSetting(key, svcObj, nil)
 	if err != nil {
@@ -138,24 +164,35 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
-		poolNode := &AviPoolNode{
-			Name:       lib.GetL4PoolName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace, filterPort),
-			Tenant:     lib.GetTenant(),
-			Protocol:   portProto.Protocol,
-			PortName:   portProto.Name,
-			Port:       portProto.Port,
-			TargetPort: portProto.TargetPort,
-			VrfContext: lib.GetVrf(),
+		poolName := lib.GetL4PoolName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace, filterPort)
+		poolNode = vsNode.findPoolNode(poolName)
+		poolNodeMap[poolName] = struct{}{}
+		if poolNode == nil {
+			//create new pool node
+			poolNode = &AviPoolNode{
+				Name:       poolName,
+				Tenant:     lib.GetTenant(),
+				Protocol:   portProto.Protocol,
+				PortName:   portProto.Name,
+				Port:       portProto.Port,
+				TargetPort: portProto.TargetPort,
+				VrfContext: lib.GetVrf(),
+			}
+
+			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+
+			if lib.GetT1LRPath() != "" {
+				poolNode.T1Lr = lib.GetT1LRPath()
+				// Unset the poolnode's vrfcontext.
+				poolNode.VrfContext = ""
+			}
+			vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
+		} else {
+			poolNode.Protocol = portProto.Protocol
+			poolNode.PortName = portProto.Name
+			poolNode.Port = portProto.Port
+			poolNode.TargetPort = portProto.TargetPort
 		}
-
-		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
-
-		if lib.GetT1LRPath() != "" {
-			poolNode.T1Lr = lib.GetT1LRPath()
-			// Unset the poolnode's vrfcontext.
-			poolNode.VrfContext = ""
-		}
-
 		serviceType := lib.GetServiceType()
 		if serviceType == lib.NodePortLocal {
 			if svcObj.Spec.Type == "NodePort" {
@@ -187,17 +224,33 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 
 		buildPoolWithInfraSetting(key, poolNode, infraSetting)
 
-		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 	}
-
-	l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: lib.GetTenant(), PortPool: portPoolSet}
+	vsNode.deleteOldPoolRef(poolNodeMap)
+	l4policyNode = vsNode.findL4PolicyNode(vsNode.Name)
+	if l4policyNode == nil {
+		l4policyNode = &AviL4PolicyNode{
+			Name:     vsNode.Name,
+			Tenant:   lib.GetTenant(),
+			PortPool: portPoolSet,
+		}
+	} else {
+		l4policyNode.PortPool = portPoolSet
+	}
 	l4policyNode.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
 	l4Policies = append(l4Policies, l4policyNode)
 	vsNode.L4PolicyRefs = l4Policies
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
 }
 
+func (vs *AviVsNode) deleteOldPoolRef(poolNodeMap map[string]struct{}) {
+	for i := len(vs.PoolRefs) - 1; i >= 0; i-- {
+		if _, ok := poolNodeMap[vs.PoolRefs[i].Name]; !ok {
+			// If not present in current pool map, remove from vs node pool ref
+			vs.PoolRefs = append(vs.PoolRefs[:i], vs.PoolRefs[i+1:]...)
+		}
+	}
+}
 func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
 	if ingress {
 		found, _ := objects.SharedClusterIpLister().Get(ns + "/" + serviceName)
@@ -411,18 +464,39 @@ func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, s
 	return servers
 }
 
+func (o *AviVsNode) findPoolNode(poolName string) *AviPoolNode {
+	for _, poolNode := range o.PoolRefs {
+		if poolNode.Name == poolName {
+			return poolNode
+		}
+	}
+	return nil
+}
+
+func (o *AviVsNode) findL4PolicyNode(l4PolicyName string) *AviL4PolicyNode {
+	for _, l4PolicyNode := range o.L4PolicyRefs {
+		if l4PolicyNode.Name == l4PolicyName {
+			return l4PolicyNode
+		}
+	}
+	return nil
+}
+
 func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var VsNode *AviVsNode
+	var isNewNode bool
 	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, svcName)
 		return
 	}
-	VsNode = o.ConstructAviL4VsNode(svcObj, key)
+	VsNode, isNewNode = o.ConstructAviL4VsNode(svcObj, key)
 	o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
-	o.AddModelNode(VsNode)
+	if isNewNode {
+		o.AddModelNode(VsNode)
+	}
 	utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
 	utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
 }
