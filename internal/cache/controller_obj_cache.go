@@ -2888,6 +2888,9 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 	utils.AviLog.Infof("Setting cloud vType: %v", vType)
 	lib.SetCloudType(vType)
 
+	utils.AviLog.Infof("Setting cloud uuid: %s", *cloud.UUID)
+	lib.SetCloudUUID(*cloud.UUID)
+
 	// IPAM is mandatory for vcenter and noaccess cloud
 	if !lib.IsPublicCloud() && cloud.IPAMProviderRef == nil {
 		*returnErr = fmt.Errorf("Cloud does not have a ipam_provider_ref configured")

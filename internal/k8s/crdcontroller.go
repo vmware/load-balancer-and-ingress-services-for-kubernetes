@@ -889,7 +889,7 @@ func checkRefOnController(key, refKey, refValue string) error {
 		if lib.UsesNetworkRef() {
 			var rest_response interface{}
 			utils.AviLog.Infof("Cloud is  %s, checking network ref using uuid", lib.GetCloudType())
-			uri := fmt.Sprintf("/api/%s/%s", refModelMap[refKey], refValue)
+			uri := fmt.Sprintf("/api/%s/%s?cloud_uuid=%s", refModelMap[refKey], refValue, lib.GetCloudUUID())
 			err := lib.AviGet(clients.AviClient[aviClientLen], uri, &rest_response)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
