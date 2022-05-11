@@ -402,7 +402,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 	akoUser := lib.AKOUser
 
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/poolgroup/?" + "include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -456,7 +456,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 		next_uri := strings.Split(result.Next, "/api/poolgroup")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/poolgroup" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			_, _, err := c.AviPopulateAllPGs(client, cloud, pgData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -504,7 +504,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 	akoUser := lib.AKOUser
 
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/pkiprofile/?" + "&include_name=true&" + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -546,7 +546,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 		next_uri := strings.Split(result.Next, "/api/pkiprofile")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/pkiprofile" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			_, _, err := c.AviPopulateAllPkiPRofiles(client, pkiData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -562,7 +562,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 	akoUser := lib.AKOUser
 
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/pool/?" + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -620,7 +620,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 		next_uri := strings.Split(result.Next, "/api/pool")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/pool" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			_, _, err := c.AviPopulateAllPools(client, cloud, poolData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -695,7 +695,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 	var uri string
 
 	if len(nextPage) == 1 {
-		uri = nextPage[0].Next_uri
+		uri = nextPage[0].NextURI
 	} else {
 		uri = "/api/vsvip/?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true" + "&cloud_ref.name=" + cloud + "&page_size=100"
 	}
@@ -771,7 +771,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		next_uri := strings.Split(result.Next, "/api/vsvip")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/vsvip" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			_, err := c.AviPopulateAllVSVips(client, cloud, vsVipData, nextPage)
 			if err != nil {
 				return nil, err
@@ -816,7 +816,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 	akoUser := lib.AKOUser
 
 	if len(nextPage) == 1 {
-		uri = nextPage[0].Next_uri
+		uri = nextPage[0].NextURI
 	} else {
 		uri = "/api/vsdatascriptset/?" + "&include_name=true&created_by=" + akoUser
 	}
@@ -872,7 +872,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 		next_uri := strings.Split(result.Next, "/api/vsdatascriptset")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/vsdatascriptset" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			_, _, err := c.AviPopulateAllDSs(client, cloud, DsData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -916,7 +916,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 	akoUser := lib.AKOUser
 
 	if len(nextPage) == 1 {
-		uri = nextPage[0].Next_uri
+		uri = nextPage[0].NextURI
 	} else {
 		uri = "/api/sslkeyandcertificate/?" + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -974,7 +974,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 		next_uri := strings.Split(result.Next, "/api/sslkeyandcertificate")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/sslkeyandcertificate" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			_, _, err := c.AviPopulateAllSSLKeys(client, cloud, SslData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -1529,7 +1529,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 	akoUser := lib.AKOUser
 
 	if len(nextPage) == 1 {
-		uri = nextPage[0].Next_uri
+		uri = nextPage[0].NextURI
 	} else {
 		uri = "/api/httppolicyset/?" + "&include_name=true" + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -1596,7 +1596,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 		next_uri := strings.Split(result.Next, "/api/httppolicyset")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/httppolicyset" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			_, _, err := c.AviPopulateAllHttpPolicySets(client, cloud, httpPolicyData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -1643,7 +1643,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 	akoUser := lib.AKOUser
 
 	if len(nextPage) == 1 {
-		uri = nextPage[0].Next_uri
+		uri = nextPage[0].NextURI
 	} else {
 		uri = "/api/l4policyset/?" + "&include_name=true" + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -1716,7 +1716,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		next_uri := strings.Split(result.Next, "/api/l4policyset")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/l4policyset" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			_, _, err := c.AviPopulateAllL4PolicySets(client, cloud, l4PolicyData, nextPage)
 			if err != nil {
 				return nil, 0, err
@@ -1802,7 +1802,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 	var uri string
 	httpCacheRefreshCount := 1 // Refresh count for http cache is attempted once per page
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/virtualservice/?" + "include_name=true" + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
 	}
@@ -2038,7 +2038,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 			if len(next_uri) > 1 {
 				overrideUri := "/api/virtualservice" + next_uri[1]
 				utils.AviLog.Debugf("Next page uri for vs: %s", overrideUri)
-				nextPage := NextPage{Next_uri: overrideUri}
+				nextPage := NextPage{NextURI: overrideUri}
 				c.AviObjVSCachePopulate(client, cloud, vsCacheCopy, nextPage)
 			}
 		}
@@ -2543,7 +2543,7 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 	isCloudValid := checkAndSetCloudType(client, &err)
 	isRequiredValuesValid := checkRequiredValuesYaml(&err)
 	isSegroupValid := validateAndConfigureSeGroup(client, &err)
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		if isTenantValid &&
 			isCloudValid &&
 			isRequiredValuesValid &&
@@ -2936,7 +2936,16 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		return true, nil
 	}
 
-	// 2. Marker based (only advancedL4)
+	// 2. AKO created VIP network for AKO in VCF
+	if utils.IsVCFCluster() {
+		vipNetList := akov1alpha1.AviInfraSettingVipNetwork{
+			NetworkName: lib.GetVCFNetworkName(),
+		}
+		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{vipNetList})
+		return true, nil
+	}
+
+	// 3. Marker based (only advancedL4 - AKO in VDS)
 	var err error
 	markerNetworkFound := ""
 	if lib.GetAdvancedL4() && ipamRefUri != nil {
@@ -2944,7 +2953,8 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		ipam := models.IPAMDNSProviderProfile{}
 		ipamRef := strings.SplitAfter(*ipamRefUri, "/api/")
 		ipamRefWithoutName := strings.Split(ipamRef[1], "#")[0]
-		if err := lib.AviGet(client, "/api/"+ipamRefWithoutName+"/?include_name", &ipam); err != nil {
+		ipamURI := "/api/" + ipamRefWithoutName + "/?include_name"
+		if err := lib.AviGet(client, ipamURI, &ipam); err != nil {
 			return false, fmt.Errorf("Get uri %v returned err %v", ipamRef, err)
 		}
 
@@ -2972,17 +2982,9 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 	}
 
-	// 3. Empty VipNetworkList
-	if lib.GetAdvancedL4() && markerNetworkFound == "" {
+	// 4. Empty VipNetworkList
+	if lib.IsWCP() && markerNetworkFound == "" {
 		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
-		return true, nil
-	}
-
-	if utils.IsVCFCluster() {
-		vipNetList := akov1alpha1.AviInfraSettingVipNetwork{
-			NetworkName: lib.GetVCFNetworkName(),
-		}
-		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{vipNetList})
 		return true, nil
 	}
 
@@ -2993,7 +2995,7 @@ func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []s
 	clusterName := lib.GetClusterID()
 	var uri string
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/network/?include_name&page_size=100&name.in=" + strings.Join(usableNetworkNames, ",")
 	}
@@ -3033,7 +3035,7 @@ func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []s
 		next_uri := strings.Split(result.Next, "/api/network")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/network" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			return fetchNetworkWithMarkerSet(client, usableNetworkNames, nextPage)
 		}
 	}
@@ -3185,7 +3187,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 func fetchAndSetVrf(client *clients.AviClient, overrideUri ...NextPage) (error, bool) {
 	var uri string
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/vrfcontext?" + "&include_name=true&cloud_ref.name=" + utils.CloudName + "&page_size=100"
 	}
@@ -3227,7 +3229,7 @@ func fetchAndSetVrf(client *clients.AviClient, overrideUri ...NextPage) (error, 
 		next_uri := strings.Split(result.Next, "/api/vrfcontext")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/vrfcontext" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			return fetchAndSetVrf(client, nextPage)
 		}
 	}

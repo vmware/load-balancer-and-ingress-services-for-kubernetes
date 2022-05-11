@@ -36,7 +36,7 @@ type Validator struct {
 
 func NewNodesValidator() *Validator {
 	validator := &Validator{}
-	if !lib.GetAdvancedL4() {
+	if !lib.IsWCP() {
 		validator.subDomains = GetDefaultSubDomain()
 	}
 	return validator
@@ -70,7 +70,7 @@ func validateSpecFromHostnameCache(key string, ingress *networkingv1.Ingress) bo
 					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 				}
 			}
-			// In VCF, we use VIP per Namespace, hence same hostname can should not be present across multiple namespaces
+			// In VCF, we use VIP per Namespace, hence same hostname should not be present across multiple namespaces
 			if lib.VIPPerNamespace() {
 				if ok, oldNS := SharedHostNameLister().GetNamespace(rule.Host); ok {
 					if oldNS != ingress.Namespace {

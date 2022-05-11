@@ -92,7 +92,8 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	}
 
 	// If NSX-T LR path is empty, set vrfContext
-	if lib.GetT1LRPath() == "" {
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
+	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
 	}
@@ -114,8 +115,8 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		VipNetworks: lib.GetVipNetworkList(),
 	}
 
-	if lib.GetT1LRPath() != "" {
-		vsVipNode.T1Lr = lib.GetT1LRPath()
+	if t1lr != "" {
+		vsVipNode.T1Lr = t1lr
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -421,8 +422,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 
-			if lib.GetT1LRPath() != "" {
-				poolNode.T1Lr = lib.GetT1LRPath()
+			t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+			if t1lr != "" {
+				poolNode.T1Lr = t1lr
 				// Unset the poolnode's vrfcontext.
 				poolNode.VrfContext = ""
 			}

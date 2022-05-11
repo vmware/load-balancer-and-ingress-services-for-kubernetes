@@ -16,7 +16,6 @@ package ingestion
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -28,8 +27,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -50,7 +47,7 @@ var countLock sync.RWMutex
 type VCFK8sController struct {
 	worker_id        uint32
 	informers        *utils.Informers
-	dynamicInformers *lib.VCFDynamicInformers
+	dynamicInformers *lib.DynamicInformers
 	//workqueue        []workqueue.RateLimitingInterface
 	DisableSync bool
 }
@@ -65,7 +62,7 @@ func SharedVCFK8sController() *VCFK8sController {
 		controllerInstance = &VCFK8sController{
 			worker_id:        (uint32(1) << utils.NumWorkersIngestion) - 1,
 			informers:        utils.GetInformers(),
-			dynamicInformers: lib.GetVCFDynamicInformers(),
+			dynamicInformers: lib.GetDynamicInformers(),
 			DisableSync:      true,
 		}
 	})
@@ -85,58 +82,7 @@ func (c *VCFK8sController) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if lib.VCFInitialized {
-				return
-			}
-			data, ok := obj.(*corev1.Secret)
-			if !ok || data.Namespace != utils.GetAKONamespace() {
-				return
-			}
-			if c.ValidBootStrapData() && startSyncCh != nil {
-				err := c.CreateOrUpdateAviSecret()
-				if err != nil {
-					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
-					lib.ShutdownApi()
-				} else {
-					startSyncCh <- struct{}{}
-					startSyncCh = nil
-				}
-			}
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			if lib.VCFInitialized {
-				return
-			}
-			data, ok := obj.(*corev1.Secret)
-			if !ok || data.Namespace != utils.GetAKONamespace() {
-				return
-			}
-			if c.ValidBootStrapData() && startSyncCh != nil {
-				err := c.CreateOrUpdateAviSecret()
-				if err != nil {
-					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
-					lib.ShutdownApi()
-				} else {
-					startSyncCh <- struct{}{}
-					startSyncCh = nil
-				}
-			}
-		},
-	}
-	c.informers.SecretInformer.Informer().AddEventHandler(NCPSecretHandler)
-
-	go c.informers.SecretInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.informers.SecretInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-	} else {
-		utils.AviLog.Info("Caches synced for NCP Secret informer")
-	}
-}
-
-func (c *VCFK8sController) AddNamespaceEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
+func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 	// Saves the initial workload namespace count during reboot,
 	// before the config handlers are started.
 	if err := c.addWorkloadNamespaceCount(); err != nil {
@@ -166,7 +112,7 @@ func (c *VCFK8sController) AddNamespaceEventHandler(k8sinfo K8sinformers, stopCh
 
 	go c.informers.NSInformer.Informer().Run(stopCh)
 	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for Namespace informer")
 	}
@@ -246,47 +192,35 @@ func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
 	return count, nil
 }
 
-func (c *VCFK8sController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	NCPBootstrapHandler := cache.ResourceEventHandlerFuncs{
+func (c *VCFK8sController) AddConfigMapEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
+	configmapHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NCP Bootstrap ADD Event")
+			utils.AviLog.Infof("ConfigMap Add")
 			if c.ValidBootStrapData() && startSyncCh != nil {
-				err := c.CreateOrUpdateAviSecret()
-				if err != nil {
-					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
-					lib.ShutdownApi()
-				} else {
-					startSyncCh <- struct{}{}
-					startSyncCh = nil
-				}
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
 			}
 		},
 		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Infof("NCP Bootstrap Update Event")
+			utils.AviLog.Infof("ConfigMap Update")
 			if c.ValidBootStrapData() && startSyncCh != nil {
-				err := c.CreateOrUpdateAviSecret()
-				if err != nil {
-					utils.AviLog.Warnf("Failed to create or update AVI Secret, AKO would be rebooted")
-					lib.ShutdownApi()
-				} else {
-					startSyncCh <- struct{}{}
-					startSyncCh = nil
-				}
+				startSyncCh <- struct{}{}
+				startSyncCh = nil
 			}
 		},
 	}
-	c.dynamicInformers.NCPBootstrapInformer.Informer().AddEventHandler(NCPBootstrapHandler)
 
-	go c.dynamicInformers.NCPBootstrapInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NCPBootstrapInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	c.informers.ConfigMapInformer.Informer().AddEventHandler(configmapHandler)
+	go c.informers.ConfigMapInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.informers.ConfigMapInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for NCP Bootstrap informer")
+		utils.AviLog.Info("Caches synced for ConfigMap informer")
 	}
 }
 
-func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
-	NetworkinfoHandler := cache.ResourceEventHandlerFuncs{
+func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
+	networkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info ADD Event")
 			avirest.AddSegment(obj)
@@ -300,13 +234,28 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 			avirest.DeleteSegment(obj)
 		},
 	}
-	c.dynamicInformers.NetworkInfoInformer.Informer().AddEventHandler(NetworkinfoHandler)
+	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(networkInfoHandler)
+	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
 
-	go c.dynamicInformers.NetworkInfoInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.NetworkInfoInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	go c.dynamicInformers.VCFClusterNetworkInformer.Informer().Run(stopCh)
+	ClusterNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info ADD Event")
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info Update Event")
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info Delete Event")
+		},
+	}
+	c.dynamicInformers.VCFClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)
+	if !cache.WaitForCacheSync(stopCh,
+		c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced,
+		c.dynamicInformers.VCFClusterNetworkInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for cluster/namespace network info caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for networkinfo informer")
+		utils.AviLog.Info("Caches synced for cluster/namespace network info informer")
 	}
 }
 
@@ -314,39 +263,11 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 // AVI Controller. If there is any failure, we would look at Bootstrap CR used by NCP to communicate with AKO.
 // If Bootstrap CR is not found, AKO would wait for it to be created. If the authtoken from Bootstrap CR
 // can be used to connect to the AVI Controller, then avi-secret would be created with that token.
-func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struct{}, ctrlCh chan struct{}, skipAviClient ...bool) string {
-	cs := c.informers.ClientSet
-	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
-	ctrlIP := lib.GetControllerURLFromBootstrapCR()
-	if err == nil && ctrlIP != "" {
-		lib.SetControllerIP(ctrlIP)
-		authToken := aviSecret.Data["authtoken"]
-		username := aviSecret.Data["username"]
-		var transport *http.Transport
-		_, err = clients.NewAviClient(
-			ctrlIP, string(username), session.SetAuthToken(string(authToken)),
-			session.SetNoControllerStatusCheck, session.SetTransport(transport),
-			session.SetInsecure,
-		)
-		if err == nil || len(skipAviClient) == 1 {
-			utils.AviLog.Infof("Successfully connected to AVI controller using existing AKO secret")
-			boostrapdata, ok := lib.GetBootstrapCRData()
-			if ok {
-				return boostrapdata.TZPath
-			}
-			utils.AviLog.Warnf("Failed to fetch transportzone from bootstrap CR status")
-		} else {
-			utils.AviLog.Error("AVI controller initialization failed with err: %v", err)
-		}
-	} else {
-		utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)
-	}
-
+func (c *VCFK8sController) HandleVCF(stopCh <-chan struct{}, ctrlCh chan struct{}, skipAviClient ...bool) string {
+	startSyncCh := make(chan struct{})
 	if !c.ValidBootStrapData() {
-		utils.AviLog.Infof("Running in a VCF Cluster, but valid Bootstrap CR not found, waiting .. ")
-		startSyncCh := make(chan struct{})
-		c.AddNCPBootstrapEventHandler(informers, stopCh, startSyncCh)
-		c.AddNCPSecretEventHandler(informers, stopCh, startSyncCh)
+		c.AddConfigMapEventHandler(stopCh, startSyncCh)
+		utils.AviLog.Infof("Running in a VCF Cluster, but valid ConfigMap/Secret not found, waiting ..")
 	L:
 		for {
 			select {
@@ -357,84 +278,74 @@ func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struc
 			}
 		}
 	}
-	utils.AviLog.Infof("NCP Bootstrap CR found, continuing AKO initialization")
-	c.CreateOrUpdateAviSecret()
+
+	c.AddConfigMapEventHandler(stopCh, nil)
+	utils.AviLog.Infof("Bootstrap information found, continuing AKO initialization")
 	return transportZone
 }
 
-func (c *VCFK8sController) CreateOrUpdateAviSecret() error {
-	boostrapdata, ok := lib.GetBootstrapCRData()
-	if !ok {
-		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR")
-		return errors.New("Empty field in Bootstrap CR")
-	}
-
+func (c *VCFK8sController) ValidBootStrapData() bool {
 	cs := c.informers.ClientSet
-
-	var ncpSecret *corev1.Secret
-	var err error
-	ncpSecret, err = cs.CoreV1().Secrets(boostrapdata.SecretNamespace).Get(context.TODO(), boostrapdata.SecretName, metav1.GetOptions{})
+	configmap, err := cs.CoreV1().ConfigMaps("vmware-system-ako").Get(context.TODO(), "avi-k8s-config", metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Failed to get secret, got err: %v", err)
-		return err
+		utils.AviLog.Warnf("Failed to get ConfigMap, got err: %v", err)
+		return false
 	}
 
-	var aviSecret corev1.Secret
-	aviSecret.ObjectMeta.Name = lib.AviSecret
-	aviSecret.Data = make(map[string][]byte)
-	aviSecret.Data["authtoken"] = []byte(ncpSecret.Data["authToken"])
-	aviSecret.Data["username"] = []byte(boostrapdata.UserName)
+	controllerIP := configmap.Data["controllerIP"]
+	secretName := configmap.Data["credentialsSecretName"]
+	secretNamespace := configmap.Data["credentialsSecretNamespace"]
 
-	_, err = cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
-	if k8serrors.IsNotFound(err) {
-		_, err = cs.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), &aviSecret, metav1.CreateOptions{})
-		if err != nil {
-			utils.AviLog.Warnf("Failed to create avi-secret, err: %v", err)
-			return err
-		}
-		return nil
+	// The transport zone is used in order to identify the cloud in Avi controller.
+	// We take the cloudName from the configmap in case of a VCF cluster which would
+	// in fact have the transportZone information.
+	transportzone := configmap.Data["cloudName"]
+	utils.AviLog.Infof("Got data from ConfigMap %v", utils.Stringify(configmap.Data))
+	if controllerIP == "" || secretName == "" || secretNamespace == "" || transportzone == "" {
+		utils.AviLog.Infof("ConfigMap data insufficient")
+		return false
 	}
 
-	_, err = cs.CoreV1().Secrets(utils.GetAKONamespace()).Update(context.TODO(), &aviSecret, metav1.UpdateOptions{})
-	if err != nil {
-		utils.AviLog.Warnf("Failed to update avi-secret, err: %v", err)
-		return err
-	}
-
-	return nil
+	setTranzportZone(transportzone)
+	return c.ValidBootstrapSecretData(controllerIP, secretName, secretNamespace)
 }
 
-func (c *VCFK8sController) ValidBootStrapData() bool {
-	utils.AviLog.Infof("Validating NCP Boostrap data for AKO")
+func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, secretNamespace string) bool {
 	cs := c.informers.ClientSet
-	boostrapdata, ok := lib.GetBootstrapCRData()
-	if !ok {
-		utils.AviLog.Infof("Got empty data from for one or more fields from Bootstrap CR")
-		return false
-	}
-	utils.AviLog.Infof("Got data from Bootstrap CR, secretName: %s, namespace: %s, username: %s, tansportzone: %s", boostrapdata.SecretName, boostrapdata.SecretNamespace, boostrapdata.UserName, boostrapdata.TZPath)
-	setTranzportZone(boostrapdata.TZPath)
-	var ncpSecret *corev1.Secret
-	var err error
-	ncpSecret, err = cs.CoreV1().Secrets(boostrapdata.SecretNamespace).Get(context.TODO(), boostrapdata.SecretName, metav1.GetOptions{})
+	ncpSecret, err := cs.CoreV1().Secrets(secretNamespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Failed to get secret, got err: %v", err)
+		utils.AviLog.Warnf("Failed to get Secret, got err: %v", err)
 		return false
 	}
-	authToken := ncpSecret.Data["authToken"]
-	ctrlIP := boostrapdata.AviURL
-	lib.SetControllerIP(ctrlIP)
+
+	authToken := string(ncpSecret.Data["authtoken"])
+	username := string(ncpSecret.Data["username"])
+	lib.SetControllerIP(controllerIP)
+
 	var transport *http.Transport
-	_, err = clients.NewAviClient(
-		ctrlIP, boostrapdata.UserName, session.SetAuthToken(string(authToken)),
+	aviClient, err := clients.NewAviClient(
+		controllerIP, username, session.SetAuthToken(string(authToken)),
 		session.SetNoControllerStatusCheck, session.SetTransport(transport),
 		session.SetInsecure,
 	)
 	if err != nil {
-		utils.AviLog.Infof("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
-		c.deleteNCPSecret(boostrapdata.SecretName, boostrapdata.SecretNamespace)
+		utils.AviLog.Errorf("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
+		c.deleteNCPSecret(secretName, secretNamespace)
 		return false
 	}
+
+	ctrlVersion := lib.GetControllerVersion()
+	if ctrlVersion == "" {
+		version, err := aviClient.AviSession.GetControllerVersion()
+		if err == nil {
+			utils.AviLog.Infof("Setting the client version to the current controller version %v", version)
+			ctrlVersion = version
+		}
+	}
+	SetVersion := session.SetVersion(ctrlVersion)
+	SetVersion(aviClient.AviSession)
+
+	avirest.InfraAviClientInstance(aviClient)
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
 	return true
 }
@@ -449,6 +360,7 @@ func (c *VCFK8sController) deleteNCPSecret(name, ns string) {
 
 func setTranzportZone(tzPath string) {
 	tzonce.Do(func() {
+		utils.AviLog.Infof("TransportZone to use for AKO is set to %s", tzPath)
 		transportZone = tzPath
 	})
 }

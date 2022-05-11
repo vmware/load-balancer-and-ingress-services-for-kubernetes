@@ -16,7 +16,9 @@ package lib
 
 import (
 	"context"
+	"os"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -36,6 +38,10 @@ import (
 	advl4crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
 	advl4informer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis/v1alpha1pre1"
 )
+
+func init() {
+
+}
 
 type AdvL4Informers struct {
 	GatewayInformer      advl4informer.GatewayInformer
@@ -102,15 +108,21 @@ type akoControlConfig struct {
 	licenseType string
 
 	// primaryaAKO is set to true/false if as per primaryaAKO value
-	//in values.yaml
+	// in values.yaml
 	primaryaAKO bool
+
+	// controllerVersion stores the version of the controller to
+	// which AKO is communicating with
+	controllerVersion string
 }
 
 var akoControlConfigInstance *akoControlConfig
 
 func AKOControlConfig() *akoControlConfig {
 	if akoControlConfigInstance == nil {
-		akoControlConfigInstance = &akoControlConfig{}
+		akoControlConfigInstance = &akoControlConfig{
+			controllerVersion: initControllerVersion(),
+		}
 	}
 	return akoControlConfigInstance
 }
@@ -118,6 +130,7 @@ func AKOControlConfig() *akoControlConfig {
 func (c *akoControlConfig) SetAKOInstanceFlag(flag bool) {
 	c.primaryaAKO = flag
 }
+
 func (c *akoControlConfig) GetAKOInstanceFlag() bool {
 	return c.primaryaAKO
 }
@@ -203,6 +216,38 @@ func (c *akoControlConfig) HostRuleEnabled() bool {
 
 func (c *akoControlConfig) HttpRuleEnabled() bool {
 	return c.httpRuleEnabled
+}
+
+func (c *akoControlConfig) ControllerVersion() string {
+	return c.controllerVersion
+}
+
+func (c *akoControlConfig) SetControllerVersion(v string) {
+	c.controllerVersion = v
+}
+
+func initControllerVersion() string {
+	version := os.Getenv("CTRL_VERSION")
+	if version != "" {
+		return version
+	}
+
+	// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
+	if CompareVersions(version, ">", GetAviMaxSupportedVersion()) {
+		utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", GetAviMaxSupportedVersion())
+		version = GetAviMaxSupportedVersion()
+		return version
+	}
+
+	if CompareVersions(version, "<", GetAviMinSupportedVersion()) {
+		AKOControlConfig().PodEventf(
+			corev1.EventTypeWarning,
+			AKOShutdown, "AKO is running with unsupported Avi version %s",
+			version,
+		)
+		utils.AviLog.Fatalf("AKO is not supported for the Avi version %s, Avi must be %s or more", version, GetAviMinSupportedVersion())
+	}
+	return ""
 }
 
 func (c *akoControlConfig) SetIstioClientset(cs istiocrd.Interface) {

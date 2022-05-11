@@ -149,7 +149,7 @@ func GetNamePrefix() string {
 }
 
 func Encode(s, objType string) string {
-	if !IsEvhEnabled() || GetAdvancedL4() {
+	if !IsEvhEnabled() || IsWCP() {
 		CheckObjectNameLength(s, objType)
 		return s
 	}
@@ -291,7 +291,7 @@ func GetAKOUser() string {
 }
 
 func GetshardSize() uint32 {
-	if GetAdvancedL4() {
+	if IsWCP() {
 		// shard to 8 go routines in the REST layer
 		return ShardSizeMap["LARGE"]
 	}
@@ -305,7 +305,7 @@ func GetshardSize() uint32 {
 }
 
 func GetL4FqdnFormat() string {
-	if GetAdvancedL4() {
+	if IsWCP() {
 		// disable for advancedL4
 		return AutoFQDNDisabled
 	}
@@ -649,8 +649,8 @@ func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
 
 func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-	if GetAdvancedL4() || utils.IsVCFCluster() {
-		// do not return error in case of advancedL4 (wcp)
+	if IsWCP() {
+		// do not return error in case of WCP deployments.
 		return vipNetworkList, nil
 	}
 	vipNetworkListStr := os.Getenv(VIP_NETWORK_LIST)
@@ -681,17 +681,8 @@ func GetGlobalBgpPeerLabels() []string {
 	return bgpPeerLabels
 }
 
-var t1LrPath string
-
-func SetT1LRPath(lr string) {
-	t1LrPath = lr
-}
-
 func GetT1LRPath() string {
-	if t1LrPath == "" {
-		t1LrPath = os.Getenv("NSXT_T1_LR")
-	}
-	return t1LrPath
+	return os.Getenv("NSXT_T1_LR")
 }
 
 var SEGroupName string
@@ -753,22 +744,27 @@ func GetDomain() string {
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {
 	advanceL4 := os.Getenv(ADVANCED_L4)
-	if advanceL4 == "true" {
+	return advanceL4 == "true"
+}
 
+// Wrapper function for AKO running in either VDS
+// or VCF (WCP with NSX).
+func IsWCP() bool {
+	if GetAdvancedL4() || utils.IsVCFCluster() {
 		return true
 	}
 	return false
 }
 
 type NextPage struct {
-	Next_uri   string
+	NextURI    string
 	Collection interface{}
 }
 
 func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPage) (error, string) {
 	var uri string
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
 	}
@@ -825,7 +821,7 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 		next_uri := strings.Split(result.Next, "/api/serviceenginegroup")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/serviceenginegroup" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			return FetchSEGroupWithMarkerSet(client, nextPage)
 		}
 	}
@@ -873,7 +869,7 @@ func IsValidCni(returnErr *error) bool {
 
 func GetDisableStaticRoute() bool {
 	// We don't need the static routes for NSX-T cloud
-	if GetAdvancedL4() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
+	if IsWCP() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
 		return true
 	}
 	if ok, _ := strconv.ParseBool(os.Getenv(DISABLE_STATIC_ROUTE_SYNC)); ok {
@@ -886,7 +882,7 @@ func GetDisableStaticRoute() bool {
 }
 
 func GetClusterName() string {
-	if GetAdvancedL4() {
+	if IsWCP() {
 		return GetClusterIDSplit()
 	}
 	clusterName := os.Getenv(CLUSTER_NAME)
@@ -1156,20 +1152,32 @@ func PopulatePassthroughPoolMarkers(host, svcName string) utils.AviObjectMarkers
 
 func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset, akoInfra bool) ([]string, error) {
 	var isOshift bool
+	// Initialize the following informers in all AKO deployments. Provide AKO the ability to watch over
+	// Services, Endpoints, Secrets, ConfigMaps and Namespaces.
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
-		utils.PodInformer,
+		utils.NSInformer,
 	}
 
+	// AKO must watch over Pods in case of NodePortLocal, to get Antrea annotation values.
 	if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
 	}
 
+	// Watch over Ingresses for AKO deployment in WCP with NSX.
+	if utils.IsVCFCluster() {
+		allInformers = append(allInformers, utils.IngressInformer)
+		allInformers = append(allInformers, utils.IngressClassInformer)
+	}
+
+	// For all deployments excluding AKO in VDS, watch over
+	// Nodes, Ingresses, IngressClasses, Routes, MultiClusterIngress and ServiceImports.
+	// Routes should be watched over in Openshift environments only.
+	// MultiClusterIngress and ServiceImport should be watched over only when MCI is enabled.
 	if !GetAdvancedL4() {
-		allInformers = append(allInformers, utils.NSInformer)
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
@@ -1195,10 +1203,6 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			allInformers = append(allInformers, utils.MultiClusterIngressInformer)
 			allInformers = append(allInformers, utils.ServiceImportInformer)
 		}
-	}
-
-	if akoInfra {
-		allInformers = append(allInformers, utils.NSInformer)
 	}
 
 	return allInformers, nil
@@ -1665,7 +1669,7 @@ func GetK8sMaxSupportedVersion() string {
 }
 
 func GetControllerVersion() string {
-	controllerVersion := utils.CtrlVersion
+	controllerVersion := AKOControlConfig().ControllerVersion()
 	// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
 	if CompareVersions(controllerVersion, ">", GetAviMaxSupportedVersion()) {
 		utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", GetAviMaxSupportedVersion())

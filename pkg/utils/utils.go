@@ -40,12 +40,10 @@ import (
 	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 )
 
-var CtrlVersion string
 var runtimeScheme = k8sruntime.NewScheme()
 
 func init() {
-	//Setting the package-wide version
-	CtrlVersion = os.Getenv("CTRL_VERSION")
+	// Setting the package-wide version
 	networkingv1.AddToScheme(runtimeScheme)
 }
 
@@ -420,7 +418,7 @@ func CheckIfNamespaceAccepted(namespace string, opts ...interface{}) bool {
 	return false
 }
 func IsServiceNSValid(namespace string) bool {
-	//L4 Namespace sync not applicable for advance L4
+	// L4 Namespace sync not applicable for advance L4
 	if !GetAdvancedL4() {
 		if !CheckIfNamespaceAccepted(namespace) {
 			return false
