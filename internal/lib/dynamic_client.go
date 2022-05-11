@@ -21,15 +21,18 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
@@ -300,4 +303,38 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 // GetCNIPlugin returns the user provided CNI plugin - oneof (calico|canal|flannel)
 func GetCNIPlugin() string {
 	return strings.ToLower(os.Getenv(CNI_PLUGIN))
+}
+
+// WaitForInitSecretRecreateAndReboot Deletes the avi-init-secret provided by NCP,
+// in order for NCP to generate the token and recreate the Secret. After Secret deletion,
+// once AKO finds a new Secret created, it reboots in order to refresh the Client and
+// Session to the Avi Controller.
+// This can be further improved to update Avi Controller Session during runtime, but
+// is complicated business right now.
+func WaitForInitSecretRecreateAndReboot() {
+	cs := utils.GetInformers().ClientSet
+	if err := cs.CoreV1().Secrets("vmware-system-ako").Delete(context.TODO(), "avi-init-secret", metav1.DeleteOptions{}); err != nil {
+		utils.AviLog.Errorf("Error while deleting the init Secret for Secret refresh.")
+		return
+	}
+
+	var checkForInitSecretRecreate = func(cs kubernetes.Interface) error {
+		_, err := cs.CoreV1().Secrets("vmware-system-ako").Get(context.TODO(), "avi-init-secret", metav1.GetOptions{})
+		return err
+	}
+
+	defer utils.AviLog.Fatalf("Found new init secret, rebooting AKO")
+	// This waits for AKO to get a new refreshed Secret for a total of 75 seconds.
+	for retry := 0; retry < 15; retry++ {
+		err := checkForInitSecretRecreate(cs)
+		if err == nil {
+			return
+		}
+		if k8serrors.IsNotFound(err) {
+			utils.AviLog.Infof("init Secret not found, retrying...")
+		} else {
+			utils.AviLog.Fatalf(err.Error())
+		}
+		time.Sleep(5 * time.Second)
+	}
 }
