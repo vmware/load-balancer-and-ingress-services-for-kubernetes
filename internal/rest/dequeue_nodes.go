@@ -230,7 +230,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 }
 
 // CheckAndPublishForRetry : Check if the error is of type 401, has string "Rest request error" or was timed out,
-// then publish the key to retry layer. These error do not depend on the objet state, hence cache refresh is not required.
+// then publish the key to retry layer. These error do not depend on the object state, hence cache refresh is not required.
 func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key string, avimodel *nodes.AviObjectGraph) bool {
 	if err == nil {
 		return false
@@ -240,6 +240,10 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key s
 			switch aviError.HttpStatusCode {
 			case 401:
 				if strings.Contains(*aviError.Message, "Invalid credentials") {
+					if utils.IsVCFCluster() {
+						lib.WaitForInitSecretRecreateAndReboot()
+						return true
+					}
 					utils.AviLog.Errorf("key: %s, msg: Invalid credentials error, Shutting down API Server", key)
 					lib.ShutdownApi()
 				} else if avimodel != nil && avimodel.GetRetryCounter() != 0 {

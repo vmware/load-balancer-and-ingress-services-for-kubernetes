@@ -231,6 +231,11 @@ func checkForInvalidCredentials(uri string, err error) {
 		return
 	}
 
+	if utils.IsVCFCluster() {
+		WaitForInitSecretRecreateAndReboot()
+		return
+	}
+
 	if webSyncErr, ok := err.(*utils.WebSyncError); ok {
 		aviError, ok := webSyncErr.GetWebAPIError().(session.AviError)
 		if ok && aviError.HttpStatusCode == 401 {

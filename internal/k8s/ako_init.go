@@ -450,8 +450,7 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 	}
 
 	if !c.ValidAviSecret() {
-		c.informers.ClientSet.CoreV1().Secrets("vmware-system-ako").Delete(context.TODO(), "avi-init-secret", metav1.DeleteOptions{})
-		utils.AviLog.Fatalf("Valid Avi Secret not found, removing init-secret and stopping AKO.")
+		lib.WaitForInitSecretRecreateAndReboot()
 	}
 	utils.AviLog.Infof("Valid Avi Secret found, continuing ..")
 
