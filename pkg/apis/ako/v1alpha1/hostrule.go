@@ -105,7 +105,7 @@ type HostRuleSecret struct {
 type HostRuleSSLKeyCertificate struct {
 	Name                 string             `json:"name,omitempty"`
 	Type                 HostRuleSecretType `json:"type,omitempty"`
-	AlternateCertificate HostRuleSecret     `json:"alternateCertificate,omitempty"`
+	AlternateCertificate *HostRuleSecret    `json:"alternateCertificate,omitempty"`
 }
 
 type HostRuleSecretType string
