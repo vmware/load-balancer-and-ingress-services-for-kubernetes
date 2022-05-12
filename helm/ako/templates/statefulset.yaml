@@ -91,11 +91,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: istioEnabled
-          - name: VIP_PER_NAMESPACE
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: vipPerNamespace
           - name: SHARD_VS_SIZE
             valueFrom:
               configMapKeyRef:

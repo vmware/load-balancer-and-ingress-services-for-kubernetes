@@ -1749,8 +1749,7 @@ func GetControllerVersion() string {
 }
 
 func VIPPerNamespace() bool {
-	vipPerNS := os.Getenv(VIP_PER_NAMESPACE)
-	return vipPerNS == "true"
+	return utils.IsVCFCluster()
 }
 
 var controllerIP string
