@@ -34,20 +34,20 @@ helm search repo
 
 NAME            	CHART VERSION	APP VERSION	DESCRIPTION
 ako/ako         	1.6.1        	1.6.1      	A helm chart for Avi Kubernetes Operator
-ako/ako-operator	1.6.2        	1.6.2      	A Helm chart for Kubernetes AKO Operator
+ako/ako-operator	1.6.3        	1.6.3      	A Helm chart for Kubernetes AKO Operator
 ako/amko        	1.6.1        	1.6.1      	A helm chart for Avi Kubernetes Operator
 ```
 
 <i>**Step 4**</i>: Use the values.yaml from this chart to edit values related to Avi configuration. To get the values.yaml for a release, run the following command:
 ```
-helm show values ako/ako-operator --version 1.6.2 > values.yaml
+helm show values ako/ako-operator --version 1.6.3 > values.yaml
 ```
 
 <i>**Step 5**</i>: Edit the <i>values.yaml</i> file and update the details according to your environment.
 
 <i>**Step 6**</i>: Install the Operator:
 ```
-helm install  ako/ako-operator  --generate-name --version 1.6.2 -f /path/to/values.yaml --namespace=avi-system
+helm install  ako/ako-operator  --generate-name --version 1.6.3 -f /path/to/values.yaml --namespace=avi-system
 ```
 
 <i>**Step 7**</i>: Verify the installation:
@@ -114,7 +114,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services | First domainname found in cloud's dnsprofile |
 | `L4Settings.autoFQDN`  | Specify the layer 4 FQDN format | default | 
 | `ControllerSettings.serviceEngineGroupName` | Name of the Service Engine Group | Default-Group | 
-| `ControllerSettings.controllerVersion` | Avi Controller version | 18.2.10 |
+| `ControllerSettings.controllerVersion` | Avi Controller version | Current Controller version |
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
 | `ControllerSettings.controllerHost` | Specify Avi controller IP or Hostname | `nil` |
 | `ControllerSettings.tenantsPerCluster` | If set to true, AKO will map each kubernetes cluster uniquely to a tenant in Avi | false |
