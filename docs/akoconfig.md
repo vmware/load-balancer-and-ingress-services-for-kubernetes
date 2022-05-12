@@ -27,7 +27,6 @@ spec:
       labelKey: ""
       labelValue: ""
     servicesAPI: false
-    vipPerNamespace: false
 
   networkSettings:
     nodeNetworkList: []
@@ -94,7 +93,6 @@ spec:
     * `namespaceSelector.labelKey`: Set the key of a namespace's label, if the requirement is to sync k8s objects from that namespace.
     * `namespaceSelector.labelValue`: Set the value of a namespace's label, if the requirement is to sync k8s objects from that namespace.
     * `servicesAPI`: Flag that enables AKO in services API mode: https://kubernetes-sigs.github.io/service-apis/. Currently implemented only for L4. This flag uses the upstream GA APIs which are not backward compatible with the advancedL4 APIs which uses a fork and a version of v1alpha1pre1
-    * `vipPerNamespace`: # Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
   - `networkSettings`: Data network setting
     * `nodeNetworkList`: This list of network and cidrs are used in pool placement network for vcenter cloud. Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
     * `enableRHI`: This is a cluster wide setting for BGP peering.
