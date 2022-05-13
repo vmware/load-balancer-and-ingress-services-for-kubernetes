@@ -545,7 +545,7 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 
 	oldRouteStatus := mRoute.Status.DeepCopy()
 	if len(option.ServiceMetadata.HostNames) > 0 {
-		// If the route status for the host is already fasle, then don't delete the status
+		// If the route status for the host is already false, then don't delete the status
 		if !routeStatusCheck(key, oldRouteStatus.Ingress, option.ServiceMetadata.HostNames[0]) {
 			return nil
 		}
