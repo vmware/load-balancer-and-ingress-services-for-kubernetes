@@ -690,7 +690,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		for pathPrefix := range pathRules {
 			re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, strings.ReplaceAll(pathPrefix, `/`, `\/`)))
 			for path, ingresses := range pathIngs {
-				if !re.MatchString(path) {
+				if path != "" && !re.MatchString(path) {
 					continue
 				}
 				utils.AviLog.Debugf("key: %s, msg: Computing for path %s in ingresses %v", key, path, ingresses)
@@ -710,7 +710,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		for oldPathPrefix := range oldPathRules {
 			re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, strings.ReplaceAll(oldPathPrefix, `/`, `\/`)))
 			for oldPath, oldIngresses := range oldPathIngs {
-				if !re.MatchString(oldPath) {
+				if oldPath != "" && !re.MatchString(oldPath) {
 					continue
 				}
 				utils.AviLog.Debugf("key: %s, msg: Computing for oldPath %s in oldIngresses %v", key, oldPath, oldIngresses)
