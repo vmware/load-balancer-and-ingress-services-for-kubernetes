@@ -218,8 +218,7 @@ func (rest *RestOperations) AviPoolDel(uuid string, tenant string, key string) *
 		Tenant: tenant,
 		Model:  "Pool",
 	}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: pool DELETE Restop %v ", key,
-		utils.Stringify(rest_op)))
+	utils.AviLog.Infof("key: %s, msg: pool DELETE Restop %v ", key, utils.Stringify(rest_op))
 	return &rest_op
 }
 
@@ -355,14 +354,12 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 					}
 				}
 			}
-
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPoolKeyCollection(k)
-			utils.AviLog.Debug(spew.Sprintf("key: %s, msg: added VS cache key during pool update %v val %v", key, vsKey,
-				vs_cache_obj))
+			utils.AviLog.Debugf("key: %s, msg: added VS cache key during pool update %v val %v", key, vsKey, utils.Stringify(vs_cache_obj))
 		}
-		utils.AviLog.Info("key: %s, msg: Added Pool cache k %v val %v", key, k, utils.Stringify(pool_cache_obj))
+		utils.AviLog.Infof("key: %s, msg: Added Pool cache k %v val %v", key, k, utils.Stringify(pool_cache_obj))
 	}
 
 	return nil

@@ -168,6 +168,7 @@ const (
 	SSLPort                                    = 443
 	IPAMProviderInfoblox                       = "IPAMDNS_TYPE_INFOBLOX"
 	IPAMProviderCustom                         = "IPAMDNS_TYPE_CUSTOM"
+	SharedVipServiceKey                        = "SharedVipService"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"
@@ -213,6 +214,7 @@ const (
 	WCPCloud                       = "ako.vmware.com/wcp-cloud-name"
 	VSAnnotation                   = "ako.vmware.com/host-fqdn-vs-uuid-map"
 	ControllerAnnotation           = "ako.vmware.com/controller-cluster-uuid"
+	SharedVipSvcLBAnnotation       = "ako.vmware.com/enable-shared-vip"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

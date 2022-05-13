@@ -589,12 +589,17 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				if lib.GetAdvancedL4() {
 					checkSvcForGatewayPortConflict(svc, key)
 				}
-				if lib.UseServicesAPI() {
-					checkSvcForSvcApiGatewayPortConflict(svc, key)
+				if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+					// mark the object type as ShareVipSvc
+					// to separate these out from regulare clusterip, svclb services
+					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
 				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
+				}
+				if lib.UseServicesAPI() {
+					checkSvcForSvcApiGatewayPortConflict(svc, key)
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
 			}
@@ -634,6 +639,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
+				if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+					// mark the object type as ShareVipSvc
+					// to separate these out from regulare clusterip, svclb services
+					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
+				}
 			} else {
 				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
@@ -665,19 +675,38 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					if lib.GetAdvancedL4() {
 						checkSvcForGatewayPortConflict(svc, key)
 					}
-					if lib.UseServicesAPI() {
-						checkSvcForSvcApiGatewayPortConflict(svc, key)
+					if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+						key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 					}
 				} else {
 					if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
+					if lib.UseServicesAPI() {
+						checkSvcForSvcApiGatewayPortConflict(svc, key)
+					}
 					key = utils.Service + "/" + utils.ObjKey(svc)
 				}
 
 				bkt := utils.Bkt(namespace, numWorkers)
+				var oldKey string
+				if isSvcLb &&
+					!lib.GetLayer7Only() &&
+					oldobj.Annotations[lib.SharedVipSvcLBAnnotation] != svc.Annotations[lib.SharedVipSvcLBAnnotation] {
+					if oldobj.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+						// Handles annotation -> no-annotation transition, old pool needs to be deleted.
+						oldKey = lib.SharedVipServiceKey + "/" + utils.ObjKey(oldobj)
+					} else {
+						// Handles no-annotation -> annotation transition too, old L4 VS is deleted.
+						oldKey = utils.L4LBService + "/" + utils.ObjKey(oldobj)
+					}
+				}
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				if oldKey != "" && key != oldKey {
+					c.workqueue[bkt].AddRateLimited(oldKey)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", oldKey)
+				}
 			}
 		},
 	}
