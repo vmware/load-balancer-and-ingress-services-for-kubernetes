@@ -45,6 +45,10 @@ var (
 		GetParentGateways:              SvcToGateway,
 		GetParentMultiClusterIngresses: SvcToMultiClusterIng,
 	}
+	SharedVipService = GraphSchema{
+		Type:              "SharedVipService",
+		GetParentServices: ServiceChanges,
+	}
 	Ingress = GraphSchema{
 		Type:               "Ingress",
 		GetParentIngresses: IngressChanges,
@@ -116,6 +120,7 @@ var (
 		Ingress,
 		IngressClass,
 		Service,
+		SharedVipService,
 		Pod,
 		Endpoint,
 		Secret,
@@ -813,6 +818,34 @@ func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]s
 
 	utils.AviLog.Debugf("key: %s, msg: total services retrieved from AviInfraSettings: %s", key, allSvcs)
 	return allSvcs, true
+}
+
+func ServiceChanges(serviceName, namespace, key string) ([]string, bool) {
+	var vipKeys []string
+	serviceNamespaceName := namespace + "/" + serviceName
+	serviceObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(serviceName)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			if found, oldKey := objects.SharedlbLister().GetServiceToSharedVipKey(serviceNamespaceName); found {
+				vipKeys = append(vipKeys, oldKey)
+			}
+			objects.SharedlbLister().RemoveSharedVipKeyServiceMappings(serviceNamespaceName)
+		}
+	} else {
+		found, oldKey := objects.SharedlbLister().GetServiceToSharedVipKey(serviceNamespaceName)
+		if found {
+			vipKeys = append(vipKeys, oldKey)
+			objects.SharedlbLister().RemoveSharedVipKeyServiceMappings(serviceNamespaceName)
+		}
+
+		if currentKey, ok := serviceObj.Annotations[lib.SharedVipSvcLBAnnotation]; ok {
+			if currentKey != oldKey {
+				vipKeys = append(vipKeys, serviceObj.Namespace+"/"+currentKey)
+			}
+			objects.SharedlbLister().UpdateSharedVipKeyServiceMappings(serviceObj.Namespace+"/"+currentKey, serviceNamespaceName)
+		}
+	}
+	return vipKeys, true
 }
 
 func parseServicesForIngress(ingSpec networkingv1.IngressSpec, key string) []string {
