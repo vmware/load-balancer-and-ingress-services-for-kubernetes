@@ -43,9 +43,10 @@ var ctrlonce sync.Once
 // These tags below are only applicable in case of advanced L4 features at the moment.
 
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;patch;update
-// +kubebuilder:rbac:groups=ncp.vmware.com,resources=akobootstrapconditions;akobootstrapconditions/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=nsx.vmware.com,resources=namespacenetworkinfos;namespacenetworkinfos/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nsx.vmware.com,resources=clustertworkinfos;clustertworkinfos/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=extensions;networking.k8s.io,resources=ingresses;ingresses/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=extensions;networking.k8s.io,resources=ingressclasses;ingressclasses/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;delete;update;patch
