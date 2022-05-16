@@ -374,15 +374,26 @@ func (rest *RestOperations) AviVsVipPut(uuid string, vsvipObj *avimodels.VsVip, 
 }
 
 func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicache.NamespaceName, key string) error {
+	var oldVsVips, oldVsFips []string
 	if (rest_op.Err != nil) || (rest_op.Response == nil) {
 		if rest_op.Message == "" {
 			utils.AviLog.Warnf("key: %s, rest_op has err or no response for vsvip err: %v, response: %v", key, rest_op.Err, rest_op.Response)
 			return errors.New("Errored vsvip rest_op")
 		}
-
 		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
+			if found {
+				oldVsVipCache, oldVsVipFound := rest.cache.VSVIPCache.AviCacheGet(vsKey)
+
+				if oldVsVipFound {
+					oldVsVipCacheObj, ok := oldVsVipCache.(*avicache.AviVSVIPCache)
+					if ok {
+						oldVsVips = oldVsVipCacheObj.Vips
+						oldVsFips = oldVsVipCacheObj.Fips
+					}
+				}
+			}
 			if found && vs_cache_obj.ServiceMetadataObj.Gateway != "" {
 				gwNSName := strings.Split(vs_cache_obj.ServiceMetadataObj.Gateway, "/")
 				if lib.GetAdvancedL4() {
@@ -550,16 +561,6 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				oldVsVipCache, oldVsVipFound := rest.cache.VSVIPCache.AviCacheGet(k)
-				var oldVsVips, oldVsFips []string
-				if oldVsVipFound {
-					oldVsVipCacheObj, ok := oldVsVipCache.(*avicache.AviVSVIPCache)
-					if ok {
-						oldVsVips = oldVsVipCacheObj.Vips
-						oldVsFips = oldVsVipCacheObj.Fips
-					}
-				}
-
 				vs_cache_obj.AddToVSVipKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if rest_op.Method == utils.RestPut {
