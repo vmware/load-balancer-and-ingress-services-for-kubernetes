@@ -22,9 +22,9 @@ The logLevel value specified here gets populated in the ConfigMap and can be edi
 ### AKOSettings.deleteConfig *(editable)*
 
 This flag is intended to be used for deletion of objects in AVI Controller. The default value is false.
-If the value is set to true while booting up, AKO won't process any kubernetes object and stop regular operations.
+If the value is set to true while booting up, AKO will continue to delete all objects created by AKO in AVI. AKO won't process any kubernetes object and stop regular operations.
 
-While AKO is running, this value can be edited to "true" in AKO configmap to delete all abjects created by AKO in AVI.
+While AKO is running, this value can be edited to "true" in AKO configmap to delete all objects created by AKO in AVI.
 After that, if the value is set to "false", AKO would resume processing kubernetes objects and recreate all the objects in AVI.
 
 ### AKOSettings.disableStaticRouteSync
@@ -76,6 +76,10 @@ AKO allows ingresses/routes from specific namespace/s to be synced to Avi contro
 ### AKOSetttings.servicesAPI
 
 Use this flag to enable AKO to watch over Gateway API CRDs i.e. GatewayClasses and Gateways. AKO only supports Gateway APIs with Layer 4 Services. Setting this to `true` would enable users to configure GatewayClass and Gateway CRs to aggregate multiple Layer 4 Services and create one VirtualService per Gateway Object. 
+
+### AKOSetttings.primaryInstance
+
+Multiple AKO instances can be deployed in a given cluster. This knob is used to specify current AKO instance is primary or not. Setting this to `true` would make current AKO as a primary instance. In a given cluster, there should be only one primary instance. Default value is `true`.
 
 ### NetworkSettings.nodeNetworkList
 
