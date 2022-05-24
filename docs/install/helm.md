@@ -23,14 +23,14 @@ Step 3: Search the available charts for AKO
 helm search repo
 
 NAME                 	CHART VERSION	    APP VERSION	        DESCRIPTION
-ako/ako              	1.4.2        	    1.4.2      	        A helm chart for Avi Kubernetes Operator
+ako/ako              	1.7.1        	    1.7.1      	        A helm chart for Avi Kubernetes Operator
 
 ```
 
 Use the `values.yaml` from this chart to edit values related to Avi configuration. To get the values.yaml for a release, run the following command
 
 ```
-helm show values ako/ako --version 1.4.2 > values.yaml
+helm show values ako/ako --version 1.7.1 > values.yaml
 
 ```
 
@@ -38,8 +38,20 @@ Values and their corresponding index can be found [here](#parameters)
 
 Step 4: Install AKO
 
+With AKO-1.7.1, multiple AKO instances can be installed in a cluster.
+> **Note**: <br>
+    1. Out of multiple AKO instances, only one AKO instance should be `Primary`. <br>
+    2. Each AKO instance should be installed in a different namespace.
+
+<b>Primary AKO installation</b>
 ```
-helm install  ako/ako  --generate-name --version 1.4.2 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
+helm install  ako/ako  --generate-name --version 1.7.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
+```
+
+<b>Secondary AKO installation</b>
+```
+helm install  ako/ako  --generate-name --version 1.7.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-system
+
 ```
 
 Step 5: Check the installation
@@ -78,7 +90,7 @@ Follow these steps if you are upgrading from an older AKO release.
 Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to download and upgrade the CRDs:
 
 ```
-helm template ako/ako --version 1.6.1 --include-crds --output-dir <output_dir>
+helm template ako/ako --version 1.7.1 --include-crds --output-dir <output_dir>
 ```
 
 This will save the helm files to an output directory which will contain the CRDs corresponding to the AKO version.
@@ -114,14 +126,14 @@ helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/
 Get the values.yaml for the latest AKO version
 
 ```
-helm show values ako/ako --version 1.6.1 > values.yaml
+helm show values ako/ako --version 1.7.1 > values.yaml
 
 ```
 
 Upgrade the helm chart
 
 ```
-helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.6.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
+helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.7.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<password> --set avicredentials.username=<username> --namespace=avi-system
 
 ```
 
@@ -135,6 +147,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `ControllerSettings.controllerHost` | Specify Avi controller IP or Hostname | `nil` |
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
 | `ControllerSettings.tenantName` | Name of the tenant where all the AKO objects will be created in AVI. | admin |
+| `ControllerSettings.primaryInstance` | Specify AKO instance is primary or not | true |
 | `L7Settings.shardVSSize` | Shard VS size enum values: LARGE, MEDIUM, SMALL, DEDICATED | LARGE |
 | `AKOSettings.fullSyncFrequency` | Full sync frequency | 1800 |
 | `L7Settings.defaultIngController` | AKO is the default ingress controller | true |
