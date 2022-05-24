@@ -1,4 +1,4 @@
-AKO, from 1.4.1, claims support for Layer 4 Service integration with Gateway APIs v1alpha1. In order to enable the feature, and allow AKO to watch for Gateway API objects - GatewayClass and Gateway - the `servicesAPI` flag in the `values.yaml` must be set to `true`.
+AKO claims support for Layer 4 Service integration with Gateway APIs v1alpha1. In order to enable the feature, and allow AKO to watch for Gateway API objects - GatewayClass and Gateway - the `servicesAPI` flag in the `values.yaml` must be set to `true`.
 
 ### Installation
 

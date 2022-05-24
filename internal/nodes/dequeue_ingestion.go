@@ -455,7 +455,6 @@ to test
 validations
 1.	annotations must not be on service of type non LB
 2. 	port/protocol must be unique among all services with annotation key
-3. 	preferred IP must be same in all services with annotation key
 */
 func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 	if lib.GetLayer7Only() {
