@@ -4,9 +4,9 @@ This feature allows to run multiple instances of AKO per cluster.
 
 ## Overview
 
-Prior to AKO 1.7.1, single instance of AKO was responsible to process kubernetes/openshift objects updates and creates corresponding AVI objects at controller.
+Prior to AKO 1.7.1, single instance of AKO was responsible to process kubernetes/openshift objects updates and synced corresponding objects in the Avi Controller.
 
-With AKO 1.7.1, multiple AKO instance can be deployed in a cluster to create namespace based isolation. This will help to club group of kubernetes/openshift namespaces under one AKO. So that AKO will handle all kubernetes/openshift events for those namespaces only. To run multiple AKO, following two features will be used.
+With AKO 1.7.1, multiple AKO instances can be deployed in a cluster to create namespace based isolation.This will allow AKO to operate over a group of kubernetes namespaces, in order to handle objects from these namespaces only. To run multiple AKO, following two features will be used.
 
 * <b>Namespace Sync feature</b>
 
@@ -16,7 +16,7 @@ With AKO 1.7.1, multiple AKO instance can be deployed in a cluster to create nam
 
     Details about this feature is present at: [Namespace Sync in AKO](objects.md#namespace-sync-in-ako)
 
-* <b>AKO installation in user provided namspace</b> 
+* <b>AKO installation in user provided namespace</b>
     
     This feature is supported from AKO 1.4.3 onwards.
 
@@ -24,9 +24,9 @@ With AKO 1.7.1, multiple AKO instance can be deployed in a cluster to create nam
 
 # Configuration
 
-In multiple AKO deployment, one AKO instance works as `primary` AKO Instance. This AKO instance is responsible for vrf configuration, static route configuration apart from syncing up K8/Openshift objects from set of namespaces.
+In multiple AKO deployment, one AKO instance works as `primary` AKO Instance. This AKO instance is responsible for vrf, static route configuration apart from syncing up K8/Openshift objects from set of namespaces.
 
-Flag `primaryInstance` present int `values.yaml` denotes whether AKO instance is primary or not. This flag takes boolean `true`/`false` value. `true` indicates AKO instance is primary.
+Flag `primaryInstance` present in `values.yaml` denotes whether AKO instance is primary or not. This flag takes boolean `true`/`false` value. `true` indicates AKO instance is primary.
 
 **Note**: 
 1. In multiple AKO deployment, only one AKO instance should be `primary`.
@@ -60,7 +60,7 @@ Few things that to be considered in multiple AKO instances deployment:
 
 
 
-# Avi Object naming convetnion
+# Avi Object naming convention
 
 1. For non-primary AKO instance, naming convention for shared VS is: `Shared-VS-Name = <cluster-name>--<AKO-namespace>-Shared-L7-<Shard number>`. Here `<AKO-namespace>` is namespace in which AKO pod is deployed.
 
