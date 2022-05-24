@@ -173,6 +173,8 @@ The `name` field refers to an Avi object if `type` specifies the value as `ref`.
             type: secret
           termination: edge
 
+An `alternateCertificate` option is provided in case the application needs to be configured to provide multiple server certificates, typically when trying to configure both RSA and ECC signed certificates. Avi Controller allows a Virtual Service to be configured with two certificates at a time, one each of RSA and ECC. This enables Avi Controller to negotiate the optimal algorithm or cipher with the client. If the client supports ECC, in that case the ECC algorithm is preferred, and RSA is used as a fallback in cases where the clients do not support ECC.
+
 `sslProfile`, additionally, can be used to determine the set of SSL versions and ciphers to accept for SSL/TLS terminated connections. If the `sslProfile` is not defined, AKO defaults to the sslProfile `System-Standard-PFS` defined in Avi.
 
 Currently only one of type of termination is supported viz. `edge`. In the future, we should be able to support other types of termination policies.
