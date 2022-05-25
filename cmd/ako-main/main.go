@@ -228,7 +228,9 @@ func InitializeAKC() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
-	c.InitVCFHandlers(kubeClient, ctrlCh, stopCh)
+	if utils.IsVCFCluster() {
+		c.InitVCFHandlers(kubeClient, ctrlCh, stopCh)
+	}
 
 	aviRestClientPool := avicache.SharedAVIClients()
 	if aviRestClientPool == nil {
