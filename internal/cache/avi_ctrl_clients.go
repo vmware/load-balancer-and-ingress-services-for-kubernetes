@@ -34,6 +34,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME]
 	ctrlPassword := ctrlProp[utils.ENV_CTRL_PASSWORD]
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
+	ctrlCAData := ctrlProp[utils.ENV_CTRL_CADATA]
 	ctrlIpAddress := lib.GetControllerIP()
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
 		var passwordLog, authTokenLog string
@@ -62,6 +63,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 			ctrlPassword,
 			ctrlAuthToken,
 			ctrlVersion,
+			ctrlCAData,
 		)
 
 		connectionStatus = utils.AVIAPI_CONNECTED
