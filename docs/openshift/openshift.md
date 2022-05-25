@@ -25,7 +25,7 @@ By default AKO expects all routes with TLS termination to have key and cert spec
 
 In this case, the common key-cert can be specified in a secret that can be used for TLS routes that don't have key/cert specified in the route spec.
 
-To use this feature, a secret with name `router-certs-default` has to be created in the same namespace where AKO pod is running (avi-system). The secret must have tls.crt and tls.key fields in its data section.
+To use this feature, a secret with name `router-certs-default` has to be created in the same namespace where AKO pod is running (avi-system). The secret must have tls.crt and tls.key fields in its data section. Additonally, alt.crt and alt.key can be fields can be populated to allow multiple default certificates when trying to configure both RSA and ECC signed certificates. Avi Controller allows a Virtual Service to be configured with two certificates at a time, one each of RSA and ECC. This enables Avi Controller to negotiate the optimal algorithm or cipher with the client. If the client supports ECC, in that case the ECC algorithm is preferred, and RSA is used as a fallback in cases where the clients do not support ECC.
 
 An example of the default secret is given bellow:
 
@@ -45,6 +45,14 @@ data:
     -----BEGIN PRIVATE KEY-----
     [...]
     -----END PRIVATE KEY-----
+  alt.key:
+    -----BEGIN PRIVATE KEY-----
+    [...]
+    -----END PRIVATE KEY-----
+  alt.crt:
+    -----BEGIN CERTIFICATE-----
+    [...]
+    -----END CERTIFICATE-----
 ```
 
 After creating the secret, we can add a secure route without without key or cert in the spec, for example:
