@@ -58,5 +58,11 @@ func (o *CtrlPropCache) GetAllCtrlProp() map[string]string {
 	} else {
 		ctrlProps[ENV_CTRL_AUTHTOKEN] = ctrlAuthToken.(string)
 	}
+	ctrlCAData, ok := o.AviCacheGet(ENV_CTRL_CADATA)
+	if !ok || ctrlCAData == nil {
+		ctrlProps[ENV_CTRL_CADATA] = ""
+	} else {
+		ctrlProps[ENV_CTRL_CADATA] = ctrlCAData.(string)
+	}
 	return ctrlProps
 }

@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 
@@ -35,12 +34,12 @@ type AviRestClientPool struct {
 var AviClientInstance *AviRestClientPool
 
 func NewAviRestClientPool(num uint32, api_ep, username,
-	password, authToken, controllerVersion string) (*AviRestClientPool, string, error) {
+	password, authToken, controllerVersion, ctrlCAData string) (*AviRestClientPool, string, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
 
-	rootPEMCerts := os.Getenv("CTRL_CA_DATA")
+	rootPEMCerts := ctrlCAData
 	var transport *http.Transport
 	if rootPEMCerts != "" {
 		caCertPool := x509.NewCertPool()
