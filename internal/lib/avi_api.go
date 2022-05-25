@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"net/http"
-	"os"
 	"strings"
 
 	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
@@ -247,7 +246,7 @@ func checkForInvalidCredentials(uri string, err error) {
 	}
 }
 
-func NewAviRestClientWithToken(api_ep string, username string, authToken string) *clients.AviClient {
+func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clients.AviClient {
 	var aviClient *clients.AviClient
 	var transport *http.Transport
 	var err error
@@ -266,7 +265,7 @@ func NewAviRestClientWithToken(api_ep string, username string, authToken string)
 		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, authToken: %s, controller: %s). Update them in avi-secret.", username, authTokenLog, ctrlIpAddress)
 	}
 
-	rootPEMCerts := os.Getenv("CTRL_CA_DATA")
+	rootPEMCerts := cadata
 	if rootPEMCerts != "" {
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
