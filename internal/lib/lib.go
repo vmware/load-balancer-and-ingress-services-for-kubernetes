@@ -1631,9 +1631,10 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	ctrlProp := utils.SharedCtrlProp().GetAllCtrlProp()
 	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME]
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
+	ctrlCAData := ctrlProp[utils.ENV_CTRL_CADATA]
 	ctrlIpAddress := GetControllerIP()
 
-	aviClient := NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
+	aviClient := NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken, ctrlCAData)
 	if aviClient == nil {
 		utils.AviLog.Errorf("Failed to initialize AVI client")
 		return
@@ -1699,6 +1700,11 @@ func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]stri
 		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = string(aviSecret.Data["authtoken"])
 	} else {
 		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = ""
+	}
+	if aviSecret.Data["certificateAuthorityData"] != nil {
+		ctrlProps[utils.ENV_CTRL_CADATA] = string(aviSecret.Data["certificateAuthorityData"])
+	} else {
+		ctrlProps[utils.ENV_CTRL_CADATA] = ""
 	}
 	return ctrlProps, nil
 }
