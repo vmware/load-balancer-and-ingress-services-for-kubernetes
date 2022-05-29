@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"regexp"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -199,4 +200,27 @@ func Difference(a, b []string) []string {
 		}
 	}
 	return diff
+}
+
+func CheckConstraintsForRFC(name string, pattern string, maxlength int) bool {
+	if len(name) > maxlength {
+		utils.AviLog.Warnf("Given string is longer than expected. Maximum allowed length is: %d", maxlength)
+	}
+
+	compliedRegex := regexp.MustCompile(pattern)
+	match := compliedRegex.Match([]byte(name))
+
+	return match
+}
+
+func CheckRFC1035(name string) bool {
+	RFCpattern := "^[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?(.[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$"
+	maxlength := 63
+
+	if CheckConstraintsForRFC(name, RFCpattern, maxlength) {
+		return true
+	}
+
+	utils.AviLog.Warnf("Given string doesn't follow RFC 1035 constraints")
+	return false
 }
