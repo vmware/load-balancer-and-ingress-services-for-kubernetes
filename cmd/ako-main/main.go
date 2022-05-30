@@ -232,6 +232,12 @@ func InitializeAKC() {
 		c.InitVCFHandlers(kubeClient, ctrlCh, stopCh)
 	}
 
+	err = k8s.PopulateControllerProperties(kubeClient)
+	if err != nil {
+		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
+		lib.ShutdownApi()
+	}
+
 	aviRestClientPool := avicache.SharedAVIClients()
 	if aviRestClientPool == nil {
 		utils.AviLog.Fatalf("Avi client not initialized")
