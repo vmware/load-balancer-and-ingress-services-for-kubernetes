@@ -214,7 +214,7 @@ func CheckConstraintsForRFC(name string, pattern string, maxlength int) bool {
 }
 
 func CheckRFC1035(name string) bool {
-	RFCpattern := "^[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?(.[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$"
+	RFCpattern := "^[a-z]([-a-z0-9]*[a-z0-9])?$"
 	maxlength := 63
 
 	if CheckConstraintsForRFC(name, RFCpattern, maxlength) {
