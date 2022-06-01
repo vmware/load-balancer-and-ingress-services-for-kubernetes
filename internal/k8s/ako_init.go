@@ -164,6 +164,29 @@ func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 	return true
 }
 
+func (c *AviController) SetSEGroupCloudName() bool {
+	seGroupToUse := lib.GetSEGNameEnv()
+	client := avicache.SharedAVIClients().AviClient[0]
+	var err error
+	// 2. Marker based (only advancedL4)
+	if seGroupToUse == "" && lib.GetAdvancedL4() {
+		err, seGroupToUse = lib.FetchSEGroupWithMarkerSet(client)
+		if err != nil {
+			utils.AviLog.Infof("Setting SEGroup with markerset and no SEGroup found from env")
+			return false
+		}
+	}
+
+	// 3. Default-SEGroup
+	if seGroupToUse == "" {
+		utils.AviLog.Infof("Setting SEGroup %s for VS placement.", lib.DEFAULT_SE_GROUP)
+		seGroupToUse = lib.DEFAULT_SE_GROUP
+	}
+
+	lib.SetSEGName(seGroupToUse)
+	return true
+}
+
 func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
 	var seGroup, cloudName string
 	nsName := utils.GetAKONamespace()

@@ -208,6 +208,9 @@ func InitializeAKC() {
 
 	if utils.IsVCFCluster() {
 		c.InitVCFHandlers(kubeClient, ctrlCh, stopCh)
+	} else {
+		// Set up Cloud and SE Group names
+		c.SetSEGroupCloudName()
 	}
 
 	err = k8s.PopulateControllerProperties(kubeClient)

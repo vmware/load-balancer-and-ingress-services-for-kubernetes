@@ -140,7 +140,7 @@ func TestMain(m *testing.M) {
 	waitGroupMap["status"] = wgStatus
 
 	AddConfigMap(KubeClient)
-	ctrl.SetSEGroupCloudNameFromNSAnnotations()
+	ctrl.SetSEGroupCloudName()
 	PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
