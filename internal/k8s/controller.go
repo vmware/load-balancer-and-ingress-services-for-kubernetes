@@ -44,7 +44,7 @@ var ctrlonce sync.Once
 
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;patch;update
 // +kubebuilder:rbac:groups=nsx.vmware.com,resources=namespacenetworkinfos;namespacenetworkinfos/status,verbs=get;list;watch
-// +kubebuilder:rbac:groups=nsx.vmware.com,resources=clustertworkinfos;clustertworkinfos/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nsx.vmware.com,resources=clusternetworkinfos;clusternetworkinfos/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=extensions;networking.k8s.io,resources=ingresses;ingresses/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=extensions;networking.k8s.io,resources=ingressclasses;ingressclasses/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
