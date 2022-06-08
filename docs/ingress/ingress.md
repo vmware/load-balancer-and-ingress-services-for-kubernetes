@@ -68,6 +68,7 @@ This feature can be used when the user wants to apply a common key-cert for mult
 
 To use this feature: 
 - A Secret with name `router-certs-default` has to be created in the same namespace where AKO pod is running (avi-system). The Secret must have tls.crt and tls.key fields in its data section.
+- Additonally, alt.crt and alt.key fields can be populated to allow multiple default certificates when trying to configure both RSA and ECC signed certificates. Avi Controller allows a Virtual Service to be configured with two certificates at a time, one each of RSA and ECC. This enables Avi Controller to negotiate the optimal algorithm or cipher with the client. If the client supports ECC, in that case the ECC algorithm is preferred, and RSA is used as a fallback in cases where the clients do not support ECC.
 - The annotation "ako.vmware.com/enable-tls" has to be added in the desired Ingresses with its value set to "true"
 
 An example of the default secret is given bellow:
@@ -88,6 +89,15 @@ data:
     -----BEGIN CERTIFICATE-----
     [...]
     -----END CERTIFICATE-----
+  alt.key: 
+    -----BEGIN PRIVATE KEY-----
+    [...]
+    -----END PRIVATE KEY-----
+  alt.crt:
+    -----BEGIN CERTIFICATE-----
+    [...]
+    -----END CERTIFICATE-----
+  
 ```
 
 Example of an Ingress using this default secret via annotation is given bellow:
