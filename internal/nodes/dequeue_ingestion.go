@@ -472,8 +472,10 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 	isShareVipKeyDelete := !found || len(serviceNSNames) == 0
 
 	// Check whether all Services have the same preferred VIP setting. If not, delete the VS altogether,
-	// assuming bad configuration.
+	// assuming bad configuration. Same goes for the AviInfraSetting annotation present in the Service
+	// of Type LB. Two Services must not have different AviInfraSetting annotation value.
 	var sharedVipLBIP string
+	var sharedVipInfraSetting string
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
@@ -487,10 +489,20 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		// that wishes for static IP allocation differently conflicts with this.
 		if i == 0 {
 			sharedVipLBIP = svcObj.Spec.LoadBalancerIP
+			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
+				sharedVipInfraSetting = infraSettingAnnotation
+			}
 		}
 
 		if svcObj.Spec.LoadBalancerIP != sharedVipLBIP {
 			utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Spec.LoadBalancerIP, serviceNSNames[0], sharedVipLBIP)
+			isShareVipKeyDelete = true
+			break
+		}
+
+		if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok &&
+			(infraSettingAnnotation == "" || infraSettingAnnotation != sharedVipInfraSetting) {
+			utils.AviLog.Errorf("Service AviInfraSetting annotation value is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, infraSettingAnnotation, serviceNSNames[0], sharedVipInfraSetting)
 			isShareVipKeyDelete = true
 			break
 		}
