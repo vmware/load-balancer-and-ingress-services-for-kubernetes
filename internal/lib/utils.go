@@ -221,6 +221,6 @@ func CheckRFC1035(name string) bool {
 		return true
 	}
 
-	utils.AviLog.Warnf("Given string doesn't follow RFC 1035 constraints")
+	utils.AviLog.Warnf("FQDN %s does not follow RFC 1035 constraints", name)
 	return false
 }
