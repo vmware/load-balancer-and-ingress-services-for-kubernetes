@@ -449,8 +449,8 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 	if !lib.CheckRFC1035(fqdn) {
 		if lib.CheckRFC1035("svc" + fqdn) {
 			fqdn = "svc" + fqdn
+			utils.AviLog.Warnf("Provided fqdn is changed to: %s", fqdn)
 		}
-		utils.AviLog.Warnf("Provided fqdn is changed to: %s", fqdn)
 	}
 	return fqdn
 }
