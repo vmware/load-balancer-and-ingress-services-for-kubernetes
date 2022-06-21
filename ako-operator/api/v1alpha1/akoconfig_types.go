@@ -68,6 +68,8 @@ type AKOSettings struct {
 	ServicesAPI bool `json:"servicesAPI,omitempty"`
 	// VipPerNamespace enables AKO to create Parent VS per Namespace in EVH mode
 	VipPerNamespace bool `json:"vipPerNamespace,omitempty"`
+	// PrimaryInstance defines AKO instance is primary or not. In a multiple AKO deployment in a cluster, only one AKO instance should be primary.
+	PrimaryInstance bool `json:"primaryInstance,omitempty"`
 }
 
 type NodeNetwork struct {

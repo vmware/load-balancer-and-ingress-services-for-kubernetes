@@ -16,6 +16,7 @@ akoImage:
 
 ### This section outlines the generic AKO controller settings
 AKOSettings:
+  primaryInstance: true # Defines AKO instance is primary or not. Value `true` indicates that AKO instance is primary. In a multiple AKO deployment in a cluster, only one AKO instance should be primary. Default value: true.
   enableEvents: "true" # Enables/disables Event broadcasting via AKO  
   logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
   fullSyncFrequency: "1800" # This frequency controls how often AKO polls the Avi controller to update itself with cloud configurations.

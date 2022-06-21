@@ -22,7 +22,7 @@ To install the Operator using Helm refer [here](../docs/install/operator.md)
 
 <i>**Step 3**</i>: Find `AKO Operator` provided by VMware. 
 
-<i>**Step 4**</i>: Click `install` and select the 1.6.3 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.7.1 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace. 
 
@@ -83,7 +83,7 @@ helm repo update
 
 <i>**Step 2**</i>: Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to upgrade the CRDs:
 ```
-helm template ako/ako-operator --version 1.6.3 --include-crds --output-dir <output_dir>
+helm template ako/ako-operator --version 1.7.1 --include-crds --output-dir <output_dir>
 ```
 
 <i>**Step 3**</i>: This will save the helm files to an output directory which will contain the CRDs corresponding to the Operator version. Install CRDs using:
@@ -105,14 +105,14 @@ helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/
 
 <i>**Step 6**</i>: Get the values.yaml for the latest Operator version:
 ```
-helm show values ako/ako-operator --version 1.6.3 > values.yaml
+helm show values ako/ako-operator --version 1.7.1 > values.yaml
 ```
 Edit the file according to your setup.
 
 <i>**Step 7**</i>: Upgrade the helm chart:
 
 ```
-helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.6.3 --namespace=avi-system
+helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.7.1 --namespace=avi-system
 ```
 
 --> 
@@ -164,3 +164,4 @@ If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-c
 | --------- | ----------- |
 | 1.5.3 | 1.5.2 |
 | 1.6.3 | 1.6.2 |
+| 1.7.1 | 1.7.1 |
