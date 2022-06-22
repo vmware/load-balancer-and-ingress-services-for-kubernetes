@@ -447,8 +447,8 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 		fqdn = svcName + "-" + svcNamespace + "." + subdomain
 	}
 	if !lib.CheckRFC1035(fqdn) {
-		if lib.CheckRFC1035("svc" + fqdn) {
-			fqdn = "svc" + fqdn
+		if lib.CheckRFC1035("svc-" + fqdn) {
+			fqdn = "svc-" + fqdn
 			utils.AviLog.Warnf("Provided fqdn is changed to: %s", fqdn)
 		}
 	}
