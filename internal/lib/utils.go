@@ -205,6 +205,7 @@ func Difference(a, b []string) []string {
 func CheckConstraintsForRFC(name string, pattern string, maxlength int) bool {
 	if len(name) > maxlength {
 		utils.AviLog.Warnf("Given string is longer than expected. Maximum allowed length is: %d", maxlength)
+		return false
 	}
 
 	compliedRegex := regexp.MustCompile(pattern)
@@ -221,6 +222,20 @@ func CheckRFC1035(name string) bool {
 		return true
 	}
 
-	utils.AviLog.Warnf("FQDN %s does not follow RFC 1035 constraints", name)
+	utils.AviLog.Warnf("Label provided %s does not follow RFC 1035 constraints", name)
 	return false
+}
+
+func CorrectLabelToSatisfyRFC1035(name *string, prefix string) {
+	maxlength := 63
+	if len(prefix+*name) > maxlength {
+		utils.AviLog.Warnf("Label cannot be corrected with the given prefix as it exceeds the max length of 63 characters")
+	}
+
+	if CheckRFC1035(prefix + *name) {
+		*name = prefix + *name
+		utils.AviLog.Warnf("Label has been changed to : %s", *name)
+	}
+
+	utils.AviLog.Warnf("The prefix appeneded label %s is still not satisfying RFC1035 constraints", prefix+*name)
 }

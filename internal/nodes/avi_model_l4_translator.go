@@ -438,6 +438,19 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 		subdomain = strings.Replace(subDomains[0], ".", "", 1)
 	}
 
+	//check each label for RFC 1035
+	if !lib.CheckRFC1035(svcName) {
+		lib.CorrectLabelToSatisfyRFC1035(&svcName, lib.FQDN_SVCNAME_PREFIX)
+	}
+
+	if !lib.CheckRFC1035(svcNamespace) {
+		lib.CorrectLabelToSatisfyRFC1035(&svcNamespace, lib.FQDN_SVCNAMESPACE_PREFIX)
+	}
+
+	if !lib.CheckRFC1035(subdomain) {
+		lib.CorrectLabelToSatisfyRFC1035(&subdomain, lib.FQDN_SUBDOMAIN_PREFIX)
+	}
+
 	if lib.GetL4FqdnFormat() == lib.AutoFQDNDefault {
 		// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
 		fqdn = svcName + "." + svcNamespace + "." + subdomain
@@ -446,12 +459,7 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 		// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
 		fqdn = svcName + "-" + svcNamespace + "." + subdomain
 	}
-	if !lib.CheckRFC1035(fqdn) {
-		if lib.CheckRFC1035("svc-" + fqdn) {
-			fqdn = "svc-" + fqdn
-			utils.AviLog.Warnf("Provided fqdn is changed to: %s", fqdn)
-		}
-	}
+
 	return fqdn
 }
 
