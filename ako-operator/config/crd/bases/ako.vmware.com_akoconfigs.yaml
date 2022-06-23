@@ -91,6 +91,11 @@ spec:
                       labelValue:
                         type: string
                     type: object
+                  primaryInstance:
+                    description: PrimaryInstance defines AKO instance is primary or
+                      not. In a multiple AKO deployment in a cluster, only one AKO
+                      instance should be primary.
+                    type: boolean
                   servicesAPI:
                     description: ServicesAPI enables AKO to do Layer 4 loadbalancing
                       using Services API
