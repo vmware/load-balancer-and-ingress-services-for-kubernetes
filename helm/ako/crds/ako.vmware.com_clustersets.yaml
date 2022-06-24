@@ -10,8 +10,6 @@ spec:
     kind: ClusterSet
     listKind: ClusterSetList
     plural: clustersets
-    shortNames:
-    - cs
     singular: clusterset
   scope: Namespaced
 
