@@ -85,7 +85,10 @@ func InitializeAKC() {
 	// Initialize akoControlConfig
 	akoControlConfig := lib.AKOControlConfig()
 	//Used to set vrf context, static routes
-	isPrimaryAKO, _ := strconv.ParseBool(os.Getenv("PRIMARY_AKO_FLAG"))
+	isPrimaryAKO, err := strconv.ParseBool(os.Getenv("PRIMARY_AKO_FLAG"))
+	if err != nil {
+		isPrimaryAKO = true
+	}
 	akoControlConfig.SetAKOInstanceFlag(isPrimaryAKO)
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
