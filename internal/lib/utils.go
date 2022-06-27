@@ -227,15 +227,11 @@ func CheckRFC1035(name string) bool {
 }
 
 func CorrectLabelToSatisfyRFC1035(name *string, prefix string) {
-	maxlength := 63
-	if len(prefix+*name) > maxlength {
-		utils.AviLog.Warnf("Label cannot be corrected with the given prefix as it exceeds the max length of 63 characters")
-	}
 
 	if CheckRFC1035(prefix + *name) {
+		previousLabel := *name
 		*name = prefix + *name
-		utils.AviLog.Warnf("Label has been changed to : %s", *name)
+		utils.AviLog.Warnf("Label %s has been changed to : %s", previousLabel, *name)
 	}
 
-	utils.AviLog.Warnf("The prefix appeneded label %s is still not satisfying RFC1035 constraints", prefix+*name)
 }
