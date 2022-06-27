@@ -204,7 +204,7 @@ func Difference(a, b []string) []string {
 
 func CheckConstraintsForRFC(name string, pattern string, maxlength int) bool {
 	if len(name) > maxlength {
-		utils.AviLog.Warnf("Given string is longer than expected. Maximum allowed length is: %d", maxlength)
+		utils.AviLog.Warnf("Given string %s is longer than expected. Maximum allowed length is: %d", name, maxlength)
 		return false
 	}
 
