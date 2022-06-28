@@ -125,6 +125,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 					}
 					networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
 					vip.IPAMNetworkSubnet.NetworkRef = &networkRef
+					if vsvip_meta.VipNetworks[0].V6Cidr != "" {
+						lib.UpdateV6(vip, &vsvip_meta.VipNetworks[0])
+					}
 					vsvip.Vip = []*avimodels.Vip{vip}
 				}
 			}
@@ -200,6 +203,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 							},
 						}
 					}
+				}
+				if vipNetwork.V6Cidr != "" {
+					lib.UpdateV6(&vip, &vipNetwork)
 				}
 			}
 		}
@@ -655,6 +661,9 @@ func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, ena
 		}
 		newVip.SubnetUUID = proto.String(vipNetwork.NetworkName)
 		vipList = append(vipList, newVip)
+		if vipNetwork.V6Cidr != "" {
+			lib.UpdateV6(newVip, &vipNetwork)
+		}
 	}
 
 	return vipList

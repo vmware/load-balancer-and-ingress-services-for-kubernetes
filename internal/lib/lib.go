@@ -34,11 +34,13 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/Masterminds/semver"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/vmware/alb-sdk/go/models"
+	avimodels "github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -1768,4 +1770,19 @@ var throttle = map[string]uint32{
 func GetThrottle(key string) *int32 {
 	throttle := int32(throttle[key])
 	return &throttle
+}
+
+func UpdateV6(vip *avimodels.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork) {
+	v6addr := strings.Split(vipNetwork.V6Cidr, "/")[0]
+	v6mask, _ := strconv.Atoi(strings.Split(vipNetwork.V6Cidr, "/")[1])
+
+	v6cidr := avimodels.IPAddrPrefix{
+		IPAddr: &avimodels.IPAddr{
+			Addr: &v6addr,
+			Type: proto.String("V6"),
+		},
+		Mask: proto.Int32(int32(v6mask)),
+	}
+	vip.AutoAllocateIPType = proto.String("V4_V6")
+	vip.Subnet6 = &v6cidr
 }

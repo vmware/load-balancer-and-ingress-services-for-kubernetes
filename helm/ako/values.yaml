@@ -55,6 +55,7 @@ NetworkSettings:
   # vipNetworkList:
   #  - networkName: net1
   #    cidr: 100.1.1.0/24
+  #    v6cidr: fdXY:IJKL:MNOP:15::/64
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
 L7Settings:

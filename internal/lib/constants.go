@@ -30,8 +30,6 @@ const (
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
 
 	AVI_INGRESS_CLASS                          = "avi"
-	SUBNET_IP                                  = "SUBNET_IP"
-	SUBNET_PREFIX                              = "SUBNET_PREFIX"
 	NETWORK_NAME                               = "NETWORK_NAME"
 	VIP_NETWORK_LIST                           = "VIP_NETWORK_LIST"
 	BGP_PEER_LABELS                            = "BGP_PEER_LABELS"
@@ -158,6 +156,7 @@ const (
 	CACert                                     = "CA Cert"
 	IPCIDRRegex                                = `^(\b([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5])\.){3}([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5])\/(([0-9]|[1-2][0-9]|3[0-2]))?$`
 	IPRegex                                    = `\b(([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5])(\.|$)){4}\b`
+	IPV6CIDRRegex                              = `^(((?:[0-9A-Fa-f]{1,4}))*((?::[0-9A-Fa-f]{1,4}))*::((?:[0-9A-Fa-f]{1,4}))*((?::[0-9A-Fa-f]{1,4}))*|((?:[0-9A-Fa-f]{1,4}))((?::[0-9A-Fa-f]{1,4})){7})(\/([1-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])){0,1}$`
 	AutoFQDNDefault                            = "Default"
 	AutoFQDNFlat                               = "Flat"
 	AutoFQDNDisabled                           = "Disabled"
