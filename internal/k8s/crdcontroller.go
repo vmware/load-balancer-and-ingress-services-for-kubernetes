@@ -499,7 +499,162 @@ func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 
 	informer.GatewayInformer.Informer().AddEventHandler(gatewayEventHandler)
 
-	return
+}
+
+// SetupMultiClusterIngressEventHandlers handles setting up of MultiClusterIngress CRD event handlers
+func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32) {
+	utils.AviLog.Infof("Setting up MultiClusterIngress CRD Event handlers")
+
+	multiClusterIngressEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			mci := obj.(*akov1alpha1.MultiClusterIngress)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
+			if !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Debugf("Multi-cluster Ingress add event: Namespace: %s didn't qualify filter. Not adding multi-cluster ingress", namespace)
+				return
+			}
+			key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
+			if err := validateMultiClusterIngressObj(key, mci); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Validation of MultiClusterIngress failed: %v", key, err)
+				return
+			}
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldObj := old.(*akov1alpha1.MultiClusterIngress)
+			mci := new.(*akov1alpha1.MultiClusterIngress)
+			if !reflect.DeepEqual(oldObj.Spec, mci.Spec) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
+				if !utils.CheckIfNamespaceAccepted(namespace) {
+					utils.AviLog.Debugf("Multi-cluster Ingress update event: Namespace: %s didn't qualify filter. Not updating multi-cluster ingress", namespace)
+					return
+				}
+				key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
+				if err := validateMultiClusterIngressObj(key, mci); err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Validation of MultiClusterIngress failed: %v", key, err)
+					return
+				}
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			mci, ok := obj.(*akov1alpha1.MultiClusterIngress)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				mci, ok = tombstone.Obj.(*akov1alpha1.MultiClusterIngress)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a MultiClusterIngress: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
+			if !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Debugf("Multi-cluster Ingress delete event: Namespace: %s didn't qualify filter. Not deleting multi-cluster ingress", namespace)
+				return
+			}
+			key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			objects.SharedResourceVerInstanceLister().Delete(key)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+	c.informers.MultiClusterIngressInformer.Informer().AddEventHandler(multiClusterIngressEventHandler)
+}
+
+// SetupServiceImportEventHandlers handles setting up of ServiceImport CRD event handlers
+func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
+	utils.AviLog.Infof("Setting up ServiceImport CRD Event handlers")
+
+	serviceImportEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			si := obj.(*akov1alpha1.ServiceImport)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
+			if !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Debugf("Service Import add event: Namespace: %s didn't qualify filter. Not adding Service Import", namespace)
+				return
+			}
+			key := lib.ServiceImport + "/" + utils.ObjKey(si)
+			if err := validateServiceImportObj(key, si); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Validation of ServiceImport failed: %v", key, err)
+				return
+			}
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldObj := old.(*akov1alpha1.ServiceImport)
+			si := new.(*akov1alpha1.ServiceImport)
+			if !reflect.DeepEqual(oldObj.Spec, si.Spec) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
+				if !utils.CheckIfNamespaceAccepted(namespace) {
+					utils.AviLog.Debugf("Service Import update event: Namespace: %s didn't qualify filter. Not updating Service Import", namespace)
+					return
+				}
+				key := lib.ServiceImport + "/" + utils.ObjKey(si)
+				if err := validateServiceImportObj(key, si); err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Validation of ServiceImport failed: %v", key, err)
+					return
+				}
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			si, ok := obj.(*akov1alpha1.ServiceImport)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				si, ok = tombstone.Obj.(*akov1alpha1.ServiceImport)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a ServiceImport: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
+			if !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Debugf("Service Import delete event: Namespace: %s didn't qualify filter. Not deleting Service Import", namespace)
+				return
+			}
+			key := lib.ServiceImport + "/" + utils.ObjKey(si)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(namespace, numWorkers)
+			objects.SharedResourceVerInstanceLister().Delete(key)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+	c.informers.ServiceImportInformer.Informer().AddEventHandler(serviceImportEventHandler)
 }
 
 // validateHostRuleObj would do validation checks
@@ -597,12 +752,33 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 	}
 
 	refData := map[string]string{
-		hostrule.Spec.VirtualHost.WAFPolicy:                  "WafPolicy",
-		hostrule.Spec.VirtualHost.ApplicationProfile:         "AppProfile",
-		hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name: "SslKeyCert",
-		hostrule.Spec.VirtualHost.TLS.SSLProfile:             "SslProfile",
-		hostrule.Spec.VirtualHost.AnalyticsProfile:           "AnalyticsProfile",
-		hostrule.Spec.VirtualHost.ErrorPageProfile:           "ErrorPageProfile",
+		hostrule.Spec.VirtualHost.WAFPolicy:          "WafPolicy",
+		hostrule.Spec.VirtualHost.ApplicationProfile: "AppProfile",
+		hostrule.Spec.VirtualHost.TLS.SSLProfile:     "SslProfile",
+		hostrule.Spec.VirtualHost.AnalyticsProfile:   "AnalyticsProfile",
+		hostrule.Spec.VirtualHost.ErrorPageProfile:   "ErrorPageProfile",
+	}
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name] = "SslKeyCert"
+	}
+
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
+		if err != nil {
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
+	}
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name] = "SslKeyCert"
+	}
+
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
+		if err != nil {
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
 	}
 
 	for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
@@ -618,7 +794,57 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		return err
 	}
 
+	// No need to update status of hostrule object as accepted since it was accepted before.
+	if hostrule.Status.Status == lib.StatusAccepted {
+		return nil
+	}
+
 	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
+	return nil
+}
+
+// validateMultiClusterIngressObj validates the MCI CRD changes before pushing it to ingestion
+func validateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error {
+
+	var err error
+	statusToUpdate := &akov1alpha1.MultiClusterIngressStatus{}
+	defer func() {
+		if err == nil {
+			statusToUpdate.Status.Accepted = true
+			status.UpdateMultiClusterIngressStatus(key, multiClusterIngress, statusToUpdate)
+			return
+		}
+		statusToUpdate.Status.Accepted = false
+		statusToUpdate.Status.Reason = err.Error()
+		status.UpdateMultiClusterIngressStatus(key, multiClusterIngress, statusToUpdate)
+	}()
+
+	// Currently, we support only NodePort ServiceType.
+	if !lib.IsNodePortMode() {
+		err = fmt.Errorf("ServiceType must be of type NodePort")
+		return err
+	}
+
+	// Currently, we support EVH mode only.
+	if !lib.IsEvhEnabled() {
+		err = fmt.Errorf("AKO must be in EVH mode")
+		return err
+	}
+
+	if len(multiClusterIngress.Spec.Config) == 0 {
+		err = fmt.Errorf("config must not be empty")
+		return err
+	}
+
+	return nil
+}
+
+// validateServiceImportObj validates the SI CRD changes before pushing it to ingestion
+func validateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error {
+
+	// CHECK ME: AMKO creates this and validation required?
+	// TODO: validations needs a status field
+
 	return nil
 }
 
@@ -646,6 +872,7 @@ var refModelMap = map[string]string{
 	"VsDatascript":           "vsdatascriptset",
 	"HealthMonitor":          "healthmonitor",
 	"ApplicationPersistence": "applicationpersistenceprofile",
+	"PKIProfile":             "pkiprofile",
 	"ServiceEngineGroup":     "serviceenginegroup",
 	"Network":                "network",
 }
@@ -659,10 +886,10 @@ func checkRefOnController(key, refKey, refValue string) error {
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
 	if lib.IsPublicCloud() && refModelMap[refKey] == "network" {
-		if lib.GetCloudType() == lib.CLOUD_AWS {
+		if lib.UsesNetworkRef() {
 			var rest_response interface{}
-			utils.AviLog.Infof("Cloud is AWS, checking network ref using uuid")
-			uri := fmt.Sprintf("/api/%s/%s", refModelMap[refKey], refValue)
+			utils.AviLog.Infof("Cloud is  %s, checking network ref using uuid", lib.GetCloudType())
+			uri := fmt.Sprintf("/api/%s/%s?cloud_uuid=%s", refModelMap[refKey], refValue, lib.GetCloudUUID())
 			err := lib.AviGet(clients.AviClient[aviClientLen], uri, &rest_response)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
@@ -674,9 +901,6 @@ func checkRefOnController(key, refKey, refValue string) error {
 				utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
 				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 			}
-		} else if lib.GetCloudType() == lib.CLOUD_AZURE {
-			utils.AviLog.Infof("key: %s, msg: Skipping network name check for Azure Cloud", key)
-			return nil
 		}
 	}
 
@@ -743,6 +967,9 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	for _, path := range httprule.Spec.Paths {
 		refData[path.TLS.SSLProfile] = "SslProfile"
 		refData[path.ApplicationPersistence] = "ApplicationPersistence"
+		if path.TLS.PKIProfile != "" {
+			refData[path.TLS.PKIProfile] = "PKIProfile"
+		}
 
 		for _, hm := range path.HealthMonitors {
 			refData[hm] = "HealthMonitor"
@@ -755,6 +982,11 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 			Error:  err.Error(),
 		})
 		return err
+	}
+
+	// No need to update status of httprule object as accepted since it was accepted before.
+	if httprule.Status.Status == lib.StatusAccepted {
+		return nil
 	}
 
 	status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
@@ -812,6 +1044,11 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
 	}
 
+	// No need to update status of infra setting object as accepted since it was accepted before.
+	if infraSetting.Status.Status == lib.StatusAccepted {
+		return nil
+	}
+
 	status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 		Status: lib.StatusAccepted,
 		Error:  "",
@@ -822,6 +1059,12 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 // addSeGroupLabel configures SEGroup with appropriate labels, during AviInfraSetting
 // creation/updates after ingestion
 func addSeGroupLabel(key, segName string) {
+	// No need to configure labels if static route sync is disabled globally.
+	if lib.GetDisableStaticRoute() {
+		utils.AviLog.Infof("Skipping the check for SE group labels for SEG %s", segName)
+		return
+	}
+
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()

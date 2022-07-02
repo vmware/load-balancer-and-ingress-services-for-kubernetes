@@ -75,7 +75,7 @@ func InitializeAKOInfra() {
 
 	utils.AviLog.Infof("Successfully created kube client for ako-infra")
 
-	registeredInformers, err := lib.InformersToRegister(kubeClient, nil)
+	registeredInformers, err := lib.InformersToRegister(kubeClient, nil, true)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO-Infra, going to reboot", err)
 	}
@@ -113,6 +113,7 @@ func InitializeAKOInfra() {
 	avirest.SyncLSLRNetwork()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(informers, stopCh)
+	c.AddNamespaceEventHandler(informers, stopCh)
 
 	<-stopCh
 	close(ctrlCh)

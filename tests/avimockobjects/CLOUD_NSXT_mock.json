@@ -54,8 +54,8 @@
       "license_tier": "ENTERPRISE",
       "autoscale_polling_interval": 60,
       "vmc_deployment": false,
-      "ipam_provider_ref": "https://10.50.63.199/api/ipamdnsproviderprofile/ipamdnsproviderprofile-3abd2780-ee6d-4435-9616-5066f0f1909a",
-      "dns_provider_ref": "https://10.50.63.199/api/ipamdnsproviderprofile/ipamdnsproviderprofile-dd704396-053a-4c43-9d88-fa211cfd8f58"
+      "ipam_provider_ref": "https://10.50.63.199/api/ipamdnsproviderprofile/ipamdnsproviderprofile-3abd2780-ee6d-4435-9616-5066f0f1909a#avi-ipam",
+      "dns_provider_ref": "https://10.50.63.199/api/ipamdnsproviderprofile/ipamdnsproviderprofile-dd704396-053a-4c43-9d88-fa211cfd8f58#avi-dns"
     }
   ]
 }

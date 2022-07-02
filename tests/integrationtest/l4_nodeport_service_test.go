@@ -210,23 +210,27 @@ func TestSinglePortL4SvcNodePortWithNodeSelector(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
 
 	TearDownTestForSvcLB(t, g)
-
-	// Reset the node filter labels, now all the nodes should get selected for backend server which is 1 in test case
 	os.Setenv("NODE_KEY", "")
-	SetUpTestForSvcLB(t)
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
-		return found
-	}, 10*time.Second).Should(gomega.Equal(true))
-	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes).To(gomega.HaveLen(1))
-	// Check for the pools
-	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
-	// there should be one backend server
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
+	//Commenting out this code: As nodes are now filtered out during ako boot.
+	//We need to take care this testing in FT as it requirs AKO reboot to re-populate all nodes.
+	/*
+		// Reset the node filter labels, now all the nodes should get selected for backend server which is 1 in test case
+		os.Setenv("NODE_KEY", "")
+		SetUpTestForSvcLB(t)
+		g.Eventually(func() bool {
+			found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+			return found
+		}, 10*time.Second).Should(gomega.Equal(true))
+		_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(nodes).To(gomega.HaveLen(1))
+		// Check for the pools
+		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+		// there should be one backend server
+		g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
 
-	TearDownTestForSvcLB(t, g)
+		TearDownTestForSvcLB(t, g)
+	*/
 }
 
 // TestMultiPortL4SvcNodePort tests L4 service with multiple port

@@ -39,6 +39,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/vmware/alb-sdk/go/models"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -81,6 +82,7 @@ type ServiceMetadataObj struct {
 	PassthroughChildRef   string      `json:"passthrough_child_ref"`
 	Gateway               string      `json:"gateway"` // ns/name
 	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
+	IsMCIIngress          bool        `json:"is_mci_ingress"`
 }
 
 type ServiceMetadataMappingObjType string
@@ -99,10 +101,11 @@ func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetada
 		// 1) Advl4 VS
 		// 2) SvcApi VS
 		return GatewayVS
-	} else if len(c.NamespaceIngressName) > 0 {
+	} else if len(c.NamespaceIngressName) > 0 || c.PassthroughChildRef != "" {
 		// Check for `NamespaceIngressName` in VS serviceMetadata. Present in case of
 		// 1) SNI Secure VS
 		// 2) EVH Secure/Insecure VS
+		// or Check Passthrough VS using child ref
 		return ChildVS
 	} else if objType == "VS" && len(c.NamespaceServiceName) > 0 {
 		// Check for `NamesppaceServiceName` in VS serviceMetadata. Present in case of
@@ -112,6 +115,7 @@ func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetada
 		// Check for `NamespaceServiceName` in Pool serviceMetadata. Present in case of
 		// 1) Advl4 Pools: without hostname information
 		// 2) SvcApi Pools: with hostname information
+		// 3) SharedVip SvcLB Pools: with hostname information
 		return GatewayPool
 	} else if c.Namespace != "" && c.IngressName != "" {
 		// Check for `Namespace` and `IngressName` in Pool serviceMetadata. Present in case of
@@ -170,8 +174,9 @@ func IsNameEncoded(name string) bool {
 
 var DisableSync bool
 var layer7Only bool
-var noPGForSNI, gRBAC bool
+var noPGForSNI bool
 var NsxTTzType string
+var deleteConfigMap bool
 
 func SetNSXTTransportZone(tzType string) {
 	NsxTTzType = tzType
@@ -220,7 +225,10 @@ func SetDisableSync(state bool) {
 	DisableSync = state
 	utils.AviLog.Infof("Setting Disable Sync to: %v", state)
 }
-
+func SetDeleteConfigMap(deleteCMFlag bool) {
+	deleteConfigMap = deleteCMFlag
+	utils.AviLog.Debugf("Setting deleteConfigMap flag to: [%v]", deleteConfigMap)
+}
 func SetLayer7Only(val string) {
 	if boolVal, err := strconv.ParseBool(val); err == nil {
 		layer7Only = boolVal
@@ -235,17 +243,11 @@ func SetNoPGForSNI(val string) {
 	utils.AviLog.Infof("Setting the value for the noPGForSNI flag %v", noPGForSNI)
 }
 
-func SetGRBACSupport() {
-	controllerVersion := utils.CtrlVersion
-	gRBAC = true
-	if CompareVersions(controllerVersion, "<", ControllerVersion2015) {
-		// GRBAC is supported from 20.1.5 and above
-		utils.AviLog.Infof("Disabling GRBAC as current controller version %s is less than %s.", controllerVersion, ControllerVersion2015)
-		gRBAC = false
-	}
-}
-
 func IsShardVS(vsName string) bool {
+	if deleteConfigMap {
+		//delete configmap is set, do not save anything
+		return false
+	}
 	if GetshardSize() == 0 {
 		//Dedicated mode
 		return false
@@ -263,10 +265,6 @@ func IsShardVS(vsName string) bool {
 	return false
 }
 
-func GetGRBACSupport() bool {
-	return gRBAC
-}
-
 func GetNoPGForSNI() bool {
 	return noPGForSNI
 }
@@ -274,26 +272,23 @@ func GetNoPGForSNI() bool {
 func GetLayer7Only() bool {
 	return layer7Only
 }
+func GetDeleteConfigMap() bool {
+	return deleteConfigMap
+}
 
 var AKOUser string
 
 func SetAKOUser() {
 	AKOUser = "ako-" + GetClusterName()
+	isPrimaryAKO := akoControlConfigInstance.GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		AKOUser = AKOUser + "-" + os.Getenv("POD_NAMESPACE")
+	}
 	utils.AviLog.Infof("Setting AKOUser: %s for Avi Objects", AKOUser)
 }
 
 func GetAKOUser() string {
 	return AKOUser
-}
-
-var enableCtrl2014Features bool
-
-func SetEnableCtrl2014Features(controllerVersion string) {
-	enableCtrl2014Features = CompareVersions(controllerVersion, ">=", ControllerVersion2014)
-}
-
-func GetEnableCtrl2014Features() bool {
-	return enableCtrl2014Features
 }
 
 func GetshardSize() uint32 {
@@ -340,8 +335,8 @@ func GetL4VSVipName(svcName, namespace string) string {
 	return Encode(NamePrefix+namespace+"-"+svcName, L4VIP)
 }
 
-func GetL4PoolName(svcName, namespace string, port int32) string {
-	poolName := NamePrefix + namespace + "-" + svcName + "--" + strconv.Itoa(int(port))
+func GetL4PoolName(svcName, namespace, protocol string, port int32) string {
+	poolName := NamePrefix + namespace + "-" + svcName + "-" + protocol + "-" + strconv.Itoa(int(port))
 	return Encode(poolName, L4Pool)
 }
 
@@ -505,7 +500,29 @@ func GetEvhPGName(ingName, namespace, host, path, infrasetting string, dedicated
 	return Encode(evhPG, PG)
 }
 
-func GetTLSKeyCertNodeName(infrasetting, sniHostName string) string {
+func IsSecretK8sSecretRef(secret string) bool {
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecretK8s))
+	if re.MatchString(secret) {
+		return true
+	}
+	return false
+}
+
+func IsSecretAviCertRef(secret string) bool {
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecret))
+	if re.MatchString(secret) {
+		return true
+	}
+	return false
+}
+
+func GetTLSKeyCertNodeName(infrasetting, sniHostName, secretName string) string {
+	if IsSecretK8sSecretRef(secretName) {
+		secretName = strings.Split(secretName, "/")[2]
+		if secretName == GetDefaultSecretForRoutes() {
+			return Encode(secretName, TLSKeyCert)
+		}
+	}
 	namePrefix := NamePrefix
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
@@ -546,7 +563,11 @@ func GetVrfUuid() string {
 
 func GetVrf() string {
 	if VRFContext == "" {
-		return utils.GlobalVRF
+		if GetTenant() == GetAdminTenant() {
+			return utils.GlobalVRF
+		} else {
+			return GetTenant() + "-default"
+		}
 	}
 	return VRFContext
 }
@@ -561,14 +582,6 @@ func GetTenant() string {
 		return tenantName
 	}
 	return utils.ADMIN_NS
-}
-
-func GetTenantsPerCluster() bool {
-	tpc := os.Getenv("TENANTS_PER_CLUSTER")
-	if tpc == "true" {
-		return true
-	}
-	return false
 }
 
 func IsIstioEnabled() bool {
@@ -941,12 +954,10 @@ var clusterKey string
 var clusterValue string
 
 func SetClusterLabelChecksum() {
-	if GetEnableCtrl2014Features() {
-		labels := GetLabels()
-		clusterKey = *labels[0].Key
-		clusterValue = *labels[0].Value
-		clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
-	}
+	labels := GetLabels()
+	clusterKey = *labels[0].Key
+	clusterValue = *labels[0].Value
+	clusterLabelChecksum = utils.Hash(clusterKey + clusterValue)
 }
 
 func GetClusterLabelChecksum() uint32 {
@@ -1031,15 +1042,13 @@ func VrfChecksum(vrfName string, staticRoutes []*models.StaticRoute) uint32 {
 func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	sort.Strings(pgrefs)
 	checksum := utils.Hash(utils.Stringify(pgrefs))
-	if GetGRBACSupport() {
-		if populateCache {
-			if markers != nil {
-				checksum += ObjectLabelChecksum(markers)
-			}
-			return checksum
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
 		}
-		checksum += GetClusterLabelChecksum()
+		return checksum
 	}
+	checksum += GetClusterLabelChecksum()
 	return checksum
 }
 
@@ -1146,7 +1155,7 @@ func PopulatePassthroughPoolMarkers(host, svcName string) utils.AviObjectMarkers
 	return markers
 }
 
-func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset) ([]string, error) {
+func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset, akoInfra bool) ([]string, error) {
 	var isOshift bool
 	allInformers := []string{
 		utils.ServiceInformer,
@@ -1181,7 +1190,18 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			allInformers = append(allInformers, utils.IngressInformer)
 			allInformers = append(allInformers, utils.IngressClassInformer)
 		}
+
+		// Add MultiClusterIngress and ServiceImport informers if enabled.
+		if utils.IsMultiClusterIngressEnabled() {
+			allInformers = append(allInformers, utils.MultiClusterIngressInformer)
+			allInformers = append(allInformers, utils.ServiceImportInformer)
+		}
 	}
+
+	if akoInfra {
+		allInformers = append(allInformers, utils.NSInformer)
+	}
+
 	return allInformers, nil
 }
 
@@ -1206,15 +1226,13 @@ func GetDiffPath(storedPathSvc map[string][]string, currentPathSvc map[string][]
 
 func SSLKeyCertChecksum(sslName, certificate, cacert string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	checksum := utils.Hash(sslName + certificate + cacert)
-	if GetGRBACSupport() {
-		if populateCache {
-			if markers != nil {
-				checksum += ObjectLabelChecksum(markers)
-			}
-			return checksum
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
 		}
-		checksum += GetMarkersChecksum(ingestionMarkers)
+		return checksum
 	}
+	checksum += GetMarkersChecksum(ingestionMarkers)
 	return checksum
 }
 
@@ -1226,15 +1244,13 @@ func L4PolicyChecksum(ports []int64, protocols []string, ingestionMarkers utils.
 	sort.Ints(portsInt)
 	sort.Strings(protocols)
 	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols))
-	if GetGRBACSupport() {
-		if populateCache {
-			if markers != nil {
-				checksum += ObjectLabelChecksum(markers)
-			}
-			return checksum
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
 		}
-		checksum += GetMarkersChecksum(ingestionMarkers)
+		return checksum
 	}
+	checksum += GetMarkersChecksum(ingestionMarkers)
 	return checksum
 }
 
@@ -1271,10 +1287,29 @@ func GetNodePortsSelector() map[string]string {
 	return nodePortsSelectorLabels
 }
 
+func IsValidLabelOnNode(labels map[string]string, key string) bool {
+	nodeFilter := GetNodePortsSelector()
+	//If nodefilter is not mentioned or key is empty in values.yaml, node is valid
+	if len(nodeFilter) != 2 || nodeFilter["key"] == "" {
+		return true
+	}
+	val, ok := labels[nodeFilter["key"]]
+	if !ok || val != nodeFilter["value"] {
+		utils.AviLog.Debugf("key: %s, msg: node does not have valid label", key)
+		return false
+	}
+	return true
+}
+
 var CloudType string
+var CloudUUID string
 
 func SetCloudType(cloudType string) {
 	CloudType = cloudType
+}
+
+func SetCloudUUID(cloudUUID string) {
+	CloudUUID = cloudUUID
 }
 
 func GetCloudType() string {
@@ -1282,6 +1317,10 @@ func GetCloudType() string {
 		return CLOUD_VCENTER
 	}
 	return CloudType
+}
+
+func GetCloudUUID() string {
+	return CloudUUID
 }
 
 var IsCloudInAdminTenant = true
@@ -1293,7 +1332,24 @@ func SetIsCloudInAdminTenant(isCloudInAdminTenant bool) {
 func IsPublicCloud() bool {
 	cloudType := GetCloudType()
 	if cloudType == CLOUD_AZURE || cloudType == CLOUD_AWS ||
-		cloudType == CLOUD_GCP {
+		cloudType == CLOUD_GCP || cloudType == CLOUD_OPENSTACK {
+		return true
+	}
+	return false
+}
+
+func IsNodeNetworkAllowedCloud() bool {
+	cloudType := GetCloudType()
+	if cloudType == CLOUD_NSXT || cloudType == CLOUD_VCENTER {
+		return true
+	}
+	return false
+}
+
+func UsesNetworkRef() bool {
+	cloudType := GetCloudType()
+	if cloudType == CLOUD_AWS || cloudType == CLOUD_OPENSTACK ||
+		cloudType == CLOUD_AZURE {
 		return true
 	}
 	return false
@@ -1307,11 +1363,19 @@ func PassthroughShardSize() uint32 {
 	}
 	return 1
 }
-
+func GetAKOIDPrefix() string {
+	var akoID string
+	isPrimaryAKO := AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		akoID = os.Getenv("POD_NAMESPACE") + "-"
+	}
+	return akoID
+}
 func GetPassthroughShardVSName(s string, key string) string {
 	var vsNum uint32
 	shardSize := PassthroughShardSize()
-	shardVsPrefix := GetClusterName() + "--" + PassthroughPrefix
+
+	shardVsPrefix := GetClusterName() + "--" + GetAKOIDPrefix() + PassthroughPrefix
 	vsNum = utils.Bkt(s, shardSize)
 	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
 	utils.AviLog.Infof("key: %s, msg: Passthrough ShardVSName: %s", key, vsName)
@@ -1397,17 +1461,6 @@ func HasValidBackends(routeSpec routev1.RouteSpec, routeName, namespace, key str
 	return true
 }
 
-func VSVipDelRequired() bool {
-	c, err := semver.NewConstraint(">= " + VSVIPDELCTRLVER)
-	if err == nil {
-		currVersion, verErr := semver.NewVersion(utils.CtrlVersion)
-		if verErr == nil && c.Check(currVersion) {
-			return true
-		}
-	}
-	return false
-}
-
 func ContainsFinalizer(o metav1.Object, finalizer string) bool {
 	f := o.GetFinalizers()
 	for _, e := range f {
@@ -1476,9 +1529,9 @@ func IsAviLBDefaultIngressClass() (string, bool) {
 	return "", false
 }
 
-func IsAviLBDefaultIngressClassWithClient(kc kubernetes.Interface) (string, bool) {
-	ingClassObjs, _ := kc.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
-	for _, ingClass := range ingClassObjs.Items {
+func IsAviLBDefaultIngressClassWithClient() (string, bool) {
+	ingClassObjs, _ := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
+	for _, ingClass := range ingClassObjs {
 		if ingClass.Spec.Controller == AviIngressController {
 			annotations := ingClass.GetAnnotations()
 			isDefaultClass, ok := annotations[DefaultIngressClassAnnotation]
@@ -1619,6 +1672,24 @@ func GetK8sMinSupportedVersion() string {
 
 func GetK8sMaxSupportedVersion() string {
 	return k8sMaxVersion
+}
+
+func GetControllerVersion() string {
+	controllerVersion := utils.CtrlVersion
+	// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
+	if CompareVersions(controllerVersion, ">", GetAviMaxSupportedVersion()) {
+		utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", GetAviMaxSupportedVersion())
+		controllerVersion = GetAviMaxSupportedVersion()
+	}
+	if CompareVersions(controllerVersion, "<", GetAviMinSupportedVersion()) {
+		AKOControlConfig().PodEventf(
+			corev1.EventTypeWarning,
+			AKOShutdown, "AKO is running with unsupported Avi version %s",
+			controllerVersion,
+		)
+		utils.AviLog.Fatalf("AKO is not supported for the Avi version %s, Avi must be %s or more", controllerVersion, GetAviMinSupportedVersion())
+	}
+	return controllerVersion
 }
 
 func VIPPerNamespace() bool {

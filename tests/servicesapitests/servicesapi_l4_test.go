@@ -62,6 +62,7 @@ func TestMain(m *testing.M) {
 	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	akoControlConfig.SetAKOInstanceFlag(true)
 	k8s.NewCRDInformers(CRDClient)
 
 	data := map[string][]byte{

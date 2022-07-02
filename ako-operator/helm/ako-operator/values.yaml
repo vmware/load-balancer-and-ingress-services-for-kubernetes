@@ -6,16 +6,17 @@ replicaCount: 1
 
 # AKO Operator image settings
 operatorImage:
-  repository: 10.79.172.11:5000/avi-buildops/ako-operator
+  repository: projects.registry.vmware.com/ako/ako-operator
   pullPolicy: IfNotPresent
 
 # AKO Controller image settings
 akoImage:
-  repository: "10.79.172.11:5000/avi-buildops/ako:2.1.1-5097"
+  repository: projects.registry.vmware.com/ako/ako:1.6.1
   pullPolicy: IfNotPresent
 
 ### This section outlines the generic AKO controller settings
 AKOSettings:
+  enableEvents: "true" # Enables/disables Event broadcasting via AKO  
   logLevel: "INFO" #enum: INFO|DEBUG|WARN|ERROR
   fullSyncFrequency: "1800" # This frequency controls how often AKO polls the Avi controller to update itself with cloud configurations.
   apiServerPort: 8080 # Specify the port for the API server, default is set as 8080 // EmptyAllowed: false
@@ -66,7 +67,6 @@ L7Settings:
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:
-  advancedL4: "false" # Use this knob to control the settings for the services API usage. Default to not using services APIs: https://github.com/kubernetes-sigs/service-apis
   defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
   autoFQDN: "default" # ENUM: default(<svc>.<ns>.<subdomain>), flat (<svc>-<ns>.<subdomain>), "disabled" If the value is disabled then the FQDN generation is disabled.
 

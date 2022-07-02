@@ -25,6 +25,8 @@ import (
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	netinformers "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
+
+	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
 )
 
 type EvType string
@@ -57,6 +59,7 @@ const (
 const (
 	INFORMERS_INSTANTIATE_ONCE string = "instantiateOnce"
 	INFORMERS_OPENSHIFT_CLIENT string = "oshiftClient"
+	INFORMERS_AKO_CLIENT       string = "akoClient"
 	INFORMERS_NAMESPACE        string = "namespace"
 	INFORMERS_ADVANCED_L4      string = "informersAdvL4"
 	VMWARE_SYSTEM_AKO          string = "vmware-system-ako"
@@ -68,18 +71,20 @@ type KubeClientIntf struct {
 }
 
 type Informers struct {
-	ConfigMapInformer    coreinformers.ConfigMapInformer
-	ServiceInformer      coreinformers.ServiceInformer
-	EpInformer           coreinformers.EndpointsInformer
-	PodInformer          coreinformers.PodInformer
-	NSInformer           coreinformers.NamespaceInformer
-	SecretInformer       coreinformers.SecretInformer
-	RouteInformer        oshiftinformers.RouteInformer
-	NodeInformer         coreinformers.NodeInformer
-	IngressInformer      netinformers.IngressInformer
-	IngressClassInformer netinformers.IngressClassInformer
-	OshiftClient         oshiftclientset.Interface
-	IngressVersion       string
+	ConfigMapInformer           coreinformers.ConfigMapInformer
+	ServiceInformer             coreinformers.ServiceInformer
+	EpInformer                  coreinformers.EndpointsInformer
+	PodInformer                 coreinformers.PodInformer
+	NSInformer                  coreinformers.NamespaceInformer
+	SecretInformer              coreinformers.SecretInformer
+	RouteInformer               oshiftinformers.RouteInformer
+	NodeInformer                coreinformers.NodeInformer
+	IngressInformer             netinformers.IngressInformer
+	IngressClassInformer        netinformers.IngressClassInformer
+	MultiClusterIngressInformer akoinformers.MultiClusterIngressInformer
+	ServiceImportInformer       akoinformers.ServiceImportInformer
+	OshiftClient                oshiftclientset.Interface
+	IngressVersion              string
 	KubeClientIntf
 }
 
@@ -191,7 +196,7 @@ type NamespaceFilter struct {
 
 //Stores list of valid namespaces with lock
 type K8NamespaceList struct {
-	nsList map[string]bool
+	nsList map[string]struct{}
 	lock   sync.RWMutex
 }
 type K8ValidNamespaces struct {

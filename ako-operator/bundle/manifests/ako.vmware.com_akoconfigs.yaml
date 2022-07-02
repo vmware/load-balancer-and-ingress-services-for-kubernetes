@@ -1,9 +1,9 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
-  creationTimestamp: null
   name: akoconfigs.ako.vmware.com
 spec:
   group: ako.vmware.com
@@ -64,8 +64,12 @@ spec:
                       sync is carried out by the AKO controller
                     type: string
                   layer7Only:
-                    description: Layer7Only flag, if set to true, then AKO controller
-                      will only do layer 7 loadbalancing
+                    description: Layer7Only enables AKO to do Layer 7 loadbalancing
+                      only
+                    type: boolean
+                  enableEvents:
+                    description: EnableEvents controls whether AKO broadcasts Events in
+                      the cluster or not
                     type: boolean
                   logLevel:
                     description: LogLevel defines the log level to be used by the
@@ -88,6 +92,9 @@ spec:
                   servicesAPI:
                     description: ServicesAPI enables AKO to do Layer 4 loadbalancing
                       using Services API
+                    type: boolean
+                  vipPerNamespace:
+                    description: VipPerNamespace enables AKO to create Parent VS per Namespace in EVH mode
                     type: boolean
                 type: object
               controllerSettings:
@@ -170,6 +177,7 @@ spec:
                     - LARGE
                     - MEDIUM
                     - SMALL
+                    - DEDICATED
                     type: string
                   syncNamespace:
                     description: SyncNamespace takes in a namespace from which AKO
@@ -184,6 +192,12 @@ spec:
                 description: NetworkSettings defines the network details required
                   for the AKO controller
                 properties:
+                  bgpPeerLabels:
+                    description: BGPPeerLabels enable selection of BGP peers, for
+                      selective VsVip advertisement.
+                    items:
+                      type: string
+                    type: array
                   enableRHI:
                     description: EnableRHI is a cluster wide setting for BGP peering
                     type: boolean
@@ -202,17 +216,17 @@ spec:
                           type: string
                       type: object
                     type: array
-                  subnetIP:
-                    description: SubnetIP is the Network IP for the subnet to be used
-                    type: string
-                  subnetPrefix:
-                    description: SubnetPrefix is the netmask for the subnet
+                  nsxtT1LR:
+                    description: T1 Logical Segment mapping for backend network. Only
+                      applies to NSX-T cloud.
                     type: string
                   vipNetworkList:
-                    description: VipNetworkList holds the names of networks as specified
-                      in Avi
+                    description: VipNetworkList holds the names and subnet information
+                      of networks as specified in Avi
                     items:
                       properties:
+                        cidr:
+                          type: string
                         networkName:
                           type: string
                       type: object

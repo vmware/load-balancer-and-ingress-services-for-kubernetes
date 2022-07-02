@@ -68,7 +68,6 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 		},
 
 		L4Settings: akov1alpha1.L4Settings{
-			AdvancedL4:    false,
 			DefaultDomain: "test.com",
 			AutoFQDN:      "default",
 		},

@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -34,6 +35,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func GetIPAMProviderType() string {
+	cache := avicache.SharedAviObjCache()
+	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
+	if !ok || cloud == nil {
+		utils.AviLog.Warnf("Cloud object %s not found in cache", utils.CloudName)
+		return ""
+	}
+	cloudProperty, ok := cloud.(*avicache.AviCloudPropertyCache)
+	if !ok {
+		utils.AviLog.Warnf("Cloud property object not found")
+		return ""
+	}
+	return cloudProperty.IPAMType
+}
 
 func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCache *avicache.AviVsCache, cache_obj *avicache.AviVSVIPCache, key string) (*utils.RestOp, error) {
 	if lib.CheckObjectNameLength(vsvip_meta.Name, lib.VIP) {
@@ -75,48 +91,59 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		vsvip.DNSInfo = dns_info_arr
 		vsvip.VsvipCloudConfigCksum = &cksumstr
 
-		// handling static IP and networkName (infraSetting) updates.
-		vip := &avimodels.Vip{
-			VipID:                  &vipId,
-			AutoAllocateIP:         &autoAllocate,
-			AutoAllocateFloatingIP: vsvip_meta.EnablePublicIP,
+		noVipUpdatesAllowedForIPAMTypes := []string{
+			lib.IPAMProviderInfoblox,
+			lib.IPAMProviderCustom,
 		}
+		if !utils.HasElem(noVipUpdatesAllowedForIPAMTypes, GetIPAMProviderType()) {
+			vip := &avimodels.Vip{
+				VipID:                  &vipId,
+				AutoAllocateIP:         &autoAllocate,
+				AutoAllocateFloatingIP: vsvip_meta.EnablePublicIP,
+			}
 
-		// This would throw an error for advl4 the error is propagated to the gateway status.
-		if vsvip_meta.IPAddress != "" {
-			vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
-		}
+			// This would throw an error for advl4 the error is propagated to the gateway status.
+			if vsvip_meta.IPAddress != "" {
+				vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+			}
 
-		if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
-			vips := networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
-			vsvip.Vip = []*avimodels.Vip{}
-			vsvip.Vip = append(vsvip.Vip, vips...)
-		} else {
-			// Set the IPAM network subnet for all clouds except AWS and Azure
-			if len(vsvip_meta.VipNetworks) != 0 {
-				if vip.IPAMNetworkSubnet == nil {
-					vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+			if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
+				vips := networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
+				vsvip.Vip = []*avimodels.Vip{}
+				vsvip.Vip = append(vsvip.Vip, vips...)
+			} else {
+				// Set the IPAM network subnet for all clouds except AWS and Azure
+				if len(vsvip_meta.VipNetworks) != 0 {
+					if len(vsvip.Vip) == 1 {
+						if vsvip.Vip[0].IPAMNetworkSubnet == nil {
+							vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+						} else {
+							vip.IPAMNetworkSubnet = vsvip.Vip[0].IPAMNetworkSubnet
+						}
+					} else {
+						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+					}
+					networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
+					vip.IPAMNetworkSubnet.NetworkRef = &networkRef
+					vsvip.Vip = []*avimodels.Vip{vip}
 				}
-				networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
-				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
-				vsvip.Vip = []*avimodels.Vip{vip}
+			}
+
+			if vsCache != nil && !vsCache.EnableRhi && len(vsvip_meta.BGPPeerLabels) > 0 {
+				err = fmt.Errorf("to use selective vip advertisement, %s VS must advertise vips via BGP. Please recreate the VS", vsCache.Name)
+				utils.AviLog.Error(err)
+				return nil, err
+			}
+
+			if len(vsvip_meta.BGPPeerLabels) > 0 {
+				vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
+			} else {
+				vsvip.BgpPeerLabels = nil
 			}
 		}
 
-		if vsCache != nil && !vsCache.EnableRhi && len(vsvip_meta.BGPPeerLabels) > 0 {
-			err = fmt.Errorf("to use selective vip advertisement, %s VS must advertise vips via BGP. Please recreate the VS", vsCache.Name)
-			utils.AviLog.Error(err)
-			return nil, err
-		}
+		vsvip.Markers = lib.GetMarkers()
 
-		if len(vsvip_meta.BGPPeerLabels) > 0 {
-			vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
-		} else {
-			vsvip.BgpPeerLabels = nil
-		}
-		if lib.GetGRBACSupport() {
-			vsvip.Markers = lib.GetMarkers()
-		}
 		rest_op = utils.RestOp{
 			ObjName: name,
 			Path:    "/api/vsvip/" + cache_obj.Uuid,
@@ -124,7 +151,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			Obj:     vsvip,
 			Tenant:  vsvip_meta.Tenant,
 			Model:   "VsVip",
-			Version: utils.CtrlVersion,
 		}
 	} else {
 		var vips []*avimodels.Vip
@@ -155,7 +181,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 
 				// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
 				if vipNetwork.Cidr == "" {
-					utils.AviLog.Warnf("Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip")
+					utils.AviLog.Warnf("key: %s, msg: Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip", key)
 				} else {
 					ipPrefixSlice := strings.Split(vipNetwork.Cidr, "/")
 					mask, _ := strconv.Atoi(ipPrefixSlice[1])
@@ -216,9 +242,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		if len(vsvip_meta.BGPPeerLabels) > 0 {
 			vsvip.BgpPeerLabels = vsvip_meta.BGPPeerLabels
 		}
-		if lib.GetGRBACSupport() {
-			vsvip.Markers = lib.GetMarkers()
-		}
+
+		vsvip.Markers = lib.GetMarkers()
+
 		path = "/api/vsvip"
 		// Patch an existing vsvip if it exists in the cache but not associated with this VS.
 		vsvip_key := avicache.NamespaceName{Namespace: vsvip_meta.Tenant, Name: name}
@@ -232,8 +258,14 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 					// Clear the cache for this key
 					rest.cache.VSVIPCache.AviCacheDelete(vsvip_key)
 					utils.AviLog.Warnf("key: %s, Removed the vsvip object from the cache", key)
-					rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: vsvip,
-						Tenant: vsvip_meta.Tenant, Model: "VsVip", Version: utils.CtrlVersion}
+					rest_op = utils.RestOp{
+						ObjName: name,
+						Path:    path,
+						Method:  utils.RestPost,
+						Obj:     vsvip,
+						Tenant:  vsvip_meta.Tenant,
+						Model:   "VsVip",
+					}
 					return &rest_op, nil
 				}
 				// If it's not nil, return an error.
@@ -260,9 +292,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			} else {
 				vsvip_avi.BgpPeerLabels = nil
 			}
-			if lib.GetGRBACSupport() {
-				vsvip.Markers = lib.GetMarkers()
-			}
+
+			vsvip.Markers = lib.GetMarkers()
+
 			vsvip_avi.VsvipCloudConfigCksum = &cksumstr
 			path = "/api/vsvip/" + vsvip_cache_obj.Uuid
 			rest_op = utils.RestOp{
@@ -272,7 +304,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				Obj:     vsvip_avi,
 				Tenant:  vsvip_meta.Tenant,
 				Model:   "VsVip",
-				Version: utils.CtrlVersion,
 			}
 		} else {
 			rest_op = utils.RestOp{
@@ -282,7 +313,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				Obj:     vsvip,
 				Tenant:  vsvip_meta.Tenant,
 				Model:   "VsVip",
-				Version: utils.CtrlVersion,
 			}
 		}
 	}
@@ -318,8 +348,12 @@ func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVi
 
 func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/vsvip/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "VsVip", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "VsVip",
+	}
 	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
@@ -328,12 +362,11 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 func (rest *RestOperations) AviVsVipPut(uuid string, vsvipObj *avimodels.VsVip, tenant string, key string) *utils.RestOp {
 	path := "/api/vsvip/" + uuid
 	rest_op := utils.RestOp{
-		Path:    path,
-		Method:  utils.RestPut,
-		Obj:     vsvipObj,
-		Tenant:  tenant,
-		Model:   "VsVip",
-		Version: utils.CtrlVersion,
+		Path:   path,
+		Method: utils.RestPut,
+		Obj:    vsvipObj,
+		Tenant: tenant,
+		Model:  "VsVip",
 	}
 	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP PUT Restop %v ", key,
 		utils.Stringify(rest_op)))
@@ -465,8 +498,14 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 						continue
 					}
 					vsvipVips = append(vsvipVips, addr)
+					fipEnabled := false
+					auto_allocate_floating_ip, ok := vip["auto_allocate_floating_ip"]
+					if ok {
+						fipEnabled = auto_allocate_floating_ip.(bool)
+					}
 					floating_ip, valid := vip["floating_ip"].(map[string]interface{})
-					if !valid {
+
+					if fipEnabled && !valid {
 						utils.AviLog.Warnf("key: %s, msg: invalid type for floating_ip in vsvip: %s", key, name)
 					} else {
 						fip_addr, valid := floating_ip["addr"].(string)
@@ -481,7 +520,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 							if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 								networkNames = append(networkNames, strings.Split(networkRef, "#")[1])
 							}
-							if lib.GetCloudType() == lib.CLOUD_AWS {
+							if lib.UsesNetworkRef() {
 								networkRefNameSplit := strings.Split(networkRef, "/")
 								networkNames = append(networkNames, networkRefNameSplit[len(networkRefNameSplit)-1])
 							}
@@ -517,6 +556,16 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
+				oldVsVipCache, oldVsVipFound := rest.cache.VSVIPCache.AviCacheGet(k)
+				var oldVsVips, oldVsFips []string
+				if oldVsVipFound {
+					oldVsVipCacheObj, ok := oldVsVipCache.(*avicache.AviVSVIPCache)
+					if ok {
+						oldVsVips = oldVsVipCacheObj.Vips
+						oldVsFips = oldVsVipCacheObj.Fips
+					}
+				}
+
 				vs_cache_obj.AddToVSVipKeyCollection(k)
 				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for VSVIP collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
 				if rest_op.Method == utils.RestPut {
@@ -528,22 +577,25 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 								childObj, _ := rest.cache.VsCacheMeta.AviCacheGet(childVSKey)
 								child_cache_obj, vs_found := childObj.(*avicache.AviVsCache)
 								if vs_found {
-									rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
-									rest.StatusUpdateForVS(child_cache_obj, key)
+									if !reflect.DeepEqual(vsvip_cache_obj.Vips, oldVsVips) || !reflect.DeepEqual(vsvip_cache_obj.Fips, oldVsFips) {
+										rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
+										// rest.StatusUpdateForVS(child_cache_obj, key)
+									}
 								}
 							}
 						}
 					}
-					rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
-					rest.StatusUpdateForVS(vs_cache_obj, key)
+					if !reflect.DeepEqual(vsvip_cache_obj.Vips, oldVsVips) || !reflect.DeepEqual(vsvip_cache_obj.Fips, oldVsFips) {
+						rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
+						// rest.StatusUpdateForVS(vs_cache_obj, key)
+					}
 				}
 			}
 
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToVSVipKeyCollection(k)
-			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during vsvip update %v val %v", key, vsKey,
-				vs_cache_obj))
+			utils.AviLog.Infof("key: %s, msg: added VS cache key during vsvip update %v val %v", key, vsKey, utils.Stringify(vs_cache_obj))
 			if rest_op.Method == utils.RestPut {
 				if len(vs_cache_obj.SNIChildCollection) > 0 {
 					for _, childUuid := range vs_cache_obj.SNIChildCollection {
@@ -554,13 +606,13 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 							child_cache_obj, vs_found := childObj.(*avicache.AviVsCache)
 							if vs_found {
 								rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
-								rest.StatusUpdateForVS(child_cache_obj, key)
+								// rest.StatusUpdateForVS(child_cache_obj, key)
 							}
 						}
 					}
 				}
 				rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
-				rest.StatusUpdateForVS(vs_cache_obj, key)
+				// rest.StatusUpdateForVS(vs_cache_obj, key)
 			}
 		}
 		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v", key, k,
@@ -590,6 +642,7 @@ func (rest *RestOperations) AviVsVipCacheDel(rest_op *utils.RestOp, vsKey avicac
 func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, enablePublicIP *bool) []*avimodels.Vip {
 	var vipList []*avimodels.Vip
 	autoAllocate := true
+
 	for vipIDInt, vipNetwork := range vipNetworks {
 		vipID := strconv.Itoa(vipIDInt + 1)
 		newVip := &avimodels.Vip{
@@ -600,5 +653,6 @@ func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, ena
 		newVip.SubnetUUID = proto.String(vipNetwork.NetworkName)
 		vipList = append(vipList, newVip)
 	}
+
 	return vipList
 }

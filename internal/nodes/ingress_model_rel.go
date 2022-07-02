@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -38,10 +39,15 @@ import (
 
 var (
 	Service = GraphSchema{
-		Type:               "Service",
-		GetParentIngresses: SvcToIng,
-		GetParentRoutes:    SvcToRoute,
-		GetParentGateways:  SvcToGateway,
+		Type:                           "Service",
+		GetParentIngresses:             SvcToIng,
+		GetParentRoutes:                SvcToRoute,
+		GetParentGateways:              SvcToGateway,
+		GetParentMultiClusterIngresses: SvcToMultiClusterIng,
+	}
+	SharedVipService = GraphSchema{
+		Type:              "SharedVipService",
+		GetParentServices: ServiceChanges,
 	}
 	Ingress = GraphSchema{
 		Type:               "Ingress",
@@ -67,10 +73,11 @@ var (
 		GetParentRoutes:    NodeToRoute,
 	}
 	Secret = GraphSchema{
-		Type:               "Secret",
-		GetParentIngresses: SecretToIng,
-		GetParentRoutes:    SecretToRoute,
-		GetParentGateways:  SecretToGateway,
+		Type:                           "Secret",
+		GetParentIngresses:             SecretToIng,
+		GetParentRoutes:                SecretToRoute,
+		GetParentGateways:              SecretToGateway,
+		GetParentMultiClusterIngresses: SecretToMultiClusterIng,
 	}
 	Route = GraphSchema{
 		Type:            utils.OshiftRoute,
@@ -101,10 +108,19 @@ var (
 		GetParentServices:  AviSettingToSvc,
 		GetParentRoutes:    AviSettingToRoute,
 	}
+	MultiClusterIngress = GraphSchema{
+		Type:                           lib.MultiClusterIngress,
+		GetParentMultiClusterIngresses: MultiClusterIngressChanges,
+	}
+	ServiceImport = GraphSchema{
+		Type:                           lib.ServiceImport,
+		GetParentMultiClusterIngresses: ServiceImportToMultiClusterIng,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		IngressClass,
 		Service,
+		SharedVipService,
 		Pod,
 		Endpoint,
 		Secret,
@@ -115,15 +131,18 @@ var (
 		Gateway,
 		GatewayClass,
 		AviInfraSetting,
+		MultiClusterIngress,
+		ServiceImport,
 	}
 )
 
 type GraphSchema struct {
-	Type               string
-	GetParentIngresses func(string, string, string) ([]string, bool)
-	GetParentRoutes    func(string, string, string) ([]string, bool)
-	GetParentGateways  func(string, string, string) ([]string, bool)
-	GetParentServices  func(string, string, string) ([]string, bool)
+	Type                           string
+	GetParentIngresses             func(string, string, string) ([]string, bool)
+	GetParentRoutes                func(string, string, string) ([]string, bool)
+	GetParentGateways              func(string, string, string) ([]string, bool)
+	GetParentServices              func(string, string, string) ([]string, bool)
+	GetParentMultiClusterIngresses func(string, string, string) ([]string, bool)
 }
 
 type GraphDescriptor []GraphSchema
@@ -147,11 +166,11 @@ func RouteChanges(routeName string, namespace string, key string) ([]string, boo
 			objects.OshiftRouteSvcLister().IngressMappings(namespace).UpdateIngressMappings(routeName, svc)
 		}
 		if routeObj.Spec.TLS != nil {
+			akoNS := utils.GetAKONamespace()
 			secret := lib.RouteSecretsPrefix + routeName
 			if routeObj.Spec.TLS.Certificate == "" || routeObj.Spec.TLS.Key == "" {
 				secret = lib.GetDefaultSecretForRoutes()
 			}
-			akoNS := utils.GetAKONamespace()
 			objects.OshiftRouteSvcLister().IngressMappings(namespace).AddIngressToSecretsMappings(akoNS, routeName, secret)
 			objects.OshiftRouteSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(namespace, routeName, secret)
 		}
@@ -540,56 +559,69 @@ func parseServicesForRoute(routeSpec routev1.RouteSpec, key string) []string {
 func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool) {
 	var err error
 	var oldFqdn, fqdn string
+	var fqdnType, oldFqdnType string
 	var oldFound bool
 
 	allIngresses := make([]string, 0)
 	hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrname)
 	if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted", key)
-		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
-		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
+		oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
+		if !strings.Contains(oldFqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
-			objects.SharedCRDLister().DeleteFQDNFQDNTypeMapping(fqdn)
+			oldFqdnType = objects.SharedCRDLister().GetFQDNFQDNTypeMapping(oldFqdn)
+			objects.SharedCRDLister().DeleteFQDNFQDNTypeMapping(oldFqdn)
 		}
 	} else if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v", key, err)
 		return nil, false
 	} else {
 		if hostrule.Status.Status != lib.StatusAccepted {
-			return allIngresses, false
+			return []string{}, false
 		}
 		fqdn = hostrule.Spec.VirtualHost.Fqdn
 		oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrname)
 		if oldFound && !strings.Contains(oldFqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrname)
+			oldFqdnType = objects.SharedCRDLister().GetFQDNFQDNTypeMapping(oldFqdn)
 		}
 		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrname)
-			objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, string(hostrule.Spec.VirtualHost.FqdnType))
-		}
-	}
-
-	// find ingresses with host==fqdn, across all namespaces
-	ok, obj := SharedHostNameLister().GetHostPathStore(fqdn)
-	if !ok {
-		utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, fqdn)
-	} else {
-		for _, ingresses := range obj {
-			for _, ing := range ingresses {
-				if !utils.HasElem(allIngresses, ing) {
-					allIngresses = append(allIngresses, ing)
-				}
+			fqdnType = string(hostrule.Spec.VirtualHost.FqdnType)
+			if fqdnType == "" {
+				fqdnType = string(akov1alpha1.Exact)
 			}
+			objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, fqdnType)
 		}
 	}
 
 	// in case the hostname is updated, we need to find ingresses for the old ones as well to recompute
 	if oldFound {
-		ok, oldobj := SharedHostNameLister().GetHostPathStore(oldFqdn)
+		allOldFqdns := SharedHostNameLister().GetHostsFromHostPathStore(oldFqdn, oldFqdnType)
+		for _, i := range allOldFqdns {
+			ok, oldobj := SharedHostNameLister().GetHostPathStore(i)
+			if !ok {
+				utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, i)
+			} else {
+				for _, ingresses := range oldobj {
+					for _, ing := range ingresses {
+						if !utils.HasElem(allIngresses, ing) {
+							allIngresses = append(allIngresses, ing)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// find ingresses with host==fqdn, across all namespaces
+	allFqdns := SharedHostNameLister().GetHostsFromHostPathStore(fqdn, fqdnType)
+	for _, i := range allFqdns {
+		ok, obj := SharedHostNameLister().GetHostPathStore(i)
 		if !ok {
-			utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, oldFqdn)
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, i)
 		} else {
-			for _, ingresses := range oldobj {
+			for _, ingresses := range obj {
 				for _, ing := range ingresses {
 					if !utils.HasElem(allIngresses, ing) {
 						allIngresses = append(allIngresses, ing)
@@ -658,7 +690,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		for pathPrefix := range pathRules {
 			re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, strings.ReplaceAll(pathPrefix, `/`, `\/`)))
 			for path, ingresses := range pathIngs {
-				if !re.MatchString(path) {
+				if path != "" && !re.MatchString(path) {
 					continue
 				}
 				utils.AviLog.Debugf("key: %s, msg: Computing for path %s in ingresses %v", key, path, ingresses)
@@ -678,7 +710,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		for oldPathPrefix := range oldPathRules {
 			re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, strings.ReplaceAll(oldPathPrefix, `/`, `\/`)))
 			for oldPath, oldIngresses := range oldPathIngs {
-				if !re.MatchString(oldPath) {
+				if oldPath != "" && !re.MatchString(oldPath) {
 					continue
 				}
 				utils.AviLog.Debugf("key: %s, msg: Computing for oldPath %s in oldIngresses %v", key, oldPath, oldIngresses)
@@ -788,6 +820,34 @@ func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]s
 	return allSvcs, true
 }
 
+func ServiceChanges(serviceName, namespace, key string) ([]string, bool) {
+	var vipKeys []string
+	serviceNamespaceName := namespace + "/" + serviceName
+	serviceObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(serviceName)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			if found, oldKey := objects.SharedlbLister().GetServiceToSharedVipKey(serviceNamespaceName); found {
+				vipKeys = append(vipKeys, oldKey)
+			}
+			objects.SharedlbLister().RemoveSharedVipKeyServiceMappings(serviceNamespaceName)
+		}
+	} else {
+		found, oldKey := objects.SharedlbLister().GetServiceToSharedVipKey(serviceNamespaceName)
+		if found {
+			vipKeys = append(vipKeys, oldKey)
+			objects.SharedlbLister().RemoveSharedVipKeyServiceMappings(serviceNamespaceName)
+		}
+
+		if currentKey, ok := serviceObj.Annotations[lib.SharedVipSvcLBAnnotation]; ok {
+			if currentKey != oldKey {
+				vipKeys = append(vipKeys, serviceObj.Namespace+"/"+currentKey)
+			}
+			objects.SharedlbLister().UpdateSharedVipKeyServiceMappings(serviceObj.Namespace+"/"+currentKey, serviceNamespaceName)
+		}
+	}
+	return vipKeys, true
+}
+
 func parseServicesForIngress(ingSpec networkingv1.IngressSpec, key string) []string {
 	// Figure out the service names that are part of this ingress
 	var services []string
@@ -815,6 +875,11 @@ func parseSecretsForIngress(ingSpec networkingv1.IngressSpec, key string) []stri
 func ParseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string) {
 	var gateway string
 	var portProtocols []string
+
+	if lib.UseServicesAPI() && svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		utils.AviLog.Infof("key: %s, msg: Service of Type LoadBalancer is not supported with Gateway APIs, will create dedicated VSes", key)
+		return gateway, portProtocols
+	}
 
 	var gwNameLabel, gwNamespaceLabel string
 	if lib.GetAdvancedL4() {

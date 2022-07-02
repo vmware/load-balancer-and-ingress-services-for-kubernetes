@@ -50,9 +50,8 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 		Type:        &certType,
 	}
 
-	if lib.GetGRBACSupport() {
-		sslkeycert.Markers = lib.GetAllMarkers(ssl_node.AviMarkers)
-	}
+	sslkeycert.Markers = lib.GetAllMarkers(ssl_node.AviMarkers)
+
 	if ssl_node.CACert != "" {
 		cacertRef := "/api/sslkeyandcertificate/?name=" + ssl_node.CACert
 		caName := ssl_node.CACert
@@ -66,8 +65,14 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/sslkeyandcertificate/" + cache_obj.Uuid
-		rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: sslkeycert,
-			Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			ObjName: name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     sslkeycert,
+			Tenant:  ssl_node.Tenant,
+			Model:   "SSLKeyAndCertificate",
+		}
 		rest_op.ObjName = name
 	} else {
 		ssl_key := avicache.NamespaceName{Namespace: ssl_node.Tenant, Name: name}
@@ -75,12 +80,24 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 		if ok {
 			ssl_cache_obj, _ := ssl_cache.(*avicache.AviSSLCache)
 			path = "/api/sslkeyandcertificate/" + ssl_cache_obj.Uuid
-			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: sslkeycert,
-				Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				ObjName: name,
+				Path:    path,
+				Method:  utils.RestPut,
+				Obj:     sslkeycert,
+				Tenant:  ssl_node.Tenant,
+				Model:   "SSLKeyAndCertificate",
+			}
 		} else {
 			path = "/api/sslkeyandcertificate"
-			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPost, Obj: sslkeycert,
-				Tenant: ssl_node.Tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				ObjName: name,
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     sslkeycert,
+				Tenant:  ssl_node.Tenant,
+				Model:   "SSLKeyAndCertificate",
+			}
 		}
 	}
 	return &rest_op
@@ -88,8 +105,12 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 
 func (rest *RestOperations) AviSSLKeyCertDel(uuid string, tenant string) *utils.RestOp {
 	path := "/api/sslkeyandcertificate/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "SSLKeyAndCertificate", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "SSLKeyAndCertificate",
+	}
 	utils.AviLog.Info(spew.Sprintf("SSLCertKey DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
@@ -164,8 +185,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			} else {
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 				vs_cache_obj.AddToSSLKeyCertCollection(k)
-				utils.AviLog.Info(spew.Sprintf("Added VS cache key during SSLKeyCert update %v val %v", vsKey,
-					vs_cache_obj))
+				utils.AviLog.Info("Added VS cache key during SSLKeyCert update %v val %v", vsKey, utils.Stringify(vs_cache_obj))
 			}
 			utils.AviLog.Info(spew.Sprintf("Added SSLKeyCert cache k %v val %v", k,
 				ssl_cache_obj))
@@ -213,28 +233,43 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 			Certificate: &caCert,
 		}),
 	}
-	if lib.GetGRBACSupport() {
-		pkiobject.Markers = lib.GetAllMarkers(pki_node.AviMarkers)
-	}
+
+	pkiobject.Markers = lib.GetAllMarkers(pki_node.AviMarkers)
 
 	var path string
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/pkiprofile/" + cache_obj.Uuid
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPut, Obj: pkiobject,
-			Tenant: pki_node.Tenant, Model: "PKIprofile", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			ObjName: pki_node.Name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     pkiobject,
+			Tenant:  pki_node.Tenant,
+			Model:   "PKIprofile",
+		}
 	} else {
 		path = "/api/pkiprofile/"
-		rest_op = utils.RestOp{Path: path, Method: utils.RestPost, Obj: pkiobject,
-			Tenant: pki_node.Tenant, Model: "PKIprofile", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			ObjName: pki_node.Name,
+			Path:    path,
+			Method:  utils.RestPost,
+			Obj:     pkiobject,
+			Tenant:  pki_node.Tenant,
+			Model:   "PKIprofile",
+		}
 	}
 	return &rest_op
 }
 
 func (rest *RestOperations) AviPkiProfileDel(uuid string, tenant string) *utils.RestOp {
 	path := "/api/pkiprofile/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "PKIprofile", Version: utils.CtrlVersion}
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "PKIprofile",
+	}
 	utils.AviLog.Info(spew.Sprintf("PKIprofile DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op

@@ -16,7 +16,6 @@ package nodes
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -27,6 +26,7 @@ import (
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -108,7 +108,8 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 
 	// Add FQDN aliases in the hostrule CRD to parent and child VSes
 	vsNode[0].AddFQDNsToModel(vsNode[0].VHDomainNames, gslbHostHeader, key)
-	vsNode[0].AddFQDNAliasesToHTTPPolicy(hostname, vsNode[0].VHDomainNames, key)
+	vsNode[0].AddFQDNAliasesToHTTPPolicy(vsNode[0].VHDomainNames, key)
+	vsNode[0].AviMarkers.Host = vsNode[0].VHDomainNames
 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VHDomainNames)
 }
 
@@ -307,7 +308,7 @@ func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname st
 		Tenant:        lib.GetTenant(),
 		PriorityLabel: priorityLabel,
 		Port:          obj.Port,
-		TargetPort:    obj.TargetPort,
+		TargetPort:    intstr.FromInt(int(obj.TargetPort)),
 		ServiceMetadata: lib.ServiceMetadataObj{
 			IngressName:           ingName,
 			Namespace:             namespace,
@@ -593,8 +594,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 
 	certsBuilt := false
 	sniSecretName := tlssetting.SecretName
-	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
-	if re.MatchString(sniSecretName) {
+	if lib.IsSecretAviCertRef(sniSecretName) {
 		sniSecretName = strings.Split(sniSecretName, "/")[1]
 		certsBuilt = true
 	}
@@ -694,13 +694,14 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			}
 		}
 		vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-		vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(sniHost, hostsToRemove, key)
-		sniNode.RemoveFQDNAliasesFromHTTPPolicy(sniHost, hostsToRemove, key)
+		vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
+		sniNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 		// Add FQDN aliases in the hostrule CRD to parent and child VSes
 		vsNode[0].AddFQDNsToModel(sniNode.VHDomainNames, gsFqdn, key)
-		vsNode[0].AddFQDNAliasesToHTTPPolicy(sniHost, sniNode.VHDomainNames, key)
-		sniNode.AddFQDNAliasesToHTTPPolicy(sniHost, sniNode.VHDomainNames, key)
+		vsNode[0].AddFQDNAliasesToHTTPPolicy(sniNode.VHDomainNames, key)
+		sniNode.AddFQDNAliasesToHTTPPolicy(sniNode.VHDomainNames, key)
+		sniNode.AviMarkers.Host = sniNode.VHDomainNames
 		objects.SharedCRDLister().UpdateFQDNToAliasesMappings(sniHost, sniNode.VHDomainNames)
 	} else {
 		hostMapOk, ingressHostMap := SharedHostNameLister().Get(sniHost)

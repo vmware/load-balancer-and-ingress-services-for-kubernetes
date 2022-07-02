@@ -29,6 +29,7 @@ import (
 )
 
 func (rest *RestOperations) AviVrfGet(key, uuid, name string) *avimodels.VrfContext {
+
 	if rest.aviRestPoolClient == nil {
 		utils.AviLog.Warnf("key: %s, msg: aviRestPoolClient not initialized", key)
 		return nil
@@ -37,6 +38,7 @@ func (rest *RestOperations) AviVrfGet(key, uuid, name string) *avimodels.VrfCont
 		utils.AviLog.Warnf("key: %s, msg: client in aviRestPoolClient not initialized", key)
 		return nil
 	}
+
 	client := rest.aviRestPoolClient.AviClient[0]
 	uri := "/api/vrfcontext/" + uuid
 
@@ -89,13 +91,21 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 		patchPayload["static_routes"] = mergedStaticRoutes
 	}
 
-	restOp := utils.RestOp{Path: path, Method: utils.RestPatch, PatchOp: patchOp, Obj: patchPayload,
-		Tenant: lib.GetTenant(), Model: "VrfContext", Version: utils.CtrlVersion}
-
-	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
-	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-		restOp.Tenant = lib.GetAdminTenant()
+	opTenant := lib.GetAdminTenant()
+	if lib.GetCloudType() == lib.CLOUD_OPENSTACK {
+		//In case of Openstack cloud, use tenant vrf
+		opTenant = lib.GetTenant()
 	}
+
+	restOp := utils.RestOp{
+		Path:    path,
+		Method:  utils.RestPatch,
+		PatchOp: patchOp,
+		Obj:     patchPayload,
+		Tenant:  opTenant,
+		Model:   "VrfContext",
+	}
+
 	return &restOp
 }
 

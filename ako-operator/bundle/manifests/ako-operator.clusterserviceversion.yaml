@@ -1,3 +1,4 @@
+---
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
@@ -15,18 +16,20 @@ metadata:
             "akoSettings": {
               "apiServerPort": 8080,
               "clusterName": "my-cluster",
-              "cniPlugin": "",
+              "cniPlugin": "openshift",
               "deleteConfig": false,
               "disableStaticRouteSync": false,
               "enableEVH": false,
               "fullSyncFrequency": "1800",
               "layer7Only": false,
               "logLevel": "INFO",
+              "enableEvents": "true",
               "namespaceSelector": {
                 "labelKey": "",
                 "labelValue": ""
               },
-              "servicesAPI": false
+              "servicesAPI": false,
+              "vipPerNamespace": "false"
             },
             "controllerSettings": {
               "cloudName": "Default-Cloud",
@@ -37,7 +40,7 @@ metadata:
               "tenantName": "admin"
             },
             "imagePullPolicy": "IfNotPresent",
-            "imageRepository": "projects.registry.vmware.com/ako/ako",
+            "imageRepository": "projects.registry.vmware.com/ako/ako-operator@sha256:378c4bb64cfff509193930b7bdf981c299e306c4bebf6f5f3197255c5c0e38dd",
             "l4Settings": {
               "advancedL4": false,
               "autoFQDN": "default",
@@ -59,7 +62,7 @@ metadata:
                 {
                   "networkName": "",
                   "cidrs": []
-                }   
+                }
               ],
               "nsxtT1LR": "",
               "vipNetworkList": [
@@ -88,9 +91,11 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.7.1+git
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: ako-operator.v1.5.2
+    operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operatorframework.io/suggested-namespace: avi-system
+    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:378c4bb64cfff509193930b7bdf981c299e306c4bebf6f5f3197255c5c0e38dd
+  name: ako-operator.v1.6.3-stable
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -145,6 +150,9 @@ spec:
       - description: rbac enables the pod security policy for AKO
         displayName: RBAC
         path: rbac
+      - description: PersistentVolumeClaim where the logs needs to be stored
+        displayName: PVC
+        path: pvc
       statusDescriptors:
       - description: Status of the AKO Operator deployment
         displayName: Deployed
@@ -171,6 +179,7 @@ spec:
           - ""
           resources:
           - configmaps
+          - configmaps/finalizers
           verbs:
           - create
           - delete
@@ -182,8 +191,30 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - events
+          verbs:
+          - create
+          - patch
+          - update
+        - apiGroups:
+          - ""
+          resources:
           - secrets
           - secrets/status
+          - secrets/finalizers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - services
+          - services/status
           verbs:
           - create
           - delete
@@ -196,18 +227,7 @@ spec:
           - ""
           resources:
           - serviceaccounts
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - services/status
+          - serviceaccounts/finalizers
           verbs:
           - create
           - delete
@@ -220,6 +240,7 @@ spec:
           - ako.vmware.com
           resources:
           - akoconfigs
+          - akoconfigs/finalizers
           verbs:
           - create
           - delete
@@ -241,6 +262,7 @@ spec:
           resources:
           - aviinfrasettings
           - aviinfrasettings/status
+          - aviinfrasettings/finalizers
           verbs:
           - create
           - delete
@@ -254,6 +276,7 @@ spec:
           resources:
           - hostrules
           - hostrules/status
+          - hostrules/finalizers
           verbs:
           - create
           - delete
@@ -267,6 +290,7 @@ spec:
           resources:
           - httprules
           - httprules/status
+          - httprules/finalizers
           verbs:
           - create
           - delete
@@ -280,6 +304,7 @@ spec:
           resources:
           - customresourcedefinitions
           - customresourcedefinitions/status
+          - customresourcedefinitions/finalizers
           verbs:
           - create
           - delete
@@ -292,6 +317,8 @@ spec:
           - apps
           resources:
           - statefulsets
+          - statefulsets/status
+          - statefulsets/finalizers
           verbs:
           - create
           - delete
@@ -327,6 +354,21 @@ spec:
           - update
           - watch
         - apiGroups:
+          - extensions
+          - policy
+          resources:
+          - podsecuritypolicies
+          - podsecuritypolicies/finalizers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - use
+          - watch
+        - apiGroups:
           - network.openshift.io
           resources:
           - hostsubnets
@@ -342,6 +384,7 @@ spec:
           - networking.k8s.io
           resources:
           - ingressclasses
+          - ingressclasses/finalizers
           verbs:
           - create
           - delete
@@ -368,20 +411,10 @@ spec:
           resources:
           - gatewayclasses
           - gatewayclasses/status
+          - gatewayclasses/finalizers
           - gateways
           - gateways/status
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - policy
-          resources:
-          - podsecuritypolicies
+          - gateways/finalizers
           verbs:
           - create
           - delete
@@ -394,6 +427,7 @@ spec:
           - rbac.authorization.k8s.io
           resources:
           - clusterrolebindings
+          - clusterrolebindings/finalizers
           verbs:
           - create
           - delete
@@ -406,6 +440,7 @@ spec:
           - rbac.authorization.k8s.io
           resources:
           - clusterroles
+          - clusterroles/finalizers
           verbs:
           - create
           - delete
@@ -444,7 +479,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.registry.vmware.com/ako/ako-operator:1.5.2
+                image: projects.registry.vmware.com/ako/ako-operator@sha256:378c4bb64cfff509193930b7bdf981c299e306c4bebf6f5f3197255c5c0e38dd
                 name: ako-operator
                 resources:
                   limits:
@@ -460,6 +495,7 @@ spec:
           - ""
           resources:
           - configmaps
+          - configmaps/finalizers
           verbs:
           - get
           - list
@@ -486,14 +522,17 @@ spec:
         serviceAccountName: default
     strategy: deployment
   installModes:
-  - supported: false
-    type: OwnNamespace
-  - supported: false
-    type: SingleNamespace
-  - supported: false
-    type: MultiNamespace
-  - supported: true
-    type: AllNamespaces
+  - type: OwnNamespace
+    supported: true
+  - type: SingleNamespace
+    supported: true
+  - type: MultiNamespace
+    supported: false
+  - type: AllNamespaces
+    supported: false
+  relatedImages:
+  - name: ako-operator
+    image: projects.registry.vmware.com/ako/ako-operator@sha256:378c4bb64cfff509193930b7bdf981c299e306c4bebf6f5f3197255c5c0e38dd
   keywords:
   - AKO
   - AKO Operator
@@ -501,13 +540,15 @@ spec:
   - Ingress Controller
   links:
   - name: AKO Operator
+    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.6.3-operator/ako-operator#readme
+  - name: AKO Repository
     url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
+  - name: AKO
+    url: https://avinetworks.com/docs/ako/1.6/avi-kubernetes-operator/
   maintainers:
   - email: riyag@vmware.com
     name: Riya Ganiga
-  - email: hshaw@vmware.com
-    name: Hemant Shaw
-  maturity: alpha
+  maturity: stable
   provider:
     name: VMware
-  version: 1.5.2
+  version: 1.6.3

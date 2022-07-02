@@ -49,8 +49,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	placementNetworks := []*avimodels.PlacementNetwork{}
 
-	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER
-	if len(pool_meta.NetworkPlacementSettings) != 0 && lib.GetCloudType() == lib.CLOUD_VCENTER {
+	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER or CLOUD_NSXT
+	if len(pool_meta.NetworkPlacementSettings) != 0 && lib.IsNodeNetworkAllowedCloud() {
 		for network, cidrs := range pool_meta.NetworkPlacementSettings {
 			for _, cidr := range cidrs {
 				_, ipnet, err := net.ParseCIDR(cidr)
@@ -96,23 +96,26 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		ServiceMetadata:   &svc_mdata,
 		SniEnabled:        &pool_meta.SniEnabled,
 		SslProfileRef:     &pool_meta.SslProfileRef,
+		PkiProfileRef:     &pool_meta.PkiProfileRef,
 		PlacementNetworks: placementNetworks,
 	}
+
 	var vrfContextRef string
 	if pool_meta.VrfContext != "" {
 		vrfContextRef = "/api/vrfcontext?name=" + pool_meta.VrfContext
 		pool.VrfRef = &vrfContextRef
 	}
+
 	if pool_meta.T1Lr != "" {
 		pool.Tier1Lr = &pool_meta.T1Lr
 	}
-	if lib.GetGRBACSupport() {
-		if !pool_meta.AttachedWithSharedVS {
-			pool.Markers = lib.GetAllMarkers(pool_meta.AviMarkers)
-		} else {
-			pool.Markers = lib.GetMarkers()
-		}
+
+	if !pool_meta.AttachedWithSharedVS {
+		pool.Markers = lib.GetAllMarkers(pool_meta.AviMarkers)
+	} else {
+		pool.Markers = lib.GetMarkers()
 	}
+
 	if pool_meta.PkiProfile != nil {
 		pkiProfileName := "/api/pkiprofile?name=" + pool_meta.PkiProfile.Name
 		pool.PkiProfileRef = &pkiProfileName
@@ -139,7 +142,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		if server.Port != 0 {
 			port = pool_meta.Servers[i].Port
 		}
-		s := avimodels.Server{IP: &sip, Port: &port}
+		uuid := fmt.Sprintf("%s:%d", *sip.Addr, port)
+		s := avimodels.Server{IP: &sip, Port: &port, ExternalUUID: &uuid}
 		if server.ServerNode != "" {
 			sn := server.ServerNode
 			s.ServerNode = &sn
@@ -165,8 +169,14 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	var rest_op utils.RestOp
 	if cache_obj != nil {
 		path = "/api/pool/" + cache_obj.Uuid
-		rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: pool,
-			Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+		rest_op = utils.RestOp{
+			ObjName: name,
+			Path:    path,
+			Method:  utils.RestPut,
+			Obj:     pool,
+			Tenant:  pool_meta.Tenant,
+			Model:   "Pool",
+		}
 	} else {
 		// Patch an existing pool if it exists in the cache but not associated with this VS.
 		pool_key := avicache.NamespaceName{Namespace: pool_meta.Tenant, Name: name}
@@ -174,12 +184,24 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		if ok {
 			pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
 			path = "/api/pool/" + pool_cache_obj.Uuid
-			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPut, Obj: pool,
-				Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				ObjName: name,
+				Path:    path,
+				Method:  utils.RestPut,
+				Obj:     pool,
+				Tenant:  pool_meta.Tenant,
+				Model:   "Pool",
+			}
 		} else {
 			path = "/api/pool/"
-			rest_op = utils.RestOp{ObjName: name, Path: path, Method: utils.RestPost, Obj: pool,
-				Tenant: pool_meta.Tenant, Model: "Pool", Version: utils.CtrlVersion}
+			rest_op = utils.RestOp{
+				ObjName: name,
+				Path:    path,
+				Method:  utils.RestPost,
+				Obj:     pool,
+				Tenant:  pool_meta.Tenant,
+				Model:   "Pool",
+			}
 		}
 	}
 
@@ -190,10 +212,13 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 
 func (rest *RestOperations) AviPoolDel(uuid string, tenant string, key string) *utils.RestOp {
 	path := "/api/pool/" + uuid
-	rest_op := utils.RestOp{Path: path, Method: "DELETE",
-		Tenant: tenant, Model: "Pool", Version: utils.CtrlVersion}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: pool DELETE Restop %v ", key,
-		utils.Stringify(rest_op)))
+	rest_op := utils.RestOp{
+		Path:   path,
+		Method: "DELETE",
+		Tenant: tenant,
+		Model:  "Pool",
+	}
+	utils.AviLog.Infof("key: %s, msg: pool DELETE Restop %v ", key, utils.Stringify(rest_op))
 	return &rest_op
 }
 
@@ -303,6 +328,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 							Op:      lib.UpdateStatus,
 							Options: &updateOptions,
 						}
+						utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
 						status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 					case lib.SNIInsecureOrEVHPool:
 						updateOptions := status.UpdateOptions{
@@ -320,19 +346,20 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 						if utils.GetInformers().RouteInformer != nil {
 							statusOption.ObjType = utils.OshiftRoute
 						}
+						if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
+							statusOption.ObjType = lib.MultiClusterIngress
+						}
+						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 					}
 				}
 			}
-
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPoolKeyCollection(k)
-			utils.AviLog.Debug(spew.Sprintf("key: %s, msg: added VS cache key during pool update %v val %v", key, vsKey,
-				vs_cache_obj))
+			utils.AviLog.Debugf("key: %s, msg: added VS cache key during pool update %v val %v", key, vsKey, utils.Stringify(vs_cache_obj))
 		}
-		utils.AviLog.Info(spew.Sprintf("key: %s, msg: Added Pool cache k %v val %v", key, k,
-			pool_cache_obj))
+		utils.AviLog.Infof("key: %s, msg: Added Pool cache k %v val %v", key, k, utils.Stringify(pool_cache_obj))
 	}
 
 	return nil
@@ -381,6 +408,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					Op:      lib.DeleteStatus,
 					Options: &updateOptions,
 				}
+				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], utils.Stringify(statusOption))
 				status.PublishToStatusQueue(pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
 			case lib.SNIInsecureOrEVHPool:
 				updateOptions := status.UpdateOptions{
@@ -397,6 +425,10 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 				if utils.GetInformers().RouteInformer != nil {
 					statusOption.ObjType = utils.OshiftRoute
 				}
+				if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
+					statusOption.ObjType = lib.MultiClusterIngress
+				}
+				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 				status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 			}
 		}

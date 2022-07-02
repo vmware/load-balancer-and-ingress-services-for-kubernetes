@@ -18,6 +18,7 @@ rules:
   - ""
   resources:
   - configmaps
+  - configmaps/finalizers
   verbs:
   - create
   - delete
@@ -29,7 +30,16 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
   - secrets
+  - secrets/finalizers
   - secrets/status
   verbs:
   - create
@@ -43,6 +53,7 @@ rules:
   - ""
   resources:
   - serviceaccounts
+  - serviceaccounts/finalizers
   verbs:
   - create
   - delete
@@ -54,6 +65,7 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - services
   - services/status
   verbs:
   - create
@@ -78,6 +90,12 @@ rules:
 - apiGroups:
   - ako.vmware.com
   resources:
+  - akoconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ako.vmware.com
+  resources:
   - akoconfigs/status
   verbs:
   - get
@@ -87,6 +105,7 @@ rules:
   - ako.vmware.com
   resources:
   - aviinfrasettings
+  - aviinfrasettings/finalizers
   - aviinfrasettings/status
   verbs:
   - create
@@ -100,6 +119,7 @@ rules:
   - ako.vmware.com
   resources:
   - hostrules
+  - hostrules/finalizers
   - hostrules/status
   verbs:
   - create
@@ -113,6 +133,7 @@ rules:
   - ako.vmware.com
   resources:
   - httprules
+  - httprules/finalizers
   - httprules/status
   verbs:
   - create
@@ -126,6 +147,7 @@ rules:
   - apiextensions.k8s.io
   resources:
   - customresourcedefinitions
+  - customresourcedefinitions/finalizers
   - customresourcedefinitions/status
   verbs:
   - create
@@ -139,6 +161,8 @@ rules:
   - apps
   resources:
   - statefulsets
+  - statefulsets/finalizers
+  - statefulsets/status
   verbs:
   - create
   - delete
@@ -178,6 +202,7 @@ rules:
   - policy
   resources:
   - podsecuritypolicies
+  - podsecuritypolicies/finalizers
   verbs:
   - create
   - delete
@@ -203,6 +228,7 @@ rules:
   - networking.k8s.io
   resources:
   - ingressclasses
+  - ingressclasses/finalizers
   verbs:
   - create
   - delete
@@ -228,8 +254,10 @@ rules:
   - networking.x-k8s.io
   resources:
   - gatewayclasses
+  - gatewayclasses/finalizers
   - gatewayclasses/status
   - gateways
+  - gateways/finalizers
   - gateways/status
   verbs:
   - create
@@ -243,6 +271,7 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
+  - clusterrolebindings/finalizers
   verbs:
   - create
   - delete
@@ -255,6 +284,7 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterroles
+  - clusterroles/finalizers
   verbs:
   - create
   - delete

@@ -411,5 +411,6 @@ func TestValidBootstrapData(t *testing.T) {
 		lib.VCFInitialized = true
 		keyChan <- true
 	}()
+	time.Sleep(20 * time.Second)
 	waitAndverify(t, false)
 }

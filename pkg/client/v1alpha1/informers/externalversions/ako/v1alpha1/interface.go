@@ -26,10 +26,16 @@ import (
 type Interface interface {
 	// AviInfraSettings returns a AviInfraSettingInformer.
 	AviInfraSettings() AviInfraSettingInformer
+	// ClusterSets returns a ClusterSetInformer.
+	ClusterSets() ClusterSetInformer
 	// HTTPRules returns a HTTPRuleInformer.
 	HTTPRules() HTTPRuleInformer
 	// HostRules returns a HostRuleInformer.
 	HostRules() HostRuleInformer
+	// MultiClusterIngresses returns a MultiClusterIngressInformer.
+	MultiClusterIngresses() MultiClusterIngressInformer
+	// ServiceImports returns a ServiceImportInformer.
+	ServiceImports() ServiceImportInformer
 }
 
 type version struct {
@@ -48,6 +54,11 @@ func (v *version) AviInfraSettings() AviInfraSettingInformer {
 	return &aviInfraSettingInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
+// ClusterSets returns a ClusterSetInformer.
+func (v *version) ClusterSets() ClusterSetInformer {
+	return &clusterSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // HTTPRules returns a HTTPRuleInformer.
 func (v *version) HTTPRules() HTTPRuleInformer {
 	return &hTTPRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
@@ -56,4 +67,14 @@ func (v *version) HTTPRules() HTTPRuleInformer {
 // HostRules returns a HostRuleInformer.
 func (v *version) HostRules() HostRuleInformer {
 	return &hostRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// MultiClusterIngresses returns a MultiClusterIngressInformer.
+func (v *version) MultiClusterIngresses() MultiClusterIngressInformer {
+	return &multiClusterIngressInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ServiceImports returns a ServiceImportInformer.
+func (v *version) ServiceImports() ServiceImportInformer {
+	return &serviceImportInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

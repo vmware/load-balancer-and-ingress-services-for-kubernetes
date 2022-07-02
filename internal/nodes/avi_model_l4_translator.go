@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
@@ -42,14 +43,15 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		autoFQDN = false
 	}
 
-	if extDNS, ok := svcObj.Annotations[lib.ExternalDNSAnnotation]; ok {
-		autoFQDN = false
+	if extDNS, ok := svcObj.Annotations[lib.ExternalDNSAnnotation]; ok && autoFQDN {
 		fqdns = append(fqdns, extDNS)
 	}
 
 	subDomains := GetDefaultSubDomain()
 	if subDomains != nil && autoFQDN {
-		fqdns = append(fqdns, getAutoFQDNForService(svcObj.Namespace, svcObj.Name))
+		if fqdn := getAutoFQDNForService(svcObj.Namespace, svcObj.Name); fqdn != "" {
+			fqdns = append(fqdns, fqdn)
+		}
 	}
 
 	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
@@ -74,7 +76,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	isTCP := false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
-		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol), Name: port.Name}
+		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol), Name: port.Name, TargetPort: port.TargetPort}
 		portProtocols = append(portProtocols, pp)
 		if port.Protocol == "" || port.Protocol == utils.TCP {
 			isTCP = true
@@ -86,7 +88,13 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	if !isTCP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
-		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		license := lib.AKOControlConfig().GetLicenseType()
+
+		if license == "ENTERPRISE" {
+			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
+		} else {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		}
 	}
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
@@ -131,10 +139,12 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
 		poolNode := &AviPoolNode{
-			Name:       lib.GetL4PoolName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace, filterPort),
+			Name:       lib.GetL4PoolName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace, portProto.Protocol, filterPort),
 			Tenant:     lib.GetTenant(),
 			Protocol:   portProto.Protocol,
 			PortName:   portProto.Name,
+			Port:       portProto.Port,
+			TargetPort: portProto.TargetPort,
 			VrfContext: lib.GetVrf(),
 		}
 
@@ -196,27 +206,13 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			return nil
 		}
 	}
-	pods := lib.GetPodsFromService(ns, serviceName)
+	pods, targetPort := lib.GetPodsFromService(ns, serviceName, poolNode.TargetPort)
 	if len(pods) == 0 {
 		utils.AviLog.Infof("key: %s, msg: got no Pod for Service %s", key, serviceName)
 		return make([]AviPoolMetaServer, 0)
 	}
 
 	var poolMeta []AviPoolMetaServer
-	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(ns).Get(serviceName)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, serviceName)
-		return poolMeta
-	}
-
-	targetPorts := make(map[int]bool)
-	for _, port := range svcObj.Spec.Ports {
-		if port.Name != poolNode.PortName && len(svcObj.Spec.Ports) > 1 {
-			// continue only if port name does not match and it is multiport svcobj
-			continue
-		}
-		targetPorts[port.TargetPort.IntValue()] = true
-	}
 
 	for _, pod := range pods {
 		var annotations []lib.NPLAnnotation
@@ -232,7 +228,8 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			} else {
 				atype = "V6"
 			}
-			if _, ok := targetPorts[a.PodPort]; ok {
+			if (poolNode.TargetPort.Type == intstr.Int && a.PodPort == poolNode.TargetPort.IntValue()) ||
+				a.PodPort == int(targetPort) {
 				server := AviPoolMetaServer{
 					Port: int32(a.NodePort),
 					Ip: models.IPAddr{
@@ -243,7 +240,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			}
 		}
 	}
-	utils.AviLog.Infof("key: %s, msg: servers for port: %v, are: %v", key, poolNode.Port, utils.Stringify(poolMeta))
+	utils.AviLog.Infof("key: %s, msg: servers for port: %v (%v), are: %v", key, poolNode.Port, poolNode.PortName, utils.Stringify(poolMeta))
 	return poolMeta
 }
 
@@ -340,7 +337,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	for _, ss := range epObj.Subsets {
 		port_match := false
 		for _, epp := range ss.Ports {
-			if poolNode.PortName == epp.Name || poolNode.TargetPort == epp.Port {
+			if poolNode.PortName == epp.Name || int32(poolNode.TargetPort.IntValue()) == epp.Port {
 				port_match = true
 				poolNode.Port = epp.Port
 				break
@@ -375,6 +372,45 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	return pool_meta
 }
 
+func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, serviceNamespace, serviceName string, key string) []AviPoolMetaServer {
+	var servers []AviPoolMetaServer
+	svcName := generateMultiClusterKey(cluster, serviceNamespace, serviceName)
+	success, siNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(ns).GetSvcToSI(svcName)
+	if !success {
+		utils.AviLog.Warnf("key: %s, msg: failed to get service imports mapped to service with name: %v", key, svcName)
+		return servers
+	}
+
+	for _, siName := range siNames {
+		serviceImport, err := utils.GetInformers().ServiceImportInformer.Lister().ServiceImports(ns).Get(siName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: failed to get service imports with name: %v", key, siName)
+			continue
+		}
+		for _, backend := range serviceImport.Spec.SvcPorts {
+			for _, ep := range backend.Endpoints {
+				addr := ep.IP
+				var addrType string
+				if utils.IsV4(addr) {
+					addrType = "V4"
+				} else {
+					addrType = "V6"
+				}
+				Ip := avimodels.IPAddr{
+					Addr: &addr,
+					Type: &addrType,
+				}
+				server := AviPoolMetaServer{
+					Port: ep.Port,
+					Ip:   Ip,
+				}
+				servers = append(servers, server)
+			}
+		}
+	}
+	return servers
+}
+
 func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
@@ -405,16 +441,31 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 	// or would default to the first dns subdomain it gets from the dns profile
 	subdomain := subDomains[0]
 	if strings.HasPrefix(subDomains[0], ".") {
-		subdomain = strings.Replace(subDomains[0], ".", "", -1)
+		subdomain = strings.Replace(subDomains[0], ".", "", 1)
+	}
+
+	//check each label for RFC 1035
+	if !lib.CheckRFC1035(svcName) {
+		lib.CorrectLabelToSatisfyRFC1035(&svcName, lib.FQDN_SVCNAME_PREFIX)
+	}
+
+	if !lib.CheckRFC1035(svcNamespace) {
+		lib.CorrectLabelToSatisfyRFC1035(&svcNamespace, lib.FQDN_SVCNAMESPACE_PREFIX)
+	}
+
+	if !lib.CheckRFC1035(subdomain) {
+		lib.CorrectLabelToSatisfyRFC1035(&subdomain, lib.FQDN_SUBDOMAIN_PREFIX)
 	}
 
 	if lib.GetL4FqdnFormat() == lib.AutoFQDNDefault {
 		// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
 		fqdn = svcName + "." + svcNamespace + "." + subdomain
+
 	} else if lib.GetL4FqdnFormat() == lib.AutoFQDNFlat {
 		// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
 		fqdn = svcName + "-" + svcNamespace + "." + subdomain
 	}
+
 	return fqdn
 }
 

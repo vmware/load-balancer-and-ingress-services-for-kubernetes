@@ -61,6 +61,10 @@ spec:
                     description: EnableEVH enables the Enhanced Virtual Hosting Model
                       in Avi Controller for the Virtual Services
                     type: boolean
+                  enableEvents:
+                    description: EnableEvents controls whether AKO broadcasts Events
+                      in the cluster or not
+                    type: boolean
                   fullSyncFrequency:
                     description: FullSyncFrequency defines the interval at which full
                       sync is carried out by the AKO controller
@@ -91,6 +95,10 @@ spec:
                     description: ServicesAPI enables AKO to do Layer 4 loadbalancing
                       using Services API
                     type: boolean
+                  vipPerNamespace:
+                    description: VipPerNamespace enables AKO to create Parent VS per
+                      Namespace in EVH mode
+                    type: boolean
                 type: object
               controllerSettings:
                 description: ControllerSettings defines the Avi Controller parameters
@@ -99,7 +107,7 @@ spec:
                     description: CloudName is the name of the cloud to be used in
                       Avi
                     type: string
-                  controllerHost:
+                  controllerIP:
                     description: ControllerIP is the IP address of the Avi Controller
                     type: string
                   controllerVersion:

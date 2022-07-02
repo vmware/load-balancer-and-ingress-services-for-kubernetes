@@ -28,6 +28,8 @@ import (
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 /*
@@ -381,7 +383,7 @@ type AviVsNode struct {
 	HttpPolicySetRefs     []string
 	SSLProfileRef         string
 	VsDatascriptRefs      []string
-	SSLKeyCertAviRef      string
+	SSLKeyCertAviRef      []string
 	AviMarkers            utils.AviObjectMarkers
 	Paths                 []string
 	IngressNames          []string
@@ -455,11 +457,11 @@ func (v *AviVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj) {
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviVsNode) GetSSLKeyCertAviRef() string {
+func (v *AviVsNode) GetSSLKeyCertAviRef() []string {
 	return v.SSLKeyCertAviRef
 }
 
-func (v *AviVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef string) {
+func (v *AviVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
 	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
@@ -721,80 +723,65 @@ func (o *AviVsNode) ReplaceSniSSLRefInSNINode(newSslNode *AviTLSKeyCertNode, key
 	o.SSLKeyCertRefs = append(o.SSLKeyCertRefs, newSslNode)
 }
 
-func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 
-	var hppMap *AviHostPathPortPoolPG
-	var redirectPorts *AviRedirectPort
-	// Find the hppMap and redirectPorts that matches the host
+	// Update the hosts in the hppMap of child VS
+	if o.IsSNIChild || o.Dedicated {
+		for _, policy := range o.HttpPolicyRefs {
+			for j := range policy.HppMap {
+				policy.HppMap[j].Host = make([]string, len(hosts))
+				copy(policy.HppMap[j].Host, hosts)
+			}
+			policy.AviMarkers.Host = make([]string, len(hosts))
+			copy(policy.AviMarkers.Host, hosts)
+		}
+		if o.IsSNIChild {
+			utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for child VS %s", key, hosts, o.Name)
+			return
+		}
+	}
+
+	// Update the hosts in the redirect policy of parent VS
 	for _, policy := range o.HttpPolicyRefs {
-		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				hppMap = &policy.HppMap[j]
-				break
-			}
-		}
 		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				redirectPorts = &policy.RedirectPorts[j]
-				break
-			}
-		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
-				if !utils.HasElem(policy.AviMarkers.Host, host) {
-					policy.AviMarkers.Host = append(policy.AviMarkers.Host, host)
-				}
-			}
+			uniqueHosts := sets.NewString(policy.RedirectPorts[j].Hosts...)
+			uniqueHosts.Insert(hosts...)
+			policy.RedirectPorts[j].Hosts = make([]string, uniqueHosts.Len())
+			copy(policy.RedirectPorts[j].Hosts, uniqueHosts.UnsortedList())
 		}
 	}
 
-	// Update the hppMap with the hosts
-	if hppMap != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(hppMap.Host, host) {
-				hppMap.Host = append(hppMap.Host, host)
-			}
-		}
-	}
-
-	// Update the redirectPorts with the hosts
-	if redirectPorts != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(redirectPorts.Hosts, host) {
-				redirectPorts.Hosts = append(redirectPorts.Hosts, host)
-			}
-		}
-	}
-
-	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for VS %s", key, hosts, o.Name)
+	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for parent VS %s", key, hosts, o.Name)
 }
 
-func (o *AviVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviVsNode) RemoveFQDNAliasesFromHTTPPolicy(hosts []string, key string) {
 
-	// Find the hppMap and redirectPorts that matches the host and delete the hosts from it
-	for _, policy := range o.HttpPolicyRefs {
-		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				for _, host := range hosts {
+	// Find the hppMap for the child and delete the hosts from it
+	if o.IsSNIChild || o.Dedicated {
+		for _, host := range hosts {
+			for _, policy := range o.HttpPolicyRefs {
+				for j := range policy.HppMap {
 					policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
 				}
-			}
-		}
-		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				for _, host := range hosts {
-					policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
-				}
-			}
-		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
 				policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
 			}
 		}
+		if o.IsSNIChild {
+			utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for child VS %s", key, hosts, o.Name)
+			return
+		}
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for VS %s", key, hosts, o.Name)
+	// Find the redirect policies of parent and delete the hosts from it
+	for _, policy := range o.HttpPolicyRefs {
+		for j := range policy.RedirectPorts {
+			for _, host := range hosts {
+				policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
+			}
+		}
+	}
+
+	utils.AviLog.Debugf("key: %s, msg: Removed hosts %v from HTTP policy for parent VS %s", key, hosts, o.Name)
 }
 
 func (o *AviVsNode) AddFQDNsToModel(hosts []string, gsFqdn, key string) {
@@ -933,9 +920,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
@@ -1031,10 +1016,7 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	var checksum uint32
 	for _, hpp := range v.HppMap {
-		sort.Strings(hpp.Path)
-		sort.Strings(hpp.Host)
-		checksum = checksum + utils.Hash(utils.Stringify(hpp))
-
+		checksum += hpp.GetCheckSum()
 	}
 	for _, redir := range v.RedirectPorts {
 		sort.Strings(redir.Hosts)
@@ -1048,19 +1030,9 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 		checksum = checksum + utils.Hash(utils.Stringify(v.HeaderReWrite))
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	v.CloudConfigCksum = checksum
-}
-func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
-	var checksum uint32
-	sort.Strings(v.Path)
-	sort.Strings(v.Host)
-	checksum = checksum + utils.Hash(utils.Stringify(v))
-	v.Checksum = checksum
-
 }
 
 func (v *AviHttpPolicySetNode) GetNodeType() string {
@@ -1092,6 +1064,20 @@ type AviHostPathPortPoolPG struct {
 	MatchCriteria string
 	Protocol      string
 	IngName       string
+}
+
+func (v *AviHostPathPortPoolPG) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.Checksum
+}
+
+func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
+	var checksum uint32
+	sort.Strings(v.Path)
+	v.Host = nil // Host in http policy is no longer required. TODO: complete removal of its reference from everywhere.
+	checksum = checksum + utils.Hash(utils.Stringify(v))
+	v.Checksum = checksum
 }
 
 type AviRedirectPort struct {
@@ -1158,6 +1144,7 @@ func (v *AviTLSKeyCertNode) CopyNode() AviModelNode {
 type AviPortHostProtocol struct {
 	PortMap     map[string][]int32
 	Port        int32
+	TargetPort  intstr.IntOrString
 	Protocol    string
 	Hosts       []string
 	Secret      string
@@ -1219,9 +1206,8 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)
 	}
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetClusterLabelChecksum()
-	}
+
+	checksum += lib.GetClusterLabelChecksum()
 
 	v.CloudConfigCksum = checksum
 }
@@ -1267,9 +1253,7 @@ func (v *AviPoolGroupNode) CalculateCheckSum() {
 		return *pgMembers[i].PoolRef < *pgMembers[j].PoolRef
 	})
 	checksum := utils.Hash(utils.Stringify(pgMembers))
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 	v.CloudConfigCksum = checksum
 }
 
@@ -1321,8 +1305,8 @@ func (v *AviHTTPDataScriptNode) GetCheckSum() uint32 {
 func (v *AviHTTPDataScriptNode) CalculateCheckSum() {
 	// A sum of fields for this VS.
 	checksum := lib.DSChecksum(v.PoolGroupRefs, nil, false)
-	if lib.GetEnableCtrl2014Features() {
-		checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
+	if len(v.PoolGroupRefs) == 1 {
+		checksum += utils.Hash(fmt.Sprintf(utils.HTTP_DS_SCRIPT_MODIFIED, v.PoolGroupRefs[0]))
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -1384,7 +1368,7 @@ type AviPoolNode struct {
 	Tenant                   string
 	CloudConfigCksum         uint32
 	Port                     int32
-	TargetPort               int32
+	TargetPort               intstr.IntOrString
 	PortName                 string
 	Servers                  []AviPoolMetaServer
 	Protocol                 string
@@ -1396,6 +1380,7 @@ type AviPoolNode struct {
 	ServiceMetadata          lib.ServiceMetadataObj
 	SniEnabled               bool
 	SslProfileRef            string
+	PkiProfileRef            string
 	PkiProfile               *AviPkiProfileNode
 	NetworkPlacementSettings map[string][]string
 	HealthMonitors           []string
@@ -1418,9 +1403,6 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		return *servers[i].Ip.Addr < *servers[j].Ip.Addr
 	})
 
-	// nodeNetworkMap is the placement nw details for the pool which is constant for the AKO instance.
-	// nodeNetworkMap, _ := lib.GetNodeNetworkMap()
-
 	// A sum of fields for this Pool.
 	checksumStringSlice := []string{
 		v.Protocol,
@@ -1434,6 +1416,10 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.SslProfileRef,
 		v.PriorityLabel,
 		utils.Stringify(v.NetworkPlacementSettings),
+	}
+
+	if v.PkiProfileRef != "" {
+		checksumStringSlice = append(checksumStringSlice, v.PkiProfileRef)
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {
@@ -1462,9 +1448,8 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksum += utils.Hash(v.ApplicationPersistence)
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
+
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)
 	}
@@ -1525,13 +1510,15 @@ type AviPoolMetaServer struct {
 }
 
 type IngressHostPathSvc struct {
-	ServiceName string
-	Path        string
-	PathType    networkingv1.PathType
-	Port        int32
-	weight      int32 //required for alternate backends in openshift route
-	PortName    string
-	TargetPort  int32
+	ServiceName    string
+	Path           string
+	PathType       networkingv1.PathType
+	Port           int32
+	weight         int32 //required for alternate backends in openshift route
+	PortName       string
+	TargetPort     int32
+	clusterContext string // required for Multi-cluster ingress
+	svcNamespace   string // required for Multi-cluster ingress
 }
 
 type IngressHostMap map[string]HostMetadata

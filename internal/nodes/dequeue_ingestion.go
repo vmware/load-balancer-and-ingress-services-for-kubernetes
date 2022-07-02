@@ -32,8 +32,8 @@ import (
 func DequeueIngestion(key string, fullsync bool) {
 	// The key format expected here is: objectType/Namespace/ObjKey
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
-	var ingressFound, routeFound bool
-	var ingressNames, routeNames []string
+	var ingressFound, routeFound, mciFound bool
+	var ingressNames, routeNames, mciNames []string
 	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
@@ -50,6 +50,10 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else if utils.GetInformers().RouteInformer != nil && schema.GetParentRoutes != nil {
 			routeNames, routeFound = schema.GetParentRoutes(name, namespace, key)
 		}
+		// CHECKME: both ingress and mci processing?
+		if utils.GetInformers().MultiClusterIngressInformer != nil && schema.GetParentMultiClusterIngresses != nil {
+			mciNames, mciFound = schema.GetParentMultiClusterIngresses(name, namespace, key)
+		}
 	}
 
 	if objType == lib.HostRule &&
@@ -64,6 +68,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	if objType == utils.NodeObj {
 		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, fullsync)
+
 		if lib.IsNodePortMode() && !fullsync {
 			svcl4Keys, svcl7Keys := lib.GetSvcKeysForNodeCRUD()
 			for _, svcl4Key := range svcl4Keys {
@@ -84,6 +89,13 @@ func DequeueIngestion(key string, fullsync bool) {
 						continue
 					}
 					handleRoute(svcl7Key, fullsync, filteredRouteNames)
+				}
+				if mciFound {
+					filteredMCIFound, filteredMCINames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(namespace).GetSvcToIng(svcName)
+					if !filteredMCIFound {
+						continue
+					}
+					handleMultiClusterIngress(svcl7Key, fullsync, filteredMCINames)
 				}
 			}
 		}
@@ -119,9 +131,16 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if !ingressFound && !lib.GetAdvancedL4() {
+	if !ingressFound && !lib.GetAdvancedL4() && !mciFound {
 		// If ingress is not found, let's do the other checks.
-		if objType == utils.L4LBService {
+		if objType == lib.SharedVipServiceKey {
+			sharedVipKeys, keysFound := schema.GetParentServices(name, namespace, key)
+			if keysFound && utils.CheckIfNamespaceAccepted(namespace) {
+				for _, sharedVipKey := range sharedVipKeys {
+					handleL4SharedVipService(sharedVipKey, key, fullsync)
+				}
+			}
+		} else if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
 			handleL4Service(key, fullsync)
 		} else if objType == utils.Endpoints {
@@ -130,11 +149,16 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
 				return
 			}
-			//Do not handle service update if it belongs to unaccepted namespace
+
+			// Do not handle service update if it belongs to unaccepted namespace
 			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() && utils.CheckIfNamespaceAccepted(namespace) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
-				aviModelGraph.BuildL4LBGraph(namespace, name, key)
+				if sharedVipKey, ok := svcObj.Annotations[lib.SharedVipSvcLBAnnotation]; ok && sharedVipKey != "" {
+					aviModelGraph.BuildAdvancedL4Graph(namespace, sharedVipKey, key, true)
+				} else {
+					aviModelGraph.BuildL4LBGraph(namespace, name, key)
+				}
 				if len(aviModelGraph.GetOrderedNodes()) > 0 {
 					model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
 					ok := saveAviModel(model_name, aviModelGraph, key)
@@ -145,6 +169,9 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	} else {
+		if mciFound {
+			handleMultiClusterIngress(key, fullsync, mciNames)
+		}
 		handleIngress(key, fullsync, ingressNames)
 	}
 
@@ -175,7 +202,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					}
 				} else {
 					aviModelGraph := NewAviObjectGraph()
-					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key)
+					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key, false)
 					ok := saveAviModel(modelName, aviModelGraph, key)
 					if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 						PublishKeyToRestLayer(modelName, key, sharedQueue)
@@ -191,15 +218,17 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 	_, namespace, hrName := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	var fqdn, oldFqdn string
+	var fqdnType, oldFqdnType string
 	var oldFound bool
 
 	hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hrName)
 	if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: HostRule Deleted", key)
-		_, fqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
-		if strings.Contains(fqdn, lib.ShardVSSubstring) {
+		oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
+		if strings.Contains(oldFqdn, lib.ShardVSSubstring) {
 			objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrName)
-			objects.SharedCRDLister().DeleteFQDNFQDNTypeMapping(fqdn)
+			oldFqdnType = objects.SharedCRDLister().GetFQDNFQDNTypeMapping(oldFqdn)
+			objects.SharedCRDLister().DeleteFQDNFQDNTypeMapping(oldFqdn)
 		}
 	} else if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error getting hostrule: %v", key, err)
@@ -210,25 +239,30 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 			oldFound, oldFqdn = objects.SharedCRDLister().GetHostruleToFQDNMapping(namespace + "/" + hrName)
 			if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
 				objects.SharedCRDLister().DeleteHostruleFQDNMapping(namespace + "/" + hrName)
+				oldFqdnType = objects.SharedCRDLister().GetFQDNFQDNTypeMapping(oldFqdn)
 			}
 			if strings.Contains(fqdn, lib.ShardVSSubstring) {
 				objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrName)
-				objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, string(hostrule.Spec.VirtualHost.FqdnType))
+				fqdnType = string(hostrule.Spec.VirtualHost.FqdnType)
+				if fqdnType == "" {
+					fqdnType = string(akov1alpha1.Exact)
+				}
+				objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, fqdnType)
 			}
 		}
 	}
 
-	if strings.Contains(fqdn, lib.ShardVSSubstring) {
-		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(fqdn); !ok {
-			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s", key, fqdn)
+	if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
+		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(oldFqdn, oldFqdnType); !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s %s", key, oldFqdn, oldFqdnType)
 		} else {
 			allModels = append(allModels, obj...)
 		}
 	}
 
-	if oldFound && strings.Contains(oldFqdn, lib.ShardVSSubstring) {
-		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(oldFqdn); !ok {
-			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s", key, oldFqdn)
+	if strings.Contains(fqdn, lib.ShardVSSubstring) {
+		if ok, obj := objects.SharedCRDLister().GetFQDNToSharedVSModelMapping(fqdn, fqdnType); !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find SharedVS model info for host: %s %s", key, fqdn, fqdnType)
 		} else {
 			allModels = append(allModels, obj...)
 		}
@@ -399,6 +433,88 @@ func handleRoute(key string, fullsync bool, routeNames []string) {
 	}
 }
 
+/*
+to test
+1. 	key1 svc1 svc2 ; key2 svc3
+	change key from key1 to key2 in svc2
+	key 1 svc1 ; key2 svc3 svc2
+
+2.	key1 svc1
+	change service type to clusterip
+	deletes key1 VS
+	change servie type to lb
+	recreates key1 VS
+
+3. 	key1 svc1	ingress /bar svc1
+	change service type to clusterip
+	deletes key1 VS, adds to pool in ingress /bar
+	change service type to lb
+	creates key1 VS, deletes pool of ingress /bar
+*/
+/*
+validations
+1.	annotations must not be on service of type non LB
+2. 	port/protocol must be unique among all services with annotation key
+3. 	preferred IP must be same in all services with annotation key
+*/
+func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
+	if lib.GetLayer7Only() {
+		// If the layer 7 only flag is set, then we shouldn't handling layer 4 VSes.
+		utils.AviLog.Debugf("key: %s, msg: not handling service of type loadbalancer since AKO is configured to run in layer 7 mode only", key)
+		return
+	}
+
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	_, namespace, _ := lib.ExtractTypeNameNamespace(key)
+	modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
+
+	found, serviceNSNames := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
+	isShareVipKeyDelete := !found || len(serviceNSNames) == 0
+
+	// Check whether all Services have the same preferred VIP setting. If not, delete the VS altogether,
+	// assuming bad configuration.
+	var sharedVipLBIP string
+	for i, serviceNSName := range serviceNSNames {
+		svcNSName := strings.Split(serviceNSName, "/")
+		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
+		if err != nil {
+			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
+			isShareVipKeyDelete = true
+			break
+		}
+
+		// Initializing the preferred VIP from the first Service we get, so any other Service
+		// that wishes for static IP allocation differently conflicts with this.
+		if i == 0 {
+			sharedVipLBIP = svcObj.Spec.LoadBalancerIP
+		}
+
+		if svcObj.Spec.LoadBalancerIP != sharedVipLBIP {
+			utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Spec.LoadBalancerIP, serviceNSNames[0], sharedVipLBIP)
+			isShareVipKeyDelete = true
+			break
+		}
+	}
+
+	if isShareVipKeyDelete {
+		// Check if a model corresponding to the gateway exists or not in memory.
+		if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
+			objects.SharedAviGraphLister().Save(modelName, nil)
+			if !fullsync {
+				PublishKeyToRestLayer(modelName, key, sharedQueue)
+			}
+		}
+	} else {
+		aviModelGraph := NewAviObjectGraph()
+		vipKey := strings.Split(namespacedVipKey, "/")[1]
+		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key, true)
+		ok := saveAviModel(modelName, aviModelGraph, key)
+		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
+			PublishKeyToRestLayer(modelName, key, sharedQueue)
+		}
+	}
+}
+
 func handleL4Service(key string, fullsync bool) {
 	if lib.GetLayer7Only() {
 		// If the layer 7 only flag is set, then we shouldn't handling layer 4 VSes.
@@ -407,8 +523,7 @@ func handleL4Service(key string, fullsync bool) {
 	}
 	_, namespace, name := lib.ExtractTypeNameNamespace(key)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	// L4 type of services need special handling. We create a dedicated VS in Avi for these.
-	if !isServiceDelete(name, namespace, key) && utils.CheckIfNamespaceAccepted(namespace) {
+	if deleteCase := isServiceDelete(name, namespace, key); !deleteCase && utils.CheckIfNamespaceAccepted(namespace) {
 		// If Service is Not Annotated with NPL annotation, annotate the service and return.
 		if lib.AutoAnnotateNPLSvc() {
 			if !status.CheckNPLSvcAnnotation(key, namespace, name) {
@@ -419,6 +534,7 @@ func handleL4Service(key string, fullsync bool) {
 					Namespace: namespace,
 					Key:       key,
 				}
+				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", name, utils.Stringify(statusOption))
 				status.PublishToStatusQueue(name, statusOption)
 				return
 			}
@@ -470,6 +586,17 @@ func handleIngress(key string, fullsync bool, ingressNames []string) {
 	}
 }
 
+func handleMultiClusterIngress(key string, fullsync bool, ingressNames []string) {
+	objType, namespace, _ := lib.ExtractTypeNameNamespace(key)
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	// The only other shard scheme we support now is hostname sharding.
+	for _, ingress := range ingressNames {
+		nsing, nameing := getIngressNSNameForIngestion(objType, namespace, ingress)
+		utils.AviLog.Debugf("key: %s, msg: processing multi-cluster ingress: %s", key, ingress)
+		HostNameShardAndPublish(lib.MultiClusterIngress, nameing, nsing, key, fullsync, sharedQueue)
+	}
+}
+
 func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, string) {
 	if objType == lib.HostRule || objType == lib.HTTPRule || objType == utils.Secret {
 		arr := strings.Split(nsname, "/")
@@ -484,28 +611,28 @@ func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, st
 	return namespace, nsname
 }
 
-func saveAviModel(model_name string, aviGraph *AviObjectGraph, key string) bool {
-	utils.AviLog.Debugf("key: %s, msg: Evaluating model :%s", key, model_name)
+func saveAviModel(modelName string, aviGraph *AviObjectGraph, key string) bool {
+	utils.AviLog.Debugf("key: %s, msg: Evaluating model :%s", key, modelName)
 	if lib.DisableSync {
 		// Note: This is not thread safe, however locking is expensive and the condition for locking should happen rarely
-		utils.AviLog.Infof("key: %s, msg: Disable Sync is True, model %s can not be saved", key, model_name)
+		utils.AviLog.Infof("key: %s, msg: Disable Sync is True, model %s can not be saved", key, modelName)
 		return false
 	}
-	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found && aviModel != nil {
 		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
-		utils.AviLog.Debugf("key: %s, msg: the model: %s has a previous checksum: %v", key, model_name, prevChecksum)
+		utils.AviLog.Debugf("key: %s, msg: the model: %s has a previous checksum: %v", key, modelName, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
-		utils.AviLog.Debugf("key: %s, msg: the model: %s has a present checksum: %v", key, model_name, presentChecksum)
+		utils.AviLog.Debugf("key: %s, msg: the model: %s has a present checksum: %v", key, modelName, presentChecksum)
 		if prevChecksum == presentChecksum {
-			utils.AviLog.Debugf("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, model_name, presentChecksum)
+			utils.AviLog.Debugf("key: %s, msg: The model: %s has identical checksums, hence not processing. Checksum value: %v", key, modelName, presentChecksum)
 			return false
 		}
 	}
 	// Right before saving the model, let's reset the retry counter for the graph.
 	aviGraph.SetRetryCounter()
 	aviGraph.CalculateCheckSum()
-	objects.SharedAviGraphLister().Save(model_name, aviGraph)
+	objects.SharedAviGraphLister().Save(modelName, aviGraph)
 	return true
 }
 
@@ -523,6 +650,12 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 		return
 	}
 	if lib.IsNodePortMode() {
+		return
+	}
+
+	// Do not process VRF for non primary AKO
+	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
 		return
 	}
 	aviModel := NewAviObjectGraph()
@@ -550,7 +683,7 @@ func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.Work
 
 func isServiceDelete(svcName string, namespace string, key string) bool {
 	// If the service is not found we return true.
-	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	svc, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: could not retrieve the object for service: %s", key, err)
 		if errors.IsNotFound(err) {
@@ -558,18 +691,9 @@ func isServiceDelete(svcName string, namespace string, key string) bool {
 		}
 	}
 
-	var gwNameLabel, gwNamespaceLabel string
-	if lib.GetAdvancedL4() {
-		gwNameLabel = lib.GatewayNameLabelKey
-		gwNamespaceLabel = lib.GatewayNamespaceLabelKey
-	} else if lib.UseServicesAPI() {
-		gwNameLabel = lib.SvcApiGatewayNameLabelKey
-		gwNamespaceLabel = lib.SvcApiGatewayNamespaceLabelKey
-	}
-
-	_, nok := service.Labels[gwNameLabel]
-	_, nsok := service.Labels[gwNamespaceLabel]
-	if nsok || nok {
+	// The annotation for sharedVip might have been added, in which case we should delete the L4
+	// dedicated virtual service.
+	if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
 		return true
 	}
 
@@ -591,7 +715,7 @@ func (descriptor GraphDescriptor) GetByType(name string) (GraphSchema, bool) {
 
 func GetShardVSPrefix(key string) string {
 	// sample prefix: clusterName--Shared-L7-
-	shardVsPrefix := lib.GetNamePrefix() + lib.ShardVSPrefix + "-"
+	shardVsPrefix := lib.GetNamePrefix() + lib.GetAKOIDPrefix() + lib.ShardVSPrefix + "-"
 	utils.AviLog.Debugf("key: %s, msg: ShardVSPrefix: %s", key, shardVsPrefix)
 	return shardVsPrefix
 }

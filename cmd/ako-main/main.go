@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -83,7 +84,12 @@ func InitializeAKC() {
 
 	// Initialize akoControlConfig
 	akoControlConfig := lib.AKOControlConfig()
-
+	//Used to set vrf context, static routes
+	isPrimaryAKO, err := strconv.ParseBool(os.Getenv("PRIMARY_AKO_FLAG"))
+	if err != nil {
+		isPrimaryAKO = true
+	}
+	akoControlConfig.SetAKOInstanceFlag(isPrimaryAKO)
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
@@ -154,13 +160,14 @@ func InitializeAKC() {
 		utils.AviLog.Warnf("Error in creating openshift clientset")
 	}
 
-	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient)
+	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient, false)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO, going to reboot", err)
 	}
 
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = oshiftClient
+	informersArg[utils.INFORMERS_AKO_CLIENT] = crdClient
 
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
@@ -190,6 +197,7 @@ func InitializeAKC() {
 	lib.NewVCFDynamicClientSet(cfg)
 	// In VCF environment, avi controller details have to be fetched from the Bootstrap CR
 	if lib.GetControllerIP() == "" {
+		utils.AviLog.Infof("Unable to find Avi Controller endpoint, trying to fetch from bootstrap Resource.")
 		ctrlIP := lib.GetControllerURLFromBootstrapCR()
 		if ctrlIP != "" {
 			lib.SetControllerIP(ctrlIP)
@@ -259,9 +267,11 @@ func InitializeAKC() {
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 
+	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[0])
+
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
-		utils.AviLog.Errorf("Handleconfigmap error during reboot, shutting down AKO")
+		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
 		return
 	}
 

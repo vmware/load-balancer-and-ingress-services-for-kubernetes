@@ -26,6 +26,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -138,8 +139,8 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 	if len(annotations) == 0 {
 		annotations = map[string]string{}
 	}
-	annotations[VSAnnotation] = string(vsAnnotationsStr)
-	annotations[ControllerAnnotation] = avicache.GetControllerClusterUUID()
+	annotations[lib.VSAnnotation] = string(vsAnnotationsStr)
+	annotations[lib.ControllerAnnotation] = avicache.GetControllerClusterUUID()
 
 	patchPayload := map[string]interface{}{
 		"metadata": map[string]map[string]string{
@@ -188,8 +189,8 @@ func deleteSvcAnnotation(svc *corev1.Service) error {
 	payloadData := map[string]interface{}{
 		"metadata": map[string]map[string]*string{
 			"annotations": {
-				VSAnnotation:         nil,
-				ControllerAnnotation: nil,
+				lib.VSAnnotation:         nil,
+				lib.ControllerAnnotation: nil,
 			},
 		},
 	}
@@ -207,7 +208,6 @@ func deleteSvcAnnotation(svc *corev1.Service) error {
 // if bulk is set to true, this fetches all services in a single k8s api-server call
 func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string]*corev1.Service {
 	retry := 0
-	mClient := utils.GetInformers().ClientSet
 	serviceMap := make(map[string]*corev1.Service)
 	if len(retryNum) > 0 {
 		utils.AviLog.Infof("Retrying to get the services for status update")
@@ -219,7 +219,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 	}
 
 	if bulk {
-		serviceLBList, err := mClient.CoreV1().Services(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		serviceLBList, err := utils.GetInformers().ServiceInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -227,19 +227,19 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 				return getServices(serviceNSNames, bulk, retry+1)
 			}
 		}
-		for i := range serviceLBList.Items {
-			svc := serviceLBList.Items[i]
+		for i := range serviceLBList {
+			svc := serviceLBList[i].DeepCopy()
 			if !lib.UseServicesAPI() {
 				if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 					//Do not perform status update on service if namespace is not accepted.
 					if utils.CheckIfNamespaceAccepted(svc.Namespace) {
-						serviceMap[svc.Namespace+"/"+svc.Name] = &svc
+						serviceMap[svc.Namespace+"/"+svc.Name] = svc
 					}
 				}
 			} else {
 				// This shouldn't be required in the future once there is no requirement to update status on ClusterIP type of services used with Gateways
 				if utils.CheckIfNamespaceAccepted(svc.Namespace) {
-					serviceMap[svc.Namespace+"/"+svc.Name] = &svc
+					serviceMap[svc.Namespace+"/"+svc.Name] = svc
 				}
 			}
 		}
@@ -248,7 +248,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 	}
 	for _, namespaceName := range serviceNSNames {
 		nsNameSplit := strings.Split(namespaceName, "/")
-		serviceLB, err := mClient.CoreV1().Services(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
+		serviceLB, err := utils.GetInformers().ServiceInformer.Lister().Services(nsNameSplit[0]).Get(nsNameSplit[1])
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -258,7 +258,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 			continue
 		}
 
-		serviceMap[serviceLB.Namespace+"/"+serviceLB.Name] = serviceLB
+		serviceMap[serviceLB.Namespace+"/"+serviceLB.Name] = serviceLB.DeepCopy()
 	}
 	return serviceMap
 }

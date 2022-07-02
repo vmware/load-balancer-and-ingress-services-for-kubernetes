@@ -37,7 +37,6 @@ var cmJson = `
 		"creationTimestamp": null
 	},
 	"data": {
-		"advancedL4": "false",
 		"apiServerPort": "8080",
 		"autoFQDN": "default",
 		"cloudName": "test-cloud",
@@ -54,6 +53,7 @@ var cmJson = `
 		"deleteConfig": "false",
 		"disableStaticRouteSync": "false",
 		"fullSyncFrequency": "1800",
+		"enableEvents": "true",
 		"logLevel": "INFO",
 		"networkName": "test-nw",
 		"nodeKey": "key",

@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,6 +30,7 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -61,8 +61,8 @@ type AviVsEvhSniModel interface {
 	GetServiceMetadata() lib.ServiceMetadataObj
 	SetServiceMetadata(lib.ServiceMetadataObj)
 
-	GetSSLKeyCertAviRef() string
-	SetSSLKeyCertAviRef(string)
+	GetSSLKeyCertAviRef() []string
+	SetSSLKeyCertAviRef([]string)
 
 	GetWafPolicyRef() string
 	SetWafPolicyRef(string)
@@ -136,7 +136,7 @@ type AviEvhVsNode struct {
 	HttpPolicySetRefs   []string
 	VsDatascriptRefs    []string
 	SSLProfileRef       string
-	SSLKeyCertAviRef    string
+	SSLKeyCertAviRef    []string
 	Paths               []string
 	IngressNames        []string
 	AnalyticsPolicy     *avimodels.AnalyticsPolicy
@@ -209,11 +209,11 @@ func (v *AviEvhVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviEvhVsNode) GetSSLKeyCertAviRef() string {
+func (v *AviEvhVsNode) GetSSLKeyCertAviRef() []string {
 	return v.SSLKeyCertAviRef
 }
 
-func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef string) {
+func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
 	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
@@ -502,77 +502,37 @@ func (v *AviEvhVsNode) GetNodeType() string {
 	return "VirtualServiceNode"
 }
 
-func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(host string, hosts []string, key string) {
-
-	var hppMap *AviHostPathPortPoolPG
-	var redirectPorts *AviRedirectPort
+func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 
 	// Find the hppMap and redirectPorts that matches the host
 	for _, policy := range o.HttpPolicyRefs {
 		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				hppMap = &policy.HppMap[j]
-				break
-			}
+			policy.HppMap[j].Host = make([]string, len(hosts))
+			copy(policy.HppMap[j].Host, hosts)
 		}
 		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				redirectPorts = &policy.RedirectPorts[j]
-				break
-			}
+			policy.RedirectPorts[j].Hosts = make([]string, len(hosts))
+			copy(policy.RedirectPorts[j].Hosts, hosts)
 		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
-				if !utils.HasElem(policy.AviMarkers.Host, host) {
-					policy.AviMarkers.Host = append(policy.AviMarkers.Host, host)
-				}
-			}
-		}
-	}
-
-	// Update the hppMap with the hosts
-	if hppMap != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(hppMap.Host, host) {
-				hppMap.Host = append(hppMap.Host, host)
-			}
-		}
-	}
-
-	// Update the redirectPorts with the hosts
-	if redirectPorts != nil {
-		for _, host := range hosts {
-			if !utils.HasElem(redirectPorts.Hosts, host) {
-				redirectPorts.Hosts = append(redirectPorts.Hosts, host)
-			}
-		}
+		policy.AviMarkers.Host = make([]string, len(hosts))
+		copy(policy.AviMarkers.Host, hosts)
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Added hosts %v to HTTP policy for VS %s", key, hosts, o.Name)
 }
 
-func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(host string, hosts []string, key string) {
+func (o *AviEvhVsNode) RemoveFQDNAliasesFromHTTPPolicy(hosts []string, key string) {
 
-	// Find the hppMap and redirectPorts that matches the host and remove the hosts
-	for _, policy := range o.HttpPolicyRefs {
-		for j := range policy.HppMap {
-			if utils.HasElem(policy.HppMap[j].Host, host) {
-				for _, host := range hosts {
-					policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
-				}
+	for _, host := range hosts {
+		// Find the hppMap and redirectPorts that matches the host and remove the hosts
+		for _, policy := range o.HttpPolicyRefs {
+			for j := range policy.HppMap {
+				policy.HppMap[j].Host = utils.Remove(policy.HppMap[j].Host, host)
 			}
-		}
-		for j := range policy.RedirectPorts {
-			if utils.HasElem(policy.RedirectPorts[j].Hosts, host) {
-				for _, host := range hosts {
-					policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
-				}
+			for j := range policy.RedirectPorts {
+				policy.RedirectPorts[j].Hosts = utils.Remove(policy.RedirectPorts[j].Hosts, host)
 			}
-		}
-		if utils.HasElem(policy.AviMarkers.Host, host) {
-			for _, host := range hosts {
-				policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
-			}
+			policy.AviMarkers.Host = utils.Remove(policy.AviMarkers.Host, host)
 		}
 	}
 
@@ -641,8 +601,9 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	for _, evhnode := range v.EvhNodes {
 		checksumStringSlice = append(checksumStringSlice, "EVHNode"+evhnode.Name)
-		if evhnode.SSLKeyCertAviRef != "" {
-			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhnode.SSLKeyCertAviRef)
+		for _, evhcert := range evhnode.SSLKeyCertAviRef {
+			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhcert)
+
 		}
 	}
 
@@ -683,9 +644,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
 
-	if lib.GetGRBACSupport() {
-		checksum += lib.GetMarkersChecksum(v.AviMarkers)
-	}
+	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	if v.EnableRhi != nil {
 		checksum += utils.Hash(utils.Stringify(*v.EnableRhi))
@@ -816,7 +775,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key string, infraSetting *akov1alpha1.AviInfraSetting, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key string, infraSetting *akov1alpha1.AviInfraSetting, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings, modelType string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var httppolname string
 	var policyNode *AviHttpPolicySetNode
@@ -883,7 +842,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
 			Port:       path.Port,
-			TargetPort: path.TargetPort,
+			TargetPort: intstr.FromInt(int(path.TargetPort)),
 			ServiceMetadata: lib.ServiceMetadataObj{
 				IngressName: ingName,
 				Namespace:   namespace,
@@ -910,6 +869,16 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		if serviceType == lib.NodePortLocal {
 			if servers := PopulateServersForNPL(poolNode, namespace, path.ServiceName, true, key); servers != nil {
 				poolNode.Servers = servers
+			}
+		} else if modelType == lib.MultiClusterIngress {
+			if serviceType == lib.NodePort {
+				poolNode.ServiceMetadata.IsMCIIngress = true
+				// incase of multi-cluster ingress, the servers are created using service import CRD
+				if servers := PopulateServersForMultiClusterIngress(poolNode, namespace, path.clusterContext, path.svcNamespace, path.ServiceName, key); servers != nil {
+					poolNode.Servers = servers
+				}
+			} else {
+				utils.AviLog.Errorf("key: %s, msg: Multi-cluster ingress is only supported for serviceType NodePort, not adding the servers", key)
 			}
 		} else if serviceType == lib.NodePort {
 			if servers := PopulateServersForNodePort(poolNode, namespace, path.ServiceName, true, key); servers != nil {
@@ -1096,12 +1065,12 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		evhNode.DeleteSSLPort(key)
 		evhNode.DeleteSecureAppProfile(key)
 	} else {
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, ""), key)
 	}
 	// Remove the redirect for secure to insecure transition
 	RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hosts, key)
 	// build poolgroup and pool
-	o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, pathsvcmap.ingressHPSvc, nil)
+	o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, pathsvcmap.ingressHPSvc, nil, routeIgrObj.GetType())
 	if !isDedicated {
 		foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 		if !foundEvhModel {
@@ -1123,13 +1092,12 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		}
 	}
 	vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-	vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
-	evhNode.RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
+	evhNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 	// Add FQDN aliases in the hostrule CRD to parent and child VSes
 	vsNode[0].AddFQDNsToModel(evhNode.VHDomainNames, pathsvcmap.gslbHostHeader, key)
-	vsNode[0].AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
-	evhNode.AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
+	evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
+	evhNode.AviMarkers.Host = evhNode.VHDomainNames
 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
 }
 
@@ -1160,13 +1128,39 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 		secretNS = namespace
 	}
 
-	certNode := &AviTLSKeyCertNode{
-		Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host),
-		Tenant: lib.GetTenant(),
-		Type:   lib.CertTypeVS,
+	if lib.IsSecretK8sSecretRef(secretName) {
+		secretName = strings.Split(secretName, "/")[2]
 	}
-	certNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
-	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route
+	var altCertNode *AviTLSKeyCertNode
+	var certNode *AviTLSKeyCertNode
+
+	//for default cert, use existing node if it exists
+	foundTLSKeyCertNode := false
+	if tlsData.SecretName == lib.GetDefaultSecretForRoutes() {
+		for _, ssl := range tlsNode.SSLKeyCertRefs {
+			if ssl.Name == lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName) {
+				certNode = ssl
+				foundTLSKeyCertNode = true
+				break
+			}
+		}
+		if foundTLSKeyCertNode {
+			keyCertRefsSet := sets.NewString(certNode.AviMarkers.Host...)
+			keyCertRefsSet.Insert(host)
+			certNode.AviMarkers.Host = keyCertRefsSet.List()
+		}
+	}
+	if !foundTLSKeyCertNode {
+		certNode = &AviTLSKeyCertNode{
+			Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName),
+			Tenant: lib.GetTenant(),
+			Type:   lib.CertTypeVS,
+		}
+		certNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
+	}
+
+	// Openshift Routes do not refer to a secret, instead key/cert values are mentioned in the route.
+	// Routes can refer to secrets only in case of using default secret in ako NS or using hostrule secret.
 	if strings.HasPrefix(secretName, lib.RouteSecretsPrefix) {
 		if tlsData.cert != "" && tlsData.key != "" {
 			certNode.Cert = []byte(tlsData.cert)
@@ -1200,7 +1194,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 			return false
 		}
 		keycertMap := secretObj.Data
-		cert, ok := keycertMap[tlsCert]
+		cert, ok := keycertMap[utils.K8S_TLS_SECRET_CERT]
 		if ok {
 			certNode.Cert = cert
 		} else {
@@ -1214,11 +1208,41 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 			utils.AviLog.Infof("key: %s, msg: key not found for secret: %s", key, secretObj.Name)
 			return false
 		}
+		altCert, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+		if ok {
+			altKey, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+			if ok {
+				foundTLSKeyCertNode := false
+				for _, ssl := range tlsNode.SSLKeyCertRefs {
+					if ssl.Name == lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt") {
+						altCertNode = ssl
+						altCertNode.AviMarkers = certNode.AviMarkers
+						foundTLSKeyCertNode = true
+						break
+					}
+				}
+				if !foundTLSKeyCertNode {
+					altCertNode = &AviTLSKeyCertNode{
+						Name:       lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"),
+						Tenant:     lib.GetTenant(),
+						Type:       lib.CertTypeVS,
+						AviMarkers: certNode.AviMarkers,
+						Cert:       altCert,
+						Key:        altKey,
+					}
+				}
+			}
+		}
 		utils.AviLog.Infof("key: %s, msg: Added the secret object to tlsnode: %s", key, secretObj.Name)
 	}
 	// If this SSLCertRef is already present don't add it.
-	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host), certNode.GetCheckSum()) {
+	if tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName), certNode.GetCheckSum()) {
 		tlsNode.ReplaceEvhSSLRefInEVHNode(certNode, key)
+
+	}
+	if altCertNode != nil && tlsNode.CheckSSLCertNodeNameNChecksum(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"), altCertNode.GetCheckSum()) {
+		tlsNode.ReplaceEvhSSLRefInEVHNode(altCertNode, key)
+
 	}
 
 	return true
@@ -1323,8 +1347,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	isDedicated := vsNode[0].Dedicated
 	certsBuilt := false
 	evhSecretName := tlssetting.SecretName
-	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, lib.DummySecret))
-	if re.MatchString(evhSecretName) {
+	if lib.IsSecretAviCertRef(evhSecretName) {
 		certsBuilt = true
 	}
 
@@ -1398,7 +1421,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			//Openshift: Remove CA cert if present
 			vsNode[0].DeleteCACertRefInEVHNode(lib.GetCACertNodeName(infraSettingName, host), key)
 		}
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName+"-alt"), key)
 	}
 	if isDedicated {
 		evhNode = vsNode[0]
@@ -1414,7 +1438,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			}
 		}
 
-		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, paths.ingressHPSvc, &tlssetting)
+		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, paths.ingressHPSvc, &tlssetting, routeIgrObj.GetType())
 		if !isDedicated {
 			foundEvhModel := FindAndReplaceEvhInModel(evhNode, vsNode, key)
 			if !foundEvhModel {
@@ -1445,13 +1469,12 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			}
 		}
 		vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-		vsNode[0].RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
-		evhNode.RemoveFQDNAliasesFromHTTPPolicy(host, hostsToRemove, key)
+		evhNode.RemoveFQDNAliasesFromHTTPPolicy(hostsToRemove, key)
 
 		// Add FQDN aliases in the hostrule CRD to parent and child VSes
 		vsNode[0].AddFQDNsToModel(evhNode.VHDomainNames, paths.gslbHostHeader, key)
-		vsNode[0].AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
-		evhNode.AddFQDNAliasesToHTTPPolicy(host, evhNode.VHDomainNames, key)
+		evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
+		evhNode.AviMarkers.Host = evhNode.VHDomainNames
 		objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
 
 	} else {
@@ -1468,7 +1491,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			if vsNode[0].Dedicated {
 				DeleteDedicatedEvhVSNode(vsNode[0], key, hostsToRemove)
 			} else {
-				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host), key)
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName), key)
+				vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, tlssetting.SecretName+"-alt"), key)
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 			}
@@ -1639,8 +1663,7 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		}
 		newInfraPrefix = newSetting.Name
 	}
-
-	shardVsPrefix := lib.GetNamePrefix() + lib.ShardEVHVSPrefix
+	shardVsPrefix := lib.GetNamePrefix() + lib.GetAKOIDPrefix() + lib.ShardEVHVSPrefix
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
 	if oldInfraPrefix != "" {
 		oldVsName += oldInfraPrefix + "-"
@@ -1826,7 +1849,7 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 	}
 	if !keepEvh {
 		// Delete the cert ref for the host
-		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, hostname), key)
+		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, hostname, ""), key)
 	}
 	_, FQDNAliases := objects.SharedCRDLister().GetFQDNToAliasesMapping(hostname)
 	if removeFqdn && !keepEvh {

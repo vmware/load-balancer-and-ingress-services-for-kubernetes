@@ -92,8 +92,7 @@ The health monitors can be used to verify server health. A server (kubernetes po
 
 #### Reencrypt traffic to the services
 
-While AKO can terminate TLS traffic, it also provides and option where the users can choose to re-encrypt the traffic between the Avi SE and the
-backend application server. The following option is provided for `reencrypt`:
+While AKO can terminate TLS traffic, it also provides and option where the users can choose to re-encrypt the traffic between the Avi SE and the backend application server. The following options are provided for `reencrypt`, one is by providing a raw certificate using `destinationCA` or by providing a Avi PKI Profile reference using the `pkiProfile` field:
 
         tls: ## This is a re-encrypt to pool
           type: reencrypt # Mandatory [re-encrypt]
@@ -102,10 +101,16 @@ backend application server. The following option is provided for `reencrypt`:
             -----BEGIN CERTIFICATE-----
             [...]
             -----END CERTIFICATE-----
+
+        tls: ## This is a re-encrypt to pool
+          type: reencrypt # Mandatory [re-encrypt]
+          sslProfile: avi-ssl-profile
+          pkiProfile: avi-pki-profile
           
 `sslProfile`, additionally, can be used to determine the set of SSL versions and ciphers to accept for SSL/TLS terminated connections. If the `sslProfile` is not defined, AKO defaults to sslProfile `System-Standard` defined in Avi.
 
-In case of reencrypt, if `destinationCA` is specified in the HTTPRule CRD, as shown in the example, a corresponding PKI profile is created for that pool (host path combination).
+In case of reencrypt, if `destinationCA` is specified in the HTTPRule CRD, as shown in the example, a corresponding PKI profile is created for that Pool (host path combination).
+Also Note that only one of `pkiProfile` or `destinationCA` can be provided to configure reencrypt for a Pool corresponding to the host path backend Service.
 
 #### Status Messages
 

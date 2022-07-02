@@ -31,6 +31,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +43,9 @@ var controllerInstance *VCFK8sController
 var ctrlonce sync.Once
 var tzonce sync.Once
 var transportZone string
+
+var WorkloadNamespaceCount int = 0
+var countLock sync.RWMutex
 
 type VCFK8sController struct {
 	worker_id        uint32
@@ -79,6 +84,7 @@ func (c *VCFK8sController) Run(stopCh <-chan struct{}) error {
 	utils.AviLog.Info("Shutting down the Kubernetes Controller")
 	return nil
 }
+
 func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
 	NCPSecretHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -128,6 +134,116 @@ func (c *VCFK8sController) AddNCPSecretEventHandler(k8sinfo K8sinformers, stopCh
 	} else {
 		utils.AviLog.Info("Caches synced for NCP Secret informer")
 	}
+}
+
+func (c *VCFK8sController) AddNamespaceEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}) {
+	// Saves the initial workload namespace count during reboot,
+	// before the config handlers are started.
+	if err := c.addWorkloadNamespaceCount(); err != nil {
+		utils.AviLog.Fatalf("Unable to list Namespaces: %s", err.Error())
+	}
+
+	namespaceHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("Namespace ADD Event")
+			c.handleNamespaceAdd()
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("Namespace Update Event")
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Infof("Namespace Delete Event")
+			crd := obj.(*unstructured.Unstructured)
+			_, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+			if err != nil || !found {
+				utils.AviLog.Warnf("Namespace spec not found: %+v", err)
+				return
+			}
+			c.handleNamespaceDelete()
+		},
+	}
+	c.informers.NSInformer.Informer().AddEventHandler(namespaceHandler)
+
+	go c.informers.NSInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for Namespace informer")
+	}
+}
+
+func (c *VCFK8sController) addWorkloadNamespaceCount() error {
+	count, err := c.getWorkloadNamespaceCount()
+	if err != nil {
+		return err
+	}
+	WorkloadNamespaceCount = count
+	return nil
+}
+
+func (c *VCFK8sController) handleNamespaceAdd() {
+	countLock.Lock()
+	defer countLock.Unlock()
+	count, err := c.getWorkloadNamespaceCount()
+	if err != nil {
+		return
+	}
+
+	// Only when before the addition, the count was 0, (and now it becomes more than 0),
+	// we must reconfigure the SEG, by rebooting AKO. On reboot AKO ensures SEG configuration.
+	if WorkloadNamespaceCount == 0 && count > 0 {
+		utils.AviLog.Fatalf("First Workload Namespace added in cluster. Rebooting AKO for infra configuration.")
+	}
+	WorkloadNamespaceCount = count
+}
+
+func (c *VCFK8sController) handleNamespaceDelete() {
+	countLock.Lock()
+	count, err := c.getWorkloadNamespaceCount()
+	if err != nil {
+		countLock.Unlock()
+		return
+	}
+
+	WorkloadNamespaceCount = count
+	if count > 0 {
+		utils.AviLog.Infof("%d Workload Namespace exist in the cluster. Skipping deconfiguration.", count)
+		countLock.Unlock()
+		return
+	}
+	countLock.Unlock()
+
+	utils.AviLog.Infof("No Workload Namespace exist, proceeding with Avi infra deconfiguraiton.")
+
+	// Fetch all service engines and delete them.
+	if err := avirest.DeleteServiceEngines(); err != nil {
+		utils.AviLog.Errorf("Unable to remove SEs %s", err.Error())
+		return
+	}
+
+	// Delete service engine group.
+	if err := avirest.DeleteServiceEngineGroup(); err != nil {
+		utils.AviLog.Errorf("Unable to remove SEG %s", err.Error())
+		return
+	}
+}
+
+// Gets number of only the Workload Namespaces. Only the Workload Namespaces
+// have the label with key vSphereClusterID in them, which is how we differentiate.
+func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
+	nsList, err := c.informers.NSInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Error(err)
+		return 0, err
+	}
+
+	count := 0
+	for _, ns := range nsList {
+		if _, ok := ns.Labels[VSphereClusterIDLabelKey]; ok {
+			count += 1
+		}
+	}
+	return count, nil
 }
 
 func (c *VCFK8sController) AddNCPBootstrapEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
@@ -194,7 +310,7 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(k8sinfo K8sinformers, stop
 	}
 }
 
-// HandleVCF checks if avi secret used by AKO is already present. If found, the it would try to connect to
+// HandleVCF checks if avi secret used by AKO is already present. If found, then it would try to connect to
 // AVI Controller. If there is any failure, we would look at Bootstrap CR used by NCP to communicate with AKO.
 // If Bootstrap CR is not found, AKO would wait for it to be created. If the authtoken from Bootstrap CR
 // can be used to connect to the AVI Controller, then avi-secret would be created with that token.

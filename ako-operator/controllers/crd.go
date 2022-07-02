@@ -114,6 +114,12 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 											"fqdn": {
 												Type: "string",
 											},
+											"includeAliases": {
+												Type: "boolean",
+												Default: &apiextensionv1.JSON{
+													Raw: []byte("false"),
+												},
+											},
 										},
 									},
 									"wafPolicy": {
@@ -162,7 +168,7 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 													"enabled": {
 														Type: "boolean",
 														Default: &apiextensionv1.JSON{
-															Raw: []byte("\"false\""),
+															Raw: []byte("false"),
 														},
 													},
 													"throttle": {
@@ -190,7 +196,7 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 											"logAllHeaders": {
 												Type: "boolean",
 												Default: &apiextensionv1.JSON{
-													Raw: []byte("\"false\""),
+													Raw: []byte("false"),
 												},
 											},
 										},
