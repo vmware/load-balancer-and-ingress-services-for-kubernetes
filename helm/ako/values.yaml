@@ -93,12 +93,11 @@ rbac:
 
 
 avicredentials:
+  ## If username and password or authtoken are left blank will reference the existing avi-secret
   username:
   password:
   authtoken:
   certificateAuthorityData:
-  existingSecret: # Determines whether to create the avi-secret or allow the secret to be created outside of the helm chart.
-  # existingSecret: true
 
 
 persistentVolumeClaim: ""
