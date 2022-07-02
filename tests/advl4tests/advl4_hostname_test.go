@@ -51,6 +51,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	AdvL4Client = advl4fake.NewSimpleClientset()
+	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetAdvL4Clientset(AdvL4Client)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{

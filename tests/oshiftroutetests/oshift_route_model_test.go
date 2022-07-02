@@ -129,6 +129,7 @@ func TestMain(m *testing.M) {
 	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	akoControlConfig.SetAKOInstanceFlag(true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
@@ -493,9 +494,13 @@ func TestMultiRouteSameHost(t *testing.T) {
 	}
 
 	aviModel := ValidateModelCommon(t, g)
-	pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(defaultModelName)
+		pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
+		return len(pools)
+	}, 15*time.Second).Should(gomega.Equal(2))
 
-	g.Expect(pools).To(gomega.HaveLen(2))
+	pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
 	for _, pool := range pools {
 		if pool.Name == "cluster--foo.com_foo-default-foo-avisvc" {
 			g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))

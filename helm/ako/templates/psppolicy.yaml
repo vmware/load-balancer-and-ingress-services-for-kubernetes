@@ -6,7 +6,11 @@ apiVersion: extensions/v1beta1
 {{ end -}}
 kind: PodSecurityPolicy
 metadata:
+  {{- if .Values.AKOSettings.primaryInstance }}
   name: {{ template "ako.name" . }}
+  {{- else }}
+  name: {{ template "ako.name" . }}-{{ .Release.Namespace }}
+  {{- end }}
   labels:
     app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
     app.kubernetes.io/instance: {{ .Release.Name | quote }}

@@ -4,38 +4,29 @@ This document answers some of the frequently asked questions w.r.t AKO.
 
 #### How do I clean up all my configs?
 
-The key deleteConfig in the data section of AKO configmap can be used to clean up the setup. Edit AKO configmap and set deleteConfig: "true" to delete ako created objects in Avi. After the flag is set in configmap, a condition with type ako.vmware.com/ObjectDeletionInProgress is added in the status of AKO statefulset with reason as objDeletionStarted and status True. For example:
+The key deleteConfig in the data section of AKO configmap can be used to clean up the setup. Edit AKO configmap and set deleteConfig: "true" to delete ako created objects in Avi. After the flag is set in configmap, annotation `AviObjectDeletionStatus` is added in the AKO statefulset with the value as `Started`. 
 
 ```yaml
-  status:
-    conditions:
-    - lastTransitionTime: "2020-12-15T10:10:45Z"
-      message: Started deleting objects
-      reason: Started
-      status: "True"
-      type: ako.vmware.com/ObjectDeletionInProgress
+  annotations:
+    AviObjectDeletionStatus: Started
 ```
 
-After all relevant objects gets deleted from Avi, the reason is changed to objDeletionDone.
+After all relevant objects gets deleted from Avi, the value of the annotation is changed to `Done`.
 
 ```yaml
-  status:
-    conditions:
-    - lastTransitionTime: "2020-12-15T10:10:48Z"
-      message: Successfully deleted all objects
-      reason: Done
-      status: "False"
-      type: ako.vmware.com/ObjectDeletionInProgress
+  annotations:
+    AviObjectDeletionStatus: Done
 ```
 
-To re-create the objects in Avi, the configmap has to be edited to set deleteConfig: "false". After this, the condition in ako statefulset of type ako.vmware.com/ObjectDeletionInProgress is deleted automatically.
-
+To re-create the objects in Avi, the configmap has to be edited to set deleteConfig: "false".
 
 #### How is the Shared VS lifecycle controlled?
 
 AKO follows hostname based sharding to sync multiple ingresses with same hostname to a single virtual service. When an ingress object is created with multiple hostnames, AKO generates an md5 hash using the hostname and the Shard VS number. This uniquely maps an FQDN to a given Shared VS and avoids DNS conflicts. During initial clean bootup, if the Shared VS does not exist in Avi - AKO creates the same and then patches the ingress FQDN to it either in the form of a pool (for insecure routes) or in the form of an SNI child virtual service (in case of secure routes).
 
-The Shared VSes aren't deleted if all the FQDNs mapped to it are removed from Kubernetes. However, if the user wants AKO to delete unused shared VSes then the configmap has to be edited to set deleteConfig as "true" that would evaluate the VS and delete it appropriately.
+The Shared VSes aren't deleted if all the FQDNs mapped to it are removed from Kubernetes. However, if the user wants AKO to delete unused shared VSes - a pod restart is required that would evaluate the VS and delete it appropriately.
+
+Even though the unused shared VSes are deleted, the shared VS VIPs are retained to regain the same FQDN to VS VIP mapping. To delete the retained shared VS VIPs, the user has to manually delete them from the controller UI or shell.
 
 #### How are VSes sharded?
 

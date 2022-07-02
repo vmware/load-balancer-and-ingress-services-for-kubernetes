@@ -54,7 +54,8 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	// host specific
-	var vsWafPolicy, vsAppProfile, vsSslKeyCertificate, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile, lbIP string
+	var vsWafPolicy, vsAppProfile, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile, lbIP string
+	var vsSslKeyCertificates []string
 	var vsEnabled *bool
 	var crdStatus lib.CRDMetadata
 
@@ -72,8 +73,15 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	if !deleteCase {
-		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
-			vsSslKeyCertificate = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
+		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference &&
+			hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
+			vsSslKeyCertificates = append(vsSslKeyCertificates, fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name))
+			vsNode.SetSSLKeyCertRefs([]*AviTLSKeyCertNode{})
+		}
+
+		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference &&
+			hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name != "" {
+			vsSslKeyCertificates = append(vsSslKeyCertificates, fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name))
 			vsNode.SetSSLKeyCertRefs([]*AviTLSKeyCertNode{})
 		}
 
@@ -143,8 +151,10 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 
 		if hostrule.Spec.VirtualHost.AnalyticsPolicy != nil {
+			var infinite int32 = 0 // Special value to set log duration as infinite
 			analyticsPolicy = &models.AnalyticsPolicy{
 				FullClientLogs: &models.FullClientLogs{
+					Duration: &infinite,
 					Enabled:  hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled,
 					Throttle: lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle),
 				},
@@ -169,7 +179,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 	}
 
-	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificate)
+	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificates)
 	vsNode.SetWafPolicyRef(vsWafPolicy)
 	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
 	vsNode.SetAppProfileRef(vsAppProfile)
@@ -237,6 +247,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 		for _, pool := range vsNode.GetPoolRefs() {
 			isPathSniEnabled := pool.SniEnabled
 			pathSslProfile := pool.SslProfileRef
+			pathPkiProfile := pool.PkiProfileRef
 			destinationCertNode := pool.PkiProfile
 			pathHMs := pool.HealthMonitors
 			if poolPath == "" && path == "/" {
@@ -286,6 +297,10 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 					} else {
 						destinationCertNode = nil
 					}
+
+					if httpRulePath.TLS.PKIProfile != "" {
+						pathPkiProfile = fmt.Sprintf("/api/pkiprofile?name=%s", httpRulePath.TLS.PKIProfile)
+					}
 				}
 
 				var persistenceProfile string
@@ -301,6 +316,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 
 				pool.SniEnabled = isPathSniEnabled
 				pool.SslProfileRef = pathSslProfile
+				pool.PkiProfileRef = pathPkiProfile
 				pool.PkiProfile = destinationCertNode
 				pool.HealthMonitors = pathHMs
 				pool.ApplicationPersistence = persistenceProfile

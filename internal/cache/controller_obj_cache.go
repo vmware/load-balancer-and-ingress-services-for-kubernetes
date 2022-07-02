@@ -150,6 +150,10 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 	if err != nil {
 		return vsCacheCopy, allVsKeys, err
 	}
+	if lib.GetDeleteConfigMap() {
+		allParentVsKeys := c.VsCacheMeta.AviCacheGetAllParentVSKeys()
+		return vsCacheCopy, allParentVsKeys, err
+	}
 	//vsCacheCopy at this time, is left with only the deleted keys
 	return vsCacheCopy, allVsKeys, nil
 }
@@ -738,7 +742,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 						networkNames = append(networkNames, networkRefName[1])
 					}
-					if lib.GetCloudType() == lib.CLOUD_AWS {
+					if lib.UsesNetworkRef() {
 						networkRefStr := strings.Split(networkRef, "/")
 						networkNames = append(networkNames, networkRefStr[len(networkRefStr)-1])
 					}
@@ -857,8 +861,8 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 			PoolGroups: pgs,
 		}
 		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
-		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
-			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
+		if len(ds.Datascript) == 1 {
+			checksum += utils.Hash(*ds.Datascript[0].Script)
 		}
 		dsCacheObj.CloudConfigCksum = checksum
 		*DsData = append(*DsData, dsCacheObj)
@@ -1202,8 +1206,8 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 			PoolGroups: pgs,
 		}
 		checksum := lib.DSChecksum(dsCacheObj.PoolGroups, ds.Markers, true)
-		if lib.GetEnableCtrl2014Features() && len(ds.Datascript) == 1 {
-			checksum = utils.Hash(fmt.Sprint(checksum) + utils.HTTP_DS_SCRIPT_MODIFIED)
+		if len(ds.Datascript) == 1 {
+			checksum += utils.Hash(*ds.Datascript[0].Script)
 		}
 		dsCacheObj.CloudConfigCksum = checksum
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: *ds.Name}
@@ -1323,7 +1327,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 						networkNames = append(networkNames, networkRefName[1])
 					}
-					if lib.GetCloudType() == lib.CLOUD_AWS {
+					if lib.UsesNetworkRef() {
 						networkRefStr := strings.Split(networkRef, "/")
 						networkNames = append(networkNames, networkRefStr[len(networkRefStr)-1])
 					}
@@ -1752,8 +1756,12 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		utils.AviLog.Infof("Static route sync disabled in NodePort Mode")
 		return nil
 	}
+	isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
+	if !isPrimaryAKO {
+		utils.AviLog.Warnf("AKO is not primary instance, not populating vrf cache.")
+		return nil
+	}
 	uri := "/api/vrfcontext?name=" + lib.GetVrf() + "&include_name=true&cloud_ref.name=" + cloud
-
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
@@ -2379,7 +2387,7 @@ func (c *AviObjCache) AviClusterStatusPopulate(client *clients.AviClient) error 
 }
 
 func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, cloudName string) error {
-	uri := "/api/cloud/?name=" + cloudName
+	uri := "/api/cloud/?include_name&name=" + cloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("CloudProperties Get uri %v returned err %v", uri, err)
@@ -2417,12 +2425,17 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	}
 	cloud_obj := &AviCloudPropertyCache{Name: cloudName, VType: vtype}
 
+	ipamType := ""
+	if cloud.IPAMProviderRef != nil && *cloud.IPAMProviderRef != "" {
+		ipamType = c.AviIPAMPropertyPopulate(client, *cloud.IPAMProviderRef)
+	}
+	cloud_obj.IPAMType = ipamType
+	utils.AviLog.Infof("IPAM Provider type configured as %s for Cloud %s", cloud_obj.IPAMType, cloud_obj.Name)
+
 	subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
 	if len(subdomains) == 0 {
 		utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
-		return nil
 	}
-
 	if subdomains != nil {
 		cloud_obj.NSIpamDNS = subdomains
 	}
@@ -2430,6 +2443,38 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	c.CloudKeyCache.AviCacheAdd(cloudName, cloud_obj)
 	utils.AviLog.Infof("Added CloudKeyCache cache key %v val %v", cloudName, cloud_obj)
 	return nil
+}
+
+func (c *AviObjCache) AviIPAMPropertyPopulate(client *clients.AviClient, ipamRef string) string {
+	ipamName := strings.Split(ipamRef, "#")[1]
+	uri := "/api/ipamdnsproviderprofile/?include_name&name=" + ipamName
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("IPAMProvider Get uri %v returned err %v", uri, err)
+		return ""
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return ""
+	}
+
+	if result.Count != 1 {
+		utils.AviLog.Errorf("IPAM details not found for cloud name: %s", ipamName)
+	}
+
+	ipam := models.IPAMDNSProviderProfile{}
+	if err = json.Unmarshal(elems[0], &ipam); err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal ipam provider data, err: %v", err)
+		return ""
+	}
+
+	if ipam.Type == nil {
+		return ""
+	}
+	return *ipam.Type
 }
 
 func (c *AviObjCache) AviDNSPropertyPopulate(client *clients.AviClient, cloudUUID string) []string {
@@ -2665,11 +2710,6 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 		uri := "/api/serviceenginegroup/" + *seGroup.UUID
 		seGroup.Labels = lib.GetLabels()
 		response := models.ServiceEngineGroupAPIResponse{}
-		// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
-		if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-		}
 		err := lib.AviPut(client, uri, seGroup, response)
 		if err != nil {
 			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
@@ -2706,7 +2746,11 @@ func DeConfigureSeGroupLabels() {
 	segName := lib.GetSEGName()
 	clients := SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
-	client := clients.AviClient[aviClientLen-1]
+	var index uint32
+	if aviClientLen != 0 {
+		index = aviClientLen - 1
+	}
+	client := clients.AviClient[index]
 	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
 	SetTenant := session.SetTenant(lib.GetTenant())
 	seGroup, err := GetAviSeGroup(client, segName)
@@ -2724,12 +2768,6 @@ func DeConfigureSeGroupLabels() {
 	utils.AviLog.Infof("Updating the following labels: %v, on the SE Group", utils.Stringify(seGroup.Labels))
 	uri := "/api/serviceenginegroup/" + *seGroup.UUID
 	response := models.ServiceEngineGroupAPIResponse{}
-
-	// If tenants per cluster is enabled then the X-Avi-Tenant needs to be set to admin for vrfcontext and segroup updates
-	if lib.GetTenantsPerCluster() && lib.IsCloudInAdminTenant {
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-	}
 
 	err = lib.AviPut(client, uri, seGroup, response)
 	if err != nil {
@@ -2799,12 +2837,10 @@ func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEn
 
 func checkTenant(client *clients.AviClient, returnError *error) bool {
 	uri := "/api/tenant/?name=" + lib.GetTenant()
-	if lib.GetTenantsPerCluster() {
-		SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-		SetTenant := session.SetTenant(lib.GetTenant())
-		SetAdminTenant(client.AviSession)
-		defer SetTenant(client.AviSession)
-	}
+	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+	SetTenant := session.SetTenant(lib.GetTenant())
+	SetAdminTenant(client.AviSession)
+	defer SetTenant(client.AviSession)
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		*returnError = fmt.Errorf("Get uri %v returned err %v", uri, err)
@@ -2851,6 +2887,9 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 
 	utils.AviLog.Infof("Setting cloud vType: %v", vType)
 	lib.SetCloudType(vType)
+
+	utils.AviLog.Infof("Setting cloud uuid: %s", *cloud.UUID)
+	lib.SetCloudUUID(*cloud.UUID)
 
 	// IPAM is mandatory for vcenter and noaccess cloud
 	if !lib.IsPublicCloud() && cloud.IPAMProviderRef == nil {
@@ -3019,8 +3058,8 @@ func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 }
 
 func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
-	// Not applicable for NodePort mode and non vcenter clouds
-	if lib.IsNodePortMode() || lib.GetCloudType() != lib.CLOUD_VCENTER {
+	// Not applicable for NodePort mode and non vcenter and nsx-t clouds
+	if lib.IsNodePortMode() || !lib.IsNodeNetworkAllowedCloud() {
 		utils.AviLog.Infof("Skipping the check for Node Network ")
 		return true
 	}
@@ -3073,6 +3112,10 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		// Need not set VRFContext for public clouds.
 		return true
 	}
+	if lib.IsNodePortMode() {
+		utils.AviLog.Infof("Using global VRF for NodePort mode")
+		return true
+	}
 
 	networkList := lib.GetVipNetworkList()
 	if len(networkList) == 0 {
@@ -3112,10 +3155,6 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		return false
 	}
 
-	if lib.IsNodePortMode() {
-		utils.AviLog.Infof("Using global VRF for NodePort mode")
-		return true
-	}
 	if lib.GetCloudType() == lib.CLOUD_NSXT &&
 		lib.GetServiceType() == "ClusterIP" &&
 		lib.GetCNIPlugin() != lib.NCP_CNI &&

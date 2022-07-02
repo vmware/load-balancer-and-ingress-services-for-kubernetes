@@ -91,17 +91,29 @@ type HostRuleTCPListeners struct {
 
 // HostRuleTLS holds secure host specific properties
 type HostRuleTLS struct {
-	SSLKeyCertificate HostRuleSecret `json:"sslKeyCertificate,omitempty"`
-	SSLProfile        string         `json:"sslProfile,omitempty"`
-	Termination       string         `json:"termination,omitempty"`
+	SSLKeyCertificate HostRuleSSLKeyCertificate `json:"sslKeyCertificate,omitempty"`
+	SSLProfile        string                    `json:"sslProfile,omitempty"`
+	Termination       string                    `json:"termination,omitempty"`
 }
 
 // HostRuleSecret is required to provide distinction between Avi SSLKeyCertificate
 // or K8s Secret Objects
 type HostRuleSecret struct {
-	Name string `json:"name,omitempty"`
-	Type string `json:"type,omitempty"`
+	Name string             `json:"name,omitempty"`
+	Type HostRuleSecretType `json:"type,omitempty"`
 }
+type HostRuleSSLKeyCertificate struct {
+	Name                 string             `json:"name,omitempty"`
+	Type                 HostRuleSecretType `json:"type,omitempty"`
+	AlternateCertificate HostRuleSecret     `json:"alternateCertificate,omitempty"`
+}
+
+type HostRuleSecretType string
+
+const (
+	HostRuleSecretTypeAviReference    HostRuleSecretType = "ref"
+	HostRuleSecretTypeSecretReference HostRuleSecretType = "secret"
+)
 
 // HostRuleHTTPPolicy holds knobs and refs for httpPolicySets
 type HostRuleHTTPPolicy struct {
@@ -111,7 +123,8 @@ type HostRuleHTTPPolicy struct {
 
 // HostRuleHTTPPolicy holds knobs and refs for httpPolicySets
 type HostRuleGSLB struct {
-	Fqdn string `json:"fqdn,omitempty"`
+	Fqdn           string `json:"fqdn,omitempty"`
+	IncludeAliases bool   `json:"includeAliases,omitempty"`
 }
 
 // HostRuleStatus holds the status of the HostRule

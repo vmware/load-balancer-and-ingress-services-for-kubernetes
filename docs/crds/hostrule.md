@@ -19,10 +19,14 @@ A sample HostRule CRD looks like this:
           sslKeyCertificate:
             name: avi-ssl-key-cert
             type: ref
+            alternateCertificate:
+              name: avi-ssl-key-cert2
+              type: ref
           sslProfile: avi-ssl-profile
           termination: edge
         gslb:
           fqdn: foo.com
+          includeAliases: false
         httpPolicy: 
           policySets:
           - avi-secure-policy-ref
@@ -154,11 +158,20 @@ If the kubernetes operator wants to control the TLS termination from a privilege
           sslKeyCertificate:
             name: avi-ssl-key-cert
             type: ref
+            alternateCertificate:
+              name: avi-ssl-key-cert2
+              type: ref
           sslProfile: avi-ssl-profile
           termination: edge
 
-The `name` field refers to an Avi object if `type` specifies the value as `ref`. Alternatively in the future, we will be able to support a kubernetes
-`Secret` as a `type` where the sslkeyandcertificate object can be created by AKO using the Secret. 
+The `name` field refers to an Avi object if `type` specifies the value as `ref`. Alternatively, we also support a kubernetes
+`Secret` to be specified where the sslkeyandcertificate object is created by AKO using the Secret. 
+
+        tls:
+          sslKeyCertificate:
+            name: k8s-app-secret
+            type: secret
+          termination: edge
 
 `sslProfile`, additionally, can be used to determine the set of SSL versions and ciphers to accept for SSL/TLS terminated connections. If the `sslProfile` is not defined, AKO defaults to the sslProfile `System-Standard-PFS` defined in Avi.
 
@@ -170,12 +183,19 @@ A GSLB FQDN can be specified within the HostRule CRD. This is only used if AKO i
 
         gslb:
           fqdn: foo.com
+          includeAliases: false
 
 This additional FQDN inherits all the properties of the root FQDN specified under the the `virtualHost` section.
 Use this flag if you would want traffic with a GSLB FQDN to get routed to a site local FQDN. For example, in the above CRD, the client request from a GSLB
 DNS will arrive with the host header as foo.com to the VIP hosting foo.region1.com in region1. This CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`
 
 This knob is currently only supported with the SNI model and not with Enhanced Virtual Hosting model.
+
+The `includeAliases` is used by AMKO. Whenever a GSLB FQDN is provided and the `useCustomGlobalFqdn` is set to true in AMKO, a GSLB Service is created for the GSLB FQDN instead of the local FQDN(hostname). [Refer this](https://github.com/vmware/global-load-balancing-services-for-kubernetes/blob/master/docs/local_and_global_fqdn.md)
+
+When this flag is set to `false` the Domain Name of the GSLB Service is set to the GSLB FQDN. 
+
+When this flag is set to `true` in addition to the GSLB FQDN, AMKO adds the FQDNs mentioned under [aliases](#aliases) to domain names of the GSLB Service. 
 
 #### Configure Analytics Policy
 
@@ -212,12 +232,37 @@ Where dedicated VSes are created corresponding to a single application, Shared V
         tcpSetting:
           loadBalancerIP: 10.10.10.1
 
+
         fqdn: Shared-VS-L7-1      # bound for clusterName--Shared-VS-L7-1
         fqdnType: Contains
         tcpSetting:
           loadBalancerIP: 10.10.10.1
 
-#### Configure aliases for FQDN
+##### Custom Ports
+
+In order to overwrite the ports opened for VSes created by AKO, users can provide the port details under the `listeners` setting. The ports mentioned under this section overwrites the default open ports, 80 and 443 (SSL enabled). This is applicable only for Shared or Dedicated virtual services.
+
+        tcpSettings:
+          listeners:
+          - port: 80
+          - port: 8081
+          - port: 6443
+            enableSSL: true
+
+
+**Note**: It is required that one of the ports that are mentioned in the setting has `enableSSL` field set to `true`.
+
+##### L7 Static IP
+
+The `loadBalancerIP` field can be used to provide a valid preferred IPv4 address for L7 virtual services created for the Shared or Dedicated VS. The preferred IP must be part of the IPAM configured for the Cloud, and must not overlap with any other IP addresses already in use. In case of any misconfigurations whatsoever, AKO would fail to configure the virtual service appropriately throwing an ERROR log for the same.
+
+        tcpSettings:
+          loadBalancerIP: 10.10.10.199
+
+**Note**: The HostRule CRD is not aware of the misconfigurations while it is being created, therefore the HostRule will be `Accepted` nonetheless.
+
+
+#### <a id="aliases"> Configure aliases for FQDN
 
 The Aliases field adds the ability to have multiple FQDNs configured under a specific route/ingress for the child VS instead of creating the route/ingress multiple times.
 

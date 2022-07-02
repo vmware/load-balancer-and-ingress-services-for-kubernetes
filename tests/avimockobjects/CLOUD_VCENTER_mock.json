@@ -4,7 +4,7 @@
       {
         "uuid": "cloud-8fb8b8fa-5aa3-418e-9099-c3ec29196d08",
         "vtype": "CLOUD_VCENTER",
-        "ipam_provider_ref": "https://10.79.168.232/api/ipamdnsproviderprofile/ipamdnsproviderprofile-b970467a-e70d-4bba-a7e2-e3a9d3b535a7",
+        "ipam_provider_ref": "https://10.79.168.232/api/ipamdnsproviderprofile/ipamdnsproviderprofile-b970467a-e70d-4bba-a7e2-e3a9d3b535a7#avi-ipam",
         "_last_modified": "1598531961880147",
         "name": "CLOUD_VCENTER",
         "url": "https://10.79.168.232/api/cloud/cloud-8fb8b8fa-5aa3-418e-9099-c3ec29196d08",

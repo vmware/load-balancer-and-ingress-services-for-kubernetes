@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -166,7 +167,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 	}
 
 	if bulk {
-		routeList, err := utils.GetInformers().OshiftClient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		routeList, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -174,10 +175,10 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 				return getRoutes(routeNSNames, bulk, retry+1)
 			}
 		}
-		for i := range routeList.Items {
-			route := routeList.Items[i]
+		for i := range routeList {
+			route := routeList[i]
 			if utils.CheckIfNamespaceAccepted(route.Namespace) {
-				routeMap[route.Namespace+"/"+route.Name] = &route
+				routeMap[route.Namespace+"/"+route.Name] = route.DeepCopy()
 			}
 		}
 
@@ -190,7 +191,8 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 			utils.AviLog.Warnf("msg: namespaceName %s has wrong format", namespaceName)
 			continue
 		}
-		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
+
+		route, err := utils.GetInformers().RouteInformer.Lister().Routes(nsNameSplit[0]).Get(nsNameSplit[1])
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
@@ -199,7 +201,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 			}
 			continue
 		}
-		routeMap[route.Namespace+"/"+route.Name] = route
+		routeMap[route.Namespace+"/"+route.Name] = route.DeepCopy()
 	}
 
 	return routeMap
@@ -386,7 +388,7 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 	}
 
 	vsAnnotations := make(map[string]string)
-	if value, ok := mRoute.Annotations[VSAnnotation]; ok {
+	if value, ok := mRoute.Annotations[lib.VSAnnotation]; ok {
 		if err := json.Unmarshal([]byte(value), &vsAnnotations); err != nil {
 			utils.AviLog.Errorf("key: %s, msg: error in unmarshalling route annotations: %v", key, err)
 			// nothing else to be done, invalid annotations will be taken care of in the update call
@@ -535,15 +537,15 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 	}
 
 	mRoute, err := utils.GetInformers().RouteInformer.Lister().Routes(option.ServiceMetadata.Namespace).Get(option.ServiceMetadata.IngressName)
-
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not get the Route object for DeleteStatus: %s", key, err)
 		return err
 	}
+	mRoute = mRoute.DeepCopy()
 
 	oldRouteStatus := mRoute.Status.DeepCopy()
 	if len(option.ServiceMetadata.HostNames) > 0 {
-		// If the route status for the host is already fasle, then don't delete the status
+		// If the route status for the host is already false, then don't delete the status
 		if !routeStatusCheck(key, oldRouteStatus.Ingress, option.ServiceMetadata.HostNames[0]) {
 			return nil
 		}
@@ -551,7 +553,7 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 
 	utils.AviLog.Infof("key: %s, deleting hostnames %v from Route status %s/%s", key, option.ServiceMetadata.HostNames, option.ServiceMetadata.Namespace, option.ServiceMetadata.IngressName)
 	svcMdataHostname := option.ServiceMetadata.HostNames[0]
-	for i := 0; i < len(mRoute.Status.Ingress); i++ {
+	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
 		if mRoute.Status.Ingress[i].Host != svcMdataHostname {
 			continue
 		}
@@ -608,7 +610,7 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataO
 		}
 	}
 	existingAnnotations := make(map[string]string)
-	if annotations, exists := routeObj.Annotations[VSAnnotation]; exists {
+	if annotations, exists := routeObj.Annotations[lib.VSAnnotation]; exists {
 		if err := json.Unmarshal([]byte(annotations), &existingAnnotations); err != nil {
 			return fmt.Errorf("error in unmarshalling annotations %s, %v", annotations, err)
 		}

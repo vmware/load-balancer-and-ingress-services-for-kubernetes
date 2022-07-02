@@ -28,8 +28,12 @@ const (
 	NodeInformer                  = "NodeInformer"
 	EndpointInformer              = "EndpointInformer"
 	ConfigMapInformer             = "ConfigMapInformer"
-	K8S_TLS_SECRET_CERT           = "tls.cert"
+	MultiClusterIngressInformer   = "MultiClusterIngressInformer"
+	ServiceImportInformer         = "ServiceImportInformer"
+	K8S_TLS_SECRET_CERT           = "tls.crt"
 	K8S_TLS_SECRET_KEY            = "tls.key"
+	K8S_TLS_SECRET_ALT_CERT       = "alt.crt"
+	K8S_TLS_SECRET_ALT_KEY        = "alt.key"
 	IngressInformer               = "IngressInformer"
 	RouteInformer                 = "RouteInformer"
 	IngressClassInformer          = "IngressClassInformer"
@@ -61,8 +65,8 @@ const (
 	DEFAULT_SHARD_VS_PREFIX       = "Shard-VS-"
 	L7_PG_PREFIX                  = "-PG-l7"
 	VS_DATASCRIPT_EVT_HTTP_REQ    = "VS_DATASCRIPT_EVT_HTTP_REQ"
-	HTTP_DS_SCRIPT                = "host = avi.http.get_host_tokens(1)\npath = avi.http.get_path_tokens(1)\nif host and path then\nlbl = host..\"/\"..path\nelse\nlbl = host..\"/\"\nend\navi.poolgroup.select(\"POOLGROUP\", string.lower(lbl) )"
-	HTTP_DS_SCRIPT_MODIFIED       = "host = avi.http.get_host_tokens(\"MODIFIED\", 1)\npath = avi.http.get_path_tokens(1)\nif host and path then\nlbl = host..\"/\"..path\nelse\nlbl = host..\"/\"\nend\navi.poolgroup.select(\"POOLGROUP\", string.lower(lbl) )"
+	HTTP_DS_SCRIPT                = "host = avi.http.get_host_tokens(1)\npath = avi.http.get_path_tokens(1)\nif host and path then\nlbl = host..\"/\"..path\nelse\nlbl = host..\"/\"\nend\navi.poolgroup.select(\"%s\", string.lower(lbl) )"
+	HTTP_DS_SCRIPT_MODIFIED       = "host = avi.http.get_host_tokens(\"MODIFIED\", 1)\npath = avi.http.get_path_tokens(1)\nif string.contains(host, \":\") then\nfor match in string.gmatch(host, \".*:\") do\nhost = string.sub(match,0,-2)\nend\nend\nif host and path then\nlbl = host..\"/\"..path\nelse\nlbl = host..\"/\"\nend\navi.poolgroup.select(\"%s\", string.lower(lbl) )"
 	ADMIN_NS                      = "admin"
 	TLS_PASSTHROUGH               = "TLS_PASSTHROUGH"
 	VS_TYPE_VH_PARENT             = "VS_TYPE_VH_PARENT"
@@ -83,6 +87,7 @@ const (
 	ENV_CTRL_IPADDRESS            = "CTRL_IPADDRESS"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
+	MCI_ENABLED                   = "MCI_ENABLED"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours

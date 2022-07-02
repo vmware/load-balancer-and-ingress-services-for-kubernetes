@@ -93,6 +93,7 @@ func TestMain(m *testing.M) {
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
+	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -303,7 +304,7 @@ func TestL4NamingConvention(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].Name).To(gomega.Equal("cluster--red-ns-testsvcmulti"))
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("cluster--red-ns-testsvcmulti--808"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.ContainSubstring("cluster--red-ns-testsvcmulti-TCP-808"))
 	g.Expect(nodes[0].VSVIPRefs[0].Name).To(gomega.Equal("cluster--red-ns-testsvcmulti"))
 	g.Expect(nodes[0].L4PolicyRefs[0].Name).To(gomega.Equal("cluster--red-ns-testsvcmulti"))
 
@@ -416,7 +417,7 @@ func TestCreateServiceLBCacheSync(t *testing.T) {
 		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
 		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-TCP-8080"))
 		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
 		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc"))
 	}
@@ -490,7 +491,7 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
 		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
 		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(1))
-		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc--8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-TCP-8080"))
 		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
 		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc"))
 	}
@@ -531,7 +532,7 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 	SetUpTestForSvcLB(t)
 
 	// Get hold of the pool checksum on CREATE
-	poolName := "cluster--red-ns-testsvc--8080"
+	poolName := "cluster--red-ns-testsvc-TCP-8080"
 	mcache := cache.SharedAviObjCache()
 	poolKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: poolName}
 	poolCacheBefore, _ := mcache.PoolCache.AviCacheGet(poolKey)

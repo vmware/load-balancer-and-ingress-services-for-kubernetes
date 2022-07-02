@@ -20,6 +20,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -65,7 +66,7 @@ func validateSpecFromHostnameCache(key string, ingress *networkingv1.Ingress) bo
 			for _, svcPath := range rule.IngressRuleValue.HTTP.Paths {
 				found, val := SharedHostNameLister().GetHostPathStoreIngresses(rule.Host, svcPath.Path)
 				if found && len(val) > 1 && utils.HasElem(val, nsIngress) {
-					lib.AKOControlConfig().EventRecorder().Eventf(ingress, corev1.EventTypeWarning, lib.DuplicateHostPath, "Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", rule.Host, svcPath.Path, utils.Stringify(val))
+					lib.AKOControlConfig().EventRecorder().Eventf(ingress, corev1.EventTypeWarning, lib.DuplicateHostPath, "Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 					utils.AviLog.Warnf("key: %s, msg: Duplicate entries found for hostpath %s: %s%s in ingresses: %+v", key, nsIngress, rule.Host, svcPath.Path, utils.Stringify(val))
 				}
 			}
@@ -96,7 +97,7 @@ func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec rou
 
 func findHostRuleMappingForFqdn(key, host string) (bool, *v1alpha1.HostRule) {
 	// from host check if hostrule is present
-	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMapping(host)
+	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMappingWithType(host)
 	if !found {
 		utils.AviLog.Debugf("key: %s, msg: Couldn't find fqdn %s to hostrule mapping in cache", key, host)
 		return false, nil
@@ -116,13 +117,30 @@ func findHostRuleMappingForFqdn(key, host string) (bool, *v1alpha1.HostRule) {
 	}
 }
 
-func sslKeyCertHostRulePresent(hostRuleObj *v1alpha1.HostRule, key string) (bool, string) {
+func sslKeyCertHostRulePresent(hostRuleObj *v1alpha1.HostRule, key string) (bool, []string) {
+	var sslKeyCerts []string
 	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
 		utils.AviLog.Infof("key: %s, msg: secret %s found for host %s in hostrule.ako.vmware.com %s",
 			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name, hostRuleObj.Spec.VirtualHost.Fqdn, hostRuleObj.Name)
-		return true, lib.DummySecret + "/" + hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name
+		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+			sslKeyCerts = append(sslKeyCerts, lib.DummySecretK8s+"/"+hostRuleObj.Namespace+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
+		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
+		}
 	}
-	return false, ""
+	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name != "" {
+		utils.AviLog.Infof("key: %s, msg: alternate secret %s found for host %s in hostrule.ako.vmware.com %s",
+			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name, hostRuleObj.Spec.VirtualHost.Fqdn, hostRuleObj.Name)
+		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+			sslKeyCerts = append(sslKeyCerts, lib.DummySecretK8s+"/"+hostRuleObj.Namespace+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
+		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
+		}
+	}
+	if len(sslKeyCerts) != 0 {
+		return true, sslKeyCerts
+	}
+	return false, sslKeyCerts
 }
 
 func getGslbFqdnFromHostRule(hostRuleObj *v1alpha1.HostRule) (bool, string) {
@@ -227,17 +245,19 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 		}
 		// check if this host has a valid hostrule with sslkeycertref present
 		var useHostRuleSSL bool
-		var secretName string
+		var secretNames []string
 		if foundHR {
-			useHostRuleSSL, secretName = sslKeyCertHostRulePresent(hrObj, key)
+			useHostRuleSSL, secretNames = sslKeyCertHostRulePresent(hrObj, key)
 		}
 		if useHostRuleSSL && len(additionalSecureHostMap[hostName].ingressHPSvc) > 0 {
 			hostPathMapSvcList = additionalSecureHostMap[hostName]
 		}
-		if _, ok := secretHostsMap[secretName]; !ok {
-			secretHostsMap[secretName] = []string{hostName}
-		} else {
-			secretHostsMap[secretName] = append(secretHostsMap[secretName], hostName)
+		for _, secretName := range secretNames {
+			if _, ok := secretHostsMap[secretName]; !ok {
+				secretHostsMap[secretName] = []string{hostName}
+			} else {
+				secretHostsMap[secretName] = append(secretHostsMap[secretName], hostName)
+			}
 		}
 		if rule.IngressRuleValue.HTTP != nil {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
@@ -276,13 +296,15 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 		} else if useHostRuleSSL {
 			additionalSecureHostMap[hostName] = hostPathMapSvcList
 		} else if useDefaultSecret {
-			defaultTLS := TlsSettings{}
-			defaultTLS.SecretName = lib.GetDefaultSecretForRoutes()
-			defaultTLS.SecretNS = utils.GetAKONamespace()
 			defaultTLSHostSvcMap := make(IngressHostMap)
 			defaultTLSHostSvcMap[hostName] = hostPathMapSvcList
-			defaultTLS.Hosts = defaultTLSHostSvcMap
-			defaultTLS.redirect = true
+			defaultTLS := TlsSettings{
+				SecretName: lib.GetDefaultSecretForRoutes(),
+				SecretNS:   utils.GetAKONamespace(),
+				Hosts:      defaultTLSHostSvcMap,
+				redirect:   true,
+			}
+
 			tlsConfigs = append(tlsConfigs, defaultTLS)
 			if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
 				akoNS := utils.GetAKONamespace()
@@ -331,21 +353,45 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 	}
 
 	for aviSecret, securedHostNames := range secretHostsMap {
-		additionalTLS := TlsSettings{}
-		additionalTLS.SecretName = aviSecret
-		// Always add http -> https redirect rule for secure ingress
-		// for sni VS created using hostrule
-		additionalTLS.redirect = true
+		isCertRef := false
+		if lib.IsSecretAviCertRef(aviSecret) {
+			isCertRef = true
+		}
+
 		additionalTLSHostSvcMap := make(IngressHostMap)
 		for _, host := range securedHostNames {
 			if hostSvcMap, ok := additionalSecureHostMap[host]; ok {
 				additionalTLSHostSvcMap[host] = hostSvcMap
 			}
 		}
-		if len(additionalTLSHostSvcMap) > 0 {
-			additionalTLS.Hosts = additionalTLSHostSvcMap
-			tlsConfigs = append(tlsConfigs, additionalTLS)
+
+		var additionalTLS TlsSettings
+		if !isCertRef {
+			if len(additionalTLSHostSvcMap) > 0 {
+				secretNS := strings.Split(aviSecret, "/")[1]
+				additionalTLS = TlsSettings{
+					SecretName: aviSecret,
+					SecretNS:   secretNS,
+					Hosts:      additionalTLSHostSvcMap,
+					redirect:   true,
+				}
+				if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
+					objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(secretNS, ingName, additionalTLS.SecretName)
+					objects.SharedSvcLister().IngressMappings(secretNS).AddSecretsToIngressMappings(ns, ingName, additionalTLS.SecretName)
+				}
+			}
+		} else {
+			if len(additionalTLSHostSvcMap) > 0 {
+				// Always add http -> https redirect rule for secure ingress
+				// for sni VS created using hostrule
+				additionalTLS = TlsSettings{
+					SecretName: aviSecret,
+					Hosts:      additionalTLSHostSvcMap,
+					redirect:   true,
+				}
+			}
 		}
+		tlsConfigs = append(tlsConfigs, additionalTLS)
 	}
 
 	ingressConfig.TlsCollection = tlsConfigs
@@ -439,7 +485,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 
 	// check if this host has a valid hostrule with sslkeycertref present
 	var useHostRuleSSL bool
-	var secretName string
+	var secretNames []string
 	foundHR, hrObj := findHostRuleMappingForFqdn(key, hostName)
 	if foundHR {
 		// Fetch the GSLB FQDN and update the hostmap
@@ -451,71 +497,106 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	hostMap[hostName] = hostPathMapSvcList
 
 	if foundHR {
-		useHostRuleSSL, secretName = sslKeyCertHostRulePresent(hrObj, key)
+		useHostRuleSSL, secretNames = sslKeyCertHostRulePresent(hrObj, key)
 	}
 	if routeSpec.TLS != nil && !useHostRuleSSL {
-		secretName = lib.RouteSecretsPrefix + routeName
+		secretNames = []string{lib.RouteSecretsPrefix + routeName}
+		if routeSpec.TLS.Certificate == "" || routeSpec.TLS.Key == "" {
+			secretNames = []string{lib.GetDefaultSecretForRoutes()}
+		}
 	}
 
 	if routeSpec.TLS != nil && routeSpec.TLS.Termination == routev1.TLSTerminationPassthrough {
-		pass := PassthroughSettings{}
-		pass.host = hostName
-		pass.PathSvc = hostPathMapSvcList.ingressHPSvc
+		pass := PassthroughSettings{
+			host:    hostName,
+			PathSvc: hostPathMapSvcList.ingressHPSvc,
+		}
 		if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
 			pass.redirect = true
 		}
 		passConfig := make(map[string]PassthroughSettings)
 		passConfig[hostName] = pass
 		ingressConfig.PassthroughCollection = passConfig
-	} else if secretName != "" {
-		tls := TlsSettings{Hosts: hostMap, SecretName: secretName}
+	} else if len(secretNames) != 0 {
+		for _, secretName := range secretNames {
+			tls := TlsSettings{
+				Hosts:      hostMap,
+				SecretName: secretName,
+			}
 
-		if routeSpec.TLS != nil {
-			// build edge cert data for termination: edge and reencrypt
-			if routeSpec.TLS.Termination == routev1.TLSTerminationEdge ||
-				routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
-				if routeSpec.TLS.Certificate == "" || routeSpec.TLS.Key == "" {
-					secretName = lib.GetDefaultSecretForRoutes()
-					tls.SecretName = secretName
-					tls.SecretNS = utils.GetAKONamespace()
+			isCertRef := false
+			if lib.IsSecretAviCertRef(secretName) {
+				isCertRef = true
+			}
+			if useHostRuleSSL {
+				var additionalTLS TlsSettings
+				if !isCertRef {
+					secretNS := strings.Split(secretName, "/")[1]
+					additionalTLS = TlsSettings{
+						SecretName: secretName,
+						SecretNS:   secretNS,
+						Hosts:      hostMap,
+					}
+					if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
+						objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(secretNS, routeName, additionalTLS.SecretName)
+						objects.SharedSvcLister().IngressMappings(secretNS).AddSecretsToIngressMappings(ns, routeName, additionalTLS.SecretName)
+					}
 				} else {
-					tls.cert = routeSpec.TLS.Certificate
-					tls.key = routeSpec.TLS.Key
+					// Always add http -> https redirect rule for secure ingress
+					// for sni VS created using hostrule
+					additionalTLS = TlsSettings{
+						SecretName: secretName,
+						Hosts:      hostMap,
+					}
 				}
-				tls.cacert = routeSpec.TLS.CACertificate
-				if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
-					tls.redirect = true
-				} else if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyNone {
-					tls.blockHTTPTraffic = true
+				tlsConfigs = append(tlsConfigs, additionalTLS)
+			} else if routeSpec.TLS != nil {
+				// build edge cert data for termination: edge and reencrypt
+				if routeSpec.TLS.Termination == routev1.TLSTerminationEdge ||
+					routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
+					if routeSpec.TLS.Certificate == "" || routeSpec.TLS.Key == "" {
+						tls.SecretName = secretName
+						tls.SecretNS = utils.GetAKONamespace()
+					} else {
+						tls.cert = routeSpec.TLS.Certificate
+						tls.key = routeSpec.TLS.Key
+					}
+					tls.cacert = routeSpec.TLS.CACertificate
+					if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyRedirect {
+						tls.redirect = true
+					} else if routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyNone {
+						tls.blockHTTPTraffic = true
+					}
 				}
+
+				// reencrypt specific
+				if routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
+					tls.reencrypt = true
+					if routeSpec.TLS.DestinationCACertificate != "" {
+						tls.destCA = routeSpec.TLS.DestinationCACertificate
+					}
+
+					// overwrite with httprule
+					if useHttpRuleCA, caCert := destinationCAHTTPRulePresent(key, hostName, routeSpec.Path); useHttpRuleCA {
+						tls.destCA = caCert
+					}
+				}
+				tlsConfigs = append(tlsConfigs, tls)
 			}
-
-			// reencrypt specific
-			if routeSpec.TLS.Termination == routev1.TLSTerminationReencrypt {
-				tls.reencrypt = true
-				if routeSpec.TLS.DestinationCACertificate != "" {
-					tls.destCA = routeSpec.TLS.DestinationCACertificate
-				}
-
-				// overwrite with httprule
-				if useHttpRuleCA, caCert := destinationCAHTTPRulePresent(key, hostName, routeSpec.Path); useHttpRuleCA {
-					tls.destCA = caCert
+			if !useHostRuleSSL {
+				// If svc for a route gets processed before the route itself,
+				// then secret mapping may not be updated, update it here.
+				if ok, _ := objects.OshiftRouteSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
+					akoNS := utils.GetAKONamespace()
+					objects.OshiftRouteSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(akoNS, routeName, secretName)
+					objects.OshiftRouteSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(ns, routeName, secretName)
 				}
 			}
 		}
-
-		tlsConfigs = append(tlsConfigs, tls)
 		ingressConfig.TlsCollection = tlsConfigs
-		// If svc for a route gets processed before the route itself,
-		// then secret mapping may not be updated, update it here.
-		if ok, _ := objects.OshiftRouteSvcLister().IngressMappings(ns).GetIngToSecret(routeName); !ok {
-			akoNS := utils.GetAKONamespace()
-			objects.OshiftRouteSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(akoNS, routeName, secretName)
-			objects.OshiftRouteSvcLister().IngressMappings(akoNS).AddSecretsToIngressMappings(ns, routeName, secretName)
-		}
 	}
 
-	if secretName == "" || (routeSpec.TLS != nil && routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow) {
+	if len(secretNames) == 0 || (routeSpec.TLS != nil && routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow) {
 		ingressConfig.IngressHostMap = hostMap
 		if routeSpec.TLS != nil && routeSpec.TLS.InsecureEdgeTerminationPolicy == routev1.InsecureEdgeTerminationPolicyAllow {
 			ingressConfig.InsecureEdgeTermAllow = true
@@ -523,5 +604,56 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	}
 
 	utils.AviLog.Infof("key: %s, msg: host path config from routes: %+v", key, utils.Stringify(ingressConfig))
+	return ingressConfig
+}
+
+// ParseHostPathForMultiClusterIngress extracts the information from multi-cluster ingress object and generates ingress configs required for creating the models.
+func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName string, ingSpec *v1alpha1.MultiClusterIngressSpec, key string) IngressConfig {
+	// Figure out the service names that are part of this ingress
+
+	hostname := ingSpec.Hostname
+	secretName := ingSpec.SecretName
+
+	var hostPathMapSvcList HostMetadata
+	for _, config := range ingSpec.Config {
+		ingressHPSvc := IngressHostPathSvc{
+			ServiceName:    config.Service.Name,
+			Path:           config.Path,
+			PathType:       networkingv1.PathTypeImplementationSpecific,
+			Port:           int32(config.Service.Port),
+			weight:         int32(config.Weight),
+			clusterContext: config.ClusterContext,
+			svcNamespace:   config.Service.Namespace,
+		}
+		hostPathMapSvcList.ingressHPSvc = append(hostPathMapSvcList.ingressHPSvc, ingressHPSvc)
+	}
+	hostMap := make(IngressHostMap, 1)
+	hostMap[hostname] = hostPathMapSvcList
+	var tlsConfigs []TlsSettings
+	if secretName != "" {
+		tls := TlsSettings{
+			SecretName: secretName,
+			SecretNS:   ns,
+			key:        key,
+			Hosts:      hostMap,
+			// Always add http -> https redirect rule for secure ingress
+			redirect: true,
+		}
+		tlsConfigs = append(tlsConfigs, tls)
+	}
+
+	// If svc for an multi-cluster ingress gets processed before the ingress itself,
+	// then secret mapping may not be updated, update it here.
+	if ok, _ := objects.SharedSvcLister().IngressMappings(ns).GetIngToSecret(ingName); !ok {
+		objects.SharedSvcLister().IngressMappings(ns).AddIngressToSecretsMappings(ns, ingName, secretName)
+		objects.SharedSvcLister().IngressMappings(ns).AddSecretsToIngressMappings(ns, ingName, secretName)
+	}
+
+	// TODO: default secret, passthrough, additionalTLS config, subdomain and target port
+
+	ingressConfig := IngressConfig{}
+	ingressConfig.TlsCollection = tlsConfigs
+	ingressConfig.IngressHostMap = hostMap
+	utils.AviLog.Infof("key: %s, msg: host path config from multi-cluster ingress: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig
 }

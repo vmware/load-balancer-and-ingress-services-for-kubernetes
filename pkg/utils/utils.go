@@ -35,6 +35,9 @@ import (
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+
+	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
+	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 )
 
 var CtrlVersion string
@@ -147,7 +150,7 @@ func RandomSeq(n int) string {
 var informer sync.Once
 var informerInstance *Informers
 
-func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface, namespace string, akoNSBoundInformer bool) *Informers {
+func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface, akoClientSet akocrd.Interface, namespace string, akoNSBoundInformer bool) *Informers {
 	cs := kubeClient.ClientSet
 	var kubeInformerFactory, akoNSInformerFactory kubeinformers.SharedInformerFactory
 	if namespace == "" {
@@ -163,6 +166,9 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 
 	akoNSInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(akoNS))
 	AviLog.Infof("Initializing configmap informer in %v", akoNS)
+
+	// To initialize the MCI and SI informers
+	akoInformerFactory := akoinformers.NewSharedInformerFactoryWithOptions(akoClientSet, time.Second*30)
 
 	informers := &Informers{}
 	informers.KubeClientIntf = kubeClient
@@ -196,6 +202,10 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 				informers.RouteInformer = oshiftInformerFactory.Route().V1().Routes()
 				informers.OshiftClient = ocs
 			}
+		case MultiClusterIngressInformer:
+			informers.MultiClusterIngressInformer = akoInformerFactory.Ako().V1alpha1().MultiClusterIngresses()
+		case ServiceImportInformer:
+			informers.ServiceImportInformer = akoInformerFactory.Ako().V1alpha1().ServiceImports()
 		}
 	}
 	return informers
@@ -210,6 +220,7 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 
 func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args ...map[string]interface{}) *Informers {
 	var oshiftclient oshiftclientset.Interface
+	var akoClient akocrd.Interface
 	var instantiateOnce, ok, akoNSBoundInformer bool = true, true, false
 	var namespace string
 	if len(args) > 0 {
@@ -235,6 +246,11 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 				if !ok {
 					AviLog.Warnf("arg namespace is not of type string")
 				}
+			case INFORMERS_AKO_CLIENT:
+				akoClient, ok = v.(akocrd.Interface)
+				if !ok {
+					AviLog.Warnf("arg akoClient is not of type akocrd.Interface")
+				}
 			default:
 				AviLog.Warnf("Unknown Key %s in args", k)
 			}
@@ -248,10 +264,10 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 	}
 
 	if !instantiateOnce {
-		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace, akoNSBoundInformer)
+		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, akoClient, namespace, akoNSBoundInformer)
 	}
 	informer.Do(func() {
-		informerInstance = instantiateInformers(kubeClient, registeredInformers, oshiftclient, namespace, akoNSBoundInformer)
+		informerInstance = instantiateInformers(kubeClient, registeredInformers, oshiftclient, akoClient, namespace, akoNSBoundInformer)
 	})
 	return informerInstance
 }
@@ -347,7 +363,7 @@ func InitializeNSSync(labelKey, labelVal string) {
 	globalNSFilterObj.EnableMigration = true
 	globalNSFilterObj.nsFilter.key = labelKey
 	globalNSFilterObj.nsFilter.value = labelVal
-	globalNSFilterObj.validNSList.nsList = make(map[string]bool)
+	globalNSFilterObj.validNSList.nsList = make(map[string]struct{})
 }
 
 //Get namespace label filter key and value
@@ -366,7 +382,7 @@ func GetNSFilter(obj *K8ValidNamespaces) (string, string) {
 func AddNamespaceToFilter(namespace string) {
 	globalNSFilterObj.validNSList.lock.Lock()
 	defer globalNSFilterObj.validNSList.lock.Unlock()
-	globalNSFilterObj.validNSList.nsList[namespace] = true
+	globalNSFilterObj.validNSList.nsList[namespace] = struct{}{}
 }
 
 func DeleteNamespaceFromFilter(namespace string) {
@@ -517,5 +533,13 @@ func ContainsDuplicate(arr interface{}) bool {
 		}
 	}
 
+	return false
+}
+
+func IsMultiClusterIngressEnabled() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv(MCI_ENABLED)); ok {
+		return true
+	}
+	AviLog.Debugf("Multi-cluster ingress is not enabled")
 	return false
 }

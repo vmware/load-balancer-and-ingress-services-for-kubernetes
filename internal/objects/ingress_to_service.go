@@ -69,6 +69,8 @@ type SvcLister struct {
 	secretHostNameStore *ObjectStore
 	ingClassStore       *ObjectStore
 	classIngStore       *ObjectStore
+	svcSIStore          *ObjectStore
+	SISvcStore          *ObjectStore
 }
 
 type SvcNSCache struct {
@@ -82,6 +84,7 @@ type SvcNSCache struct {
 	IngHostCache
 	SecretHostNameNSCache
 	IngClassNSCache
+	mciNSCache
 }
 
 // stores path/policies for a hostname
@@ -330,7 +333,7 @@ func (v *IngHostCache) GetRouteIngToHost(ingName string) (bool, map[string]*Rout
 }
 
 func (v *IngHostCache) UpdateRouteIngToHostMapping(ingName string, hostMap map[string]*RouteIngrhost) {
-	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, hosts: %s", ingName, hostMap)
+	utils.AviLog.Debugf("Updated the ingress mappings with ingress: %s, hosts: %v", ingName, utils.Stringify(hostMap))
 	v.ingHostObjects.AddOrUpdate(ingName, hostMap)
 }
 

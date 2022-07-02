@@ -10,6 +10,10 @@ This field is used to set a frequency of consitency checks in AKO. Typically inc
 of band w.r.t AKO. For example, a pool is deleted by the user from the UI of the Avi Controller. The full sync frequency is used
 to ensure that the models are re-conciled and the corresponding Avi objects are restored to the original state.
 
+### AKOSettings.enableEvents *(editable)*
+
+This flag provides the ability to enable/disable Event broadcasting from AKO. The value specified here gets populated in the ConfigMap and can be edited at any time while AKO is running. AKO picks up the change in the param value and enables/disables Event broadcasting in the cluster at runtime, so AKO pod restart is not required.
+
 ### AKOSettings.logLevel *(editable)*
 
 This flag defines the logLevel for logging and can be set to one of `DEBUG`, `INFO`, `WARN`, `ERROR` (case sensitive).
@@ -183,15 +187,9 @@ IP address/FQDN. For example, if the controller is hosted on 8443, then controll
 This field is used to specify the name of the IaaS cloud in Avi controller. For example, if you have the VCenter cloud named as "Demo"
 then specify the `name` of the cloud name with this field. This helps AKO determine the IaaS cloud to create the service engines on.
 
-### ControllerSettings.tenantsPerCluster
-
-If this field is set to `true`, AKO will map each Kubernetes / OpenShift cluster uniquely to a tenant in AVI.
-If enabled, then tenant should be created in AVI to map to a cluster and needs to be specified in `ControllerSettings.tenantName` field.
-
 ### ControllerSettings.tenantName
 
-The `tenantName` field  is used to specify the name of the tenant where all the AKO objects will be created in AVI. This field is only required if `tenantsPerCluster` is set to `true`.
-The tenant in AVI needs to be created by the AVI controller admin before the AKO bootup.
+The `tenantName` field  is used to specify the name of the tenant where all the AKO objects will be created in AVI. The tenant in AVI needs to be created by the AVI controller admin before the AKO bootup.
 
 ### ControllerSettings.cloudName
 

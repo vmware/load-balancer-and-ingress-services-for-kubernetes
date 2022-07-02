@@ -131,10 +131,24 @@ func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 		return false
 	}
 
+	if newIngress.GetDeletionTimestamp() != nil {
+		return true
+	}
+
 	oldSpecHash := utils.Hash(utils.Stringify(oldIngress.Spec))
-	oldAnnotationHash := utils.Hash(utils.Stringify(oldIngress.Annotations))
 	newSpecHash := utils.Hash(utils.Stringify(newIngress.Spec))
-	newAnnotationHash := utils.Hash(utils.Stringify(newIngress.Annotations))
+
+	// Check for annotation change apart from the ones AKO fills in
+	// after status update
+	oldAnnotation := oldIngress.DeepCopy().Annotations
+	delete(oldAnnotation, lib.VSAnnotation)
+	delete(oldAnnotation, lib.ControllerAnnotation)
+	newAnnotation := newIngress.DeepCopy().Annotations
+	delete(newAnnotation, lib.VSAnnotation)
+	delete(newAnnotation, lib.ControllerAnnotation)
+
+	oldAnnotationHash := utils.Hash(utils.Stringify(oldAnnotation))
+	newAnnotationHash := utils.Hash(utils.Stringify(newAnnotation))
 
 	if oldSpecHash != newSpecHash || oldAnnotationHash != newAnnotationHash {
 		return true
@@ -227,6 +241,34 @@ func AddGatewaysFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 	}
 }
 
+func AddMultiClusterIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
+	mciObjs, err := utils.GetInformers().MultiClusterIngressInformer.Lister().MultiClusterIngresses(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Error occurred while retrieving multi-cluster ingress for namespace: %s", namespace)
+		return
+	}
+	for _, mciObj := range mciObjs {
+		key := lib.MultiClusterIngress + "/" + utils.ObjKey(mciObj)
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+	}
+}
+
+func AddServiceImportsFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
+	siObjs, err := utils.GetInformers().ServiceImportInformer.Lister().ServiceImports(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Error occurred while retrieving service import for namespace: %s", namespace)
+		return
+	}
+	for _, siObj := range siObjs {
+		key := lib.MultiClusterIngress + "/" + utils.ObjKey(siObj)
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+	}
+}
+
 /*
  * Namespace Add event: will be called during each boot or newNS added. In add event
  * handler, just add valid namespaces as Ingress handling, present in namespace, will be done
@@ -283,6 +325,14 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 						utils.AviLog.Debugf("Adding routes for namespaces: %s", nsCur.GetName())
 						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 					}
+					if utils.GetInformers().MultiClusterIngressInformer != nil {
+						utils.AviLog.Debugf("Adding multi-cluster ingresses for namespaces: %s", nsCur.GetName())
+						AddMultiClusterIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
+					if utils.GetInformers().ServiceImportInformer != nil {
+						utils.AviLog.Debugf("Adding service imports for namespaces: %s", nsCur.GetName())
+						AddServiceImportsFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
 					if utils.GetInformers().ServiceInformer != nil {
 						utils.AviLog.Debugf("Adding L4 services for namespaces: %s", nsCur.GetName())
 						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
@@ -302,6 +352,14 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 						utils.AviLog.Debugf("Deleting routes for namespaces: %s", nsCur.GetName())
 						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
 					}
+					if utils.GetInformers().MultiClusterIngressInformer != nil {
+						utils.AviLog.Debugf("Deleting multi-cluster ingress for namespaces: %s", nsCur.GetName())
+						AddMultiClusterIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					}
+					if utils.GetInformers().ServiceImportInformer != nil {
+						utils.AviLog.Debugf("Deleting service imports for namespaces: %s", nsCur.GetName())
+						AddServiceImportsFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
+					}
 					if utils.GetInformers().ServiceInformer != nil {
 						utils.AviLog.Debugf("Deleting L4 services for namespaces: %s", nsCur.GetName())
 						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
@@ -311,9 +369,7 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 						AddGatewaysFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
 					}
 				}
-
 			}
-
 		},
 	}
 	return namespaceEventHandler
@@ -533,12 +589,17 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				if lib.GetAdvancedL4() {
 					checkSvcForGatewayPortConflict(svc, key)
 				}
-				if lib.UseServicesAPI() {
-					checkSvcForSvcApiGatewayPortConflict(svc, key)
+				if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+					// mark the object type as ShareVipSvc
+					// to separate these out from regulare clusterip, svclb services
+					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
 				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
+				}
+				if lib.UseServicesAPI() {
+					checkSvcForSvcApiGatewayPortConflict(svc, key)
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
 			}
@@ -578,6 +639,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
+				if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+					// mark the object type as ShareVipSvc
+					// to separate these out from regulare clusterip, svclb services
+					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
+				}
 			} else {
 				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
@@ -609,19 +675,38 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					if lib.GetAdvancedL4() {
 						checkSvcForGatewayPortConflict(svc, key)
 					}
-					if lib.UseServicesAPI() {
-						checkSvcForSvcApiGatewayPortConflict(svc, key)
+					if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+						key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 					}
 				} else {
 					if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
+					if lib.UseServicesAPI() {
+						checkSvcForSvcApiGatewayPortConflict(svc, key)
+					}
 					key = utils.Service + "/" + utils.ObjKey(svc)
 				}
 
 				bkt := utils.Bkt(namespace, numWorkers)
+				var oldKey string
+				if isSvcLb &&
+					!lib.GetLayer7Only() &&
+					oldobj.Annotations[lib.SharedVipSvcLBAnnotation] != svc.Annotations[lib.SharedVipSvcLBAnnotation] {
+					if oldobj.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+						// Handles annotation -> no-annotation transition, old pool needs to be deleted.
+						oldKey = lib.SharedVipServiceKey + "/" + utils.ObjKey(oldobj)
+					} else {
+						// Handles no-annotation -> annotation transition too, old L4 VS is deleted.
+						oldKey = utils.L4LBService + "/" + utils.ObjKey(oldobj)
+					}
+				}
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				if oldKey != "" && key != oldKey {
+					c.workqueue[bkt].AddRateLimited(oldKey)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", oldKey)
+				}
 			}
 		},
 	}
@@ -852,6 +937,13 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			node := obj.(*corev1.Node)
 			key := utils.NodeObj + "/" + node.Name
+			if lib.IsNodePortMode() {
+				if !lib.IsValidLabelOnNode(node.GetLabels(), key) {
+					utils.AviLog.Debugf("key: %s, msg: no valid labels on a node", key)
+					return
+				}
+			}
+
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == node.ResourceVersion {
@@ -879,6 +971,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 			}
 			key := utils.NodeObj + "/" + node.Name
+			if lib.IsNodePortMode() {
+				if !lib.IsValidLabelOnNode(node.GetLabels(), key) {
+					utils.AviLog.Debugf("key: %s, msg: no valid labels on a node", key)
+					return
+				}
+			}
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -891,6 +989,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			oldobj := old.(*corev1.Node)
 			node := cur.(*corev1.Node)
 			key := utils.NodeObj + "/" + node.Name
+			if lib.IsNodePortMode() {
+				if !lib.IsValidLabelOnNode(node.GetLabels(), key) && !lib.IsValidLabelOnNode(oldobj.GetLabels(), key) {
+					utils.AviLog.Debugf("key: %s, msg: no valid labels on a node", key)
+					return
+				}
+			}
 			if isNodeUpdated(oldobj, node) {
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -971,6 +1075,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	if lib.GetDisableStaticRoute() && !lib.IsNodePortMode() {
 		utils.AviLog.Infof("Static route sync disabled, skipping node informers")
 	} else {
+		//For all AKO, node event handler can be enabled.
 		c.informers.NodeInformer.Informer().AddEventHandler(nodeEventHandler)
 	}
 
@@ -984,6 +1089,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	if lib.IsIstioEnabled() {
 		c.SetupIstioCRDEventHandlers(numWorkers)
+	}
+
+	// Add MultiClusterIngress and ServiceImport CRD event handlers
+	if utils.IsMultiClusterIngressEnabled() {
+		c.SetupMultiClusterIngressEventHandlers(numWorkers)
+		c.SetupServiceImportEventHandlers(numWorkers)
 	}
 
 	//Add namespace event handler if migration is enabled and informer not nil
@@ -1107,6 +1218,13 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().HasSynced)
 			go lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().HasSynced)
+		}
+
+		if utils.IsMultiClusterIngressEnabled() {
+			go c.informers.MultiClusterIngressInformer.Informer().Run(stopCh)
+			informersList = append(informersList, c.informers.MultiClusterIngressInformer.Informer().HasSynced)
+			go c.informers.ServiceImportInformer.Informer().Run(stopCh)
+			informersList = append(informersList, c.informers.ServiceImportInformer.Informer().HasSynced)
 		}
 	}
 

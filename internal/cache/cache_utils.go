@@ -57,6 +57,7 @@ type AviDSCache struct {
 type AviCloudPropertyCache struct {
 	Name      string
 	VType     string
+	IPAMType  string
 	NSIpamDNS []string
 }
 
