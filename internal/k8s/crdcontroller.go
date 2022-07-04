@@ -69,19 +69,26 @@ func NewIstioCRDInformers(cs istiocrd.Interface) {
 	})
 }
 
+func isHostRuleUpdated(oldHostRule, newHostRule *akov1alpha1.HostRule) bool {
+	if oldHostRule.ResourceVersion == newHostRule.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldHostRule.Spec) + oldHostRule.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newHostRule.Spec) + newHostRule.Status.Status)
+
+	return oldSpecHash != newSpecHash
+}
+
 func isHTTPRuleUpdated(oldHTTPRule, newHTTPRule *akov1alpha1.HTTPRule) bool {
 	if oldHTTPRule.ResourceVersion == newHTTPRule.ResourceVersion {
 		return false
 	}
 
-	oldSpecHash := utils.Hash(utils.Stringify(oldHTTPRule.Spec))
-	newSpecHash := utils.Hash(utils.Stringify(newHTTPRule.Spec))
+	oldSpecHash := utils.Hash(utils.Stringify(oldHTTPRule.Spec) + oldHTTPRule.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newHTTPRule.Spec) + newHTTPRule.Status.Status)
 
-	if oldSpecHash != newSpecHash {
-		return true
-	}
-
-	return false
+	return oldSpecHash != newSpecHash
 }
 
 func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1alpha1.AviInfraSetting) bool {
@@ -89,14 +96,10 @@ func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1alpha1.AviInfraSetting) bo
 		return false
 	}
 
-	oldSpecHash := utils.Hash(utils.Stringify(oldAviInfra.Spec))
-	newSpecHash := utils.Hash(utils.Stringify(newAviInfra.Spec))
+	oldSpecHash := utils.Hash(utils.Stringify(oldAviInfra.Spec) + oldAviInfra.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newAviInfra.Spec) + newAviInfra.Status.Status)
 
-	if oldSpecHash != newSpecHash {
-		return true
-	}
-
-	return false
+	return oldSpecHash != newSpecHash
 }
 
 // SetupAKOCRDEventHandlers handles setting up of AKO CRD event handlers
@@ -130,7 +133,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				}
 				oldObj := old.(*akov1alpha1.HostRule)
 				hostrule := new.(*akov1alpha1.HostRule)
-				if !reflect.DeepEqual(oldObj.Spec, hostrule.Spec) {
+				if isHostRuleUpdated(oldObj, hostrule) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 					key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 					if err := validateHostRuleObj(key, hostrule); err != nil {

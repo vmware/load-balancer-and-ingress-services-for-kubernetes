@@ -78,6 +78,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	aliases := []string{"alias1.com", "alias2.com"}
 	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Exact
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "2"
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -102,6 +103,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	// Append one more alias and check whether it is getting added to parent and child VS.
 	aliases = append(aliases, "alias3.com")
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "3"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -126,6 +128,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	// Remove one alias from hostrule and check whether its reference is removed properly.
 	aliases = aliases[1:]
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "4"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
