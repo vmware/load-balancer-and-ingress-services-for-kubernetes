@@ -25,6 +25,7 @@ import (
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	"google.golang.org/protobuf/proto"
+	v1 "k8s.io/api/core/v1"
 	utilsnet "k8s.io/utils/net"
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
@@ -431,6 +432,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, sharedVipKey)
 	var portProtocols []AviPortHostProtocol
 	var sharedPreferredVIP string
+	var serviceObject *v1.Service
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
@@ -441,6 +443,9 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 
 		if i == 0 {
 			sharedPreferredVIP = svcObj.Spec.LoadBalancerIP
+			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
+				serviceObject = svcObj.DeepCopy()
+			}
 		}
 
 		for _, listener := range svcObj.Spec.Ports {
@@ -483,13 +488,11 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	}
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
-	// if infraSetting, err := getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName); err == nil {
-	// 	buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
-	// }
-
-	// if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == svcapiv1alpha1.IPAddressType {
-	// 	vsVipNode.IPAddress = gw.Spec.Addresses[0].Value
-	// }
+	if serviceObject != nil {
+		if infraSetting, err := getL4InfraSetting(key, serviceObject, nil); err == nil {
+			buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+		}
+	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 
@@ -505,28 +508,23 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 	}
 
 	var l4Policies []*AviL4PolicyNode
-	// var infraSetting *v1alpha1.AviInfraSetting
-	// if lib.UseServicesAPI() {
-	// 	gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-	// 	if err != nil {
-	// 		utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for services APIs : %s", err)
-	// 		return
-	// 	}
-	// 	// configures VS and VsVip nodes using infraSetting object (via CRD).
-	// 	infraSetting, err = getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName)
-	// 	if err != nil {
-	// 		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
-	// 		return
-	// 	}
-	// }
+	var infraSetting *v1alpha1.AviInfraSetting
 
 	var portPoolSet []AviHostPathPortPoolPG
-	for _, serviceNSName := range serviceNSNames {
+	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
 			return
+		}
+
+		if i == 0 {
+			infraSetting, err = getL4InfraSetting(key, svcObj, nil)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+				return
+			}
 		}
 
 		for _, listener := range svcObj.Spec.Ports {
@@ -568,7 +566,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 			}
 			portPoolSet = append(portPoolSet, portPool)
 
-			// buildPoolWithInfraSetting(key, poolNode, infraSetting)
+			buildPoolWithInfraSetting(key, poolNode, infraSetting)
 
 			vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 			utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
