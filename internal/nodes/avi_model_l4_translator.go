@@ -453,10 +453,6 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 		lib.CorrectLabelToSatisfyRFC1035(&svcNamespace, lib.FQDN_SVCNAMESPACE_PREFIX)
 	}
 
-	if !lib.CheckRFC1035(subdomain) {
-		lib.CorrectLabelToSatisfyRFC1035(&subdomain, lib.FQDN_SUBDOMAIN_PREFIX)
-	}
-
 	if lib.GetL4FqdnFormat() == lib.AutoFQDNDefault {
 		// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
 		fqdn = svcName + "." + svcNamespace + "." + subdomain
