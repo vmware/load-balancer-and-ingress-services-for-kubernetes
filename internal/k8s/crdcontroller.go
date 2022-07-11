@@ -101,7 +101,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 				if err := validateHostRuleObj(key, hostrule); err != nil {
-					utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -117,7 +117,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 					key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 					if err := validateHostRuleObj(key, hostrule); err != nil {
-						utils.AviLog.Warnf("Error retrieved during validation of HostRule: %v", err)
+						utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 					bkt := utils.Bkt(namespace, numWorkers)
@@ -163,7 +163,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 				if err := validateHTTPRuleObj(key, httprule); err != nil {
-					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -181,7 +181,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 					key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 					if err := validateHTTPRuleObj(key, httprule); err != nil {
-						utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+						utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 					bkt := utils.Bkt(namespace, numWorkers)
@@ -228,7 +228,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
 				if err := validateAviInfraSetting(key, aviinfra); err != nil {
-					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -244,7 +244,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
 					key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
 					if err := validateAviInfraSetting(key, aviInfra); err != nil {
-						utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+						utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 					bkt := utils.Bkt(namespace, numWorkers)
