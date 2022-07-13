@@ -639,6 +639,7 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 		LogAllHeaders: &enabled,
 	}
 	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = analyticsPolicy
+	hrUpdate.ResourceVersion = "2"
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -666,6 +667,7 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 
 	// Remove the analyticPolicy and check whether values are removed from VS
 	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = nil
+	hrUpdate.ResourceVersion = "3"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -737,6 +739,7 @@ func TestHostruleFQDNAliases(t *testing.T) {
 	aliases := []string{"alias1.com", "alias2.com"}
 	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Exact
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "2"
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -761,6 +764,7 @@ func TestHostruleFQDNAliases(t *testing.T) {
 	// Append one more alias and check whether it is getting added to parent and child VS.
 	aliases = append(aliases, "alias3.com")
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "3"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -785,6 +789,7 @@ func TestHostruleFQDNAliases(t *testing.T) {
 	// Remove one alias from hostrule and check whether its reference is removed properly.
 	aliases = aliases[1:]
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "4"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -851,6 +856,7 @@ func TestValidationsOfHostruleFQDNAliases(t *testing.T) {
 	aliases := []string{"alias1.com", "alias1.com"}
 	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Exact
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "2"
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -863,6 +869,7 @@ func TestValidationsOfHostruleFQDNAliases(t *testing.T) {
 	// Update host rule with aliases that contains FQDN
 	aliases = []string{"foo.com", "alias1.com"}
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "3"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -875,6 +882,7 @@ func TestValidationsOfHostruleFQDNAliases(t *testing.T) {
 	// Update host rule with aliases that contains GSLB FQDN
 	aliases = []string{"bar.com", "alias1.com"}
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "4"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -888,6 +896,7 @@ func TestValidationsOfHostruleFQDNAliases(t *testing.T) {
 	aliases = []string{"bar.com", "alias1.com"}
 	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Contains
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "5"
 	_, err = CRDClient.AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
@@ -961,6 +970,7 @@ func TestHostruleFQDNAliasesForMultiPathIngress(t *testing.T) {
 	aliases := []string{"alias1.foo.com", "alias2.foo.com"}
 	hrUpdate.Spec.VirtualHost.FqdnType = v1alpha1.Exact
 	hrUpdate.Spec.VirtualHost.Aliases = aliases
+	hrUpdate.ResourceVersion = "2"
 	_, err := CRDClient.AkoV1alpha1().HostRules("default").Create(context.TODO(), hrUpdate, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
